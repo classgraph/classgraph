@@ -200,7 +200,15 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     *
+     * 
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos, final Throwable e) {
@@ -209,7 +217,13 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     *
+     * 
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos) {
@@ -218,7 +232,13 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     *
+     * 
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final Throwable e) {
@@ -227,7 +247,11 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     *
+     * 
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg) {
@@ -236,7 +260,13 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     *
+     * 
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final long elapsedTimeNanos, final Throwable e) {
@@ -246,6 +276,10 @@ public class LogNode {
     /**
      * Add a log entry.
      *
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final long elapsedTimeNanos) {
@@ -254,7 +288,11 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     *
+     * 
+     * @param msg
+     *            The message.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final Throwable e) {
@@ -263,7 +301,9 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     *
+     * 
+     * @param msg
+     *            The message.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg) {
@@ -272,7 +312,9 @@ public class LogNode {
 
     /**
      * Add a series of log entries. Returns the last LogNode created.
-     *
+     * 
+     * @param msgs
+     *            The messages.
      * @return the last log node created, which can be used to add sub-entries.
      */
     public LogNode log(final List<String> msgs) {
@@ -285,7 +327,9 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     *
+     * 
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final Throwable e) {

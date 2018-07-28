@@ -74,7 +74,7 @@ public abstract class InputStreamOrByteBufferAdapter {
     }
 
     /** Read another chunk of from the InputStream or ByteBuffer. */
-    private void readMore(final int bytesRequired) throws IOException, InterruptedException {
+    private void readMore(final int bytesRequired) throws IOException {
         final int extraBytesNeeded = bytesRequired - (used - curr);
         int bytesToRequest = extraBytesNeeded + SUBSEQUENT_BUFFER_CHUNK_SIZE;
         final int maxNewUsed = used + bytesToRequest;
@@ -93,9 +93,6 @@ public abstract class InputStreamOrByteBufferAdapter {
         int extraBytesStillNotRead = extraBytesNeeded;
         while (extraBytesStillNotRead > 0) {
             final int bytesRead = read(buf, used, bytesToRequest);
-            if (Thread.currentThread().isInterrupted()) {
-                throw new InterruptedException();
-            }
             if (bytesRead > 0) {
                 used += bytesRead;
                 bytesToRequest -= bytesRead;
@@ -111,21 +108,42 @@ public abstract class InputStreamOrByteBufferAdapter {
         }
     }
 
-    /** Read an unsigned byte from the buffer. */
-    public int readUnsignedByte() throws IOException, InterruptedException {
+    /**
+     * Read an unsigned byte from the buffer.
+     * 
+     * @return The next unsigned byte in the buffer.
+     * @throws IOException
+     *             If there was an exception while reading.
+     */
+    public int readUnsignedByte() throws IOException {
         if (curr > used - 1) {
             readMore(1);
         }
         return buf[curr++] & 0xff;
     }
 
-    /** Read an unsigned byte from the buffer at a specific offset before the current read point. */
+    /**
+     * Read an unsigned byte from the buffer at a specific absolute offset before the current read point.
+     * 
+     * @param offset
+     *            The buffer offset to read from.
+     * @return The unsigned byte at the buffer offset.
+     */
     public int readUnsignedByte(final int offset) {
+        final int bytesToRead = Math.max(0, offset + 1 - used);
+        if (bytesToRead > 0) {
+            throw new IllegalArgumentException(
+                    "Can only read from absolute offsets before the current location in the file");
+        }
         return buf[offset] & 0xff;
     }
 
-    /** Read an unsigned short from the buffer. */
-    public int readUnsignedShort() throws IOException, InterruptedException {
+    /**
+     * @return The next unsigned short in the buffer.
+     * @throws IOException
+     *             If there was an exception while reading.
+     */
+    public int readUnsignedShort() throws IOException {
         if (curr > used - 2) {
             readMore(2);
         }
@@ -134,13 +152,28 @@ public abstract class InputStreamOrByteBufferAdapter {
         return val;
     }
 
-    /** Read an unsigned short from the buffer at a specific offset before the current read point. */
+    /**
+     * Read an unsigned short from the buffer at a specific absolute offset before the current read point.
+     * 
+     * @param offset
+     *            The buffer offset to read from.
+     * @return The unsigned short at the buffer offset.
+     */
     public int readUnsignedShort(final int offset) {
+        final int bytesToRead = Math.max(0, offset + 1 - used);
+        if (bytesToRead > 0) {
+            throw new IllegalArgumentException(
+                    "Can only read from absolute offsets before the current location in the file");
+        }
         return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
     }
 
-    /** Read an int from the buffer. */
-    public int readInt() throws IOException, InterruptedException {
+    /**
+     * @return The next int in the buffer.
+     * @throws IOException
+     *             If there was an exception while reading.
+     */
+    public int readInt() throws IOException {
         if (curr > used - 4) {
             readMore(4);
         }
@@ -150,14 +183,29 @@ public abstract class InputStreamOrByteBufferAdapter {
         return val;
     }
 
-    /** Read an int from the buffer at a specific offset before the current read point. */
-    public int readInt(final int offset) throws IOException {
+    /**
+     * Read an int from the buffer at a specific absolute offset before the current read point.
+     * 
+     * @param offset
+     *            The buffer offset to read from.
+     * @return The int at the buffer offset.
+     */
+    public int readInt(final int offset) {
+        final int bytesToRead = Math.max(0, offset + 4 - used);
+        if (bytesToRead > 0) {
+            throw new IllegalArgumentException(
+                    "Can only read from absolute offsets before the current location in the file");
+        }
         return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
                 | (buf[offset + 3] & 0xff);
     }
 
-    /** Read a long from the buffer. */
-    public long readLong() throws IOException, InterruptedException {
+    /**
+     * @return The next long in the buffer.
+     * @throws IOException
+     *             If there was an exception while reading.
+     */
+    public long readLong() throws IOException {
         if (curr > used - 8) {
             readMore(8);
         }
@@ -168,16 +216,34 @@ public abstract class InputStreamOrByteBufferAdapter {
         return val;
     }
 
-    /** Read a long from the buffer at a specific offset before the current read point. */
-    public long readLong(final int offset) throws IOException {
+    /**
+     * Read a long from the buffer at a specific offset before the current read point.
+     * 
+     * @param offset
+     *            The buffer offset to read from.
+     * @return The long at the buffer offset.
+     */
+    public long readLong(final int offset) {
+        final int bytesToRead = Math.max(0, offset + 8 - used);
+        if (bytesToRead > 0) {
+            throw new IllegalArgumentException(
+                    "Can only read from absolute offsets before the current location in the file");
+        }
         return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
                 | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
                 | ((buf[offset + 4] & 0xff) << 24) | ((buf[offset + 5] & 0xff) << 16)
                 | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff);
     }
 
-    /** Skip the given number of bytes in the input stream. */
-    public void skip(final int bytesToSkip) throws IOException, InterruptedException {
+    /**
+     * Skip the given number of bytes in the input stream.
+     * 
+     * @param bytesToSkip
+     *            The number of bytes to skip.
+     * @throws IOException
+     *             If there was an exception while reading.
+     */
+    public void skip(final int bytesToSkip) throws IOException {
         if (curr > used - bytesToSkip) {
             readMore(bytesToSkip);
         }
@@ -187,6 +253,14 @@ public abstract class InputStreamOrByteBufferAdapter {
     /**
      * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
      * optionally removing the prefix "L" and the suffix ";".
+     * 
+     * @param strStart
+     *            The start index of the string.
+     * @param replaceSlashWithDot
+     *            If true, replace '/' with '.'.
+     * @param stripLSemicolon
+     *            If true, string final ';' character.
+     * @return The string.
      */
     public String readString(final int strStart, final boolean replaceSlashWithDot, final boolean stripLSemicolon) {
         final int utfLen = readUnsignedShort(strStart);
@@ -261,13 +335,25 @@ public abstract class InputStreamOrByteBufferAdapter {
         }
     }
 
+    /**
+     * Copy up to len bytes into the byte array, starting at the given offset.
+     * 
+     * @param array
+     *            The array to copy into
+     * @param off
+     *            The start index for the copy.
+     * @param len
+     *            The maximum number of bytes to copy.
+     * @return The number of bytes actually copied.
+     * @throws IOException
+     *             If the file content could not be read.
+     */
     public abstract int read(byte[] array, int off, int len) throws IOException;
 
     private static class InputStreamAdapter extends InputStreamOrByteBufferAdapter {
         private final InputStream inputStream;
 
-        public InputStreamAdapter(final InputStream inputStream) throws IOException {
-            super();
+        public InputStreamAdapter(final InputStream inputStream) {
             this.inputStream = inputStream;
         }
 
@@ -280,8 +366,7 @@ public abstract class InputStreamOrByteBufferAdapter {
     private static class ByteBufferAdapter extends InputStreamOrByteBufferAdapter {
         private final ByteBuffer byteBuffer;
 
-        public ByteBufferAdapter(final ByteBuffer byteBuffer) throws IOException {
-            super();
+        public ByteBufferAdapter(final ByteBuffer byteBuffer) {
             this.byteBuffer = byteBuffer;
         }
 
@@ -306,13 +391,25 @@ public abstract class InputStreamOrByteBufferAdapter {
         }
     }
 
-    /** Create a new InputStream adapter. */
-    public static InputStreamOrByteBufferAdapter create(final InputStream inputStream) throws IOException {
+    /**
+     * Create a new InputStream adapter.
+     * 
+     * @param inputStream
+     *            The {@link InputStream} to use.
+     * @return The {@link InputStreamOrByteBufferAdapter}.
+     */
+    public static InputStreamOrByteBufferAdapter create(final InputStream inputStream) {
         return new InputStreamAdapter(inputStream);
     }
 
-    /** Create a new ByteBuffer adapter. */
-    public static InputStreamOrByteBufferAdapter create(final ByteBuffer byteBuffer) throws IOException {
+    /**
+     * Create a new ByteBuffer adapter.
+     * 
+     * @param byteBuffer
+     *            The {@link ByteBuffer} to use.
+     * @return The {@link InputStreamOrByteBufferAdapter}.
+     */
+    public static InputStreamOrByteBufferAdapter create(final ByteBuffer byteBuffer) {
         return new ByteBufferAdapter(byteBuffer);
     }
 }

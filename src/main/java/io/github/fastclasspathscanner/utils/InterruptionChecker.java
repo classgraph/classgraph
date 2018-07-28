@@ -48,8 +48,8 @@ public class InterruptionChecker {
     }
 
     /**
-     * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted
-     * or has thrown an exception, and if so, return true, else return false.
+     * @return true if this thread or any other thread that shares this InterruptionChecker instance has been
+     *         interrupted or has thrown an exception.
      */
     public boolean checkAndReturn() {
         final long time = System.nanoTime();
@@ -67,6 +67,13 @@ public class InterruptionChecker {
     /**
      * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted
      * or has thrown an exception, and if so, throw InterruptedException.
+     * 
+     * @throws InterruptedException
+     *             If this thread or any other thread that shares this InterruptionChecker instance has been
+     *             interrupted.
+     * @throws ExecutionException
+     *             If this thread or any other thread that shares this InterruptionChecker instance has thrown an
+     *             exception.
      */
     public void check() throws InterruptedException, ExecutionException {
         if (checkAndReturn()) {
@@ -80,6 +87,10 @@ public class InterruptionChecker {
 
     /**
      * Stop all threads that share this InterruptionChecker due to an exception being thrown in one of them.
+     * 
+     * @param e
+     *            The exception that was thrown.
+     * @return A new {@link ExecutionException}.
      */
     public ExecutionException executionException(final Exception e) {
         final ExecutionException newExecutionException = e instanceof ExecutionException ? (ExecutionException) e

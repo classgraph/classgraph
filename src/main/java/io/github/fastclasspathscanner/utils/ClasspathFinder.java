@@ -317,12 +317,16 @@ public class ClasspathFinder {
         rawClasspathElements = new ArrayList<>(classpathOrder.get());
     }
 
-    /** Get the raw classpath elements obtained from ClassLoaders. */
+    /**
+     * @return The raw classpath elements obtained from ClassLoaders.
+     */
     public List<ClasspathOrModulePathEntry> getRawClasspathElements() {
         return rawClasspathElements;
     }
 
-    /** Get the classloader and module finder. */
+    /**
+     * @return The {@link ClassLoaderAndModuleFinder}.
+     */
     public ClassLoaderAndModuleFinder getClassLoaderAndModuleFinder() {
         return classLoaderAndModuleFinder;
     }

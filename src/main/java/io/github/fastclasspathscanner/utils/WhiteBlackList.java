@@ -258,25 +258,53 @@ public abstract class WhiteBlackList {
         }
     }
 
-    /** Add to the whitelist. */
+    /**
+     * @param str
+     *            The string to whitelist.
+     */
     public abstract void addToWhitelist(final String str);
 
-    /** Add to the blacklist. */
+    /**
+     * @param str
+     *            The string to blacklist.
+     */
     public abstract void addToBlacklist(final String str);
 
-    /** Check if the requested string is whitelisted and not blacklisted. */
+    /**
+     * @param str
+     *            The string to test.
+     * @return true if the string is whitelisted and not blacklisted.
+     */
     public abstract boolean isWhitelistedAndNotBlacklisted(final String str);
 
-    /** Check if the requested string is whitelisted. */
+    /**
+     * @param str
+     *            The string to test.
+     * @return true if the string is whitelisted.
+     */
     public abstract boolean isWhitelisted(final String str);
 
-    /** Check if the requested string is a prefix of a whitelisted string. */
+    /**
+     * @param str
+     *            The string to test.
+     * @return true if the string is a prefix of a whitelisted string.
+     */
     public abstract boolean whitelistHasPrefix(final String str);
 
-    /** Check if the requested string is blacklisted. */
+    /**
+     * @param str
+     *            The string to test.
+     * @return true if the string is blacklisted.
+     */
     public abstract boolean isBlacklisted(final String str);
 
-    /** Remove initial and final '/' characters, if any. */
+    /**
+     * Remove initial and final '/' characters, if any.
+     * 
+     * @param path
+     *            The path to normalize.
+     * @return The normalized path.
+     */
     public static String normalizePath(final String path) {
         String normalized = path;
         while (normalized.startsWith("/")) {
@@ -285,7 +313,13 @@ public abstract class WhiteBlackList {
         return normalized.endsWith("/") ? normalized : normalized + "/";
     }
 
-    /** Remove initial and final '.' characters, if any. */
+    /**
+     * Remove initial and final '.' characters, if any.
+     * 
+     * @param packageOrClassName
+     *            The package or class name.
+     * @return The normalized package or class name.
+     */
     public static String normalizePackageOrClassName(final String packageOrClassName) {
         String normalized = packageOrClassName;
         while (normalized.startsWith(".")) {
@@ -297,17 +331,35 @@ public abstract class WhiteBlackList {
         return normalized;
     }
 
-    /** Convert a path to a package name. */
+    /**
+     * Convert a path to a package name.
+     * 
+     * @param path
+     *            The path.
+     * @return The package name.
+     */
     public static String pathToPackageName(final String path) {
         return normalizePath(path).replace('/', '.');
     }
 
-    /** Convert a package name to a path. */
+    /**
+     * Convert a package name to a path.
+     * 
+     * @param packageName
+     *            The package name.
+     * @return The path.
+     */
     public static String packageNameToPath(final String packageName) {
         return normalizePackageOrClassName(packageName).replace('.', '/') + "/";
     }
 
-    /** Convert a class name to a classfile path. */
+    /**
+     * Convert a class name to a classfile path.
+     * 
+     * @param className
+     *            The class name.
+     * @return The classfile path (including a ".class" suffix).
+     */
     public static String classNameToClassfilePath(final String className) {
         return normalizePackageOrClassName(className).replace('.', '/') + ".class";
     }
@@ -315,6 +367,10 @@ public abstract class WhiteBlackList {
     /**
      * Convert a spec with a '*' glob character into a regular expression. Replaces "." with "\." and "*" with ".*",
      * then compiles a regular expression.
+     * 
+     * @param glob
+     *            The glob string.
+     * @return The Pattern created from the glob string.
      */
     public static Pattern globToPattern(final String glob) {
         return Pattern.compile("^" + glob.replace(".", "\\.").replace("*", ".*") + "$");
@@ -331,22 +387,28 @@ public abstract class WhiteBlackList {
         return false;
     }
 
-    /** Returns true if there were no whitelist criteria added. */
+    /**
+     * @return true if there were no whitelist criteria added.
+     */
     public boolean whitelistIsEmpty() {
         return whitelist == null && whitelistPrefixes == null && whitelistGlobs == null;
     }
 
     /**
-     * Check if the requested string is <i>specifically</i> whitelisted and not blacklisted, i.e. will not return
-     * true if the whitelist is empty.
+     * @param str
+     *            The string to test.
+     * @return true if the requested string is <i>specifically</i> whitelisted and not blacklisted, i.e. will not
+     *         return true if the whitelist is empty, or if the string is blacklisted.
      */
     public boolean isSpecificallyWhitelistedAndNotBlacklisted(final String str) {
         return !whitelistIsEmpty() && isWhitelistedAndNotBlacklisted(str);
     }
 
     /**
-     * Check if the requested string is <i>specifically</i> whitelisted, i.e. will not return true if the whitelist
-     * is empty.
+     * @param str
+     *            The string to test.
+     * @return true if the requested string is <i>specifically</i> whitelisted, i.e. will not return true if the
+     *         whitelist is empty.
      */
     public boolean isSpecificallyWhitelisted(final String str) {
         return !whitelistIsEmpty() && isWhitelisted(str);

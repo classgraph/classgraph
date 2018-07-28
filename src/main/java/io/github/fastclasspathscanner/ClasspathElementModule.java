@@ -40,7 +40,6 @@ import java.util.List;
 
 import io.github.fastclasspathscanner.ScanSpec.ScanSpecPathMatch;
 import io.github.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
-import io.github.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.fastclasspathscanner.utils.FileUtils;
 import io.github.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
 import io.github.fastclasspathscanner.utils.LogNode;

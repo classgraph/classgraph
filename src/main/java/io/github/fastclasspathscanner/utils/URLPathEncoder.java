@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 
+/** A simple URL path encoder. */
 public class URLPathEncoder {
 
     private static boolean[] safe = new boolean[256];
@@ -58,7 +59,13 @@ public class URLPathEncoder {
     private static final char[] hexadecimal = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
             'D', 'E', 'F' };
 
-    /** Encode a URL path using percent-encoding. '/' is not encoded. */
+    /**
+     * Encode a URL path using percent-encoding. '/' is not encoded.
+     * 
+     * @param path
+     *            The path to encode.
+     * @return The encoded path.
+     */
     public static String encodePath(final String path) {
         final StringBuilder encodedPath = new StringBuilder(path.length() * 2);
         final ByteArrayOutputStream utf8bytes = new ByteArrayOutputStream(10);

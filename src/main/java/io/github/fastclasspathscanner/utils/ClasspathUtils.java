@@ -32,6 +32,9 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+/**
+ * Classpath utility functions.
+ */
 public class ClasspathUtils {
     /**
      * Can be used to get the URL of a classpath resource whose classpath element and relative path has been passed
@@ -69,7 +72,11 @@ public class ClasspathUtils {
         }
     }
 
-    /** Return true if a file exists and can be read. */
+    /**
+     * @param file
+     *            A {@File}.
+     * @return true if a file exists and can be read.
+     */
     public static boolean canRead(final File file) {
         try {
             return file.canRead();

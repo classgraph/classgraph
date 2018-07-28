@@ -36,7 +36,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
-/** A map from keys to singleton instances. */
+/**
+ * A map from keys to singleton instances.
+ * 
+ * @param <K>
+ *            The key type.
+ * @param <V>
+ *            The value type.
+ */
 public abstract class SingletonMap<K, V> {
     private final ConcurrentMap<K, SingletonHolder<V>> map = new ConcurrentHashMap<>();
     private final ConcurrentLinkedQueue<SingletonHolder<V>> singletonHolderRecycler = new ConcurrentLinkedQueue<>();
@@ -65,7 +72,12 @@ public abstract class SingletonMap<K, V> {
     /**
      * Initialize a value object for this key and return true, if this is the first time this key has been seen,
      * otherwise return false.
-     *
+     * 
+     * @param key
+     *            The key for the singleton.
+     * @param log
+     *            The log.
+     * @return The singleton instance.
      * @throws Exception
      *             if newInstance(key) throws an exception.
      * @throws IllegalArgumentException
@@ -103,7 +115,12 @@ public abstract class SingletonMap<K, V> {
     /**
      * Check if the given key is in the map, and if so, return it. If not, create a singleton value for that key,
      * and return the created value.
-     *
+     * 
+     * @param key
+     *            The key for the singleton.
+     * @param log
+     *            The log.
+     * @return The singleton instance.
      * @throws Exception
      *             if newInstance(key) throws an exception.
      * @throws IllegalArgumentException
@@ -122,22 +139,42 @@ public abstract class SingletonMap<K, V> {
         }
     }
 
-    /** Construct a new singleton instance. */
+    /**
+     * Construct a new singleton instance.
+     * 
+     * @param key
+     *            The key for the singleton.
+     * @param log
+     *            The log.
+     * @return The singleton instance.
+     * @throws Exception
+     *             If something goes wrong.
+     */
     public abstract V newInstance(K key, LogNode log) throws Exception;
 
     /**
      * Get the singleton for a given key.
-     *
+     * 
+     * @param key
+     *            The key for the singleton.
      * @return the new singleton instance, initialized by calling newInstance, or null if createSingleton() or
      *         getOrCreateSingleton() has not yet been called. Also returns null if newInstance() threw an exception
      *         or returned null while calling either of these methods.
+     * @throws InterruptedException
+     *             If getting the singleton was interrupted.
      */
     public V get(final K key) throws InterruptedException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         return singletonHolder == null ? null : singletonHolder.get();
     }
 
-    /** Get all singletons in the map. */
+    /**
+     * Get all singletons in the map.
+     * 
+     * @return the singleton values in the map.
+     * @throws InterruptedException
+     *             If getting the values was interrupted.
+     */
     public List<V> values() throws InterruptedException {
         final List<V> entries = new ArrayList<>(map.size());
         for (final Entry<K, SingletonHolder<V>> ent : map.entrySet()) {

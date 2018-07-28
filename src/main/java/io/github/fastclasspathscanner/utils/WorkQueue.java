@@ -73,22 +73,59 @@ public class WorkQueue<T> implements AutoCloseable {
     /** The log node. */
     private final LogNode log;
 
-    /** A work unit processor. */
+    /**
+     * A work unit processor.
+     * 
+     * @param <T>
+     *            The type of work unit to process.
+     */
     public interface WorkUnitProcessor<T> {
+        /**
+         * @param workUnit
+         *            The work unit.
+         * @throws Exception
+         *             If something goes wrong while processing the work unit.
+         */
         public void processWorkUnit(T workUnit) throws Exception;
     }
 
     /**
      * A hook that is called once a WorkQueue is created, inside its try-with-resources block, before the workers
      * are started.
+     * 
+     * @param <T>
+     *            The type of work unit to process.
      */
     public interface WorkQueuePreStartHook<T> {
+        /**
+         * @param workQueue
+         *            The work queue.
+         */
         public void processWorkQueueRef(WorkQueue<T> workQueue);
     }
 
     /**
      * Start a work queue on the elements in the provided collection, blocking until all work units have been
      * completed. Calls workQueuePreStartHook with a ref to the work queue before starting the workers.
+     * 
+     * @param elements
+     *            The work queue units to process.
+     * @param executorService
+     *            The {@link ExecutorService}.
+     * @param numParallelTasks
+     *            The number of parallel tasks.
+     * @param workUnitProcessor
+     *            The {@link WorkUnitProcessor}.
+     * @param workQueuePreStartHook
+     *            The {@link WorkQueuePreStartHook}.
+     * @param interruptionChecker
+     *            The {@link InterruptionChecker}.
+     * @param log
+     *            The log.
+     * @throws ExecutionException
+     *             If an exception is thrown while processing a work unit.
+     * @throws InterruptedException
+     *             If the work was interrupted.
      */
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
             final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
@@ -114,6 +151,23 @@ public class WorkQueue<T> implements AutoCloseable {
     /**
      * Start a work queue on the elements in the provided collection, blocking until all work units have been
      * completed.
+     * 
+     * @param elements
+     *            The work queue units to process.
+     * @param executorService
+     *            The {@link ExecutorService}.
+     * @param numParallelTasks
+     *            The number of parallel tasks.
+     * @param workUnitProcessor
+     *            The {@link WorkUnitProcessor}.
+     * @param interruptionChecker
+     *            The {@link InterruptionChecker}.
+     * @param log
+     *            The log.
+     * @throws ExecutionException
+     *             If an exception is thrown while processing a work unit.
+     * @throws InterruptedException
+     *             If the work was interrupted.
      */
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
             final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
@@ -218,6 +272,9 @@ public class WorkQueue<T> implements AutoCloseable {
 
     /**
      * Add multiple units of work. May be called by workers to add more work units to the tail of the queue.
+     * 
+     * @param workUnits
+     *            The work units to add to the tail of the queue.
      */
     public void addWorkUnits(final Collection<T> workUnits) {
         for (final T workUnit : workUnits) {

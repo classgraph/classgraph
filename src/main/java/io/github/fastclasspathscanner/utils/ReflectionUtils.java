@@ -48,10 +48,20 @@ public class ReflectionUtils {
      * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
      * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
      * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
-     * throwException is true, then throws NullPointerException.
+     * throwException is true, then throws IllegalArgumentException.
+     * 
+     * @param obj
+     *            The object.
+     * @param fieldName
+     *            The field name.
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @return The field value.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
      */
     public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException)
-            throws IllegalArgumentException, NullPointerException {
+            throws IllegalArgumentException {
         if (obj != null) {
             for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
                     classOrSuperclass = classOrSuperclass.getSuperclass()) {
@@ -74,7 +84,7 @@ public class ReflectionUtils {
                 throw new IllegalArgumentException("Field \"" + fieldName + "\" doesn't exist");
             }
         } else if (throwException) {
-            throw new NullPointerException("Can't get field value for null object");
+            throw new IllegalArgumentException("Can't get field value for null object");
         }
         return null;
     }
@@ -83,10 +93,20 @@ public class ReflectionUtils {
      * Get the value of the named static field in the given class or any of its superclasses. If an exception is
      * thrown while trying to read the field value, and throwException is true, then IllegalArgumentException is
      * thrown wrapping the cause, otherwise this will return null. If passed a null class reference, returns null
-     * unless throwException is true, then throws NullPointerException.
+     * unless throwException is true, then throws IllegalArgumentException.
+     * 
+     * @param cls
+     *            The class.
+     * @param fieldName
+     *            The field name.
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @return The field value.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
      */
     public static Object getStaticFieldVal(final Class<?> cls, final String fieldName, final boolean throwException)
-            throws IllegalArgumentException, NullPointerException {
+            throws IllegalArgumentException {
         if (cls != null) {
             for (Class<?> classOrSuperclass = cls; classOrSuperclass != null; //
                     classOrSuperclass = classOrSuperclass.getSuperclass()) {
@@ -109,13 +129,15 @@ public class ReflectionUtils {
                 throw new IllegalArgumentException("Field \"" + fieldName + "\" doesn't exist");
             }
         } else if (throwException) {
-            throw new NullPointerException("Can't get field value for null class reference");
+            throw new IllegalArgumentException("Can't get field value for null class reference");
         }
         return null;
     }
 
-    // Iterate through implemented interfaces, top-down, then superclass to subclasses, top-down
-    // (since higher-up superclasses and superinterfaces have the highest chance of being visible)
+    /**
+     * Iterate through implemented interfaces, top-down, then superclass to subclasses, top-down (since higher-up
+     * superclasses and superinterfaces have the highest chance of being visible).
+     */
     private static List<Class<?>> getReverseMethodAttemptOrder(final Class<?> cls) {
         final List<Class<?>> reverseAttemptOrder = new ArrayList<>();
 
@@ -158,10 +180,20 @@ public class ReflectionUtils {
      * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
      * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
      * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
-     * throws NullPointerException.
+     * throws IllegalArgumentException.
+     * 
+     * @param obj
+     *            The object.
+     * @param methodName
+     *            The method name.
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @return The field value.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
      */
     public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException)
-            throws IllegalArgumentException, NullPointerException {
+            throws IllegalArgumentException {
         if (obj != null) {
             final Class<? extends Object> cls = obj.getClass();
 
@@ -199,7 +231,7 @@ public class ReflectionUtils {
                 }
             }
         } else if (throwException) {
-            throw new NullPointerException("Can't invoke method on null object");
+            throw new IllegalArgumentException("Can't invoke method on null object");
         }
         return null;
     }
@@ -208,10 +240,24 @@ public class ReflectionUtils {
      * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
      * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
      * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
-     * throws NullPointerException.
+     * throws IllegalArgumentException.
+     * 
+     * @param obj
+     *            The object.
+     * @param methodName
+     *            The method name.
+     * @param argType
+     *            The type of the parameter.
+     * @param arg
+     *            The argument value.
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @return The result of the method invocation.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public static Object invokeMethod(final Object obj, final String methodName, final Class<?> argType,
-            final Object arg, final boolean throwException) throws IllegalArgumentException, NullPointerException {
+            final Object arg, final boolean throwException) throws IllegalArgumentException {
         if (obj != null) {
             final Class<? extends Object> cls = obj.getClass();
 
@@ -249,7 +295,7 @@ public class ReflectionUtils {
                 }
             }
         } else if (throwException) {
-            throw new NullPointerException("Can't invoke method on null object");
+            throw new IllegalArgumentException("Can't invoke method on null object");
         }
         return null;
     }
@@ -257,10 +303,21 @@ public class ReflectionUtils {
     /**
      * Invoke the named static method. If an exception is thrown while trying to call the method, and throwException
      * is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If
-     * passed a null class reference, returns null unless throwException is true, then throws NullPointerException.
+     * passed a null class reference, returns null unless throwException is true, then throws
+     * IllegalArgumentException.
+     * 
+     * @param cls
+     *            The class.
+     * @param methodName
+     *            The method name.
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @return The result of the method invocation.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName,
-            final boolean throwException) throws IllegalArgumentException, NullPointerException {
+            final boolean throwException) throws IllegalArgumentException {
         if (cls != null) {
             try {
                 final Method method = cls.getDeclaredMethod(methodName);
@@ -275,7 +332,7 @@ public class ReflectionUtils {
                 }
             }
         } else if (throwException) {
-            throw new NullPointerException("Can't invoke static method on null class reference");
+            throw new IllegalArgumentException("Can't invoke static method on null class reference");
         }
         return null;
     }
@@ -283,10 +340,25 @@ public class ReflectionUtils {
     /**
      * Invoke the named static method. If an exception is thrown while trying to call the method, and throwException
      * is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If
-     * passed a null class reference, returns null unless throwException is true, then throws NullPointerException.
+     * passed a null class reference, returns null unless throwException is true, then throws
+     * IllegalArgumentException.
+     * 
+     * @param cls
+     *            The class.
+     * @param methodName
+     *            The method name.
+     * @param argType
+     *            The type of the parameter.
+     * @param arg
+     *            The argument value.
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @return The result of the method invocation.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName, final Class<?> argType,
-            final Object arg, final boolean throwException) throws IllegalArgumentException, NullPointerException {
+            final Object arg, final boolean throwException) throws IllegalArgumentException {
         if (cls != null) {
             try {
                 final Method method = cls.getDeclaredMethod(methodName, argType);
@@ -301,7 +373,7 @@ public class ReflectionUtils {
                 }
             }
         } else if (throwException) {
-            throw new NullPointerException("Can't invoke static method on null class reference");
+            throw new IllegalArgumentException("Can't invoke static method on null class reference");
         }
         return null;
     }
@@ -338,19 +410,32 @@ public class ReflectionUtils {
      * Invoke the named default interface method. If an exception is thrown while trying to call the method, and
      * throwException is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will
      * return null. If passed a null class reference, returns null unless throwException is true, then throws
-     * NullPointerException.
+     * IllegalArgumentException.
      * 
      * Uses the solution in https://stackoverflow.com/a/49532492/3950982
      * 
-     * N.B. This is not completely tested...
+     * TODO: This is not tested...
+     * 
+     * @param cls
+     *            The object.
+     * @param methodName
+     *            The method name.
+     * @param returnType
+     *            The return type of the method.
+     * @param classLoader
+     *            The ClassLoader.
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @return The result of the method invokation.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public static Object invokeDefaultMethod(final Class<?> cls, final String methodName, final Class<?> returnType,
-            final ClassLoader classLoader, final boolean throwException)
-            throws IllegalArgumentException, NullPointerException {
+            final ClassLoader classLoader, final boolean throwException) throws IllegalArgumentException {
         if (cls != null) {
             if (VersionFinder.JAVA_MAJOR_VERSION < 8) {
                 if (throwException) {
-                    throw new NullPointerException("Can't invoke default method on JDK 1.7");
+                    throw new IllegalArgumentException("Can't invoke default method on JDK 1.7");
                 }
             }
 
@@ -383,13 +468,19 @@ public class ReflectionUtils {
                 }
             }
         } else if (throwException) {
-            throw new NullPointerException(
+            throw new IllegalArgumentException(
                     "Can't invoke default method \"" + methodName + "\" on null class reference");
         }
         return null;
     }
 
-    /** Call Class.forName(className), but return null if any exception is thrown. */
+    /**
+     * Call Class.forName(className), but return null if any exception is thrown.
+     * 
+     * @param className
+     *            The class name to load.
+     * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     */
     public static Class<?> classForNameOrNull(final String className) {
         try {
             return Class.forName(className);

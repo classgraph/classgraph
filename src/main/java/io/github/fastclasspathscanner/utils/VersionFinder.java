@@ -71,7 +71,9 @@ public class VersionFinder {
     private static final String MAVEN_PACKAGE = "io.github.lukehutch";
     private static final String MAVEN_ARTIFACT = "fast-classpath-scanner";
 
-    /** Finds the version number of FastClasspathScanner. */
+    /**
+     * @return the version number of FastClasspathScanner.
+     */
     public static final synchronized String getVersion() {
         // Try to get version number from pom.xml (available when running in Eclipse)
         final Class<?> cls = FastClasspathScanner.class;

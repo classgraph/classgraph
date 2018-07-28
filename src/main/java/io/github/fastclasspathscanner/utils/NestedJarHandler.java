@@ -82,8 +82,19 @@ public class NestedJarHandler {
     private final SingletonMap<File, Boolean> mkDirs;
     private final InterruptionChecker interruptionChecker;
 
+    /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
+    /**
+     * A handler for nested jars.
+     * 
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param interruptionChecker
+     *            The {@link InterruptionChecker}.
+     * @param log
+     *            The log.
+     */
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         this.interruptionChecker = interruptionChecker;
@@ -342,8 +353,14 @@ public class NestedJarHandler {
 
     /**
      * Get a ZipFile recycler given the (non-nested) canonical path of a jarfile.
-     *
+     * 
+     * @param zipFile
+     *            The zipfile.
+     * @param log
+     *            The log.
      * @return The ZipFile recycler.
+     * @throws Exception
+     *             If the zipfile could not be opened.
      */
     public Recycler<ZipFile, IOException> getZipFileRecycler(final File zipFile, final LogNode log)
             throws Exception {
@@ -353,6 +370,16 @@ public class NestedJarHandler {
     /**
      * Get a {@link JarfileMetadataReader} singleton for a given jarfile (so that the manifest and ZipEntries will
      * only be read once).
+     * 
+     * @param zipFile
+     *            The zipfile.
+     * @param jarfilePackageRoot
+     *            The package root within the zipfile.
+     * @param log
+     *            The log.
+     * @return The {@link JarfileMetadataReader}.
+     * @throws Exception
+     *             If the zipfile could not be opened.
      */
     public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final String jarfilePackageRoot,
             final LogNode log) throws Exception {
@@ -368,8 +395,14 @@ public class NestedJarHandler {
 
     /**
      * Get a ModuleReaderProxy recycler given a ModuleRef.
-     *
+     * 
+     * @param moduleRef
+     *            The {@link ModuleRef}.
+     * @param log
+     *            The log.
      * @return The ModuleReaderProxy recycler.
+     * @throws Exception
+     *             If the module could not be opened.
      */
     public Recycler<ModuleReaderProxy, IOException> getModuleReaderProxyRecycler(final ModuleRef moduleRef,
             final LogNode log) throws Exception {
@@ -385,18 +418,30 @@ public class NestedJarHandler {
      *
      * <p>
      * All path segments should end in a jarfile extension, e.g. ".jar" or ".zip".
-     *
+     * 
+     * @param nestedJarPath
+     *            The nested jar path.
+     * @param log
+     *            The log.
      * @return An {@code Entry<File, Set<String>>}, where the {@code File} is the innermost jar, and the
      *         {@code Set<String>} is the set of all relative paths of scanning roots within the innermost jar (may
      *         be empty, or may contain strings like "target/classes" or similar). If there was an issue with the
      *         path, returns null.
+     * @throws Exception
+     *             If the innermost jarfile could not be extracted.
      */
     public Entry<File, Set<String>> getInnermostNestedJar(final String nestedJarPath, final LogNode log)
             throws Exception {
         return nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(nestedJarPath, log);
     }
 
-    /** Given a File reference for an inner nested jarfile, find the outermost jarfile it was extracted from. */
+    /**
+     * Given a File reference for an inner nested jarfile, find the outermost jarfile it was extracted from.
+     * 
+     * @param jarFile
+     *            The jarfile.
+     * @return The outermost jar that the jarfile was contained within.
+     */
     public File getOutermostJar(final File jarFile) {
         File lastValid = jarFile;
         for (File curr = jarFile; curr != null; curr = innerJarToOuterJarMap.get(curr)) {
@@ -489,6 +534,16 @@ public class NestedJarHandler {
      * 
      * <p>
      * N.B. standalone code for parallel unzip can be found at https://github.com/lukehutch/quickunzip
+     * 
+     * @param jarFile
+     *            The jarfile.
+     * @param packageRoot
+     *            The package root to extract from the jar.
+     * @param log
+     *            The log.
+     * @return The {@link File} object for the temporary directory the package root was extracted to.
+     * @throws IOException
+     *             If the package root could not be extracted from the jar.
      */
     public File unzipToTempDir(final File jarFile, final String packageRoot, final LogNode log) throws IOException {
         final LogNode subLog = log == null ? null
@@ -638,7 +693,12 @@ public class NestedJarHandler {
         }
     }
 
-    /** Delete temporary files and release other resources. */
+    /**
+     * Delete temporary files and release other resources.
+     * 
+     * @param log
+     *            The log.
+     */
     public void close(final LogNode log) {
         if (interruptionChecker != null) {
             interruptionChecker.interrupt();

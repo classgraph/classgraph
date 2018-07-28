@@ -114,6 +114,19 @@ public class ClasspathOrModulePathEntry {
     /**
      * A relative path. This is used for paths relative to the current directory (for classpath elements), and also
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
+     * 
+     * @param pathToResolveAgainst
+     *            The base path.
+     * @param relativePath
+     *            The relative path.
+     * @param classLoaders
+     *            The environment classloaders.
+     * @param nestedJarHandler
+     *            The {@link NestedJarHandler}.
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param log
+     *            The log.
      */
     public ClasspathOrModulePathEntry(final String pathToResolveAgainst, final String relativePath,
             final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec,
@@ -138,7 +151,16 @@ public class ClasspathOrModulePathEntry {
         }
     }
 
-    /** A relative path for a module (in JDK9+). */
+    /**
+     * A relative path for a module (in JDK9+).
+     * 
+     * @param moduleRef
+     *            The {@link ModuleRef}.
+     * @param nestedJarHandler
+     *            The {@link NestedJarHandler}.
+     * @param log
+     *            The log.
+     */
     public ClasspathOrModulePathEntry(final ModuleRef moduleRef, final NestedJarHandler nestedJarHandler,
             final LogNode log) {
         if (moduleRef == null) {
@@ -154,60 +176,18 @@ public class ClasspathOrModulePathEntry {
         this.log = log;
     }
 
-    /** Hash based on canonical path. */
-    @Override
-    public int hashCode() {
-        return relativePath.hashCode() + 31 * jarfilePackageRoot.hashCode();
-    }
-
-    /** Return true based on equality of canonical paths. */
-    @Override
-    public boolean equals(final Object o) {
-        if (o == null) {
-            return false;
-        }
-        if (!(o instanceof ClasspathOrModulePathEntry)) {
-            return false;
-        }
-        final ClasspathOrModulePathEntry other = (ClasspathOrModulePathEntry) o;
-        String thisCp;
-        try {
-            thisCp = getCanonicalPath(log);
-            final String otherCp = other.getCanonicalPath(log);
-            if (thisCp == null || otherCp == null) {
-                return false;
-            }
-            if (!thisCp.equals(otherCp)) {
-                return false;
-            }
-            return getJarfilePackageRoot().equals(other.getJarfilePackageRoot());
-        } catch (final IOException e) {
-            return false;
-        }
-    }
-
-    /** Return the path. */
-    @Override
-    public String toString() {
-        if (jarfilePackageRoot.isEmpty()) {
-            return getResolvedPath();
-        } else {
-            try {
-                return getFile(null) + "!" + jarfilePackageRoot;
-            } catch (final Exception e) {
-                return getResolvedPath();
-            }
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the ClassLoader(s) that should be used to load classes for this classpath element. */
+    /**
+     * @return The ClassLoader(s) that should be used to load classes for this classpath element.
+     */
     public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
 
-    /** Get the path of this classpath element, resolved against the parent path. */
+    /**
+     * @return The path of this classpath element, resolved against the parent path.
+     */
     public String getResolvedPath() {
         if (!resolvedPathIsCached) {
             final String resolvedPath = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
@@ -223,7 +203,7 @@ public class ClasspathOrModulePathEntry {
         return resolvedPathCached;
     }
 
-    /** Returns true if the path is an http(s):// URL. */
+    /** @return true if the path is an http(s):// URL. */
     public boolean isHttpURL() {
         if (!isHttpURLIsCached) {
             final String resolvedPath = getResolvedPath();
@@ -234,7 +214,9 @@ public class ClasspathOrModulePathEntry {
         return isHttpURL;
     }
 
-    /** Returns true if the path is a jrt:/ URL. */
+    /**
+     * @return true if the path is a jrt:/ URL.
+     */
     public boolean isJrtURL() {
         if (!isJrtURLIsCached) {
             final String resolvedPath = getResolvedPath();
@@ -244,14 +226,18 @@ public class ClasspathOrModulePathEntry {
         return isJrtURL;
     }
 
-    /** Returns the ModuleRef for this module, if this RelativePath corresponds to a module (in JDK9+). */
+    /**
+     * @return The {@link ModuleRef} for this module, if this {@link ClasspathOrModulePathEntry} corresponds to a
+     *         module.
+     */
     public ModuleRef getModuleRef() {
         return moduleRef;
     }
 
     /**
-     * Get the File object for the resolved path.
-     *
+     * @param log
+     *            The log.
+     * @return The File object for the resolved path.
      * @throws IOException
      *             if the path cannot be canonicalized.
      */
@@ -334,24 +320,39 @@ public class ClasspathOrModulePathEntry {
     }
 
     /**
-     * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
-     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes".
+     * @return The package root within a jarfile, e.g. if the path is "spring-project.jar!/BOOT-INF/classes", the
+     *         package root is "BOOT-INF/classes". Usually empty ("").
      */
     public String getJarfilePackageRoot() {
         return jarfilePackageRoot;
     }
 
-    /** Gets the canonical path of the File object corresponding to the resolved path. */
+    /**
+     * @param log
+     *            The log.
+     * @return The canonical path of the {@link File} object corresponding to the resolved path.
+     * @throws IOException
+     *             If there was an error in canonicalization.
+     */
     public String getCanonicalPath(final LogNode log) throws IOException {
         if (!canonicalPathIsCached) {
             final File file = getFile(log);
+            // Don't actually do full canonicalization, just use FastPathResolver.resolve,
+            // since full path canonicalization can break the correspondence between directories
+            // and packages, since soft links are resolved.
             canonicalPathCached = FastPathResolver.resolve(file.getPath());
             canonicalPathIsCached = true;
         }
         return canonicalPathCached;
     }
 
-    /** True if this relative path corresponds with a file. */
+    /**
+     * @param log
+     *            The log.
+     * @return true if this relative path corresponds with a file.
+     * @throws IOException
+     *             If the file can't be read.
+     */
     public boolean isFile(final LogNode log) throws IOException {
         if (!isFileIsCached) {
             isFileCached = getFile(log).isFile();
@@ -360,7 +361,13 @@ public class ClasspathOrModulePathEntry {
         return isFileCached;
     }
 
-    /** True if this relative path corresponds with a directory. */
+    /**
+     * @param log
+     *            The log.
+     * @return True if this relative path corresponds with a directory.
+     * @throws IOException
+     *             If the file can't be read.
+     */
     public boolean isDirectory(final LogNode log) throws IOException {
         if (!isDirectoryIsCached) {
             isDirectoryCached = getFile(log).isDirectory();
@@ -369,7 +376,9 @@ public class ClasspathOrModulePathEntry {
         return isDirectoryCached;
     }
 
-    /** Returns true if resolved path has a .class extension, ignoring case. */
+    /**
+     * @return true if resolved path has a .class extension, ignoring case.
+     */
     public boolean isClassfile() {
         return FileUtils.isClassfile(getResolvedPath());
     }
@@ -392,8 +401,14 @@ public class ClasspathOrModulePathEntry {
      * <p>
      * N.B. this has the side effect of fetching any http(s):// URLs, and/or unzipping any inner jarfiles, to
      * determine if these paths are valid. Any resulting temporary files will be cached.
+     * 
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param log
+     *            The log.
+     * @return true if this relative path is a valid classpath element.
      */
-    public boolean isValidClasspathElement(final ScanSpec scanSpec, final LogNode log) throws InterruptedException {
+    public boolean isValidClasspathElement(final ScanSpec scanSpec, final LogNode log) {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
         if (isJrtURL || moduleRef != null) {
@@ -439,6 +454,54 @@ public class ClasspathOrModulePathEntry {
                 log.log("Could not canonicalize path " + path + " : " + e);
             }
             return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Hash based on canonical path. */
+    @Override
+    public int hashCode() {
+        return relativePath.hashCode() + 31 * jarfilePackageRoot.hashCode();
+    }
+
+    /** Return true based on equality of canonical paths. */
+    @Override
+    public boolean equals(final Object o) {
+        if (o == null) {
+            return false;
+        }
+        if (!(o instanceof ClasspathOrModulePathEntry)) {
+            return false;
+        }
+        final ClasspathOrModulePathEntry other = (ClasspathOrModulePathEntry) o;
+        String thisCp;
+        try {
+            thisCp = getCanonicalPath(log);
+            final String otherCp = other.getCanonicalPath(log);
+            if (thisCp == null || otherCp == null) {
+                return false;
+            }
+            if (!thisCp.equals(otherCp)) {
+                return false;
+            }
+            return getJarfilePackageRoot().equals(other.getJarfilePackageRoot());
+        } catch (final IOException e) {
+            return false;
+        }
+    }
+
+    /** Return the path. */
+    @Override
+    public String toString() {
+        if (jarfilePackageRoot.isEmpty()) {
+            return getResolvedPath();
+        } else {
+            try {
+                return getFile(null) + "!" + jarfilePackageRoot;
+            } catch (final Exception e) {
+                return getResolvedPath();
+            }
         }
     }
 }

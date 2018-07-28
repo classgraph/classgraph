@@ -60,6 +60,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *           }
  *       }
  * </code>
+ * 
+ * @param <T>
+ *            The type to recycle.
+ * @param <E>
+ *            An exception type that can be thrown while acquiring an instance of the type to recycle.
  */
 public abstract class Recycler<T extends AutoCloseable, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */
@@ -68,7 +73,13 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
     /** Instances that have been allocated but are unused. */
     private final ConcurrentLinkedQueue<T> unusedInstances = new ConcurrentLinkedQueue<>();
 
-    /** Acquire or allocate an instance. */
+    /**
+     * Acquire or allocate an instance.
+     * 
+     * @return The allocated instance.
+     * @throws E
+     *             If an exception of type E was thrown during instantiation.
+     */
     public T acquire() throws E {
         final T instance = unusedInstances.poll();
         if (instance != null) {
@@ -83,7 +94,12 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
         }
     }
 
-    /** Release/recycle an instance. */
+    /**
+     * Release/recycle an instance.
+     * 
+     * @param instance
+     *            The instance to release.
+     */
     public void release(final T instance) {
         if (instance != null) {
             unusedInstances.add(instance);
@@ -107,6 +123,12 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
         unusedInstances.clear();
     }
 
-    /** Create a new instance. */
+    /**
+     * Create a new instance.
+     * 
+     * @return The new instance.
+     * @throws E
+     *             If an exception of type E was thrown during instantiation.
+     */
     public abstract T newInstance() throws E;
 }

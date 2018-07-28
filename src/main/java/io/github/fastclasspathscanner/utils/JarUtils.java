@@ -45,6 +45,9 @@ import java.util.Set;
 
 import io.github.fastclasspathscanner.ScanSpec;
 
+/**
+ * Jarfile utilities.
+ */
 public class JarUtils {
     /**
      * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
@@ -77,6 +80,10 @@ public class JarUtils {
      * Split a path on File.pathSeparator (':' on Linux, ';' on Windows), but also allow for the use of URLs with
      * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar". This is really not even handled by
      * the JRE, in all likelihood, but it's better to be robust.
+     * 
+     * @param pathStr
+     *            The path to split.
+     * @return The path element substrings.
      */
     public static String[] smartPathSplit(final String pathStr) {
         if (pathStr == null || pathStr.isEmpty()) {
@@ -145,7 +152,13 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Create a custom URLClassLoader from a classpath path string. */
+    /**
+     * Create a custom URLClassLoader from a classpath path string.
+     * 
+     * @param classpathStr
+     *            The classpath string.
+     * @return A custom {@link URLClassLoader} that can load from the path string.
+     */
     public static ClassLoader createURLClassLoaderFromPathString(final String classpathStr) {
         final List<URL> urls = new ArrayList<>();
         for (final String pathEltStr : smartPathSplit(classpathStr)) {
@@ -178,8 +191,10 @@ public class JarUtils {
      * Get a set of path elements as a string, from an array of objects (e.g. of String, File or URL type, whose
      * toString() method will be called to get the path component), and return the path as a single string
      * delineated with the standard path separator character.
-     *
-     * @return the delimited path.
+     * 
+     * @param pathElts
+     *            The path elements.
+     * @return The delimited path formed out of the path elements.
      */
     public static String pathElementsToPathStr(final Object... pathElts) {
         final StringBuilder buf = new StringBuilder();
@@ -193,8 +208,10 @@ public class JarUtils {
      * Get a set of path elements as a string, from an array of objects (e.g. of String, File or URL type, whose
      * toString() method will be called to get the path component), and return the path as a single string
      * delineated with the standard path separator character.
-     *
-     * @return the delimited path.
+     * 
+     * @param pathElts
+     *            The path elements.
+     * @return The delimited path formed out of the path elements, after calling each of their toString() methods.
      */
     public static String pathElementsToPathStr(final Iterable<?> pathElts) {
         final StringBuilder buf = new StringBuilder();
@@ -206,18 +223,12 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    // /** Returns true if the path ends with a jarfile extension, ignoring case. */ public static boolean
-    // isJar(final String path) { final int len = path.length(); final boolean isJar = path.regionMatches(true, len
-    // - 4, ".jar", 0, 4) // || path.regionMatches(true, len - 4, ".zip", 0, 4) // || path.regionMatches(true, len -
-    // 4, ".war", 0, 4) // || path.regionMatches(true, len - 4, ".car", 0, 4) // || path.regionMatches(true, len -
-    // 4, ".ear", 0, 4) // || path.regionMatches(true, len - 4, ".sar", 0, 4) // || path.regionMatches(true, len -
-    // 4, ".har", 0, 4) // || path.regionMatches(true, len - 4, ".par", 0, 4) // || path.regionMatches(true, len -
-    // 6, ".wsjar", 0, 6); if (!isJar) { // Support URLs of the form
-    // "http://domain.com/path/to/jarfile.jar?version=2" final int urlParamIdx = path.indexOf('?'); if (urlParamIdx
-    // > 0) { return isJar(path.substring(0, urlParamIdx)); } } return isJar; }
-
     /**
      * Returns the leafname of a path, after first stripping off everything after the first '!', if present.
+     * 
+     * @param path
+     *            A file path.
+     * @return The leafname of the path.
      */
     public static String leafName(final String path) {
         final int bangIdx = path.indexOf("!");
@@ -376,18 +387,26 @@ public class JarUtils {
         return false;
     }
 
-    /** Get the paths of jars in all JRE/JDK system directories, with any rt.jar listed first. */
+    /**
+     * @return The paths of jars in all JRE/JDK system directories, with any rt.jar listed first.
+     */
     public static List<String> getJreJarPaths() {
         return JRE_JARS;
     }
 
-    /** Get the paths for any JRE/JDK "lib/" or "ext/" jars. */
+    /** @return The paths for any JRE/JDK "lib/" or "ext/" jars. */
     public static Set<String> getJreLibOrExtJars() {
         return JRE_LIB_OR_EXT_JARS;
     }
 
     /**
-     * Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.).
+     * @param filePath
+     *            A file path.
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param log
+     *            The log.
+     * @return Whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.).
      */
     public static boolean isJREJar(final String filePath, final ScanSpec scanSpec, final LogNode log) {
         if (JRE_LIB_OR_EXT_JARS.contains(filePath)
@@ -410,7 +429,13 @@ public class JarUtils {
         }
     }
 
-    /** Return true if the given class name, package name or module name has a system package or module prefix */
+    /**
+     * Return true if the given class name, package name or module name has a system package or module prefix
+     * 
+     * @param packageOrModuleName
+     *            The class, package or module name.
+     * @return Whether this is a system class, package or module.
+     */
     public static boolean isInSystemPackageOrModule(final String packageOrModuleName) {
         for (int i = 0; i < SYSTEM_PACKAGE_PREFIXES.length; i++) {
             if (packageOrModuleName.startsWith(SYSTEM_PACKAGE_PREFIXES[i])) {
@@ -423,8 +448,14 @@ public class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Count the number of bytes before the characters "PK" in a zipfile. Returns -1 if PK is not found anywhere in
-     * the file.
+     * Count the number of bytes before the characters "PK" in a zipfile.
+     * 
+     * @param zipfile
+     *            The zipfile.
+     * @return The number of bytes before the characters "PK" in a zipfile. Returns -1 if PK is not found anywhere
+     *         in the file.
+     * @throws IOException
+     *             If the file could not be read.
      */
     public static long countBytesBeforePKMarker(final File zipfile) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(zipfile))) {
@@ -448,7 +479,18 @@ public class JarUtils {
         }
     }
 
-    /** Strip the self-extracting archive header from the beginning of a zipfile. */
+    /**
+     * Strip the self-extracting archive header from the beginning of a zipfile.
+     * 
+     * @param srcZipfile
+     *            The source zipfile.
+     * @param sfxHeaderBytes
+     *            The number of bytes of the header to strip.
+     * @param destZipfile
+     *            The destination to save to.
+     * @throws IOException
+     *             If the operation could not be completed.
+     */
     public static void stripSFXHeader(final File srcZipfile, final long sfxHeaderBytes, final File destZipfile)
             throws IOException {
         try (FileInputStream inputStream = new FileInputStream(srcZipfile);
@@ -462,7 +504,12 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Log the Java version and the JRE paths that were found. */
+    /**
+     * Log the Java version and the JRE paths that were found.
+     * 
+     * @param log
+     *            The log.
+     */
     public static void logJavaInfo(final LogNode log) {
         if (log != null) {
             log.log("Operating system: " + getProperty("os.name") + " " + getProperty("os.version") + " "

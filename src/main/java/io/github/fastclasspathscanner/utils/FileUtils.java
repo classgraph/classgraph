@@ -36,17 +36,17 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * File utilities.
+ */
 public class FileUtils {
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
      * will not reflect subsequent changes to the current directory).
      */
-    public static final String CURR_DIR_PATH = getCurrDirPathStr();
+    public static final String CURR_DIR_PATH;
 
-    /**
-     * Get current dir (without resolving symlinks), and normalize path by calling FastPathResolver.resolve().
-     */
-    public static String getCurrDirPathStr() {
+    static {
         String currDirPathStr = "";
         try {
             // The result is moved to currDirPathStr after each step, so we can provide fine-grained debug info and
@@ -62,10 +62,22 @@ public class FileUtils {
         } catch (final IOException e) {
             throw new RuntimeException("Could not resolve current directory: " + currDirPathStr, e);
         }
-        return currDirPathStr;
+        CURR_DIR_PATH = currDirPathStr;
     }
 
-    /** Read all the bytes in an InputStream. */
+    /**
+     * Read all the bytes in an {@link InputStream}.
+     * 
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param fileSize
+     *            The file size, if known, otherwise -1L.
+     * @param log
+     *            The log.
+     * @return The contents of the {@link InputStream}.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
     public static byte[] readAllBytes(final InputStream inputStream, final long fileSize, final LogNode log)
             throws IOException {
         // Java arrays can only currently have 32-bit indices
@@ -96,18 +108,25 @@ public class FileUtils {
         return baos.toByteArray();
     }
 
-    /** Returns true if path has a .class extension, ignoring case. */
+    /**
+     * @param path
+     *            A file path.
+     * @return true if path has a ".class" extension, ignoring case.
+     */
     public static boolean isClassfile(final String path) {
         final int len = path.length();
         return len > 6 && path.regionMatches(true, len - 6, ".class", 0, 6);
     }
 
     /**
-     * Produce an InputStream from a ByteBuffer.
+     * Produce an {@link InputStream} that is able to read from a {@link ByteBuffer}.
      * 
-     * From: https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
+     * @param byteBuffer
+     *            The {@link ByteBuffer}.
+     * @return An {@link InputStream} that reads from the {@ByteBuffer}.
      */
     public static InputStream byteBufferToInputStream(final ByteBuffer byteBuffer) {
+        // https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
         return new InputStream() {
             final ByteBuffer buf = byteBuffer;
 

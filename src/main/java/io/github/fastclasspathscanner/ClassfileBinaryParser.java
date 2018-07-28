@@ -115,7 +115,9 @@ class ClassfileBinaryParser {
         return offset[cpIdxToUse];
     }
 
-    /** Get a string from the constant pool, optionally replacing '/' with '.'. */
+    /**
+     * Get a string from the constant pool, optionally replacing '/' with '.'.
+     */
     private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
@@ -244,7 +246,7 @@ class ClassfileBinaryParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Read annotation entry from classfile. */
-    private AnnotationInfo readAnnotation() throws IOException, InterruptedException {
+    private AnnotationInfo readAnnotation() throws IOException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
         final String annotationClassName = getConstantPoolClassDescriptor(
                 inputStreamOrByteBuffer.readUnsignedShort());
@@ -262,7 +264,7 @@ class ClassfileBinaryParser {
     }
 
     /** Read annotation element value from classfile. */
-    private Object readAnnotationElementValue() throws IOException, InterruptedException {
+    private Object readAnnotationElementValue() throws IOException {
         final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -327,13 +329,10 @@ class ClassfileBinaryParser {
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
-     *
-     * @throws InterruptedException
-     *             if the operation was interrupted.
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
             final String relativePath, final InputStreamOrByteBufferAdapter inputStreamOrByteBuffer,
-            final ScanSpec scanSpec, final LogNode log) throws IOException, InterruptedException {
+            final ScanSpec scanSpec, final LogNode log) throws IOException {
 
         this.inputStreamOrByteBuffer = inputStreamOrByteBuffer;
 

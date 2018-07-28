@@ -51,6 +51,7 @@ import io.github.fastclasspathscanner.utils.JarfileMetadataReader;
 import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.fastclasspathscanner.utils.Recycler;
+import io.github.fastclasspathscanner.utils.URLPathEncoder;
 import io.github.fastclasspathscanner.utils.WorkQueue;
 
 /** A zip/jarfile classpath element. */
@@ -207,7 +208,8 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    return new URL(jarFile.toURI().toURL().toString() + "!" + getPathRelativeToClasspathElement());
+                    return new URL(jarFile.toURI().toURL().toString() + "!"
+                            + URLPathEncoder.encodePath(getPathRelativeToClasspathElement()));
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for jarfile: " + jarFile + " ; path: "
                             + pathRelativeToClasspathElt);

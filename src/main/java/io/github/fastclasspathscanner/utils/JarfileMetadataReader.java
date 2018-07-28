@@ -96,6 +96,12 @@ public class JarfileMetadataReader {
      * environment classloaders cannot load a class from this jar. This may result in the unzipping of a large
      * number of lib jarfiles and/or classfiles (contained within the package root). Returns null if there were no
      * valid package roots or lib jars found.
+     * 
+     * @param nestedJarHandler
+     *            The {@link NestedJarHandler}.
+     * @param log
+     *            The log.
+     * @return The custom {@link ClassLoader}.
      */
     public ClassLoader getCustomClassLoader(final NestedJarHandler nestedJarHandler, final LogNode log) {
         synchronized (customClassLoaderLock) {
