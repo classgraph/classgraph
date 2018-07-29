@@ -410,8 +410,8 @@ class GraphvizDotfileGenerator {
      * .dot file.
      */
     static String generateClassGraphDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
-            final boolean showFields, final boolean showMethods, final boolean showAnnotations,
-            final ScanSpec scanSpec) {
+            final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
+            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations, final ScanSpec scanSpec) {
         final StringBuilder buf = new StringBuilder();
         buf.append("digraph {\n");
         buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
@@ -470,39 +470,43 @@ class GraphvizDotfileGenerator {
                 }
             }
 
-            final Set<String> referencedFieldTypeNames = new HashSet<>();
-            final FieldInfoList fieldInfo = classNode.fieldInfo;
-            if (fieldInfo != null) {
-                for (final FieldInfo fi : fieldInfo) {
-                    final TypeSignature fieldSig = fi.getTypeSignature();
-                    if (fieldSig != null) {
-                        fieldSig.getClassNamesFromTypeDescriptors(referencedFieldTypeNames);
+            if (showFieldTypeDependencyEdges) {
+                final Set<String> referencedFieldTypeNames = new HashSet<>();
+                final FieldInfoList fieldInfo = classNode.fieldInfo;
+                if (fieldInfo != null) {
+                    for (final FieldInfo fi : fieldInfo) {
+                        final TypeSignature fieldSig = fi.getTypeSignatureOrTypeDescriptor();
+                        if (fieldSig != null) {
+                            fieldSig.getClassNamesFromTypeDescriptors(referencedFieldTypeNames);
+                        }
                     }
                 }
-            }
-            for (final String fieldTypeName : referencedFieldTypeNames) {
-                if (allVisibleNodes.contains(fieldTypeName) && !"java.lang.Object".equals(fieldTypeName)) {
-                    // class --[ ] field type (open box)
-                    buf.append("  \"" + fieldTypeName + "\" -> \"" + classNode.getName()
-                            + "\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
+                for (final String fieldTypeName : referencedFieldTypeNames) {
+                    if (allVisibleNodes.contains(fieldTypeName) && !"java.lang.Object".equals(fieldTypeName)) {
+                        // class --[ ] field type (open box)
+                        buf.append("  \"" + fieldTypeName + "\" -> \"" + classNode.getName()
+                                + "\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
+                    }
                 }
             }
 
-            final Set<String> referencedMethodTypeNames = new HashSet<>();
-            final MethodInfoList methodInfo = classNode.methodInfo;
-            if (methodInfo != null) {
-                for (final MethodInfo mi : methodInfo) {
-                    final MethodTypeSignature methodSig = mi.getTypeSignature();
-                    if (methodSig != null) {
-                        methodSig.getClassNamesFromTypeDescriptors(referencedMethodTypeNames);
+            if (showMethodTypeDependencyEdges) {
+                final Set<String> referencedMethodTypeNames = new HashSet<>();
+                final MethodInfoList methodInfo = classNode.methodInfo;
+                if (methodInfo != null) {
+                    for (final MethodInfo mi : methodInfo) {
+                        final MethodTypeSignature methodSig = mi.getTypeSignatureOrTypeDescriptor();
+                        if (methodSig != null) {
+                            methodSig.getClassNamesFromTypeDescriptors(referencedMethodTypeNames);
+                        }
                     }
                 }
-            }
-            for (final String methodTypeName : referencedMethodTypeNames) {
-                if (allVisibleNodes.contains(methodTypeName) && !"java.lang.Object".equals(methodTypeName)) {
-                    // class --[#] method type (filled box)
-                    buf.append("  \"" + methodTypeName + "\" -> \"" + classNode.getName()
-                            + "\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
+                for (final String methodTypeName : referencedMethodTypeNames) {
+                    if (allVisibleNodes.contains(methodTypeName) && !"java.lang.Object".equals(methodTypeName)) {
+                        // class --[#] method type (filled box)
+                        buf.append("  \"" + methodTypeName + "\" -> \"" + classNode.getName()
+                                + "\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
+                    }
                 }
             }
         }

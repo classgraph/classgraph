@@ -547,10 +547,20 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      *            If true, show fields within class nodes in the graph. To show fields,
      *            {@link ClassGraph#enableFieldInfo()} must be called before scanning. You may also want to call
      *            {@link ClassGraph#ignoreFieldVisibility()} before scanning, to show non-public fields.
+     * @param showFieldTypeDependencyEdges
+     *            If true, show edges between classes and the types of their fields.
+     *            {@link ClassGraph#enableFieldInfo()} must be called before scanning. You may also want to call
+     *            {@link ClassGraph#ignoreFieldVisibility()} before scanning, to show type dependency edges for
+     *            non-public fields.
      * @param showMethods
      *            If true, show methods within class nodes in the graph. To show methods,
      *            {@link ClassGraph#enableMethodInfo()} must be called before scanning. You may also want to call
-     *            {@link ClassGraph#ignoreMethodVisibility()} before scanning, to show non-public methods.
+     *            {@link ClassGraph#ignoreMethodVisibility()} before scanning, to show type dependency edges for
+     *            non-public methods.
+     * @param showMethodTypeDependencyEdges
+     *            If true, show edges between classes and the types of their methods.
+     *            {@link ClassGraph#enableMethodInfo()} must be called before scanning. You may also want to call
+     *            {@link ClassGraph#ignoreMethodVisibility()} before scanning, to show edges for non-public methods.
      * @param showAnnotations
      *            If true, show annotations in the graph. To show annotations,
      *            {@link ClassGraph#enableAnnotationInfo()} must be called before scanning. You may also want to
@@ -559,13 +569,15 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return the GraphViz file contents.
      */
     public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
-            final boolean showMethods, final boolean showAnnotations) {
+            final boolean showFieldTypeDependencyEdges, final boolean showMethods,
+            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations) {
         final ScanSpec scanSpec = size() == 0 ? null : get(0).scanResult.scanSpec;
         if (scanSpec == null || !scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return GraphvizDotfileGenerator.generateClassGraphDotFile(this, sizeX, sizeY, showFields, showMethods,
-                showAnnotations, scanSpec);
+        return GraphvizDotfileGenerator.generateClassGraphDotFile(this, sizeX, sizeY, showFields,
+                showFieldTypeDependencyEdges, showMethods, showMethodTypeDependencyEdges, showAnnotations,
+                scanSpec);
     }
 
     /**
@@ -587,8 +599,9 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return the GraphViz file contents.
      */
     public String generateGraphVizDotFile(final float sizeX, final float sizeY) {
-        return generateGraphVizDotFile(sizeX, sizeY, /* showFields = */ true, /* showMethods = */ true,
-                /* showAnnotations = */ true);
+        return generateGraphVizDotFile(sizeX, sizeY, /* showFields = */ true,
+                /* showFieldTypeDependencyEdges = */ true, /* showMethods = */ true,
+                /* showMethodTypeDependencyEdges = */ true, /* showAnnotations = */ true);
     }
 
     /**
@@ -607,7 +620,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public String generateGraphVizDotFile() {
         return generateGraphVizDotFile(/* sizeX = */ 10.5f, /* sizeY = */ 8f, /* showFields = */ true,
-                /* showMethods = */ true, /* showAnnotations = */ true);
+                /* showFieldTypeDependencyEdges = */ true, /* showMethods = */ true,
+                /* showMethodTypeDependencyEdges = */ true, /* showAnnotations = */ true);
     }
 
     /**
