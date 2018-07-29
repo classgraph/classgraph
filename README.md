@@ -2,7 +2,7 @@
 
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. 
 
-ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class API can tell you the superclass of a given class, or give you the list of annotations on a class; ClassGraph can find **all subclasses of a given class**, or find **all classes that are annotated with a given annotation**.
+ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**.
 
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
