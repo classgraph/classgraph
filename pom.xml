@@ -3,7 +3,7 @@
 
 	<groupId>io.github.fast-classpath-scanner</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>4.0.0-beta-10b-SNAPSHOT</version>
+	<version>4.0.0-beta-10b</version>
 	<name>FastClasspathScanner</name>
 
 	<description>
