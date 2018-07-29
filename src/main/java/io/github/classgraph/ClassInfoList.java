@@ -533,39 +533,37 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
+     *
+     * <p>
+     * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()} before scanning.
      * 
      * <p>
-     * Note that if you call this with showFields or showMethods set to false, but with method and/or field info
-     * enabled during scanning, then arrows will still be added between classes even if the field or method that
-     * created that dependency is not shown.
+     * To show fields, call {@link ClassGraph#enableFieldInfo()} before scanning. To show non-public fields, also
+     * call {@link ClassGraph#ignoreFieldVisibility()} before scanning.
+     * 
+     * <p>
+     * To show methods, call {@link ClassGraph#enableMethodInfo()} before scanning. To show non-public methods, also
+     * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
+     * 
+     * <p>
+     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. To show non-public
+     * annotations, also call {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no separate
+     * visibility modifier for annotations).
      *
      * @param sizeX
      *            The GraphViz layout width in inches.
      * @param sizeY
      *            The GraphViz layout width in inches.
      * @param showFields
-     *            If true, show fields within class nodes in the graph. To show fields,
-     *            {@link ClassGraph#enableFieldInfo()} must be called before scanning. You may also want to call
-     *            {@link ClassGraph#ignoreFieldVisibility()} before scanning, to show non-public fields.
+     *            If true, show fields within class nodes in the graph.
      * @param showFieldTypeDependencyEdges
      *            If true, show edges between classes and the types of their fields.
-     *            {@link ClassGraph#enableFieldInfo()} must be called before scanning. You may also want to call
-     *            {@link ClassGraph#ignoreFieldVisibility()} before scanning, to show type dependency edges for
-     *            non-public fields.
      * @param showMethods
-     *            If true, show methods within class nodes in the graph. To show methods,
-     *            {@link ClassGraph#enableMethodInfo()} must be called before scanning. You may also want to call
-     *            {@link ClassGraph#ignoreMethodVisibility()} before scanning, to show type dependency edges for
-     *            non-public methods.
+     *            If true, show methods within class nodes in the graph.
      * @param showMethodTypeDependencyEdges
      *            If true, show edges between classes and the types of their methods.
-     *            {@link ClassGraph#enableMethodInfo()} must be called before scanning. You may also want to call
-     *            {@link ClassGraph#ignoreMethodVisibility()} before scanning, to show edges for non-public methods.
      * @param showAnnotations
-     *            If true, show annotations in the graph. To show annotations,
-     *            {@link ClassGraph#enableAnnotationInfo()} must be called before scanning. You may also want to
-     *            call {@link ClassGraph#ignoreClassVisibility()} before scanning, to show non-public classes
-     *            (including non-public annotation classes).
+     *            If true, show annotations in the graph.
      * @return the GraphViz file contents.
      */
     public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
