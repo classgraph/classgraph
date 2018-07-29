@@ -1,6 +1,6 @@
 
 /*
- * This file is part of FastClasspathScanner.
+ * This file is part of ClassGraph.
  *
  * Author: Luke Hutchison
  *
@@ -34,33 +34,33 @@ import java.util.List;
 
 import org.junit.Test;
 
-import io.github.fastclasspathscanner.FastClasspathScanner;
-import io.github.fastclasspathscanner.test.whitelisted.Cls;
-import io.github.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.test.whitelisted.Cls;
+import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 public class DefaultPackageTest {
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
 
     @Test
     public void scan() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner().whitelistPackagesNonRecursive("").scan()
-                .getAllClasses().getNames();
+        final List<String> allClasses = new ClassGraph().whitelistPackagesNonRecursive("").scan().getAllClasses()
+                .getNames();
         assertThat(allClasses).contains(DefaultPackageTest.class.getName());
         assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
         assertThat(allClasses).doesNotContain(Cls.class.getName());
-        assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
+        assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
         assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
     }
 
     @Test
     public void scanWithWhitelist() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE).scan()
-                .getAllClasses().getNames();
+        final List<String> allClasses = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan().getAllClasses()
+                .getNames();
         assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());
         assertThat(allClasses).contains(BlacklistedSub.class.getName());
         assertThat(allClasses).contains(Cls.class.getName());
-        assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
+        assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
         assertThat(allClasses).doesNotContain(ClassInDefaultPackage.class.getName());
     }

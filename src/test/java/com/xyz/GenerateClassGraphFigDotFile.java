@@ -1,11 +1,11 @@
 package com.xyz;
 
-import io.github.fastclasspathscanner.FastClasspathScanner;
-import io.github.fastclasspathscanner.ScanResult;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class GenerateClassGraphFigDotFile {
     public static void main(final String[] args) {
-        final ScanResult scanResult = new FastClasspathScanner() //
+        final ScanResult scanResult = new ClassGraph() //
                 .whitelistPackages("com.xyz.fig") //
                 .ignoreFieldVisibility() //
                 .enableFieldInfo() //

@@ -1,5 +1,5 @@
 /*
- * This file is part of FastClasspathScanner.
+ * This file is part of ClassGraph.
  *
  * Author: Luke Hutchison
  *
@@ -32,11 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
-import io.github.fastclasspathscanner.FastClasspathScanner;
-import io.github.fastclasspathscanner.ScanResult;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class MetaAnnotationTest {
-    ScanResult scanResult = new FastClasspathScanner().whitelistPackages("com.xyz.meta").enableClassInfo()
+    ScanResult scanResult = new ClassGraph().whitelistPackages("com.xyz.meta").enableClassInfo()
             .enableAnnotationInfo().scan();
 
     @Test

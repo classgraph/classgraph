@@ -1,6 +1,6 @@
 
 /*
- * This file is part of FastClasspathScanner.
+ * This file is part of ClassGraph.
  *
  * Author: Luke Hutchison
  *
@@ -34,25 +34,25 @@ import java.util.List;
 
 import org.junit.Test;
 
-import io.github.fastclasspathscanner.FastClasspathScanner;
-import io.github.fastclasspathscanner.test.whitelisted.Cls;
-import io.github.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.test.whitelisted.Cls;
+import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 public class DisableRecursiveScanningTest {
     private static final String PKG = Cls.class.getPackage().getName();
 
     @Test
     public void nonRootPackage() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner().whitelistPackagesNonRecursive(PKG).scan()
-                .getAllClasses().getNames();
+        final List<String> allClasses = new ClassGraph().whitelistPackagesNonRecursive(PKG).scan().getAllClasses()
+                .getNames();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
     }
 
     @Test
     public void rootPackage() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner().whitelistPackagesNonRecursive("").scan()
-                .getAllClasses().getNames();
+        final List<String> allClasses = new ClassGraph().whitelistPackagesNonRecursive("").scan().getAllClasses()
+                .getNames();
         assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
         assertThat(allClasses).doesNotContain(Cls.class.getName());
     }

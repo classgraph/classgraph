@@ -1,12 +1,12 @@
 import java.io.IOException;
 
-import io.github.fastclasspathscanner.FastClasspathScanner;
+import io.github.classgraph.ClassGraph;
 
 public class V4Test {
 
     public static void main(final String[] args) throws IOException {
         final long t0 = System.nanoTime();
-        new FastClasspathScanner() //
+        new ClassGraph() //
                 // .verbose() //
                 // .enableSystemPackages() //
                 .enableClassInfo()

@@ -1,22 +1,24 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>io.github.fast-classpath-scanner</groupId>
+	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>4.0.0-beta-11-SNAPSHOT</version>
+	<version>2.8.1</version>
 	<name>FastClasspathScanner</name>
 
 	<description>
-	Uber-fast Java classpath and module path scanner. https://github.com/fast-classpath-scanner/fast-classpath-scanner
+	Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile  binary format directly rather than by using reflection.
+	See https://github.com/lukehutch/fast-classpath-scanner
 	</description>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<argLine.javadocs>-Xdoclint:none</argLine.javadocs> <!-- Overridden in JDK9 -->
 	</properties>
 
 	<issueManagement>
-		<url>https://github.com/fast-classpath-scanner/fast-classpath-scanner/issues</url>
+		<url>https://github.com/lukehutch/fast-classpath-scanner/issues</url>
 	</issueManagement>
 
 	<licenses>
@@ -32,7 +34,7 @@
 			<name>Luke Hutchison</name>
 			<email>luke.hutch@gmail.com</email>
 			<organization>--</organization>
-			<organizationUrl>https://github.com/fast-classpath-scanner</organizationUrl>
+			<organizationUrl>https://github.com/lukehutch</organizationUrl>
 		</developer>
 	</developers>
 
@@ -52,61 +54,6 @@
 	<build>
 		<plugins>
 			<plugin>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>1.0-beta-1</version>
-				<dependencies>
-					<dependency>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>animal-sniffer-enforcer-rule</artifactId>
-						<version>1.17</version>
-					</dependency>
-				</dependencies>
-				<executions>
-					<execution>
-						<id>check-signatures</id>
-						<phase>test</phase>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<configuration>
-							<rules>
-								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
-									<signature>
-										<groupId>org.codehaus.mojo.signature</groupId>
-										<artifactId>java17</artifactId>
-										<version>1.0</version>
-									</signature>
-								</checkSignatureRule>
-							</rules>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<!-- In the future, rather than using ModiTect to compile module-info.java, 
-					could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
-				<groupId>org.moditect</groupId>
-				<artifactId>moditect-maven-plugin</artifactId>
-				<version>1.0.0.Beta1</version>
-				<executions>
-					<execution>
-						<id>add-module-infos</id>
-						<phase>package</phase>
-						<goals>
-							<goal>add-module-info</goal>
-						</goals>
-						<configuration>
-							<overwriteExistingFiles>true</overwriteExistingFiles>
-							<module>
-								<moduleInfoFile>
-									src/main/resources/module-info.java
-								</moduleInfoFile>
-							</module>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 				<version>2.2.1</version>
@@ -119,6 +66,7 @@
 					</execution>
 				</executions>
 			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
@@ -130,15 +78,16 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<additionalparam>${argLine.javadocs}</additionalparam>
+							<additionalparam>-Xdoclint:none</additionalparam>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.1.0</version>
+				<version>3.0.2</version>
 				<configuration>
 					<archive>
 						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
@@ -173,52 +122,24 @@
 		<pluginManagement>
 			<plugins>
 				<plugin>
-					<groupId>org.eclipse.m2e</groupId>
-					<artifactId>lifecycle-mapping</artifactId>
-					<version>1.0.0</version>
-					<configuration>
-						<lifecycleMappingMetadata>
-							<pluginExecutions>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>org.apache.maven.plugins</groupId>
-										<artifactId>maven-enforcer-plugin</artifactId>
-										<versionRange>[1.0.0,)</versionRange>
-										<goals>
-											<goal>enforce</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<execute>
-											<runOnIncremental>false</runOnIncremental>
-										</execute>
-									</action>
-								</pluginExecution>
-							</pluginExecutions>
-						</lifecycleMappingMetadata>
-					</configuration>
-				</plugin>
-				<plugin>
 					<!-- This plugin must be inside pluginManagement -->
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.7.0</version>
+					<version>3.5.1</version>
 					<configuration>
-						<source>1.7</source>
-						<target>1.7</target>
-						<testSource>1.8</testSource>
-						<testTarget>1.8</testTarget>
+						<source>1.8</source>
+						<target>1.8</target>
 					</configuration>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.21.0</version>
+					<version>2.19.1</version>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
-					<version>3.5.1</version>
+					<version>3.2.0</version>
 					<extensions>true</extensions>
 					<configuration>
 						<instructions>
@@ -257,7 +178,6 @@
 	</build>
 
 	<dependencies>
-		<!-- Check for dependency updates with: mvn versions:display-dependency-updates -->
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -268,28 +188,35 @@
 		<dependency>
 			<groupId>org.assertj</groupId>
 			<artifactId>assertj-core</artifactId>
-			<version>3.10.0</version>
+			<version>3.1.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>javax.enterprise</groupId>
+			<artifactId>cdi-api</artifactId>
+			<version>1.0-SP4</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.ops4j.pax.url</groupId>
 			<artifactId>pax-url-aether</artifactId>
-			<version>2.5.4</version>
+			<version>2.5.2</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>1.8.0-beta2</version>
+			<version>1.7.25</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-jdk14</artifactId>
-			<version>1.8.0-beta2</version>
+			<version>1.7.25</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -297,7 +224,6 @@
 			<groupId>org.hibernate.javax.persistence</groupId>
 			<artifactId>hibernate-jpa-2.1-api</artifactId>
 			<version>1.0.2.Final</version>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -305,23 +231,11 @@
 		<connection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</connection>
 		<developerConnection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</developerConnection>
 		<url>https://github.com/lukehutch/fast-classpath-scanner</url>
-		<tag>fast-classpath-scanner-3.0.0</tag>
+		<tag>fast-classpath-scanner-2.8.1</tag>
 	</scm>
 	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
 
 	<profiles>
-		<!-- JDK9+ -->
-		<profile>
-			<id>java9</id>
-			<properties>
-				<argLine.javadocs>-Xdoclint:none -html5</argLine.javadocs> <!-- Overridden in JDK9 -->
-				<!-- coverall version 4.3.0 does not work with java 9, see https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
-				<coveralls.skip>true</coveralls.skip>
-			</properties>
-			<activation>
-				<jdk>[9,)</jdk>
-			</activation>
-		</profile>
 		<profile>
 			<id>release</id>
 			<activation>
@@ -356,8 +270,6 @@
 							<configuration>
 								<source>1.7</source>
 								<target>1.7</target>
-								<testSource>1.8</testSource>
-								<testTarget>1.8</testTarget>
 							</configuration>
 							<executions>
 								<execution>

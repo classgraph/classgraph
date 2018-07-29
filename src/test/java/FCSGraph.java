@@ -1,16 +1,16 @@
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import io.github.fastclasspathscanner.FastClasspathScanner;
-import io.github.fastclasspathscanner.ScanResult;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class FCSGraph {
     public static void main(final String[] args) throws IOException {
-        final ScanResult scanResult = new FastClasspathScanner() //
-                .whitelistPackages("io.github.fastclasspathscanner")
-                .blacklistPackages("io.github.fastclasspathscanner.issues", "io.github.fastclasspathscanner.test",
-                        "io.github.fastclasspathscanner.json", "io.github.fastclasspathscanner.utils",
-                        "io.github.fastclasspathscanner.classloaderhandler") //
+        final ScanResult scanResult = new ClassGraph() //
+                .whitelistPackages("io.github.classgraph")
+                .blacklistPackages("io.github.classgraph.issues", "io.github.classgraph.test",
+                        "io.github.classgraph.json", "io.github.classgraph.utils",
+                        "io.github.classgraph.classloaderhandler") //
                 .enableMethodInfo() //
                 .ignoreMethodVisibility() //
                 .enableFieldInfo() //
