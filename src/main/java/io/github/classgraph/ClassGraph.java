@@ -59,7 +59,14 @@ public class ClassGraph {
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
      * modern laptop with SSD, while scanning a large classpath.
      */
-    private static final int DEFAULT_NUM_WORKER_THREADS = 6;
+    private static final int DEFAULT_NUM_WORKER_THREADS = Math.max(
+            // Always scan with at least 2 threads
+            2, //
+            // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
+            Math.max(4, (int) (Math.ceil(Runtime.getRuntime().availableProcessors() * 0.75))) +
+            // Num scanning threads (higher than number of processors, because some threads can be blocked)
+                    (int) Math.ceil(Runtime.getRuntime().availableProcessors() * 1.25f) //
+    );
 
     /** If non-null, log while scanning */
     private LogNode log;
