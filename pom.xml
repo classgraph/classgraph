@@ -3,14 +3,13 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>io.github.lukehutch</groupId>
-	<artifactId>fast-classpath-scanner</artifactId>
-	<version>2.8.1</version>
-	<name>FastClasspathScanner</name>
+	<groupId>io.github.classgraph</groupId>
+	<artifactId>classgraph</artifactId>
+	<version>4.0.0-beta-11</version>
+	<name>ClassGraph</name>
 
 	<description>
-	Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile  binary format directly rather than by using reflection.
-	See https://github.com/lukehutch/fast-classpath-scanner
+	Uber-fast, ultra-lightweight Java classpath and module path scanner. https://github.com/classgraph/classgraph
 	</description>
 
 	<properties>
@@ -18,7 +17,7 @@
 	</properties>
 
 	<issueManagement>
-		<url>https://github.com/lukehutch/fast-classpath-scanner/issues</url>
+		<url>https://github.com/classgraph/classgraph/issues</url>
 	</issueManagement>
 
 	<licenses>
@@ -224,16 +223,16 @@
 			<groupId>org.hibernate.javax.persistence</groupId>
 			<artifactId>hibernate-jpa-2.1-api</artifactId>
 			<version>1.0.2.Final</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
 	<scm>
-		<connection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</connection>
-		<developerConnection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</developerConnection>
-		<url>https://github.com/lukehutch/fast-classpath-scanner</url>
-		<tag>fast-classpath-scanner-2.8.1</tag>
+		<connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
+		<developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
+		<url>https://github.com/classgraph/classgraph</url>
 	</scm>
-	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
+	<url>https://github.com/classgraph/classgraph</url>
 
 	<profiles>
 		<profile>
