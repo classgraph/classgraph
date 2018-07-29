@@ -3,7 +3,7 @@
 
 	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>3.1.14</version>
+	<version>3.1.15-SNAPSHOT</version>
 	<name>FastClasspathScanner</name>
 
 	<description>
@@ -52,8 +52,8 @@
 		<relocation>
 			<groupId>io.github.classgraph</groupId>
 			<artifactId>classgraph</artifactId>
-			<version>4.0.0</version>
-			<message>FastClasspathScanner has been renamed to ClassGraph for version 4. Please see project information at https://github.com/classgraph/classgraph and information on porting to the v4 API at https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph</message>
+			<version>4.0.0-beta-12</version>
+			<message>FastClasspathScanner has been renamed to ClassGraph for version 4. Please see project information at https://github.com/classgraph/classgraph and information on porting to the v4 API (including the new Maven dependency rule and the new module "requires" rule) at https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph</message>
 		</relocation>
 	</distributionManagement>
 
