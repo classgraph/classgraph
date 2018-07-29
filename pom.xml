@@ -7,7 +7,7 @@
 	<name>ClassGraph</name>
 
 	<description>
-	Uber-fast, ultra-lightweight Java classpath and module path scanner. https://github.com/classgraph/classgraph
+	Uber-fast, ultra-lightweight Java classpath and module path scanner (formerly named FastClasspathScanner). https://github.com/classgraph/classgraph
 	</description>
 
 	<properties>
