@@ -18,6 +18,9 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
 [See the wiki for complete documentation and usage information.](https://github.com/classgraph/classgraph/wiki)
 
+See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examples) page for examples of how to use the ClassGraph API.
+
+
 ## Status
 
 **Version 4.0.0-beta has been released**, with a completely revamped API. See the [porting notes](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph) for information on porting from the older FastClasspathScanner v3 API.
