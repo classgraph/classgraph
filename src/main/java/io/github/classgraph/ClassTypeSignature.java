@@ -135,7 +135,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         // Add back-links from type variable signature to the class signature it is part of
         @SuppressWarnings("unchecked")
         final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-        if (typeVariableSignatures != null) {
+        if (typeVariableSignatures != null && classInfo != null) {
             for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
                 typeVariableSignature.containingClassName = classInfo.getName();
             }
