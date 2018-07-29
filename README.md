@@ -1,12 +1,15 @@
 # ClassGraph
 
-ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. Classpath and module path scanning offers the inverse of the Java class API and/or reflection: for example, the Java class API can tell you the superclass of a given class, or give you the list of annotations on a class; classpath scanning can find all subclasses of a given class, or find all classes that are annotated with a given annotation.
+ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
-ClassGraph handles a large number of [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild. ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
-
-ClassGraph reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run). After scanning, you get a collection of wrapper objects representing each class, method, field, and annotation found during the scan. These can be queried in a range of ways to find classes matching given criteria, without ever loading the classes. You can even generate a [GraphViz visualization of the class graph](https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png).
-
-ClassGraph can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. ClassGraph has been [carefully optimized](#how-fast-is-classgraph).
+1. ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class API can tell you the superclass of a given class, or give you the list of annotations on a class; ClassGraph can find all subclasses of a given class, or find all classes that are annotated with a given annotation.
+2. More generally, ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be queried in a wide range of ways.
+3. ClassGraph can create [GraphViz visualizations]((https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png)) of the class graph structure, which can help with code understanding.
+4. ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
+5. ClassGraph scans the classpath or module path using [hand-optimized parallelized code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph%3F), for the shortest possible scan times.  
+6. ClassGraph is fully compatible with the new JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the visible Java modules. However, the code is also fully backwards compatible with JDK 7 and JDK 8.
+6. ClassGraph handles a large number of [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild.
+7. ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
 
 ## Documentation
 
@@ -19,18 +22,6 @@ ClassGraph can scan both the traditional classpath and the visible Java modules 
 In particular, the Maven group id has changed from `io.github.lukehutch.fast-classpath-scanner` to **`io.github.classgraph`** in version 4. Please see the new [Maven dependency rule](https://github.com/classgraph/classgraph/wiki) in the Wiki page.
 
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
-
-## How fast is ClassGraph?
-
-ClassGraph is the fastest classpath and module path scanning mechanism:
-
-* ClassGraph parses the classfile binary format directly to determine the class graph. This is significantly faster than reflection-based methods, because no classloading needs to be performed to determine how classes are related, and additionally, class static initializer blocks don't need to be called (which can be time consuming, and can cause side effects).
-* ClassGraph has been carefully profiled, tuned and parallelized so that multiple threads are concurrently engaged in reading from disk/SSD, decompressing jarfiles, and parsing classfiles. Consequently, ClassGraph runs at close to the theoretical maximum possible speed for a classpath scanner, and scanning speed is primarily limited by raw filesystem bandwidth.
-* Wherever possible, lock-free datastructures are used to eliminate thread contention, and shared caches are used to avoid duplicating work. Additionally, ClassGraph opens multiple `java.lang.ZipFile` instances for a given jarfile, up to one per thread, in order to circumvent a per-instance thread lock in the JRE `ZipFile` implementation.
-* ClassGraph includes comprehensive mechanisms for whitelisting and blacklisting, so that only the necessary resources are scanned.
-* ClassGraph uses memory-mapped files wherever possible (when scanning directories and modules) for extra speed.  
-
-In particular, ClassGraph is typically several times faster at scanning large classpaths consisting of many directories or jarfiles than the widely-used library [Reflections](https://github.com/ronmamo/reflections). If ClassGraph is slower than Reflections for your usecase, that is because it has discovered a [larger set of classpath elements to scan](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) than Reflections. You can limit what is scanned using whitelist / blacklist criteria (see the [wiki](https://github.com/classgraph/classgraph/wiki) for more info).
 
 ## Mailing List
 
