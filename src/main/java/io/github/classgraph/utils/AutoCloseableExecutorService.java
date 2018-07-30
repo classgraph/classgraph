@@ -49,7 +49,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     @Override
     public void close() {
         try {
-            // Prevent any new tasks being submitted
+            // Prevent new tasks being submitted
             shutdown();
         } catch (Exception e) {
         }
