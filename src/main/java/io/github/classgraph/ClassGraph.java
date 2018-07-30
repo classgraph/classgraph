@@ -63,7 +63,7 @@ public class ClassGraph {
             // Always scan with at least 2 threads
             2, //
             // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
-            Math.max(4, (int) (Math.ceil(Runtime.getRuntime().availableProcessors() * 0.75))) +
+            Math.min(4, (int) (Math.ceil(Runtime.getRuntime().availableProcessors() * 0.75))) +
             // Num scanning threads (higher than number of processors, because some threads can be blocked)
                     (int) Math.ceil(Runtime.getRuntime().availableProcessors() * 1.25f) //
     );
