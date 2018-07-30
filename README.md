@@ -7,12 +7,16 @@ ClassGraph has the ability to "invert" the Java class and/or reflection API: for
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
 * ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be queried in a wide range of ways.
-* ClassGraph can create [GraphViz visualizations](https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png) of the class graph structure, which can help with code understanding.
 * ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
 * ClassGraph is fully compatible with the new JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the visible Java modules. However, the code is also fully backwards compatible with JDK 7 and JDK 8 (i.e. it is compiled to be callable from a JDK 7 project).
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph%3F) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
+* ClassGraph can create [GraphViz visualizations](https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png) of the class graph structure, which can help with code understanding: [(see legend here)](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png)
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png"><img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/></a>
+</p>
 
 ## Documentation
 
