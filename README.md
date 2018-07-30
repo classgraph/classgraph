@@ -27,7 +27,9 @@ See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examp
 
 ## Status
 
-**Version 4.0.0-beta has been released**, with a completely revamped API. See the [porting notes](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph) for information on porting from the older FastClasspathScanner v3 API.
+**FastClasspathScanner was renamed to ClassGraph, and released as version 4**.
+
+ClassGraph has a completely revamped API. See the [porting notes](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph) for information on porting from the older FastClasspathScanner version 3 API.
 
 In particular, the Maven group id has changed from `io.github.lukehutch.fast-classpath-scanner` to **`io.github.classgraph`** in version 4. Please see the new [Maven dependency rule](https://github.com/classgraph/classgraph/wiki) and module "requires" line in the Wiki documentation.
 
