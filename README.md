@@ -16,7 +16,7 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
   > [💡 **See graph legend here**](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png)
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png"><img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/></a>
+  <a href="https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png"><img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
 </p>
 
 ## Documentation
