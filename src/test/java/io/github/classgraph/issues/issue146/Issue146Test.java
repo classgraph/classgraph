@@ -35,6 +35,7 @@ import java.io.IOException;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
 import io.github.classgraph.MethodInfo;
 
 public class Issue146Test {
@@ -43,10 +44,12 @@ public class Issue146Test {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue146Test.class.getPackage().getName();
-        final MethodInfo methodInfo = new ClassGraph().whitelistPackages(pkg) //
+        final ClassInfo classInfo = new ClassGraph().whitelistPackages(pkg) //
                 .enableMethodInfo() //
                 .scan() //
-                .getClassInfo(pkg + "." + "CompiledWithJDK8") //
+                .getClassInfo(pkg + "." + "CompiledWithJDK8");
+        assertThat(classInfo).isNotNull();
+        final MethodInfo methodInfo = classInfo //
                 .getMethodInfo("method") //
                 .get(0);
         assertThat(methodInfo.toString()) //
