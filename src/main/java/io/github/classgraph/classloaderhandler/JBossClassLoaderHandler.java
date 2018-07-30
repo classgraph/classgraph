@@ -36,7 +36,7 @@ import java.util.Map;
 import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
-import io.github.classgraph.utils.ClasspathUtils;
+import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ReflectionUtils;
 
@@ -92,7 +92,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                             final String name = (String) ReflectionUtils.invokeMethod(root, "getName", false);
                             if (name != null) {
                                 final File file = new java.io.File(physicalFile.getParentFile(), name);
-                                if (ClasspathUtils.canRead(file)) {
+                                if (FileUtils.canRead(file)) {
                                     path = file.getAbsolutePath();
                                 } else {
                                     path = physicalFile.getAbsolutePath();

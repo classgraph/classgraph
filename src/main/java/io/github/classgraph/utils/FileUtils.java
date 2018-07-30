@@ -29,6 +29,7 @@
 package io.github.classgraph.utils;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -149,5 +150,18 @@ public class FileUtils {
                 return bytesRead;
             }
         };
+    }
+
+    /**
+     * @param file
+     *            A {@File}.
+     * @return true if a file exists and can be read.
+     */
+    public static boolean canRead(final File file) {
+        try {
+            return file.canRead();
+        } catch (final SecurityException e) {
+            return false;
+        }
     }
 }

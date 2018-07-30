@@ -304,7 +304,7 @@ public class JarUtils {
         final Set<String> jreJarPaths = new HashSet<>();
         for (final String jrePath : jrePathsSet) {
             final File dir = new File(jrePath);
-            if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
+            if (FileUtils.canRead(dir) && dir.isDirectory()) {
                 final boolean isLib = jrePath.endsWith("/lib");
                 final boolean isExt = jrePath.endsWith("/ext")
                         // java.ext.dirs dirs may not necessarily end in "/ext"
@@ -351,7 +351,7 @@ public class JarUtils {
                 final File extFile = new File(libFile, "ext");
                 addJREPath(extFile, jrePathsSet);
                 final File rtJarFile = new File(libFile, "rt.jar");
-                if (ClasspathUtils.canRead(rtJarFile)) {
+                if (FileUtils.canRead(rtJarFile)) {
                     final String rtJarPath = rtJarFile.getPath();
                     if (!rtJarPaths.contains(rtJarPath)) {
                         rtJarPaths.add(rtJarPath);
@@ -362,7 +362,7 @@ public class JarUtils {
     }
 
     private static boolean addJREPath(final File dir, final Set<String> jrePathsSet) {
-        if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
+        if (FileUtils.canRead(dir) && dir.isDirectory()) {
             String path = dir.getPath();
             if (!path.endsWith(File.separator)) {
                 path += File.separator;

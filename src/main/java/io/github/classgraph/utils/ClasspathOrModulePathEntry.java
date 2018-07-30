@@ -302,7 +302,7 @@ public class ClasspathOrModulePathEntry {
                     throw new IOException("Exception while locating jarfile " + relativePath, e);
                 }
             }
-            if (fileCached == null || !ClasspathUtils.canRead(fileCached)) {
+            if (fileCached == null || !FileUtils.canRead(fileCached)) {
                 throw new IOException("Could not locate jarfile " + relativePath
                         + (relativePath.equals(path) ? "" : " -- resolved to: " + path));
             }
@@ -386,7 +386,7 @@ public class ClasspathOrModulePathEntry {
     /** True if this relative path corresponds to a file or directory that exists. */
     private boolean exists(final LogNode log) throws IOException {
         if (!existsIsCached) {
-            existsCached = ClasspathUtils.canRead(getFile(log));
+            existsCached = FileUtils.canRead(getFile(log));
             existsIsCached = true;
         }
         return existsCached;

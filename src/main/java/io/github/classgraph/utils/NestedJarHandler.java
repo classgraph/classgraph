@@ -170,7 +170,7 @@ public class NestedJarHandler {
                         }
                         return null;
                     }
-                    if (!ClasspathUtils.canRead(canonicalFile)) {
+                    if (!FileUtils.canRead(canonicalFile)) {
                         if (log != null) {
                             log.log(nestedJarPath, "Path component " + nestedJarPath + " does not exist");
                         }

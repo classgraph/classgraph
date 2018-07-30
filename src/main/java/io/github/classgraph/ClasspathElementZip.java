@@ -43,7 +43,6 @@ import java.util.zip.ZipFile;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
-import io.github.classgraph.utils.ClasspathUtils;
 import io.github.classgraph.utils.FastPathResolver;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
@@ -78,7 +77,7 @@ class ClasspathElementZip extends ClasspathElement {
             skipClasspathElement = true;
             return;
         }
-        if (classpathEltZipFile == null || !ClasspathUtils.canRead(classpathEltZipFile)) {
+        if (classpathEltZipFile == null || !FileUtils.canRead(classpathEltZipFile)) {
             if (log != null) {
                 log.log("Skipping non-existent jarfile " + classpathEltPath.getResolvedPath());
             }

@@ -47,11 +47,11 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.json.Id;
-import io.github.classgraph.utils.ClasspathUtils;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.Parser.ParseException;
 import io.github.classgraph.utils.TypeUtils;
+import io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo> {
@@ -1564,8 +1564,29 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 if (moduleRef != null) {
                     classpathElementURL = moduleRef.getLocation().toURL();
                 } else if (!jarfilePackageRoot.isEmpty()) {
-                    classpathElementURL = ClasspathUtils.getClasspathResourceURL(getClasspathElementFile(),
-                            jarfilePackageRoot);
+                    final File classpathEltFile = getClasspathElementFile();
+                    final boolean classpathEltIsJar = classpathEltFile.isFile();
+                    String classpathEltURL;
+                    try {
+                        classpathEltURL = classpathEltFile.toURI().toURL().toString();
+                        if (!classpathEltIsJar && !classpathEltURL.endsWith("/")) {
+                            // Ensure trailing slash for directory classpath entries
+                            classpathEltURL += "/";
+                        }
+                    } catch (final MalformedURLException e) {
+                        // Should not happen
+                        throw new RuntimeException(e);
+                    }
+                    final String relativePathEncoded = URLPathEncoder.encodePath(jarfilePackageRoot);
+                    final String urlStr = classpathEltIsJar ? "jar:" + classpathEltURL + "!" + relativePathEncoded
+                            : classpathEltURL + relativePathEncoded;
+                    try {
+                        classpathElementURL = new URL(urlStr);
+                    } catch (final MalformedURLException e) {
+                        // Should not happen
+                        throw new RuntimeException(e);
+                    }
+
                 } else {
                     classpathElementURL = getClasspathElementFile().toURI().toURL();
                 }

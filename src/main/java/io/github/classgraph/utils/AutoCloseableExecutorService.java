@@ -51,12 +51,12 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
         try {
             // Prevent new tasks being submitted
             shutdown();
-        } catch (Exception e) {
+        } catch (final Exception e) {
         }
         try {
             // Await termination of any running tasks
             awaitTermination(2500, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
         }
         try {
             // Interrupt all the threads to terminate them, if awaitTermination() timed out
