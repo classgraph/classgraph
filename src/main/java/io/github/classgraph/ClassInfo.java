@@ -1569,17 +1569,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     String classpathEltURL;
                     try {
                         classpathEltURL = classpathEltFile.toURI().toURL().toString();
-                        if (!classpathEltIsJar && !classpathEltURL.endsWith("/")) {
-                            // Ensure trailing slash for directory classpath entries
-                            classpathEltURL += "/";
-                        }
                     } catch (final MalformedURLException e) {
                         // Should not happen
                         throw new RuntimeException(e);
                     }
                     final String relativePathEncoded = URLPathEncoder.encodePath(jarfilePackageRoot);
-                    final String urlStr = classpathEltIsJar ? "jar:" + classpathEltURL + "!" + relativePathEncoded
-                            : classpathEltURL + relativePathEncoded;
+                    final String urlStr = classpathEltIsJar //
+                            ? "jar:" + classpathEltURL + "!" + relativePathEncoded
+                            : classpathEltURL + (!classpathEltURL.endsWith("/") ? "/" : "")
+                                    + (relativePathEncoded.startsWith("/") ? relativePathEncoded.substring(1)
+                                            : relativePathEncoded);
                     try {
                         classpathElementURL = new URL(urlStr);
                     } catch (final MalformedURLException e) {
