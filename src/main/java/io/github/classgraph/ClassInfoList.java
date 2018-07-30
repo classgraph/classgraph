@@ -564,13 +564,19 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      *            If true, show edges between classes and the types of their methods.
      * @param showAnnotations
      *            If true, show annotations in the graph.
+     * @throws IllegalArgumentException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      * @return the GraphViz file contents.
      */
     public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
             final boolean showFieldTypeDependencyEdges, final boolean showMethods,
             final boolean showMethodTypeDependencyEdges, final boolean showAnnotations) {
-        final ScanSpec scanSpec = size() == 0 ? null : get(0).scanResult.scanSpec;
-        if (scanSpec == null || !scanSpec.enableClassInfo) {
+        if (isEmpty()) {
+            throw new IllegalArgumentException("List is empty");
+        }
+        final ScanSpec scanSpec = get(0).scanResult.scanSpec;
+        if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
         return GraphvizDotfileGenerator.generateClassGraphDotFile(this, sizeX, sizeY, showFields,
@@ -594,6 +600,9 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      *            The GraphViz layout width in inches.
      * @param sizeY
      *            The GraphViz layout width in inches.
+     * @throws IllegalArgumentException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      * @return the GraphViz file contents.
      */
     public String generateGraphVizDotFile(final float sizeX, final float sizeY) {
@@ -614,6 +623,9 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * {@link ClassGraph#ignoreMethodVisibility()}, and/or {@link ClassGraph#ignoreFieldVisibility()} has/have been
      * called.
      *
+     * @throws IllegalArgumentException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      * @return the GraphViz file contents.
      */
     public String generateGraphVizDotFile() {
@@ -637,6 +649,9 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      *
      * @param file
      *            the file to save the GraphViz .dot file to.
+     * @throws IllegalArgumentException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      * @throws IOException
      *             if the file could not be saved.
      */
