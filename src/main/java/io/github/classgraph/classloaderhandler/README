@@ -2,12 +2,12 @@
 This directory contains ClassLoaderHandlers: classes that know how to extract classpath
 entries from different ClassLoaders.
 
-You can register your own custom ClassLoaderHandler with FastClasspathScanner by calling
-FastClasspathScanner#registerClassLoaderHandler() before calling #scan().
+You can register your own custom ClassLoaderHandler with ClassGraph by calling
+ClassGraph#registerClassLoaderHandler() before calling #scan().
 
 Note that URLClassLoader subclasses do not need a custom ClassLoaderHandler, they are
-handled automatically by FastClasspathScanner.
+handled automatically by ClassGraph.
 
-If a new default ClassLoaderHandler is added to FastClasspathScanner, then it should be
-added to the list in ClassLoaderHandlerRegistry.
+If a new default ClassLoaderHandler is added to ClassGraph, then it should be added to
+the list in ClassLoaderHandlerRegistry.
  
