@@ -561,7 +561,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @param showMethods
      *            If true, show methods within class nodes in the graph.
      * @param showMethodTypeDependencyEdges
-     *            If true, show edges between classes and the types of their methods.
+     *            If true, show edges between classes and the return types and/or parameter types of their methods.
      * @param showAnnotations
      *            If true, show annotations in the graph.
      * @throws IllegalArgumentException
