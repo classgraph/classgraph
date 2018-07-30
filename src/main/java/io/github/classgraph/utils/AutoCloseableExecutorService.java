@@ -49,6 +49,17 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     @Override
     public void close() {
         try {
+            // Prevent any new tasks being submitted
+            shutdown();
+        } catch (Exception e) {
+        }
+        try {
+            // Await termination of any running tasks
+            awaitTermination(2500, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+        }
+        try {
+            // Interrupt all the threads to terminate them, if awaitTermination() timed out
             shutdownNow();
         } catch (final Exception e) {
             throw new RuntimeException("Exception shutting down ExecutorService: " + e);
