@@ -62,10 +62,11 @@ public class ClassGraph {
     private static final int DEFAULT_NUM_WORKER_THREADS = Math.max(
             // Always scan with at least 2 threads
             2, //
-            // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
-            Math.min(4, (int) (Math.ceil(Runtime.getRuntime().availableProcessors() * 0.75))) +
-            // Num scanning threads (higher than number of processors, because some threads can be blocked)
-                    (int) Math.ceil(Runtime.getRuntime().availableProcessors() * 1.25f) //
+            (int) Math.ceil(
+                    // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
+                    Math.min(4.0f, Runtime.getRuntime().availableProcessors() * 0.75f) +
+                    // Num scanning threads (higher than available processors, because some threads can be blocked)
+                            Runtime.getRuntime().availableProcessors() * 1.25f) //
     );
 
     /** If non-null, log while scanning */
