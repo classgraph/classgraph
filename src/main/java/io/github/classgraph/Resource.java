@@ -59,7 +59,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     protected byte[] inputStreamToByteArray() throws IOException {
-        return FileUtils.readAllBytes(inputStream, length, null);
+        return FileUtils.readAllBytesAsArray(inputStream, length, null);
     }
 
     protected byte[] byteBufferToByteArray() {
