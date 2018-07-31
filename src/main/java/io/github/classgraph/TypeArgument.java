@@ -91,28 +91,41 @@ public class TypeArgument extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Parse a type argument. */
-    private static TypeArgument parse(final Parser parser) throws ParseException {
+    /**
+     * Parse a type argument.
+     * 
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
+     * @return The parsed method type signature.
+     * @throws ParseException
+     *             If method type signature could not be parsed.
+     */
+    private static TypeArgument parse(final Parser parser, final String definingClassName) throws ParseException {
         final char peek = parser.peek();
         if (peek == '*') {
             parser.expect('*');
             return new TypeArgument(Wildcard.ANY, null);
         } else if (peek == '+') {
             parser.expect('+');
-            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
+            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
+                    definingClassName);
             if (typeSignature == null) {
                 throw new ParseException(parser, "Missing '+' type bound");
             }
             return new TypeArgument(Wildcard.EXTENDS, typeSignature);
         } else if (peek == '-') {
             parser.expect('-');
-            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
+            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
+                    definingClassName);
             if (typeSignature == null) {
                 throw new ParseException(parser, "Missing '-' type bound");
             }
             return new TypeArgument(Wildcard.SUPER, typeSignature);
         } else {
-            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
+            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
+                    definingClassName);
             if (typeSignature == null) {
                 throw new ParseException(parser, "Missing type bound");
             }
@@ -120,8 +133,18 @@ public class TypeArgument extends HierarchicalTypeSignature {
         }
     }
 
-    /** Parse a list of type arguments. */
-    static List<TypeArgument> parseList(final Parser parser) throws ParseException {
+    /**
+     * Parse a list of type arguments.
+     * 
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
+     * @return The list of type arguments.
+     * @throws ParseException
+     *             If type signature could not be parsed.
+     */
+    static List<TypeArgument> parseList(final Parser parser, final String definingClassName) throws ParseException {
         if (parser.peek() == '<') {
             parser.expect('<');
             final List<TypeArgument> typeArguments = new ArrayList<>(2);
@@ -129,7 +152,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
                 if (!parser.hasMore()) {
                     throw new ParseException(parser, "Missing '>'");
                 }
-                typeArguments.add(parse(parser));
+                typeArguments.add(parse(parser, definingClassName));
             }
             parser.expect('>');
             return typeArguments;

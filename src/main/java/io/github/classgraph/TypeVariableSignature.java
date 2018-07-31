@@ -42,7 +42,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     private final String name;
 
     /** The name of the class that this type variable is defined in. */
-    String containingClassName;
+    private final String definingClassName;
 
     /** The method signature that this type variable is part of. */
     MethodTypeSignature containingMethodSignature;
@@ -53,8 +53,9 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
      * @param typeVariableName
      *            The type variable name.
      */
-    private TypeVariableSignature(final String typeVariableName) {
+    private TypeVariableSignature(final String typeVariableName, final String definingClassName) {
         this.name = typeVariableName;
+        this.definingClassName = definingClassName;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -93,7 +94,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         // If that failed, try resolving the type variable against the containing class
         final ClassInfo containingClassInfo = getClassInfo();
         if (containingClassInfo == null) {
-            throw new IllegalArgumentException("Could not find ClassInfo object for " + containingClassName);
+            throw new IllegalArgumentException("Could not find ClassInfo object for " + definingClassName);
         }
         final ClassTypeSignature containingClassSignature = containingClassInfo.getTypeSignature();
         if (containingClassSignature != null) {
@@ -113,7 +114,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Parse a TypeVariableSignature. */
-    static TypeVariableSignature parse(final Parser parser) throws ParseException {
+    static TypeVariableSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         final char peek = parser.peek();
         if (peek == 'T') {
             parser.next();
@@ -121,7 +122,8 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
                 throw new ParseException(parser, "Could not parse type variable signature");
             }
             parser.expect(';');
-            final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken());
+            final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken(),
+                    definingClassName);
 
             // Save type variable signatures in the parser state, so method and class type signatures can link
             // to type signatures
@@ -141,12 +143,12 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return containingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
+     * Return definingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
      * class.
      */
     @Override
     protected String getClassName() {
-        return containingClassName;
+        return definingClassName;
     }
 
     @Override

@@ -112,13 +112,19 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
-        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
-        final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
+        // The defining class name is used to resolve type variables using the defining class' type descriptor.
+        // But here we are parsing the defining class' type descriptor, so it can't contain variables that
+        // point to itself => just use null as the defining class name.
+        final String definingClassNameNull = null;
+        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser, definingClassNameNull);
+        final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser,
+                definingClassNameNull);
         List<ClassRefTypeSignature> superinterfaceSignatures;
         if (parser.hasMore()) {
             superinterfaceSignatures = new ArrayList<>();
             while (parser.hasMore()) {
-                final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser);
+                final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser,
+                        definingClassNameNull);
                 if (superinterfaceSignature == null) {
                     throw new ParseException(parser, "Could not parse superinterface signature");
                 }
@@ -132,14 +138,6 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         }
         final ClassTypeSignature classSignature = new ClassTypeSignature(classInfo, typeParameters,
                 superclassSignature, superinterfaceSignatures);
-        // Add back-links from type variable signature to the class signature it is part of
-        @SuppressWarnings("unchecked")
-        final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-        if (typeVariableSignatures != null && classInfo != null) {
-            for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                typeVariableSignature.containingClassName = classInfo.getName();
-            }
-        }
         return classSignature;
     }
 

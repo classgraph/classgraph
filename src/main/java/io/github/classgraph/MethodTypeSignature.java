@@ -117,32 +117,32 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     /**
      * Parse a method signature.
      * 
-     * @param definingClassName
-     *            The name of the defining class (for resolving type variables).
      * @param typeDescriptor
      *            The type descriptor of the method.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
      * @return The parsed method type signature.
      * @throws ParseException
      *             If method type signature could not be parsed.
      */
-    static MethodTypeSignature parse(final String definingClassName, final String typeDescriptor)
+    static MethodTypeSignature parse(final String typeDescriptor, final String definingClassName)
             throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
-        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
+        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser, definingClassName);
         parser.expect('(');
         final List<TypeSignature> paramTypes = new ArrayList<>();
         while (parser.peek() != ')') {
             if (!parser.hasMore()) {
                 throw new ParseException(parser, "Ran out of input while parsing method signature");
             }
-            final TypeSignature paramType = TypeSignature.parse(parser);
+            final TypeSignature paramType = TypeSignature.parse(parser, definingClassName);
             if (paramType == null) {
                 throw new ParseException(parser, "Missing method parameter type signature");
             }
             paramTypes.add(paramType);
         }
         parser.expect(')');
-        final TypeSignature resultType = TypeSignature.parse(parser);
+        final TypeSignature resultType = TypeSignature.parse(parser, definingClassName);
         if (resultType == null) {
             throw new ParseException(parser, "Missing method result type signature");
         }
@@ -151,11 +151,13 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             throwsSignatures = new ArrayList<>();
             while (parser.peek() == '^') {
                 parser.expect('^');
-                final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parser);
+                final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parser,
+                        definingClassName);
                 if (classTypeSignature != null) {
                     throwsSignatures.add(classTypeSignature);
                 } else {
-                    final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parser);
+                    final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parser,
+                            definingClassName);
                     if (typeVariableSignature != null) {
                         throwsSignatures.add(typeVariableSignature);
                     } else {
@@ -178,11 +180,6 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
         if (typeVariableSignatures != null) {
             for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
                 typeVariableSignature.containingMethodSignature = methodSignature;
-            }
-            if (definingClassName != null) {
-                for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                    typeVariableSignature.containingClassName = definingClassName;
-                }
             }
         }
         return methodSignature;

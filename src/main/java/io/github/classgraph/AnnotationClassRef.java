@@ -63,7 +63,9 @@ public class AnnotationClassRef extends ScanResultObject {
     private TypeSignature getTypeSignature() {
         if (typeSignature == null) {
             try {
-                typeSignature = TypeSignature.parse(typeDescriptorStr);
+                // There can't be any type variables to resolve in either ClassRefTypeSignature or
+                // BaseTypeSignature, so just set definingClassName to null
+                typeSignature = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
                 typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);

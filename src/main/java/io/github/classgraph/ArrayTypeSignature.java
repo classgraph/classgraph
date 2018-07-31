@@ -126,14 +126,14 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return buf.toString();
     }
 
-    static ArrayTypeSignature parse(final Parser parser) throws ParseException {
+    static ArrayTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         int numArrayDims = 0;
         while (parser.peek() == '[') {
             numArrayDims++;
             parser.next();
         }
         if (numArrayDims > 0) {
-            final TypeSignature elementTypeSignature = TypeSignature.parse(parser);
+            final TypeSignature elementTypeSignature = TypeSignature.parse(parser, definingClassName);
             if (elementTypeSignature == null) {
                 throw new ParseException(parser, "elementTypeSignature == null");
             }

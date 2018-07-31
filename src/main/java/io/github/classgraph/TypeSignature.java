@@ -46,10 +46,20 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      */
     public abstract boolean equalsIgnoringTypeParams(final TypeSignature other);
 
-    /** Parse a type signature. */
-    static TypeSignature parse(final Parser parser) throws ParseException {
+    /**
+     * Parse a type signature.
+     * 
+     * @param parser
+     *            The parser
+     * @param definingClass
+     *            The class containing the type descriptor.
+     * @return The parsed type descriptor or type signature.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
+     */
+    static TypeSignature parse(final Parser parser, final String definingClass) throws ParseException {
         final ReferenceTypeSignature referenceTypeSignature = ReferenceTypeSignature
-                .parseReferenceTypeSignature(parser);
+                .parseReferenceTypeSignature(parser, definingClass);
         if (referenceTypeSignature != null) {
             return referenceTypeSignature;
         }
@@ -65,14 +75,16 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * 
      * @param typeDescriptor
      *            The type descriptor or type signature to parse.
+     * @param definingClass
+     *            The class containing the type descriptor.
      * @return The parsed type descriptor or type signature.
      * @throws ParseException
-     *             If type signature could not be parsed.
+     *             If the type signature could not be parsed.
      */
-    static TypeSignature parse(final String typeDescriptor) throws ParseException {
+    static TypeSignature parse(final String typeDescriptor, final String definingClass) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         TypeSignature typeSignature;
-        typeSignature = parse(parser);
+        typeSignature = parse(parser, definingClass);
         if (typeSignature == null) {
             throw new ParseException(parser, "Could not parse type signature");
         }

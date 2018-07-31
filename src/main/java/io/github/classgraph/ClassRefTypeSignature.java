@@ -282,15 +282,25 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         return buf.toString();
     }
 
-    /** Parse a class type signature. */
-    static ClassRefTypeSignature parse(final Parser parser) throws ParseException {
+    /**
+     * Parse a class type signature.
+     * 
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
+     * @return The class type signature.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
+     */
+    static ClassRefTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         if (parser.peek() == 'L') {
             parser.next();
             if (!TypeUtils.getIdentifierToken(parser, /* separator = */ '/', /* separatorReplace = */ '.')) {
                 throw new ParseException(parser, "Could not parse identifier token");
             }
             final String className = parser.currToken();
-            final List<TypeArgument> typeArguments = TypeArgument.parseList(parser);
+            final List<TypeArgument> typeArguments = TypeArgument.parseList(parser, definingClassName);
             List<String> suffixes;
             List<List<TypeArgument>> suffixTypeArguments;
             if (parser.peek() == '.') {
@@ -303,7 +313,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
                         throw new ParseException(parser, "Could not parse identifier token");
                     }
                     suffixes.add(parser.currToken());
-                    suffixTypeArguments.add(TypeArgument.parseList(parser));
+                    suffixTypeArguments.add(TypeArgument.parseList(parser, definingClassName));
                 }
             } else {
                 suffixes = Collections.emptyList();

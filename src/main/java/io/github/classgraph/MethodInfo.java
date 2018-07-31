@@ -191,7 +191,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public MethodTypeSignature getTypeDescriptor() {
         if (typeDescriptor == null) {
             try {
-                typeDescriptor = MethodTypeSignature.parse(definingClassName, typeDescriptorStr);
+                typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, definingClassName);
                 typeDescriptor.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
@@ -209,7 +209,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public MethodTypeSignature getTypeSignature() {
         if (typeSignature == null && typeSignatureStr != null) {
             try {
-                typeSignature = MethodTypeSignature.parse(definingClassName, typeSignatureStr);
+                typeSignature = MethodTypeSignature.parse(typeSignatureStr, definingClassName);
                 typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);

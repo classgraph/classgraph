@@ -8,25 +8,49 @@ import io.github.classgraph.utils.Parser.ParseException;
  * ({@link ClassRefTypeSignature} or {@link TypeVariableSignature}), and {@link ArrayTypeSignature}.
  */
 public abstract class ReferenceTypeSignature extends TypeSignature {
-    static ReferenceTypeSignature parseReferenceTypeSignature(final Parser parser) throws ParseException {
-        final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parser);
+    /**
+     * Parse a reference type signature.
+     * 
+     * @param parser
+     *            The parser
+     * @param definingClassName
+     *            The class containing the type descriptor.
+     * @return The parsed type reference type signature.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
+     */
+    static ReferenceTypeSignature parseReferenceTypeSignature(final Parser parser, final String definingClassName)
+            throws ParseException {
+        final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parser, definingClassName);
         if (classTypeSignature != null) {
             return classTypeSignature;
         }
-        final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parser);
+        final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parser, definingClassName);
         if (typeVariableSignature != null) {
             return typeVariableSignature;
         }
-        final ArrayTypeSignature arrayTypeSignature = ArrayTypeSignature.parse(parser);
+        final ArrayTypeSignature arrayTypeSignature = ArrayTypeSignature.parse(parser, definingClassName);
         if (arrayTypeSignature != null) {
             return arrayTypeSignature;
         }
         return null;
     }
 
-    static ReferenceTypeSignature parseClassBound(final Parser parser) throws ParseException {
+    /**
+     * Parse a class bound.
+     * 
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The class containing the type descriptor.
+     * @return The parsed class bound.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
+     */
+    static ReferenceTypeSignature parseClassBound(final Parser parser, final String definingClassName)
+            throws ParseException {
         parser.expect(':');
         // May return null if there is no signature after ':' (class bound signature may be empty)
-        return parseReferenceTypeSignature(parser);
+        return parseReferenceTypeSignature(parser, definingClassName);
     }
 }
