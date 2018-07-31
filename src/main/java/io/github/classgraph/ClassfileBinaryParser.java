@@ -205,7 +205,7 @@ class ClassfileBinaryParser {
             final int cpIdx) throws IOException {
         switch (tag) {
         case 1: // Modified UTF8
-        case 7: // Class -- N.B. Class references do not seem to actually be stored as constant initalizers
+        case 7: // Class -- N.B. Unused? Class references do not seem to actually be stored as constant initalizers
         case 8: // String
             // Forward or backward indirect reference to a modified UTF8 entry
             return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
