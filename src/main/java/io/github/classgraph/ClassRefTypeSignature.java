@@ -141,6 +141,21 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
      * class. (Called by {@link AnnotationClassRef#loadClass()}.)
      * 
+     * @param ignoreExceptions
+     *            if true, ignore exceptions and instead return null if the class could not be loaded.
+     * @return The {@code Class<?>} reference for the referenced class.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded and ignoreExceptions was false.
+     */
+    @Override
+    public Class<?> loadClass(final boolean ignoreExceptions) {
+        return super.loadClass(ignoreExceptions);
+    }
+
+    /**
+     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
+     * class. (Called by {@link AnnotationClassRef#loadClass()}.)
+     * 
      * @return The {@code Class<?>} reference for the referenced class.
      * @throws IllegalArgumentException
      *             if the class could not be loaded.

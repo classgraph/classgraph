@@ -83,11 +83,14 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      * Loads the enum class, instantiates the enum constants for the class, and returns the enum constant value
      * represented by this {@link AnnotationEnumValue}.
      * 
+     * @param ignoreExceptions
+     *            If true, ignore classloading exceptions and return null on failure.
      * @return The enum constant value represented by this {@link AnnotationEnumValue}
      * @throws IllegalArgumentException
-     *             if the class could not be loaded, or the enum constant is invalid.
+     *             if the class could not be loaded and ignoreExceptions was false, or if the enum constant is
+     *             invalid.
      */
-    public Object loadClassAndReturnEnumValue() throws IllegalArgumentException {
+    public Object loadClassAndReturnEnumValue(final boolean ignoreExceptions) throws IllegalArgumentException {
         final Class<?> classRef = super.loadClass();
         if (!classRef.isEnum()) {
             throw new IllegalArgumentException("Class " + className + " is not an enum");
@@ -95,7 +98,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         Field field;
         try {
             field = classRef.getDeclaredField(valueName);
-        } catch (NoSuchFieldException | SecurityException e) {
+        } catch (final Exception e) {
             throw new IllegalArgumentException("Could not find enum constant " + toString(), e);
         }
         if (!field.isEnumConstant()) {
@@ -103,9 +106,21 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         }
         try {
             return field.get(null);
-        } catch (final IllegalAccessException e) {
+        } catch (final Exception e) {
             throw new IllegalArgumentException("Field " + toString() + " is not accessible", e);
         }
+    }
+
+    /**
+     * Loads the enum class, instantiates the enum constants for the class, and returns the enum constant value
+     * represented by this {@link AnnotationEnumValue}.
+     * 
+     * @return The enum constant value represented by this {@link AnnotationEnumValue}
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded, or the enum constant is invalid.
+     */
+    public Object loadClassAndReturnEnumValue() throws IllegalArgumentException {
+        return loadClassAndReturnEnumValue(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

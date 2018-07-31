@@ -75,21 +75,35 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Loads the referenced class, returning a {@code Class<?>} reference for the referenced class.
      * 
+     * @param ignoreExceptions
+     *            if true, ignore exceptions and instead return null if the class could not be loaded.
+     * @return The {@code Class<?>} reference for the referenced class.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded and ignoreExceptions was false.
+     */
+    @Override
+    public Class<?> loadClass(final boolean ignoreExceptions) {
+        getTypeSignature();
+        if (typeSignature instanceof BaseTypeSignature) {
+            return ((BaseTypeSignature) typeSignature).getType();
+        } else if (typeSignature instanceof ClassRefTypeSignature) {
+            return ((ClassRefTypeSignature) typeSignature).loadClass(ignoreExceptions);
+        } else {
+            throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
+                    + " for ref type signature: " + typeDescriptorStr);
+        }
+    }
+
+    /**
+     * Loads the referenced class, returning a {@code Class<?>} reference for the referenced class.
+     * 
      * @return The {@code Class<?>} reference for the referenced class.
      * @throws IllegalArgumentException
      *             if the class could not be loaded.
      */
     @Override
     public Class<?> loadClass() {
-        getTypeSignature();
-        if (typeSignature instanceof BaseTypeSignature) {
-            return ((BaseTypeSignature) typeSignature).getType();
-        } else if (typeSignature instanceof ClassRefTypeSignature) {
-            return ((ClassRefTypeSignature) typeSignature).loadClass();
-        } else {
-            throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
-                    + " for ref type signature: " + typeDescriptorStr);
-        }
+        return loadClass(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
