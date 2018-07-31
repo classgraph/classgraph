@@ -67,7 +67,7 @@ public class FileUtils {
     }
 
     /**
-     * Read all the bytes in an {@link InputStream}.
+     * Read all the bytes in an {@link InputStream} as a ByteOutputStream.
      * 
      * @param inputStream
      *            The {@link InputStream}.
@@ -75,12 +75,12 @@ public class FileUtils {
      *            The file size, if known, otherwise -1L.
      * @param log
      *            The log.
-     * @return The contents of the {@link InputStream}.
+     * @return The contents of the {@link InputStream} as a ByteOutputStream.
      * @throws IOException
      *             If the contents could not be read.
      */
-    public static byte[] readAllBytes(final InputStream inputStream, final long fileSize, final LogNode log)
-            throws IOException {
+    public static ByteArrayOutputStream readAllBytesAsBAOS(final InputStream inputStream, final long fileSize,
+            final LogNode log) throws IOException {
         // Java arrays can only currently have 32-bit indices
         if (fileSize > Integer.MAX_VALUE
                 // ZipEntry#getSize() can wrap around to negative for files larger than 2GB
@@ -106,7 +106,43 @@ public class FileUtils {
                 log.log("File length expected to be " + fileSize + " bytes, but read " + totBytesRead + " bytes");
             }
         }
-        return baos.toByteArray();
+        return baos;
+    }
+
+    /**
+     * Read all the bytes in an {@link InputStream} as a byte array.
+     * 
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param fileSize
+     *            The file size, if known, otherwise -1L.
+     * @param log
+     *            The log.
+     * @return The contents of the {@link InputStream} as a byte array.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSize, final LogNode log)
+            throws IOException {
+        return readAllBytesAsBAOS(inputStream, fileSize, log).toByteArray();
+    }
+
+    /**
+     * Read all the bytes in an {@link InputStream} as a String.
+     * 
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param fileSize
+     *            The file size, if known, otherwise -1L.
+     * @param log
+     *            The log.
+     * @return The contents of the {@link InputStream} as a String.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public static String readAllBytesAsString(final InputStream inputStream, final long fileSize, final LogNode log)
+            throws IOException {
+        return readAllBytesAsBAOS(inputStream, fileSize, log).toString("UTF-8");
     }
 
     /**

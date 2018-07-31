@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.utils;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -280,15 +279,8 @@ public class JarfileMetadataReader {
                     if (zipEntryPath.equals(MANIFEST_PATH)) {
                         // Parse manifest file, if present
                         try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                            final ByteArrayOutputStream byteBuf = new ByteArrayOutputStream();
-                            // Start with '\n' so every field (including the first line) has newline as a prefix
-                            byteBuf.write('\n');
-                            final byte[] data = new byte[16384];
-                            for (int bytesRead; (bytesRead = inputStream.read(data, 0, data.length)) != -1;) {
-                                byteBuf.write(data, 0, bytesRead);
-                            }
-                            byteBuf.flush();
-                            final String manifest = byteBuf.toString("UTF-8");
+                            final String manifest = FileUtils.readAllBytesAsString(inputStream, zipEntry.getSize(),
+                                    log);
 
                             // Check if this is a JRE jar
                             this.isSystemJar = //
