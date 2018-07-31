@@ -80,7 +80,8 @@ class ClasspathElementModule extends ClasspathElement {
 
     private Resource newClasspathResource(final String moduleResourcePath) {
         return new Resource() {
-            private ModuleReaderProxy moduleReaderProxy = null;
+            private Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable;
+            private ModuleReaderProxy moduleReaderProxy;
 
             @Override
             public String getPath() {
@@ -123,7 +124,8 @@ class ClasspathElementModule extends ClasspathElement {
                         if (moduleReaderProxy != null || inputStream != null) {
                             throw new RuntimeException("Tried to open classpath resource twice");
                         }
-                        moduleReaderProxy = moduleReaderProxyRecycler.acquire();
+                        moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
+                        moduleReaderProxy = moduleReaderProxyRecyclable.get();
                         byteBuffer = moduleReaderProxy.read(moduleResourcePath);
                         length = byteBuffer.remaining();
                         return byteBuffer;
@@ -165,7 +167,10 @@ class ClasspathElementModule extends ClasspathElement {
                         }
                         byteBuffer = null;
                     }
-                    moduleReaderProxyRecycler.release(moduleReaderProxy);
+                    if (moduleReaderProxyRecyclable != null) {
+                        moduleReaderProxyRecyclable.close();
+                        moduleReaderProxyRecyclable = null;
+                    }
                     moduleReaderProxy = null;
                 }
                 super.close();
@@ -184,17 +189,10 @@ class ClasspathElementModule extends ClasspathElement {
         final String moduleLocationStr = moduleRef.getLocationStr();
         final LogNode subLog = log == null ? null
                 : log.log(moduleLocationStr, "Scanning module classpath entry " + classpathEltPath);
-        ModuleReaderProxy moduleReaderProxy = null;
-        try {
-            moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-        } catch (final IOException e) {
-            if (subLog != null) {
-                subLog.log("Exception opening module " + classpathEltPath, e);
-            }
-            skipClasspathElement = true;
-            return;
-        }
-        try {
+        try (Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable = //
+                moduleReaderProxyRecycler.acquire()) {
+            final ModuleReaderProxy moduleReaderProxy = moduleReaderProxyRecyclable.get();
+
             // Look for whitelisted files in the module.
             List<String> resourceRelativePaths;
             try {
@@ -265,12 +263,12 @@ class ClasspathElementModule extends ClasspathElement {
                     }
                 }
             }
-
-        } finally {
-            if (moduleReaderProxy != null) {
-                moduleReaderProxyRecycler.release(moduleReaderProxy);
-                moduleReaderProxy = null;
+        } catch (final IOException e) {
+            if (subLog != null) {
+                subLog.log("Exception opening module " + classpathEltPath, e);
             }
+            skipClasspathElement = true;
+            return;
         }
         if (subLog != null) {
             subLog.addElapsedTime();

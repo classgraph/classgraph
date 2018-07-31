@@ -74,39 +74,71 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
     private final ConcurrentLinkedQueue<T> unusedInstances = new ConcurrentLinkedQueue<>();
 
     /**
-     * Acquire or allocate an instance.
+     * Create a new instance.
      * 
-     * @return The allocated instance.
+     * @return The new instance.
      * @throws E
      *             If an exception of type E was thrown during instantiation.
      */
-    public T acquire() throws E {
-        final T instance = unusedInstances.poll();
-        if (instance != null) {
-            return instance;
-        }
-        final T newInstance = newInstance(); // May throw exception E
-        if (newInstance != null) {
-            allocatedInstances.add(newInstance);
-            return newInstance;
-        } else {
-            throw new RuntimeException("Failed to allocate a new recyclable instance");
-        }
-    }
+    public abstract T newInstance() throws E;
 
     /**
-     * Release/recycle an instance.
+     * Acquire a Recyclable wrapper around an object instance. Use in try-with-resources.
      * 
-     * @param instance
-     *            The instance to release.
+     * @return Either a new or a recycled object instance.
+     * @throws E
+     *             If anything goes wrong when trying to allocate a new object instance.
      */
-    public void release(final T instance) {
-        if (instance != null) {
-            unusedInstances.add(instance);
+    public Recyclable acquire() throws E {
+        return new Recyclable();
+    }
+
+    /** An AutoCloseable wrapper for a recyclable object instance. Use in try-with-resources. */
+    public class Recyclable implements AutoCloseable {
+        private final T instance;
+
+        /**
+         * Acquire or allocate an instance.
+         * 
+         * @throws E
+         *             If an exception of type E was thrown during instantiation.
+         */
+        public Recyclable() throws E {
+            final T recycledInstance = unusedInstances.poll();
+            if (recycledInstance != null) {
+                // Use an unused instance
+                instance = recycledInstance;
+            } else {
+                // Allocate a new instance
+                final T newInstance = newInstance(); // May throw exception E
+                if (newInstance == null) {
+                    throw new RuntimeException("Failed to allocate a new recyclable instance");
+                } else {
+                    allocatedInstances.add(newInstance);
+                    instance = newInstance;
+                }
+            }
+        }
+
+        /**
+         * @return The new or recycled object instance.
+         */
+        public T get() {
+            return instance;
+        }
+
+        /**
+         * Release/recycle an instance.
+         */
+        @Override
+        public void close() {
+            if (instance != null) {
+                unusedInstances.add(instance);
+            }
         }
     }
 
-    /** Call this only after all instances have been released. */
+    /** Calls close() on all the allocated instances. Call this only after all Recyclables have been closed. */
     @Override
     public void close() {
         final int unreleasedInstances = allocatedInstances.size() - unusedInstances.size();
@@ -122,13 +154,4 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
         }
         unusedInstances.clear();
     }
-
-    /**
-     * Create a new instance.
-     * 
-     * @return The new instance.
-     * @throws E
-     *             If an exception of type E was thrown during instantiation.
-     */
-    public abstract T newInstance() throws E;
 }
