@@ -205,7 +205,7 @@ class ClassfileBinaryParser {
             final int cpIdx) throws IOException {
         switch (tag) {
         case 1: // Modified UTF8
-        case 7: // Class
+        case 7: // Class -- N.B. Class references do not seem to actually be stored as constant initalizers
         case 8: // String
             // Forward or backward indirect reference to a modified UTF8 entry
             return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
@@ -236,7 +236,8 @@ class ClassfileBinaryParser {
         case 6: // double
             return Double.valueOf(Double.longBitsToDouble(inputStreamOrByteBuffer.readLong(offset[cpIdx])));
         default:
-            // ClassGraph doesn't currently do anything with the other types
+            // ClassGraph doesn't expect other types
+            // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)  
             throw new RuntimeException("Unknown constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/lukehutch/fast-classpath-scanner/issues");
