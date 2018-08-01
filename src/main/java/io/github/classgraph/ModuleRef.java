@@ -225,7 +225,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
             return false;
         }
         final ModuleRef mr = (ModuleRef) obj;
-        return reference.equals(this.reference) && mr.layer.equals(this.layer);
+        return mr.reference.equals(this.reference) && mr.layer.equals(this.layer);
     }
 
     @Override
