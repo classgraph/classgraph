@@ -91,7 +91,13 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     /**
      * Get the name of the class, formed from the base name and any suffixes (suffixes are for inner class nesting,
      * and are separated by '$'), but without any type arguments. For example,
-     * {@code "xyz.Cls<String>$InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}.
+     * {@code "xyz.Cls<String>.InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}. The intent of this
+     * method is that if you replace '.' with '/', and then add the suffix ".class", you end up with the path of the
+     * classfile relative to the package root.
+     * 
+     * <p>
+     * For comparison, {@link #toString()} uses '.' to separate suffixes, and includes type parameters, whereas this
+     * method uses '$' to separate suffixes, and does not include type parameters.
      * 
      * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */
@@ -249,6 +255,13 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         }
     }
 
+    /**
+     * Return the class type as a string.
+     * 
+     * <p>
+     * For comparison, {@link #getFullyQualifiedClassName()} uses '$' to separate suffixes, and does not include
+     * type parameters, whereas this method uses '.' to separate suffixes, and does include type parameters.
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
@@ -264,8 +277,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             buf.append('>');
         }
         for (int i = 0; i < suffixes.size(); i++) {
-            // Use '$' before each suffix
-            buf.append('$');
+            // Use '.' before each suffix in the toString() representation, since that is
+            // how the class name will be shown in Java, e.g. OuterClass<T>.InnerClass
+            buf.append('.');
             buf.append(suffixes.get(i));
             final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
             if (!suffixTypeArgs.isEmpty()) {
