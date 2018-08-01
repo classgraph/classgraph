@@ -248,7 +248,16 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public void close() {
-                super.close();
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                        inputStream = null;
+                    } catch (final IOException e) {
+                    }
+                }
+                if (byteBuffer != null) {
+                    byteBuffer = null;
+                }
                 if (zipFile != null) {
                     // Leave the ZipFile open in the recycler, just set the ref to null here.
                     // The open ZipFile instances are closed when ClasspathElementZip#close() is called.

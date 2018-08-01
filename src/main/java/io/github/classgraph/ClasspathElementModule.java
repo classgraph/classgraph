@@ -160,15 +160,24 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public void close() {
-                if (moduleReaderProxy != null) {
-                    // Release any open ByteBuffer
-                    if (byteBuffer != null) {
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                        inputStream = null;
+                    } catch (final IOException e) {
+                    }
+                }
+                if (byteBuffer != null) {
+                    if (moduleReaderProxy != null) {
                         try {
                             moduleReaderProxy.release(byteBuffer);
                         } catch (final Exception e) {
                         }
-                        byteBuffer = null;
                     }
+                    byteBuffer = null;
+                }
+                if (moduleReaderProxy != null) {
+                    // Release any open ByteBuffer
                     // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
                     // Just set the ref to null here. The ModuleReaderProxy will be closed by
                     // ClasspathElementModule#close().
@@ -179,7 +188,6 @@ class ClasspathElementModule extends ClasspathElement {
                     moduleReaderProxyRecyclable.close();
                     moduleReaderProxyRecyclable = null;
                 }
-                super.close();
             }
 
             @Override

@@ -147,6 +147,16 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public void close() {
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                        inputStream = null;
+                    } catch (final IOException e) {
+                    }
+                }
+                if (byteBuffer != null) {
+                    byteBuffer = null;
+                }
                 if (fileChannel != null) {
                     try {
                         fileChannel.close();
@@ -161,7 +171,6 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                     randomAccessFile = null;
                 }
-                super.close();
             }
 
             @Override

@@ -182,16 +182,5 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
 
     /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */
     @Override
-    public void close() {
-        if (inputStream != null) {
-            try {
-                inputStream.close();
-                inputStream = null;
-            } catch (final IOException e) {
-            }
-        }
-        if (byteBuffer != null) {
-            byteBuffer = null;
-        }
-    }
+    public abstract void close();
 }
