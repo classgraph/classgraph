@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Array;
+import java.util.Objects;
 import java.util.Set;
 
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
@@ -177,5 +178,10 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         final int diff = this.compareTo(o);
         return (diff != 0 ? false
                 : value == null && o.value == null ? true : value == null || o.value == null ? false : true);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, value);
     }
 }
