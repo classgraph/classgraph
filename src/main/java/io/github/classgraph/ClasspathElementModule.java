@@ -207,7 +207,7 @@ class ClasspathElementModule extends ClasspathElement {
             ScanSpecPathMatch prevParentMatchStatus = null;
             for (final String relativePath : resourceRelativePaths) {
                 // From ModuleReader#find(): "If the module reader can determine that the name locates a
-                // directory then the resulting URI will end with a slash ('/')."  But From the documentation
+                // directory then the resulting URI will end with a slash ('/')."  But from the documentation
                 // for ModuleReader#list(): "Whether the stream of elements includes names corresponding to
                 // directories in the module is module reader specific."  We don't have a way of checking if
                 // a resource is a directory without trying to open it, unless ModuleReader#list() also decides
