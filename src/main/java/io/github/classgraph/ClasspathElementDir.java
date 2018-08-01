@@ -105,7 +105,8 @@ class ClasspathElementDir extends ClasspathElement {
                     throw new IOException("Parent directory could not be opened");
                 }
                 if (byteBuffer != null) {
-                    return byteBuffer;
+                    throw new IllegalArgumentException(
+                            "Resource is already open -- cannot open it again without first calling close()");
                 } else {
                     try {
                         @SuppressWarnings("resource")

@@ -210,7 +210,8 @@ class ClasspathElementZip extends ClasspathElement {
                     throw new IOException("Jarfile could not be opened");
                 }
                 if (inputStream != null) {
-                    return inputStream;
+                    throw new IllegalArgumentException(
+                            "Resource is already open -- cannot open it again without first calling close()");
                 } else {
                     try {
                         zipFileRecyclable = zipFileRecycler.acquire();

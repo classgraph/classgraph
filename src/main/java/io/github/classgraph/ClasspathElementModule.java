@@ -118,7 +118,8 @@ class ClasspathElementModule extends ClasspathElement {
                     throw new IOException("Module could not be opened");
                 }
                 if (byteBuffer != null) {
-                    return byteBuffer;
+                    throw new IllegalArgumentException(
+                            "Resource is already open -- cannot open it again without first calling close()");
                 } else {
                     try {
                         if (moduleReaderProxy != null || inputStream != null) {
