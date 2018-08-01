@@ -135,7 +135,10 @@ public class LogNode {
     private void toString(final int indentLevel, final StringBuilder buf) {
         final Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timeStampMillis);
-        final String timeStampStr = dateTimeFormatter.format(cal.getTime());
+        final String timeStampStr;
+        synchronized (dateTimeFormatter) {
+            timeStampStr = dateTimeFormatter.format(cal.getTime());
+        }
 
         if (msg != null && !msg.isEmpty()) {
             appendLine(timeStampStr, indentLevel,
