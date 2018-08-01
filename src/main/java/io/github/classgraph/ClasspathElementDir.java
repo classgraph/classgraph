@@ -109,9 +109,8 @@ class ClasspathElementDir extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 } else {
                     try {
-                        @SuppressWarnings("resource")
-                        final RandomAccessFile randomAccessFile = new RandomAccessFile(classpathResourceFile, "r");
-                        final FileChannel fileChannel = randomAccessFile.getChannel();
+                        randomAccessFile = new RandomAccessFile(classpathResourceFile, "r");
+                        fileChannel = randomAccessFile.getChannel();
                         final MappedByteBuffer buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0,
                                 fileChannel.size());
                         buffer.load();
