@@ -454,7 +454,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final ClassLoader[] classLoaders = classpathElement.getClassLoaders();
         if (classInfo.classLoaders == null) {
             classInfo.classLoaders = classLoaders;
-        } else if (classLoaders != null && !classInfo.classLoaders.equals(classLoaders)) {
+        } else if (classLoaders != null && !Arrays.equals(classInfo.classLoaders, classLoaders)) {
             // Merge together ClassLoader list (concatenate and dedup)
             final LinkedHashSet<ClassLoader> allClassLoaders = new LinkedHashSet<>(
                     Arrays.asList(classInfo.classLoaders));

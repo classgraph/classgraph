@@ -267,7 +267,7 @@ class JSONParser extends Parser {
             return Integer.valueOf(numberStr);
         } else if (numIntegralDigits == 9) {
             // For 9-digit numbers, could be int or long
-            final long longVal = Long.valueOf(numberStr);
+            final long longVal = Long.parseLong(numberStr);
             if (longVal >= Integer.MIN_VALUE && longVal < Integer.MAX_VALUE) {
                 return Integer.valueOf((int) longVal);
             } else {
