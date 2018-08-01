@@ -41,7 +41,7 @@ import io.github.classgraph.ScanResult;
 
 @Entity
 public class Issue223Test {
-    public static class InnerClass {
+    public static interface InnerInterface {
     }
 
     @Test
@@ -49,9 +49,10 @@ public class Issue223Test {
         final ClassInfoList innerClasses = new ClassGraph().whitelistPackages(Issue223Test.class.getPackage().getName())
                 .enableAllInfo().scan().getAllClasses().filter(ci -> ci.isInnerClass());
         assertThat(innerClasses.size()).isEqualTo(1);
-        ClassInfo innerClass = innerClasses.get(0);
-        assertThat(innerClass.getName()).isEqualTo(InnerClass.class.getName());
-        Class<?> innerClassRef = innerClass.loadClass();
-        assertThat(innerClassRef.getConstructor().newInstance()).isNotNull();
+        ClassInfo innerInterface = innerClasses.get(0);
+        assertThat(innerInterface.getName()).isEqualTo(InnerInterface.class.getName());
+        assertThat(innerInterface.isInterface());
+        Class<?> innerClassRef = innerInterface.loadClass();
+        assertThat(innerClassRef).isNotNull();
     }
 }
