@@ -160,6 +160,7 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public void close() {
                 if (moduleReaderProxy != null) {
+                    // Release any open ByteBuffer
                     if (byteBuffer != null) {
                         try {
                             moduleReaderProxy.release(byteBuffer);
@@ -167,11 +168,15 @@ class ClasspathElementModule extends ClasspathElement {
                         }
                         byteBuffer = null;
                     }
-                    if (moduleReaderProxyRecyclable != null) {
-                        moduleReaderProxyRecyclable.close();
-                        moduleReaderProxyRecyclable = null;
-                    }
+                    // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
+                    // Just set the ref to null here. The ModuleReaderProxy will be closed by
+                    // ClasspathElementModule#close().
                     moduleReaderProxy = null;
+                }
+                if (moduleReaderProxyRecyclable != null) {
+                    // Recycle the (open) ModuleReaderProxy instance.
+                    moduleReaderProxyRecyclable.close();
+                    moduleReaderProxyRecyclable = null;
                 }
                 super.close();
             }
@@ -279,10 +284,9 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     void close() {
         if (moduleReaderProxyRecycler != null) {
-            // Will close all the ModuleReaderProxies, which will in turn call ModuleReader#close()
-            // on all open ModuleReaders.
+            // Close all ModuleReaderProxy instances, which will in turn call ModuleReader#close()
+            // on each open ModuleReader.
             moduleReaderProxyRecycler.close();
         }
-        moduleReaderProxyRecycler = null;
     }
 }

@@ -28,7 +28,7 @@
  */
 package io.github.classgraph.issues.issue223;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import javax.persistence.Entity;
 
@@ -37,7 +37,6 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
-import io.github.classgraph.ScanResult;
 
 @Entity
 public class Issue223Test {
@@ -46,13 +45,14 @@ public class Issue223Test {
 
     @Test
     public void testClassloadInnerClasses() throws Exception {
-        final ClassInfoList innerClasses = new ClassGraph().whitelistPackages(Issue223Test.class.getPackage().getName())
-                .enableAllInfo().scan().getAllClasses().filter(ci -> ci.isInnerClass());
+        final ClassInfoList innerClasses = new ClassGraph()
+                .whitelistPackages(Issue223Test.class.getPackage().getName()).enableAllInfo().scan().getAllClasses()
+                .filter(ci -> ci.isInnerClass());
         assertThat(innerClasses.size()).isEqualTo(1);
-        ClassInfo innerInterface = innerClasses.get(0);
+        final ClassInfo innerInterface = innerClasses.get(0);
         assertThat(innerInterface.getName()).isEqualTo(InnerInterface.class.getName());
         assertThat(innerInterface.isInterface());
-        Class<?> innerClassRef = innerInterface.loadClass();
+        final Class<?> innerClassRef = innerInterface.loadClass();
         assertThat(innerClassRef).isNotNull();
     }
 }

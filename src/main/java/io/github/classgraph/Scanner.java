@@ -267,7 +267,10 @@ class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, classpathFinderLog);
+        this.nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
+        final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
+                new ClasspathOrModulePathEntryToClasspathElementMap(enableRecursiveScanning, scanSpec,
+                        nestedJarHandler);
         try {
             final long scanStart = System.nanoTime();
 
@@ -334,9 +337,6 @@ class Scanner implements Callable<ScanResult> {
             // for each unique canonical path. Also check jars against jar whitelist/blacklist.
             final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Reading jarfile metadata");
-            final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
-                    new ClasspathOrModulePathEntryToClasspathElementMap(enableRecursiveScanning, scanSpec,
-                            nestedJarHandler);
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<ClasspathOrModulePathEntry>() {
                         @Override
@@ -688,12 +688,13 @@ class Scanner implements Callable<ScanResult> {
             // No exceptions were thrown -- return scan result
             return scanResult;
 
-        } catch (
-
-        final Throwable e) {
+        } catch (final Throwable e) {
             // Remove temporary files if an exception was thrown
             if (this.nestedJarHandler != null) {
                 this.nestedJarHandler.close(log);
+            }
+            for (final ClasspathElement elt : classpathElementMap.values()) {
+                elt.close();
             }
             if (log != null) {
                 log.log(e);
@@ -711,6 +712,13 @@ class Scanner implements Callable<ScanResult> {
             }
 
         } finally {
+            // Close all Recyclers
+            nestedJarHandler.closeRecyclers();
+            for (final ClasspathElement elt : classpathElementMap.values()) {
+                elt.close();
+            }
+
+            // Flush the log at the end of the scan
             if (log != null) {
                 log.flush();
             }

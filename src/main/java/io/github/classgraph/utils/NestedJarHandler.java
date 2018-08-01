@@ -78,9 +78,8 @@ public class NestedJarHandler {
     private final ConcurrentHashMap<File, File> innerJarToOuterJarMap;
     private final SingletonMap<File, JarfileMetadataReader> zipFileToJarfileMetadataReaderMap;
     private final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
-    moduleReaderProxyToModuleReaderRecyclerMap;
+    moduleRefToModuleReaderProxyRecyclerMap;
     private final SingletonMap<File, Boolean> mkDirs;
-    private final InterruptionChecker interruptionChecker;
 
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
@@ -90,15 +89,10 @@ public class NestedJarHandler {
      * 
      * @param scanSpec
      *            The {@link ScanSpec}.
-     * @param interruptionChecker
-     *            The {@link InterruptionChecker}.
      * @param log
      *            The log.
      */
-    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
-        this.interruptionChecker = interruptionChecker;
-
+    public NestedJarHandler(final ScanSpec scanSpec, final LogNode log) {
         // Set up a singleton map from canonical path to ZipFile recycler
         this.zipFileToRecyclerMap = new SingletonMap<File, Recycler<ZipFile, IOException>>() {
             @Override
@@ -125,7 +119,7 @@ public class NestedJarHandler {
         this.innerJarToOuterJarMap = new ConcurrentHashMap<>();
 
         // Set up a singleton map from ModuleRef object to ModuleReaderProxy recycler
-        this.moduleReaderProxyToModuleReaderRecyclerMap = //
+        this.moduleRefToModuleReaderProxyRecyclerMap = //
                 new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>>() {
                     @Override
                     public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
@@ -338,14 +332,6 @@ public class NestedJarHandler {
                 return dirExists;
             }
         };
-
-        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit()
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                close(null);
-            }
-        });
     }
 
     /**
@@ -403,7 +389,7 @@ public class NestedJarHandler {
      */
     public Recycler<ModuleReaderProxy, IOException> getModuleReaderProxyRecycler(final ModuleRef moduleRef,
             final LogNode log) throws Exception {
-        return moduleReaderProxyToModuleReaderRecyclerMap.getOrCreateSingleton(moduleRef, log);
+        return moduleRefToModuleReaderProxyRecyclerMap.getOrCreateSingleton(moduleRef, log);
     }
 
     /**
@@ -691,26 +677,9 @@ public class NestedJarHandler {
     }
 
     /**
-     * Delete temporary files and release other resources.
-     * 
-     * @param log
-     *            The log.
+     * Close zipfiles and modules.
      */
-    public void close(final LogNode log) {
-        if (interruptionChecker != null) {
-            interruptionChecker.interrupt();
-        }
-        if (tempFiles != null) {
-            final LogNode rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
-            while (!tempFiles.isEmpty()) {
-                final File head = tempFiles.remove();
-                final String path = head.getPath();
-                final boolean success = head.delete();
-                if (log != null) {
-                    rmLog.log((success ? "Removed" : "Unable to remove") + " " + path);
-                }
-            }
-        }
+    public void closeRecyclers() {
         if (zipFileToRecyclerMap != null) {
             List<Recycler<ZipFile, IOException>> recyclers = null;
             try {
@@ -721,7 +690,39 @@ public class NestedJarHandler {
                 for (final Recycler<ZipFile, IOException> recycler : recyclers) {
                     recycler.close();
                 }
-                zipFileToRecyclerMap.clear();
+            }
+        }
+        if (moduleRefToModuleReaderProxyRecyclerMap != null) {
+            List<Recycler<ModuleReaderProxy, IOException>> recyclers = null;
+            try {
+                recyclers = moduleRefToModuleReaderProxyRecyclerMap.values();
+            } catch (final InterruptedException e) {
+            }
+            if (recyclers != null) {
+                for (final Recycler<ModuleReaderProxy, IOException> recycler : recyclers) {
+                    recycler.close();
+                }
+            }
+        }
+    }
+
+    /**
+     * Close zipfiles and modules, and delete temporary files.
+     * 
+     * @param log
+     *            The log.
+     */
+    public void close(final LogNode log) {
+        closeRecyclers();
+        if (tempFiles != null) {
+            final LogNode rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
+            while (!tempFiles.isEmpty()) {
+                final File head = tempFiles.remove();
+                final String path = head.getPath();
+                final boolean success = head.delete();
+                if (log != null) {
+                    rmLog.log((success ? "Removed" : "Unable to remove") + " " + path);
+                }
             }
         }
     }

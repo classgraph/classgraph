@@ -28,6 +28,10 @@
  */
 package io.github.classgraph.utils;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -138,20 +142,28 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
         }
     }
 
-    /** Calls close() on all the allocated instances. Call this only after all Recyclables have been closed. */
+    /**
+     * Calls close() on all the unused instances. May be called multiple times, if {@link #acquire()} is called
+     * again after {@link #close()}.
+     */
     @Override
     public void close() {
-        final int unreleasedInstances = allocatedInstances.size() - unusedInstances.size();
-        if (unreleasedInstances != 0) {
-            throw new RuntimeException("Unreleased instances: " + unreleasedInstances);
-        }
-        for (T instance; (instance = allocatedInstances.poll()) != null;) {
+        final Set<T> closedInstances = new HashSet<>();
+        for (T unusedInstance; (unusedInstance = unusedInstances.poll()) != null;) {
+
             try {
-                instance.close();
-            } catch (final Exception e) {
+                unusedInstance.close();
+            } catch (final Throwable e) {
                 // Ignore
             }
+            closedInstances.add(unusedInstance);
         }
-        unusedInstances.clear();
+        final List<T> unclosedInstances = new ArrayList<>();
+        for (T allocatedInstance; (allocatedInstance = allocatedInstances.poll()) != null;) {
+            if (!closedInstances.contains(allocatedInstance)) {
+                unclosedInstances.add(allocatedInstance);
+            }
+        }
+        allocatedInstances.addAll(unclosedInstances);
     }
 }

@@ -249,11 +249,14 @@ class ClasspathElementZip extends ClasspathElement {
             public void close() {
                 super.close();
                 if (zipFile != null) {
-                    if (zipFileRecyclable != null) {
-                        zipFileRecyclable.close();
-                        zipFileRecyclable = null;
-                    }
+                    // Leave the ZipFile open in the recycler, just set the ref to null here.
+                    // The open ZipFile instances are closed when ClasspathElementZip#close() is called.
                     zipFile = null;
+                }
+                if (zipFileRecyclable != null) {
+                    // Recycle the (open) ZipFile
+                    zipFileRecyclable.close();
+                    zipFileRecyclable = null;
                 }
             }
 
@@ -385,8 +388,8 @@ class ClasspathElementZip extends ClasspathElement {
     @Override
     void close() {
         if (zipFileRecycler != null) {
+            // Close the open ZipFile instances for this classpath element.
             zipFileRecycler.close();
         }
-        zipFileRecycler = null;
     }
 }

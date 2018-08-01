@@ -17,7 +17,7 @@ public class Issue171Test {
 
         final List<String> classNames = new ClassGraph()
                 .whitelistPackagesNonRecursive("hello", "org.springframework.boot")
-                .overrideClasspath(jarURL + "!/" + "BOOT-INF/classes") //
+                .overrideClasspath(jarURL + "!BOOT-INF/classes") //
                 .scan() //
                 .getAllClasses().getNames();
 

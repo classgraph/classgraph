@@ -30,7 +30,6 @@ package io.github.classgraph;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -121,6 +120,14 @@ public class ScanResult implements Closeable {
                 classInfo.setScanResult(this);
             }
         }
+
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit()
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                close();
+            }
+        });
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -913,12 +920,9 @@ public class ScanResult implements Closeable {
         if (nestedJarHandler != null) {
             nestedJarHandler.close(log);
         }
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-        // NestedJarHandler also adds a runtime shutdown hook, since finalizers are not reliable
-        removeTemporaryFiles(null);
+        if (log != null) {
+            log.flush();
+        }
     }
 
     /**
@@ -926,7 +930,18 @@ public class ScanResult implements Closeable {
      * the temporary files created by extracting the inner jars will be removed at JVM shutdown or reboot.
      */
     @Override
-    public void close() throws IOException {
-        removeTemporaryFiles(null);
+    public void close() {
+        if (allResources != null) {
+            for (final Resource resource : allResources) {
+                resource.close();
+            }
+        }
+        removeTemporaryFiles(log);
+    }
+
+    /** Finalizer. A runtime shutdown hook is also added in the constructor, since finalizers are not reliable. */
+    @Override
+    protected void finalize() throws Throwable {
+        close();
     }
 }
