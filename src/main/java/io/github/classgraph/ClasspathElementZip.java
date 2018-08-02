@@ -239,11 +239,14 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public byte[] load() throws IOException {
-                read();
-                final byte[] byteArray = inputStreamToByteArray();
-                length = byteArray.length;
-                close();
-                return byteArray;
+                try {
+                    read();
+                    final byte[] byteArray = inputStreamToByteArray();
+                    length = byteArray.length;
+                    return byteArray;
+                } finally {
+                    close();
+                }
             }
 
             @Override
@@ -253,6 +256,7 @@ class ClasspathElementZip extends ClasspathElement {
                         inputStream.close();
                         inputStream = null;
                     } catch (final IOException e) {
+                        // Ignore
                     }
                 }
                 if (byteBuffer != null) {
