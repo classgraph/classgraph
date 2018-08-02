@@ -1,5 +1,9 @@
 # ClassGraph
 
+[![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph)
+[![Gitter](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/classgraph/Lobby)
+
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. 
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**.
@@ -33,12 +37,10 @@ ClassGraph has a completely revamped API. See the [porting notes](https://github
 
 In particular, the Maven group id has changed from `io.github.lukehutch.fast-classpath-scanner` to **`io.github.classgraph`** in version 4. Please see the new [Maven dependency rule](https://github.com/classgraph/classgraph/wiki) and module "requires" line in the Wiki documentation.
 
-[![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
-
 ## Mailing List
 
 * Feel free to subscribe to the [ClassGraph-Users](https://groups.google.com/d/forum/classgraph-users) email list for updates, or to ask questions.
-* There is also a [Gitter room](https://gitter.im/classgraph/Lobby) for discussion of FCS.
+* There is also a [Gitter room](https://gitter.im/classgraph/Lobby) for discussion of ClassGraph.
 
 ## Author
 
