@@ -44,7 +44,7 @@ In particular, the Maven group id has changed from `io.github.lukehutch.fast-cla
 
 ## Author
 
-ClassGraph was written by Luke Hutchison:
+ClassGraph was written by Luke Hutchison, with contributions from a number of other people:
 
 * https://github.com/lukehutch
 * [@LH](http://twitter.com/LH) on Twitter
