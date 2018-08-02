@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph)
+[![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
 [![Gitter](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/classgraph/Lobby)
 
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. 
