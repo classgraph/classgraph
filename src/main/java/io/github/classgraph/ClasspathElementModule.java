@@ -151,11 +151,14 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public byte[] load() throws IOException {
-                read();
-                final byte[] byteArray = byteBufferToByteArray();
-                length = byteArray.length;
-                close();
-                return byteArray;
+                try {
+                    read();
+                    final byte[] byteArray = byteBufferToByteArray();
+                    length = byteArray.length;
+                    return byteArray;
+                } finally {
+                    close();
+                }
             }
 
             @Override
@@ -165,6 +168,7 @@ class ClasspathElementModule extends ClasspathElement {
                         inputStream.close();
                         inputStream = null;
                     } catch (final IOException e) {
+                        // Ignore
                     }
                 }
                 if (byteBuffer != null) {
@@ -172,6 +176,7 @@ class ClasspathElementModule extends ClasspathElement {
                         try {
                             moduleReaderProxy.release(byteBuffer);
                         } catch (final Exception e) {
+                            // Ignore
                         }
                     }
                     byteBuffer = null;

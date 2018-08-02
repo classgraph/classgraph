@@ -137,11 +137,14 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public byte[] load() throws IOException {
-                read();
-                final byte[] byteArray = byteBufferToByteArray();
-                length = byteArray.length;
-                close();
-                return byteArray;
+                try {
+                    read();
+                    final byte[] byteArray = byteBufferToByteArray();
+                    length = byteArray.length;
+                    return byteArray;
+                } finally {
+                    close();
+                }
             }
 
             @Override
@@ -151,6 +154,7 @@ class ClasspathElementDir extends ClasspathElement {
                         inputStream.close();
                         inputStream = null;
                     } catch (final IOException e) {
+                        // Ignore
                     }
                 }
                 if (byteBuffer != null) {
@@ -160,6 +164,7 @@ class ClasspathElementDir extends ClasspathElement {
                     try {
                         fileChannel.close();
                     } catch (final IOException e) {
+                        // Ignore
                     }
                     fileChannel = null;
                 }
@@ -167,6 +172,7 @@ class ClasspathElementDir extends ClasspathElement {
                     try {
                         randomAccessFile.close();
                     } catch (final IOException e) {
+                        // Ignore
                     }
                     randomAccessFile = null;
                 }

@@ -331,6 +331,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
             try {
                 resource.close();
             } catch (final Exception e) {
+                // Ignore
             }
         }
     }

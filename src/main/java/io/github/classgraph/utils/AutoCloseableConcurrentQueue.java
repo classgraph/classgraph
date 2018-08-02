@@ -41,6 +41,7 @@ class AutoCloseableConcurrentQueue<T extends AutoCloseable> extends ConcurrentLi
             try {
                 item.close();
             } catch (final Exception e) {
+                // Ignore
             }
         }
     }
