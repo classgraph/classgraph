@@ -29,7 +29,6 @@
 package io.github.classgraph.test.methodannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.util.List;
 

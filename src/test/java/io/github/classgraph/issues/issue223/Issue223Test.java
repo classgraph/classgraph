@@ -28,7 +28,7 @@
  */
 package io.github.classgraph.issues.issue223;
 
-import static org.assertj.core.api.StrictAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import javax.persistence.Entity;
 

@@ -1,7 +1,6 @@
 package io.github.classgraph.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.util.List;
 import java.util.Set;

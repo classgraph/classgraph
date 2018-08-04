@@ -1,7 +1,6 @@
 package io.github.classgraph.issues.issue83;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.net.URL;
 import java.util.ArrayList;

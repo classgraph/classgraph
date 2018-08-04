@@ -1,6 +1,6 @@
 package io.github.classgraph.issues;
 
-import static org.assertj.core.api.StrictAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 
