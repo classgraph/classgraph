@@ -133,6 +133,7 @@ public class MethodParameterInfo {
      * 
      * @return {@link AnnotationInfo} for any annotations on this method parameter.
      */
+    // TODO: change this to AnnotationInfoList
     public AnnotationInfo[] getAnnotationInfo() {
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
