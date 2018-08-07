@@ -355,10 +355,7 @@ class Scanner implements Callable<ScanResult> {
                                     final boolean isModule = rawClasspathEltPath.getModuleRef() != null;
                                     final boolean isFile = !isModule && rawClasspathEltPath.isFile(preScanLog);
                                     final boolean isDir = !isModule && rawClasspathEltPath.isDirectory(preScanLog);
-                                    if (isModule) {
-                                        // Scan all modules that were not already filtered out as system modules
-                                        classpathElementMap.createSingleton(rawClasspathEltPath, preScanLog);
-                                    } else if (isFile && !scanSpec.scanJars) {
+                                    if (isFile && !scanSpec.scanJars) {
                                         if (preScanLog != null) {
                                             preScanLog.log("Ignoring because jar scanning has been disabled: "
                                                     + rawClasspathEltPath);
