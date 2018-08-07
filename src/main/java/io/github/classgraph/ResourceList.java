@@ -165,7 +165,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
                 byteArrayConsumer.accept(resource, resourceContent);
             } catch (final IOException e) {
                 if (!ignoreIOExceptions) {
-                    throw new IllegalArgumentException("Could not load resource " + this, e);
+                    throw new IllegalArgumentException("Could not load resource " + resource, e);
                 }
             } finally {
                 resource.close();
@@ -225,7 +225,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
                 inputStreamConsumer.accept(resource, inputStream);
             } catch (final IOException e) {
                 if (!ignoreIOExceptions) {
-                    throw new IllegalArgumentException("Could not load resource " + this, e);
+                    throw new IllegalArgumentException("Could not load resource " + resource, e);
                 }
             } finally {
                 resource.close();
@@ -284,7 +284,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
                 byteBufferConsumer.accept(resource, byteBuffer);
             } catch (final IOException e) {
                 if (!ignoreIOExceptions) {
-                    throw new IllegalArgumentException("Could not load resource " + this, e);
+                    throw new IllegalArgumentException("Could not load resource " + resource, e);
                 }
             } finally {
                 resource.close();
