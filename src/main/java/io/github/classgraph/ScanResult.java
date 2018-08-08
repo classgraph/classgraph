@@ -126,17 +126,29 @@ public class ScanResult implements Closeable, AutoCloseable {
         }
 
         // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
-        // Uses a WeakReference so that garbage collection is not blocked. (#233)
-        final WeakReference<ScanResult> scanResultRef = new WeakReference<>(this);
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                final ScanResult scanResult = scanResultRef.get();
-                if (scanResult != null) {
-                    scanResult.close();
-                }
+        // Uses a WeakReference so that garbage collection is not blocked. (Bug #233)
+        Runtime.getRuntime().addShutdownHook(new CleanupThread(this));
+    }
+
+    /**
+     * Cleanup thread for use as a shutdown hook. Holds a weak reference to a ScanResult. (Can't use an anonymous
+     * inner class for this, because anonymous inner classes are non-static, so the class would still hold a
+     * non-weak reference to the ScanResult, causing a resource leak until JVM shutdown.) See Bug #233.
+     */
+    private static class CleanupThread extends Thread {
+        private final WeakReference<ScanResult> weakScanResult;
+
+        public CleanupThread(final ScanResult scanResult) {
+            this.weakScanResult = new WeakReference<>(scanResult);
+        }
+
+        @Override
+        public void run() {
+            final ScanResult scanResult = weakScanResult.get();
+            if (scanResult != null) {
+                scanResult.close();
             }
-        });
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
