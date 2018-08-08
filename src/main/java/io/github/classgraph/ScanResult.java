@@ -88,6 +88,9 @@ public class ScanResult implements Closeable {
      */
     private final Map<String, ClassInfo> classNameToClassInfo;
 
+    /** If true, this ScanResult has already been closed. */
+    private boolean closed;
+
     /** The log. */
     private final LogNode log;
 
@@ -145,6 +148,9 @@ public class ScanResult implements Closeable {
      * @return The unique classpath elements.
      */
     public List<File> getClasspathFiles() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         final List<File> classpathElementOrderFiles = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
@@ -171,6 +177,9 @@ public class ScanResult implements Closeable {
      *         string.
      */
     public String getClasspath() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         return JarUtils.pathElementsToPathStr(getClasspathFiles());
     }
 
@@ -180,6 +189,9 @@ public class ScanResult implements Closeable {
      * @return The unique classpath element URLs.
      */
     public List<URL> getClasspathURLs() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         final List<URL> classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
@@ -205,6 +217,9 @@ public class ScanResult implements Closeable {
      * @return {@ModuleRef} references for all the visible modules.
      */
     public List<ModuleRef> getModules() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         final List<ModuleRef> moduleRefs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             final ModuleRef moduleRef = classpathElement.getClasspathElementModuleRef();
@@ -233,6 +248,9 @@ public class ScanResult implements Closeable {
      *         package root of the classpath element. May match several resources, up to one per classpath element.
      */
     public ResourceList getResourcesWithPath(final String resourcePath) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -256,6 +274,9 @@ public class ScanResult implements Closeable {
      * @return A list of all resources found in whitelisted packages that have the requested leafname.
      */
     public ResourceList getResourcesWithLeafName(final String leafName) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -277,6 +298,9 @@ public class ScanResult implements Closeable {
      * @return A list of all resources found in whitelisted packages that have the requested filename extension.
      */
     public ResourceList getResourcesWithExtension(final String extension) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -306,6 +330,9 @@ public class ScanResult implements Closeable {
      *         pattern.
      */
     public ResourceList getResourcesMatchingPattern(final Pattern pattern) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -331,6 +358,9 @@ public class ScanResult implements Closeable {
      * @return true if the classpath contents have been modified since the last scan.
      */
     public boolean classpathContentsModifiedSinceScan() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (fileToLastModified == null) {
             return true;
         } else {
@@ -356,6 +386,9 @@ public class ScanResult implements Closeable {
      * @return the maximum last-modified time for whitelisted files/directories/jars encountered during the scan.
      */
     public long classpathContentsLastModifiedTime() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         long maxLastModifiedTime = 0L;
         if (fileToLastModified != null) {
             final long currTime = System.currentTimeMillis();
@@ -380,6 +413,9 @@ public class ScanResult implements Closeable {
      * @return The ClassInfo object for the named class, or null if the class was not found.
      */
     public ClassInfo getClassInfo(final String className) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -392,6 +428,9 @@ public class ScanResult implements Closeable {
      * @return A list of all whitelisted classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllClasses() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -404,6 +443,9 @@ public class ScanResult implements Closeable {
      * @return A list of all whitelisted standard classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllStandardClasses() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -418,6 +460,9 @@ public class ScanResult implements Closeable {
      * @return A list of subclasses of the named superclass, or the empty list if none.
      */
     public ClassInfoList getSubclasses(final String superclassName) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -438,6 +483,9 @@ public class ScanResult implements Closeable {
      * @return A list of superclasses of the named subclass, or the empty list if none.
      */
     public ClassInfoList getSuperclasses(final String subclassName) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -453,6 +501,9 @@ public class ScanResult implements Closeable {
      * @return A list of classes with a method that has an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation(final String methodAnnotationName) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo || !scanSpec.enableMethodInfo || !scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo(), #enableMethodInfo(), "
                     + "and #enableAnnotationInfo() before #scan()");
@@ -469,6 +520,9 @@ public class ScanResult implements Closeable {
      * @return A list of classes that have a field with an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithFieldAnnotation(final String fieldAnnotationName) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo || !scanSpec.enableFieldInfo || !scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo(), #enableFieldInfo(), "
                     + "and #enableAnnotationInfo() before #scan()");
@@ -487,6 +541,9 @@ public class ScanResult implements Closeable {
      * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfaces() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -503,6 +560,9 @@ public class ScanResult implements Closeable {
      *         interface), or the empty list if none.
      */
     public ClassInfoList getInterfaces(final String className) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -519,6 +579,9 @@ public class ScanResult implements Closeable {
      * @return A list of all classes that implement the named interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing(final String interfaceName) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -535,9 +598,12 @@ public class ScanResult implements Closeable {
      * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllAnnotations() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() " + "before #scan()");
+                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
         return ClassInfo.getAllAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
     }
@@ -549,9 +615,12 @@ public class ScanResult implements Closeable {
      * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfacesAndAnnotations() {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() " + "before #scan()");
+                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
         return ClassInfo.getAllInterfacesOrAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
     }
@@ -565,9 +634,12 @@ public class ScanResult implements Closeable {
      *         or the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final String annotationName) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() " + "before #scan()");
+                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithAnnotation();
@@ -585,9 +657,12 @@ public class ScanResult implements Closeable {
      *         the empty list if none.
      */
     public ClassInfoList getAnnotationsOnClass(final String className) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() " + "before #scan()");
+                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAnnotations();
@@ -625,6 +700,9 @@ public class ScanResult implements Closeable {
      */
     private Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound, final LogNode log)
             throws IllegalArgumentException {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (className == null || className.isEmpty()) {
             throw new IllegalArgumentException("Cannot load class -- class names cannot be null or empty");
         }
@@ -890,6 +968,9 @@ public class ScanResult implements Closeable {
      * @return This {@link ScanResult}, serialized as a JSON string.
      */
     public String toJSON(final int indentWidth) {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -912,36 +993,41 @@ public class ScanResult implements Closeable {
 
     /**
      * Free any temporary files created by extracting jars or files from within jars. Without calling this method,
-     * the temporary files created by extracting the inner jars will be removed at JVM shutdown or reboot.
+     * the temporary files created by extracting the inner jars will be removed in a finalizer, called by the
+     * garbage collector (or at JVM shutdown). If you don't want to experience long GC pauses, make sure you call
+     * this close method when you have finished with the {@link ScanResult}.
      */
     @Override
     public void close() {
-        if (allResources != null) {
-            for (final Resource classpathResource : allResources) {
-                classpathResource.close();
+        if (!closed) {
+            if (allResources != null) {
+                for (final Resource classpathResource : allResources) {
+                    classpathResource.close();
+                }
+                allResources.clear();
             }
-            allResources.clear();
-        }
-        if (rawClasspathEltOrderStrs != null) {
-            rawClasspathEltOrderStrs.clear();
-        }
-        if (nestedJarHandler != null) {
-            nestedJarHandler.close(log);
-        }
-        if (classpathOrder != null) {
-            for (final ClasspathElement classpathElement : classpathOrder) {
-                classpathElement.closeRecyclers();
+            if (rawClasspathEltOrderStrs != null) {
+                rawClasspathEltOrderStrs.clear();
             }
-            classpathOrder.clear();
-        }
-        if (classNameToClassInfo != null) {
-            classNameToClassInfo.clear();
-        }
-        if (fileToLastModified != null) {
-            fileToLastModified.clear();
-        }
-        if (log != null) {
-            log.flush();
+            if (nestedJarHandler != null) {
+                nestedJarHandler.close(log);
+            }
+            if (classpathOrder != null) {
+                for (final ClasspathElement classpathElement : classpathOrder) {
+                    classpathElement.closeRecyclers();
+                }
+                classpathOrder.clear();
+            }
+            if (classNameToClassInfo != null) {
+                classNameToClassInfo.clear();
+            }
+            if (fileToLastModified != null) {
+                fileToLastModified.clear();
+            }
+            if (log != null) {
+                log.flush();
+            }
+            closed = true;
         }
     }
 
