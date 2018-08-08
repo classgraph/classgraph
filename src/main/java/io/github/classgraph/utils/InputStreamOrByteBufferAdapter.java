@@ -59,16 +59,11 @@ public abstract class InputStreamOrByteBufferAdapter {
     /** Bytes used in the buffer. */
     public int used = 0;
 
-    /** Create an empty byte array of the initial buffer chunk size. */
-    public InputStreamOrByteBufferAdapter() {
-        this(null);
-    }
-
     /**
-     * Create an buffer backed by the given byte array (or if null, create an empty byte array of the initial buffer
-     * chunk size).
+     * Create an buffer backed by the given byte array, or if the array is null, create an empty byte array of the
+     * initial buffer chunk size.
      */
-    public InputStreamOrByteBufferAdapter(final byte[] buf) {
+    private InputStreamOrByteBufferAdapter(final byte[] buf) {
         if (buf == null) {
             this.buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
         } else {
@@ -367,67 +362,6 @@ public abstract class InputStreamOrByteBufferAdapter {
      */
     public abstract int read(byte[] array, int off, int len) throws IOException;
 
-    private static class InputStreamAdapter extends InputStreamOrByteBufferAdapter {
-        private final InputStream inputStream;
-
-        public InputStreamAdapter(final InputStream inputStream) {
-            this.inputStream = inputStream;
-        }
-
-        @Override
-        public int read(final byte[] array, final int off, final int len) throws IOException {
-            return inputStream.read(array, off, len);
-        }
-    }
-
-    private static class ByteBufferAdapter extends InputStreamOrByteBufferAdapter {
-        private final ByteBuffer byteBuffer;
-        private final boolean hasArray;
-        private int bytesRemaining;
-
-        public ByteBufferAdapter(final ByteBuffer byteBuffer) {
-            super(byteBuffer.hasArray() ? byteBuffer.array() : null);
-            this.byteBuffer = byteBuffer;
-            this.hasArray = byteBuffer.hasArray();
-            if (this.hasArray) {
-                this.bytesRemaining = this.buf.length;
-            }
-        }
-
-        @Override
-        public int read(final byte[] array, final int off, final int len) throws IOException {
-            if (len == 0) {
-                return 0;
-            }
-            if (hasArray) {
-                // Nothing to read, since ByteBuffer is backed with an array, but update the number of
-                // bytes remaining that have not yet been "read".
-                final int bytesToRead = Math.min(len, bytesRemaining);
-                if (bytesToRead == 0) {
-                    // Return -1, as per InputStream#read() contract
-                    return -1;
-                }
-                bytesRemaining -= bytesToRead;
-                return bytesToRead;
-            } else {
-                // Copy from the ByteBuffer into the byte array
-                final int bytesToRead = Math.min(len, byteBuffer.remaining());
-                if (bytesToRead == 0) {
-                    // Return -1, as per InputStream#read() contract
-                    return -1;
-                }
-                final int byteBufPositionBefore = byteBuffer.position();
-                try {
-                    byteBuffer.get(array, off, bytesToRead);
-                } catch (final BufferUnderflowException e) {
-                    // Should not happen
-                    throw new IOException("Buffer underflow", e);
-                }
-                return byteBuffer.position() - byteBufPositionBefore;
-            }
-        }
-    }
-
     /**
      * Create a new InputStream adapter.
      * 
@@ -436,7 +370,12 @@ public abstract class InputStreamOrByteBufferAdapter {
      * @return The {@link InputStreamOrByteBufferAdapter}.
      */
     public static InputStreamOrByteBufferAdapter create(final InputStream inputStream) {
-        return new InputStreamAdapter(inputStream);
+        return new InputStreamOrByteBufferAdapter(/* buf = */ null) {
+            @Override
+            public int read(final byte[] array, final int off, final int len) throws IOException {
+                return inputStream.read(array, off, len);
+            }
+        };
     }
 
     /**
@@ -447,6 +386,42 @@ public abstract class InputStreamOrByteBufferAdapter {
      * @return The {@link InputStreamOrByteBufferAdapter}.
      */
     public static InputStreamOrByteBufferAdapter create(final ByteBuffer byteBuffer) {
-        return new ByteBufferAdapter(byteBuffer);
+        return new InputStreamOrByteBufferAdapter(/* buf = */ byteBuffer.hasArray() ? byteBuffer.array() : null) {
+            private final boolean hasArray = byteBuffer.hasArray();
+            private int bytesRemaining = hasArray ? this.buf.length : -1;
+
+            @Override
+            public int read(final byte[] array, final int off, final int len) throws IOException {
+                if (len == 0) {
+                    return 0;
+                }
+                if (hasArray) {
+                    // Nothing to read, since ByteBuffer is backed with an array, but update the number of
+                    // bytes remaining that have not yet been "read".
+                    final int bytesToRead = Math.min(len, bytesRemaining);
+                    if (bytesToRead == 0) {
+                        // Return -1, as per InputStream#read() contract
+                        return -1;
+                    }
+                    bytesRemaining -= bytesToRead;
+                    return bytesToRead;
+                } else {
+                    // Copy from the ByteBuffer into the byte array
+                    final int bytesToRead = Math.min(len, byteBuffer.remaining());
+                    if (bytesToRead == 0) {
+                        // Return -1, as per InputStream#read() contract
+                        return -1;
+                    }
+                    final int byteBufPositionBefore = byteBuffer.position();
+                    try {
+                        byteBuffer.get(array, off, bytesToRead);
+                    } catch (final BufferUnderflowException e) {
+                        // Should not happen
+                        throw new IOException("Buffer underflow", e);
+                    }
+                    return byteBuffer.position() - byteBufPositionBefore;
+                }
+            }
+        };
     }
 }
