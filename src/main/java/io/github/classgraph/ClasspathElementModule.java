@@ -117,16 +117,15 @@ class ClasspathElementModule extends ClasspathElement {
                     // Shouldn't happen
                     throw new IOException("Module could not be opened");
                 }
-                if (byteBuffer != null) {
+                if (byteBuffer != null || inputStream != null || moduleReaderProxy != null) {
                     throw new IllegalArgumentException(
                             "Resource is already open -- cannot open it again without first calling close()");
                 } else {
                     try {
-                        if (moduleReaderProxy != null || inputStream != null) {
-                            throw new RuntimeException("Tried to open classpath resource twice");
-                        }
                         moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
                         moduleReaderProxy = moduleReaderProxyRecyclable.get();
+                        // ModuleReader#read(String name) internally calls:
+                        // ByteBuffer.wrap(open(name).readAllBytes())
                         byteBuffer = moduleReaderProxy.read(moduleResourcePath);
                         length = byteBuffer.remaining();
                         return byteBuffer;
@@ -140,13 +139,30 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             InputStreamOrByteBufferAdapter openOrRead() throws IOException {
-                return InputStreamOrByteBufferAdapter.create(read());
+                return InputStreamOrByteBufferAdapter.create(open());
             }
 
             @Override
             public InputStream open() throws IOException {
-                read();
-                return byteBufferToInputStream();
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Module could not be opened");
+                }
+                if (byteBuffer != null || inputStream != null || moduleReaderProxy != null) {
+                    throw new IllegalArgumentException(
+                            "Resource is already open -- cannot open it again without first calling close()");
+                } else {
+                    try {
+                        moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
+                        moduleReaderProxy = moduleReaderProxyRecyclable.get();
+                        inputStream = moduleReaderProxy.open(moduleResourcePath);
+                        return inputStream;
+
+                    } catch (final Exception e) {
+                        close();
+                        throw new IOException("Could not open " + this, e);
+                    }
+                }
             }
 
             @Override
