@@ -931,11 +931,6 @@ public class ScanResult implements Closeable {
      */
     @Override
     public void close() {
-        if (allResources != null) {
-            for (final Resource resource : allResources) {
-                resource.close();
-            }
-        }
         removeTemporaryFiles(log);
     }
 
