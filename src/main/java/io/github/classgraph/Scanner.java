@@ -669,13 +669,8 @@ class Scanner implements Callable<ScanResult> {
                 try {
                     scanResultProcessor.processScanResult(scanResult);
                 } catch (final Throwable e) {
-                    throw new IllegalArgumentException("Exception while calling scan result processor", e);
+                    throw new ExecutionException("Exception while calling scan result processor", e);
                 }
-            }
-
-            // Remove temporary files if necessary
-            if (scanSpec.removeTemporaryFilesAfterScan) {
-                nestedJarHandler.close(log);
             }
 
             // No exceptions were thrown -- return scan result
@@ -695,15 +690,22 @@ class Scanner implements Callable<ScanResult> {
                     // The return value is discarded when using a scanResultProcessor and failureHandler
                     return null;
                 } catch (final Throwable t) {
-                    throw new IllegalArgumentException("Exception while calling failure handler", t);
+                    throw new ExecutionException("Exception while calling failure handler", t);
                 }
             } else {
-                throw new IllegalArgumentException("Exception while scanning", e);
+                throw new ExecutionException("Exception while scanning", e);
             }
 
         } finally {
-            // Close all Recyclers
-            nestedJarHandler.closeRecyclers();
+            if (scanSpec.removeTemporaryFilesAfterScan) {
+                // If requested, remove temporary files and close zipfile/module recyclers
+                nestedJarHandler.close(log);
+            } else {
+                // Don't delete temporary files yet, but close zipfile/module recyclers
+                nestedJarHandler.closeRecyclers();
+            }
+
+            // Close ClasspathElement recyclers
             for (final ClasspathElement elt : classpathElementMap.values()) {
                 elt.closeRecyclers();
             }
