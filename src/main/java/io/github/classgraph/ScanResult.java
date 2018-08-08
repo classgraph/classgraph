@@ -917,6 +917,11 @@ public class ScanResult implements Closeable {
      *            The log.
      */
     void removeTemporaryFiles(final LogNode log) {
+        if (classpathOrder != null) {
+            for (ClasspathElement classpathElement : classpathOrder) {
+                classpathElement.close();
+            }
+        }
         if (nestedJarHandler != null) {
             nestedJarHandler.close(log);
         }
@@ -937,13 +942,10 @@ public class ScanResult implements Closeable {
         if (rawClasspathEltOrderStrs != null) {
             rawClasspathEltOrderStrs.clear();
         }
+        removeTemporaryFiles(log);
         if (classpathOrder != null) {
-            for (ClasspathElement classpathElement : classpathOrder) {
-                classpathElement.close();
-            }
             classpathOrder.clear();
         }
-        removeTemporaryFiles(log);
         if (classNameToClassInfo != null) {
             classNameToClassInfo.clear();
         }
