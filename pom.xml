@@ -421,6 +421,7 @@
 										<executable>${testCompileJdkPath}/bin/javac</executable>
 										<source>1.7</source>
 										<target>1.7</target>
+										<encoding>UTF-8</encoding>
 									</configuration>
 								</execution>
 							</executions>
