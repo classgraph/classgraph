@@ -405,7 +405,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     /** Close and free all open ZipFiles. */
     @Override
-    void close() {
+    void closeRecyclers() {
         if (zipFileRecycler != null) {
             // Close the open ZipFile instances for this classpath element.
             zipFileRecycler.close();

@@ -314,7 +314,7 @@ class ClasspathElementModule extends ClasspathElement {
 
     /** Close and free all open ZipFiles. */
     @Override
-    void close() {
+    void closeRecyclers() {
         if (moduleReaderProxyRecycler != null) {
             // Close all ModuleReaderProxy instances, which will in turn call ModuleReader#close()
             // on each open ModuleReader.

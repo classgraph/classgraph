@@ -911,23 +911,6 @@ public class ScanResult implements Closeable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Free any temporary files created by extracting jars from within jars.
-     * 
-     * @param log
-     *            The log.
-     */
-    void removeTemporaryFiles(final LogNode log) {
-        if (classpathOrder != null) {
-            for (ClasspathElement classpathElement : classpathOrder) {
-                classpathElement.close();
-            }
-        }
-        if (nestedJarHandler != null) {
-            nestedJarHandler.close(log);
-        }
-    }
-
-    /**
      * Free any temporary files created by extracting jars or files from within jars. Without calling this method,
      * the temporary files created by extracting the inner jars will be removed at JVM shutdown or reboot.
      */
@@ -942,8 +925,13 @@ public class ScanResult implements Closeable {
         if (rawClasspathEltOrderStrs != null) {
             rawClasspathEltOrderStrs.clear();
         }
-        removeTemporaryFiles(log);
+        if (nestedJarHandler != null) {
+            nestedJarHandler.close(log);
+        }
         if (classpathOrder != null) {
+            for (final ClasspathElement classpathElement : classpathOrder) {
+                classpathElement.closeRecyclers();
+            }
             classpathOrder.clear();
         }
         if (classNameToClassInfo != null) {

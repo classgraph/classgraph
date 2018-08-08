@@ -102,7 +102,7 @@ class Scanner implements Callable<ScanResult> {
 
     /** A map from relative path to classpath element singleton. */
     private static class ClasspathOrModulePathEntryToClasspathElementMap
-            extends SingletonMap<ClasspathOrModulePathEntry, ClasspathElement> implements AutoCloseable {
+            extends SingletonMap<ClasspathOrModulePathEntry, ClasspathElement> {
         private final boolean scanFiles;
         private final ScanSpec scanSpec;
         private final NestedJarHandler nestedJarHandler;
@@ -130,14 +130,6 @@ class Scanner implements Callable<ScanResult> {
         public ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathElt, final LogNode log) {
             return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
                     log);
-        }
-
-        /** Close the classpath elements. */
-        @Override
-        public void close() throws Exception {
-            for (final ClasspathElement classpathElt : values()) {
-                classpathElt.close();
-            }
         }
     }
 
@@ -168,7 +160,7 @@ class Scanner implements Callable<ScanResult> {
             }
             if (currClasspathElement.skipClasspathElement) {
                 // If classpath element is marked to be skipped, close it (it will not be used again).
-                currClasspathElement.close();
+                currClasspathElement.closeRecyclers();
             }
         }
     }
@@ -683,7 +675,7 @@ class Scanner implements Callable<ScanResult> {
 
             // Remove temporary files if necessary
             if (scanSpec.removeTemporaryFilesAfterScan) {
-                scanResult.removeTemporaryFiles(log);
+                nestedJarHandler.close(log);
             }
 
             // No exceptions were thrown -- return scan result
@@ -693,9 +685,6 @@ class Scanner implements Callable<ScanResult> {
             // Remove temporary files if an exception was thrown
             if (this.nestedJarHandler != null) {
                 this.nestedJarHandler.close(log);
-            }
-            for (final ClasspathElement elt : classpathElementMap.values()) {
-                elt.close();
             }
             if (log != null) {
                 log.log(e);
@@ -716,7 +705,7 @@ class Scanner implements Callable<ScanResult> {
             // Close all Recyclers
             nestedJarHandler.closeRecyclers();
             for (final ClasspathElement elt : classpathElementMap.values()) {
-                elt.close();
+                elt.closeRecyclers();
             }
 
             // Flush the log at the end of the scan

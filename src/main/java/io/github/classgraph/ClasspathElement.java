@@ -288,8 +288,8 @@ abstract class ClasspathElement {
     abstract void scanPaths(LogNode log);
 
     /**
-     * Close the classpath element's resources, if needed (this closes and frees any open ZipFiles or
-     * ModuleReaders).
+     * Closes and empties the classpath element's resource recyclers (this closes and frees any open ZipFiles or
+     * ModuleReaders, and is a no-op for directory classpath elements).
      */
-    abstract void close();
+    abstract void closeRecyclers();
 }

@@ -338,7 +338,7 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     @Override
-    void close() {
+    void closeRecyclers() {
         // Nothing to do for directories
     }
 }
