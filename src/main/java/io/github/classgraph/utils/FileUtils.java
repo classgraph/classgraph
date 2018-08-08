@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.utils;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +35,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Arrays;
 
 /**
  * File utilities.
@@ -95,7 +96,7 @@ public class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read all the bytes in an {@link InputStream} as a ByteOutputStream.
+     * Read all the bytes in an {@link InputStream}.
      * 
      * @param inputStream
      *            The {@link InputStream}.
@@ -103,39 +104,43 @@ public class FileUtils {
      *            The file size, if known, otherwise -1L.
      * @param log
      *            The log.
-     * @return The contents of the {@link InputStream} as a ByteOutputStream.
+     * @return The contents of the {@link InputStream} as an Entry consisting of the byte array and number of bytes
+     *         used in the array..
      * @throws IOException
      *             If the contents could not be read.
      */
-    public static ByteArrayOutputStream readAllBytesAsBAOS(final InputStream inputStream, final long fileSize,
+    private static SimpleEntry<byte[], Integer> readAllBytes(final InputStream inputStream, final long fileSize,
             final LogNode log) throws IOException {
-        // Java arrays can only currently have 32-bit indices
-        if (fileSize > Integer.MAX_VALUE
-                // ZipEntry#getSize() can wrap around to negative for files larger than 2GB
-                // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6916399
-                || (fileSize < 0
-                        // ZipEntry#getSize() can return -1 for unknown size
-                        && fileSize != -1L)) {
-            throw new IOException("File larger that 2GB, cannot read contents into a Java array");
-        }
-
-        // We can't always trust the fileSize, unfortunately, so we just use it as a hint
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream(fileSize <= 0 ? 16384 : (int) fileSize);
-
-        // N.B. there is a better solution for this in Java 9, byte[] bytes = inputStream.readAllBytes()
-        final byte[] buf = new byte[4096];
+        byte[] buf = new byte[DEFAULT_BUFFER_SIZE];
+        int bufLength = buf.length;
         int totBytesRead = 0;
-        for (int bytesRead; (bytesRead = inputStream.read(buf)) != -1;) {
-            baos.write(buf, 0, bytesRead);
-            totBytesRead += bytesRead;
-        }
-        if (totBytesRead != fileSize) {
-            if (log != null) {
-                log.log("File length expected to be " + fileSize + " bytes, but read " + totBytesRead + " bytes");
+        for (int bytesRead;;) {
+            while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
+                totBytesRead += bytesRead;
             }
+            if (bytesRead < 0) {
+                // Reached end of stream
+                break;
+            }
+            // Grow buffer, avoiding overflow
+            if (bufLength <= MAX_BUFFER_SIZE - bufLength) {
+                bufLength = bufLength << 1;
+            } else {
+                if (bufLength == MAX_BUFFER_SIZE) {
+                    throw new IOException("InputStream too large to read");
+                }
+                bufLength = MAX_BUFFER_SIZE;
+            }
+            buf = Arrays.copyOf(buf, bufLength);
         }
-        return baos;
+        return new SimpleEntry<>((bufLength == totBytesRead) ? buf : Arrays.copyOf(buf, totBytesRead),
+                totBytesRead);
     }
+
+    private static final int DEFAULT_BUFFER_SIZE = 16384;
+
+    // Some VMs reserve header words in arrays, can't allocate arrays of size Integer.MAX_VALUE
+    private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
     /**
      * Read all the bytes in an {@link InputStream} as a byte array.
@@ -152,7 +157,10 @@ public class FileUtils {
      */
     public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSize, final LogNode log)
             throws IOException {
-        return readAllBytesAsBAOS(inputStream, fileSize, log).toByteArray();
+        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize, log);
+        final byte[] buf = ent.getKey();
+        final int bufBytesUsed = ent.getValue();
+        return (buf.length == bufBytesUsed) ? buf : Arrays.copyOf(buf, bufBytesUsed);
     }
 
     /**
@@ -170,7 +178,10 @@ public class FileUtils {
      */
     public static String readAllBytesAsString(final InputStream inputStream, final long fileSize, final LogNode log)
             throws IOException {
-        return readAllBytesAsBAOS(inputStream, fileSize, log).toString("UTF-8");
+        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize, log);
+        final byte[] buf = ent.getKey();
+        final int bufBytesUsed = ent.getValue();
+        return new String(buf, 0, bufBytesUsed, "UTF-8");
     }
 
     // -------------------------------------------------------------------------------------------------------------
