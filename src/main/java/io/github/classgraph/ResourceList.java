@@ -221,8 +221,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
             final boolean ignoreIOExceptions) {
         for (final Resource resource : this) {
             try {
-                final InputStream inputStream = resource.open();
-                inputStreamConsumer.accept(resource, inputStream);
+                inputStreamConsumer.accept(resource, resource.open());
             } catch (final IOException e) {
                 if (!ignoreIOExceptions) {
                     throw new IllegalArgumentException("Could not load resource " + resource, e);
