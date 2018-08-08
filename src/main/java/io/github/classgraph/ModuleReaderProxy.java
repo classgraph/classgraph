@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -36,7 +37,7 @@ import java.util.List;
 import io.github.classgraph.utils.ReflectionUtils;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
-public class ModuleReaderProxy implements AutoCloseable {
+public class ModuleReaderProxy implements Closeable {
     private final AutoCloseable moduleReader;
 
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
