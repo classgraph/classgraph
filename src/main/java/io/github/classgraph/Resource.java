@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -42,7 +43,7 @@ import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
  * classpath element or module.
  */
-public abstract class Resource implements AutoCloseable, Comparable<Resource> {
+public abstract class Resource implements Closeable, Comparable<Resource> {
     protected InputStream inputStream;
     protected ByteBuffer byteBuffer;
     protected long length = -1L;
