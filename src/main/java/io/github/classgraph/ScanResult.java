@@ -934,9 +934,16 @@ public class ScanResult implements Closeable {
             }
             allResources.clear();
         }
+        if (rawClasspathEltOrderStrs != null) {
+            rawClasspathEltOrderStrs.clear();
+        }
+        if (classpathOrder != null) {
+            for (ClasspathElement classpathElement : classpathOrder) {
+                classpathElement.close();
+            }
+            classpathOrder.clear();
+        }
         removeTemporaryFiles(log);
-        rawClasspathEltOrderStrs.clear();
-        classpathOrder.clear();
         if (classNameToClassInfo != null) {
             classNameToClassInfo.clear();
         }

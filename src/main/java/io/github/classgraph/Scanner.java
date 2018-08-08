@@ -147,24 +147,28 @@ class Scanner implements Callable<ScanResult> {
      * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
      * the final classpath element order.
      */
-    private static void findClasspathOrder(final ClasspathElement currSingleton,
+    private static void findClasspathOrder(final ClasspathElement currClasspathElement,
             final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap,
             final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order)
             throws InterruptedException {
-        if (visitedClasspathElts.add(currSingleton)) {
-            if (!currSingleton.skipClasspathElement) {
-                // Don't add a classpath element, if it is marked to be skipped.
-                order.add(currSingleton);
+        if (visitedClasspathElts.add(currClasspathElement)) {
+            if (!currClasspathElement.skipClasspathElement) {
+                // Don't add a classpath element if it is marked to be skipped.
+                order.add(currClasspathElement);
             }
             // Whether or not a classpath element should be skipped, add any child classpath elements that are
             // not marked to be skipped (i.e. keep recursing)
-            if (currSingleton.childClasspathElts != null) {
-                for (final ClasspathOrModulePathEntry childClasspathElt : currSingleton.childClasspathElts) {
+            if (currClasspathElement.childClasspathElts != null) {
+                for (final ClasspathOrModulePathEntry childClasspathElt : currClasspathElement.childClasspathElts) {
                     final ClasspathElement childSingleton = classpathElementMap.get(childClasspathElt);
                     if (childSingleton != null) {
                         findClasspathOrder(childSingleton, classpathElementMap, visitedClasspathElts, order);
                     }
                 }
+            }
+            if (currClasspathElement.skipClasspathElement) {
+                // If classpath element is marked to be skipped, close it (it will not be used again).
+                currClasspathElement.close();
             }
         }
     }
