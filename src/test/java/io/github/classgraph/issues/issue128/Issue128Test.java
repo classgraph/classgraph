@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
@@ -54,10 +53,10 @@ public class Issue128Test {
     @Test
     public void issue128Test() throws IOException {
         // Test a nested jar inside a jar fetched over HTTP
-        final List<String> filesInsideLevel3 = new ArrayList<>();
         final URL jarURL = new URL(NESTED_JAR_URL);
-        new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).scan()
-                .getAllResources().forEach(r -> filesInsideLevel3.add(r.getPath()));
+        final List<String> filesInsideLevel3 = new ClassGraph()
+                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).scan().getAllResources()
+                .getPaths();
         if (filesInsideLevel3.isEmpty()) {
             // If there were no files inside jar, it is possible that remote jar could not be downloaded
             try (InputStream is = jarURL.openStream()) {

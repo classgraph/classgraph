@@ -35,6 +35,8 @@ import javax.persistence.Entity;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
 @Entity
@@ -43,7 +45,11 @@ public class Issue216Test {
     public void testSpringBootJarWithLibJars() {
         final ScanResult result = new ClassGraph().whitelistPackages(Issue216Test.class.getPackage().getName())
                 .enableAllInfo().scan();
-        assertThat(result.getAllClasses().filter(ci -> ci.hasAnnotation(Entity.class.getName())).getNames())
-                .containsOnly(Issue216Test.class.getName());
+        assertThat(result.getAllClasses().filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.hasAnnotation(Entity.class.getName());
+            }
+        }).getNames()).containsOnly(Issue216Test.class.getName());
     }
 }

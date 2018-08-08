@@ -38,6 +38,8 @@ import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.FieldInfo;
+import io.github.classgraph.Resource;
+import io.github.classgraph.ResourceList.ByteArrayConsumer;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.blacklisted.BlacklistedAnnotation;
 import io.github.classgraph.test.blacklisted.BlacklistedSubclass;
@@ -281,7 +283,12 @@ public class ClassGraphTest {
     public void scanFilePattern() throws Exception {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
         new ClassGraph().whitelistPaths("").scan().getResourcesWithLeafName("file-content-test.txt")
-                .forEachByteArray((res, arr) -> readFileContents.set(new String(arr).equals("File contents")));
+                .forEachByteArray(new ByteArrayConsumer() {
+                    @Override
+                    public void accept(final Resource res, final byte[] arr) {
+                        readFileContents.set(new String(arr).equals("File contents"));
+                    }
+                });
         assertThat(readFileContents.get()).isTrue();
     }
 
@@ -352,8 +359,10 @@ public class ClassGraphTest {
     @Test
     public void getManifest() throws Exception {
         final AtomicBoolean foundManifest = new AtomicBoolean();
-        new ClassGraph().whitelistPaths("META-INF").enableAllInfo().scan().getResourcesWithLeafName("MANIFEST.MF")
-                .forEach(r -> foundManifest.set(true));
+        for (final Resource res : new ClassGraph().whitelistPaths("META-INF").enableAllInfo().scan()
+                .getResourcesWithLeafName("MANIFEST.MF")) {
+            foundManifest.set(true);
+        }
         assertThat(foundManifest.get()).isTrue();
     }
 }

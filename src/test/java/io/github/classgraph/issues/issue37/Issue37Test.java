@@ -36,6 +36,9 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ClassInfoList;
+import io.github.classgraph.MethodInfo;
 
 public class Issue37Test {
 
@@ -48,11 +51,15 @@ public class Issue37Test {
     public void issue37Test() {
         final List<String> methodNames = new ArrayList<>();
         final String pkg = Issue37Test.class.getPackage().getName();
-        new ClassGraph().whitelistPackages(pkg) //
+        final ClassInfoList classes = new ClassGraph().whitelistPackages(pkg) //
                 .enableMethodInfo() //
                 .scan() //
-                .getAllClasses() //
-                .forEach(ci -> ci.getMethodAndConstructorInfo().forEach(mi -> methodNames.add(mi.getName())));
+                .getAllClasses();
+        for (final ClassInfo ci : classes) {
+            for (final MethodInfo mi : ci.getMethodAndConstructorInfo()) {
+                methodNames.add(mi.getName());
+            }
+        }
         assertThat(methodNames).containsExactly("<init>", "issue37Test", "unannotatedMethod");
     }
 

@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -45,9 +44,14 @@ import io.github.classgraph.issues.issue167.a.b.TestAB;
 
 public class Issue167Test {
     public static List<Class<?>> classes = Arrays.asList(new Class<?>[] { TestA.class, TestAB.class });
-    public static List<String> packages = classes.stream().map(c -> c.getPackage().getName())
-            .collect(Collectors.toList());
-    public static List<String> classNames = classes.stream().map(c -> c.getName()).collect(Collectors.toList());
+    public static List<String> packages = new ArrayList<>();
+    public static List<String> classNames = new ArrayList<>();
+    static {
+        for (final Class<?> c : classes) {
+            packages.add(c.getPackage().getName());
+            classNames.add(c.getName());
+        }
+    }
 
     @Test
     public void scanPackagesTest1() throws IOException {

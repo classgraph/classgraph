@@ -35,6 +35,7 @@ import java.io.IOException;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
 
 public class Issue148Test {
     @Test
@@ -48,13 +49,13 @@ public class Issue148Test {
 
         final String pkg = Issue148Test.class.getPackage().getName();
         final StringBuilder buf = new StringBuilder();
-        new ClassGraph().whitelistPackages(pkg).enableAllInfo().scan().getAllClasses().forEach(ci -> {
+        for (final ClassInfo ci : new ClassGraph().whitelistPackages(pkg).enableAllInfo().scan().getAllClasses()) {
             buf.append(ci.getName() + "|");
             buf.append(ci.isInnerClass() + " " + ci.isAnonymousInnerClass() + " " + ci.isOuterClass() + "|");
             buf.append(ci.getInnerClasses().getNames() + "|");
             buf.append(ci.getOuterClasses().getNames() + "|");
             buf.append(ci.getFullyQualifiedDefiningMethodName() + "\n");
-        });
+        }
 
         final String bufStr = buf.toString().replace(pkg + ".", "");
 

@@ -35,12 +35,13 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.junit.Test;
 import org.ops4j.pax.url.mvn.MavenResolvers;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 
 public class Issue193Test {
     @Test
@@ -60,7 +61,12 @@ public class Issue193Test {
                 .overrideClassLoaders(classLoader) //
                 .scan() //
                 .getAllClasses() //
-                .getNames().stream().filter(name -> name.endsWith("$")).collect(Collectors.toList());
+                .filter(new ClassInfoFilter() {
+                    @Override
+                    public boolean accept(final ClassInfo ci) {
+                        return ci.getName().endsWith("$");
+                    }
+                }).getNames();
         assertThat(classes).contains("scala.collection.immutable.Stack$");
     }
 }
