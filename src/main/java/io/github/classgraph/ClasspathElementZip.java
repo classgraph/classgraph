@@ -181,6 +181,7 @@ class ClasspathElementZip extends ClasspathElement {
             private String pathRelativeToClasspathElt = null;
 
             {
+                // ZipEntry size may be unknown (-1L), or even completely wrong
                 length = zipEntry.getSize();
             }
 

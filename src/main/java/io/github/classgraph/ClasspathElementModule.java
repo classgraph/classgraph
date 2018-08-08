@@ -125,7 +125,7 @@ class ClasspathElementModule extends ClasspathElement {
                         moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
                         moduleReaderProxy = moduleReaderProxyRecyclable.get();
                         // ModuleReader#read(String name) internally calls:
-                        // ByteBuffer.wrap(open(name).readAllBytes())
+                        // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
                         byteBuffer = moduleReaderProxy.read(moduleResourcePath);
                         length = byteBuffer.remaining();
                         return byteBuffer;
