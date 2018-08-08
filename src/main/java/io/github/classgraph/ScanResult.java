@@ -937,8 +937,12 @@ public class ScanResult implements Closeable {
         removeTemporaryFiles(log);
         rawClasspathEltOrderStrs.clear();
         classpathOrder.clear();
-        classNameToClassInfo.clear();
-        fileToLastModified.clear();
+        if (classNameToClassInfo != null) {
+            classNameToClassInfo.clear();
+        }
+        if (fileToLastModified != null) {
+            fileToLastModified.clear();
+        }
         if (log != null) {
             log.flush();
         }
