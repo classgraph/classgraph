@@ -156,6 +156,8 @@ class ClasspathElementModule extends ClasspathElement {
                         moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
                         moduleReaderProxy = moduleReaderProxyRecyclable.get();
                         inputStream = moduleReaderProxy.open(moduleResourcePath);
+                        // Length cannot be obtained from ModuleReader
+                        length = -1L;
                         return inputStream;
 
                     } catch (final Exception e) {
