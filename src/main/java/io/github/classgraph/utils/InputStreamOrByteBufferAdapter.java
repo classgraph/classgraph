@@ -51,13 +51,30 @@ public abstract class InputStreamOrByteBufferAdapter {
     private static final int SUBSEQUENT_BUFFER_CHUNK_SIZE = 4096;
 
     /** Bytes read from the beginning of the classfile. This array is reused across calls. */
-    public byte[] buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
+    public byte[] buf;
 
     /** The current position in the buffer. */
     public int curr = 0;
 
     /** Bytes used in the buffer. */
     public int used = 0;
+
+    /** Create an empty byte array of the initial buffer chunk size. */
+    public InputStreamOrByteBufferAdapter() {
+        this(null);
+    }
+
+    /**
+     * Create an buffer backed by the given byte array (or if null, create an empty byte array of the initial buffer
+     * chunk size).
+     */
+    public InputStreamOrByteBufferAdapter(final byte[] buf) {
+        if (buf == null) {
+            this.buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
+        } else {
+            this.buf = buf;
+        }
+    }
 
     /**
      * Read an initial chunk of the file into the buffer.
@@ -365,9 +382,16 @@ public abstract class InputStreamOrByteBufferAdapter {
 
     private static class ByteBufferAdapter extends InputStreamOrByteBufferAdapter {
         private final ByteBuffer byteBuffer;
+        private final boolean hasArray;
+        private int bytesRemaining;
 
         public ByteBufferAdapter(final ByteBuffer byteBuffer) {
+            super(byteBuffer.hasArray() ? byteBuffer.array() : null);
             this.byteBuffer = byteBuffer;
+            this.hasArray = byteBuffer.hasArray();
+            if (this.hasArray) {
+                this.bytesRemaining = this.buf.length;
+            }
         }
 
         @Override
@@ -375,19 +399,32 @@ public abstract class InputStreamOrByteBufferAdapter {
             if (len == 0) {
                 return 0;
             }
-            final int bytesToRead = Math.min(len, byteBuffer.remaining());
-            if (bytesToRead == 0) {
-                // Return -1, as per InputStream#read() contract
-                return -1;
+            if (hasArray) {
+                // Nothing to read, since ByteBuffer is backed with an array, but update the number of
+                // bytes remaining that have not yet been "read".
+                final int bytesToRead = Math.min(len, bytesRemaining);
+                if (bytesToRead == 0) {
+                    // Return -1, as per InputStream#read() contract
+                    return -1;
+                }
+                bytesRemaining -= bytesToRead;
+                return bytesToRead;
+            } else {
+                // Copy from the ByteBuffer into the byte array
+                final int bytesToRead = Math.min(len, byteBuffer.remaining());
+                if (bytesToRead == 0) {
+                    // Return -1, as per InputStream#read() contract
+                    return -1;
+                }
+                final int byteBufPositionBefore = byteBuffer.position();
+                try {
+                    byteBuffer.get(array, off, bytesToRead);
+                } catch (final BufferUnderflowException e) {
+                    // Should not happen
+                    throw new IOException("Buffer underflow", e);
+                }
+                return byteBuffer.position() - byteBufPositionBefore;
             }
-            final int byteBufPositionBefore = byteBuffer.position();
-            try {
-                byteBuffer.get(array, off, bytesToRead);
-            } catch (final BufferUnderflowException e) {
-                // Should not happen
-                throw new IOException("Buffer underflow", e);
-            }
-            return byteBuffer.position() - byteBufPositionBefore;
         }
     }
 
