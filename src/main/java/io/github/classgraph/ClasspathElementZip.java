@@ -179,6 +179,10 @@ class ClasspathElementZip extends ClasspathElement {
             private Recycler<ZipFile, IOException>.Recyclable zipFileRecyclable;
             private ZipFile zipFile;
             private String pathRelativeToClasspathElt = null;
+            
+            {
+                length = zipEntry.getSize();
+            }
 
             @Override
             public String getPath() {

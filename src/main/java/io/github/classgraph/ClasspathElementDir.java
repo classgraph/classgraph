@@ -37,6 +37,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -77,6 +78,13 @@ class ClasspathElementDir extends ClasspathElement {
         return new Resource() {
             private RandomAccessFile randomAccessFile;
             private FileChannel fileChannel;
+            
+            {
+                length = classpathResourceFile.length();
+                if (length == 0L) {
+                    length = -1L;
+                }
+            }
 
             @Override
             public String getPath() {
