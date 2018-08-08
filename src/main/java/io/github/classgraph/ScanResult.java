@@ -915,11 +915,15 @@ public class ScanResult implements Closeable {
             for (final Resource classpathResource : allResources) {
                 classpathResource.close();
             }
-            allResources = null;
+            allResources.clear();
         }
         if (nestedJarHandler != null) {
             nestedJarHandler.close(log);
         }
+        rawClasspathEltOrderStrs.clear();
+        classpathOrder.clear();
+        classNameToClassInfo.clear();
+        fileToLastModified.clear();
         if (log != null) {
             log.flush();
         }
