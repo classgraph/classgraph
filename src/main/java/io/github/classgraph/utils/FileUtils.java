@@ -78,6 +78,10 @@ public class FileUtils {
     static {
         switch (VersionFinder.OS) {
         case Linux:
+            // On Linux, FileChannel is more efficient once file sizes are larger than 16kb,
+            // and the speedup increases superlinearly, reaching 1.5-3x for a filesize of 1MB
+            // (and the performance increase does not level off at 1MB either -- that is as
+            // far as this was benchmarked).
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
             break;
         case Windows:
@@ -85,8 +89,8 @@ public class FileUtils {
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
             break;
         case MacOSX:
-            // TODO
-            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
+            // On Mac OS X, FileChannel is always slower than InputStream for some reason.
+            FILECHANNEL_FILE_SIZE_THRESHOLD = Integer.MAX_VALUE;
             break;
         default:
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
