@@ -71,7 +71,14 @@ public class VersionFinder {
 
     /** The operating system type. */
     public enum OperatingSystem {
-        Windows, MacOSX, Linux, Unknown
+        /** Windows */
+        Windows,
+        /** Mac OS X */
+        MacOSX,
+        /** Linux */
+        Linux,
+        /** Unknown */
+        Unknown
     };
 
     /** The operating system type. */
