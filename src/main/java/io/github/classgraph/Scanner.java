@@ -698,7 +698,7 @@ class Scanner implements Callable<ScanResult> {
                     throw new IllegalArgumentException("Exception while calling failure handler", t);
                 }
             } else {
-                throw e;
+                throw new IllegalArgumentException("Exception while scanning", e);
             }
 
         } finally {
