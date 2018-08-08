@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.utils;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -70,7 +71,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <E>
  *            An exception type that can be thrown while acquiring an instance of the type to recycle.
  */
-public abstract class Recycler<T extends AutoCloseable, E extends Exception> implements AutoCloseable {
+public abstract class Recycler<T extends Closeable, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */
     private final ConcurrentLinkedQueue<T> allocatedInstances = new ConcurrentLinkedQueue<>();
 
