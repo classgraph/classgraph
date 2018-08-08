@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.Closeable;
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -121,11 +122,16 @@ public class ScanResult implements Closeable {
             }
         }
 
-        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit()
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
+        // Uses a WeakReference so that garbage collection is not blocked. (#233)
+        final WeakReference<ScanResult> scanResultRef = new WeakReference<>(this);
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-                close();
+                final ScanResult scanResult = scanResultRef.get();
+                if (scanResult != null) {
+                    scanResult.close();
+                }
             }
         });
     }
@@ -911,21 +917,8 @@ public class ScanResult implements Closeable {
      *            The log.
      */
     void removeTemporaryFiles(final LogNode log) {
-        if (allResources != null) {
-            for (final Resource classpathResource : allResources) {
-                classpathResource.close();
-            }
-            allResources.clear();
-        }
         if (nestedJarHandler != null) {
             nestedJarHandler.close(log);
-        }
-        rawClasspathEltOrderStrs.clear();
-        classpathOrder.clear();
-        classNameToClassInfo.clear();
-        fileToLastModified.clear();
-        if (log != null) {
-            log.flush();
         }
     }
 
@@ -935,7 +928,20 @@ public class ScanResult implements Closeable {
      */
     @Override
     public void close() {
+        if (allResources != null) {
+            for (final Resource classpathResource : allResources) {
+                classpathResource.close();
+            }
+            allResources.clear();
+        }
         removeTemporaryFiles(log);
+        rawClasspathEltOrderStrs.clear();
+        classpathOrder.clear();
+        classNameToClassInfo.clear();
+        fileToLastModified.clear();
+        if (log != null) {
+            log.flush();
+        }
     }
 
     /** Finalizer. A runtime shutdown hook is also added in the constructor, since finalizers are not reliable. */
