@@ -34,6 +34,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.Properties;
 
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -64,6 +65,29 @@ public class VersionFinder {
             }
         }
         JAVA_MAJOR_VERSION = javaMajorVersion;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** The operating system type. */
+    public enum OperatingSystem {
+        Windows, MacOSX, Linux, Unknown
+    };
+
+    /** The operating system type. */
+    public static final OperatingSystem OS;
+
+    static {
+        final String osName = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
+        if ((osName.indexOf("mac") >= 0) || (osName.indexOf("darwin") >= 0)) {
+            OS = OperatingSystem.MacOSX;
+        } else if (osName.indexOf("win") >= 0) {
+            OS = OperatingSystem.Windows;
+        } else if (osName.indexOf("nux") >= 0) {
+            OS = OperatingSystem.Linux;
+        } else {
+            OS = OperatingSystem.Unknown;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

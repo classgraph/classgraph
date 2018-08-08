@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -37,7 +38,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -78,12 +78,9 @@ class ClasspathElementDir extends ClasspathElement {
         return new Resource() {
             private RandomAccessFile randomAccessFile;
             private FileChannel fileChannel;
-            
+
             {
                 length = classpathResourceFile.length();
-                if (length == 0L) {
-                    length = -1L;
-                }
             }
 
             @Override
@@ -134,20 +131,35 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             InputStreamOrByteBufferAdapter openOrRead() throws IOException {
-                return InputStreamOrByteBufferAdapter.create(read());
+                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                    return InputStreamOrByteBufferAdapter.create(read());
+                } else {
+                    return InputStreamOrByteBufferAdapter
+                            .create(inputStream = new FileInputStream(classpathResourceFile));
+                }
             }
 
             @Override
             public InputStream open() throws IOException {
-                read();
-                return byteBufferToInputStream();
+                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                    read();
+                    return byteBufferToInputStream();
+                } else {
+                    return inputStream = new FileInputStream(classpathResourceFile);
+                }
             }
 
             @Override
             public byte[] load() throws IOException {
                 try {
-                    read();
-                    final byte[] byteArray = byteBufferToByteArray();
+                    final byte[] byteArray;
+                    if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                        read();
+                        byteArray = byteBufferToByteArray();
+                    } else {
+                        byteArray = FileUtils.readAllBytesAsArray(
+                                inputStream = new FileInputStream(classpathResourceFile), length, null);
+                    }
                     length = byteArray.length;
                     return byteArray;
                 } finally {

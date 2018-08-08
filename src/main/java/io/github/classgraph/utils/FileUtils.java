@@ -66,6 +66,34 @@ public class FileUtils {
         CURR_DIR_PATH = currDirPathStr;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The minimum filesize at which it becomes more efficient to read a file with a memory-mapped file channel
+     * rather than an InputStream.
+     */
+    public static final int FILECHANNEL_FILE_SIZE_THRESHOLD;
+
+    static {
+        switch (VersionFinder.OS) {
+        case Linux:
+            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
+            break;
+        case Windows:
+            // TODO
+            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
+            break;
+        case MacOSX:
+            // TODO
+            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
+            break;
+        default:
+            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Read all the bytes in an {@link InputStream} as a ByteOutputStream.
      * 
@@ -145,15 +173,7 @@ public class FileUtils {
         return readAllBytesAsBAOS(inputStream, fileSize, log).toString("UTF-8");
     }
 
-    /**
-     * @param path
-     *            A file path.
-     * @return true if path has a ".class" extension, ignoring case.
-     */
-    public static boolean isClassfile(final String path) {
-        final int len = path.length();
-        return len > 6 && path.regionMatches(true, len - 6, ".class", 0, 6);
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Produce an {@link InputStream} that is able to read from a {@link ByteBuffer}.
@@ -187,6 +207,20 @@ public class FileUtils {
             }
         };
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * @param path
+     *            A file path.
+     * @return true if path has a ".class" extension, ignoring case.
+     */
+    public static boolean isClassfile(final String path) {
+        final int len = path.length();
+        return len > 6 && path.regionMatches(true, len - 6, ".class", 0, 6);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * @param file
