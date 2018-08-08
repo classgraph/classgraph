@@ -95,12 +95,24 @@ public class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The default size of a file buffer. */
+    private static final int DEFAULT_BUFFER_SIZE = 16384;
+
+    /**
+     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer.MAX_VALUE}, since some VMs
+     * reserve header words in arrays.
+     */
+    private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+
+    /** The maximum initial buffer size. */
+    private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
+
     /**
      * Read all the bytes in an {@link InputStream}.
      * 
      * @param inputStream
      *            The {@link InputStream}.
-     * @param fileSize
+     * @param fileSizeHint
      *            The file size, if known, otherwise -1L.
      * @param log
      *            The log.
@@ -109,12 +121,23 @@ public class FileUtils {
      * @throws IOException
      *             If the contents could not be read.
      */
-    private static SimpleEntry<byte[], Integer> readAllBytes(final InputStream inputStream, final long fileSize,
+    private static SimpleEntry<byte[], Integer> readAllBytes(final InputStream inputStream, final long fileSizeHint,
             final LogNode log) throws IOException {
-        byte[] buf = new byte[DEFAULT_BUFFER_SIZE];
+        if (fileSizeHint > MAX_BUFFER_SIZE) {
+            throw new IOException("InputStream is too large to read");
+        }
+        int bufferSize = fileSizeHint < 1L
+                // If fileSizeHint is unknown, use default buffer size 
+                ? DEFAULT_BUFFER_SIZE
+                // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
+                // lengths do not become a memory allocation attack vector
+                : Math.min((int) fileSizeHint, MAX_INITIAL_BUFFER_SIZE);
+        byte[] buf = new byte[bufferSize];
+
         int bufLength = buf.length;
         int totBytesRead = 0;
         for (int bytesRead;;) {
+            // Fill buffer -- may fill more or fewer bytes than buffer size
             while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
                 totBytesRead += bytesRead;
             }
@@ -122,7 +145,7 @@ public class FileUtils {
                 // Reached end of stream
                 break;
             }
-            // Grow buffer, avoiding overflow
+            // bytesRead == 0 => grow buffer, avoiding overflow
             if (bufLength <= MAX_BUFFER_SIZE - bufLength) {
                 bufLength = bufLength << 1;
             } else {
@@ -133,14 +156,10 @@ public class FileUtils {
             }
             buf = Arrays.copyOf(buf, bufLength);
         }
+        // Return buffer and number of bytes read
         return new SimpleEntry<>((bufLength == totBytesRead) ? buf : Arrays.copyOf(buf, totBytesRead),
                 totBytesRead);
     }
-
-    private static final int DEFAULT_BUFFER_SIZE = 16384;
-
-    // Some VMs reserve header words in arrays, can't allocate arrays of size Integer.MAX_VALUE
-    private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
     /**
      * Read all the bytes in an {@link InputStream} as a byte array.
