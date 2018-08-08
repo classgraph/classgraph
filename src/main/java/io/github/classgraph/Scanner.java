@@ -602,8 +602,8 @@ class Scanner implements Callable<ScanResult> {
                         final ClassLoader parentClassLoader = classLoaderOrder == null
                                 || classLoaderOrder.length == 0 ? null : classLoaderOrder[0];
                         @SuppressWarnings("resource")
-                        final URLClassLoader customClassLoader = new URLClassLoader(
-                                urlOrder.toArray(new URL[urlOrder.size()]), parentClassLoader);
+                        final URLClassLoader customClassLoader = new URLClassLoader(urlOrder.toArray(new URL[0]),
+                                parentClassLoader);
                         // Replace the ClassLoaders in all classpath elements that contained matched classes
                         for (final ClasspathElement classpathElement : classpathElementsWithMatchedClasses) {
                             final ClassLoader[] oldClassLoaders = classpathElement.classpathEltPath.classLoaders;

@@ -462,7 +462,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 allClassLoaders.add(classLoader);
             }
             final List<ClassLoader> classLoaderOrder = new ArrayList<>(allClassLoaders);
-            classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[classLoaderOrder.size()]);
+            classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[0]);
         }
 
         // Mark the classfile as scanned

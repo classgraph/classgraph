@@ -302,7 +302,7 @@ public class ClassLoaderAndModuleFinder {
             }
         }
 
-        this.classLoaders = classLoaderFinalOrder.toArray(new ClassLoader[classLoaderFinalOrder.size()]);
+        this.classLoaders = classLoaderFinalOrder.toArray(new ClassLoader[0]);
         this.systemModuleRefs = systemModuleRefs;
         this.nonSystemModuleRefs = nonSystemModuleRefs;
     }

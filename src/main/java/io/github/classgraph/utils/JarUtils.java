@@ -135,7 +135,7 @@ public class JarUtils {
                     parts.add(part);
                 }
             }
-            return parts.toArray(new String[parts.size()]);
+            return parts.toArray(new String[0]);
         } else {
             // For Windows, there is no confusion between the path separator ';' and URL schemes Trim path
             // components, and strip out empty components
@@ -146,7 +146,7 @@ public class JarUtils {
                     partsFiltered.add(partFiltered);
                 }
             }
-            return partsFiltered.toArray(new String[partsFiltered.size()]);
+            return partsFiltered.toArray(new String[0]);
         }
     }
 
@@ -169,7 +169,7 @@ public class JarUtils {
                 // Skip bad URLs
             }
         }
-        return new URLClassLoader(urls.toArray(new URL[urls.size()]));
+        return new URLClassLoader(urls.toArray(new URL[0]));
     }
 
     // -------------------------------------------------------------------------------------------------------------

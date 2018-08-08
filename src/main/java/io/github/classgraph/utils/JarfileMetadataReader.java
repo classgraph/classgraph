@@ -162,7 +162,7 @@ public class JarfileMetadataReader {
                         subLog.log(url.toString());
                     }
                 }
-                customClassLoader = new URLClassLoader(urls.toArray(new URL[urls.size()]));
+                customClassLoader = new URLClassLoader(urls.toArray(new URL[0]));
             }
             return customClassLoader;
         }

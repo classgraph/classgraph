@@ -941,8 +941,7 @@ public class ScanResult implements Closeable, AutoCloseable {
                 /* log = */ null).getClassLoaders();
         final ClassLoader parentClassLoader = envClassLoaderOrder == null || envClassLoaderOrder.length == 0 ? null
                 : envClassLoaderOrder[0];
-        final URLClassLoader urlClassLoader = new URLClassLoader(urls.toArray(new URL[urls.size()]),
-                parentClassLoader);
+        final URLClassLoader urlClassLoader = new URLClassLoader(urls.toArray(new URL[0]), parentClassLoader);
         final ClassLoader[] classLoaderOrder = new ClassLoader[] { urlClassLoader };
 
         // Index ClassInfo objects by name, and set the classLoaders field of each one, for classloading
