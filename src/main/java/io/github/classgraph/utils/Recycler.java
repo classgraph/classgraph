@@ -150,7 +150,6 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
     public void close() {
         final Set<T> closedInstances = new HashSet<>();
         for (T unusedInstance; (unusedInstance = unusedInstances.poll()) != null;) {
-
             try {
                 unusedInstance.close();
             } catch (final Throwable e) {
