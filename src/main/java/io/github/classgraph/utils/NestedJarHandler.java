@@ -717,9 +717,9 @@ public class NestedJarHandler {
         if (tempFiles != null) {
             final LogNode rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
             while (!tempFiles.isEmpty()) {
-                final File head = tempFiles.remove();
-                final String path = head.getPath();
-                final boolean success = head.delete();
+                final File tempFile = tempFiles.removeLast();
+                final String path = tempFile.getPath();
+                final boolean success = tempFile.delete();
                 if (log != null) {
                     rmLog.log((success ? "Removed" : "Unable to remove") + " " + path);
                 }
