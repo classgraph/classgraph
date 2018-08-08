@@ -38,6 +38,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -145,7 +146,7 @@ class ClasspathElementDir extends ClasspathElement {
                     read();
                     return byteBufferToInputStream();
                 } else {
-                    return inputStream = new FileInputStream(classpathResourceFile);
+                    return inputStream = Files.newInputStream(classpathResourceFile.toPath());
                 }
             }
 
@@ -157,8 +158,8 @@ class ClasspathElementDir extends ClasspathElement {
                         read();
                         byteArray = byteBufferToByteArray();
                     } else {
-                        byteArray = FileUtils.readAllBytesAsArray(
-                                inputStream = new FileInputStream(classpathResourceFile), length, null);
+                        open();
+                        byteArray = FileUtils.readAllBytesAsArray(inputStream, length, null);
                     }
                     length = byteArray.length;
                     return byteArray;
