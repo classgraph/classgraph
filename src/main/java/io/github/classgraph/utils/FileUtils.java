@@ -71,7 +71,10 @@ public class FileUtils {
 
     /**
      * The minimum filesize at which it becomes more efficient to read a file with a memory-mapped file channel
-     * rather than an InputStream.
+     * rather than an InputStream. Based on benchmark testing using the following benchmark, averaged over three
+     * separate runs, then plotted as a speedup curve for 1, 2, 4 and 8 concurrent threads:
+     * 
+     * https://github.com/lukehutch/FileReadingBenchmark
      */
     public static final int FILECHANNEL_FILE_SIZE_THRESHOLD;
 
@@ -89,10 +92,15 @@ public class FileUtils {
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
             break;
         case MacOSX:
-            // On Mac OS X, FileChannel is always slower than InputStream for some reason.
-            FILECHANNEL_FILE_SIZE_THRESHOLD = Integer.MAX_VALUE;
+            // On older/slower Mac OS X machines, FileChannel is always 10-20% slower than InputStream,
+            // and is only faster for very large files (>1MB). But on newer/faster machines, you get
+            // 10-20% speedup between 16kB and 128kB, then a large amount of speedup for files larger
+            // than 128kb (topping out at about 2.5x speedup). It's probably worth setting the threshold
+            // to 16kB to get the 10-20% speedup for files larger than 16kB in size on modern machines.
+            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
             break;
         default:
+            // For any other operating system
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
         }
     }
