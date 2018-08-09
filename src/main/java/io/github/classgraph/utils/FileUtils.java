@@ -93,10 +93,11 @@ public class FileUtils {
             break;
         case MacOSX:
             // On older/slower Mac OS X machines, FileChannel is always 10-20% slower than InputStream,
-            // and is only faster for very large files (>1MB). But on newer/faster machines, you get
-            // 10-20% speedup between 16kB and 128kB, then a large amount of speedup for files larger
-            // than 128kb (topping out at about 2.5x speedup). It's probably worth setting the threshold
-            // to 16kB to get the 10-20% speedup for files larger than 16kB in size on modern machines.
+            // except for very large files (>1MB), and only for single-threaded reading.
+            // But on newer/faster Mac OS X machines, you get a 10-20% speedup between 16kB and 128kB,
+            // then a much larger speedup for files larger than 128kb (topping out at about 2.5x speedup).
+            // It's probably worth setting the threshold to 16kB to get the 10-20% speedup for files
+            // larger than 16kB in size on modern machines.
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
             break;
         default:
