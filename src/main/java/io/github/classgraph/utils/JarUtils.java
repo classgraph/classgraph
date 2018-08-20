@@ -237,9 +237,9 @@ public class JarUtils {
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
         // NestedJarHandler.unzipToTempFile()
-        int sepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR);
+        int sepIdx = path.indexOf(WriteAccessNestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR);
         if (sepIdx >= 0) {
-            sepIdx += NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
+            sepIdx += WriteAccessNestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
         }
         leafStartIdx = Math.max(leafStartIdx, sepIdx);
         leafStartIdx = Math.min(leafStartIdx, endIdx);

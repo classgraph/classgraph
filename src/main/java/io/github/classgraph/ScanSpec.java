@@ -204,6 +204,12 @@ public class ScanSpec {
      */
     public transient boolean removeTemporaryFilesAfterScan = false;
 
+    /**
+     * If true, any operations requiring writes to disk (ex. extracting nested jarfiles, zipfiles, etc.) will be
+     * skipped.
+     */
+    public transient boolean skipAllWriteOperations = false;
+
     /** If true, do not fetch paths from parent classloaders. */
     public transient boolean ignoreParentClassLoaders = false;
 
