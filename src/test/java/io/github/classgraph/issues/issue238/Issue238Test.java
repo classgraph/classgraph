@@ -66,7 +66,6 @@ public class Issue238Test {
         final List<String> classNames = new ClassGraph()
                 .whitelistPackages(Issue238Test.class.getPackage().getName()).enableAllInfo().scan().getAllClasses()
                 .get(E.class.getName()).getSuperclasses().getNames();
-        System.out.println(classNames);
         assertThat(classNames).containsExactly(F.class.getName(), A.class.getName(), G.class.getName(),
                 B.class.getName(), D.class.getName(), C.class.getName());
     }
