@@ -124,8 +124,8 @@ public class JarfileMetadataReader {
                     urls.add(extractedClasspathJarfileOrDir.toURI().toURL());
                 } catch (final IOException e) {
                     if (log != null) {
-                        log.log("Cannot unzip package root " + packageRootPath + " in jarfile " + jarFile + " : "
-                                + e);
+                        log.log("Cannot unzip package root " + packageRootPath + " from jarfile " + jarFile
+                                + " (classloading from this jarfile will probably fail) : " + e);
                     }
                 }
             }

@@ -283,7 +283,22 @@ public class ClasspathOrModulePathEntry {
                                 if (scanSpec.createClassLoaderForMatchingClasses) {
                                     // If a custom classloader will be created for all matching classes, need to
                                     // extract the package root from the zipfile to a temporary directory
-                                    fileCached = nestedJarHandler.unzipToTempDir(innermostJar, packageRoot, log);
+                                    try {
+                                        fileCached = nestedJarHandler.unzipToTempDir(innermostJar, packageRoot,
+                                                log);
+                                    } catch (final IOException e) {
+                                        // If the package root could not be extracted, classloading will fail,
+                                        // but at least allow scanning to proceed from the package root within
+                                        // the jarfile
+                                        if (log != null) {
+                                            log.log("Cannot unzip package root " + packageRoot + " from jarfile "
+                                                    + innermostJar
+                                                    + " (classloading from this jarfile will probably fail) : "
+                                                    + e);
+                                        }
+                                        fileCached = innermostJar;
+                                        jarfilePackageRoot = packageRoot;
+                                    }
                                 } else {
                                     // Otherwise, can scan the zipfile starting from the package root,
                                     // without extracting it from the zipfile to disk
