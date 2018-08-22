@@ -534,7 +534,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (includeStandardClasses && includeImplementedInterfaces && includeAnnotations) {
             includeAllTypes = true;
         }
-        final Set<ClassInfo> classInfoSetFiltered = new HashSet<>(classes.size());
+        final Set<ClassInfo> classInfoSetFiltered = new LinkedHashSet<>(classes.size());
         for (final ClassInfo classInfo : classes) {
             // Check class type against requested type(s)
             if (includeAllTypes //
@@ -590,7 +590,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (directlyRelatedClasses == null) {
             return NO_REACHABLE_CLASSES;
         }
-        final Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
+        final Set<ClassInfo> reachableClasses = new LinkedHashSet<>(directlyRelatedClasses);
         if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
             // For method and field annotations, need to change the RelType when finding meta-annotations
             for (final ClassInfo annotation : directlyRelatedClasses) {
@@ -673,7 +673,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     static ClassInfoList getAllClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final ScanResult scanResult) {
         return new ClassInfoList(
-                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ALL));
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ALL),
+                /* sortByName = */ true);
     }
 
     /**
@@ -684,7 +685,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     static ClassInfoList getAllStandardClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final ScanResult scanResult) {
         return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true,
-                ClassType.STANDARD_CLASS));
+                ClassType.STANDARD_CLASS), /* sortByName = */ true);
     }
 
     /**
@@ -695,7 +696,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     static ClassInfoList getAllImplementedInterfaceClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec, final ScanResult scanResult) {
         return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true,
-                ClassType.IMPLEMENTED_INTERFACE));
+                ClassType.IMPLEMENTED_INTERFACE), /* sortByName = */ true);
     }
 
     /**
@@ -706,7 +707,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     static ClassInfoList getAllAnnotationClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final ScanResult scanResult) {
         return new ClassInfoList(
-                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ANNOTATION));
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ANNOTATION),
+                /* sortByName = */ true);
     }
 
     /**
@@ -718,7 +720,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     static ClassInfoList getAllInterfacesOrAnnotationClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec, final ScanResult scanResult) {
         return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true,
-                ClassType.INTERFACE_OR_ANNOTATION));
+                ClassType.INTERFACE_OR_ANNOTATION), /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -940,7 +942,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Standard classes
 
     /**
-     * Get the subclasses of this class.
+     * Get the subclasses of this class, sorted in order of name. Call {@link ClassInfoList#directOnly()} to get
+     * direct subclasses.
      *
      * @return the list of subclasses of this class, or the empty list if none.
      */
@@ -949,18 +952,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Make an exception for querying all subclasses of java.lang.Object
             return scanResult.getAllClasses();
         } else {
-            return new ClassInfoList(this.filterClassInfo(RelType.SUBCLASSES, /* strictWhitelist = */ true));
+            return new ClassInfoList(this.filterClassInfo(RelType.SUBCLASSES, /* strictWhitelist = */ true),
+                    /* sortByName = */ true);
         }
     }
 
     /**
-     * Get all superclasses of this class. Does not include superinterfaces, if this is an interface (use
-     * {@link #getInterfaces()} to get superinterfaces of an interface.}
+     * Get all superclasses of this class, in ascending order in the class hierarchy. Does not include
+     * superinterfaces, if this is an interface (use {@link #getInterfaces()} to get superinterfaces of an
+     * interface.}
      *
      * @return the list of all superclasses of this class, or the empty list if none.
      */
     public ClassInfoList getSuperclasses() {
-        return new ClassInfoList(this.filterClassInfo(RelType.SUPERCLASSES, /* strictWhitelist = */ false));
+        return new ClassInfoList(this.filterClassInfo(RelType.SUPERCLASSES, /* strictWhitelist = */ false),
+                /* sortByName = */ false);
     }
 
     /**
@@ -992,14 +998,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public ClassInfoList getOuterClasses() {
         return new ClassInfoList(
-                this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS, /* strictWhitelist = */ false));
+                this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS, /* strictWhitelist = */ false),
+                /* sortByName = */ false);
     }
 
     /**
      * @return A list of the inner classes contained within this class, or the empty list if none.
      */
     public ClassInfoList getInnerClasses() {
-        return new ClassInfoList(this.filterClassInfo(RelType.CONTAINS_INNER_CLASS, /* strictWhitelist = */ false));
+        return new ClassInfoList(this.filterClassInfo(RelType.CONTAINS_INNER_CLASS, /* strictWhitelist = */ false),
+                /* sortByName = */ true);
     }
 
     /**
@@ -1029,7 +1037,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     RelType.IMPLEMENTED_INTERFACES, /* strictWhitelist = */ false).reachableClasses;
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
-        return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses);
+        return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses,
+                /* sortByName = */ true);
     }
 
     /**
@@ -1049,7 +1058,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     /* strictWhitelist = */ true).reachableClasses;
             allImplementingClasses.addAll(implementingSubclasses);
         }
-        return new ClassInfoList(allImplementingClasses, implementingClasses.directlyRelatedClasses);
+        return new ClassInfoList(allImplementingClasses, implementingClasses.directlyRelatedClasses,
+                /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1097,11 +1107,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
         if (inheritedSuperclassAnnotations == null) {
             // No inherited superclass annotations
-            return new ClassInfoList(annotationClasses);
+            return new ClassInfoList(annotationClasses, /* sortByName = */ true);
         } else {
             // Merge inherited superclass annotations and annotations on this class
             inheritedSuperclassAnnotations.addAll(annotationClasses.reachableClasses);
-            return new ClassInfoList(inheritedSuperclassAnnotations, annotationClasses.directlyRelatedClasses);
+            return new ClassInfoList(inheritedSuperclassAnnotations, annotationClasses.directlyRelatedClasses,
+                    /* sortByName = */ true);
         }
     }
 
@@ -1186,10 +1197,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
             }
             return new ClassInfoList(classesWithAnnotationAndTheirSubclasses,
-                    classesWithAnnotation.directlyRelatedClasses);
+                    classesWithAnnotation.directlyRelatedClasses, /* sortByName = */ true);
         } else {
             // If not inherited, only return the annotated classes
-            return new ClassInfoList(classesWithAnnotation);
+            return new ClassInfoList(classesWithAnnotation, /* sortByName = */ true);
         }
     }
 
@@ -1199,7 +1210,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     ClassInfoList getClassesWithAnnotationDirectOnly() {
         return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ true));
+                this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ true),
+                /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1371,7 +1383,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             methodAnnotationsAndMetaAnnotations.addAll(methodAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                     /* strictWhitelist = */ false).reachableClasses);
         }
-        return new ClassInfoList(methodAnnotationsAndMetaAnnotations, methodAnnotations.directlyRelatedClasses);
+        return new ClassInfoList(methodAnnotationsAndMetaAnnotations, methodAnnotations.directlyRelatedClasses,
+                /* sortByName = */ true);
     }
 
     /**
@@ -1389,7 +1402,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ false, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.reachableClasses.isEmpty()) {
             // This annotation does not meta-annotate another annotation that annotates a method
-            return new ClassInfoList(classesWithDirectlyAnnotatedMethods);
+            return new ClassInfoList(classesWithDirectlyAnnotatedMethods, /* sortByName = */ true);
         } else {
             // Take the union of all classes with methods directly annotated by this annotation,
             // and classes with methods meta-annotated by this annotation
@@ -1401,7 +1414,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                                 /* strictWhitelist = */ true).reachableClasses);
             }
             return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedMethods,
-                    classesWithDirectlyAnnotatedMethods.directlyRelatedClasses);
+                    classesWithDirectlyAnnotatedMethods.directlyRelatedClasses, /* sortByName = */ true);
         }
     }
 
@@ -1411,7 +1424,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     ClassInfoList getClassesWithMethodAnnotationDirectOnly() {
         return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, /* strictWhitelist = */ true));
+                this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, /* strictWhitelist = */ true),
+                /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1492,7 +1506,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             fieldAnnotationsAndMetaAnnotations.addAll(fieldAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                     /* strictWhitelist = */ false).reachableClasses);
         }
-        return new ClassInfoList(fieldAnnotationsAndMetaAnnotations, fieldAnnotations.directlyRelatedClasses);
+        return new ClassInfoList(fieldAnnotationsAndMetaAnnotations, fieldAnnotations.directlyRelatedClasses,
+                /* sortByName = */ true);
     }
 
     /**
@@ -1510,7 +1525,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ false, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.reachableClasses.isEmpty()) {
             // This annotation does not meta-annotate another annotation that annotates a field
-            return new ClassInfoList(classesWithDirectlyAnnotatedFields);
+            return new ClassInfoList(classesWithDirectlyAnnotatedFields, /* sortByName = */ true);
         } else {
             // Take the union of all classes with fields directly annotated by this annotation,
             // and classes with fields meta-annotated by this annotation
@@ -1522,7 +1537,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                                 /* strictWhitelist = */ true).reachableClasses);
             }
             return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedFields,
-                    classesWithDirectlyAnnotatedFields.directlyRelatedClasses);
+                    classesWithDirectlyAnnotatedFields.directlyRelatedClasses, /* sortByName = */ true);
         }
     }
 
@@ -1532,7 +1547,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     ClassInfoList getClassesWithFieldAnnotationDirectOnly() {
         return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, /* strictWhitelist = */ true));
+                this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, /* strictWhitelist = */ true),
+                /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------

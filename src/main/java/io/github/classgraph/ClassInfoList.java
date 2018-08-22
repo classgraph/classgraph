@@ -52,33 +52,40 @@ import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
 public class ClassInfoList extends ArrayList<ClassInfo> {
 
     private final Set<ClassInfo> directlyRelatedClasses;
+    private final boolean sortByName;
 
     /**
      * Construct a list of {@link ClassInfo} objects, consisting of reachable classes (obtained through the
      * transitive closure) and directly related classes (one step away in the graph).
      */
-    ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses) {
+    ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses,
+            final boolean sortByName) {
         super(reachableClasses);
-        // It's a bit dicey calling Collections.sort(this) from within a constructor, but the super-constructor
-        // has been called, so it should be fine :-)
-        Collections.sort(this);
+        this.sortByName = sortByName;
+        if (sortByName) {
+            // It's a bit dicey calling Collections.sort(this) from within a constructor, but the super-constructor
+            // has been called, so it should be fine :-)
+            Collections.sort(this);
+        }
         // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
         this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
     }
 
     /** Construct a list of {@link ClassInfo} objects. */
-    ClassInfoList(final ReachableAndDirectlyRelatedClasses reachableAndDirectlyRelatedClasses) {
+    ClassInfoList(final ReachableAndDirectlyRelatedClasses reachableAndDirectlyRelatedClasses,
+            final boolean sortByName) {
         this(reachableAndDirectlyRelatedClasses.reachableClasses,
-                reachableAndDirectlyRelatedClasses.directlyRelatedClasses);
+                reachableAndDirectlyRelatedClasses.directlyRelatedClasses, sortByName);
     }
 
     /** Construct a list of {@link ClassInfo} objects, where each class is directly related. */
-    ClassInfoList(final Set<ClassInfo> reachableClasses) {
-        this(reachableClasses, null);
+    ClassInfoList(final Set<ClassInfo> reachableClasses, final boolean sortByName) {
+        this(reachableClasses, null, sortByName);
     }
 
     private ClassInfoList() {
         super(1);
+        this.sortByName = false;
         directlyRelatedClasses = Collections.<ClassInfo> emptySet();
     }
 
@@ -312,7 +319,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The list of directly-related classes.
      */
     public ClassInfoList directOnly() {
-        return new ClassInfoList(directlyRelatedClasses, directlyRelatedClasses);
+        return new ClassInfoList(directlyRelatedClasses, directlyRelatedClasses, sortByName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -331,7 +338,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
             reachableClassesUnion.addAll(other);
             directlyRelatedClassesUnion.addAll(other.directlyRelatedClasses);
         }
-        return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion);
+        return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion, sortByName);
     }
 
     /**
@@ -348,7 +355,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
             reachableClassesIntersection.retainAll(other);
             directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
         }
-        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection);
+        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection, sortByName);
     }
 
     /**
@@ -364,7 +371,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
         final Set<ClassInfo> directlyRelatedClassesDifference = new HashSet<>(directlyRelatedClasses);
         reachableClassesDifference.removeAll(other);
         directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
-        return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference);
+        return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference, sortByName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -404,7 +411,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
                 }
             }
         }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -426,7 +433,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
                 }
             }
         }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
     }
 
     /**
@@ -446,7 +453,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
                 }
             }
         }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
     }
 
     /**
@@ -466,7 +473,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
                 }
             }
         }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
     }
 
     /**
@@ -486,7 +493,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
                 }
             }
         }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
     }
 
     /**
@@ -505,7 +512,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
                 }
             }
         }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
     }
 
     /**
@@ -524,7 +531,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
                 }
             }
         }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
