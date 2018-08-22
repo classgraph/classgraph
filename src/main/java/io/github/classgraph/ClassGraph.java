@@ -315,6 +315,14 @@ public class ClassGraph {
     }
 
     /**
+     * Skip any operations requiring writes to disk (ex. extracting nested jarfiles, zipfiles, etc.).
+     */
+    public ClassGraph skipAllWriteOperations() {
+        scanSpec.skipAllWriteOperations = true;
+        return this;
+    }
+
+    /**
      * Manually strip the self extracting executable header from zipfiles (i.e. anything before the magic marker
      * "PK", e.g. a Bash script added by Spring-Boot). Increases scanning time, since zipfiles have to be opened
      * twice (once as a byte stream, to check if there is an SFX header, then once as a ZipFile, for decompression).

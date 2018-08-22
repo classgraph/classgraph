@@ -55,6 +55,8 @@ import io.github.classgraph.utils.InterruptionChecker;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
+import io.github.classgraph.utils.WriteAccessNestedJarHandler;
+import io.github.classgraph.utils.NoopNestedJarHandler;
 import io.github.classgraph.utils.SingletonMap;
 import io.github.classgraph.utils.WorkQueue;
 import io.github.classgraph.utils.WorkQueue.WorkQueuePreStartHook;
@@ -263,7 +265,7 @@ class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
+        this.nestedJarHandler = scanSpec.skipAllWriteOperations ? new NoopNestedJarHandler() : new WriteAccessNestedJarHandler(scanSpec, classpathFinderLog);
         final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
                 new ClasspathOrModulePathEntryToClasspathElementMap(enableRecursiveScanning, scanSpec,
                         nestedJarHandler);
