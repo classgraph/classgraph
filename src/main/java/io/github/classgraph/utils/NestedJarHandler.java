@@ -188,7 +188,7 @@ public class NestedJarHandler {
                     // This path has one or more '!' sections.
                     final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
                     String childPath = nestedJarPath.substring(lastPlingIdx + 1);
-                    if (childPath.startsWith("/")) {
+                    while (childPath.startsWith("/")) {
                         // "file.jar!/path_or_jar" -> "file.jar!path_or_jar"
                         childPath = childPath.substring(1);
                     }
@@ -254,10 +254,22 @@ public class NestedJarHandler {
                                 log.log(nestedJarPath, "Child path component " + childPath + " in jarfile "
                                         + parentJarFile + " is a directory, not a file -- using as scanning root");
                             }
-                            // Add directory path to parent jarfile root relative paths set
-                            parentJarfileAndRootRelativePaths.getValue().add(childPath);
+                            if (!childPath.isEmpty()) {
+                                // Add directory path to parent jarfile root relative paths set
+                                parentJarfileAndRootRelativePaths.getValue().add(childPath);
+                            }
                             // Return parent entry
                             return parentJarfileAndRootRelativePaths;
+                        }
+
+                        // Make sure nested jar scanning is not disabled
+                        if (!scanSpec.scanNestedJars) {
+                            if (log != null) {
+                                log.log(nestedJarPath,
+                                        "Nested jar scanning is disabled -- skipping extraction of nested jar "
+                                                + nestedJarPath);
+                            }
+                            return null;
                         }
 
                         try {

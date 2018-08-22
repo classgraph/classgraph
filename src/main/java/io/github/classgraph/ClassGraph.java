@@ -257,6 +257,16 @@ public class ClassGraph {
     }
 
     /**
+     * Disables the scanning of nested jarfiles (jarfiles within jarfiles).
+     *
+     * @return this (for method chaining).
+     */
+    public ClassGraph disableNestedJarScanning() {
+        scanSpec.scanNestedJars = false;
+        return this;
+    }
+
+    /**
      * Disables the scanning of directories.
      *
      * @return this (for method chaining).

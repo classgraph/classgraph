@@ -103,6 +103,9 @@ public class ScanSpec {
     /** If true, scan jarfiles. */
     public boolean scanJars = true;
 
+    /** If true, scan nested jarfiles (jarfiles within jarfiles). */
+    public boolean scanNestedJars = true;
+
     /** If true, scan directories. */
     public boolean scanDirs = true;
 

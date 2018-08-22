@@ -268,14 +268,15 @@ public class ClasspathOrModulePathEntry {
                     if (innermostJarAndRootRelativePaths != null) {
                         final File innermostJar = innermostJarAndRootRelativePaths.getKey();
                         final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
-                        if (rootRelativePaths.isEmpty()) {
+                        if (rootRelativePaths.isEmpty() || plingIdx == -1 || plingIdx == path.length() - 1) {
                             // There is no package root for this jar, so the jar itself is the classpath element
                             fileCached = innermostJar;
                         } else {
                             // Get section after last '!' (stripping any initial '/')
-                            final String packageRoot = path.length() == plingIdx + 1 || plingIdx == -1 ? ""
-                                    : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
-                                            : path.substring(plingIdx + 1);
+                            String packageRoot = path.substring(plingIdx + 1);
+                            while (packageRoot.startsWith("/")) {
+                                packageRoot = packageRoot.substring(1);
+                            }
                             // Check to see if last segment is listed in the set of root relative paths for the jar
                             // -- if so, then this is the classpath base for this jarfile
                             if (rootRelativePaths.contains(packageRoot)) {
