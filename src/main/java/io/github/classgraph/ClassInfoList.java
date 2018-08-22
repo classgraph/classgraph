@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -349,13 +350,28 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The intersection of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
-        final Set<ClassInfo> reachableClassesIntersection = new LinkedHashSet<>(this);
-        final Set<ClassInfo> directlyRelatedClassesIntersection = new LinkedHashSet<>(directlyRelatedClasses);
+        // Put the first ClassInfoList that is not being sorted by name at the head of the list,
+        // so that its order is preserved in the intersection (#238)
+        final ArrayDeque<ClassInfoList> intersectionOrder = new ArrayDeque<>();
+        intersectionOrder.add(this);
+        ClassInfoList first = this;
         for (final ClassInfoList other : others) {
+            if (other.sortByName) {
+                intersectionOrder.add(other);
+            } else if (first == this) {
+                intersectionOrder.push(first = other);
+            } else {
+                intersectionOrder.add(other);
+            }
+        }
+        final Set<ClassInfo> reachableClassesIntersection = new LinkedHashSet<>(intersectionOrder.remove());
+        final Set<ClassInfo> directlyRelatedClassesIntersection = new LinkedHashSet<>(directlyRelatedClasses);
+        for (final ClassInfoList other : intersectionOrder) {
             reachableClassesIntersection.retainAll(other);
             directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
         }
-        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection, sortByName);
+        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection,
+                first.sortByName);
     }
 
     /**
