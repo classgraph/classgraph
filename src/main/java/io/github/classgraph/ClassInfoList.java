@@ -34,7 +34,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -332,8 +332,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The union of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList union(final ClassInfoList... others) {
-        final Set<ClassInfo> reachableClassesUnion = new HashSet<>(this);
-        final Set<ClassInfo> directlyRelatedClassesUnion = new HashSet<>(directlyRelatedClasses);
+        final Set<ClassInfo> reachableClassesUnion = new LinkedHashSet<>(this);
+        final Set<ClassInfo> directlyRelatedClassesUnion = new LinkedHashSet<>(directlyRelatedClasses);
         for (final ClassInfoList other : others) {
             reachableClassesUnion.addAll(other);
             directlyRelatedClassesUnion.addAll(other.directlyRelatedClasses);
@@ -349,8 +349,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The intersection of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
-        final Set<ClassInfo> reachableClassesIntersection = new HashSet<>(this);
-        final Set<ClassInfo> directlyRelatedClassesIntersection = new HashSet<>(directlyRelatedClasses);
+        final Set<ClassInfo> reachableClassesIntersection = new LinkedHashSet<>(this);
+        final Set<ClassInfo> directlyRelatedClassesIntersection = new LinkedHashSet<>(directlyRelatedClasses);
         for (final ClassInfoList other : others) {
             reachableClassesIntersection.retainAll(other);
             directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
@@ -367,8 +367,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The set difference of this {@link ClassInfoList} and other, i.e. (this \ other).
      */
     public ClassInfoList exclude(final ClassInfoList other) {
-        final Set<ClassInfo> reachableClassesDifference = new HashSet<>(this);
-        final Set<ClassInfo> directlyRelatedClassesDifference = new HashSet<>(directlyRelatedClasses);
+        final Set<ClassInfo> reachableClassesDifference = new LinkedHashSet<>(this);
+        final Set<ClassInfo> directlyRelatedClassesDifference = new LinkedHashSet<>(directlyRelatedClasses);
         reachableClassesDifference.removeAll(other);
         directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
         return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference, sortByName);
@@ -401,8 +401,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The subset of this {@link ClassInfoList} for which the given filter predicate is true.
      */
     public ClassInfoList filter(final ClassInfoFilter filter) {
-        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (filter.accept(ci)) {
                 reachableClassesFiltered.add(ci);
@@ -423,8 +423,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The filtered list, containing only standard classes.
      */
     public ClassInfoList getStandardClasses() {
-        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (ci.isStandardClass()) {
                 reachableClassesFiltered.add(ci);
@@ -443,8 +443,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfaces() {
-        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (ci.isInterface()) {
                 reachableClassesFiltered.add(ci);
@@ -463,8 +463,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfacesAndAnnotations() {
-        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (ci.isInterfaceOrAnnotation()) {
                 reachableClassesFiltered.add(ci);
@@ -483,8 +483,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The filtered list, containing only implemented interfaces.
      */
     public ClassInfoList getImplementedInterfaces() {
-        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (ci.isImplementedInterface()) {
                 reachableClassesFiltered.add(ci);
@@ -502,8 +502,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The filtered list, containing only annotations.
      */
     public ClassInfoList getAnnotations() {
-        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (ci.isAnnotation()) {
                 reachableClassesFiltered.add(ci);
@@ -521,8 +521,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The filtered list, containing only enums.
      */
     public ClassInfoList getEnums() {
-        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (ci.isEnum()) {
                 reachableClassesFiltered.add(ci);
