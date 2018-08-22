@@ -354,20 +354,24 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
         // so that its order is preserved in the intersection (#238)
         final ArrayDeque<ClassInfoList> intersectionOrder = new ArrayDeque<>();
         intersectionOrder.add(this);
-        ClassInfoList first = this;
+        boolean foundFirst = false;
         for (final ClassInfoList other : others) {
             if (other.sortByName) {
                 intersectionOrder.add(other);
-            } else if (first == this) {
-                intersectionOrder.push(first = other);
+            } else if (!foundFirst) {
+                foundFirst = true;
+                intersectionOrder.push(other);
             } else {
                 intersectionOrder.add(other);
             }
         }
-        final Set<ClassInfo> reachableClassesIntersection = new LinkedHashSet<>(intersectionOrder.remove());
+        final ClassInfoList first = intersectionOrder.remove();
+        final Set<ClassInfo> reachableClassesIntersection = new LinkedHashSet<>(first);
+        while (!intersectionOrder.isEmpty()) {
+            reachableClassesIntersection.retainAll(intersectionOrder.remove());
+        }
         final Set<ClassInfo> directlyRelatedClassesIntersection = new LinkedHashSet<>(directlyRelatedClasses);
-        for (final ClassInfoList other : intersectionOrder) {
-            reachableClassesIntersection.retainAll(other);
+        for (final ClassInfoList other : others) {
             directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
         }
         return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection,
