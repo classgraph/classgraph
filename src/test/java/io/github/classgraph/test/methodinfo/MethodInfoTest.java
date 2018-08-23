@@ -35,6 +35,8 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.MethodInfo;
+import io.github.classgraph.MethodInfoList.MethodInfoFilter;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
@@ -66,8 +68,14 @@ public class MethodInfoTest {
     public void getMethodInfo() throws Exception {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
-            assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings())
-                    .containsOnly( //
+            assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+                    .filter(new MethodInfoFilter() {
+                        @Override
+                        public boolean accept(MethodInfo methodInfo) {
+                            // JDK 10 fix
+                            return !methodInfo.getName().equals("$closeResource");
+                        }
+                    }).getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
@@ -92,8 +100,14 @@ public class MethodInfoTest {
     public void getMethodInfoIgnoringVisibility() throws Exception {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
-            assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings())
-                    .containsOnly( //
+            assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+                    .filter(new MethodInfoFilter() {
+                        @Override
+                        public boolean accept(MethodInfo methodInfo) {
+                            // JDK 10 fix
+                            return !methodInfo.getName().equals("$closeResource");
+                        }
+                    }).getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
