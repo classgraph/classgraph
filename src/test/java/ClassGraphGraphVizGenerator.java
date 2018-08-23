@@ -6,7 +6,7 @@ import io.github.classgraph.ScanResult;
 
 public class ClassGraphGraphVizGenerator {
     public static void main(final String[] args) throws IOException {
-        final ScanResult scanResult = new ClassGraph() //
+        try (ScanResult scanResult = new ClassGraph() //
                 .whitelistPackagesNonRecursive("io.github.classgraph") //
                 .enableMethodInfo() //
                 .ignoreMethodVisibility() //
@@ -14,11 +14,13 @@ public class ClassGraphGraphVizGenerator {
                 .ignoreFieldVisibility() //
                 .enableAnnotationInfo() //
                 // .verbose() //
-                .scan();
-        final String fileName = "/tmp/graph.dot";
-        try (PrintWriter writer = new PrintWriter(fileName)) {
-            writer.print(scanResult.getAllClasses().generateGraphVizDotFile(12, 8, false, true, false, true, true));
+                .scan()) {
+            final String fileName = "/tmp/graph.dot";
+            try (PrintWriter writer = new PrintWriter(fileName)) {
+                writer.print(
+                        scanResult.getAllClasses().generateGraphVizDotFile(12, 8, false, true, false, true, true));
+            }
+            System.out.println("Wrote " + fileName);
         }
-        System.out.println("Wrote " + fileName);
     }
 }

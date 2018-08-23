@@ -38,36 +38,41 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 public class MethodAnnotationTest {
     @Test
     public void getNamesOfClassesWithMethodAnnotation() throws Exception {
-        final List<String> testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
-                .enableMethodInfo().enableAnnotationInfo().scan()
-                .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();
-        assertThat(testClasses).isEmpty();
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
+            final List<String> testClasses = scanResult
+                    .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();
+            assertThat(testClasses).isEmpty();
+        }
     }
 
     @Test
     public void getNamesOfClassesWithMethodAnnotationIgnoringVisibility() throws Exception {
-        final ClassInfoList classesWithMethodAnnotation = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
-                .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()
-                .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
-        final List<String> testClasses = classesWithMethodAnnotation.getNames();
-        assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
-        boolean found = false;
-        for (final ClassInfo ci : classesWithMethodAnnotation) {
-            for (final MethodInfo mi : ci.getMethodInfo()) {
-                if (mi.getAnnotationInfo().containsName(ExternalAnnotation.class.getName())) {
-                    assertThat(mi.getName().equals("privateMethodWithAnnotation"));
-                    found = true;
+                .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
+            final ClassInfoList classesWithMethodAnnotation = scanResult
+                    .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
+            final List<String> testClasses = classesWithMethodAnnotation.getNames();
+            assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
+            boolean found = false;
+            for (final ClassInfo ci : classesWithMethodAnnotation) {
+                for (final MethodInfo mi : ci.getMethodInfo()) {
+                    if (mi.getAnnotationInfo().containsName(ExternalAnnotation.class.getName())) {
+                        assertThat(mi.getName().equals("privateMethodWithAnnotation"));
+                        found = true;
+                    }
                 }
             }
+            assertThat(found).isEqualTo(true);
         }
-        assertThat(found).isEqualTo(true);
     }
 
     public void methodWithoutAnnotation() {

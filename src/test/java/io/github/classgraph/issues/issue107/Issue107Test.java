@@ -33,16 +33,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class Issue107Test {
     @Test
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name
         final String pkg = Issue107Test.class.getPackage().getName();
-        assertThat(new ClassGraph().whitelistPackages(pkg).enableAnnotationInfo()
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg).enableAnnotationInfo()
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
-                .scan().getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames())
-                        .containsOnly(pkg + ".package-info");
+                .scan()) {
+            assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames())
+                    .containsOnly(pkg + ".package-info");
+        }
     }
 }

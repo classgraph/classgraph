@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
@@ -23,7 +25,18 @@ import io.github.classgraph.test.whitelisted.Impl2Sub;
 import io.github.classgraph.test.whitelisted.Impl2SubSub;
 
 public class ClassInfoTest {
-    final ScanResult scanResult = new ClassGraph().whitelistPackages(Impl1.class.getPackage().getName()).scan();
+    private static ScanResult scanResult;
+
+    @BeforeClass
+    public static void setup() {
+        scanResult = new ClassGraph().whitelistPackages(Impl1.class.getPackage().getName()).scan();
+    }
+
+    @AfterClass
+    public static void teardown() {
+        scanResult.close();
+        scanResult = null;
+    }
 
     @Test
     public void useClassNameToClassInfo() {

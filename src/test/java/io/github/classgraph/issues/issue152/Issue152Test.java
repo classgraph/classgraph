@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ScanResult;
 
 public class Issue152Test {
     public Map<Integer, Map<String, Boolean>> testField;
@@ -56,23 +57,25 @@ public class Issue152Test {
     @Test
     public void issue152Test() throws IOException {
         final String pkg = Issue152Test.class.getPackage().getName();
-        final ClassInfo classInfo = new ClassGraph().whitelistPackages(pkg) //
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
-                .scan() //
-                .getClassInfo(Issue152Test.class.getName());
-        assertThat(classInfo //
-                .getMethodInfo("testMethod") //
-                .get(0).toString()) //
-                        .isEqualTo("public java.util.Set<java.lang.Integer> testMethod("
-                                + "java.util.List<java.lang.String[]>, java.util.Map<java.lang.String, "
-                                + "java.util.Map<java.lang.Integer, java.lang.Boolean>>, double[][][], int, "
-                                + TestType.class.getName() + "[], java.util.Set<? extends "
-                                + TestType.class.getName() + ">, java.util.List<? super " + TestType.class.getName()
-                                + ">, java.util.Map<java.lang.Integer, ?>, java.util.Set<java.lang.String>[])");
-        assertThat(classInfo //
-                .getFieldInfo("testField").toString()) //
-                        .isEqualTo("public java.util.Map<java.lang.Integer, java.util.Map<java.lang.String, "
-                                + "java.lang.Boolean>> testField");
+                .scan()) {
+            final ClassInfo classInfo = scanResult.getClassInfo(Issue152Test.class.getName());
+            assertThat(classInfo //
+                    .getMethodInfo("testMethod") //
+                    .get(0).toString()) //
+                            .isEqualTo("public java.util.Set<java.lang.Integer> testMethod("
+                                    + "java.util.List<java.lang.String[]>, java.util.Map<java.lang.String, "
+                                    + "java.util.Map<java.lang.Integer, java.lang.Boolean>>, double[][][], int, "
+                                    + TestType.class.getName() + "[], java.util.Set<? extends "
+                                    + TestType.class.getName() + ">, java.util.List<? super "
+                                    + TestType.class.getName()
+                                    + ">, java.util.Map<java.lang.Integer, ?>, java.util.Set<java.lang.String>[])");
+            assertThat(classInfo //
+                    .getFieldInfo("testField").toString()) //
+                            .isEqualTo("public java.util.Map<java.lang.Integer, java.util.Map<java.lang.String, "
+                                    + "java.lang.Boolean>> testField");
+        }
     }
 }

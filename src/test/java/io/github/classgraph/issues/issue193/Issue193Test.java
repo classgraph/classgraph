@@ -42,6 +42,7 @@ import org.ops4j.pax.url.mvn.MavenResolvers;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
+import io.github.classgraph.ScanResult;
 
 public class Issue193Test {
     @Test
@@ -56,17 +57,19 @@ public class Issue193Test {
 
         // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
         // from different class
-        final List<String> classes = new ClassGraph() //
+        try (ScanResult scanResult = new ClassGraph() //
                 .whitelistPackages("scala.collection.immutable") //
                 .overrideClassLoaders(classLoader) //
-                .scan() //
-                .getAllClasses() //
-                .filter(new ClassInfoFilter() {
-                    @Override
-                    public boolean accept(final ClassInfo ci) {
-                        return ci.getName().endsWith("$");
-                    }
-                }).getNames();
-        assertThat(classes).contains("scala.collection.immutable.Stack$");
+                .scan()) {
+            final List<String> classes = scanResult //
+                    .getAllClasses() //
+                    .filter(new ClassInfoFilter() {
+                        @Override
+                        public boolean accept(final ClassInfo ci) {
+                            return ci.getName().endsWith("$");
+                        }
+                    }).getNames();
+            assertThat(classes).contains("scala.collection.immutable.Stack$");
+        }
     }
 }

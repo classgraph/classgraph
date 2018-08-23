@@ -40,6 +40,7 @@ import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodInfo;
+import io.github.classgraph.ScanResult;
 
 public class Issue151Test {
     @Test
@@ -47,17 +48,19 @@ public class Issue151Test {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue151Test.class.getPackage().getName();
-        final MethodInfo methodInfo = new ClassGraph().whitelistPackages(pkg) //
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
                 .enableMethodInfo() //
                 .enableAnnotationInfo() //
-                .scan() //
-                .getClassInfo(Issue151Test.class.getName()) //
-                .getMethodInfo("method") //
-                .get(0);
-        assertThat(methodInfo.toString()) //
-                .isEqualTo("public void method(@" + ParamAnnotation0.class.getName() + " java.lang.String, @"
-                        + ParamAnnotation1.class.getName() + " @" + ParamAnnotation2.class.getName()
-                        + " java.lang.String)");
+                .scan()) {
+            final MethodInfo methodInfo = scanResult //
+                    .getClassInfo(Issue151Test.class.getName()) //
+                    .getMethodInfo("method") //
+                    .get(0);
+            assertThat(methodInfo.toString()) //
+                    .isEqualTo("public void method(@" + ParamAnnotation0.class.getName() + " java.lang.String, @"
+                            + ParamAnnotation1.class.getName() + " @" + ParamAnnotation2.class.getName()
+                            + " java.lang.String)");
+        }
     }
 
     @Retention(RetentionPolicy.CLASS)

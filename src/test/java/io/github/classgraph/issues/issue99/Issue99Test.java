@@ -33,15 +33,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class Issue99Test {
+    private static final String jarPath = Issue99Test.class.getClassLoader().getResource("nested-jars-level1.zip")
+            .getPath() + "!level2.jar!level3.jar!classpath1/classpath2";
+
     @Test
-    public void issue99Test() {
-        final String jarPath = Issue99Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
-                + "!level2.jar!level3.jar!classpath1/classpath2";
-        assertThat(new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan().getAllClasses().getNames())
-                .containsOnly("com.test.Test");
-        assertThat(new ClassGraph().overrideClasspath(jarPath).enableClassInfo().blacklistJars("level3.jar").scan()
-                .getAllClasses().getNames()).isEmpty();
+    public void testWithoutBlacklist() {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
+        }
+    }
+
+    @Test
+    public void testWithBlacklist() {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).blacklistJars("level3.jar")
+                .enableClassInfo().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).isEmpty();
+        }
     }
 }

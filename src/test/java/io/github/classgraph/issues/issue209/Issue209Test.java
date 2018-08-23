@@ -41,34 +41,36 @@ import io.github.classgraph.ScanResult;
 public class Issue209Test {
     @Test
     public void testSpringBootJarWithLibJars() {
-        final ScanResult result = new ClassGraph().whitelistPackages( //
+        try (ScanResult result = new ClassGraph().whitelistPackages( //
                 "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                 .overrideClassLoaders(new URLClassLoader(
                         new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
-                .scan();
-        assertThat(result.getAllClasses().getNames()).containsOnly(
-                // Test reading from /
-                "org.springframework.boot.loader.util.SystemPropertyUtils",
-                // Test reading from /BOOT-INF/classes
-                "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
-                // Test reading from /BOOT-INF/lib/*.jar
-                "issue209lib.Issue209Lib");
+                .scan()) {
+            assertThat(result.getAllClasses().getNames()).containsOnly(
+                    // Test reading from /
+                    "org.springframework.boot.loader.util.SystemPropertyUtils",
+                    // Test reading from /BOOT-INF/classes
+                    "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
+                    // Test reading from /BOOT-INF/lib/*.jar
+                    "issue209lib.Issue209Lib");
+        }
     }
 
     @Test
     public void testSpringBootJarWithLibJarsUsingCustomClassLoader() {
-        final ScanResult result = new ClassGraph().whitelistPackages( //
+        try (ScanResult result = new ClassGraph().whitelistPackages( //
                 "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                 .overrideClassLoaders(new URLClassLoader(
                         new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
                 .createClassLoaderForMatchingClasses() //
-                .scan();
-        assertThat(result.getAllClasses().getNames()).containsOnly(
-                // Test reading from /
-                "org.springframework.boot.loader.util.SystemPropertyUtils",
-                // Test reading from /BOOT-INF/classes
-                "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
-                // Test reading from /BOOT-INF/lib/*.jar
-                "issue209lib.Issue209Lib");
+                .scan()) {
+            assertThat(result.getAllClasses().getNames()).containsOnly(
+                    // Test reading from /
+                    "org.springframework.boot.loader.util.SystemPropertyUtils",
+                    // Test reading from /BOOT-INF/classes
+                    "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
+                    // Test reading from /BOOT-INF/lib/*.jar
+                    "issue209lib.Issue209Lib");
+        }
     }
 }

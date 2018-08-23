@@ -30,14 +30,27 @@ package com.xyz;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 public class MetaAnnotationTest {
-    ScanResult scanResult = new ClassGraph().whitelistPackages("com.xyz.meta").enableClassInfo()
-            .enableAnnotationInfo().scan();
+    static ScanResult scanResult;
+
+    @BeforeClass
+    public static void setup() {
+        scanResult = new ClassGraph().whitelistPackages("com.xyz.meta").enableClassInfo().enableAnnotationInfo()
+                .scan();
+    }
+
+    @AfterClass
+    public static void teardown() {
+        scanResult.close();
+        scanResult = null;
+    }
 
     @Test
     public void oneLevel() {

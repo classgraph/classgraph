@@ -35,6 +35,7 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 public class FieldInfoTest {
@@ -48,9 +49,9 @@ public class FieldInfoTest {
 
     @Test
     public void fieldInfoNotEnabled() throws Exception {
-        try {
-            new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName()).scan()
-                    .getClassInfo(FieldInfoTest.class.getName()).getFieldInfo();
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
+                .scan()) {
+            scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo();
             throw new RuntimeException("Fail");
         } catch (final Exception e) {
             // Pass
@@ -59,25 +60,31 @@ public class FieldInfoTest {
 
     @Test
     public void getFieldInfo() throws Exception {
-        final List<String> fieldInfoStrs = new ClassGraph()
-                .whitelistPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
-                .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().scan()
-                .getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getAsStrings();
-        assertThat(fieldInfoStrs).containsOnly(
-                "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
-                "public int fieldWithoutAnnotation");
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
+                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
+                .scan()) {
+            final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
+                    .getAsStrings();
+            assertThat(fieldInfoStrs).containsOnly(
+                    "@" + ExternalAnnotation.class.getName()
+                            + " public static final int publicFieldWithAnnotation = 3",
+                    "public int fieldWithoutAnnotation");
+        }
     }
 
     @Test
     public void getFieldInfoIgnoringVisibility() throws Exception {
-        final List<String> fieldInfoStrs = new ClassGraph()
-                .whitelistPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
-                .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().ignoreFieldVisibility()
-                .scan().getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getAsStrings();
-        assertThat(fieldInfoStrs).containsOnly(
-                "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
-                "@" + ExternalAnnotation.class.getName()
-                        + " private static final java.lang.String privateFieldWithAnnotation = \"test\"",
-                "public int fieldWithoutAnnotation");
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
+                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
+                .ignoreFieldVisibility().scan()) {
+            final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
+                    .getAsStrings();
+            assertThat(fieldInfoStrs).containsOnly(
+                    "@" + ExternalAnnotation.class.getName()
+                            + " public static final int publicFieldWithAnnotation = 3",
+                    "@" + ExternalAnnotation.class.getName()
+                            + " private static final java.lang.String privateFieldWithAnnotation = \"test\"",
+                    "public int fieldWithoutAnnotation");
+        }
     }
 }

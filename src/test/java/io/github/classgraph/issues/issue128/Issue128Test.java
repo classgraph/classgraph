@@ -39,9 +39,9 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class Issue128Test {
-
     private static final String SITE = "https://github.com/lukehutch";
 
     private static final String JAR_URL = SITE + //
@@ -54,19 +54,20 @@ public class Issue128Test {
     public void issue128Test() throws IOException {
         // Test a nested jar inside a jar fetched over HTTP
         final URL jarURL = new URL(NESTED_JAR_URL);
-        final List<String> filesInsideLevel3 = new ClassGraph()
-                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).scan().getAllResources()
-                .getPaths();
-        if (filesInsideLevel3.isEmpty()) {
-            // If there were no files inside jar, it is possible that remote jar could not be downloaded
-            try (InputStream is = jarURL.openStream()) {
-                throw new RuntimeException("Able to download remote jar, but could not find files within jar");
-            } catch (final IOException e) {
-                System.err.println(
-                        "Could not download remote jar, skipping test " + Issue128Test.class.getName() + ": " + e);
+        try (ScanResult scanResult = new ClassGraph()
+                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).scan()) {
+            final List<String> filesInsideLevel3 = scanResult.getAllResources().getPaths();
+            if (filesInsideLevel3.isEmpty()) {
+                // If there were no files inside jar, it is possible that remote jar could not be downloaded
+                try (InputStream is = jarURL.openStream()) {
+                    throw new RuntimeException("Able to download remote jar, but could not find files within jar");
+                } catch (final IOException e) {
+                    System.err.println("Could not download remote jar, skipping test "
+                            + Issue128Test.class.getName() + ": " + e);
+                }
+            } else {
+                assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
             }
-        } else {
-            assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
         }
     }
 }

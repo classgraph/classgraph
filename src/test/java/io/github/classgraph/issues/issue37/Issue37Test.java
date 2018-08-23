@@ -39,6 +39,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
+import io.github.classgraph.ScanResult;
 
 public class Issue37Test {
 
@@ -51,16 +52,17 @@ public class Issue37Test {
     public void issue37Test() {
         final List<String> methodNames = new ArrayList<>();
         final String pkg = Issue37Test.class.getPackage().getName();
-        final ClassInfoList classes = new ClassGraph().whitelistPackages(pkg) //
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
                 .enableMethodInfo() //
-                .scan() //
-                .getAllClasses();
-        for (final ClassInfo ci : classes) {
-            for (final MethodInfo mi : ci.getMethodAndConstructorInfo()) {
-                methodNames.add(mi.getName());
+                .scan()) {
+            final ClassInfoList classes = scanResult.getAllClasses();
+            for (final ClassInfo ci : classes) {
+                for (final MethodInfo mi : ci.getMethodAndConstructorInfo()) {
+                    methodNames.add(mi.getName());
+                }
             }
+            assertThat(methodNames).containsExactly("<init>", "issue37Test", "unannotatedMethod");
         }
-        assertThat(methodNames).containsExactly("<init>", "issue37Test", "unannotatedMethod");
     }
 
     public void unannotatedMethod() {

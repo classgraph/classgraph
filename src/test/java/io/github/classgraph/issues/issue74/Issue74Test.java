@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class Issue74Test {
     public interface Function {
@@ -21,9 +22,11 @@ public class Issue74Test {
 
     @Test
     public void issue74() {
-        assertThat(new ClassGraph().whitelistPackages(Issue74Test.class.getPackage().getName()).scan()
-                .getClassesImplementing(Function.class.getName()).getNames()).containsOnly(
-                        FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
-                        ExtendsFunctionAdapter.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue74Test.class.getPackage().getName())
+                .scan()) {
+            assertThat(scanResult.getClassesImplementing(Function.class.getName()).getNames()).containsOnly(
+                    FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
+                    ExtendsFunctionAdapter.class.getName());
+        }
     }
 }

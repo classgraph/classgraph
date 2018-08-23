@@ -35,6 +35,7 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 public class FieldAndMethodAnnotationTest {
@@ -47,29 +48,35 @@ public class FieldAndMethodAnnotationTest {
 
     @Test
     public void getNamesOfClassesWithFieldAnnotation() throws Exception {
-        final List<String> testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
-                .enableAnnotationInfo().scan().getClassesWithFieldAnnotation(ExternalAnnotation.class.getName())
-                .getNames();
-        assertThat(testClasses).isEmpty();
+                .enableAnnotationInfo().scan()) {
+            final List<String> testClasses = scanResult
+                    .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
+            assertThat(testClasses).isEmpty();
+        }
     }
 
     @Test
     public void getNamesOfClassesWithFieldAnnotationIgnoringVisibility() throws Exception {
-        final List<String> testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
-                .ignoreFieldVisibility().enableAnnotationInfo().scan()
-                .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
-        assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
+                .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
+            final List<String> testClasses = scanResult
+                    .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
+            assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
+        }
     }
 
     @Test
     @ExternalAnnotation
     public void getNamesOfClassesWithMethodAnnotation() throws Exception {
-        final List<String> testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ExternalAnnotation.class.getName())
-                .getNames();
-        assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
+                .enableAnnotationInfo().scan()) {
+            final List<String> testClasses = scanResult
+                    .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();
+            assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
+        }
     }
 }

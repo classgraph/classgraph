@@ -7,6 +7,7 @@ import java.lang.annotation.Annotation;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class Issue38Test {
     public static abstract class AnnotationLiteral<T extends Annotation> implements Annotation {
@@ -14,8 +15,10 @@ public class Issue38Test {
 
     @Test
     public void testImplementsSuppressWarnings() {
-        assertThat(new ClassGraph().whitelistPackages(Issue38Test.class.getPackage().getName()).scan()
-                .getClassesImplementing(SuppressWarnings.class.getName()).getNames())
-                        .containsOnly(ImplementsSuppressWarnings.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue38Test.class.getPackage().getName())
+                .scan()) {
+            assertThat(scanResult.getClassesImplementing(SuppressWarnings.class.getName()).getNames())
+                    .containsOnly(ImplementsSuppressWarnings.class.getName());
+        }
     }
 }

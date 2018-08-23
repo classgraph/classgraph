@@ -35,6 +35,7 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.whitelisted.Cls;
 import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
@@ -43,17 +44,19 @@ public class DisableRecursiveScanningTest {
 
     @Test
     public void nonRootPackage() throws Exception {
-        final List<String> allClasses = new ClassGraph().whitelistPackagesNonRecursive(PKG).scan().getAllClasses()
-                .getNames();
-        assertThat(allClasses).contains(Cls.class.getName());
-        assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(PKG).scan()) {
+            final List<String> allClasses = scanResult.getAllClasses().getNames();
+            assertThat(allClasses).contains(Cls.class.getName());
+            assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
+        }
     }
 
     @Test
     public void rootPackage() throws Exception {
-        final List<String> allClasses = new ClassGraph().whitelistPackagesNonRecursive("").scan().getAllClasses()
-                .getNames();
-        assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
-        assertThat(allClasses).doesNotContain(Cls.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive("").scan()) {
+            final List<String> allClasses = scanResult.getAllClasses().getNames();
+            assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
+            assertThat(allClasses).doesNotContain(Cls.class.getName());
+        }
     }
 }

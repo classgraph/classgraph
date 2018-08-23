@@ -38,6 +38,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
+import io.github.classgraph.ScanResult;
 
 @Entity
 public class Issue223Test {
@@ -46,25 +47,26 @@ public class Issue223Test {
 
     @Test
     public void testClassloadInnerClasses() throws Exception {
-        final ClassInfoList innerClasses = new ClassGraph()
-                .whitelistPackages(Issue223Test.class.getPackage().getName()).enableAllInfo().scan().getAllClasses()
-                .filter(new ClassInfoFilter() {
-                    @Override
-                    public boolean accept(final ClassInfo ci) {
-                        return ci.isInnerClass();
-                    }
-                });
-        assertThat(innerClasses.size()).isEqualTo(2);
-        ClassInfo innerInterface = null;
-        for (final ClassInfo ci : innerClasses) {
-            if (ci.getName().equals(InnerInterface.class.getName())) {
-                innerInterface = ci;
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue223Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            final ClassInfoList innerClasses = scanResult.getAllClasses().filter(new ClassInfoFilter() {
+                @Override
+                public boolean accept(final ClassInfo ci) {
+                    return ci.isInnerClass();
+                }
+            });
+            assertThat(innerClasses.size()).isEqualTo(2);
+            ClassInfo innerInterface = null;
+            for (final ClassInfo ci : innerClasses) {
+                if (ci.getName().equals(InnerInterface.class.getName())) {
+                    innerInterface = ci;
+                }
             }
+            assertThat(innerInterface).isNotNull();
+            assertThat(innerInterface.getName()).isEqualTo(InnerInterface.class.getName());
+            assertThat(innerInterface.isInterface());
+            final Class<?> innerClassRef = innerInterface.loadClass();
+            assertThat(innerClassRef).isNotNull();
         }
-        assertThat(innerInterface).isNotNull();
-        assertThat(innerInterface.getName()).isEqualTo(InnerInterface.class.getName());
-        assertThat(innerInterface.isInterface());
-        final Class<?> innerClassRef = innerInterface.loadClass();
-        assertThat(innerClassRef).isNotNull();
     }
 }

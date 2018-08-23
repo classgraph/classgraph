@@ -39,6 +39,7 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.FieldInfo;
+import io.github.classgraph.ScanResult;
 
 public class Issue100Test {
     @Test
@@ -53,10 +54,12 @@ public class Issue100Test {
         // Class issue100.Test with field "a" should mask class of same name with field "b", because "...a.jar" is
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
-        for (final ClassInfo ci : new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .whitelistPackages("issue100").enableFieldInfo().scan().getAllClasses()) {
-            for (final FieldInfo f : ci.getFieldInfo()) {
-                fieldNames1.add(f.getName());
+        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader)
+                .whitelistPackages("issue100").enableFieldInfo().scan()) {
+            for (final ClassInfo ci : scanResult.getAllClasses()) {
+                for (final FieldInfo f : ci.getFieldInfo()) {
+                    fieldNames1.add(f.getName());
+                }
             }
         }
         assertThat(fieldNames1).containsOnly("a");
@@ -67,10 +70,12 @@ public class Issue100Test {
         // the classpath (or in this case, the classloaders), we should only see field "b" in "...b.jar" (which is
         // what we actually see through scanning the whitelisted jar, "bJarName").
         final ArrayList<String> fieldNames2 = new ArrayList<>();
-        for (final ClassInfo ci : new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .whitelistPackages("issue100").whitelistJars(bJarName).enableFieldInfo().scan().getAllClasses()) {
-            for (final FieldInfo f : ci.getFieldInfo()) {
-                fieldNames2.add(f.getName());
+        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader)
+                .whitelistPackages("issue100").whitelistJars(bJarName).enableFieldInfo().scan()) {
+            for (final ClassInfo ci : scanResult.getAllClasses()) {
+                for (final FieldInfo f : ci.getFieldInfo()) {
+                    fieldNames2.add(f.getName());
+                }
             }
         }
         assertThat(fieldNames2).containsOnly("b");

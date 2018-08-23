@@ -44,6 +44,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
+import io.github.classgraph.ScanResult;
 
 public class AnnotationClassRefTest {
 
@@ -61,22 +62,25 @@ public class AnnotationClassRefTest {
 
     @Test
     public void testClassRefAnnotation() throws Exception {
-        final ClassInfoList testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(AnnotationClassRefTest.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ClassRefAnnotation.class.getName());
-        assertThat(testClasses.size()).isEqualTo(1);
-        final ClassInfo testClass = testClasses.get(0);
-        final MethodInfo method = testClass.getMethodInfo().getSingleMethod("methodWithAnnotation");
-        assertThat(method).isNotNull();
-        final AnnotationInfoList annotations = method.getAnnotationInfo();
-        assertThat(annotations.size()).isEqualTo(1);
-        final AnnotationInfo annotation = annotations.get(0);
-        final List<AnnotationParameterValue> paramVals = annotation.getParameterValues();
-        assertThat(paramVals.size()).isEqualTo(1);
-        final AnnotationParameterValue paramVal = paramVals.get(0);
-        final Object val = paramVal.getValue();
-        assertThat(val instanceof AnnotationClassRef).isTrue();
-        final AnnotationClassRef classRefVal = (AnnotationClassRef) val;
-        assertThat(classRefVal.loadClass()).isEqualTo(Void.class);
+                .enableAnnotationInfo().scan()) {
+            final ClassInfoList testClasses = scanResult
+                    .getClassesWithMethodAnnotation(ClassRefAnnotation.class.getName());
+            assertThat(testClasses.size()).isEqualTo(1);
+            final ClassInfo testClass = testClasses.get(0);
+            final MethodInfo method = testClass.getMethodInfo().getSingleMethod("methodWithAnnotation");
+            assertThat(method).isNotNull();
+            final AnnotationInfoList annotations = method.getAnnotationInfo();
+            assertThat(annotations.size()).isEqualTo(1);
+            final AnnotationInfo annotation = annotations.get(0);
+            final List<AnnotationParameterValue> paramVals = annotation.getParameterValues();
+            assertThat(paramVals.size()).isEqualTo(1);
+            final AnnotationParameterValue paramVal = paramVals.get(0);
+            final Object val = paramVal.getValue();
+            assertThat(val instanceof AnnotationClassRef).isTrue();
+            final AnnotationClassRef classRefVal = (AnnotationClassRef) val;
+            assertThat(classRefVal.loadClass()).isEqualTo(Void.class);
+        }
     }
 }

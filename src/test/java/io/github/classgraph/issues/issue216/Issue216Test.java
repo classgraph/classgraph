@@ -43,13 +43,14 @@ import io.github.classgraph.ScanResult;
 public class Issue216Test {
     @Test
     public void testSpringBootJarWithLibJars() {
-        final ScanResult result = new ClassGraph().whitelistPackages(Issue216Test.class.getPackage().getName())
-                .enableAllInfo().scan();
-        assertThat(result.getAllClasses().filter(new ClassInfoFilter() {
-            @Override
-            public boolean accept(final ClassInfo ci) {
-                return ci.hasAnnotation(Entity.class.getName());
-            }
-        }).getNames()).containsOnly(Issue216Test.class.getName());
+        try (ScanResult result = new ClassGraph().whitelistPackages(Issue216Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            assertThat(result.getAllClasses().filter(new ClassInfoFilter() {
+                @Override
+                public boolean accept(final ClassInfo ci) {
+                    return ci.hasAnnotation(Entity.class.getName());
+                }
+            }).getNames()).containsOnly(Issue216Test.class.getName());
+        }
     }
 }

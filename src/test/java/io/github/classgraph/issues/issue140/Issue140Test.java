@@ -40,6 +40,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassRefTypeSignature;
 import io.github.classgraph.FieldInfoList;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.TypeSignature;
 
 public class Issue140Test {
@@ -49,21 +50,23 @@ public class Issue140Test {
 
     @Test
     public void issue140Test() throws IOException {
-        final ClassInfo ci = new ClassGraph().whitelistPackages(Issue140Test.class.getPackage().getName())
-                .enableFieldInfo().scan().getClassInfo(Issue140Test.class.getName());
-        assertThat(ci).isNotNull();
-        final FieldInfoList allFieldInfo = ci.getFieldInfo();
-        assertThat(allFieldInfo.size()).isEqualTo(2);
-        final TypeSignature type0 = allFieldInfo.get(0).getTypeSignatureOrTypeDescriptor();
-        assertThat(type0).isInstanceOf(BaseTypeSignature.class);
-        assertThat(((BaseTypeSignature) type0).getType()).isEqualTo(int.class);
-        final TypeSignature type1 = allFieldInfo.get(1).getTypeSignatureOrTypeDescriptor();
-        assertThat(type1).isInstanceOf(ArrayTypeSignature.class);
-        assertThat(((ArrayTypeSignature) type1).getNumDimensions()).isEqualTo(1);
-        final TypeSignature elementTypeSignature = ((ArrayTypeSignature) type1).getElementTypeSignature();
-        assertThat(elementTypeSignature).isInstanceOf(ClassRefTypeSignature.class);
-        final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSignature;
-        assertThat(classRefTypeSignature.getBaseClassName()).isEqualTo(String.class.getName());
-        assertThat(classRefTypeSignature.loadClass()).isEqualTo(String.class);
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue140Test.class.getPackage().getName())
+                .enableFieldInfo().scan()) {
+            final ClassInfo ci = scanResult.getClassInfo(Issue140Test.class.getName());
+            assertThat(ci).isNotNull();
+            final FieldInfoList allFieldInfo = ci.getFieldInfo();
+            assertThat(allFieldInfo.size()).isEqualTo(2);
+            final TypeSignature type0 = allFieldInfo.get(0).getTypeSignatureOrTypeDescriptor();
+            assertThat(type0).isInstanceOf(BaseTypeSignature.class);
+            assertThat(((BaseTypeSignature) type0).getType()).isEqualTo(int.class);
+            final TypeSignature type1 = allFieldInfo.get(1).getTypeSignatureOrTypeDescriptor();
+            assertThat(type1).isInstanceOf(ArrayTypeSignature.class);
+            assertThat(((ArrayTypeSignature) type1).getNumDimensions()).isEqualTo(1);
+            final TypeSignature elementTypeSignature = ((ArrayTypeSignature) type1).getElementTypeSignature();
+            assertThat(elementTypeSignature).isInstanceOf(ClassRefTypeSignature.class);
+            final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSignature;
+            assertThat(classRefTypeSignature.getBaseClassName()).isEqualTo(String.class.getName());
+            assertThat(classRefTypeSignature.loadClass()).isEqualTo(String.class);
+        }
     }
 }

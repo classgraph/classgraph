@@ -32,12 +32,13 @@ public class Issue93 {
     /** Test that both CLASS-retained and RUNTIME-retained annotations are visible by default. */
     @Test
     public void classRetentionIsDefault() {
-        final ScanResult scanResult = new ClassGraph().whitelistPackages(PKG).enableAnnotationInfo()
-                .ignoreClassVisibility().scan();
-        assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames())
-                .containsOnly(RetentionClassAnnotated.class.getName());
-        assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
-                .containsOnly(RetentionRuntimeAnnotated.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(PKG).enableAnnotationInfo()
+                .ignoreClassVisibility().scan()) {
+            assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames())
+                    .containsOnly(RetentionClassAnnotated.class.getName());
+            assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
+                    .containsOnly(RetentionRuntimeAnnotated.class.getName());
+        }
     }
 
     /**
@@ -46,10 +47,11 @@ public class Issue93 {
      */
     @Test
     public void classRetentionIsNotVisibleWithRetentionPolicyRUNTIME() {
-        final ScanResult scanResult = new ClassGraph().whitelistPackages(PKG).enableAnnotationInfo()
-                .ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan();
-        assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames()).isEmpty();
-        assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
-                .containsOnly(RetentionRuntimeAnnotated.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(PKG).enableAnnotationInfo()
+                .ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan()) {
+            assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
+                    .containsOnly(RetentionRuntimeAnnotated.class.getName());
+        }
     }
 }

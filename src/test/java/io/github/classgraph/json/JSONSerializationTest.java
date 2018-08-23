@@ -137,13 +137,14 @@ public class JSONSerializationTest {
 
     @Test
     public void testSerializeThenDeserializeScanResult() {
-        final ScanResult scanResult = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName())
-                .ignoreClassVisibility().scan();
-        final int indent = 2;
-        final String scanResultJSON = scanResult.toJSON(indent);
-        final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
-        final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
-        assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
+                .ignoreClassVisibility().scan()) {
+            final int indent = 2;
+            final String scanResultJSON = scanResult.toJSON(indent);
+            final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
+            final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
+            assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
+        }
     }
 }

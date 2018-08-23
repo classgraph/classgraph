@@ -38,31 +38,30 @@ import io.github.classgraph.ScanResult;
 public class Issue101Test {
     @Test
     public void nonInheritedAnnotation() {
-        final ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan();
-        assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class.getName()).getNames())
-                .containsOnly(AnnotatedClass.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class.getName()).getNames())
+                    .containsOnly(AnnotatedClass.class.getName());
+        }
     }
 
     @Test
     public void inheritedMetaAnnotation() {
-        final ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan();
-        assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class.getName()).getStandardClasses()
-                .getNames()).containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class.getName())
+                    .getStandardClasses().getNames()).containsOnly(AnnotatedClass.class.getName(),
+                            NonAnnotatedSubclass.class.getName());
+        }
     }
 
     @Test
     public void inheritedAnnotation() {
-        final ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan();
-        assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class.getName()).getNames())
-                .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
-                        AnnotatedInterface.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class.getName()).getNames())
+                    .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
+                            AnnotatedInterface.class.getName());
+        }
     }
-
-    //    public static void main(String[] args) throws Exception {
-    //        new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName()).enableAllInfo()
-    //                .scan().generateClassGraphDotFile(new File("/tmp/graph.dot"));
-    //    }
 }

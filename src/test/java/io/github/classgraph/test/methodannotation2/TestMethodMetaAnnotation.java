@@ -39,6 +39,7 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 public class TestMethodMetaAnnotation {
@@ -75,29 +76,37 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMetaAnnotation() {
-        final List<String> testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
-                .scan().getClassesWithAnnotation(MetaAnnotation.class.getName()).getNames();
-        assertThat(testClasses).containsOnly(MethodAnnotation.class.getName(), ClassAnnotation.class.getName(),
-                MetaAnnotatedClass.class.getName());
+                .scan()) {
+            final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class.getName())
+                    .getNames();
+            assertThat(testClasses).containsOnly(MethodAnnotation.class.getName(), ClassAnnotation.class.getName(),
+                    MetaAnnotatedClass.class.getName());
+        }
     }
 
     @Test
     @ExternalAnnotation
     public void testMetaAnnotationStandardClassesOnly() {
-        final List<String> testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
-                .scan().getClassesWithAnnotation(MetaAnnotation.class.getName()).getStandardClasses().getNames();
-        assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
+                .scan()) {
+            final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class.getName())
+                    .getStandardClasses().getNames();
+            assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
+        }
     }
 
     @Test
     @ExternalAnnotation
     public void testMethodMetaAnnotation() throws Exception {
-        final List<String> testClasses = new ClassGraph()
+        try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(MetaAnnotation.class.getName())
-                .getNames();
-        assertThat(testClasses).containsOnly(ClassWithMetaAnnotatedMethod.class.getName());
+                .enableAnnotationInfo().scan()) {
+            final List<String> testClasses = scanResult
+                    .getClassesWithMethodAnnotation(MetaAnnotation.class.getName()).getNames();
+            assertThat(testClasses).containsOnly(ClassWithMetaAnnotatedMethod.class.getName());
+        }
     }
 }

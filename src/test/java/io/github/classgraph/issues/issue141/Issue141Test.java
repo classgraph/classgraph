@@ -28,34 +28,22 @@
  */
 package io.github.classgraph.issues.issue141;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
-
-import org.junit.Test;
-import org.ops4j.pax.url.mvn.MavenResolvers;
-
-import io.github.classgraph.ClassGraph;
-
 /** @author wuetherich */
 public class Issue141Test {
-    @Test
-    public void issue141Test() throws IOException {
+    // Disabled because ClassGraph no longer stops if an invalid classfile is found (the classfile is simply skipped)
 
-        // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a module-info.class)
-        final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.ow2.asm", "asm", null,
-                null, "6.0_BETA");
-
-        //
-        assertThat(resolvedFile).isFile();
-
-        // create a new custom class loader
-        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
-
-        // scan the classpath
-        new ClassGraph().overrideClassLoaders(classLoader).scan();
-    }
+    //    @Test
+    //    public void issue141Test() throws IOException {
+    //        // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a module-info.class)
+    //        final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.ow2.asm", "asm", null,
+    //                null, "6.0_BETA");
+    //        assertThat(resolvedFile).isFile();
+    //
+    //        // create a new custom class loader
+    //        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+    //
+    //        // scan the classpath
+    //        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableClassInfo().scan()) {
+    //        }
+    //    }
 }

@@ -37,6 +37,7 @@ import javax.persistence.Entity;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 @Entity
 public class Issue238Test {
@@ -63,10 +64,12 @@ public class Issue238Test {
 
     @Test
     public void testSuperclassInheritanceOrder() throws Exception {
-        final List<String> classNames = new ClassGraph()
-                .whitelistPackages(Issue238Test.class.getPackage().getName()).enableAllInfo().scan().getAllClasses()
-                .get(E.class.getName()).getSuperclasses().getNames();
-        assertThat(classNames).containsExactly(F.class.getName(), A.class.getName(), G.class.getName(),
-                B.class.getName(), D.class.getName(), C.class.getName());
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue238Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            final List<String> classNames = scanResult.getAllClasses().get(E.class.getName()).getSuperclasses()
+                    .getNames();
+            assertThat(classNames).containsExactly(F.class.getName(), A.class.getName(), G.class.getName(),
+                    B.class.getName(), D.class.getName(), C.class.getName());
+        }
     }
 }

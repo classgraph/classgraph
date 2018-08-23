@@ -35,6 +35,7 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 public class MethodInfoTest {
@@ -51,10 +52,10 @@ public class MethodInfoTest {
 
     @Test
     public void methodInfoNotEnabled() throws Exception {
-        try {
-            // .enableSaveMethodInfo() not called
-            new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName()).scan()
-                    .getClassInfo(MethodInfoTest.class.getName()).getMethodInfo();
+        // .enableSaveMethodInfo() not called
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .scan()) {
+            scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo();
             throw new RuntimeException("Fail");
         } catch (final Exception e) {
             // Pass
@@ -63,40 +64,45 @@ public class MethodInfoTest {
 
     @Test
     public void getMethodInfo() throws Exception {
-        assertThat(new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableClassInfo()
-                .enableMethodInfo().enableAnnotationInfo().scan().getClassInfo(MethodInfoTest.class.getName())
-                .getMethodInfo().getAsStrings()).containsOnly( //
-                        "@" + ExternalAnnotation.class.getName() //
-                                + " public final int publicMethodWithArgs"
-                                + "(java.lang.String, char, long, float[], byte[][], "
-                                + "java.util.List<java.lang.Float>, int[]...)",
-                        "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
-                        "@" + Test.class.getName() + " public void getMethodInfo()",
-                        "@" + Test.class.getName() + " public void getConstructorInfo()",
-                        "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+            assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings())
+                    .containsOnly( //
+                            "@" + ExternalAnnotation.class.getName() //
+                                    + " public final int publicMethodWithArgs"
+                                    + "(java.lang.String, char, long, float[], byte[][], "
+                                    + "java.util.List<java.lang.Float>, int[]...)",
+                            "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
+                            "@" + Test.class.getName() + " public void getMethodInfo()",
+                            "@" + Test.class.getName() + " public void getConstructorInfo()",
+                            "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+        }
     }
 
     @Test
     public void getConstructorInfo() throws Exception {
-        assertThat(
-                new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo()
-                        .scan().getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
-                                .containsOnly("public <init>()");
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .enableMethodInfo().scan()) {
+            assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
+                    .containsOnly("public <init>()");
+        }
     }
 
     @Test
     public void getMethodInfoIgnoringVisibility() throws Exception {
-        assertThat(new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableClassInfo()
-                .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()
-                .getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings()).containsOnly( //
-                        "@" + ExternalAnnotation.class.getName() //
-                                + " public final int publicMethodWithArgs"
-                                + "(java.lang.String, char, long, float[], byte[][], "
-                                + "java.util.List<java.lang.Float>, int[]...)",
-                        "private static java.lang.String[] privateMethod()",
-                        "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
-                        "@" + Test.class.getName() + " public void getMethodInfo()",
-                        "@" + Test.class.getName() + " public void getConstructorInfo()",
-                        "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
+            assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings())
+                    .containsOnly( //
+                            "@" + ExternalAnnotation.class.getName() //
+                                    + " public final int publicMethodWithArgs"
+                                    + "(java.lang.String, char, long, float[], byte[][], "
+                                    + "java.util.List<java.lang.Float>, int[]...)",
+                            "private static java.lang.String[] privateMethod()",
+                            "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
+                            "@" + Test.class.getName() + " public void getMethodInfo()",
+                            "@" + Test.class.getName() + " public void getConstructorInfo()",
+                            "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+        }
     }
 }
