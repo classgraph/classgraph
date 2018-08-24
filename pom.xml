@@ -11,7 +11,7 @@
 	</description>
 
 	<properties>
-		<argLine.javadocs>-Xdoclint:none -html4</argLine.javadocs> <!-- Overridden in JDK9 -->
+		<argLine.javadocs>-Xdoclint:none</argLine.javadocs> <!-- Overridden in JDK9+ -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -360,7 +360,7 @@
 		<profile>
 			<id>java9</id>
 			<properties>
-				<argLine.javadocs>-Xdoclint:none -html5</argLine.javadocs> <!-- Overridden in JDK9 -->
+				<argLine.javadocs>-Xdoclint:none -html5</argLine.javadocs> <!-- Overridden in JDK9+ -->
 				<!-- coverall version 4.3.0 does not work with java 9, see https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
 				<coveralls.skip>true</coveralls.skip>
 			</properties>
