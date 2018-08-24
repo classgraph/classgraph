@@ -1199,7 +1199,7 @@ public class ClassGraph {
     }
 
     /**
-     * Returns {@ModuleRef} references for all the visible modules.
+     * Returns {@link ModuleRef} references for all the visible modules.
      * 
      * @return a list of {@link ModuleRef} references for all the visible modules.
      */

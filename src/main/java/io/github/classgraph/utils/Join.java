@@ -28,30 +28,8 @@
  */
 package io.github.classgraph.utils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
 /** A replacement for Java 8's String.join() that will allow compilation on Java 7. */
 public class Join {
-    /**
-     * A replacement for Java 8's String.join(). In the case of a set, sorts elements for consistency.
-     * 
-     * @param <T>
-     *            the item type to join, after calling {@link T#toString()}.
-     * @param sep
-     *            The separator string.
-     * @param set
-     *            The set to sort and join.
-     * @return The string representation of the joined elements.
-     */
-    public static <T extends Comparable<T>> String join(final String sep, final Set<T> set) {
-        final List<T> sorted = new ArrayList<>(set);
-        Collections.sort(sorted);
-        return join(sep, sorted);
-    }
-
     /**
      * A replacement for Java 8's String.join().
      * 
