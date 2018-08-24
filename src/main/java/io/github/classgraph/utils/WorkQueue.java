@@ -107,7 +107,9 @@ public class WorkQueue<T> implements AutoCloseable {
     /**
      * Start a work queue on the elements in the provided collection, blocking until all work units have been
      * completed. Calls workQueuePreStartHook with a ref to the work queue before starting the workers.
-     * 
+     *
+     * @param <U>
+     *            The type of the work queue units.
      * @param elements
      *            The work queue units to process.
      * @param executorService
@@ -152,6 +154,8 @@ public class WorkQueue<T> implements AutoCloseable {
      * Start a work queue on the elements in the provided collection, blocking until all work units have been
      * completed.
      * 
+     * @param <U>
+     *            The type of the work queue units.
      * @param elements
      *            The work queue units to process.
      * @param executorService

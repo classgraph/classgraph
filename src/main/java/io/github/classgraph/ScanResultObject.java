@@ -45,6 +45,8 @@ abstract class ScanResultObject {
 
     /**
      * The name of the class (used by {@link #getClassInfo()} to fetch the {@link ClassInfo} object for the class).
+     * 
+     * @return The class name.
      */
     protected abstract String getClassName();
 

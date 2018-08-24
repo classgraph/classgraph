@@ -993,12 +993,12 @@ public class ClassGraph {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. This
-     *         ScanResult object contains info about the class graph within whitelisted packages encountered during
-     *         the scan. Calling get() on this Future object throws InterruptedException if the scanning is
-     *         interrupted before it completes, or throws ExecutionException if something goes wrong during
-     *         scanning. If ExecutionException is thrown, and the cause is a MatchProcessorException, then either
-     *         classloading failed for some class, or a MatchProcessor threw an exception.
+     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object.
+     *         This {@link ScanResult} object contains info about the class graph within whitelisted packages
+     *         encountered during the scan. Calling get() on this Future object throws InterruptedException if the
+     *         scanning is interrupted before it completes, or throws ExecutionException if something goes wrong
+     *         during scanning. If ExecutionException is thrown, and the cause is a MatchProcessorException, then
+     *         either classloading failed for some class, or a MatchProcessor threw an exception.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         return executorService.submit(
@@ -1023,7 +1023,7 @@ public class ClassGraph {
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in ClassGraph.)
-     * @return a new ScanResult object, containing info about the class graph within whitelisted packages
+     * @return a new {@link ScanResult} object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
@@ -1080,7 +1080,7 @@ public class ClassGraph {
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in ClassGraph.)
-     * @return a new ScanResult object, containing info about the class graph within whitelisted packages
+     * @return a new {@link ScanResult} object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */
     public ScanResult scan(final int numThreads) {

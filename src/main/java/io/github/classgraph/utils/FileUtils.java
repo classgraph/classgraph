@@ -223,7 +223,7 @@ public class FileUtils {
      * 
      * @param byteBuffer
      *            The {@link ByteBuffer}.
-     * @return An {@link InputStream} that reads from the {@ByteBuffer}.
+     * @return An {@link InputStream} that reads from the {@link ByteBuffer}.
      */
     public static InputStream byteBufferToInputStream(final ByteBuffer byteBuffer) {
         // https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
@@ -267,7 +267,7 @@ public class FileUtils {
 
     /**
      * @param file
-     *            A {@File}.
+     *            A {@link File}.
      * @return true if a file exists and can be read.
      */
     public static boolean canRead(final File file) {

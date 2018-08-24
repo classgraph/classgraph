@@ -71,7 +71,7 @@ public class MethodInfoTest {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .filter(new MethodInfoFilter() {
                         @Override
-                        public boolean accept(MethodInfo methodInfo) {
+                        public boolean accept(final MethodInfo methodInfo) {
                             // JDK 10 fix
                             return !methodInfo.getName().equals("$closeResource");
                         }
@@ -103,7 +103,7 @@ public class MethodInfoTest {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .filter(new MethodInfoFilter() {
                         @Override
-                        public boolean accept(MethodInfo methodInfo) {
+                        public boolean accept(final MethodInfo methodInfo) {
                             // JDK 10 fix
                             return !methodInfo.getName().equals("$closeResource");
                         }

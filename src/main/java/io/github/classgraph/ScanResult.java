@@ -226,7 +226,7 @@ public class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * @return {@ModuleRef} references for all the visible modules.
+     * @return {@link ModuleRef} references for all the visible modules.
      */
     public List<ModuleRef> getModules() {
         if (closed) {

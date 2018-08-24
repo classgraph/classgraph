@@ -38,6 +38,8 @@ public class Join {
     /**
      * A replacement for Java 8's String.join(). In the case of a set, sorts elements for consistency.
      * 
+     * @param <T>
+     *            the item type to join, after calling {@link T#toString()}.
      * @param sep
      *            The separator string.
      * @param set

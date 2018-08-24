@@ -617,8 +617,10 @@ public class JSONDeserializer {
      * Deserialize JSON to a new object graph, with the root object of the specified expected type. Does not work
      * for generic types, since it is not possible to obtain the generic type of a Class reference.
      * 
-     * @param expectedType
+     * @param <T>
      *            The type that the JSON should conform to.
+     * @param expectedType
+     *            The class reference for the type that the JSON should conform to.
      * @param json
      *            the JSON string to deserialize.
      * @return The object graph after deserialization.

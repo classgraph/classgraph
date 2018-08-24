@@ -155,8 +155,10 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
      * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
      * 
+     * @param <T>
+     *            The superclass or interface.
      * @param superclassOrInterfaceType
-     *            The type to cast each loaded class to.
+     *            The superclass or interface class reference to cast each loaded class to.
      * @param ignoreExceptions
      *            If true, ignore any exceptions or errors thrown during classloading, or when attempting to cast
      *            the resulting {@code Class<?>} reference to the requested type -- instead, skip the element (i.e.
@@ -194,8 +196,10 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
      * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
      * 
+     * @param <T>
+     *            The superclass or interface.
      * @param superclassOrInterfaceType
-     *            The type to cast each loaded class to.
+     *            The superclass or interface class reference to cast each loaded class to.
      * @throws IllegalArgumentException
      *             if an exception or error was thrown while trying to load or cast any of the classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
