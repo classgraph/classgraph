@@ -144,7 +144,7 @@ class ClasspathElementDir extends ClasspathElement {
             public InputStream open() throws IOException {
                 if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                     read();
-                    return new InputStreamResourceCloser(this, byteBufferToInputStream());
+                    return inputStream = new InputStreamResourceCloser(this, byteBufferToInputStream());
                 } else {
                     return inputStream = new InputStreamResourceCloser(this,
                             Files.newInputStream(classpathResourceFile.toPath()));
