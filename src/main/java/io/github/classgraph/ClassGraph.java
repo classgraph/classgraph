@@ -341,20 +341,6 @@ public class ClassGraph {
         return this;
     }
 
-    /**
-     * If this method is called, a new {@link java.net.URLClassLoader} is created for all classes found on the
-     * classpath that match whitelist criteria. This may be needed if you get a {@link ClassNotFoundException},
-     * {@link UnsatisfiedLinkError}, {@link NoClassDefFoundError}, {@link TypeNotPresentException}, etc., due to
-     * trying to load classes that depend upon each other but that are loaded by different ClassLoaders in the
-     * classpath.
-     * 
-     * @return this (for method chaining).
-     */
-    public ClassGraph createClassLoaderForMatchingClasses() {
-        scanSpec.createClassLoaderForMatchingClasses = true;
-        return this;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**

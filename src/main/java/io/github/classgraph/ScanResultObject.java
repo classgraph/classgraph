@@ -67,9 +67,6 @@ abstract class ScanResultObject {
                 throw new IllegalArgumentException("Class name is not set");
             }
             classInfo = scanResult.getClassInfo(className);
-            if (classInfo == null) {
-                return null;
-            }
         }
         return classInfo;
     }

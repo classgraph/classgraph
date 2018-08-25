@@ -222,14 +222,6 @@ public class ScanSpec {
      */
     public transient boolean stripSFXHeader = false;
 
-    /**
-     * If this method is called, a new {@link java.net.URLClassLoader} is created for all classes found on the
-     * classpath that match whitelist criteria. This may be needed if you get a ClassNotFoundException,
-     * UnsatisfiedLinkError, NoClassDefFoundError, etc., due to trying to load classes that depend upon each other
-     * but that are loaded by different ClassLoaders in the classpath.
-     */
-    public transient boolean createClassLoaderForMatchingClasses = false;
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**

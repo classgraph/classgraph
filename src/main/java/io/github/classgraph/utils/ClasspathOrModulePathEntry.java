@@ -280,31 +280,9 @@ public class ClasspathOrModulePathEntry {
                             // Check to see if last segment is listed in the set of root relative paths for the jar
                             // -- if so, then this is the classpath base for this jarfile
                             if (rootRelativePaths.contains(packageRoot)) {
-                                if (scanSpec.createClassLoaderForMatchingClasses) {
-                                    // If a custom classloader will be created for all matching classes, need to
-                                    // extract the package root from the zipfile to a temporary directory
-                                    try {
-                                        fileCached = nestedJarHandler.unzipToTempDir(innermostJar, packageRoot,
-                                                log);
-                                    } catch (final IOException e) {
-                                        // If the package root could not be extracted, classloading will fail,
-                                        // but at least allow scanning to proceed from the package root within
-                                        // the jarfile
-                                        if (log != null) {
-                                            log.log("Cannot unzip package root " + packageRoot + " from jarfile "
-                                                    + innermostJar
-                                                    + " (classloading from this jarfile will probably fail) : "
-                                                    + e);
-                                        }
-                                        fileCached = innermostJar;
-                                        jarfilePackageRoot = packageRoot;
-                                    }
-                                } else {
-                                    // Otherwise, can scan the zipfile starting from the package root,
-                                    // without extracting it from the zipfile to disk
-                                    fileCached = innermostJar;
-                                    jarfilePackageRoot = packageRoot;
-                                }
+                                // Record the innermost jar and the package root 
+                                fileCached = innermostJar;
+                                jarfilePackageRoot = packageRoot;
                             } else {
                                 if (log != null) {
                                     log.log("Zipfile suffix is not a valid package root: !" + packageRoot);

@@ -53,24 +53,12 @@ public class Issue209Test {
                     "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
                     // Test reading from /BOOT-INF/lib/*.jar
                     "issue209lib.Issue209Lib");
-        }
-    }
-
-    @Test
-    public void testSpringBootJarWithLibJarsUsingCustomClassLoader() {
-        try (ScanResult result = new ClassGraph().whitelistPackages( //
-                "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
-                .overrideClassLoaders(new URLClassLoader(
-                        new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
-                .createClassLoaderForMatchingClasses() //
-                .scan()) {
-            assertThat(result.getAllClasses().getNames()).containsOnly(
-                    // Test reading from /
-                    "org.springframework.boot.loader.util.SystemPropertyUtils",
-                    // Test reading from /BOOT-INF/classes
-                    "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
-                    // Test reading from /BOOT-INF/lib/*.jar
-                    "issue209lib.Issue209Lib");
+            // Test classloading
+            assertThat(result.getClassInfo("org.springframework.boot.loader.util.SystemPropertyUtils").loadClass())
+                    .isNotNull();
+            assertThat(result.getClassInfo("com.foo.externalApp.ExternalAppApplication").loadClass()).isNotNull();
+            assertThat(result.getClassInfo("com.foo.externalApp.SomeClass").loadClass()).isNotNull();
+            assertThat(result.getClassInfo("issue209lib.Issue209Lib").loadClass()).isNotNull();
         }
     }
 }

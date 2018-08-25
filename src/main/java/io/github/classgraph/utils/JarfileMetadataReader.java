@@ -31,9 +31,6 @@ package io.github.classgraph.utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -87,86 +84,6 @@ public class JarfileMetadataReader {
     // -------------------------------------------------------------------------------------------------------------
 
     private final Object customClassLoaderLock = new Object();
-
-    private ClassLoader customClassLoader;
-
-    /**
-     * Create a custom URLClassLoader for the package root paths and lib jar entries in this jar. Called when the
-     * environment classloaders cannot load a class from this jar. This may result in the unzipping of a large
-     * number of lib jarfiles and/or classfiles (contained within the package root). Returns null if there were no
-     * valid package roots or lib jars found.
-     * 
-     * @param nestedJarHandler
-     *            The {@link NestedJarHandler}.
-     * @param log
-     *            The log.
-     * @return The custom {@link ClassLoader}.
-     */
-    public ClassLoader getCustomClassLoader(final NestedJarHandler nestedJarHandler, final LogNode log) {
-        synchronized (customClassLoaderLock) {
-            if (customClassLoader != null) {
-                return customClassLoader;
-            }
-            if (packageRootRelativePaths == null && libJarPaths == null) {
-                return null;
-            }
-
-            // Add package root paths to URLs for classloader
-            final List<URL> urls = new ArrayList<>();
-            for (final String packageRootPath : packageRootRelativePaths) {
-                try {
-                    final File extractedClasspathJarfileOrDir = packageRootPath.isEmpty()
-                            // For package root of "", just add the whole jarfile to the classpath
-                            ? jarFile
-                            // For "BOOT-INF/classes" etc., unzip the package root do a temp dir
-                            : nestedJarHandler.unzipToTempDir(jarFile, packageRootPath, log);
-                    // Add URL for jarfile or dir to the classpath
-                    urls.add(extractedClasspathJarfileOrDir.toURI().toURL());
-                } catch (final IOException e) {
-                    if (log != null) {
-                        log.log("Cannot unzip package root " + packageRootPath + " from jarfile " + jarFile
-                                + " (classloading from this jarfile will probably fail) : " + e);
-                    }
-                }
-            }
-
-            if (libJarPaths != null) {
-                // There are lib jars -- get the File object for the extracted jar (should have already happened
-                // during scanning, in parallel), and add a URL for this File to the URLs for the classloader
-                for (final String libJarPath : libJarPaths) {
-                    File innermostJarFile = null;
-                    try {
-                        // Extract inner jar, if it hasn't been extracted before
-                        innermostJarFile = nestedJarHandler.getInnermostNestedJar(libJarPath, log).getKey();
-                    } catch (final Exception e) {
-                        if (log != null) {
-                            log.log("Cannot extract lib jar " + libJarPath + " : " + e);
-                        }
-                    }
-                    if (innermostJarFile != null) {
-                        try {
-                            urls.add(innermostJarFile.toURI().toURL());
-                        } catch (final MalformedURLException e) {
-                            if (log != null) {
-                                log.log("Cannot create URL from lib jar path " + innermostJarFile + " : " + e);
-                            }
-                        }
-                    }
-                }
-            }
-            if (!urls.isEmpty()) {
-                if (log != null) {
-                    final LogNode subLog = log
-                            .log("Creating custom ClassLoader for jar " + jarFile + " with URLs:");
-                    for (final URL url : urls) {
-                        subLog.log(url.toString());
-                    }
-                }
-                customClassLoader = new URLClassLoader(urls.toArray(new URL[0]));
-            }
-            return customClassLoader;
-        }
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 

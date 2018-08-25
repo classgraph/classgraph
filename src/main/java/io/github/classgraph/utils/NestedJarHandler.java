@@ -33,17 +33,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.zip.ZipEntry;
@@ -516,147 +511,151 @@ public class NestedJarHandler {
         return tempFile;
     }
 
-    /**
-     * The number of threads to use for unzipping package roots. These unzip threads are started from within a
-     * worker thread, so this is kept relatively small.
-     */
-    private static final int NUM_UNZIP_THREADS = 4;
+    // There is no longer any need to extract an entire jarfile to disk, since ClassGraphClassLoader can load
+    // classfiles using their corresponding Resource, but the unzip code is left here for reference, since it
+    // may be needed for some purpose in the future.
 
-    /**
-     * Unzip a given package root within a zipfile to a temporary directory, starting several more threads to
-     * perform the unzip in parallel, then return the temporary directory. The temporary directory and all of its
-     * contents will be removed when {@code NestedJarHandler#close())} is called.
-     * 
-     * <p>
-     * N.B. standalone code for parallel unzip can be found at https://github.com/lukehutch/quickunzip
-     * 
-     * @param jarFile
-     *            The jarfile.
-     * @param packageRoot
-     *            The package root to extract from the jar.
-     * @param log
-     *            The log.
-     * @return The {@link File} object for the temporary directory the package root was extracted to.
-     * @throws IOException
-     *             If the package root could not be extracted from the jar.
-     */
-    public File unzipToTempDir(final File jarFile, final String packageRoot, final LogNode log) throws IOException {
-        final LogNode subLog = log == null ? null
-                : log.log("Unzipping " + jarFile + " from package root " + packageRoot);
-
-        // Create temporary directory to unzip into
-        final Path tempDirPath = Files.createTempDirectory("FCS--" + sanitizeFilename(leafname(jarFile.getName()))
-                + "--" + sanitizeFilename(packageRoot) + "--");
-        final File tempDir = tempDirPath.toFile();
-        tempDir.deleteOnExit();
-        tempFiles.add(tempDir);
-
-        // Get ZipEntries from ZipFile that start with the package root prefix
-        final List<ZipEntry> zipEntries = new ArrayList<>();
-        final List<String> zipEntryNamesWithoutPrefix = new ArrayList<>();
-        final String packageRootPrefix = !packageRoot.endsWith("/") && !packageRoot.isEmpty() ? packageRoot + '/'
-                : packageRoot;
-        final int packageRootPrefixLen = packageRootPrefix.length();
-        try (ZipFile zipFile = new ZipFile(jarFile)) {
-            for (final Enumeration<? extends ZipEntry> e = zipFile.entries(); e.hasMoreElements();) {
-                final ZipEntry zipEntry = e.nextElement();
-                String zipEntryName = zipEntry.getName();
-                while (zipEntryName.startsWith("/")) {
-                    // Prevent against "Zip Slip" vulnerability (path starting with '/')
-                    zipEntryName = zipEntryName.substring(1);
-                }
-                if (zipEntryName.startsWith(packageRootPrefix) && zipEntryName.length() > packageRootPrefixLen) {
-                    // Found a ZipEntry with the correct package prefix
-                    zipEntries.add(zipEntry);
-                    // Strip the prefix from the name
-                    zipEntryNamesWithoutPrefix.add(packageRootPrefixLen == 0 ? zipEntryName
-                            : zipEntryName.substring(packageRootPrefixLen));
-                }
-            }
-        }
-
-        // Start parallel unzip threads
-        try (final AutoCloseableConcurrentQueue<ZipFile> openZipFiles = new AutoCloseableConcurrentQueue<>();
-                final AutoCloseableExecutorService executor = new AutoCloseableExecutorService(NUM_UNZIP_THREADS);
-                final AutoCloseableFutureListWithCompletionBarrier futures = //
-                        new AutoCloseableFutureListWithCompletionBarrier(zipEntries.size(), subLog)) {
-
-            // Iterate through ZipEntries within the package root
-            for (int i = 0; i < zipEntries.size(); i++) {
-                final ZipEntry zipEntry = zipEntries.get(i);
-                final String zipEntryNameWithoutPrefix = zipEntryNamesWithoutPrefix.get(i);
-                futures.add(executor.submit(new Callable<Void>() {
-                    @Override
-                    public Void call() throws Exception {
-                        ZipFile zipFile;
-                        final ThreadLocal<ZipFile> zipFileTL = new ThreadLocal<>();
-                        if ((zipFile = zipFileTL.get()) == null) {
-                            try {
-                                // Open one ZipFile instance per thread
-                                zipFile = new ZipFile(jarFile);
-                                openZipFiles.add(zipFile);
-                                zipFileTL.set(zipFile);
-                            } catch (final IOException e) {
-                                // Should not happen unless zipfile was just barely deleted, since we
-                                // opened it already
-                                if (subLog != null) {
-                                    subLog.log("Cannot open zipfile: " + jarFile + " : " + e);
-                                }
-                                return null;
-                            }
-                        }
-
-                        try {
-                            // Make sure we don't allow paths that use "../" to break out of the unzip root dir
-                            final Path unzippedFilePath = tempDirPath.resolve(zipEntryNameWithoutPrefix);
-                            if (!unzippedFilePath.startsWith(tempDirPath)) {
-                                if (subLog != null) {
-                                    subLog.log("Bad path: " + zipEntry.getName());
-                                }
-                            } else {
-                                final File unzippedFile = unzippedFilePath.toFile();
-                                if (zipEntry.isDirectory()) {
-                                    // Recreate directory entries, so that empty directories are recreated
-                                    // (in case any of the classes that are loaded expect a directory to be
-                                    // present, even if it is empty)
-                                    mkDirs.getOrCreateSingleton(/* dir */ unzippedFile, subLog);
-                                } else {
-                                    // Create parent directories if needed
-                                    final File parentDir = unzippedFile.getParentFile();
-                                    final boolean parentDirExists = mkDirs.getOrCreateSingleton(parentDir, subLog);
-                                    if (parentDirExists) {
-                                        // Open ZipEntry as an InputStream
-                                        try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                                            if (subLog != null) {
-                                                subLog.log("Unzipping: " + zipEntry.getName() + " -> "
-                                                        + unzippedFilePath);
-                                            }
-
-                                            // Copy the contents of the ZipEntry InputStream to the output file,
-                                            // overwriting existing files of the same name
-                                            Files.copy(inputStream, unzippedFilePath,
-                                                    StandardCopyOption.REPLACE_EXISTING);
-
-                                            // If file was able to be unzipped, mark it for removal on exit
-                                            unzippedFile.deleteOnExit();
-                                            tempFiles.add(parentDir);
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (final InvalidPathException ex) {
-                            if (subLog != null) {
-                                subLog.log("Invalid path: " + zipEntry.getName());
-                            }
-                        }
-                        // Return placeholder Void result for Future<Void>
-                        return null;
-                    }
-                }));
-            }
-        }
-        return tempDir;
-    }
+    //    /**
+    //     * The number of threads to use for unzipping package roots. These unzip threads are started from within a
+    //     * worker thread, so this is kept relatively small.
+    //     */
+    //    private static final int NUM_UNZIP_THREADS = 4;
+    //
+    //    /**
+    //     * Unzip a given package root within a zipfile to a temporary directory, starting several more threads to
+    //     * perform the unzip in parallel, then return the temporary directory. The temporary directory and all of its
+    //     * contents will be removed when {@code NestedJarHandler#close())} is called.
+    //     * 
+    //     * <p>
+    //     * N.B. standalone code for parallel unzip can be found at https://github.com/lukehutch/quickunzip
+    //     * 
+    //     * @param jarFile
+    //     *            The jarfile.
+    //     * @param packageRoot
+    //     *            The package root to extract from the jar.
+    //     * @param log
+    //     *            The log.
+    //     * @return The {@link File} object for the temporary directory the package root was extracted to.
+    //     * @throws IOException
+    //     *             If the package root could not be extracted from the jar.
+    //     */
+    //    public File unzipToTempDir(final File jarFile, final String packageRoot, final LogNode log) throws IOException {
+    //        final LogNode subLog = log == null ? null
+    //                : log.log("Unzipping " + jarFile + " from package root " + packageRoot);
+    //
+    //        // Create temporary directory to unzip into
+    //        final Path tempDirPath = Files.createTempDirectory("FCS--" + sanitizeFilename(leafname(jarFile.getName()))
+    //                + "--" + sanitizeFilename(packageRoot) + "--");
+    //        final File tempDir = tempDirPath.toFile();
+    //        tempDir.deleteOnExit();
+    //        tempFiles.add(tempDir);
+    //
+    //        // Get ZipEntries from ZipFile that start with the package root prefix
+    //        final List<ZipEntry> zipEntries = new ArrayList<>();
+    //        final List<String> zipEntryNamesWithoutPrefix = new ArrayList<>();
+    //        final String packageRootPrefix = !packageRoot.endsWith("/") && !packageRoot.isEmpty() ? packageRoot + '/'
+    //                : packageRoot;
+    //        final int packageRootPrefixLen = packageRootPrefix.length();
+    //        try (ZipFile zipFile = new ZipFile(jarFile)) {
+    //            for (final Enumeration<? extends ZipEntry> e = zipFile.entries(); e.hasMoreElements();) {
+    //                final ZipEntry zipEntry = e.nextElement();
+    //                String zipEntryName = zipEntry.getName();
+    //                while (zipEntryName.startsWith("/")) {
+    //                    // Prevent against "Zip Slip" vulnerability (path starting with '/')
+    //                    zipEntryName = zipEntryName.substring(1);
+    //                }
+    //                if (zipEntryName.startsWith(packageRootPrefix) && zipEntryName.length() > packageRootPrefixLen) {
+    //                    // Found a ZipEntry with the correct package prefix
+    //                    zipEntries.add(zipEntry);
+    //                    // Strip the prefix from the name
+    //                    zipEntryNamesWithoutPrefix.add(packageRootPrefixLen == 0 ? zipEntryName
+    //                            : zipEntryName.substring(packageRootPrefixLen));
+    //                }
+    //            }
+    //        }
+    //
+    //        // Start parallel unzip threads
+    //        try (final AutoCloseableConcurrentQueue<ZipFile> openZipFiles = new AutoCloseableConcurrentQueue<>();
+    //                final AutoCloseableExecutorService executor = new AutoCloseableExecutorService(NUM_UNZIP_THREADS);
+    //                final AutoCloseableFutureListWithCompletionBarrier futures = //
+    //                        new AutoCloseableFutureListWithCompletionBarrier(zipEntries.size(), subLog)) {
+    //
+    //            // Iterate through ZipEntries within the package root
+    //            for (int i = 0; i < zipEntries.size(); i++) {
+    //                final ZipEntry zipEntry = zipEntries.get(i);
+    //                final String zipEntryNameWithoutPrefix = zipEntryNamesWithoutPrefix.get(i);
+    //                futures.add(executor.submit(new Callable<Void>() {
+    //                    @Override
+    //                    public Void call() throws Exception {
+    //                        ZipFile zipFile;
+    //                        final ThreadLocal<ZipFile> zipFileTL = new ThreadLocal<>();
+    //                        if ((zipFile = zipFileTL.get()) == null) {
+    //                            try {
+    //                                // Open one ZipFile instance per thread
+    //                                zipFile = new ZipFile(jarFile);
+    //                                openZipFiles.add(zipFile);
+    //                                zipFileTL.set(zipFile);
+    //                            } catch (final IOException e) {
+    //                                // Should not happen unless zipfile was just barely deleted, since we
+    //                                // opened it already
+    //                                if (subLog != null) {
+    //                                    subLog.log("Cannot open zipfile: " + jarFile + " : " + e);
+    //                                }
+    //                                return null;
+    //                            }
+    //                        }
+    //
+    //                        try {
+    //                            // Make sure we don't allow paths that use "../" to break out of the unzip root dir
+    //                            final Path unzippedFilePath = tempDirPath.resolve(zipEntryNameWithoutPrefix);
+    //                            if (!unzippedFilePath.startsWith(tempDirPath)) {
+    //                                if (subLog != null) {
+    //                                    subLog.log("Bad path: " + zipEntry.getName());
+    //                                }
+    //                            } else {
+    //                                final File unzippedFile = unzippedFilePath.toFile();
+    //                                if (zipEntry.isDirectory()) {
+    //                                    // Recreate directory entries, so that empty directories are recreated
+    //                                    // (in case any of the classes that are loaded expect a directory to be
+    //                                    // present, even if it is empty)
+    //                                    mkDirs.getOrCreateSingleton(/* dir */ unzippedFile, subLog);
+    //                                } else {
+    //                                    // Create parent directories if needed
+    //                                    final File parentDir = unzippedFile.getParentFile();
+    //                                    final boolean parentDirExists = mkDirs.getOrCreateSingleton(parentDir, subLog);
+    //                                    if (parentDirExists) {
+    //                                        // Open ZipEntry as an InputStream
+    //                                        try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+    //                                            if (subLog != null) {
+    //                                                subLog.log("Unzipping: " + zipEntry.getName() + " -> "
+    //                                                        + unzippedFilePath);
+    //                                            }
+    //
+    //                                            // Copy the contents of the ZipEntry InputStream to the output file,
+    //                                            // overwriting existing files of the same name
+    //                                            Files.copy(inputStream, unzippedFilePath,
+    //                                                    StandardCopyOption.REPLACE_EXISTING);
+    //
+    //                                            // If file was able to be unzipped, mark it for removal on exit
+    //                                            unzippedFile.deleteOnExit();
+    //                                            tempFiles.add(parentDir);
+    //                                        }
+    //                                    }
+    //                                }
+    //                            }
+    //                        } catch (final InvalidPathException ex) {
+    //                            if (subLog != null) {
+    //                                subLog.log("Invalid path: " + zipEntry.getName());
+    //                            }
+    //                        }
+    //                        // Return placeholder Void result for Future<Void>
+    //                        return null;
+    //                    }
+    //                }));
+    //            }
+    //        }
+    //        return tempDir;
+    //    }
 
     /**
      * Strip self-extracting archive ("ZipSFX") header from zipfile, if present. (Simply strips everything before
@@ -735,7 +734,7 @@ public class NestedJarHandler {
                 Throwable e = null;
                 try {
                     success = tempFile.delete();
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     e = t;
                 }
                 if (log != null) {

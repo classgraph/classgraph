@@ -47,7 +47,6 @@ import io.github.classgraph.json.JSONDeserializer;
 import io.github.classgraph.json.JSONSerializer;
 import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
 import io.github.classgraph.utils.JarUtils;
-import io.github.classgraph.utils.JarfileMetadataReader;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
 
@@ -70,7 +69,7 @@ public class ScanResult implements Closeable, AutoCloseable {
      * a record of which ClassLoader provided the URL used to locate the class (e.g. if the class is found using
      * java.class.path).
      */
-    private final ClassLoader[] envClassLoaderOrder;
+    final ClassLoader[] envClassLoaderOrder;
 
     /** The nested jar handler instance. */
     private final NestedJarHandler nestedJarHandler;
@@ -83,16 +82,24 @@ public class ScanResult implements Closeable, AutoCloseable {
     private final Map<File, Long> fileToLastModified;
 
     /**
-     * The class graph builder. May be null, if this ScanResult object is the result of a call to
-     * ClassGraph#getUniqueClasspathElementsAsync().
+     * The map from class name to {@link ClassInfo}. May be null, if getting classpath elements rather than
+     * performing a full scan.
      */
     private final Map<String, ClassInfo> classNameToClassInfo;
+
+    /**
+     * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
+     */
+    private Map<String, ResourceList> pathToResourceList;
+
+    /** A custom ClassLoader that can load classes found during the scan. */
+    private final ClassGraphClassLoader classGraphClassLoader;
 
     /** If true, this ScanResult has already been closed. */
     private volatile boolean closed;
 
     /** The log. */
-    private final LogNode log;
+    final LogNode log;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -108,8 +115,17 @@ public class ScanResult implements Closeable, AutoCloseable {
             if (classpathElt.fileMatches != null) {
                 if (allResources == null) {
                     allResources = new ResourceList();
+                    pathToResourceList = new HashMap<>();
                 }
                 allResources.addAll(classpathElt.fileMatches);
+                for (final Resource resource : classpathElt.fileMatches) {
+                    final String path = resource.getPath();
+                    ResourceList resourceList = pathToResourceList.get(path);
+                    if (resourceList == null) {
+                        pathToResourceList.put(path, resourceList = new ResourceList());
+                    }
+                    resourceList.add(resource);
+                }
             }
         }
         this.envClassLoaderOrder = envClassLoaderOrder;
@@ -124,6 +140,9 @@ public class ScanResult implements Closeable, AutoCloseable {
                 classInfo.setScanResult(this);
             }
         }
+
+        // Define a new ClassLoader that can load the classes found during the scan
+        this.classGraphClassLoader = new ClassGraphClassLoader(this);
 
         // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
         // Uses a WeakReference so that garbage collection is not blocked. (Bug #233)
@@ -270,13 +289,8 @@ public class ScanResult implements Closeable, AutoCloseable {
             while (path.startsWith("/")) {
                 path = path.substring(1);
             }
-            final ResourceList filteredResources = new ResourceList();
-            for (final Resource classpathResource : allResources) {
-                if (classpathResource.getPath().equals(path)) {
-                    filteredResources.add(classpathResource);
-                }
-            }
-            return filteredResources;
+            final ResourceList resourceList = pathToResourceList.get(path);
+            return (resourceList == null ? new ResourceList(1) : resourceList);
         }
     }
 
@@ -683,115 +697,6 @@ public class ScanResult implements Closeable, AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
-     * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
-     *
-     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
-     *        ClassLoader is able to load the class.
-     * @return a reference to the loaded class, or null if the class could not be found.
-     */
-    private Class<?> loadClass(final String className, final ClassLoader classLoader, final LogNode log)
-            throws IllegalArgumentException {
-        try {
-            return Class.forName(className, scanSpec.initializeLoadedClasses, classLoader);
-        } catch (final ClassNotFoundException e) {
-            return null;
-        } catch (final Throwable e) {
-            throw new IllegalArgumentException("Exception while loading class " + className, e);
-        }
-    }
-
-    /**
-     * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
-     * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
-     *
-     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if
-     *        returnNullIfClassNotFound is false and no ClassLoader is able to load the class.
-     * @return a reference to the loaded class, or null if returnNullIfClassNotFound was true and the class could
-     *         not be loaded.
-     */
-    private Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound, final LogNode log)
-            throws IllegalArgumentException {
-        if (closed) {
-            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
-        }
-        if (className == null || className.isEmpty()) {
-            throw new IllegalArgumentException("Cannot load class -- class names cannot be null or empty");
-        }
-
-        // Try loading class via each classloader in turn
-        final ClassInfo classInfo = classNameToClassInfo.get(className);
-        final ClassLoader[] classLoadersForClass = classInfo != null ? classInfo.classLoaders : envClassLoaderOrder;
-        if (classLoadersForClass != null) {
-            for (final ClassLoader classLoader : classLoadersForClass) {
-                final Class<?> classRef = loadClass(className, classLoader, log);
-                if (classRef != null) {
-                    return classRef;
-                }
-            }
-        }
-        // Try with null (bootstrap) ClassLoader
-        final Class<?> classRef = loadClass(className, /* classLoader = */ null, log);
-        if (classRef != null) {
-            return classRef;
-        }
-
-        // If this class came from a jarfile with a package root (e.g. a Spring-Boot jar, with packages rooted
-        // at BOOT-INF/classes), then the problem is probably that the jarfile was on the classpath, but the
-        // scanner is not running inside the jar itself, so the necessary ClassLoader for the jar is not
-        // available. Unzip the jar starting from the package root, and create a URLClassLoader to load classes
-        // from the unzipped jar. (This is only done once per jar and package root, using the singleton pattern.)
-        if (classInfo != null && nestedJarHandler != null) {
-            try {
-                ClassLoader customClassLoader = null;
-                if (classInfo.classpathElementFile.isDirectory()) {
-                    // Should not happen, but we should handle this anyway -- create a URLClassLoader for the dir
-                    customClassLoader = new URLClassLoader(
-                            new URL[] { classInfo.classpathElementFile.toURI().toURL() });
-                } else {
-                    // Get the outermost jar containing this jarfile, so that if a lib jar was extracted during
-                    // scanning, we obtain the classloader from the outer jar. This is needed so that package roots
-                    // and lib jars are loaded from the same classloader.
-                    final File outermostJar = nestedJarHandler.getOutermostJar(classInfo.classpathElementFile);
-
-                    // Get jarfile metadata for classpath element jarfile
-                    final JarfileMetadataReader jarfileMetadataReader = //
-                            nestedJarHandler.getJarfileMetadataReader(outermostJar, "", log);
-
-                    // Create a custom ClassLoader for the jarfile. This might be time consuming, as it could
-                    // trigger the extraction of all classes (for a classpath root other than ""), and/or any
-                    // lib jars (e.g. in BOOT-INF/lib).
-                    customClassLoader = jarfileMetadataReader.getCustomClassLoader(nestedJarHandler, log);
-                }
-                if (customClassLoader != null) {
-                    final Class<?> classRefFromCustomClassLoader = loadClass(className, customClassLoader, log);
-                    if (classRefFromCustomClassLoader != null) {
-                        return classRefFromCustomClassLoader;
-                    }
-                } else {
-                    if (log != null) {
-                        log.log("Unable to create custom classLoader to load class " + className);
-                    }
-                }
-            } catch (final Throwable e) {
-                if (log != null) {
-                    log.log("Exception while trying to load class " + className + " : " + e);
-                }
-            }
-        }
-
-        // Could not load class
-        if (!returnNullIfClassNotFound) {
-            throw new IllegalArgumentException("No classloader was able to load class " + className);
-        } else {
-            if (log != null) {
-                log.log("No classloader was able to load class " + className);
-            }
-            return null;
-        }
-    }
-
-    /**
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
@@ -802,7 +707,7 @@ public class ScanResult implements Closeable, AutoCloseable {
      *
      * @param className
      *            the class to load.
-     * @param ignoreExceptions
+     * @param returnNullIfClassNotFound
      *            If true, null is returned if there was an exception during classloading, otherwise
      *            IllegalArgumentException is thrown if a class could not be loaded.
      * @throws IllegalArgumentException
@@ -813,14 +718,24 @@ public class ScanResult implements Closeable, AutoCloseable {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    Class<?> loadClass(final String className, final boolean ignoreExceptions) throws IllegalArgumentException {
+    Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
+            throws IllegalArgumentException {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (className == null || className.isEmpty()) {
+            throw new IllegalArgumentException("className cannot be null or empty");
+        }
         try {
-            return loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions, log);
+            return Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader);
         } catch (final Throwable e) {
-            if (ignoreExceptions) {
+            if (returnNullIfClassNotFound) {
                 return null;
             } else {
-                throw new IllegalArgumentException("Could not load class " + className, e);
+                if (log != null) {
+                    log.log("Exception while trying to load class " + className + " : " + e);
+                }
+                throw new IllegalArgumentException("Could not load class " + className + " : " + e);
             }
         } finally {
             // Manually flush log, since this method is called after scanning is complete
@@ -843,7 +758,7 @@ public class ScanResult implements Closeable, AutoCloseable {
      *            the class to load.
      * @param superclassOrInterfaceType
      *            The class type to cast the result to.
-     * @param ignoreExceptions
+     * @param returnNullIfClassNotFound
      *            If true, null is returned if there was an exception during classloading, otherwise
      *            IllegalArgumentException is thrown if a class could not be loaded.
      * @throws IllegalArgumentException
@@ -856,19 +771,21 @@ public class ScanResult implements Closeable, AutoCloseable {
      *         true.
      */
     <T> Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
-            final boolean ignoreExceptions) throws IllegalArgumentException {
+            final boolean returnNullIfClassNotFound) throws IllegalArgumentException {
+        if (closed) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (className == null || className.isEmpty()) {
+            throw new IllegalArgumentException("className cannot be null or empty");
+        }
+        if (superclassOrInterfaceType == null) {
+            throw new IllegalArgumentException("superclassOrInterfaceType parameter cannot be null");
+        }
         try {
-            if (superclassOrInterfaceType == null) {
-                if (ignoreExceptions) {
-                    return null;
-                } else {
-                    throw new IllegalArgumentException("classType parameter cannot be null");
-                }
-            }
-            final Class<?> loadedClass = loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions,
-                    log);
+            final Class<?> loadedClass = Class.forName(className, scanSpec.initializeLoadedClasses,
+                    classGraphClassLoader);
             if (loadedClass != null && !superclassOrInterfaceType.isAssignableFrom(loadedClass)) {
-                if (ignoreExceptions) {
+                if (returnNullIfClassNotFound) {
                     return null;
                 } else {
                     throw new IllegalArgumentException("Loaded class " + loadedClass.getName()
@@ -879,10 +796,13 @@ public class ScanResult implements Closeable, AutoCloseable {
             final Class<T> castClass = (Class<T>) loadedClass;
             return castClass;
         } catch (final Throwable e) {
-            if (ignoreExceptions) {
+            if (returnNullIfClassNotFound) {
                 return null;
             } else {
-                throw new IllegalArgumentException("Could not load class " + className, e);
+                if (log != null) {
+                    log.log("Exception while trying to load class " + className + " : " + e);
+                }
+                throw new IllegalArgumentException("Could not load class " + className + " : " + e);
             }
         } finally {
             // Manually flush log, since this method is called after scanning is complete

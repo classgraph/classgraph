@@ -29,8 +29,6 @@
 package io.github.classgraph;
 
 import java.io.File;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +38,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -558,68 +555,6 @@ class Scanner implements Callable<ScanResult> {
                             }, interruptionChecker, classfileScanLog);
                     if (classfileScanLog != null) {
                         classfileScanLog.addElapsedTime();
-                    }
-
-                    // If we need to create a single custom classloader that can load all matched classes
-                    if (scanSpec.createClassLoaderForMatchingClasses) {
-                        final LogNode classLoaderLog = classfileScanLog == null ? null
-                                : classfileScanLog
-                                        .log("Creating custom URLClassLoader for classpath elements containing "
-                                                + "matching classes");
-
-                        final Set<ClasspathElement> classpathElementsWithMatchedClasses = new HashSet<>();
-                        for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                            classpathElementsWithMatchedClasses.add(c.classpathElement);
-                        }
-                        // Need to keep URLs in same relative order, but only include URLs for classpath elements
-                        // that contained matched classes, for efficiency
-                        final List<URL> urlOrder = new ArrayList<>(classpathOrder.size());
-                        for (final ClasspathElement classpathElement : classpathOrder) {
-                            if (classpathElementsWithMatchedClasses.contains(classpathElement)) {
-                                try {
-                                    // Don't try to get classpath URL for modules (classloading from modules
-                                    // will be handled by parent classloader)
-                                    final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
-                                    if (modRef == null) {
-                                        final File classpathEltFile = classpathElement.classpathEltPath
-                                                .getFile(classLoaderLog);
-                                        final URL url = classpathEltFile.toURI().toURL();
-                                        urlOrder.add(url);
-                                        if (classLoaderLog != null) {
-                                            classLoaderLog.log(classpathElement + " -> " + url);
-                                        }
-                                    }
-                                } catch (final Exception e) {
-                                    if (classLoaderLog != null) {
-                                        classLoaderLog
-                                                .log("Cannot convert file to URL: " + classpathElement + " : " + e);
-                                    }
-                                }
-                            }
-                        }
-                        // Build a custom URLClassLoader that contains all the URLs for jars / package root dirs
-                        // for matched classes
-                        final ClassLoader parentClassLoader = classLoaderOrder == null
-                                || classLoaderOrder.length == 0 ? null : classLoaderOrder[0];
-                        @SuppressWarnings("resource")
-                        final URLClassLoader customClassLoader = new URLClassLoader(urlOrder.toArray(new URL[0]),
-                                parentClassLoader);
-                        // Replace the ClassLoaders in all classpath elements that contained matched classes
-                        for (final ClasspathElement classpathElement : classpathElementsWithMatchedClasses) {
-                            final ClassLoader[] oldClassLoaders = classpathElement.classpathEltPath.classLoaders;
-                            // Prepend the new ClassLoader to the ClassLoader order (the older ClassLoaders should
-                            // never be called, but we may as well leave them there in the array anyway)
-                            final ClassLoader[] newClassLoaders = new ClassLoader[oldClassLoaders == null ? 1
-                                    : 1 + oldClassLoaders.length];
-                            newClassLoaders[0] = customClassLoader;
-                            if (oldClassLoaders != null) {
-                                for (int i = 0; i < oldClassLoaders.length; i++) {
-                                    newClassLoaders[i + 1] = oldClassLoaders[i];
-                                }
-                            }
-                            // Replace the classloaders for this classpath element with the new classloader order
-                            classpathElement.classpathEltPath.classLoaders = newClassLoaders;
-                        }
                     }
 
                     // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
