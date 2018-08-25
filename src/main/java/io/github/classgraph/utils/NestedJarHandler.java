@@ -731,9 +731,16 @@ public class NestedJarHandler {
             while (!tempFiles.isEmpty()) {
                 final File tempFile = tempFiles.removeLast();
                 final String path = tempFile.getPath();
-                final boolean success = tempFile.delete();
+                boolean success = false;
+                Throwable e = null;
+                try {
+                    success = tempFile.delete();
+                } catch (Throwable t) {
+                    e = t;
+                }
                 if (log != null) {
-                    rmLog.log((success ? "Removed" : "Unable to remove") + " " + path);
+                    rmLog.log(
+                            (success ? "Removed" : "Unable to remove") + " " + path + (e == null ? "" : " : " + e));
                 }
             }
         }
