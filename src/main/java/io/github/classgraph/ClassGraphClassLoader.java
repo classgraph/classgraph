@@ -35,7 +35,7 @@ import java.util.Arrays;
 import java.util.Enumeration;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
-public class ClassGraphClassLoader extends ClassLoader {
+class ClassGraphClassLoader extends ClassLoader {
     private final ScanResult scanResult;
 
     /**
@@ -69,12 +69,10 @@ public class ClassGraphClassLoader extends ClassLoader {
             if (scanResult.envClassLoaderOrder == null || scanResult.envClassLoaderOrder.length == 0) {
                 // Environment classloaders are not known, just try default
                 return Class.forName(className);
-            } else {
-                throw new ClassNotFoundException("lass " + className + " not found");
             }
         }
         if (scanResult.envClassLoaderOrder != null
-                && !Arrays.equals(classInfo.classLoaders, scanResult.envClassLoaderOrder)) {
+                && (classInfo == null || !Arrays.equals(classInfo.classLoaders, scanResult.envClassLoaderOrder))) {
             // Try environment classloaders
             for (final ClassLoader envClassLoader : scanResult.envClassLoaderOrder) {
                 try {
