@@ -221,7 +221,7 @@ class ClasspathElementZip extends ClasspathElement {
                     try {
                         zipFileRecyclable = zipFileRecycler.acquire();
                         zipFile = zipFileRecyclable.get();
-                        inputStream = zipFile.getInputStream(zipEntry);
+                        inputStream = new InputStreamResourceCloser(this, zipFile.getInputStream(zipEntry));
                         length = zipEntry.getSize();
                         return inputStream;
                     } catch (final Exception e) {
@@ -258,8 +258,10 @@ class ClasspathElementZip extends ClasspathElement {
             public void close() {
                 if (inputStream != null) {
                     try {
-                        inputStream.close();
+                        // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
+                        final InputStream inputStreamWrapper = inputStream;
                         inputStream = null;
+                        inputStreamWrapper.close();
                     } catch (final IOException e) {
                         // Ignore
                     }

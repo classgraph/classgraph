@@ -135,8 +135,8 @@ class ClasspathElementDir extends ClasspathElement {
                 if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                     return InputStreamOrByteBufferAdapter.create(read());
                 } else {
-                    return InputStreamOrByteBufferAdapter
-                            .create(inputStream = new FileInputStream(classpathResourceFile));
+                    return InputStreamOrByteBufferAdapter.create(inputStream = new InputStreamResourceCloser(this,
+                            new FileInputStream(classpathResourceFile)));
                 }
             }
 
@@ -146,7 +146,8 @@ class ClasspathElementDir extends ClasspathElement {
                     read();
                     return byteBufferToInputStream();
                 } else {
-                    return inputStream = Files.newInputStream(classpathResourceFile.toPath());
+                    return inputStream = new InputStreamResourceCloser(this,
+                            Files.newInputStream(classpathResourceFile.toPath()));
                 }
             }
 
@@ -172,8 +173,10 @@ class ClasspathElementDir extends ClasspathElement {
             public void close() {
                 if (inputStream != null) {
                     try {
-                        inputStream.close();
+                        // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
+                        final InputStream inputStreamWrapper = inputStream;
                         inputStream = null;
+                        inputStreamWrapper.close();
                     } catch (final IOException e) {
                         // Ignore
                     }

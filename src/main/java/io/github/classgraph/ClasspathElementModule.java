@@ -155,7 +155,8 @@ class ClasspathElementModule extends ClasspathElement {
                     try {
                         moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
                         moduleReaderProxy = moduleReaderProxyRecyclable.get();
-                        inputStream = moduleReaderProxy.open(moduleResourcePath);
+                        inputStream = new InputStreamResourceCloser(this,
+                                moduleReaderProxy.open(moduleResourcePath));
                         // Length cannot be obtained from ModuleReader
                         length = -1L;
                         return inputStream;
@@ -183,8 +184,10 @@ class ClasspathElementModule extends ClasspathElement {
             public void close() {
                 if (inputStream != null) {
                     try {
-                        inputStream.close();
+                        // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
+                        final InputStream inputStreamWrapper = inputStream;
                         inputStream = null;
+                        inputStreamWrapper.close();
                     } catch (final IOException e) {
                         // Ignore
                     }

@@ -73,6 +73,92 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         }
     }
 
+    /**
+     * Class for closing the parent {@link Resource} when an {@link InputStream} opened on the resource is closed.
+     */
+    protected class InputStreamResourceCloser extends InputStream {
+        private InputStream inputStream;
+        private Resource parentResource;
+
+        protected InputStreamResourceCloser(final Resource parentResource, final InputStream inputStream)
+                throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream cannot be null");
+            }
+            this.inputStream = inputStream;
+            this.parentResource = parentResource;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream is not open");
+            }
+            return inputStream.read();
+        }
+
+        @Override
+        public int read(final byte[] b, final int off, final int len) throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream is not open");
+            }
+            return inputStream.read(b, off, len);
+        }
+
+        @Override
+        public int read(final byte[] b) throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream is not open");
+            }
+            return inputStream.read(b);
+        }
+
+        @Override
+        public int available() throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream is not open");
+            }
+            return inputStream.available();
+        }
+
+        @Override
+        public long skip(final long n) throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream is not open");
+            }
+            return inputStream.skip(n);
+        }
+
+        @Override
+        public boolean markSupported() {
+            return inputStream.markSupported();
+        }
+
+        @Override
+        public synchronized void mark(final int readlimit) {
+            inputStream.mark(readlimit);
+        }
+
+        @Override
+        public synchronized void reset() throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream is not open");
+            }
+            inputStream.reset();
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (inputStream == null) {
+                throw new IOException("InputStream is not open");
+            }
+            inputStream.close();
+            inputStream = null;
+            parentResource.close();
+            parentResource = null;
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
