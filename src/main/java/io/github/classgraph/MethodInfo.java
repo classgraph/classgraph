@@ -502,7 +502,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             }
         }
         for (final MethodParameterInfo parameterInfo : getParameterInfo()) {
-            final AnnotationInfo[] paramAnnotationInfo = parameterInfo.getAnnotationInfo();
+            final AnnotationInfo[] paramAnnotationInfo = parameterInfo.annotationInfo;
             if (paramAnnotationInfo != null) {
                 for (final AnnotationInfo annotationInfo : paramAnnotationInfo) {
                     annotationInfo.getClassNamesFromTypeDescriptors(classNames);

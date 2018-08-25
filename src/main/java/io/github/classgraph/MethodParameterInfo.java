@@ -133,12 +133,19 @@ public class MethodParameterInfo {
      * 
      * @return {@link AnnotationInfo} for any annotations on this method parameter.
      */
-    // TODO: change the return type to AnnotationInfoList
-    public AnnotationInfo[] getAnnotationInfo() {
+    public AnnotationInfoList getAnnotationInfo() {
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
-        return annotationInfo;
+        if (annotationInfo == null || annotationInfo.length == 0) {
+            return AnnotationInfoList.EMPTY_LIST;
+        } else {
+            final AnnotationInfoList annotationInfoList = new AnnotationInfoList(annotationInfo.length);
+            for (final AnnotationInfo ai : annotationInfo) {
+                annotationInfoList.add(ai);
+            }
+            return annotationInfoList;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -164,10 +171,9 @@ public class MethodParameterInfo {
     public String toString() {
         final StringBuilder buf = new StringBuilder();
 
-        final AnnotationInfo[] annInfo = getAnnotationInfo();
-        if (annInfo != null) {
-            for (int j = 0; j < annInfo.length; j++) {
-                annInfo[j].toString(buf);
+        if (annotationInfo != null) {
+            for (int j = 0; j < annotationInfo.length; j++) {
+                annotationInfo[j].toString(buf);
                 buf.append(' ');
             }
         }
