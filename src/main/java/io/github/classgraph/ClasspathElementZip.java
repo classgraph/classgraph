@@ -245,7 +245,7 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public byte[] load() throws IOException {
                 try {
-                    read();
+                    open();
                     final byte[] byteArray = inputStreamToByteArray();
                     length = byteArray.length;
                     return byteArray;
