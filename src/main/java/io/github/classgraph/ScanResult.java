@@ -40,6 +40,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -103,6 +105,38 @@ public class ScanResult implements Closeable, AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The {@link WeakReference} for this ScanResult. */
+    private final WeakReference<ScanResult> weakReference;
+
+    /**
+     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
+     * not blocked. (Bug #233)
+     */
+    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
+            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+
+    static {
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                for (final WeakReference<ScanResult> weakReference : new ArrayList<>(nonClosedWeakReferences)) {
+                    final ScanResult scanResult = weakReference.get();
+                    if (scanResult != null) {
+                        scanResult.close();
+                    } else {
+                        // Should not happen --
+                        // if object has been garbage collected, finalizer should have been called already,
+                        // which will call close(), removing the WeakReference from nonClosedWeakReferences.
+                        nonClosedWeakReferences.remove(weakReference);
+                    }
+                }
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** The result of a scan. Make sure you call complete() after calling the constructor. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final List<String> rawClasspathEltOrderStrs, final ClassLoader[] envClassLoaderOrder,
@@ -144,30 +178,9 @@ public class ScanResult implements Closeable, AutoCloseable {
         // Define a new ClassLoader that can load the classes found during the scan
         this.classGraphClassLoader = new ClassGraphClassLoader(this);
 
-        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
-        // Uses a WeakReference so that garbage collection is not blocked. (Bug #233)
-        Runtime.getRuntime().addShutdownHook(new CleanupThread(this));
-    }
-
-    /**
-     * Cleanup thread for use as a shutdown hook. Holds a weak reference to a ScanResult. (Can't use an anonymous
-     * inner class for this, because anonymous inner classes are non-static, so the class would still hold a
-     * non-weak reference to the ScanResult, causing a resource leak until JVM shutdown.) See Bug #233.
-     */
-    private static class CleanupThread extends Thread {
-        private final WeakReference<ScanResult> weakScanResult;
-
-        public CleanupThread(final ScanResult scanResult) {
-            this.weakScanResult = new WeakReference<>(scanResult);
-        }
-
-        @Override
-        public void run() {
-            final ScanResult scanResult = weakScanResult.get();
-            if (scanResult != null) {
-                scanResult.close();
-            }
-        }
+        // Provide the shutdown hook with a weak reference to this ScanResult
+        this.weakReference = new WeakReference<>(this);
+        nonClosedWeakReferences.add(this.weakReference);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -931,6 +944,7 @@ public class ScanResult implements Closeable, AutoCloseable {
     @Override
     public void close() {
         if (!closed) {
+            closed = true;
             if (allResources != null) {
                 for (final Resource classpathResource : allResources) {
                     classpathResource.close();
@@ -955,10 +969,14 @@ public class ScanResult implements Closeable, AutoCloseable {
             if (fileToLastModified != null) {
                 fileToLastModified.clear();
             }
+            if (!nonClosedWeakReferences.remove(weakReference)) {
+                if (log != null) {
+                    log.log("Could not find WeakReference for ScanResult");
+                }
+            }
             if (log != null) {
                 log.flush();
             }
-            closed = true;
         }
     }
 
