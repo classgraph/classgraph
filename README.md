@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph)
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
-[![Gitter](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/classgraph/Lobby)
+[![Gitter](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/classgraph/Lobby) [[GitHub star growth chart](http://www.timqian.com/star-history/#classgraph/classgraph)]
 
 <img alt="ClassGraph Logo" width="320" height="320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png">
 
