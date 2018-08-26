@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <profiles version="2">
-    <profile kind="CleanUpProfile" name="FCS" version="2">
+    <profile kind="CleanUpProfile" name="ClassGraph" version="2">
         <setting id="cleanup.format_source_code" value="true"/>
         <setting id="cleanup.convert_functional_interfaces" value="false"/>
         <setting id="cleanup.add_missing_annotations" value="true"/>
@@ -58,7 +58,7 @@
         <setting id="cleanup.add_missing_override_annotations" value="true"/>
         <setting id="cleanup.make_local_variable_final" value="true"/>
     </profile>
-    <profile kind="CodeFormatterProfile" name="FCS" version="13">
+    <profile kind="CodeFormatterProfile" name="ClassGraph" version="13">
         <setting id="org.eclipse.jdt.core.formatter.insert_space_after_ellipsis" value="insert"/>
         <setting id="org.eclipse.jdt.core.formatter.insert_space_after_comma_in_enum_declarations" value="insert"/>
         <setting id="org.eclipse.jdt.core.formatter.insert_new_line_in_empty_annotation_declaration" value="insert"/>

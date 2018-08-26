@@ -455,7 +455,7 @@ public class NestedJarHandler {
         File tempFile = null;
         try {
             final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(jarURL));
-            tempFile = File.createTempFile("FCS--", suffix);
+            tempFile = File.createTempFile("ClassGraph--", suffix);
             tempFile.deleteOnExit();
             tempFiles.add(tempFile);
             final URL url = new URL(jarURL);
@@ -491,7 +491,7 @@ public class NestedJarHandler {
             zipEntryPath = zipEntryPath.substring(1);
         }
         // The following filename format is also expected by JarUtils.leafName()
-        final File tempFile = File.createTempFile("FCS--",
+        final File tempFile = File.createTempFile("ClassGraph--",
                 TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(zipEntryPath)));
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
@@ -544,8 +544,8 @@ public class NestedJarHandler {
     //                : log.log("Unzipping " + jarFile + " from package root " + packageRoot);
     //
     //        // Create temporary directory to unzip into
-    //        final Path tempDirPath = Files.createTempDirectory("FCS--" + sanitizeFilename(leafname(jarFile.getName()))
-    //                + "--" + sanitizeFilename(packageRoot) + "--");
+    //        final Path tempDirPath = Files.createTempDirectory("ClassGraph--"
+    //                + sanitizeFilename(leafname(jarFile.getName())) + "--" + sanitizeFilename(packageRoot) + "--");
     //        final File tempDir = tempDirPath.toFile();
     //        tempDir.deleteOnExit();
     //        tempFiles.add(tempDir);
@@ -674,7 +674,7 @@ public class NestedJarHandler {
             return zipfile;
         } else {
             // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
-            final File bareZipfile = File.createTempFile("FCS--",
+            final File bareZipfile = File.createTempFile("ClassGraph--",
                     TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
             bareZipfile.deleteOnExit();
             tempFiles.add(bareZipfile);
