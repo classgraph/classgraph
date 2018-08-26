@@ -95,7 +95,7 @@ public class ScanResult implements Closeable, AutoCloseable {
     private Map<String, ResourceList> pathToResourceList;
 
     /** A custom ClassLoader that can load classes found during the scan. */
-    private final ClassGraphClassLoader classGraphClassLoader;
+    private ClassGraphClassLoader classGraphClassLoader;
 
     /** If true, this ScanResult has already been closed. */
     private volatile boolean closed;
@@ -950,6 +950,7 @@ public class ScanResult implements Closeable, AutoCloseable {
                     classpathResource.close();
                 }
                 allResources.clear();
+                pathToResourceList.clear();
             }
             if (rawClasspathEltOrderStrs != null) {
                 rawClasspathEltOrderStrs.clear();
@@ -969,6 +970,7 @@ public class ScanResult implements Closeable, AutoCloseable {
             if (fileToLastModified != null) {
                 fileToLastModified.clear();
             }
+            classGraphClassLoader = null;
             if (!nonClosedWeakReferences.remove(weakReference)) {
                 if (log != null) {
                     log.log("Could not find WeakReference for ScanResult");
