@@ -87,7 +87,7 @@ class ClassGraphClassLoader extends ClassLoader {
         // then it is possible it was a non-public class, and ClassGraph found it by ignoring class visibility
         // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
         // encapsulation rules by refusing to load modular classes that the context/system classloaders
-        // could not load.
+        // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
         if (classInfo.classpathElementFile == null && !classInfo.isPublic()) {
             throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
                     + "but the context and system classloaders could not load the class, probably because "
