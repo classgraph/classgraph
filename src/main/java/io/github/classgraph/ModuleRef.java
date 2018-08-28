@@ -206,7 +206,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * 
      * @return The raw version of the module, obtained by {@code ModuleReference#rawVersion().orElse(null)}.
      */
-    public String rawVersion() {
+    public String getRawVersion() {
         return rawVersion;
     }
 
