@@ -158,8 +158,6 @@ public class ClasspathOrModulePathEntry {
      *            The {@link ModuleRef}.
      * @param nestedJarHandler
      *            The {@link NestedJarHandler}.
-     * @param performScan
-     *            If true, performing a scan. If false, only fetching the classpath.
      * @param log
      *            The log.
      */
