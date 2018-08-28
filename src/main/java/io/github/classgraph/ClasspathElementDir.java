@@ -55,9 +55,9 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** A directory classpath element. */
     ClasspathElementDir(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final boolean performScan, final LogNode log) {
-        super(classpathEltPath, scanSpec, performScan);
-        if (performScan) {
+            final LogNode log) {
+        super(classpathEltPath, scanSpec);
+        if (scanSpec.performScan) {
             try {
                 dir = classpathEltPath.getFile(log);
             } catch (final IOException e) {

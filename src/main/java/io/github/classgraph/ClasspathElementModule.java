@@ -55,8 +55,8 @@ class ClasspathElementModule extends ClasspathElement {
 
     /** A zip/jarfile classpath element. */
     ClasspathElementModule(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final boolean performScan, final NestedJarHandler nestedJarHandler, final LogNode log) {
-        super(classpathEltPath, scanSpec, performScan);
+            final NestedJarHandler nestedJarHandler, final LogNode log) {
+        super(classpathEltPath, scanSpec);
         moduleRef = classpathEltPath.getModuleRef();
         if (moduleRef == null) {
             // Should not happen
@@ -71,7 +71,7 @@ class ClasspathElementModule extends ClasspathElement {
             skipClasspathElement = true;
             return;
         }
-        if (performScan) {
+        if (scanSpec.performScan) {
             fileMatches = new ArrayList<>();
             classfileMatches = new ArrayList<>();
             fileToLastModified = new HashMap<>();

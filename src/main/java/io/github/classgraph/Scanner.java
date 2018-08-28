@@ -62,7 +62,6 @@ class Scanner implements Callable<ScanResult> {
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
     private final int numParallelTasks;
-    private final boolean performScan;
     private final InterruptionChecker interruptionChecker = new InterruptionChecker();
     private final ScanResultProcessor scanResultProcessor;
     private final FailureHandler failureHandler;
@@ -79,14 +78,13 @@ class Scanner implements Callable<ScanResult> {
 
     /** The classpath scanner. */
     Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final boolean performScan, final ScanResultProcessor scannResultProcessor,
-            final FailureHandler failureHandler, final LogNode log) {
+            final ScanResultProcessor scannResultProcessor, final FailureHandler failureHandler,
+            final LogNode log) {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
 
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
-        this.performScan = performScan;
         this.scanResultProcessor = scannResultProcessor;
         this.failureHandler = failureHandler;
         this.log = log;
@@ -100,15 +98,13 @@ class Scanner implements Callable<ScanResult> {
     /** A map from relative path to classpath element singleton. */
     private static class ClasspathOrModulePathEntryToClasspathElementMap
             extends SingletonMap<ClasspathOrModulePathEntry, ClasspathElement> {
-        private final boolean performScan;
         private final ScanSpec scanSpec;
         private final NestedJarHandler nestedJarHandler;
         private WorkQueue<ClasspathOrModulePathEntry> workQueue;
 
         /** A map from relative path to classpath element singleton. */
-        ClasspathOrModulePathEntryToClasspathElementMap(final boolean performScan, final ScanSpec scanSpec,
+        ClasspathOrModulePathEntryToClasspathElementMap(final ScanSpec scanSpec,
                 final NestedJarHandler nestedJarHandler) {
-            this.performScan = performScan;
             this.scanSpec = scanSpec;
             this.nestedJarHandler = nestedJarHandler;
         }
@@ -125,8 +121,7 @@ class Scanner implements Callable<ScanResult> {
         /** Create a new classpath element singleton instance. */
         @Override
         public ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathElt, final LogNode log) {
-            return ClasspathElement.newInstance(classpathElt, performScan, scanSpec, nestedJarHandler, workQueue,
-                    log);
+            return ClasspathElement.newInstance(classpathElt, scanSpec, nestedJarHandler, workQueue, log);
         }
     }
 
@@ -262,7 +257,7 @@ class Scanner implements Callable<ScanResult> {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
         this.nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
         final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
-                new ClasspathOrModulePathEntryToClasspathElementMap(performScan, scanSpec, nestedJarHandler);
+                new ClasspathOrModulePathEntryToClasspathElementMap(scanSpec, nestedJarHandler);
         try {
             final long scanStart = System.nanoTime();
 
@@ -425,7 +420,7 @@ class Scanner implements Callable<ScanResult> {
             }
 
             ScanResult scanResult;
-            if (!performScan) {
+            if (!scanSpec.performScan) {
                 // This is the result of a call to ClassGraph#getUniqueClasspathElements(), so just
                 // create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, rawClasspathEltOrderStrs, classLoaderOrder,

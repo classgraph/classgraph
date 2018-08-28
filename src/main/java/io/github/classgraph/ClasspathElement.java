@@ -70,12 +70,6 @@ abstract class ClasspathElement {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
-    /**
-     * If true, recursively scan directores, and iterate through ZipEntries inside ZipFiles looking for whitelisted
-     * file and classfile matches. If false, only find unique classpath elements.
-     */
-    private final boolean performScan;
-
     /** The list of all classpath resources found within whitelisted paths within this classpath element. */
     protected List<Resource> fileMatches;
 
@@ -88,11 +82,9 @@ abstract class ClasspathElement {
     protected Map<File, Long> fileToLastModified;
 
     /** A classpath element (a directory or jarfile on the classpath). */
-    ClasspathElement(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final boolean performScan) {
+    ClasspathElement(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec) {
         this.classpathEltPath = classpathEltPath;
         this.scanSpec = scanSpec;
-        this.performScan = performScan;
     }
 
     /** Return the classpath element's path. */
@@ -139,7 +131,7 @@ abstract class ClasspathElement {
      * singleton for jarfile classpath entries.
      */
     static ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathRelativePath,
-            final boolean performScan, final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
+            final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
             final WorkQueue<ClasspathOrModulePathEntry> workQueue, final LogNode log) {
         boolean isModule = false;
         boolean isDir = false;
@@ -180,10 +172,10 @@ abstract class ClasspathElement {
 
         // Dispatch to appropriate constructor
         final ClasspathElement newInstance = isModule
-                ? new ClasspathElementModule(classpathRelativePath, scanSpec, performScan, nestedJarHandler, subLog)
-                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, performScan, subLog)
-                        : new ClasspathElementZip(classpathRelativePath, scanSpec, performScan, nestedJarHandler,
-                                workQueue, subLog);
+                ? new ClasspathElementModule(classpathRelativePath, scanSpec, nestedJarHandler, subLog)
+                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, subLog)
+                        : new ClasspathElementZip(classpathRelativePath, scanSpec, nestedJarHandler, workQueue,
+                                subLog);
         if (subLog != null) {
             subLog.addElapsedTime();
         }
@@ -200,7 +192,7 @@ abstract class ClasspathElement {
      * earlier classpath element.
      */
     void maskFiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound, final LogNode log) {
-        if (!performScan) {
+        if (!scanSpec.performScan) {
             // Should not happen
             throw new IllegalArgumentException("performScan is false");
         }

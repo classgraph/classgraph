@@ -956,8 +956,7 @@ public class ClassGraph {
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
         executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, /* performScan = */ true,
-                        scanResultProcessor, failureHandler, log));
+                new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler, log));
     }
 
     /**
@@ -989,8 +988,8 @@ public class ClassGraph {
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         return executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, /* performScan = */ true,
-                        /* scanResultProcessor = */ null, /* failureHandler = */ null, log));
+                new Scanner(scanSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
+                        /* failureHandler = */ null, log));
     }
 
     /**
@@ -1017,8 +1016,8 @@ public class ClassGraph {
             // Start the scan and wait for completion
             final ScanResult scanResult = executorService.submit(
                     // Call MatchProcessors before returning if in async scanning mode
-                    new Scanner(scanSpec, executorService, numParallelTasks, /* performScan = */ true,
-                            /* scanResultProcessor = */ null, /* failureHandler = */ null, log)) //
+                    new Scanner(scanSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
+                            /* failureHandler = */ null, log)) //
                     .get();
 
             //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
@@ -1106,10 +1105,10 @@ public class ClassGraph {
         try {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
+                scanSpec.performScan = false;
                 return executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* performScan = */ false, /* scanResultProcessor = */ null,
-                                /* failureHandler = */ null,
+                                /* scanResultProcessor = */ null, /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
                         .get().getClasspathFiles();
             }
@@ -1159,10 +1158,10 @@ public class ClassGraph {
         try {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
+                scanSpec.performScan = false;
                 return executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* performScan = */ false, /* scanResultProcessor = */ null,
-                                /* failureHandler = */ null,
+                                /* scanResultProcessor = */ null, /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
                         .get().getClasspathURLs();
             }
@@ -1193,10 +1192,10 @@ public class ClassGraph {
         try {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
+                scanSpec.performScan = false;
                 return executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* performScan = */ false, /* scanResultProcessor = */ null,
-                                /* failureHandler = */ null,
+                                /* scanResultProcessor = */ null, /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
                         .get().getModules();
             }
