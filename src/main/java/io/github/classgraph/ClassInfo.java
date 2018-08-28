@@ -1623,7 +1623,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * @return The module in the module path that this class was found within, as a {@link ModuleRef}, or null if
-     *         this class was found in a directory or jar in the classpath.
+     *         this class was found in a directory or jar in the classpath. (See also
+     *         {@link #getClasspathElementFile()}.)
      */
     public ModuleRef getModuleRef() {
         return moduleRef;
