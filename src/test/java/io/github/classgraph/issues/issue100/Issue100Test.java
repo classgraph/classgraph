@@ -55,7 +55,7 @@ public class Issue100Test {
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
         try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .whitelistPackages("issue100").blacklistJars(bJarName).enableFieldInfo().verbose().scan()) {
+                .whitelistPackages("issue100").blacklistJars(bJarName).enableFieldInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 for (final FieldInfo f : ci.getFieldInfo()) {
                     fieldNames1.add(f.getName());
