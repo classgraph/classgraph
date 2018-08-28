@@ -184,6 +184,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      */
     public abstract URL getURL();
 
+    /**
+     * @return the {@link ModuleRef} for the module containing the resource, if the resource is contained in a
+     *         module, otherwise returns null.
+     */
+    public abstract ModuleRef getModuleRef();
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

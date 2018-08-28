@@ -209,6 +209,11 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
+            public ModuleRef getModuleRef() {
+                return null;
+            }
+
+            @Override
             public InputStream open() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen

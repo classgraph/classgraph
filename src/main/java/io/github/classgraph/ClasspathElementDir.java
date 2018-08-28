@@ -105,6 +105,11 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
+            public ModuleRef getModuleRef() {
+                return null;
+            }
+
+            @Override
             public ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
