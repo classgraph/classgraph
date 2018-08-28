@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -185,8 +186,20 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     public abstract URL getURL();
 
     /**
-     * @return the {@link ModuleRef} for the module containing the resource, if the resource is contained in a
-     *         module, otherwise returns null.
+     * @return The URL of the classpath element that this class was found within.
+     */
+    public abstract URL getClasspathElementURL();
+
+    /**
+     * @return The {@link File} for the classpath element package root dir or jar that this {@Resource} was found
+     *         within, or null if this {@link Resource} was found in a module. (See also {@link #getModuleRef}.)
+     */
+    public abstract File getClasspathElementFile();
+
+    /**
+     * @return The module in the module path that this {@link Resource} was found within, as a {@link ModuleRef}, or
+     *         null if this {@link Resource} was found in a directory or jar in the classpath. (See also
+     *         {@link #getClasspathElementFile()}.)
      */
     public abstract ModuleRef getModuleRef();
 

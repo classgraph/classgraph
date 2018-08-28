@@ -112,6 +112,21 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
+            public URL getClasspathElementURL() {
+                try {
+                    return moduleRef.getLocation().toURL();
+                } catch (final MalformedURLException e) {
+                    // Shouldn't happen
+                    throw new IllegalArgumentException(e);
+                }
+            }
+
+            @Override
+            public File getClasspathElementFile() {
+                return null;
+            }
+
+            @Override
             public ModuleRef getModuleRef() {
                 return moduleRef;
             }

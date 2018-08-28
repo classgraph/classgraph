@@ -209,6 +209,26 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
+            public URL getClasspathElementURL() {
+                try {
+                    if (!packageRootPrefix.isEmpty()) {
+                        return new URL("jar:file:" + classpathEltZipFile + "!"
+                                + URLPathEncoder.encodePath(packageRootPrefix));
+                    } else {
+                        return getClasspathElementFile().toURI().toURL();
+                    }
+                } catch (final MalformedURLException e) {
+                    // Shouldn't happen
+                    throw new IllegalArgumentException(e);
+                }
+            }
+
+            @Override
+            public File getClasspathElementFile() {
+                return classpathEltZipFile;
+            }
+
+            @Override
             public ModuleRef getModuleRef() {
                 return null;
             }

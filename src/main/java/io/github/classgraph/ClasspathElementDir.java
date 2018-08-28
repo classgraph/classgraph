@@ -105,6 +105,21 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
+            public URL getClasspathElementURL() {
+                try {
+                    return getClasspathElementFile().toURI().toURL();
+                } catch (final MalformedURLException e) {
+                    // Shouldn't happen
+                    throw new IllegalArgumentException(e);
+                }
+            }
+
+            @Override
+            public File getClasspathElementFile() {
+                return dir;
+            }
+
+            @Override
             public ModuleRef getModuleRef() {
                 return null;
             }
