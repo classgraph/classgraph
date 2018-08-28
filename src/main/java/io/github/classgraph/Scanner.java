@@ -65,7 +65,7 @@ class Scanner implements Callable<ScanResult> {
     private final InterruptionChecker interruptionChecker = new InterruptionChecker();
     private final ScanResultProcessor scanResultProcessor;
     private final FailureHandler failureHandler;
-    private final LogNode log;
+    private final LogNode topLevelLog;
     private NestedJarHandler nestedJarHandler;
 
     /**
@@ -87,7 +87,7 @@ class Scanner implements Callable<ScanResult> {
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scannResultProcessor;
         this.failureHandler = failureHandler;
-        this.log = log;
+        this.topLevelLog = log;
 
         // Add ScanSpec to beginning of log
         scanSpec.log(log);
@@ -254,7 +254,8 @@ class Scanner implements Callable<ScanResult> {
      */
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
-        final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
+        final LogNode classpathFinderLog = topLevelLog == null ? null
+                : topLevelLog.log("Finding classpath entries");
         this.nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
         final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
                 new ClasspathOrModulePathEntryToClasspathElementMap(scanSpec, nestedJarHandler);
@@ -421,10 +422,14 @@ class Scanner implements Callable<ScanResult> {
 
             ScanResult scanResult;
             if (!scanSpec.performScan) {
+                if (topLevelLog != null) {
+                    topLevelLog.log("Only returning classpath elements (not performing a scan)");
+                }
                 // This is the result of a call to ClassGraph#getUniqueClasspathElements(), so just
                 // create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, rawClasspathEltOrderStrs, classLoaderOrder,
-                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler, log);
+                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
+                        topLevelLog);
 
             } else {
                 // Perform scan of the classpath
@@ -511,7 +516,7 @@ class Scanner implements Callable<ScanResult> {
                 // performed whether or not a jar is whitelisted, and whether or not jar or dir scanning is enabled,
                 // in order to ensure that class references passed into MatchProcessors are the same as those that
                 // would be loaded by standard classloading. (See bug #100.)
-                final LogNode maskLog = log == null ? null : log.log("Masking classpath files");
+                final LogNode maskLog = topLevelLog == null ? null : topLevelLog.log("Masking classpath files");
                 final HashSet<String> classpathRelativePathsFound = new HashSet<>();
                 for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
                     final ClasspathElement classpathElement = classpathOrder.get(classpathIdx);
@@ -527,15 +532,15 @@ class Scanner implements Callable<ScanResult> {
 
                 final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
                 if (!scanSpec.enableClassInfo) {
-                    if (log != null) {
-                        log.log("Classfile scanning is disabled");
+                    if (topLevelLog != null) {
+                        topLevelLog.log("Classfile scanning is disabled");
                     }
                 } else {
                     // Scan classfile binary headers in parallel
                     final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = //
                             new ConcurrentLinkedQueue<>();
-                    final LogNode classfileScanLog = log == null ? null
-                            : log.log("Scanning classfile binary headers");
+                    final LogNode classfileScanLog = topLevelLog == null ? null
+                            : topLevelLog.log("Scanning classfile binary headers");
                     final List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(
                             classpathOrder);
                     WorkQueue.runWorkQueue(classfileParserChunks, executorService, numParallelTasks,
@@ -552,7 +557,8 @@ class Scanner implements Callable<ScanResult> {
                     }
 
                     // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
-                    final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
+                    final LogNode classGraphLog = topLevelLog == null ? null
+                            : topLevelLog.log("Building class graph");
                     for (final ClassInfoUnlinked c : classInfoUnlinked) {
                         c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
@@ -586,11 +592,11 @@ class Scanner implements Callable<ScanResult> {
 
                 // Create ScanResult
                 scanResult = new ScanResult(scanSpec, classpathOrder, rawClasspathEltOrderStrs, classLoaderOrder,
-                        classNameToClassInfo, fileToLastModified, nestedJarHandler, log);
+                        classNameToClassInfo, fileToLastModified, nestedJarHandler, topLevelLog);
 
             }
-            if (log != null) {
-                log.log("Completed scan", System.nanoTime() - scanStart);
+            if (topLevelLog != null) {
+                topLevelLog.log("Completed", System.nanoTime() - scanStart);
             }
 
             // Run scanResultProcessor in the current thread
@@ -608,10 +614,10 @@ class Scanner implements Callable<ScanResult> {
         } catch (final Throwable e) {
             // Remove temporary files if an exception was thrown
             if (this.nestedJarHandler != null) {
-                this.nestedJarHandler.close(log);
+                this.nestedJarHandler.close(topLevelLog);
             }
-            if (log != null) {
-                log.log(e);
+            if (topLevelLog != null) {
+                topLevelLog.log(e);
             }
             if (failureHandler != null) {
                 try {
@@ -628,7 +634,7 @@ class Scanner implements Callable<ScanResult> {
         } finally {
             if (scanSpec.removeTemporaryFilesAfterScan) {
                 // If requested, remove temporary files and close zipfile/module recyclers
-                nestedJarHandler.close(log);
+                nestedJarHandler.close(topLevelLog);
             } else {
                 // Don't delete temporary files yet, but close zipfile/module recyclers
                 nestedJarHandler.closeRecyclers();
@@ -639,9 +645,8 @@ class Scanner implements Callable<ScanResult> {
                 elt.closeRecyclers();
             }
 
-            // Flush the log at the end of the scan
-            if (log != null) {
-                log.flush();
+            if (topLevelLog != null) {
+                topLevelLog.flush();
             }
         }
     }

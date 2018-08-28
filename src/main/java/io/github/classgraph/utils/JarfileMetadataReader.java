@@ -42,9 +42,6 @@ import java.util.zip.ZipFile;
 
 /** Fast parser for jar manifest files. */
 public class JarfileMetadataReader {
-    /** The File for this jarfile. */
-    private final File jarFile;
-
     /** If true, this is a JRE jar. */
     public boolean isSystemJar;
 
@@ -80,10 +77,6 @@ public class JarfileMetadataReader {
     // -------------------------------------------------------------------------------------------------------------
 
     private static final String MANIFEST_PATH = "META-INF/MANIFEST.MF";
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    private final Object customClassLoaderLock = new Object();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -165,7 +158,6 @@ public class JarfileMetadataReader {
      * Assumes there is only one of each entry present in the manifest.
      */
     JarfileMetadataReader(final File jarFile, final LogNode log) {
-        this.jarFile = jarFile;
         try (ZipFile zipFile = new ZipFile(jarFile)) {
             final int numEntries = zipFile.size();
             zipEntries = new ArrayList<>(numEntries);

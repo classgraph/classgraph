@@ -63,6 +63,9 @@ public class LogNode {
     /** The time between when this log entry was created and addElapsedTime() was called. */
     private long elapsedTimeNanos;
 
+    /** The parent LogNode. */
+    private LogNode parent;
+
     /** The child nodes of this log node. */
     private final Map<String, LogNode> children = new ConcurrentSkipListMap<>();
 
@@ -185,6 +188,7 @@ public class LogNode {
         final String newSortKey = sortKeyPrefix + "\t" + (sortKey == null ? "" : sortKey) + "\t"
                 + String.format("%09d", sortKeyUniqueSuffix.getAndIncrement());
         final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
+        newChild.parent = this;
         // Make the sort key unique, so that log entries are not clobbered if keys are reused; increment unique
         // suffix with each new log entry, so that ties are broken in chronological order.
         children.put(newSortKey, newChild);
@@ -345,6 +349,9 @@ public class LogNode {
      * inside the tree, otherwise log entries may be lost.
      */
     public void flush() {
+        if (parent != null) {
+            throw new IllegalArgumentException("Only flush the toplevel LogNode");
+        }
         final String logOutput = this.toString();
         this.children.clear();
         System.out.flush();

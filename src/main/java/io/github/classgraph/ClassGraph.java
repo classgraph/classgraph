@@ -70,7 +70,7 @@ public class ClassGraph {
     );
 
     /** If non-null, log while scanning */
-    private LogNode log;
+    private LogNode topLevelLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -95,8 +95,8 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph verbose() {
-        if (log == null) {
-            log = new LogNode();
+        if (topLevelLog == null) {
+            topLevelLog = new LogNode();
         }
         return this;
     }
@@ -769,8 +769,8 @@ public class ClassGraph {
                             found = true;
                         }
                     }
-                    if (!found && log != null) {
-                        log.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
+                    if (!found && topLevelLog != null) {
+                        topLevelLog.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
                     }
                 } else {
                     // No wildcards, just whitelist the named jar, if present
@@ -779,15 +779,15 @@ public class ClassGraph {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (jarLeafName.equals(libOrExtJarLeafName)) {
                             scanSpec.libOrExtJarWhiteBlackList.addToWhitelist(jarLeafName);
-                            if (log != null) {
-                                log.log("Whitelisting lib or ext jar: " + libOrExtJarPath);
+                            if (topLevelLog != null) {
+                                topLevelLog.log("Whitelisting lib or ext jar: " + libOrExtJarPath);
                             }
                             found = true;
                             break;
                         }
                     }
-                    if (!found && log != null) {
-                        log.log("Could not find lib or ext jar: " + jarLeafName);
+                    if (!found && topLevelLog != null) {
+                        topLevelLog.log("Could not find lib or ext jar: " + jarLeafName);
                     }
                 }
             }
@@ -830,8 +830,8 @@ public class ClassGraph {
                             found = true;
                         }
                     }
-                    if (!found && log != null) {
-                        log.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
+                    if (!found && topLevelLog != null) {
+                        topLevelLog.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
                     }
                 } else {
                     // No wildcards, just blacklist the named jar, if present
@@ -840,15 +840,15 @@ public class ClassGraph {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (jarLeafName.equals(libOrExtJarLeafName)) {
                             scanSpec.libOrExtJarWhiteBlackList.addToBlacklist(jarLeafName);
-                            if (log != null) {
-                                log.log("Blacklisting lib or ext jar: " + libOrExtJarPath);
+                            if (topLevelLog != null) {
+                                topLevelLog.log("Blacklisting lib or ext jar: " + libOrExtJarPath);
                             }
                             found = true;
                             break;
                         }
                     }
-                    if (!found && log != null) {
-                        log.log("Could not find lib or ext jar: " + jarLeafName);
+                    if (!found && topLevelLog != null) {
+                        topLevelLog.log("Could not find lib or ext jar: " + jarLeafName);
                     }
                 }
             }
@@ -956,7 +956,8 @@ public class ClassGraph {
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
         executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler, log));
+                new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
+                        topLevelLog));
     }
 
     /**
@@ -989,7 +990,7 @@ public class ClassGraph {
         return executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
                 new Scanner(scanSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                        /* failureHandler = */ null, log));
+                        /* failureHandler = */ null, topLevelLog));
     }
 
     /**
@@ -1017,7 +1018,7 @@ public class ClassGraph {
             final ScanResult scanResult = executorService.submit(
                     // Call MatchProcessors before returning if in async scanning mode
                     new Scanner(scanSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                            /* failureHandler = */ null, log)) //
+                            /* failureHandler = */ null, topLevelLog)) //
                     .get();
 
             //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
@@ -1028,8 +1029,8 @@ public class ClassGraph {
             return scanResult;
 
         } catch (final InterruptedException e) {
-            if (log != null) {
-                log.log("Scan interrupted");
+            if (topLevelLog != null) {
+                topLevelLog.log("Scan interrupted");
             }
             throw new IllegalArgumentException("Scan interrupted", e);
         } catch (final ExecutionException e) {
@@ -1038,19 +1039,19 @@ public class ClassGraph {
                 cause = e;
             }
             if (cause instanceof InterruptedException) {
-                if (log != null) {
-                    log.log("Scan interrupted");
+                if (topLevelLog != null) {
+                    topLevelLog.log("Scan interrupted");
                 }
                 throw new IllegalArgumentException("Scan interrupted", e);
             } else {
-                if (log != null) {
-                    log.log("Unexpected exception during scan", e);
+                if (topLevelLog != null) {
+                    topLevelLog.log("Unexpected exception during scan", e);
                 }
                 throw new RuntimeException(cause);
             }
         } finally {
-            if (log != null) {
-                log.flush();
+            if (topLevelLog != null) {
+                topLevelLog.flush();
             }
         }
     }
@@ -1093,10 +1094,8 @@ public class ClassGraph {
 
     /**
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Will cause "http://" and "https://" classpath element URLs to be downloaded to
-     * a temporary file, and inner zipfiles (jars within jars) to be extracted to temporary files. Classpath
-     * elements that do not exist as a file or directory, including JPMS modules that are not backed by a "file:/"
-     * URL, are not included in the returned list.
+     * classloader resolution order. Classpath elements that do not exist as a file or directory are not included in
+     * the returned list.
      *
      * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
@@ -1106,36 +1105,35 @@ public class ClassGraph {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
                 scanSpec.performScan = false;
-                return executorService.submit( //
+                try (ScanResult scanResult = executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* scanResultProcessor = */ null, /* failureHandler = */ null,
-                                log == null ? null : log.log("Getting unique classpath elements")))
-                        .get().getClasspathFiles();
+                                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog))
+                        .get()) {
+                    return scanResult.getClasspathFiles();
+                }
             }
         } catch (final InterruptedException e) {
-            if (log != null) {
-                log.log("Thread interrupted while getting classpath elements");
+            if (topLevelLog != null) {
+                topLevelLog.log("Thread interrupted while getting classpath elements");
             }
             throw new IllegalArgumentException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            if (log != null) {
-                log.log("Exception while getting classpath elements", e);
+            if (topLevelLog != null) {
+                topLevelLog.log("Exception while getting classpath elements", e);
             }
             final Throwable cause = e.getCause();
             throw new RuntimeException(cause == null ? e : cause);
         } finally {
-            if (log != null) {
-                log.flush();
+            if (topLevelLog != null) {
+                topLevelLog.flush();
             }
         }
     }
 
     /**
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order, in the form of a classpath path string. Will cause "http://" and "https://"
-     * classpath element URLs to be downloaded to a temporary file, and inner zipfiles (jars within jars) to be
-     * extracted to temporary files. Classpath elements that do not exist as a file or directory, including JPMS
-     * modules that are not backed by a "file:/" URL, are not included in the returned list.
+     * classloader resolution order, in the form of a classpath path string. Classpath elements that do not exist as
+     * a file or directory are not included in the returned list.
      *
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
@@ -1146,10 +1144,8 @@ public class ClassGraph {
 
     /**
      * Returns the list of all unique URL objects representing directories, zip/jarfiles or modules on the
-     * classpath, in classloader resolution order. Will cause "http://" and "https://" classpath element URLs to be
-     * downloaded to a temporary file, and inner zipfiles (jars within jars) to be extracted to temporary files.
-     * Classpath elements representing jarfiles or directories that do not exist are not included in the returned
-     * list.
+     * classpath, in classloader resolution order. Classpath elements representing jarfiles or directories that do
+     * not exist are not included in the returned list.
      *
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
@@ -1159,26 +1155,27 @@ public class ClassGraph {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
                 scanSpec.performScan = false;
-                return executorService.submit( //
+                final ScanResult scanResult = executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* scanResultProcessor = */ null, /* failureHandler = */ null,
-                                log == null ? null : log.log("Getting unique classpath elements")))
-                        .get().getClasspathURLs();
+                                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog))
+                        .get();
+                return scanResult.getClasspathURLs();
+
             }
         } catch (final InterruptedException e) {
-            if (log != null) {
-                log.log("Thread interrupted while getting classpath elements");
+            if (topLevelLog != null) {
+                topLevelLog.log("Thread interrupted while getting classpath elements");
             }
             throw new IllegalArgumentException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            if (log != null) {
-                log.log("Exception while getting classpath elements", e);
+            if (topLevelLog != null) {
+                topLevelLog.log("Exception while getting classpath elements", e);
             }
             final Throwable cause = e.getCause();
             throw new RuntimeException(cause == null ? e : cause);
         } finally {
-            if (log != null) {
-                log.flush();
+            if (topLevelLog != null) {
+                topLevelLog.flush();
             }
         }
     }
@@ -1193,26 +1190,27 @@ public class ClassGraph {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
                 scanSpec.performScan = false;
-                return executorService.submit( //
+                try (ScanResult scanResult = executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* scanResultProcessor = */ null, /* failureHandler = */ null,
-                                log == null ? null : log.log("Getting unique classpath elements")))
-                        .get().getModules();
+                                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog))
+                        .get()) {
+                    return scanResult.getModules();
+                }
             }
         } catch (final InterruptedException e) {
-            if (log != null) {
-                log.log("Thread interrupted while getting modules");
+            if (topLevelLog != null) {
+                topLevelLog.log("Thread interrupted while getting modules");
             }
             throw new IllegalArgumentException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            if (log != null) {
-                log.log("Exception while getting modules", e);
+            if (topLevelLog != null) {
+                topLevelLog.log("Exception while getting modules", e);
             }
             final Throwable cause = e.getCause();
             throw new RuntimeException(cause == null ? e : cause);
         } finally {
-            if (log != null) {
-                log.flush();
+            if (topLevelLog != null) {
+                topLevelLog.flush();
             }
         }
     }

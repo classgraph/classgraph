@@ -256,51 +256,74 @@ public class ClasspathOrModulePathEntry {
                 throw new IOException("Cannot use jrt:/ URL for non-module classpath entry " + relativePath);
             }
 
-            final File pathFile = new File(path);
-            if (pathFile.exists() && pathFile.isDirectory()) {
-                fileCached = pathFile;
+            final int lastPlingIdx = path.lastIndexOf('!');
+            if (lastPlingIdx < 0) {
+                // No "!" section -- just use the file directly
+                fileCached = new File(path);
             } else {
-                final int plingIdx = path.lastIndexOf('!');
-                try {
-                    // Fetch any remote jarfiles, recursively unzip any nested jarfiles, and remove ZipSFX header
-                    // from jarfiles that don't start with "PK". In each case a temporary file will be created.
-                    // Throws IOException if anything goes wrong.
-                    final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
-                            nestedJarHandler.getInnermostNestedJar(path, log);
-                    if (innermostJarAndRootRelativePaths != null) {
-                        final File innermostJar = innermostJarAndRootRelativePaths.getKey();
-                        final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
-                        if (rootRelativePaths.isEmpty() || plingIdx == -1 || plingIdx == path.length() - 1) {
-                            // There is no package root for this jar, so the jar itself is the classpath element
-                            fileCached = innermostJar;
-                        } else {
-                            // Get section after last '!' (stripping any initial '/')
-                            String packageRoot = path.substring(plingIdx + 1);
-                            while (packageRoot.startsWith("/")) {
-                                packageRoot = packageRoot.substring(1);
-                            }
-                            // Check to see if last segment is listed in the set of root relative paths for the jar
-                            // -- if so, then this is the classpath base for this jarfile
-                            if (rootRelativePaths.contains(packageRoot)) {
-                                // Record the innermost jar and the package root 
+                if (!scanSpec.performScan) {
+                    final int firstPlingIdx = path.indexOf('!');
+                    // If only fetching classpath entries, don't extract nested jarfiles.
+                    // N.B. this will cause remote jars (at http(s) URLs) to be skipped from the list of classpath
+                    // entries when fetching only the classpath, since the FileUtils.canRead() test will fail below,
+                    // but this is a pretty obscure usecase.
+                    final String basePath = path.substring(0, firstPlingIdx);
+                    fileCached = new File(basePath);
+                    // Expect a file, not a dir
+                    // Use the section after the "!" as the package root (may contain multiple nested jars,
+                    // but for the purposes of obtaining the classpath, just report this as a classpath URL).
+                    jarfilePackageRoot = path.substring(firstPlingIdx + 1);
+                } else {
+                    try {
+                        // Fetch any remote jarfiles, recursively unzip any nested jarfiles, and remove ZipSFX header
+                        // from jarfiles that don't start with "PK". In each case a temporary file will be created.
+                        // Throws IOException if anything goes wrong.
+                        final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
+                                nestedJarHandler.getInnermostNestedJar(path, log);
+                        if (innermostJarAndRootRelativePaths != null) {
+                            final File innermostJar = innermostJarAndRootRelativePaths.getKey();
+                            final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
+                            if (rootRelativePaths.isEmpty() || lastPlingIdx == -1
+                                    || lastPlingIdx == path.length() - 1) {
+                                // There is no package root for this jar, so the jar itself is the classpath element
                                 fileCached = innermostJar;
-                                jarfilePackageRoot = packageRoot;
                             } else {
-                                if (log != null) {
-                                    log.log("Zipfile suffix is not a valid package root: !" + packageRoot);
+                                // Get section after last '!' (stripping any initial '/')
+                                final String packageRoot = path.substring(lastPlingIdx + 1);
+                                // Check to see if last segment is listed in the set of root relative paths for
+                                // the jar -- if so, then this is the classpath base for this jarfile
+                                if (rootRelativePaths.contains(packageRoot)) {
+                                    // Record the innermost jar and the package root 
+                                    fileCached = innermostJar;
+                                    jarfilePackageRoot = packageRoot;
+                                } else {
+                                    if (log != null) {
+                                        log.log("Zipfile suffix is not a valid package root: !" + packageRoot);
+                                    }
+                                    // Fall back to ignoring the package root 
+                                    fileCached = innermostJar;
                                 }
-                                // Fall back to ignoring the package root 
-                                fileCached = innermostJar;
                             }
                         }
+                    } catch (final Exception e) {
+                        throw new IOException("Exception while locating jarfile " + relativePath, e);
                     }
-                } catch (final Exception e) {
-                    throw new IOException("Exception while locating jarfile " + relativePath, e);
                 }
             }
+            while (jarfilePackageRoot.startsWith("/")) {
+                jarfilePackageRoot = jarfilePackageRoot.substring(1);
+            }
+
             if (fileCached == null || !FileUtils.canRead(fileCached)) {
-                throw new IOException("Could not locate jarfile " + relativePath
+                throw new IOException("Could not locate file " + (fileCached == null ? relativePath : fileCached)
                         + (relativePath.equals(path) ? "" : " -- resolved to: " + path));
+            }
+
+            isFileCached = fileCached.isFile();
+            isFileIsCached = true;
+
+            if (lastPlingIdx > 0 && !isFileCached) {
+                throw new IOException("Expected a jarfile, but found a directory: " + path);
             }
 
             try {
@@ -313,6 +336,7 @@ public class ClasspathOrModulePathEntry {
             fileIsCached = true;
         }
         return fileCached;
+
     }
 
     /**

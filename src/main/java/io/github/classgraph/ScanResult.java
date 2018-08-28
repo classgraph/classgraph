@@ -248,9 +248,13 @@ public class ScanResult implements Closeable, AutoCloseable {
                 }
             } else {
                 try {
-                    classpathElementOrderURLs.add(classpathElement.getClasspathElementFile(log).toURI().toURL());
+                    final String baseURLStr = classpathElement.getClasspathElementFile(log).toURI().toURL()
+                            .toString()
+                            + (classpathElement.getJarfilePackageRoot().isEmpty() ? ""
+                                    : "!" + classpathElement.getJarfilePackageRoot());
+                    classpathElementOrderURLs.add(new URL(baseURLStr));
                 } catch (final MalformedURLException e) {
-                    // Shouldn't happen
+                    // Skip
                 }
             }
         }
@@ -745,15 +749,7 @@ public class ScanResult implements Closeable, AutoCloseable {
             if (returnNullIfClassNotFound) {
                 return null;
             } else {
-                if (log != null) {
-                    log.log("Exception while trying to load class " + className + " : " + e);
-                }
                 throw new IllegalArgumentException("Could not load class " + className + " : " + e);
-            }
-        } finally {
-            // Manually flush log, since this method is called after scanning is complete
-            if (log != null) {
-                log.flush();
             }
         }
     }
@@ -812,15 +808,7 @@ public class ScanResult implements Closeable, AutoCloseable {
             if (returnNullIfClassNotFound) {
                 return null;
             } else {
-                if (log != null) {
-                    log.log("Exception while trying to load class " + className + " : " + e);
-                }
                 throw new IllegalArgumentException("Could not load class " + className + " : " + e);
-            }
-        } finally {
-            // Manually flush log, since this method is called after scanning is complete
-            if (log != null) {
-                log.flush();
             }
         }
     }
@@ -971,14 +959,7 @@ public class ScanResult implements Closeable, AutoCloseable {
                 fileToLastModified.clear();
             }
             classGraphClassLoader = null;
-            if (!nonClosedWeakReferences.remove(weakReference)) {
-                if (log != null) {
-                    log.log("Could not find WeakReference for ScanResult");
-                }
-            }
-            if (log != null) {
-                log.flush();
-            }
+            nonClosedWeakReferences.remove(weakReference);
         }
     }
 
