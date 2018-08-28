@@ -83,6 +83,17 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
+        // If class came from a module, and it was not able to be loaded by the environment classloader,
+        // then it is possible it was a non-public class, and ClassGraph found it by ignoring class visibility
+        // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
+        // encapsulation rules by refusing to load modular classes that the context/system classloaders
+        // could not load.
+        if (classInfo.classpathElementFile == null && !classInfo.isPublic()) {
+            throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
+                    + "but the context and system classloaders could not load the class, probably because "
+                    + "the class is not public.");
+        }
+
         // Try obtaining the classfile as a resource, and defining the class from the resource content
         final ResourceList classfileResources = scanResult
                 .getResourcesWithPath(className.replace('.', '/') + ".class");
