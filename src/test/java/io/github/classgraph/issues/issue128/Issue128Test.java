@@ -42,10 +42,10 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 public class Issue128Test {
-    private static final String SITE = "https://github.com/lukehutch";
+    private static final String SITE = "https://github.com/classgraph";
 
     private static final String JAR_URL = SITE + //
-            "/fast-classpath-scanner/blob/master/src/test/resources/nested-jars-level1.zip?raw=true";
+            "/classgraph/blob/master/src/test/resources/nested-jars-level1.zip?raw=true";
 
     private static final String NESTED_JAR_URL = //
             JAR_URL + "!level2.jar!level3.jar!classpath1/classpath2";
