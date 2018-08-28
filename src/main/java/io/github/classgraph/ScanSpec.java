@@ -34,7 +34,6 @@ import java.util.List;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
-import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.WhiteBlackList;
 import io.github.classgraph.utils.WhiteBlackList.WhiteBlackListLeafname;
@@ -375,12 +374,6 @@ public class ScanSpec {
     /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
     boolean classIsBlacklisted(final String className) {
         return classWhiteBlackList.isBlacklisted(className) || packagePrefixWhiteBlackList.isBlacklisted(className);
-    }
-
-    /** Returns true if a jarfile is whitelisted and not blacklisted. */
-    boolean jarIsWhitelistedAndNotBlacklisted(final String jarName) {
-        final String jarLeafName = JarUtils.leafName(jarName);
-        return jarWhiteBlackList.isWhitelistedAndNotBlacklisted(jarLeafName);
     }
 
     // -------------------------------------------------------------------------------------------------------------

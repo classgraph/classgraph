@@ -353,7 +353,7 @@ class Scanner implements Callable<ScanResult> {
                                             preScanLog.log("Ignoring because jar scanning has been disabled: "
                                                     + rawClasspathEltPath);
                                         }
-                                    } else if (isFile && !scanSpec.jarIsWhitelistedAndNotBlacklisted(
+                                    } else if (isFile && !scanSpec.jarWhiteBlackList.isWhitelistedAndNotBlacklisted(
                                             rawClasspathEltPath.getCanonicalPath(preScanLog))) {
                                         if (preScanLog != null) {
                                             preScanLog
