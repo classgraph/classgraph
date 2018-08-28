@@ -100,15 +100,15 @@ class Scanner implements Callable<ScanResult> {
     /** A map from relative path to classpath element singleton. */
     private static class ClasspathOrModulePathEntryToClasspathElementMap
             extends SingletonMap<ClasspathOrModulePathEntry, ClasspathElement> {
-        private final boolean scanFiles;
+        private final boolean performScan;
         private final ScanSpec scanSpec;
         private final NestedJarHandler nestedJarHandler;
         private WorkQueue<ClasspathOrModulePathEntry> workQueue;
 
         /** A map from relative path to classpath element singleton. */
-        ClasspathOrModulePathEntryToClasspathElementMap(final boolean scanFiles, final ScanSpec scanSpec,
+        ClasspathOrModulePathEntryToClasspathElementMap(final boolean performScan, final ScanSpec scanSpec,
                 final NestedJarHandler nestedJarHandler) {
-            this.scanFiles = scanFiles;
+            this.performScan = performScan;
             this.scanSpec = scanSpec;
             this.nestedJarHandler = nestedJarHandler;
         }
@@ -125,7 +125,7 @@ class Scanner implements Callable<ScanResult> {
         /** Create a new classpath element singleton instance. */
         @Override
         public ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathElt, final LogNode log) {
-            return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
+            return ClasspathElement.newInstance(classpathElt, performScan, scanSpec, nestedJarHandler, workQueue,
                     log);
         }
     }
