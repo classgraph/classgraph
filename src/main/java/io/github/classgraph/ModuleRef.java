@@ -65,6 +65,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /** A file formed from the location URI. The file will not exist if the location URI is a jrt:/ URI. */
     private File locationFile;
 
+    /** The raw module version, or null if none. */
+    private String rawVersion;
+
     /** The ClassLoader that loads classes in the module. May be null, to represent the bootstrap classloader. */
     private final ClassLoader classLoader;
 
@@ -101,6 +104,12 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
         this.packages = new ArrayList<>(packages);
         Collections.sort(this.packages);
+        final Object optionalRawVersion = ReflectionUtils.invokeMethod(this.descriptor, "rawVersion",
+                /* throwException = */ true);
+        if (optionalRawVersion != null) {
+            this.rawVersion = (String) ReflectionUtils.invokeMethod(optionalRawVersion, "get",
+                    /* throwException = */ true);
+        }
         final Object moduleLocationOptional = ReflectionUtils.invokeMethod(moduleReference, "location",
                 /* throwException = */ true);
         if (moduleLocationOptional == null) {
@@ -190,6 +199,15 @@ public class ModuleRef implements Comparable<ModuleRef> {
             }
         }
         return locationFile;
+    }
+
+    /**
+     * Get the raw version string of the module, or null if the module did not provide one.
+     * 
+     * @return The raw version of the module, obtained by {@code ModuleReference#rawVersion().orElse(null)}.
+     */
+    public String rawVersion() {
+        return rawVersion;
     }
 
     /**
