@@ -1578,32 +1578,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (classpathElementURL == null) {
             try {
                 if (moduleRef != null) {
+                    // Classpath elt is a module
                     classpathElementURL = moduleRef.getLocation().toURL();
-                } else if (!jarfilePackageRoot.isEmpty()) {
-                    final File classpathEltFile = getClasspathElementFile();
-                    final boolean classpathEltIsJar = classpathEltFile.isFile();
-                    String classpathEltURL;
-                    try {
-                        classpathEltURL = classpathEltFile.toURI().toURL().toString();
-                    } catch (final MalformedURLException e) {
-                        // Should not happen
-                        throw new RuntimeException(e);
-                    }
-                    final String relativePathEncoded = URLPathEncoder.encodePath(jarfilePackageRoot);
-                    final String urlStr = classpathEltIsJar //
-                            ? "jar:" + classpathEltURL + "!" + relativePathEncoded
-                            : classpathEltURL + (!classpathEltURL.endsWith("/") ? "/" : "")
-                                    + (relativePathEncoded.startsWith("/") ? relativePathEncoded.substring(1)
-                                            : relativePathEncoded);
-                    try {
-                        classpathElementURL = new URL(urlStr);
-                    } catch (final MalformedURLException e) {
-                        // Should not happen
-                        throw new RuntimeException(e);
-                    }
-
+                } else if (classpathElementFile.isFile() && !jarfilePackageRoot.isEmpty()) {
+                    // Classpath elt is a jarfile with a non-empty package root
+                    classpathElementURL = new URL("jar:" + classpathElementFile.toURI().toURL().toString() + "!"
+                            + URLPathEncoder.encodePath(jarfilePackageRoot));
                 } else {
-                    classpathElementURL = getClasspathElementFile().toURI().toURL();
+                    // Classpath elt is a directory, or a jarfile with an empty package root
+                    classpathElementURL = classpathElementFile.toURI().toURL();
                 }
             } catch (final MalformedURLException e) {
                 // Shouldn't happen
@@ -1611,6 +1594,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
         return classpathElementURL;
+
     }
 
     /**
