@@ -74,7 +74,7 @@ abstract class ClasspathElement {
      * If true, recursively scan directores, and iterate through ZipEntries inside ZipFiles looking for whitelisted
      * file and classfile matches. If false, only find unique classpath elements.
      */
-    private final boolean scanFiles;
+    private final boolean performScan;
 
     /** The list of all classpath resources found within whitelisted paths within this classpath element. */
     protected List<Resource> fileMatches;
@@ -89,10 +89,10 @@ abstract class ClasspathElement {
 
     /** A classpath element (a directory or jarfile on the classpath). */
     ClasspathElement(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final boolean scanFiles) {
+            final boolean performScan) {
         this.classpathEltPath = classpathEltPath;
         this.scanSpec = scanSpec;
-        this.scanFiles = scanFiles;
+        this.performScan = performScan;
     }
 
     /** Return the classpath element's path. */
@@ -139,7 +139,7 @@ abstract class ClasspathElement {
      * singleton for jarfile classpath entries.
      */
     static ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathRelativePath,
-            final boolean scanFiles, final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
+            final boolean performScan, final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
             final WorkQueue<ClasspathOrModulePathEntry> workQueue, final LogNode log) {
         boolean isModule = false;
         boolean isDir = false;
@@ -180,9 +180,9 @@ abstract class ClasspathElement {
 
         // Dispatch to appropriate constructor
         final ClasspathElement newInstance = isModule
-                ? new ClasspathElementModule(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler, subLog)
-                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, scanFiles, subLog)
-                        : new ClasspathElementZip(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler,
+                ? new ClasspathElementModule(classpathRelativePath, scanSpec, performScan, nestedJarHandler, subLog)
+                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, performScan, subLog)
+                        : new ClasspathElementZip(classpathRelativePath, scanSpec, performScan, nestedJarHandler,
                                 workQueue, subLog);
         if (subLog != null) {
             subLog.addElapsedTime();
@@ -200,9 +200,9 @@ abstract class ClasspathElement {
      * earlier classpath element.
      */
     void maskFiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound, final LogNode log) {
-        if (!scanFiles) {
+        if (!performScan) {
             // Should not happen
-            throw new IllegalArgumentException("scanFiles is false");
+            throw new IllegalArgumentException("performScan is false");
         }
         // Take the union of classfile and file match relative paths, since matches can be in both lists if a user
         // adds a custom file path matcher that matches paths ending in ".class"

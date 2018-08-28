@@ -956,7 +956,7 @@ public class ClassGraph {
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
         executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                new Scanner(scanSpec, executorService, numParallelTasks, /* performScan = */ true,
                         scanResultProcessor, failureHandler, log));
     }
 
@@ -989,7 +989,7 @@ public class ClassGraph {
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         return executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                new Scanner(scanSpec, executorService, numParallelTasks, /* performScan = */ true,
                         /* scanResultProcessor = */ null, /* failureHandler = */ null, log));
     }
 
@@ -1017,7 +1017,7 @@ public class ClassGraph {
             // Start the scan and wait for completion
             final ScanResult scanResult = executorService.submit(
                     // Call MatchProcessors before returning if in async scanning mode
-                    new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                    new Scanner(scanSpec, executorService, numParallelTasks, /* performScan = */ true,
                             /* scanResultProcessor = */ null, /* failureHandler = */ null, log)) //
                     .get();
 
@@ -1108,7 +1108,7 @@ public class ClassGraph {
                     DEFAULT_NUM_WORKER_THREADS)) {
                 return executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                                /* performScan = */ false, /* scanResultProcessor = */ null,
                                 /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
                         .get().getClasspathFiles();
@@ -1161,7 +1161,7 @@ public class ClassGraph {
                     DEFAULT_NUM_WORKER_THREADS)) {
                 return executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                                /* performScan = */ false, /* scanResultProcessor = */ null,
                                 /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
                         .get().getClasspathURLs();
@@ -1195,7 +1195,7 @@ public class ClassGraph {
                     DEFAULT_NUM_WORKER_THREADS)) {
                 return executorService.submit( //
                         new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                                /* performScan = */ false, /* scanResultProcessor = */ null,
                                 /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
                         .get().getModules();
