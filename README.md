@@ -1,9 +1,10 @@
 # ClassGraph
 
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
+[![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-brightgreen.svg)](http://www.timqian.com/star-history/#classgraph/classgraph)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph)
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
-[![Gitter](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/classgraph/Lobby)
+[![Gitter](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg)](https://gitter.im/classgraph/Lobby)
 
 <img alt="ClassGraph Logo" width="320" height="320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png">
 
@@ -47,7 +48,7 @@ In particular, the Maven group id has changed from `io.github.lukehutch.fast-cla
 
 ## Author
 
-ClassGraph was written by Luke Hutchison, with contributions from a number of other people:
+ClassGraph was written by Luke Hutchison:
 
 * https://github.com/lukehutch
 * [@LH](http://twitter.com/LH) on Twitter
@@ -55,6 +56,10 @@ ClassGraph was written by Luke Hutchison, with contributions from a number of ot
 Please donate if this library makes your life easier:
 
 [![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=luke.hutch@gmail.com&lc=US&item_name=Luke%20Hutchison&item_number=ClassGraph&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHostedGuest)
+
+### Acknowledgments
+
+ClassGraph would not be possible without contributions from numerous users, including in the form of bug reports, feature requests, code contributions, and assistance with testing.
 
 ### Alternatives
 
