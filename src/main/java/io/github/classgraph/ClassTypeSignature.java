@@ -206,14 +206,14 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Render into String form.
      * 
+     * @param className
+     *            The class name
      * @param modifiers
      *            The class modifiers.
      * @param isAnnotation
      *            True if the class is an annotation.
      * @param isInterface
      *            True if the class is an interface.
-     * @param className
-     *            The class name
      * @return The String representation.
      */
     String toString(final String className, final int modifiers, final boolean isAnnotation,
@@ -221,19 +221,6 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         final StringBuilder buf = new StringBuilder();
         if (modifiers != 0) {
             TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
-        }
-        if (!typeParameters.isEmpty()) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append('<');
-            for (int i = 0; i < typeParameters.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                buf.append(typeParameters.get(i).toString());
-            }
-            buf.append('>');
         }
         if (buf.length() > 0) {
             buf.append(' ');
@@ -243,6 +230,16 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         if (className != null) {
             buf.append(' ');
             buf.append(className);
+        }
+        if (!typeParameters.isEmpty()) {
+            buf.append('<');
+            for (int i = 0; i < typeParameters.size(); i++) {
+                if (i > 0) {
+                    buf.append(", ");
+                }
+                buf.append(typeParameters.get(i).toString());
+            }
+            buf.append('>');
         }
         if (superclassSignature != null) {
             final String superSig = superclassSignature.toString();

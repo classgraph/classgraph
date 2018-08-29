@@ -1795,21 +1795,33 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return name != null ? name.hashCode() : 33;
     }
 
-    @Override
-    public String toString() {
+    private String toString(final boolean includeModifiers) {
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
-            return typeSig.toString();
+            // Generic classes
+            return typeSig.toString(getName(), includeModifiers ? getModifiers() : 0, isAnnotation, isInterface);
         } else {
+            // Non-generic classes
             final StringBuilder buf = new StringBuilder();
-            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
-            if (buf.length() > 0) {
-                buf.append(' ');
+            if (includeModifiers) {
+                TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
+                if (buf.length() > 0) {
+                    buf.append(' ');
+                }
+                buf.append(isAnnotation ? "@interface "
+                        : isInterface ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
             }
-            buf.append(isAnnotation ? "@interface "
-                    : isInterface ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
             buf.append(name);
+            final ClassInfo superclass = getSuperclass();
+            if (superclass != null) {
+                buf.append(" extends " + superclass.toString(/* includeModifiers = */ false));
+            }
             return buf.toString();
         }
+    }
+
+    @Override
+    public String toString() {
+        return toString(true);
     }
 }
