@@ -32,7 +32,6 @@ import java.lang.reflect.Modifier;
 import java.util.Set;
 
 import io.github.classgraph.utils.Parser.ParseException;
-import io.github.classgraph.utils.TypeUtils;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
@@ -119,13 +118,67 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return getClassInfo();
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Convert modifiers into a string representation, e.g. "public static final".
+     * 
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param buf
+     *            The buffer to write the result into.
+     */
+    static void modifiersToString(final int modifiers, final StringBuilder buf) {
+        if ((modifiers & Modifier.PUBLIC) != 0) {
+            buf.append("public");
+        } else if ((modifiers & Modifier.PRIVATE) != 0) {
+            buf.append("private");
+        } else if ((modifiers & Modifier.PROTECTED) != 0) {
+            buf.append("protected");
+        }
+        if ((modifiers & Modifier.STATIC) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("static");
+        }
+        if ((modifiers & Modifier.FINAL) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("final");
+        }
+        if ((modifiers & Modifier.VOLATILE) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("volatile");
+        }
+        if ((modifiers & Modifier.TRANSIENT) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("transient");
+        }
+        if ((modifiers & 0x1000) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("synthetic");
+        }
+        // Ignored:
+        // "ACC_ENUM (0x4000) Declared as an element of an enum."
+    }
+
     /**
      * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
      * 
      * @return The field modifiers, as a string.
      */
     public String getModifierStr() {
-        return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
+        final StringBuilder buf = new StringBuilder();
+        modifiersToString(modifiers, buf);
+        return buf.toString();
     }
 
     /**
@@ -355,7 +408,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
+            modifiersToString(modifiers, buf);
         }
 
         if (buf.length() > 0) {

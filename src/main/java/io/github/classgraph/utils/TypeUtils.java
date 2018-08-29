@@ -28,8 +28,6 @@
  */
 package io.github.classgraph.utils;
 
-import java.lang.reflect.Modifier;
-
 import io.github.classgraph.utils.Parser.ParseException;
 
 /**
@@ -38,111 +36,6 @@ import io.github.classgraph.utils.Parser.ParseException;
  * @author lukehutch
  */
 public class TypeUtils {
-    /** The modifier bit for synthetic parameters. */
-    public static final int MODIFIER_SYNTHETIC = 0x1000;
-
-    /** The modifier bit for mandated parameters. */
-    public static final int MODIFIER_MANDATED = 0x8000;
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Convert modifiers into a string representation, e.g. "public static final".
-     * 
-     * @param modifiers
-     *            The field, method or class modifiers.
-     * @param isMethod
-     *            True if this is a method, false if this is a field or class.
-     * @return The modifiers, as a string.
-     */
-    public static String modifiersToString(final int modifiers, final boolean isMethod) {
-        final StringBuilder buf = new StringBuilder();
-        modifiersToString(modifiers, isMethod, buf);
-        return buf.toString();
-    }
-
-    /**
-     * Convert modifiers into a string representation, e.g. "public static final".
-     * 
-     * @param modifiers
-     *            The field or method modifiers.
-     * @param isMethod
-     *            True if this is a method, false if this is a field or class.
-     * @param buf
-     *            The buffer to write the result into.
-     */
-    public static void modifiersToString(final int modifiers, final boolean isMethod, final StringBuilder buf) {
-        if ((modifiers & Modifier.PUBLIC) != 0) {
-            buf.append("public");
-        } else if ((modifiers & Modifier.PROTECTED) != 0) {
-            buf.append("protected");
-        } else if ((modifiers & Modifier.PRIVATE) != 0) {
-            buf.append("private");
-        }
-        if ((modifiers & Modifier.ABSTRACT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("abstract");
-        }
-        if ((modifiers & Modifier.STATIC) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("static");
-        }
-        if ((modifiers & Modifier.FINAL) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("final");
-        }
-        if (!isMethod && (modifiers & Modifier.TRANSIENT) != 0) {
-            // TRANSIENT has the same value as VARARGS, since they are mutually exclusive (TRANSIENT applies only to
-            // fields, VARARGS applies only to methods)
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("transient");
-        } else if ((modifiers & Modifier.VOLATILE) != 0) {
-            // VOLATILE has the same value as BRIDGE, since they are mutually exclusive (VOLATILE applies only to
-            // fields, BRIDGE applies only to methods)
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            if (!isMethod) {
-                buf.append("volatile");
-            } else {
-                buf.append("bridge");
-            }
-        }
-        if (!isMethod && ((modifiers & MODIFIER_SYNTHETIC) != 0)) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            // For a synthetic class (synthetic method parameters have the synthetic keyword added manually) 
-            buf.append("synthetic");
-        }
-        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synchronized");
-        }
-        if ((modifiers & Modifier.NATIVE) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("native");
-        }
-        if ((modifiers & Modifier.STRICT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("strictfp");
-        }
-    }
-
     /**
      * Parse a Java identifier with the given separator ('.' or '/'). Potentially replaces the separator with a
      * different character. Appends the identifier to the token buffer in the parser.

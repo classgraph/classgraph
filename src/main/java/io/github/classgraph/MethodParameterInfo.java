@@ -30,8 +30,6 @@ package io.github.classgraph;
 
 import java.lang.reflect.Modifier;
 
-import io.github.classgraph.utils.TypeUtils;
-
 /**
  * Information on the parameters of a method.
  * 
@@ -97,7 +95,9 @@ public class MethodParameterInfo {
      * @return The modifiers for the method parameter, as a String.
      */
     public String getModifiersStr() {
-        return TypeUtils.modifiersToString(getModifiers(), /* isMethod = */ true);
+        final StringBuilder buf = new StringBuilder();
+        modifiersToString(modifiers, buf);
+        return buf.toString();
     }
 
     /**
@@ -167,6 +167,26 @@ public class MethodParameterInfo {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Convert modifiers into a string representation, e.g. "public static final".
+     * 
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param buf
+     *            The buffer to write the result into.
+     */
+    static void modifiersToString(final int modifiers, final StringBuilder buf) {
+        if ((modifiers & Modifier.FINAL) != 0) {
+            buf.append("final ");
+        }
+        if ((modifiers & 0x1000) != 0) {
+            buf.append("synthetic ");
+        }
+        if ((modifiers & 0x8000) != 0) {
+            buf.append("mandated ");
+        }
+    }
+
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
@@ -178,16 +198,7 @@ public class MethodParameterInfo {
             }
         }
 
-        final int flag = getModifiers();
-        if ((flag & Modifier.FINAL) != 0) {
-            buf.append("final ");
-        }
-        if ((flag & TypeUtils.MODIFIER_SYNTHETIC) != 0) {
-            buf.append("synthetic ");
-        }
-        if ((flag & TypeUtils.MODIFIER_MANDATED) != 0) {
-            buf.append("mandated ");
-        }
+        modifiersToString(modifiers, buf);
 
         buf.append(getTypeSignatureOrTypeDescriptor().toString());
 

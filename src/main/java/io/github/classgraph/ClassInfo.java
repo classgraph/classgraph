@@ -50,7 +50,6 @@ import io.github.classgraph.json.Id;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.Parser.ParseException;
-import io.github.classgraph.utils.TypeUtils;
 import io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */
@@ -751,7 +750,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         {@link #getModifiers()}.
      */
     public String getModifiersStr() {
-        return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
+        final StringBuilder buf = new StringBuilder();
+        ClassTypeSignature.modifiersToString(modifiers, buf);
+        return buf.toString();
     }
 
     /**
@@ -1804,7 +1805,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Non-generic classes
             final StringBuilder buf = new StringBuilder();
             if (includeModifiers) {
-                TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
+                ClassTypeSignature.modifiersToString(modifiers, buf);
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
@@ -1813,8 +1814,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
             buf.append(name);
             final ClassInfo superclass = getSuperclass();
-            if (superclass != null) {
+            if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
                 buf.append(" extends " + superclass.toString(/* includeModifiers = */ false));
+            }
+            final ClassInfoList interfaces = getInterfaces();
+            if (!interfaces.isEmpty()) {
+                buf.append(isInterface ? " extends" : " implements");
+                for (int i = 0; i < interfaces.size(); i++) {
+                    if (i > 0) {
+                        buf.append(',');
+                    }
+                    buf.append(' ');
+                    buf.append(interfaces.get(i).toString(/* includeModifiers = */ false));
+                }
             }
             return buf.toString();
         }

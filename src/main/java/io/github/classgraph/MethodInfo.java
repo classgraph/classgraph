@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.utils.Parser.ParseException;
-import io.github.classgraph.utils.TypeUtils;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
@@ -161,7 +160,9 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * @return The modifiers for the method, as a String.
      */
     public String getModifiersStr() {
-        return TypeUtils.modifiersToString(getModifiers(), /* isMethod = */ true);
+        final StringBuilder buf = new StringBuilder();
+        modifiersToString(modifiers, buf);
+        return buf.toString();
     }
 
     /**
@@ -290,7 +291,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * @return True if this is a bridge method.
      */
     public boolean isBridge() {
-        // From: http://anonsvn.jboss.org/repos/javassist/trunk/src/main/javassist/bytecode/AccessFlag.java
         return (modifiers & 0x0040) != 0;
     }
 
@@ -300,7 +300,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * @return True if this is a varargs method.
      */
     public boolean isVarArgs() {
-        // From: http://anonsvn.jboss.org/repos/javassist/trunk/src/main/javassist/bytecode/AccessFlag.java
         return (modifiers & 0x0080) != 0;
     }
 
@@ -550,6 +549,76 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         return typeDescriptorStr.compareTo(other.typeDescriptorStr);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Convert modifiers into a string representation, e.g. "public static final".
+     * 
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param buf
+     *            The buffer to write the result into.
+     */
+    static void modifiersToString(final int modifiers, final StringBuilder buf) {
+        if ((modifiers & Modifier.PUBLIC) != 0) {
+            buf.append("public");
+        } else if ((modifiers & Modifier.PRIVATE) != 0) {
+            buf.append("private");
+        } else if ((modifiers & Modifier.PROTECTED) != 0) {
+            buf.append("protected");
+        }
+        if ((modifiers & Modifier.ABSTRACT) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("abstract");
+        }
+        if ((modifiers & Modifier.STATIC) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("static");
+        }
+        if ((modifiers & Modifier.FINAL) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("final");
+        }
+        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("synchronized");
+        }
+        if ((modifiers & 0x1000) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("synthetic");
+        }
+        if ((modifiers & 0x40) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("bridge");
+        }
+        if ((modifiers & Modifier.NATIVE) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("native");
+        }
+        if ((modifiers & Modifier.STRICT) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("strictfp");
+        }
+        // Ignored: 
+        // "ACC_VARARGS (0x0080) Declared with variable number of arguments."
+    }
+
     /**
      * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
      * static class initializer blocks are named {@code "<clinit>"}.
@@ -573,7 +642,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            TypeUtils.modifiersToString(modifiers, /* isMethod = */ true, buf);
+            modifiersToString(modifiers, buf);
         }
 
         final List<TypeParameter> typeParameters = methodType.getTypeParameters();
@@ -630,20 +699,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 }
             }
 
-            final int flag = paramInfo.getModifiers();
-            if ((flag & Modifier.FINAL) != 0) {
-                buf.append("final ");
-            }
-            if ((flag & TypeUtils.MODIFIER_SYNTHETIC) != 0) {
-                buf.append("synthetic ");
-            }
-            if ((flag & TypeUtils.MODIFIER_MANDATED) != 0) {
-                buf.append("mandated ");
-            }
+            MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
             final TypeSignature paramType = paramInfo.getTypeSignatureOrTypeDescriptor();
             if (isVarArgs() && i == numParams - 1) {
-                // Show varargs params correctly
+                // Show varargs params correctly -- replace last "[]" with "..."
                 if (!(paramType instanceof ArrayTypeSignature)) {
                     throw new IllegalArgumentException(
                             "Got non-array type for last parameter of varargs method " + name);
@@ -653,7 +713,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     throw new IllegalArgumentException(
                             "Got a zero-dimension array type for last parameter of varargs method " + name);
                 }
-                // Replace last "[]" with "..."
                 buf.append(new ArrayTypeSignature(arrayType.getElementTypeSignature(),
                         arrayType.getNumDimensions() - 1).toString());
                 buf.append("...");

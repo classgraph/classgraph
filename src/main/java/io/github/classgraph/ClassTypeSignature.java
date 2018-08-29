@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,7 +36,6 @@ import java.util.Set;
 
 import io.github.classgraph.utils.Parser;
 import io.github.classgraph.utils.Parser.ParseException;
-import io.github.classgraph.utils.TypeUtils;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
@@ -203,6 +203,70 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
                 && o.superinterfaceSignatures.equals(this.superinterfaceSignatures);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Convert modifiers into a string representation, e.g. "public static final".
+     * 
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param buf
+     *            The buffer to write the result into.
+     */
+    static void modifiersToString(final int modifiers, final StringBuilder buf) {
+        if ((modifiers & Modifier.PUBLIC) != 0) {
+            buf.append("public");
+        } else if ((modifiers & Modifier.PRIVATE) != 0) {
+            buf.append("private");
+        } else if ((modifiers & Modifier.PROTECTED) != 0) {
+            buf.append("protected");
+        }
+        if ((modifiers & Modifier.ABSTRACT) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("abstract");
+        }
+        if ((modifiers & Modifier.STATIC) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("static");
+        }
+        if ((modifiers & Modifier.FINAL) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("final");
+        }
+        if ((modifiers & 0x40) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("bridge");
+        }
+        if ((modifiers & 0x1000) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("synthetic");
+        }
+        if ((modifiers & Modifier.NATIVE) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("native");
+        }
+        if ((modifiers & Modifier.STRICT) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("strictfp");
+        }
+        // Ignored:
+        // "ACC_SUPER (0x0020): Treat superclass methods specially when invoked by the invokespecial instruction."
+    }
+
     /**
      * Render into String form.
      * 
@@ -220,7 +284,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             final boolean isInterface) {
         final StringBuilder buf = new StringBuilder();
         if (modifiers != 0) {
-            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
+            modifiersToString(modifiers, buf);
         }
         if (buf.length() > 0) {
             buf.append(' ');
@@ -249,7 +313,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             }
         }
         if (!superinterfaceSignatures.isEmpty()) {
-            buf.append(" implements");
+            buf.append(isInterface ? " extends" : " implements");
             for (int i = 0; i < superinterfaceSignatures.size(); i++) {
                 if (i > 0) {
                     buf.append(',');
