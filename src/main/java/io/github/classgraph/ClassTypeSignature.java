@@ -272,6 +272,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * 
      * @param className
      *            The class name
+     * @param typeNameOnly
+     *            If true, only return the type name (and generic type parameters).
      * @param modifiers
      *            The class modifiers.
      * @param isAnnotation
@@ -280,17 +282,19 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      *            True if the class is an interface.
      * @return The String representation.
      */
-    String toString(final String className, final int modifiers, final boolean isAnnotation,
-            final boolean isInterface) {
+    String toString(final String className, final boolean typeNameOnly, final int modifiers,
+            final boolean isAnnotation, final boolean isInterface) {
         final StringBuilder buf = new StringBuilder();
-        if (modifiers != 0) {
-            modifiersToString(modifiers, buf);
+        if (!typeNameOnly) {
+            if (modifiers != 0) {
+                modifiersToString(modifiers, buf);
+            }
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append(isAnnotation ? "@interface"
+                    : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
         }
-        if (buf.length() > 0) {
-            buf.append(' ');
-        }
-        buf.append(isAnnotation ? "@interface"
-                : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
         if (className != null) {
             buf.append(' ');
             buf.append(className);
@@ -305,21 +309,22 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             }
             buf.append('>');
         }
-        if (superclassSignature != null) {
-            final String superSig = superclassSignature.toString();
-            if (!superSig.equals("java.lang.Object")) {
-                buf.append(" extends ");
-                buf.append(superSig);
-            }
-        }
-        if (!superinterfaceSignatures.isEmpty()) {
-            buf.append(isInterface ? " extends" : " implements");
-            for (int i = 0; i < superinterfaceSignatures.size(); i++) {
-                if (i > 0) {
-                    buf.append(',');
+        if (!typeNameOnly) {
+            if (superclassSignature != null) {
+                final String superSig = superclassSignature.toString();
+                if (!superSig.equals("java.lang.Object")) {
+                    buf.append(" extends ");
+                    buf.append(superSig);
                 }
-                buf.append(' ');
-                buf.append(superinterfaceSignatures.get(i).toString());
+            }
+            if (!superinterfaceSignatures.isEmpty()) {
+                buf.append(isInterface ? " extends" : " implements");
+                for (int i = 0; i < superinterfaceSignatures.size(); i++) {
+                    if (i > 0) {
+                        buf.append(", ");
+                    }
+                    buf.append(superinterfaceSignatures.get(i).toString());
+                }
             }
         }
         return buf.toString();
@@ -327,7 +332,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     @Override
     public String toString() {
-        return toString(classInfo.getName(), classInfo.getModifiers(), classInfo.isAnnotation(),
-                classInfo.isInterface());
+        return toString(classInfo.getName(), /* typeNameOnly = */ false, classInfo.getModifiers(),
+                classInfo.isAnnotation(), classInfo.isInterface());
     }
 }

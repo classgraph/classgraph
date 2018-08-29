@@ -1796,36 +1796,37 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return name != null ? name.hashCode() : 33;
     }
 
-    private String toString(final boolean includeModifiers) {
+    private String toString(final boolean typeNameOnly) {
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
             // Generic classes
-            return typeSig.toString(getName(), includeModifiers ? getModifiers() : 0, isAnnotation, isInterface);
+            return typeSig.toString(getName(), typeNameOnly, getModifiers(), isAnnotation, isInterface);
         } else {
             // Non-generic classes
             final StringBuilder buf = new StringBuilder();
-            if (includeModifiers) {
+            if (typeNameOnly) {
+                buf.append(name);
+            } else {
                 ClassTypeSignature.modifiersToString(modifiers, buf);
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
                 buf.append(isAnnotation ? "@interface "
                         : isInterface ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
-            }
-            buf.append(name);
-            final ClassInfo superclass = getSuperclass();
-            if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
-                buf.append(" extends " + superclass.toString(/* includeModifiers = */ false));
-            }
-            final ClassInfoList interfaces = getInterfaces();
-            if (!interfaces.isEmpty()) {
-                buf.append(isInterface ? " extends" : " implements");
-                for (int i = 0; i < interfaces.size(); i++) {
-                    if (i > 0) {
-                        buf.append(',');
+                buf.append(name);
+                final ClassInfo superclass = getSuperclass();
+                if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
+                    buf.append(" extends " + superclass.toString(/* typeNameOnly = */ true));
+                }
+                final ClassInfoList interfaces = getInterfaces();
+                if (!interfaces.isEmpty()) {
+                    buf.append(isInterface ? " extends" : " implements");
+                    for (int i = 0; i < interfaces.size(); i++) {
+                        if (i > 0) {
+                            buf.append(", ");
+                        }
+                        buf.append(interfaces.get(i).toString(/* typeNameOnly = */ true));
                     }
-                    buf.append(' ');
-                    buf.append(interfaces.get(i).toString(/* includeModifiers = */ false));
                 }
             }
             return buf.toString();
@@ -1834,6 +1835,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     @Override
     public String toString() {
-        return toString(true);
+        return toString(false);
     }
 }
