@@ -1800,7 +1800,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
             // Generic classes
-            return typeSig.toString(getName(), typeNameOnly, getModifiers(), isAnnotation, isInterface);
+            return typeSig.toString(name, typeNameOnly, modifiers, isAnnotation, isInterface);
         } else {
             // Non-generic classes
             final StringBuilder buf = new StringBuilder();
@@ -1820,7 +1820,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
                 final ClassInfoList interfaces = getInterfaces();
                 if (!interfaces.isEmpty()) {
-                    buf.append(isInterface ? " extends" : " implements");
+                    buf.append(isInterface ? " extends " : " implements ");
                     for (int i = 0; i < interfaces.size(); i++) {
                         if (i > 0) {
                             buf.append(", ");

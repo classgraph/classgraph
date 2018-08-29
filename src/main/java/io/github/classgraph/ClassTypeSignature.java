@@ -294,9 +294,9 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             }
             buf.append(isAnnotation ? "@interface"
                     : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
+            buf.append(' ');
         }
         if (className != null) {
-            buf.append(' ');
             buf.append(className);
         }
         if (!typeParameters.isEmpty()) {
@@ -318,7 +318,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
                 }
             }
             if (!superinterfaceSignatures.isEmpty()) {
-                buf.append(isInterface ? " extends" : " implements");
+                buf.append(isInterface ? " extends " : " implements ");
                 for (int i = 0; i < superinterfaceSignatures.size(); i++) {
                     if (i > 0) {
                         buf.append(", ");
