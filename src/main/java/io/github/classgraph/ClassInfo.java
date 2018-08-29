@@ -1818,14 +1818,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
                     buf.append(" extends " + superclass.toString(/* typeNameOnly = */ true));
                 }
-                final ClassInfoList interfaces = getInterfaces();
+                final Set<ClassInfo> interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
+                        /* strictWhitelist = */ false).directlyRelatedClasses;
                 if (!interfaces.isEmpty()) {
                     buf.append(isInterface ? " extends " : " implements ");
-                    for (int i = 0; i < interfaces.size(); i++) {
-                        if (i > 0) {
+                    boolean first = true;
+                    for (final ClassInfo iface : interfaces) {
+                        if (first) {
+                            first = false;
+                        } else {
                             buf.append(", ");
                         }
-                        buf.append(interfaces.get(i).toString(/* typeNameOnly = */ true));
+                        buf.append(iface.toString(/* typeNameOnly = */ true));
                     }
                 }
             }
