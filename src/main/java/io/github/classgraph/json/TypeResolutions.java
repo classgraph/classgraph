@@ -35,7 +35,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 
-/** A list of element type TypeVariableToResolvedType. */
+/** A mapping from {@link TypeVariable} to resolved {@link Type}. */
 class TypeResolutions {
     private final TypeVariable<?>[] typeVariables;
     Type[] resolvedTypeArguments;
