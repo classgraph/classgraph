@@ -312,7 +312,6 @@ public class ClasspathOrModulePathEntry {
             fileIsCached = true;
         }
         return fileCached;
-
     }
 
     /**
