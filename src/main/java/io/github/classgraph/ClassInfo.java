@@ -39,7 +39,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -229,7 +228,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
         Set<ClassInfo> classInfoSet = relatedClasses.get(relType);
         if (classInfoSet == null) {
-            relatedClasses.put(relType, classInfoSet = new HashSet<>(4));
+            relatedClasses.put(relType, classInfoSet = new LinkedHashSet<>(4));
         }
         return classInfoSet.add(classInfo);
     }
@@ -635,7 +634,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final ClassInfo classInfo : reachableClasses) {
             if (classInfo.getName().startsWith("java.lang.annotation.")) {
                 if (javaLangAnnotationRelatedClasses == null) {
-                    javaLangAnnotationRelatedClasses = new HashSet<>();
+                    javaLangAnnotationRelatedClasses = new LinkedHashSet<>();
                 }
                 javaLangAnnotationRelatedClasses.add(classInfo);
             }
@@ -646,7 +645,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             for (final ClassInfo classInfo : directlyRelatedClasses) {
                 if (classInfo.getName().startsWith("java.lang.annotation.")) {
                     if (javaLangAnnotationDirectlyRelatedClasses == null) {
-                        javaLangAnnotationDirectlyRelatedClasses = new HashSet<>();
+                        javaLangAnnotationDirectlyRelatedClasses = new LinkedHashSet<>();
                     }
                     javaLangAnnotationDirectlyRelatedClasses.add(classInfo);
                 }
@@ -1031,7 +1030,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Classes also implement the interfaces of their superclasses
         final ReachableAndDirectlyRelatedClasses implementedInterfaces = this
                 .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictWhitelist = */ false);
-        final Set<ClassInfo> allInterfaces = new HashSet<>(implementedInterfaces.reachableClasses);
+        final Set<ClassInfo> allInterfaces = new LinkedHashSet<>(implementedInterfaces.reachableClasses);
         for (final ClassInfo superclass : this.filterClassInfo(RelType.SUPERCLASSES,
                 /* strictWhitelist = */ false).reachableClasses) {
             final Set<ClassInfo> superclassImplementedInterfaces = superclass.filterClassInfo(
@@ -1053,7 +1052,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Subclasses of implementing classes also implement the interface
         final ReachableAndDirectlyRelatedClasses implementingClasses = this
                 .filterClassInfo(RelType.CLASSES_IMPLEMENTING, /* strictWhitelist = */ true);
-        final Set<ClassInfo> allImplementingClasses = new HashSet<>(implementingClasses.reachableClasses);
+        final Set<ClassInfo> allImplementingClasses = new LinkedHashSet<>(implementingClasses.reachableClasses);
         for (final ClassInfo implementingClass : implementingClasses.reachableClasses) {
             final Set<ClassInfo> implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES,
                     /* strictWhitelist = */ true).reachableClasses;
@@ -1098,7 +1097,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     if (isInherited) {
                         // inheritedSuperclassAnnotations is an inherited annotation
                         if (inheritedSuperclassAnnotations == null) {
-                            inheritedSuperclassAnnotations = new HashSet<>();
+                            inheritedSuperclassAnnotations = new LinkedHashSet<>();
                         }
                         inheritedSuperclassAnnotations.add(superclassAnnotationClass);
                     }
@@ -1192,7 +1191,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
         if (isInherited) {
             // If this is an inherited annotation, add into the result all subclasses of the annotated classes. 
-            final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new HashSet<>(
+            final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new LinkedHashSet<>(
                     classesWithAnnotation.reachableClasses);
             for (final ClassInfo classWithAnnotation : classesWithAnnotation.reachableClasses) {
                 classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
@@ -1378,7 +1377,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         final ReachableAndDirectlyRelatedClasses methodAnnotations = this
                 .filterClassInfo(RelType.METHOD_ANNOTATIONS, /* strictWhitelist = */ false, ClassType.ANNOTATION);
-        final Set<ClassInfo> methodAnnotationsAndMetaAnnotations = new HashSet<>(
+        final Set<ClassInfo> methodAnnotationsAndMetaAnnotations = new LinkedHashSet<>(
                 methodAnnotations.reachableClasses);
         for (final ClassInfo methodAnnotation : methodAnnotations.reachableClasses) {
             methodAnnotationsAndMetaAnnotations.addAll(methodAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS,
@@ -1407,7 +1406,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else {
             // Take the union of all classes with methods directly annotated by this annotation,
             // and classes with methods meta-annotated by this annotation
-            final Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedMethods = new HashSet<>(
+            final Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedMethods = new LinkedHashSet<>(
                     classesWithDirectlyAnnotatedMethods.reachableClasses);
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses) {
                 allClassesWithAnnotatedOrMetaAnnotatedMethods
@@ -1502,7 +1501,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         final ReachableAndDirectlyRelatedClasses fieldAnnotations = this.filterClassInfo(RelType.FIELD_ANNOTATIONS,
                 /* strictWhitelist = */ false, ClassType.ANNOTATION);
-        final Set<ClassInfo> fieldAnnotationsAndMetaAnnotations = new HashSet<>(fieldAnnotations.reachableClasses);
+        final Set<ClassInfo> fieldAnnotationsAndMetaAnnotations = new LinkedHashSet<>(
+                fieldAnnotations.reachableClasses);
         for (final ClassInfo fieldAnnotation : fieldAnnotations.reachableClasses) {
             fieldAnnotationsAndMetaAnnotations.addAll(fieldAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                     /* strictWhitelist = */ false).reachableClasses);
@@ -1530,7 +1530,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else {
             // Take the union of all classes with fields directly annotated by this annotation,
             // and classes with fields meta-annotated by this annotation
-            final Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedFields = new HashSet<>(
+            final Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedFields = new LinkedHashSet<>(
                     classesWithDirectlyAnnotatedFields.reachableClasses);
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses) {
                 allClassesWithAnnotatedOrMetaAnnotatedFields
@@ -1739,7 +1739,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
-        final Set<String> referencedClassNames = new HashSet<>();
+        final Set<String> referencedClassNames = new LinkedHashSet<>();
         if (methodInfo != null) {
             for (final MethodInfo mi : methodInfo) {
                 mi.getClassNamesFromTypeDescriptors(classNames);
