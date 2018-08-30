@@ -206,10 +206,9 @@ public class ClasspathFinder {
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
             classpathOrder.addClasspathElements(scanSpec.overrideClasspath, classLoaders, overrideLog);
             if (overrideLog != null) {
-                classpathFinderLog
-                        .log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
-                                + "found by classpath scanning will be the same as the classes loaded by the "
-                                + "context classloader");
+                overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
+                        + "found by classpath scanning will be the same as the classes loaded by the "
+                        + "context classloader");
             }
         } else {
             // If system jars are not blacklisted, add JRE jars to the beginning of the classpath

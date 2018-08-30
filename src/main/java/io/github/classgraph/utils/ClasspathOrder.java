@@ -159,14 +159,14 @@ public class ClasspathOrder {
             }
             if (classpathOrder.add(classpathEltRelativePath)) {
                 if (subLog != null) {
-                    if (!classpathEltRelativePath.toString().equals(pathElement)) {
+                    if (!classpathEltRelativePath.getResolvedPath().equals(pathElement)) {
                         subLog.log("Normalized path: " + classpathEltRelativePath);
                     }
                 }
                 return true;
             } else {
                 if (subLog != null) {
-                    if (!classpathEltRelativePath.toString().equals(pathElement)) {
+                    if (!classpathEltRelativePath.getResolvedPath().equals(pathElement)) {
                         subLog.log("Ignoring duplicate classpath element: " + classpathEltRelativePath);
                     } else {
                         subLog.log("Ignoring duplicate classpath element");

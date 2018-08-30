@@ -52,8 +52,8 @@ public class ClasspathOrModulePathEntry {
     private final String relativePath;
 
     /**
-     * For jarfiles, this gives the package root (e.g. "BOOT-INF/classes"), if the section of the path after the
-     * last '!' is not a jarfile.
+     * For jarfiles, the section of the path after the last '!' character (if the section after the last '!' is a
+     * directory and not a jarfile), which is the package root (e.g. "BOOT-INF/classes").
      */
     private String jarfilePackageRoot = "";
 
@@ -106,8 +106,8 @@ public class ClasspathOrModulePathEntry {
     /** True if existsCached has been cached. */
     private boolean existsIsCached;
 
+    /** The ScanSpec. */
     private ScanSpec scanSpec;
-    private final LogNode log;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -135,7 +135,6 @@ public class ClasspathOrModulePathEntry {
         this.pathToResolveAgainst = pathToResolveAgainst;
         this.nestedJarHandler = nestedJarHandler;
         this.scanSpec = scanSpec;
-        this.log = log;
 
         // Fix Spring relative paths with empty zip resource sections
         if (relativePath.endsWith("!")) {
@@ -173,7 +172,6 @@ public class ClasspathOrModulePathEntry {
         this.pathToResolveAgainst = "";
         this.nestedJarHandler = nestedJarHandler;
         this.relativePath = moduleRef.getLocationStr();
-        this.log = log;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -190,14 +188,7 @@ public class ClasspathOrModulePathEntry {
      */
     public String getResolvedPath() {
         if (!resolvedPathIsCached) {
-            final String resolvedPath = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
-            if (resolvedPath.endsWith("!")) {
-                resolvedPathCached = resolvedPath.substring(0, resolvedPath.length() - 1);
-            } else if (resolvedPath.endsWith("!/")) {
-                resolvedPathCached = resolvedPath.substring(0, resolvedPath.length() - 2);
-            } else {
-                resolvedPathCached = resolvedPath;
-            }
+            resolvedPathCached = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
             resolvedPathIsCached = true;
         }
         return resolvedPathCached;
@@ -260,17 +251,13 @@ public class ClasspathOrModulePathEntry {
                 fileCached = new File(path);
             } else {
                 if (!scanSpec.performScan) {
-                    final int firstPlingIdx = path.indexOf('!');
                     // If only fetching classpath entries, don't extract nested jarfiles.
                     // N.B. this will cause remote jars (at http(s) URLs) to be skipped from the list of classpath
                     // entries when fetching only the classpath, since the FileUtils.canRead() test will fail below,
                     // but this is a pretty obscure usecase.
+                    final int firstPlingIdx = path.indexOf('!');
                     final String basePath = path.substring(0, firstPlingIdx);
                     fileCached = new File(basePath);
-                    // Expect a file, not a dir
-                    // Use the section after the "!" as the package root (may contain multiple nested jars,
-                    // but for the purposes of obtaining the classpath, just report this as a classpath URL).
-                    jarfilePackageRoot = path.substring(firstPlingIdx + 1);
                 } else {
                     try {
                         // Fetch any remote jarfiles, recursively unzip any nested jarfiles, and remove ZipSFX header
@@ -281,30 +268,21 @@ public class ClasspathOrModulePathEntry {
                         if (innermostJarAndRootRelativePaths != null) {
                             final File innermostJar = innermostJarAndRootRelativePaths.getKey();
                             final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
-                            if (rootRelativePaths.isEmpty() || lastPlingIdx == -1
-                                    || lastPlingIdx == path.length() - 1) {
-                                // There is no package root for this jar, so the jar itself is the classpath element
-                                fileCached = innermostJar;
-                            } else {
-                                // Get section after last '!' (stripping any initial '/')
-                                final String packageRoot = path.substring(lastPlingIdx + 1);
-                                // Check to see if last segment is listed in the set of root relative paths for
-                                // the jar -- if so, then this is the classpath base for this jarfile
-                                if (rootRelativePaths.contains(packageRoot)) {
-                                    // Record the innermost jar and the package root 
-                                    fileCached = innermostJar;
-                                    jarfilePackageRoot = packageRoot;
-                                } else {
-                                    if (log != null) {
-                                        log.log("Zipfile suffix is not a valid package root: !" + packageRoot);
-                                    }
-                                    // Fall back to ignoring the package root 
-                                    fileCached = innermostJar;
-                                }
+                            // Get section after last '!' (stripping any initial '/')
+                            String packageRoot = path.substring(lastPlingIdx + 1);
+                            while (packageRoot.startsWith("/")) {
+                                packageRoot = packageRoot.substring(1);
                             }
+                            // Check to see if last segment is listed in the set of root relative paths for
+                            // the jar -- if so, then this is the classpath base for this jarfile. If not,
+                            // then this is a suffix that contained nested jars.
+                            if (!packageRoot.isEmpty() && rootRelativePaths.contains(packageRoot)) {
+                                jarfilePackageRoot = packageRoot;
+                            }
+                            fileCached = innermostJar;
                         }
                     } catch (final Exception e) {
-                        throw new IOException("Exception while locating jarfile " + relativePath, e);
+                        throw new IOException("Exception while locating jarfile " + relativePath + " : " + e);
                     }
                 }
             }
@@ -339,7 +317,8 @@ public class ClasspathOrModulePathEntry {
 
     /**
      * @return The package root within a jarfile, e.g. if the path is "spring-project.jar!/BOOT-INF/classes", the
-     *         package root is "BOOT-INF/classes". Usually empty ("").
+     *         package root is "BOOT-INF/classes". Usually empty (""). N.B. this should only be called after
+     *         {@link #getFile(LogNode)}, since that method sets this field.
      */
     public String getJarfilePackageRoot() {
         return jarfilePackageRoot;
@@ -469,7 +448,7 @@ public class ClasspathOrModulePathEntry {
             }
         } catch (final IOException e) {
             if (log != null) {
-                log.log("Could not canonicalize path " + path + " : " + e);
+                log.log("Ignoring invalid classpath element: " + path + " : " + e);
             }
             return false;
         }
@@ -480,10 +459,10 @@ public class ClasspathOrModulePathEntry {
     /** Hash based on canonical path. */
     @Override
     public int hashCode() {
-        return relativePath.hashCode() + 31 * jarfilePackageRoot.hashCode();
+        return getResolvedPath().hashCode();
     }
 
-    /** Return true based on equality of canonical paths. */
+    /** Return true based on equality of resolved paths. */
     @Override
     public boolean equals(final Object o) {
         if (o == null) {
@@ -493,33 +472,16 @@ public class ClasspathOrModulePathEntry {
             return false;
         }
         final ClasspathOrModulePathEntry other = (ClasspathOrModulePathEntry) o;
-        String thisCp;
-        try {
-            thisCp = getCanonicalPath(log);
-            final String otherCp = other.getCanonicalPath(log);
-            if (thisCp == null || otherCp == null) {
-                return false;
-            }
-            if (!thisCp.equals(otherCp)) {
-                return false;
-            }
-            return getJarfilePackageRoot().equals(other.getJarfilePackageRoot());
-        } catch (final IOException e) {
-            return false;
-        }
+        return getResolvedPath().equals(other.getResolvedPath());
     }
 
     /** Return the path. */
     @Override
     public String toString() {
-        if (jarfilePackageRoot.isEmpty()) {
-            return getResolvedPath();
-        } else {
-            try {
-                return getFile(null) + "!" + jarfilePackageRoot;
-            } catch (final Exception e) {
-                return getResolvedPath();
-            }
+        if (isFileCached && fileCached != null
+                && !FastPathResolver.resolve(fileCached.toString()).equals(getResolvedPath())) {
+            return getResolvedPath() + " -> " + fileCached;
         }
+        return getResolvedPath();
     }
 }

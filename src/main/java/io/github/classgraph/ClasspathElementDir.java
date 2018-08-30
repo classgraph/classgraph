@@ -287,7 +287,7 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         final LogNode dirLog = log == null ? null
-                : log.log(canonicalPath, "Scanning subdirectory path: " + dirRelativePath
+                : log.log(canonicalPath, "Scanning directory: " + dir
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         for (final File fileInDir : filesInDir) {
             if (fileInDir.isDirectory()) {
@@ -343,16 +343,8 @@ class ClasspathElementDir extends ClasspathElement {
     /** Hierarchically scan directory structure for classfiles and matching files. */
     @Override
     void scanPaths(final LogNode log) {
-        final String path = classpathEltPath.getResolvedPath();
-        String canonicalPath = path;
-        try {
-            canonicalPath = classpathEltPath.getCanonicalPath(log);
-        } catch (final IOException e) {
-        }
         final LogNode logNode = log == null ? null
-                : log.log(canonicalPath, "Scanning directory classpath entry " + classpathEltPath
-                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
-
+                : log.log(classpathEltPath.getResolvedPath(), "Scanning directory " + classpathEltPath);
         final HashSet<String> scannedCanonicalPaths = new HashSet<>();
         scanDirRecursively(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1,
                 /* inWhitelistedPath = */ false, scannedCanonicalPaths, logNode);

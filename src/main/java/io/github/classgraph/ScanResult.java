@@ -248,10 +248,10 @@ public class ScanResult implements Closeable, AutoCloseable {
                 }
             } else {
                 try {
-                    final String baseURLStr = classpathElement.getClasspathElementFile(log).toURI().toURL()
-                            .toString()
-                            + (classpathElement.getJarfilePackageRoot().isEmpty() ? ""
-                                    : "!" + classpathElement.getJarfilePackageRoot());
+                    final File classpathElementFile = classpathElement.getClasspathElementFile(log);
+                    final String jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
+                    final String baseURLStr = classpathElementFile.toURI().toURL().toString()
+                            + (jarfilePackageRoot.isEmpty() ? "" : "!" + jarfilePackageRoot);
                     classpathElementOrderURLs.add(new URL(baseURLStr));
                 } catch (final MalformedURLException e) {
                     // Skip
@@ -960,6 +960,9 @@ public class ScanResult implements Closeable, AutoCloseable {
             }
             classGraphClassLoader = null;
             nonClosedWeakReferences.remove(weakReference);
+            if (log != null) {
+                log.flush();
+            }
         }
     }
 

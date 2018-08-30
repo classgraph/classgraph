@@ -85,6 +85,16 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
         try {
+            classpathEltPath.getCanonicalPath(log);
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Skipping jarfile " + classpathEltPath.getResolvedPath()
+                        + " -- could not canonicalize path : " + e);
+            }
+            skipClasspathElement = true;
+            return;
+        }
+        try {
             zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile, log);
         } catch (final Exception e) {
             if (log != null) {
@@ -94,7 +104,7 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        final String packageRoot = getJarfilePackageRoot();
+        final String packageRoot = classpathEltPath.getJarfilePackageRoot();
         try {
             jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile, packageRoot,
                     log);
@@ -124,9 +134,6 @@ class ClasspathElementZip extends ClasspathElement {
 
         // Parse the manifest entry if present
         if (jarfileMetadataReader != null && jarfileMetadataReader.classPathEntriesToScan != null) {
-            final LogNode childClasspathLog = log == null ? null
-                    : log.log("Found additional classpath entries in metadata for " + classpathEltZipFile);
-
             // Class-Path entries in the manifest file are resolved relative to the dir the manifest's jarfile
             // is contaiin. Get the parent path.
             final String pathOfContainingDir = FastPathResolver.resolve(classpathEltZipFile.getParent());
@@ -147,9 +154,6 @@ class ClasspathElementZip extends ClasspathElement {
                     // root, and both times it will find "BOOT-INF/lib" -- but the caller will deduplicate
                     // the multiply-added lib jars.
                     childClasspathElts.add(childRelativePath);
-                    if (childClasspathLog != null) {
-                        childClasspathLog.log(childRelativePath.toString());
-                    }
                 }
             }
 
@@ -313,24 +317,12 @@ class ClasspathElementZip extends ClasspathElement {
     /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
     @Override
     void scanPaths(final LogNode log) {
-        final String path = classpathEltPath.getResolvedPath();
-        String canonicalPath = path;
-        try {
-            canonicalPath = classpathEltPath.getCanonicalPath(log);
-        } catch (final IOException e) {
-            if (log != null) {
-                log.log("Exception canonicalizing path " + classpathEltPath + " : " + e);
-            }
-            skipClasspathElement = true;
-            return;
-        }
         if (jarfileMetadataReader == null) {
             skipClasspathElement = true;
             return;
         }
         final LogNode subLog = log == null ? null
-                : log.log(canonicalPath, "Scanning jarfile classpath entry " + classpathEltPath
-                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
+                : log.log(classpathEltPath.getResolvedPath(), "Scanning jarfile " + classpathEltPath);
 
         // Support specification of a classpath root within a jarfile, e.g. "spring-project.jar!/BOOT-INF/classes"
         final int requiredPrefixLen = packageRootPrefix.length();

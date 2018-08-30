@@ -248,7 +248,7 @@ class ClasspathElementModule extends ClasspathElement {
     void scanPaths(final LogNode log) {
         final String moduleLocationStr = moduleRef.getLocationStr();
         final LogNode subLog = log == null ? null
-                : log.log(moduleLocationStr, "Scanning module classpath entry " + classpathEltPath);
+                : log.log(moduleLocationStr, "Scanning module " + moduleRef.getName());
         try (Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable = //
                 moduleReaderProxyRecycler.acquire()) {
             final ModuleReaderProxy moduleReaderProxy = moduleReaderProxyRecyclable.get();

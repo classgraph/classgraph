@@ -91,7 +91,6 @@ public abstract class SingletonMap<K, V> {
         final SingletonHolder<V> oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
         if (oldSingletonHolder == null) {
             // Initialize newSingletonHolder with new instance of value.
-
             V newInstance = null;
             try {
                 newInstance = newInstance(key, log);

@@ -94,7 +94,8 @@ abstract class ClasspathElement {
     }
 
     /**
-     * @return The classpath element's file (directory or jarfile), or null if this is a module.
+     * @return The classpath element's file (directory or jarfile), or null if this is a module. May trigger the
+     *         extraction of nested jars.
      */
     File getClasspathElementFile(final LogNode log) {
         if (classpathEltPath.getModuleRef() != null) {
@@ -110,7 +111,9 @@ abstract class ClasspathElement {
 
     /**
      * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
-     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes".
+     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes". N.B. for non-modules, this
+     * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the
+     * package root (after extracting nested jars).
      */
     String getJarfilePackageRoot() {
         return classpathEltPath.getJarfilePackageRoot();
@@ -136,12 +139,10 @@ abstract class ClasspathElement {
         boolean isModule = false;
         boolean isDir = false;
         String resolvedPath = null;
-        File file = null;
         try {
             resolvedPath = classpathRelativePath.getResolvedPath();
             isModule = classpathRelativePath.getModuleRef() != null;
             if (!isModule) {
-                file = classpathRelativePath.getFile(log);
                 isDir = classpathRelativePath.isDirectory(log);
             }
         } catch (final IOException e) {
@@ -153,21 +154,14 @@ abstract class ClasspathElement {
         }
         LogNode subLog = null;
         if (log != null) {
-            String canonicalPath;
-            try {
-                canonicalPath = isModule ? resolvedPath : classpathRelativePath.getCanonicalPath(log);
-            } catch (final Exception e) {
-                canonicalPath = resolvedPath;
-            }
             subLog = log.log(resolvedPath,
-                    "Scanning " + (isModule ? "module" : isDir ? "directory" : "jarfile")
+                    "Scanning " + (isModule ? "module " : isDir ? "directory " : "jarfile ")
                             + (isModule
                                     ? classpathRelativePath.getModuleRef()
                                             + (classpathRelativePath.getModuleRef().getLocationStr() == null ? ""
                                                     : " -> " + classpathRelativePath.getModuleRef()
                                                             .getLocationStr())
-                                    : (file.getPath().equals(canonicalPath) ? canonicalPath
-                                            : classpathRelativePath + " -> " + canonicalPath)));
+                                    : classpathRelativePath));
         }
 
         // Dispatch to appropriate constructor

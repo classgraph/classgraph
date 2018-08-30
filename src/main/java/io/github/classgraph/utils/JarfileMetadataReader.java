@@ -40,6 +40,8 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import io.github.classgraph.ScanSpec;
+
 /** Fast parser for jar manifest files. */
 public class JarfileMetadataReader {
     /** If true, this is a JRE jar. */
@@ -157,7 +159,7 @@ public class JarfileMetadataReader {
      * class, so has lower overhead. Only extracts a few specific entries from the manifest file, if present.
      * Assumes there is only one of each entry present in the manifest.
      */
-    JarfileMetadataReader(final File jarFile, final LogNode log) {
+    JarfileMetadataReader(final File jarFile, final ScanSpec scanSpec, final LogNode log) {
         try (ZipFile zipFile = new ZipFile(jarFile)) {
             final int numEntries = zipFile.size();
             zipEntries = new ArrayList<>(numEntries);
@@ -201,8 +203,11 @@ public class JarfileMetadataReader {
                             final int classPathIdx = manifest.indexOf("\nClass-Path:");
                             if (classPathIdx >= 0) {
                                 // Add Class-Path manifest entry value to classpath
-                                addSpaceDelimitedClassPathToScan(/* zipFilePath = */ null,
-                                        extractManifestField(manifest, classPathIdx + 12));
+                                final String classPathField = extractManifestField(manifest, classPathIdx + 12);
+                                addSpaceDelimitedClassPathToScan(/* zipFilePath = */ null, classPathField);
+                                if (log != null) {
+                                    log.log("Found Class-Path entry in manifest file: " + classPathField);
+                                }
                             }
 
                             // Check for Spring-Boot manifest lines
@@ -272,16 +277,22 @@ public class JarfileMetadataReader {
                         && zipEntryPath.endsWith(".jar")) {
                     // Found a jarfile in a lib dir. This jar may not be on the classpath, e.g. if this is
                     // a Spring-Boot jar and the scanner is running outside the jar.
-                    if (log != null) {
-                        log.log("Found lib jar: " + zipEntryPath);
+                    if (scanSpec.scanNestedJars) {
+                        if (log != null) {
+                            log.log("Found lib jar: " + zipEntryPath);
+                        }
+                        final String libJarPath = jarFileName + "!" + zipEntryPath;
+                        // Add the nested lib jar to the classpath to be scanned. This will cause the jar to
+                        // be extracted from the zipfile by one of the worker threads.
+                        // Also record the lib jar in case we need to construct a custom URLClassLoader to load
+                        // classes from the jar (the entire classpath of the jar needs to be reconstructed if so)
+                        addClassPathEntryToScan(libJarPath);
+                        addLibJarEntry(libJarPath);
+                    } else {
+                        if (log != null) {
+                            log.log("Skipping lib jar because nested jar scanning is disabled: " + zipEntryPath);
+                        }
                     }
-                    final String libJarPath = jarFileName + "!" + zipEntryPath;
-                    // Add the nested lib jar to the classpath to be scanned. This will cause the jar to
-                    // be extracted from the zipfile by one of the worker threads.
-                    // Also record the lib jar in case we need to construct a custom URLClassLoader to load
-                    // classes from the jar (the entire classpath of the jar needs to be reconstructed if so)
-                    addClassPathEntryToScan(libJarPath);
-                    addLibJarEntry(libJarPath);
                 }
             }
         } catch (final IOException e) {

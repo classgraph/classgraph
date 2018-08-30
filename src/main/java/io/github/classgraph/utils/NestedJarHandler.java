@@ -35,6 +35,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -106,7 +107,7 @@ public class NestedJarHandler {
         this.zipFileToJarfileMetadataReaderMap = new SingletonMap<File, JarfileMetadataReader>() {
             @Override
             public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) throws Exception {
-                return new JarfileMetadataReader(canonicalFile, log);
+                return new JarfileMetadataReader(canonicalFile, scanSpec, log);
             }
         };
 
@@ -145,7 +146,7 @@ public class NestedJarHandler {
                     final File pathFile = isRemote ? downloadTempFile(nestedJarPath, log) : new File(nestedJarPath);
                     if (isRemote && pathFile == null) {
                         if (log != null) {
-                            log.log(nestedJarPath, "Could not download jarfile " + nestedJarPath);
+                            log.log("Could not download jarfile " + nestedJarPath);
                         }
                         return null;
                     }
@@ -154,21 +155,19 @@ public class NestedJarHandler {
                         canonicalFile = pathFile.getCanonicalFile();
                     } catch (final IOException | SecurityException e) {
                         if (log != null) {
-                            log.log(nestedJarPath,
-                                    "Path component " + nestedJarPath + " could not be canonicalized: " + e);
+                            log.log("Path component " + nestedJarPath + " could not be canonicalized: " + e);
                         }
                         return null;
                     }
                     if (!FileUtils.canRead(canonicalFile)) {
                         if (log != null) {
-                            log.log(nestedJarPath, "Path component " + nestedJarPath + " does not exist");
+                            log.log("Path component " + nestedJarPath + " does not exist");
                         }
                         return null;
                     }
                     if (!canonicalFile.isFile()) {
                         if (log != null) {
-                            log.log(nestedJarPath,
-                                    "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
+                            log.log("Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
                         }
                         return null;
                     }
@@ -235,19 +234,44 @@ public class NestedJarHandler {
                                 childZipEntry = parentZipFile.getEntry(childPath);
                             }
                         }
+                        boolean isDirectory = false;
                         if (childZipEntry == null) {
-                            if (log != null) {
-                                log.log(nestedJarPath, "Child path component " + childPath
-                                        + " does not exist in jarfile " + parentJarFile);
+                            // Sometimes zipfiles do not have directory entries added to them. Check to see if
+                            // there are any entries in the zipfile that have the child path as a prefix.
+                            final String pathPrefix = childPath.endsWith("/") ? childPath : childPath + "/";
+                            for (final Enumeration<? extends ZipEntry> zipEntries = parentZipFile
+                                    .entries(); zipEntries.hasMoreElements();) {
+                                final ZipEntry zipEntry = zipEntries.nextElement();
+                                if (zipEntry.getName().startsWith(pathPrefix)) {
+                                    isDirectory = true;
+                                    break;
+                                }
                             }
-                            return null;
+                            if (!isDirectory) {
+                                if (log != null) {
+                                    log.log("Path " + childPath + " does not exist in jarfile " + parentJarFile);
+                                }
+                                return null;
+                            }
+                        } else {
+                            isDirectory = childZipEntry.isDirectory();
                         }
 
-                        // Make sure path component is a file, not a directory (can't unzip directories)
+                        // If path component is a directory, it is a package root
                         if (childZipEntry.isDirectory()) {
+                            final boolean childPathIsLeaf = childPath.indexOf("!") < 0;
+                            if (!childPathIsLeaf) {
+                                // Can only have a package root in the last component of the classpath
+                                if (log != null) {
+                                    log.log("Path " + childPath + " in jarfile " + parentJarFile + " is a "
+                                            + "directory, but this is not the last \"!\"-delimited section "
+                                            + "of the claspath entry URL -- cannot use as package root");
+                                }
+                                return null;
+                            }
                             if (log != null) {
-                                log.log(nestedJarPath, "Child path component " + childPath + " in jarfile "
-                                        + parentJarFile + " is a directory, not a file -- using as scanning root");
+                                log.log("Path " + childPath + " in jarfile " + parentJarFile
+                                        + " is a directory, not a file -- using as package root");
                             }
                             if (!childPath.isEmpty()) {
                                 // Add directory path to parent jarfile root relative paths set
@@ -257,16 +281,16 @@ public class NestedJarHandler {
                             return parentJarfileAndRootRelativePaths;
                         }
 
-                        // Make sure nested jar scanning is not disabled
+                        // Do not extract nested jar, if nested jar scanning is disabled
                         if (!scanSpec.scanNestedJars) {
                             if (log != null) {
-                                log.log(nestedJarPath,
-                                        "Nested jar scanning is disabled -- skipping extraction of nested jar "
-                                                + nestedJarPath);
+                                log.log("Nested jar scanning is disabled -- skipping extraction of nested jar "
+                                        + nestedJarPath);
                             }
                             return null;
                         }
 
+                        // Extract nested jar to a temporary file
                         try {
                             // Unzip the child jarfile to a temporary file
                             final File childJarFile = unzipToTempFile(parentZipFile, childZipEntry, log);
@@ -286,7 +310,7 @@ public class NestedJarHandler {
                         } catch (final IOException e) {
                             // Thrown if the inner zipfile could nat be extracted
                             if (log != null) {
-                                log.log(nestedJarPath, "File does not appear to be a zipfile: " + childPath);
+                                log.log("File does not appear to be a zipfile: " + childPath);
                             }
                             return null;
                         }
@@ -497,9 +521,7 @@ public class NestedJarHandler {
         tempFiles.add(tempFile);
         LogNode subLog = null;
         if (log != null) {
-            subLog = log
-                    .log(zipFile.getName() + "!/" + zipEntryPath,
-                            "Unzipping " + (zipFile.getName() + "!/" + zipEntryPath))
+            subLog = log.log("Unzipping " + (zipFile.getName() + "!/" + zipEntryPath))
                     .log("Extracted to temporary file " + tempFile.getPath());
         }
         try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {

@@ -121,7 +121,51 @@ class Scanner implements Callable<ScanResult> {
         /** Create a new classpath element singleton instance. */
         @Override
         public ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathElt, final LogNode log) {
-            return ClasspathElement.newInstance(classpathElt, scanSpec, nestedJarHandler, workQueue, log);
+            final LogNode jarLog = log == null ? null : log.log("Reading " + classpathElt.getResolvedPath());
+            if (classpathElt.isValidClasspathElement(scanSpec, jarLog)) {
+                try {
+                    final boolean isModule = classpathElt.getModuleRef() != null;
+                    final boolean isFile = !isModule && classpathElt.isFile(jarLog);
+                    final boolean isDir = !isModule && classpathElt.isDirectory(jarLog);
+                    if (isFile && !scanSpec.scanJars) {
+                        if (jarLog != null) {
+                            jarLog.log("Skipping because jar scanning has been disabled: " + classpathElt);
+                        }
+                    } else if (isFile && !scanSpec.jarWhiteBlackList
+                            .isWhitelistedAndNotBlacklisted(classpathElt.getCanonicalPath(jarLog))) {
+                        if (jarLog != null) {
+                            jarLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + classpathElt);
+                        }
+                    } else if (isDir && !scanSpec.scanDirs) {
+                        if (jarLog != null) {
+                            jarLog.log("Skipping because directory scanning has been disabled: " + classpathElt);
+                        }
+                    } else if (isModule && !scanSpec.scanModules) {
+                        if (jarLog != null) {
+                            jarLog.log("Skipping because module scanning has been disabled: " + classpathElt);
+                        }
+                    } else {
+                        // Classpath element is valid => add as a singleton. This will trigger
+                        // calling the ClasspathElementZip constructor in the case of jarfiles,
+                        // which will check the manifest file for Class-Path entries, and if
+                        // any are found, additional work units will be added to the work queue
+                        // to scan those jarfiles too. If Class-Path entries are found, they
+                        // are added as child elements of the current classpath element, so
+                        // that they can be inserted at the correct location in the classpath
+                        // order.
+                        return ClasspathElement.newInstance(classpathElt, scanSpec, nestedJarHandler, workQueue,
+                                jarLog);
+                    }
+                } catch (final Exception e) {
+                    if (jarLog != null) {
+                        // Could not create singleton, possibly due to canonicalization problem
+                        jarLog.log("Skipping invalid classpath element " + classpathElt + " : " + e);
+                    }
+                }
+            }
+            // Return null if classpath element is not valid.
+            // This will cause SingletonMap to throw IlegalArgumentException.
+            return null;
         }
     }
 
@@ -330,58 +374,17 @@ class Scanner implements Callable<ScanResult> {
                         @Override
                         public void processWorkUnit(final ClasspathOrModulePathEntry rawClasspathEltPath)
                                 throws Exception {
-                            // Check if classpath element is already in the singleton map -- saves needlessly
-                            // repeating work in isValidClasspathElement() and createSingleton() (need to check for
-                            // duplicates again, even though we checked above, since additonal classpath entries can
-                            // come from Class-Path entries in manifests)
-                            if (classpathElementMap.get(rawClasspathEltPath) != null) {
-                                if (preScanLog != null) {
-                                    preScanLog.log("Ignoring duplicate classpath element: " + rawClasspathEltPath);
-                                }
-                            } else if (rawClasspathEltPath.isValidClasspathElement(scanSpec, preScanLog)) {
-                                try {
-                                    final boolean isModule = rawClasspathEltPath.getModuleRef() != null;
-                                    final boolean isFile = !isModule && rawClasspathEltPath.isFile(preScanLog);
-                                    final boolean isDir = !isModule && rawClasspathEltPath.isDirectory(preScanLog);
-                                    if (isFile && !scanSpec.scanJars) {
-                                        if (preScanLog != null) {
-                                            preScanLog.log("Ignoring because jar scanning has been disabled: "
-                                                    + rawClasspathEltPath);
-                                        }
-                                    } else if (isFile && !scanSpec.jarWhiteBlackList.isWhitelistedAndNotBlacklisted(
-                                            rawClasspathEltPath.getCanonicalPath(preScanLog))) {
-                                        if (preScanLog != null) {
-                                            preScanLog
-                                                    .log("Ignoring jarfile that is blacklisted or not whitelisted: "
-                                                            + rawClasspathEltPath);
-                                        }
-                                    } else if (isDir && !scanSpec.scanDirs) {
-                                        if (preScanLog != null) {
-                                            preScanLog.log("Ignoring because directory scanning has been disabled: "
-                                                    + rawClasspathEltPath);
-                                        }
-                                    } else if (isModule && !scanSpec.scanModules) {
-                                        if (preScanLog != null) {
-                                            preScanLog.log("Ignoring because module scanning has been disabled: "
-                                                    + rawClasspathEltPath);
-                                        }
-                                    } else {
-                                        // Classpath element is valid, add as a singleton. This will trigger calling
-                                        // the ClasspathElementZip constructor in the case of jarfiles, which will
-                                        // check the manifest file for Class-Path entries, and if any are found,
-                                        // additional work units will be added to the work queue to scan those
-                                        // jarfiles too. If Class-Path entries are found, they are added as child
-                                        // elements of the current classpath element, so that they can be inserted
-                                        // at the correct location in the classpath order.
-                                        classpathElementMap.createSingleton(rawClasspathEltPath, preScanLog);
-                                    }
-                                } catch (final Exception e) {
-                                    if (preScanLog != null) {
-                                        // Could not create singleton, probably due to path canonicalization problem
-                                        preScanLog.log("Classpath element " + rawClasspathEltPath
-                                                + " is not valid (" + e + ") -- skipping");
-                                    }
-                                }
+                            try {
+                                // Add the classpath element as a singleton. This will trigger calling
+                                // the ClasspathElementZip constructor in the case of jarfiles, which
+                                // will check the manifest file for Class-Path entries, and if any are
+                                // found, additional work units will be added to the work queue to scan
+                                // those jarfiles too. If Class-Path entries are found, they are added
+                                // as child elements of the current classpath element, so that they can
+                                // be inserted at the correct location in the classpath order.
+                                classpathElementMap.getOrCreateSingleton(rawClasspathEltPath, preScanLog);
+                            } catch (final IllegalArgumentException e) {
+                                // Thrown if classpath element is invalid (already logged)
                             }
                         }
                     }, new WorkQueuePreStartHook<ClasspathOrModulePathEntry>() {
@@ -404,7 +407,6 @@ class Scanner implements Callable<ScanResult> {
                 final LogNode logNode = classpathFinderLog.log("Final classpath element order:");
                 for (int i = 0; i < classpathOrder.size(); i++) {
                     final ClasspathElement classpathElt = classpathOrder.get(i);
-                    final String packageRoot = classpathElt.getJarfilePackageRoot();
                     final ModuleRef classpathElementModuleRef = classpathElt.getClasspathElementModuleRef();
                     if (classpathElementModuleRef != null) {
                         logNode.log(i + ": module " + classpathElementModuleRef.getName() + " ; module location: "
@@ -412,6 +414,7 @@ class Scanner implements Callable<ScanResult> {
                     } else {
                         final String classpathEltStr = classpathElt.toString();
                         final String classpathEltFileStr = "" + classpathElt.getClasspathElementFile(logNode);
+                        final String packageRoot = classpathElt.getJarfilePackageRoot();
                         logNode.log(i + ": " + (classpathEltStr.equals(classpathEltFileStr) && packageRoot.isEmpty()
                                 ? classpathEltStr
                                 : classpathElt + " -> " + classpathEltFileStr
@@ -642,7 +645,9 @@ class Scanner implements Callable<ScanResult> {
 
             // Close ClasspathElement recyclers
             for (final ClasspathElement elt : classpathElementMap.values()) {
-                elt.closeRecyclers();
+                if (elt != null) {
+                    elt.closeRecyclers();
+                }
             }
 
             if (topLevelLog != null) {
