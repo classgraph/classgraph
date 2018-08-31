@@ -8,3 +8,7 @@ jdk:
   - oraclejdk10   # Feature release
   - oraclejdk11   # upcoming LTS
 #  - oraclejdk-ea  # Early access
+
+cache:
+  directories:
+  - $HOME/.m2
