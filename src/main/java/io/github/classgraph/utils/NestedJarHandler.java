@@ -258,7 +258,7 @@ public class NestedJarHandler {
                         }
 
                         // If path component is a directory, it is a package root
-                        if (childZipEntry.isDirectory()) {
+                        if (isDirectory) {
                             final boolean childPathIsLeaf = childPath.indexOf("!") < 0;
                             if (!childPathIsLeaf) {
                                 // Can only have a package root in the last component of the classpath
