@@ -9,6 +9,8 @@ jdk:
   - oraclejdk11   # upcoming LTS
 #  - oraclejdk-ea  # Early access
 
+sudo: true  # https://github.com/travis-ci/travis-ci/issues/6593
+
 cache:
   directories:
   - $HOME/.m2
