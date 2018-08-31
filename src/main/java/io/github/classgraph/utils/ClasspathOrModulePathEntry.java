@@ -281,7 +281,13 @@ public class ClasspathOrModulePathEntry {
                             }
                             fileCached = innermostJar;
                         }
+                    } catch (IOException e) {
+                        throw e;
                     } catch (final Exception e) {
+                        // Unexpected exception
+                        if (log != null) {
+                            log.log("Exception while locating jarfile " + relativePath, e);
+                        }
                         throw new IOException("Exception while locating jarfile " + relativePath + " : " + e);
                     }
                 }
