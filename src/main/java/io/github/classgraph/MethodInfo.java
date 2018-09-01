@@ -88,6 +88,9 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** Aligned method parameter info */
     private transient MethodParameterInfo[] parameterInfo;
 
+    /** True if this method has a body. */
+    private boolean hasBody;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Default constructor for deserialization. */
@@ -113,13 +116,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *            The parameter modifiers.
      * @param parameterAnnotationInfo
      *            The parameter {@link AnnotationInfo}.
-     * @param scanSpec
-     *            The {@link ScanSpec}.
+     * @param hasBody
+     *            True if this method has a body.
      */
     MethodInfo(final String definingClassName, final String methodName,
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
-            final AnnotationInfo[][] parameterAnnotationInfo) {
+            final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody) {
         this.definingClassName = definingClassName;
         this.name = methodName;
         this.modifiers = modifiers;
@@ -130,6 +133,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         this.parameterAnnotationInfo = parameterAnnotationInfo;
         this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty() ? null
                 : methodAnnotationInfo;
+        this.hasBody = hasBody;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -161,7 +165,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public String getModifiersStr() {
         final StringBuilder buf = new StringBuilder();
-        modifiersToString(modifiers, buf);
+        modifiersToString(modifiers, isDefault(), buf);
         return buf.toString();
     }
 
@@ -310,6 +314,26 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public boolean isNative() {
         return Modifier.isNative(modifiers);
+    }
+
+    /**
+     * Returns true if this method has a body (i.e. has an implementation in the containing class).
+     * 
+     * @return True if this method has a body.
+     */
+    public boolean hasBody() {
+        return hasBody;
+    }
+
+    /**
+     * Returns true if this is a default method (i.e. if this is a method in an interface and the method has a
+     * body).
+     * 
+     * @return True if this is a default method.
+     */
+    public boolean isDefault() {
+        final ClassInfo classInfo = getClassInfo();
+        return classInfo != null && classInfo.isInterface() && hasBody;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -559,7 +583,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * @param buf
      *            The buffer to write the result into.
      */
-    static void modifiersToString(final int modifiers, final StringBuilder buf) {
+    static void modifiersToString(final int modifiers, final boolean isDefault, final StringBuilder buf) {
         if ((modifiers & Modifier.PUBLIC) != 0) {
             buf.append("public");
         } else if ((modifiers & Modifier.PRIVATE) != 0) {
@@ -590,6 +614,12 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 buf.append(' ');
             }
             buf.append("synchronized");
+        }
+        if (isDefault) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("default");
         }
         if ((modifiers & 0x1000) != 0) {
             if (buf.length() > 0) {

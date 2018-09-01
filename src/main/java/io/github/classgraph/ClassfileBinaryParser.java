@@ -580,6 +580,7 @@ class ClassfileBinaryParser {
             AnnotationInfo[][] methodParameterAnnotations = null;
             List<AnnotationParameterValue> annotationParamDefaultValues = null;
             AnnotationInfoList methodAnnotationInfo = null;
+            boolean methodHasBody = false;
             if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
@@ -641,19 +642,21 @@ class ClassfileBinaryParser {
                         final Object annotationParamDefaultValue = readAnnotationElementValue();
                         annotationParamDefaultValues
                                 .add(new AnnotationParameterValue(methodName, annotationParamDefaultValue));
+                    } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
+                        methodHasBody = true;
+                        inputStreamOrByteBuffer.skip(attributeLength);
                     } else {
                         inputStreamOrByteBuffer.skip(attributeLength);
                     }
                 }
-            }
-            if (methodIsVisible) {
                 if (isAnnotation && annotationParamDefaultValues != null) {
                     classInfoUnlinked.addAnnotationParamDefaultValues(annotationParamDefaultValues);
                 }
+                // Create MethodInfo
                 if (scanSpec.enableMethodInfo) {
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
-                            methodParameterModifiers, methodParameterAnnotations));
+                            methodParameterModifiers, methodParameterAnnotations, methodHasBody));
                 }
             }
         }
