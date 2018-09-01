@@ -672,7 +672,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            modifiersToString(modifiers, buf);
+            modifiersToString(modifiers, isDefault(), buf);
         }
 
         final List<TypeParameter> typeParameters = methodType.getTypeParameters();
