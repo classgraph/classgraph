@@ -281,7 +281,7 @@ public class ClasspathOrModulePathEntry {
                             }
                             fileCached = innermostJar;
                         }
-                    } catch (IOException e) {
+                    } catch (final IOException e) {
                         throw e;
                     } catch (final Exception e) {
                         // Unexpected exception
