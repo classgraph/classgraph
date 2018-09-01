@@ -1218,9 +1218,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Methods
 
     /**
-     * Returns information on visible methods of the class that are not constructors. (Call
-     * {@link #getMethodAndConstructorInfo()} if you need methods and constructors.) There may be more than one
-     * method of a given name with different type signatures, due to overloading.
+     * Returns information on visible methods declared by the class that are not constructors. (Call
+     * {@link #getMethodAndConstructorInfo()} if you need methods and constructors.) Note that you will need to
+     * iterate through superclasses and interfaces looking for non-private methods if you want to find methods that
+     * are inherited from superclasses and/or interfaces (including default methods in interfaces, for JDK 8+).
+     * 
+     * <p>
+     * There may be more than one method of a given name with different type signatures, due to overloading.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
@@ -1254,9 +1258,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible constructors of the class. Constructors have the method name of
-     * {@code "<init>"}. There may be more than one constructor of a given name with different type signatures, due
-     * to overloading.
+     * Returns information on visible constructors declared by the class. Constructors have the method name of
+     * {@code "<init>"}.
+     * 
+     * <p>
+     * There may be more than one constructor of a given name with different type signatures, due to overloading.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
@@ -1290,9 +1296,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods and constructors of the class. There may be more than one method or
-     * constructor or method of a given name with different type signatures, due to overloading. Constructors have
-     * the method name of {@code "<init>"} and static initializer blocks have the name of {@code "<clinit>"}.
+     * Returns information on visible methods and constructors declared by the class. Constructors have the method
+     * name of {@code "<init>"} and static initializer blocks have the name of {@code "<clinit>"}. Note that you
+     * will need to iterate through superclasses and interfaces looking for non-private methods if you want to find
+     * methods that are inherited from superclasses and/or interfaces (including default methods in interfaces, for
+     * JDK 8+).
+     * 
+     * <p>
+     * There may be more than one method or constructor or method of a given name with different type signatures,
+     * due to overloading.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
@@ -1317,8 +1329,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the method(s) or constructor(s) of the class with the given method name. Constructors
-     * have the method name of {@code "<init>"}.
+     * Returns information on the method(s) or constructor(s) declared by the class with the given method name.
+     * Constructors have the method name of {@code "<init>"}.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
@@ -1365,10 +1377,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * @return A list of method annotations or meta-annotations on this class, as a list of {@link ClassInfo}
-     *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
-     *         parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific method
-     *         annotation instances.
+     * @return A list of method annotations or meta-annotations declared by the class, as a list of
+     *         {@link ClassInfo} objects, or the empty list if none. N.B. these annotations do not contain specific
+     *         annotation parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific
+     *         method annotation instances.
      */
     public ClassInfoList getMethodAnnotations() {
         if (!scanResult.scanSpec.enableMethodInfo || !scanResult.scanSpec.enableAnnotationInfo) {
@@ -1432,7 +1444,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Fields
 
     /**
-     * Returns information on all visible fields of the class.
+     * Returns information on all visible fields declared by the class. Note that you will need to iterate through
+     * superclasses looking for non-private fields, if you want to find fields that are inherited from superclasses.
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
@@ -1455,7 +1468,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on a given visible field of the class.
+     * Returns information on a given visible field declared by the class.
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
@@ -1490,9 +1503,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * @return A list of field annotations on this class, or the empty list if none. N.B. these annotations do not
-     *         contain specific annotation parameters -- call {@link FieldInfo#getAnnotationInfo()} to get details
-     *         on specific field annotation instances.
+     * @return A list of annotations on fields declared by the class, or the empty list if none. N.B. these
+     *         annotations do not contain specific annotation parameters -- call
+     *         {@link FieldInfo#getAnnotationInfo()} to get details on specific field annotation instances.
      */
     public ClassInfoList getFieldAnnotations() {
         if (!scanResult.scanSpec.enableFieldInfo || !scanResult.scanSpec.enableAnnotationInfo) {
@@ -1543,8 +1556,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * @return A list of classes that have fields that are directly annotated (i.e. are not meta-annotated) with the
-     *         requested method annotation, or the empty list if none.
+     * @return A list of classes that declare fields that are directly annotated (i.e. are not meta-annotated) with
+     *         the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithFieldAnnotationDirectOnly() {
         return new ClassInfoList(
