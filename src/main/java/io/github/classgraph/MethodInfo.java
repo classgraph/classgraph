@@ -445,6 +445,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                         paramModifiersAligned == null ? 0 : paramModifiersAligned[i], paramTypeDescriptors.get(i),
                         paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
                         paramNamesAligned == null ? null : paramNamesAligned[i]);
+                parameterInfo[i].setScanResult(scanResult);
             }
         }
         return parameterInfo;
