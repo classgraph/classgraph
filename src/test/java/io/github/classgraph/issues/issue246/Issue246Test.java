@@ -39,17 +39,16 @@ public class Issue246Test {
     @Test
     public void testMethodParameterAnnotations() throws Exception {
         try (ScanResult scanResult = new ClassGraph() //
-                .whitelistClasses(Issue246Test.class.getName())
-                .enableAllInfo()
-                //.whitelistPaths("org.springframework/gs-spring-boot") //
+                .whitelistClasses(Issue246Test.class.getName()) //
+                .enableAllInfo() //
                 .scan()) {
-            assertEquals(0,
-                scanResult.getClassInfo(Issue246Test.class.getName())
-                    .getMethodInfo().getSingleMethod("dummyMethodWithParameter")
-                    .getParameterInfo()[0]
-                    .getAnnotationInfo().size());
+            assertEquals(0, //
+                    scanResult.getClassInfo(Issue246Test.class.getName()) //
+                            .getMethodInfo() //
+                            .getSingleMethod("dummyMethodWithParameter") //
+                            .getParameterInfo()[0] //
+                                    .getAnnotationInfo().size());
         }
-
     }
 
     void dummyMethodWithParameter(int dummyParam) {
