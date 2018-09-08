@@ -3,7 +3,7 @@
  *
  * Author: Luke Hutchison
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *
@@ -99,8 +99,8 @@ public class VersionFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static final String MAVEN_PACKAGE = "io.github.lukehutch";
-    private static final String MAVEN_ARTIFACT = "fast-classpath-scanner";
+    private static final String MAVEN_PACKAGE = "io.github.classgraph";
+    private static final String MAVEN_ARTIFACT = "classgraph";
 
     /**
      * @return the version number of ClassGraph.
