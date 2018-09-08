@@ -3,7 +3,7 @@
  *
  * Author: Johno Crawford (johno@sulake.com)
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *

@@ -3,7 +3,7 @@
  *
  * Author: Luke Hutchison
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *
@@ -51,6 +51,6 @@ public class Issue246Test {
         }
     }
 
-    void dummyMethodWithParameter(int dummyParam) {
+    void dummyMethodWithParameter(final int dummyParam) {
     }
 }

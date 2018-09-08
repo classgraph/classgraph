@@ -3,7 +3,7 @@
  *
  * Author: Luke Hutchison
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *
@@ -371,7 +371,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             }
 
             // Kotlin is very inconsistent about the arity of each of the parameter metadata types, see:
-            // https://github.com/lukehutch/fast-classpath-scanner/issues/175#issuecomment-363031510
+            // https://github.com/classgraph/classgraph/issues/175#issuecomment-363031510
             // As a workaround, we assume that any synthetic / mandated parameters must come first in the
             // parameter list, when the arities don't match, and we right-align the metadata fields.
             // This is probably the safest assumption across JVM languages, even though this convention

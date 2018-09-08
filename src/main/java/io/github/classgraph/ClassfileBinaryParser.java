@@ -3,7 +3,7 @@
  *
  * Author: Luke Hutchison
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *
@@ -78,7 +78,7 @@ class ClassfileBinaryParser {
         if ((t != 12 && subFieldIdx != 0) || (t == 12 && subFieldIdx != 0 && subFieldIdx != 1)) {
             throw new RuntimeException(
                     "Bad subfield index " + subFieldIdx + " for tag " + t + ", cannot continue reading class. "
-                            + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
+                            + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
         int cpIdxToUse;
         if (t == 1) {
@@ -90,7 +90,7 @@ class ClassfileBinaryParser {
             if (indirIdx == -1) {
                 // Should not happen
                 throw new RuntimeException("Bad string indirection index, cannot continue reading class. "
-                        + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
+                        + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
             if (indirIdx == 0) {
                 // I assume this represents a null string, since the zeroeth entry is unused
@@ -104,13 +104,13 @@ class ClassfileBinaryParser {
             if (indirIdx == 0 || indirIdx == -1) {
                 // Should not happen
                 throw new RuntimeException("Bad string indirection index, cannot continue reading class. "
-                        + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
+                        + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
             cpIdxToUse = indirIdx;
         } else {
             throw new RuntimeException("Wrong tag number " + t + " at constant pool index " + cpIdx + ", "
                     + "cannot continue reading class. Please report this at "
-                    + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+                    + "https://github.com/classgraph/classgraph/issues");
         }
         return offset[cpIdxToUse];
     }
@@ -226,7 +226,7 @@ class ClassfileBinaryParser {
             default:
                 throw new RuntimeException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar + ", "
                         + "cannot continue reading class. Please report this at "
-                        + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+                        + "https://github.com/classgraph/classgraph/issues");
             }
         }
         case 4: // float
@@ -240,7 +240,7 @@ class ClassfileBinaryParser {
             // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)  
             throw new RuntimeException("Unknown constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
-                    + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+                    + "https://github.com/classgraph/classgraph/issues");
         }
     }
 
@@ -320,7 +320,7 @@ class ClassfileBinaryParser {
         default:
             throw new RuntimeException("Class " + className + " has unknown annotation element type tag '"
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
-                    + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
+                    + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
     }
 
@@ -415,7 +415,7 @@ class ClassfileBinaryParser {
             default:
                 throw new RuntimeException("Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
                         + " (element size unknown, cannot continue reading class). Please report this at "
-                        + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+                        + "https://github.com/classgraph/classgraph/issues");
             }
         }
 

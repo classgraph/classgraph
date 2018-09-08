@@ -3,7 +3,7 @@
  *
  * Author: Luke Hutchison
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *
@@ -33,7 +33,9 @@ import java.net.URL;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.utils.AutoCloseableExecutorService;
@@ -47,8 +49,8 @@ import io.github.classgraph.utils.WhiteBlackList;
  * module path by parsing the classfile binary format directly rather than by using reflection.
  *
  * <p>
- * Documentation: <a href= "https://github.com/lukehutch/fast-classpath-scanner/wiki">
- * https://github.com/lukehutch/fast-classpath-scanner/wiki</a>
+ * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
+ * https://github.com/classgraph/classgraph/wiki</a>
  */
 public class ClassGraph {
 
@@ -344,11 +346,11 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Register an extra ClassLoaderHandler. Needed if ClassGraph doesn't know how to extract classpath entries from
-     * your runtime environment's ClassLoader. See:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/4.-Working-with-nonstandard-ClassLoaders
+     * Register an extra {@link ClassLoaderHandler}. Needed if ClassGraph doesn't know how to extract classpath
+     * entries from your runtime environment's {@link ClassLoader}. If you need to define a new
+     * {@link ClassLoaderHandler} for a non-custom {@link ClassLoader}, please consider
+     * <a href="https://github.com/classgraph/classgraph">contributing it upstream</a> to the ClassGraph project so
+     * that other users of ClassGraph can benefit.
      *
      * @param classLoaderHandlerClass
      *            The ClassLoaderHandler class to register.
@@ -926,20 +928,19 @@ public class ClassGraph {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
-     * MatchProcessors if a match is identified.
+     * Asynchronously scans the classpath, calling a {@link ScanResultProcessor} callback on success or a
+     * {@link FailureHandler} callback on failure.
      *
      * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @param scanResultProcessor
-     *            A callback to run on successful scan. Passed the ScanResult after asynchronous scanning has
-     *            completed and MatchProcessors have been run. (If null, throws IllegalArgumentException.)
+     *            A {@link ScanResultProcessor} callback to run on successful scan.
      * @param failureHandler
-     *            A callback to run on failed scan. Passed any Throwable thrown during the scan. (If null, throws
-     *            IllegalArgumentException.)
+     *            A {@link FailureHandler} callback to run on failed scan. This is passed any {@link Throwable}
+     *            thrown during the scan.
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler) {
@@ -954,85 +955,62 @@ public class ClassGraph {
             throw new IllegalArgumentException("failureHandler cannot be null");
         }
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
-        executorService.submit(
-                // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
-                        topLevelLog));
+        executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor,
+                failureHandler, topLevelLog));
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, and calls any MatchProcessors if a match is
-     * identified. Returns a Future object immediately after starting the scan. To block on scan completion, get the
-     * result of the returned Future. Uses the provided ExecutorService, and divides the work according to the
-     * requested degree of parallelism.
-     *
-     * <p>
-     * Note on thread safety: MatchProcessors are all run on a separate thread from the thread that calls this
-     * method (although the MatchProcessors are all run on one thread). You will need to add your own
-     * synchronization logic if MatchProcessors interact with the main thread. See the following for more info:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
+     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}.
      *
      * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object.
-     *         This {@link ScanResult} object contains info about the class graph within whitelisted packages
-     *         encountered during the scan. Calling get() on this Future object throws InterruptedException if the
-     *         scanning is interrupted before it completes, or throws ExecutionException if something goes wrong
-     *         during scanning. If ExecutionException is thrown, and the cause is a MatchProcessorException, then
-     *         either classloading failed for some class, or a MatchProcessor threw an exception.
+     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
+     *         representing the result of the scan.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        return executorService.submit(
-                // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                        /* failureHandler = */ null, topLevelLog));
+        return executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
+                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
     }
 
     /**
-     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Uses the
-     * provided ExecutorService, and divides the work according to the requested degree of parallelism. Blocks and
-     * waits for the scan to complete before returning a ScanResult.
+     * Scans the classpath using the requested {@link ExecutorService} and the requested degree of parallelism,
+     * blocking until the scan is complete.
      *
      * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks. This ExecutorService should start
-     *            tasks in FIFO order to avoid a deadlock during scan, i.e. be sure to construct the ExecutorService
-     *            with a LinkedBlockingQueue as its task queue. (This is the default for
-     *            Executors.newFixedThreadPool().)
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks. This {@link ExecutorService}
+     *            should start tasks in FIFO order to avoid a deadlock during scan, i.e. be sure to construct the
+     *            {@link ExecutorService} with a {@link LinkedBlockingQueue} as its task queue. (This is the default
+     *            for {@link Executors#newFixedThreadPool(int)}.)
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
-     *             indicate a bug in ClassGraph.)
-     * @return a new {@link ScanResult} object, containing info about the class graph within whitelisted packages
-     *         encountered during the scan.
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @return a {@link ScanResult} object representing the result of the scan.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan and wait for completion
-            final ScanResult scanResult = executorService.submit(
-                    // Call MatchProcessors before returning if in async scanning mode
-                    new Scanner(scanSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                            /* failureHandler = */ null, topLevelLog)) //
+            final ScanResult scanResult = executorService
+                    .submit(new Scanner(scanSpec, executorService, numParallelTasks,
+                            /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)) //
                     .get();
 
             //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
             //    final String scanResultJson = scanResult.toJSON();
             //    scanResult = ScanResult.fromJSON(scanResultJson);
 
-            // Return the scanResult after calling MatchProcessors
+            // Return the scanResult
             return scanResult;
 
         } catch (final InterruptedException e) {
             if (topLevelLog != null) {
                 topLevelLog.log("Scan interrupted");
             }
-            throw new IllegalArgumentException("Scan interrupted", e);
+            throw new RuntimeException("Scan interrupted", e);
         } catch (final ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause == null) {
@@ -1042,7 +1020,7 @@ public class ClassGraph {
                 if (topLevelLog != null) {
                     topLevelLog.log("Scan interrupted");
                 }
-                throw new IllegalArgumentException("Scan interrupted", e);
+                throw new RuntimeException("Scan interrupted", e);
             } else {
                 if (topLevelLog != null) {
                     topLevelLog.log("Unexpected exception during scan", e);
@@ -1057,17 +1035,13 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Temporarily
-     * starts up a new fixed thread pool for scanning, with the requested number of threads. Blocks and waits for
-     * the scan to complete before returning a ScanResult.
+     * Scans the classpath with the requested number of threads, blocking until the scan is complete.
      *
      * @param numThreads
      *            The number of worker threads to start up.
      * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
-     *             indicate a bug in ClassGraph.)
-     * @return a new {@link ScanResult} object, containing info about the class graph within whitelisted packages
-     *         encountered during the scan.
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @return a {@link ScanResult} object representing the result of the scan.
      */
     public ScanResult scan(final int numThreads) {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(numThreads)) {
@@ -1076,15 +1050,11 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Temporarily
-     * starts up a new fixed thread pool for scanning, with the default number of threads (6). Blocks and waits for
-     * the scan to complete before returning a ScanResult.
+     * Scans the classpath, blocking until the scan is complete.
      *
      * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
-     *             indicate a bug in ClassGraph.)
-     * @return a new ScanResult object, containing info about the class graph within whitelisted packages
-     *         encountered during the scan.
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @return a {@link ScanResult} object representing the result of the scan.
      */
     public ScanResult scan() {
         return scan(DEFAULT_NUM_WORKER_THREADS);

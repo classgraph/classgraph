@@ -3,7 +3,7 @@
  *
  * Author: Luke Hutchison (luke.hutch@gmail.com)
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *

@@ -3,7 +3,7 @@
  *
  * Author: Luke Hutchison
  *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *
@@ -161,7 +161,7 @@ public class ClasspathFinder {
                             + ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER.classLoaderHandlerClass
                                     .getName()
                             + " instead. Please report this at: "
-                            + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+                            + "https://github.com/classgraph/classgraph/issues");
                 }
                 addClassLoaderHandler(scanSpec, classLoader,
                         ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER, foundClassLoaders,
