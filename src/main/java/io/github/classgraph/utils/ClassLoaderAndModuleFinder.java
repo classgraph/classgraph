@@ -228,7 +228,7 @@ public class ClassLoaderAndModuleFinder {
                 }
             } catch (final IllegalArgumentException e) {
                 if (log != null) {
-                    log.log("Could not get call stack: " + e);
+                    log.log("Could not get call stack", e);
                 }
             }
 
