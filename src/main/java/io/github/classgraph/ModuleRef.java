@@ -107,8 +107,12 @@ public class ModuleRef implements Comparable<ModuleRef> {
         final Object optionalRawVersion = ReflectionUtils.invokeMethod(this.descriptor, "rawVersion",
                 /* throwException = */ true);
         if (optionalRawVersion != null) {
-            this.rawVersion = (String) ReflectionUtils.invokeMethod(optionalRawVersion, "get",
+            final Boolean isPresent = (Boolean) ReflectionUtils.invokeMethod(optionalRawVersion, "isPresent",
                     /* throwException = */ true);
+            if (isPresent != null && isPresent) {
+                this.rawVersion = (String) ReflectionUtils.invokeMethod(optionalRawVersion, "get",
+                        /* throwException = */ true);
+            }
         }
         final Object moduleLocationOptional = ReflectionUtils.invokeMethod(moduleReference, "location",
                 /* throwException = */ true);

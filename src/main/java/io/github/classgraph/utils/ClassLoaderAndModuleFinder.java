@@ -152,7 +152,7 @@ public class ClassLoaderAndModuleFinder {
                                 if (addedModules.add(moduleReference)) {
                                     try {
                                         modulesInLayer.add(new ModuleRef(moduleReference, layer));
-                                    } catch (Exception e) {
+                                    } catch (final Exception e) {
                                         if (log != null) {
                                             log.log("Exception while creating ModuleRef for module "
                                                     + moduleReference, e);
