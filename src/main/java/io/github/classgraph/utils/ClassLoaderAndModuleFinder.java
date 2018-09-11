@@ -95,7 +95,7 @@ public class ClassLoaderAndModuleFinder {
      * @param callStack
      * @return
      */
-    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
+    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final LogNode log) {
         Deque<Object> /* Deque<ModuleLayer> */ layerOrder = null;
         final HashSet<Object> /* HashSet<ModuleLayer> */ layerVisited = new HashSet<>();
         for (int i = 0; i < callStack.length; i++) {
@@ -150,7 +150,14 @@ public class ClassLoaderAndModuleFinder {
                                     .invokeMethod(module, "reference", /* throwException = */ true);
                             if (moduleReference != null) {
                                 if (addedModules.add(moduleReference)) {
-                                    modulesInLayer.add(new ModuleRef(moduleReference, layer));
+                                    try {
+                                        modulesInLayer.add(new ModuleRef(moduleReference, layer));
+                                    } catch (Exception e) {
+                                        if (log != null) {
+                                            log.log("Exception while creating ModuleRef for module "
+                                                    + moduleReference, e);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -214,7 +221,7 @@ public class ClassLoaderAndModuleFinder {
                     }
                 }
                 // Find module references for classes on callstack (for JDK9+)
-                final List<ModuleRef> allModuleRefsList = findModuleRefs(callStack);
+                final List<ModuleRef> allModuleRefsList = findModuleRefs(callStack, log);
 
                 // Split modules into system modules and non-system modules
                 systemModuleRefs = new ArrayList<>();
