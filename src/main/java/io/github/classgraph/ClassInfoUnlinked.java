@@ -171,13 +171,19 @@ class ClassInfoUnlinked {
                 subLog.log("Class annotations: " + Join.join(", ", classAnnotations));
             }
             if (annotationParamDefaultValues != null) {
-                subLog.log("Annotation default param values: " + Join.join(", ", annotationParamDefaultValues));
-            }
-            if (methodInfoList != null) {
-                subLog.log("Method info: " + Join.join(", ", methodInfoList));
+                for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
+                    subLog.log("Annotation default param value: " + apv);
+                }
             }
             if (fieldInfoList != null) {
-                subLog.log("Field info: " + Join.join(", ", fieldInfoList));
+                for (final FieldInfo fieldInfo : fieldInfoList) {
+                    subLog.log("Field: " + fieldInfo);
+                }
+            }
+            if (methodInfoList != null) {
+                for (final MethodInfo methodInfo : methodInfoList) {
+                    subLog.log("Method: " + methodInfo);
+                }
             }
             if (typeSignature != null) {
                 ClassTypeSignature typeSig = null;
