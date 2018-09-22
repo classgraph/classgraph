@@ -466,6 +466,29 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
+    /**
+     * @param annotationName
+     *            The name of an annotation.
+     * @return true if this method has the named annotation.
+     */
+    public boolean hasAnnotation(final String annotationName) {
+        return getAnnotationInfo().containsName(annotationName);
+    }
+
+    /**
+     * @param annotationName
+     *            The name of a method parameter annotation.
+     * @return true if this method has a parameter with the named annotation.
+     */
+    public boolean hasParameterAnnotation(final String annotationName) {
+        for (final MethodParameterInfo methodParameterInfo : getParameterInfo()) {
+            if (methodParameterInfo.hasAnnotation(annotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

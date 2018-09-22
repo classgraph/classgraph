@@ -148,6 +148,15 @@ public class MethodParameterInfo {
         }
     }
 
+    /**
+     * @param annotationName
+     *            The name of an annotation.
+     * @return true if this method parameter has the named annotation.
+     */
+    public boolean hasAnnotation(final String annotationName) {
+        return getAnnotationInfo().containsName(annotationName);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     protected void setScanResult(final ScanResult scanResult) {

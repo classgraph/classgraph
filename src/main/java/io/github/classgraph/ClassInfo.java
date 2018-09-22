@@ -913,7 +913,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean hasFieldAnnotation(final String fieldAnnotationName) {
         for (final FieldInfo fieldInfo : getFieldInfo()) {
-            if (fieldInfo.getAnnotationInfo().containsName(fieldAnnotationName)) {
+            if (fieldInfo.hasAnnotation(fieldAnnotationName)) {
                 return true;
             }
         }
@@ -936,7 +936,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
         for (final MethodInfo methodInfo : getMethodInfo()) {
-            if (methodInfo.getAnnotationInfo().containsName(methodAnnotationName)) {
+            if (methodInfo.hasAnnotation(methodAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param methodParameterAnnotationName
+     *            The name of a method annotation.
+     * @return true if this class has a method with the named annotation.
+     */
+    public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
+        for (final MethodInfo methodInfo : getMethodInfo()) {
+            if (methodInfo.hasParameterAnnotation(methodParameterAnnotationName)) {
                 return true;
             }
         }

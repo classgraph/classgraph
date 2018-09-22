@@ -312,6 +312,15 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
+    /**
+     * @param annotationName
+     *            The name of an annotation.
+     * @return true if this field has the named annotation.
+     */
+    public boolean hasAnnotation(final String annotationName) {
+        return getAnnotationInfo().containsName(annotationName);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
