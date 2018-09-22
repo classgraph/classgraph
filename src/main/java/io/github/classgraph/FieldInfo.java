@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
@@ -319,6 +320,27 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     public boolean hasAnnotation(final String annotationName) {
         return getAnnotationInfo().containsName(annotationName);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Load the class this field is associated with, and get the {@link Field} reference for this field.
+     * 
+     * @return The {@link Field} reference for this field.
+     * @throws NoSuchFieldException
+     *             if the field does not exist.
+     */
+    public Field loadClassAndGetField() throws NoSuchFieldException {
+        try {
+            return loadClass().getField(getName());
+        } catch (NoSuchFieldException ex) {
+            try {
+                return loadClass().getDeclaredField(getName());
+            } catch (NoSuchFieldException ex2) {
+                throw new NoSuchFieldException("No such field: " + getClassName() + "." + getName());
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
