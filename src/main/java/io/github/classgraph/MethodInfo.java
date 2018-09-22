@@ -496,10 +496,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * Load the class this method is associated with, and get the {@link Method} reference for this method.
      * 
      * @return The {@link Method} reference for this field.
-     * @throws NoSuchMethodException
+     * @throws IllegalArgumentException
      *             if the method does not exist.
      */
-    public Method loadClassAndGetMethod() throws NoSuchMethodException {
+    public Method loadClassAndGetMethod() throws IllegalArgumentException {
         final MethodParameterInfo[] allParameterInfo = getParameterInfo();
         final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
         for (final MethodParameterInfo parameterInfo : allParameterInfo) {
@@ -513,7 +513,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             try {
                 return loadClass().getDeclaredMethod(getName(), parameterClassesArr);
             } catch (final NoSuchMethodException es2) {
-                throw new NoSuchMethodException("No such method: " + getClassName() + "." + getName());
+                throw new IllegalArgumentException("No such method: " + getClassName() + "." + getName());
             }
         }
     }
