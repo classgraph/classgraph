@@ -441,7 +441,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             // Generate MethodParameterInfo entries
             parameterInfo = new MethodParameterInfo[numParams];
             for (int i = 0; i < numParams; i++) {
-                parameterInfo[i] = new MethodParameterInfo(
+                parameterInfo[i] = new MethodParameterInfo(this,
                         paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                         paramModifiersAligned == null ? 0 : paramModifiersAligned[i], paramTypeDescriptors.get(i),
                         paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),

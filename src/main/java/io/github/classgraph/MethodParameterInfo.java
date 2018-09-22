@@ -36,6 +36,7 @@ import java.lang.reflect.Modifier;
  * @author lukehutch
  */
 public class MethodParameterInfo {
+    private final MethodInfo methodInfo;
     final AnnotationInfo[] annotationInfo;
     private final int modifiers;
     private final TypeSignature typeDescriptor;
@@ -46,6 +47,8 @@ public class MethodParameterInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * @param methodInfo
+     *            The {@link MethodInfo} for the defining method.
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on this method parameter.
      * @param modifiers
@@ -57,8 +60,9 @@ public class MethodParameterInfo {
      * @param name
      *            The method parameter name.
      */
-    MethodParameterInfo(final AnnotationInfo[] annotationInfo, final int modifiers,
+    MethodParameterInfo(final MethodInfo methodInfo, final AnnotationInfo[] annotationInfo, final int modifiers,
             final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
+        this.methodInfo = methodInfo;
         this.name = name;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
@@ -67,6 +71,13 @@ public class MethodParameterInfo {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * @return The {@link MethodInfo} for the defining method.
+     */
+    public MethodInfo getMethodInfo() {
+        return methodInfo;
+    }
 
     /**
      * Method parameter name. May be null, for unnamed parameters (e.g. synthetic parameters), or if compiled for
