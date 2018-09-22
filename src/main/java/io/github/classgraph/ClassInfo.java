@@ -39,10 +39,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.json.Id;
@@ -121,20 +123,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** Info on fields. */
     FieldInfoList fieldInfo;
 
-    /** Reverse mapping from field name to FieldInfo. */
-    private transient Map<String, FieldInfo> fieldNameToFieldInfo;
-
     /** Info on fields. */
     MethodInfoList methodInfo;
-
-    /** Reverse mapping from method name to MethodInfo. */
-    private transient Map<String, MethodInfoList> methodNameToMethodInfoList;
 
     /** For annotations, the default values of parameters. */
     List<AnnotationParameterValue> annotationDefaultParamValues;
 
     /** The set of classes related to this one. */
     private final Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
+
+    /**
+     * The override order for a class' fields or methods (base class, followed by interfaces, followed by
+     * superclasses).
+     */
+    private transient List<ClassInfo> overrideOrder;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -961,6 +963,31 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /** Recurse to interfaces and superclasses to get the order that fields and methods are overridden in. */
+    private List<ClassInfo> getOverrideOrder(final Set<ClassInfo> visited, final List<ClassInfo> overrideOrderOut) {
+        if (visited.add(this)) {
+            overrideOrderOut.add(this);
+            for (final ClassInfo iface : getInterfaces()) {
+                iface.getOverrideOrder(visited, overrideOrderOut);
+            }
+            final ClassInfo superclass = getSuperclass();
+            if (superclass != null) {
+                superclass.getOverrideOrder(visited, overrideOrderOut);
+            }
+        }
+        return overrideOrderOut;
+    }
+
+    /** Get the order that fields and methods are overridden in (base class first). */
+    private List<ClassInfo> getOverrideOrder() {
+        if (overrideOrder == null) {
+            overrideOrder = getOverrideOrder(new HashSet<ClassInfo>(), new ArrayList<ClassInfo>());
+        }
+        return overrideOrder;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
     // Standard classes
 
     /**
@@ -1240,10 +1267,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Methods
 
     /**
-     * Returns information on visible methods declared by the class that are not constructors. (Call
-     * {@link #getMethodAndConstructorInfo()} if you need methods and constructors.) Note that you will need to
-     * iterate through superclasses and interfaces looking for non-private methods if you want to find methods that
-     * are inherited from superclasses and/or interfaces (including default methods in interfaces, for JDK 8+).
+     * Returns information on visible methods declared by this class, but not by its interfaces or superclasses,
+     * that are not constructors. See also:
+     * 
+     * <ul>
+     * <li>{@link #getMethodInfo(String)}
+     * <li>{@link #getDeclaredMethodInfo(String)}
+     * <li>{@link #getMethodInfo()}
+     * <li>{@link #getConstructorInfo()}
+     * <li>{@link #getDeclaredConstructorInfo()}
+     * <li>{@link #getMethodAndConstructorInfo()}
+     * <li>{@link #getDeclaredMethodAndConstructorInfo()}
+     * </ul>
      * 
      * <p>
      * There may be more than one method of a given name with different type signatures, due to overloading.
@@ -1256,12 +1291,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
      * was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible methods of this class, or the empty list if no
-     *         methods were found.
+     * @return the list of {@link MethodInfo} objects for visible methods declared by this class, or the empty list
+     *         if no methods were found.
      * @throws IllegalArgumentException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
-    public MethodInfoList getMethodInfo() {
+    public MethodInfoList getDeclaredMethodInfo() {
         if (!scanResult.scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
@@ -1280,8 +1315,68 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible constructors declared by the class. Constructors have the method name of
-     * {@code "<init>"}.
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
+     * not constructors. See also:
+     * 
+     * <ul>
+     * <li>{@link #getMethodInfo(String)}
+     * <li>{@link #getDeclaredMethodInfo(String)}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * <li>{@link #getConstructorInfo()}
+     * <li>{@link #getDeclaredConstructorInfo()}
+     * <li>{@link #getMethodAndConstructorInfo()}
+     * <li>{@link #getDeclaredMethodAndConstructorInfo()}
+     * </ul>
+     * 
+     * <p>
+     * There may be more than one method of a given name with different type signatures, due to overloading.
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
+     *         superclasses, or the empty list if no methods were found.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
+     */
+    public MethodInfoList getMethodInfo() {
+        if (!scanResult.scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+        }
+        // Implement method overriding
+        final MethodInfoList methodInfoList = new MethodInfoList();
+        final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
+        for (final ClassInfo ci : getOverrideOrder()) {
+            for (final MethodInfo mi : ci.getDeclaredMethodInfo()) {
+                // If method has not been overridden by method of same name and type descriptor 
+                if (nameAndTypeDescriptorSet
+                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
+                    // Add method to output order
+                    methodInfoList.add(mi);
+                }
+            }
+        }
+        return methodInfoList;
+    }
+
+    /**
+     * Returns information on visible constructors declared by this class, but not by its interfaces or
+     * superclasses. Constructors have the method name of {@code "<init>"}. See also:
+     * 
+     * <ul>
+     * <li>{@link #getMethodInfo(String)}
+     * <li>{@link #getDeclaredMethodInfo(String)}
+     * <li>{@link #getMethodInfo()}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * <li>{@link #getConstructorInfo()}
+     * <li>{@link #getMethodAndConstructorInfo()}
+     * <li>{@link #getDeclaredMethodAndConstructorInfo()}
+     * </ul>
      * 
      * <p>
      * There may be more than one constructor of a given name with different type signatures, due to overloading.
@@ -1294,12 +1389,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * By default only returns information for public constructors, unless
      * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible constructors of this class, or the empty list if
-     *         no constructors were found or visible.
+     * @return the list of {@link MethodInfo} objects for visible constructors declared by this class, or the empty
+     *         list if no constructors were found or visible.
      * @throws IllegalArgumentException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
-    public MethodInfoList getConstructorInfo() {
+    public MethodInfoList getDeclaredConstructorInfo() {
         if (!scanResult.scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
@@ -1318,11 +1413,69 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods and constructors declared by the class. Constructors have the method
-     * name of {@code "<init>"} and static initializer blocks have the name of {@code "<clinit>"}. Note that you
-     * will need to iterate through superclasses and interfaces looking for non-private methods if you want to find
-     * methods that are inherited from superclasses and/or interfaces (including default methods in interfaces, for
-     * JDK 8+).
+     * Returns information on visible constructors declared by this class, or by its interfaces or superclasses.
+     * Constructors have the method name of {@code "<init>"}. See also:
+     * 
+     * <ul>
+     * <li>{@link #getMethodInfo(String)}
+     * <li>{@link #getDeclaredMethodInfo(String)}
+     * <li>{@link #getMethodInfo()}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * <li>{@link #getDeclaredConstructorInfo()}
+     * <li>{@link #getMethodAndConstructorInfo()}
+     * <li>{@link #getDeclaredMethodAndConstructorInfo()}
+     * </ul>
+     * 
+     * <p>
+     * There may be more than one method of a given name with different type signatures, due to overloading.
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * @return the list of {@link MethodInfo} objects for visible constructors of this class and its superclasses,
+     *         or the empty list if no methods were found.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
+     */
+    public MethodInfoList getConstructorInfo() {
+        if (!scanResult.scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+        }
+        // Implement method overriding
+        final MethodInfoList methodInfoList = new MethodInfoList();
+        final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
+        for (final ClassInfo ci : getOverrideOrder()) {
+            for (final MethodInfo mi : ci.getDeclaredConstructorInfo()) {
+                // If method has not been overridden by method of same name and type descriptor 
+                if (nameAndTypeDescriptorSet
+                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
+                    // Add method to output order
+                    methodInfoList.add(mi);
+                }
+            }
+        }
+        return methodInfoList;
+    }
+
+    /**
+     * Returns information on visible methods and constructors declared by this class, but not by its interfaces or
+     * superclasses. Constructors have the method name of {@code "<init>"} and static initializer blocks have the
+     * name of {@code "<clinit>"}. See also:
+     * 
+     * <ul>
+     * <li>{@link #getMethodInfo(String)}
+     * <li>{@link #getDeclaredMethodInfo(String)}
+     * <li>{@link #getMethodInfo()}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * <li>{@link #getConstructorInfo()}
+     * <li>{@link #getDeclaredConstructorInfo()}
+     * <li>{@link #getMethodAndConstructorInfo()}
+     * </ul>
      * 
      * <p>
      * There may be more than one method or constructor or method of a given name with different type signatures,
@@ -1343,7 +1496,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
-    public MethodInfoList getMethodAndConstructorInfo() {
+    public MethodInfoList getDeclaredMethodAndConstructorInfo() {
         if (!scanResult.scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
@@ -1351,8 +1504,127 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the method(s) or constructor(s) declared by the class with the given method name.
-     * Constructors have the method name of {@code "<init>"}.
+     * Returns information on visible constructors declared by this class, or by its interfaces or superclasses.
+     * Constructors have the method name of {@code "<init>"} and static initializer blocks have the name of
+     * {@code "<clinit>"}. See also:
+     * 
+     * <ul>
+     * <li>{@link #getMethodInfo(String)}
+     * <li>{@link #getDeclaredMethodInfo(String)}
+     * <li>{@link #getMethodInfo()}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * <li>{@link #getConstructorInfo()}
+     * <li>{@link #getDeclaredConstructorInfo()}
+     * <li>{@link #getDeclaredMethodAndConstructorInfo()}
+     * </ul>
+     * 
+     * <p>
+     * There may be more than one method of a given name with different type signatures, due to overloading.
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, its
+     *         interfaces and superclasses, or the empty list if no methods were found.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
+     */
+    public MethodInfoList getMethodAndConstructorInfo() {
+        if (!scanResult.scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+        }
+        // Implement method overriding
+        final MethodInfoList methodInfoList = new MethodInfoList();
+        final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
+        for (final ClassInfo ci : getOverrideOrder()) {
+            for (final MethodInfo mi : ci.getDeclaredMethodAndConstructorInfo()) {
+                // If method has not been overridden by method of same name and type descriptor 
+                if (nameAndTypeDescriptorSet
+                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
+                    // Add method to output order
+                    methodInfoList.add(mi);
+                }
+            }
+        }
+        return methodInfoList;
+    }
+
+    /**
+     * Returns information on the method(s) or constructor(s) of the given name declared by this class, but not by
+     * its interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
+     * 
+     * <ul>
+     * <li>{@link #getMethodInfo(String)}
+     * <li>{@link #getMethodInfo()}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * <li>{@link #getConstructorInfo()}
+     * <li>{@link #getDeclaredConstructorInfo()}
+     * <li>{@link #getMethodAndConstructorInfo()}
+     * <li>{@link #getDeclaredMethodAndConstructorInfo()}
+     * </ul>
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * <p>
+     * May return info for multiple methods with the same name (with different type signatures).
+     *
+     * @param methodName
+     *            The method name to query.
+     * @return a list of {@link MethodInfo} objects for the method(s) with the given name, or the empty list if the
+     *         method was not found in this class (or is not visible).
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
+     */
+    public MethodInfoList getDeclaredMethodInfo(final String methodName) {
+        if (!scanResult.scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+        }
+        if (methodInfo == null) {
+            return MethodInfoList.EMPTY_LIST;
+        }
+        boolean hasMethodWithName = false;
+        for (final MethodInfo f : methodInfo) {
+            if (f.getName().equals(methodName)) {
+                hasMethodWithName = true;
+                break;
+            }
+        }
+        if (!hasMethodWithName) {
+            return MethodInfoList.EMPTY_LIST;
+        }
+        final MethodInfoList methodInfoList = new MethodInfoList();
+        for (final MethodInfo mi : methodInfo) {
+            if (mi.getName().equals(methodName)) {
+                methodInfoList.add(mi);
+            }
+        }
+        return methodInfoList;
+    }
+
+    /**
+     * Returns information on the method(s) or constructor(s) of the given name declared by this class, but not by
+     * its interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
+     * 
+     * <ul>
+     * <li>{@link #getDeclaredMethodInfo(String)}
+     * <li>{@link #getMethodInfo()}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * <li>{@link #getConstructorInfo()}
+     * <li>{@link #getDeclaredConstructorInfo()}
+     * <li>{@link #getMethodAndConstructorInfo()}
+     * <li>{@link #getDeclaredMethodAndConstructorInfo()}
+     * </ul>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
@@ -1376,38 +1648,26 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanResult.scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
-        if (methodInfo == null) {
-            return MethodInfoList.EMPTY_LIST;
-        }
-        boolean hasMethodWithName = false;
-        for (final MethodInfo f : methodInfo) {
-            if (f.getName().equals(methodName)) {
-                hasMethodWithName = true;
-                break;
-            }
-        }
-        if (!hasMethodWithName) {
-            return MethodInfoList.EMPTY_LIST;
-        }
-        if (methodNameToMethodInfoList == null) {
-            methodNameToMethodInfoList = new HashMap<>();
-            for (final MethodInfo f : methodInfo) {
-                MethodInfoList methodInfoList = methodNameToMethodInfoList.get(f.getName());
-                if (methodInfoList == null) {
-                    methodNameToMethodInfoList.put(f.getName(), methodInfoList = new MethodInfoList());
+        // Implement method overriding
+        final MethodInfoList methodInfoList = new MethodInfoList();
+        final Set<String> typeDescriptorSet = new HashSet<>();
+        for (final ClassInfo ci : getOverrideOrder()) {
+            for (final MethodInfo mi : ci.getDeclaredMethodInfo(methodName)) {
+                // If method has not been overridden by method of same name with same type descriptor 
+                if (typeDescriptorSet.add(mi.getTypeDescriptor().toString())) {
+                    // Add method to output order
+                    methodInfoList.add(mi);
                 }
-                methodInfoList.add(f);
             }
         }
-        final MethodInfoList methodInfoList = methodNameToMethodInfoList.get(methodName);
-        return methodInfoList == null ? MethodInfoList.EMPTY_LIST : methodInfoList;
+        return methodInfoList;
     }
 
     /**
-     * @return A list of method annotations or meta-annotations declared by the class, as a list of
-     *         {@link ClassInfo} objects, or the empty list if none. N.B. these annotations do not contain specific
-     *         annotation parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific
-     *         method annotation instances.
+     * @return A list of annotations or meta-annotations on methods declared by the class, (not including methods
+     *         declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo} objects, or
+     *         the empty list if none. N.B. these annotations do not contain specific annotation parameters -- call
+     *         {@link MethodInfo#getAnnotationInfo()} to get details on specific method annotation instances.
      */
     public ClassInfoList getMethodAnnotations() {
         if (!scanResult.scanSpec.enableMethodInfo || !scanResult.scanSpec.enableAnnotationInfo) {
@@ -1427,8 +1687,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * @return A list of classes that have a method with this annotation or meta-annotation, or the empty list if
-     *         none.
+     * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
+     *         list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation() {
         if (!scanResult.scanSpec.enableMethodInfo || !scanResult.scanSpec.enableAnnotationInfo) {
@@ -1458,7 +1718,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * @return A list of classes that have methods that are directly annotated (i.e. are not meta-annotated) with
+     * @return A list of classes that declare methods that are directly annotated (i.e. are not meta-annotated) with
      *         the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithMethodAnnotationDirectOnly() {
@@ -1471,8 +1731,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Fields
 
     /**
-     * Returns information on all visible fields declared by the class. Note that you will need to iterate through
-     * superclasses looking for non-private fields, if you want to find fields that are inherited from superclasses.
+     * Returns information on all visible fields declared by this class, but not by its superclasses. See also:
+     * 
+     * <ul>
+     * <li>{@link #getFieldInfo(String)}
+     * <li>{@link #getDeclaredFieldInfo(String)}
+     * <li>{@link #getFieldInfo()}
+     * </ul>
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
@@ -1482,12 +1747,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * By default only returns information for public methods, unless {@link ClassGraph#ignoreFieldVisibility()} was
      * called before the scan.
      *
-     * @return the list of FieldInfo objects for visible fields of this class, or the empty list if no fields were
-     *         found or visible.
+     * @return the list of FieldInfo objects for visible fields declared by this class, or the empty list if no
+     *         fields were found or visible.
      * @throws IllegalArgumentException
      *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
-    public FieldInfoList getFieldInfo() {
+    public FieldInfoList getDeclaredFieldInfo() {
         if (!scanResult.scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
@@ -1495,7 +1760,54 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on a given visible field declared by the class.
+     * Returns information on all visible fields declared by this class, or by its superclasses. See also:
+     * 
+     * <ul>
+     * <li>{@link #getFieldInfo(String)}
+     * <li>{@link #getDeclaredFieldInfo(String)}
+     * <li>{@link #getDeclaredFieldInfo()}
+     * </ul>
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
+     * {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
+     *
+     * @return the list of FieldInfo objects for visible fields of this class or its superclases, or the empty list
+     *         if no fields were found or visible.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
+     */
+    public FieldInfoList getFieldInfo() {
+        if (!scanResult.scanSpec.enableFieldInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
+        }
+        // Implement field overriding
+        final FieldInfoList fieldInfoList = new FieldInfoList();
+        final Set<String> fieldNameSet = new HashSet<>();
+        for (final ClassInfo ci : getOverrideOrder()) {
+            for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
+                // If field has not been overridden by field of same name 
+                if (fieldNameSet.add(fi.getName())) {
+                    // Add field to output order
+                    fieldInfoList.add(fi);
+                }
+            }
+        }
+        return fieldInfoList;
+    }
+
+    /**
+     * Returns information on the named field declared by the class, but not by its superclasses. See also:
+     * 
+     * <ul>
+     * <li>{@link #getFieldInfo(String)}
+     * <li>{@link #getFieldInfo()}
+     * <li>{@link #getDeclaredFieldInfo()}
+     * </ul>
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
@@ -1506,9 +1818,48 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * called before the scan.
      *
      * @param fieldName
-     *            The field name to query.
-     * @return the {@link FieldInfo} object for the named field, or null if the field was not found in this class
-     *         (or is not visible).
+     *            The field name.
+     * @return the {@link FieldInfo} object for the named field declared by this class, or null if the field was not
+     *         found in this class (or is not visible).
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
+     */
+    public FieldInfo getDeclaredFieldInfo(final String fieldName) {
+        if (!scanResult.scanSpec.enableFieldInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
+        }
+        if (fieldInfo == null) {
+            return null;
+        }
+        for (final FieldInfo fi : fieldInfo) {
+            if (fi.getName().equals(fieldName)) {
+                return fi;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns information on the named filed declared by this class, or by its superclasses. See also:
+     * 
+     * <ul>
+     * <li>{@link #getDeclaredFieldInfo(String)}
+     * <li>{@link #getFieldInfo()}
+     * <li>{@link #getDeclaredFieldInfo()}
+     * </ul>
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
+     * {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
+     *
+     * @param fieldName
+     *            The field name.
+     * @return the {@link FieldInfo} object for the named field of this class or its superclases, or the empty list
+     *         if no fields were found or visible.
      * @throws IllegalArgumentException
      *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
@@ -1516,17 +1867,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanResult.scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
-        if (fieldInfo == null) {
-            return null;
-        }
-        if (fieldNameToFieldInfo == null) {
-            // Lazily build reverse mapping cache
-            fieldNameToFieldInfo = new HashMap<>();
-            for (final FieldInfo f : fieldInfo) {
-                fieldNameToFieldInfo.put(f.getName(), f);
+        // Implement field overriding
+        for (final ClassInfo ci : getOverrideOrder()) {
+            final FieldInfo fi = ci.getDeclaredFieldInfo(fieldName);
+            if (fi != null) {
+                return fi;
             }
         }
-        return fieldNameToFieldInfo.get(fieldName);
+        return null;
     }
 
     /**
