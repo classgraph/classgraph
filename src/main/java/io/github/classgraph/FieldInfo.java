@@ -334,10 +334,10 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     public Field loadClassAndGetField() throws NoSuchFieldException {
         try {
             return loadClass().getField(getName());
-        } catch (NoSuchFieldException e1) {
+        } catch (final NoSuchFieldException e1) {
             try {
                 return loadClass().getDeclaredField(getName());
-            } catch (NoSuchFieldException e2) {
+            } catch (final NoSuchFieldException e2) {
                 throw new NoSuchFieldException("No such field: " + getClassName() + "." + getName());
             }
         }
