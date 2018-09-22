@@ -729,6 +729,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return name;
     }
 
+    /** @return The simple name of the class. */
+    public String getSimpleName() {
+        return name.substring(name.lastIndexOf('.') + 1, name.length());
+    }
+
     /**
      * @return true if this class is an external class, i.e. was referenced by a whitelisted class as a superclass,
      *         interface, or annotation, but is not itself a whitelisted class.
@@ -926,7 +931,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * @param methodAnnotationName
-     *            The name of a mehtod annotation.
+     *            The name of a method annotation.
      * @return true if this class has a method with the named annotation.
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
