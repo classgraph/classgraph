@@ -40,14 +40,14 @@ import io.github.classgraph.utils.Parser.ParseException;
 public class TypeArgument extends HierarchicalTypeSignature {
     /** A type wildcard. */
     public static enum Wildcard {
-    /** No wildcard. */
-    NONE,
-    /** The '?' wildcard */
-    ANY,
-    /** extends */
-    EXTENDS,
-    /** super */
-    SUPER
+        /** No wildcard. */
+        NONE,
+        /** The '?' wildcard */
+        ANY,
+        /** extends */
+        EXTENDS,
+        /** super */
+        SUPER
     };
 
     /** A wildcard type. */
