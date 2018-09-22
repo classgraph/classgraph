@@ -354,12 +354,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return definingClassName;
     }
 
-    /** Get the class that declares the field. */
-    @Override
-    public ClassInfo getClassInfo() {
-        return super.getClassInfo();
-    }
-
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);

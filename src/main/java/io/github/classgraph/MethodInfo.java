@@ -529,12 +529,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         return definingClassName;
     }
 
-    /** Get the class that declares the method. */
-    @Override
-    public ClassInfo getClassInfo() {
-        return super.getClassInfo();
-    }
-
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
