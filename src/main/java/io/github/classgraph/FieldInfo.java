@@ -328,17 +328,17 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * Load the class this field is associated with, and get the {@link Field} reference for this field.
      * 
      * @return The {@link Field} reference for this field.
-     * @throws NoSuchFieldException
+     * @throws IllegalArgumentException
      *             if the field does not exist.
      */
-    public Field loadClassAndGetField() throws NoSuchFieldException {
+    public Field loadClassAndGetField() throws IllegalArgumentException {
         try {
             return loadClass().getField(getName());
         } catch (final NoSuchFieldException e1) {
             try {
                 return loadClass().getDeclaredField(getName());
             } catch (final NoSuchFieldException e2) {
-                throw new NoSuchFieldException("No such field: " + getClassName() + "." + getName());
+                throw new IllegalArgumentException("No such field: " + getClassName() + "." + getName());
             }
         }
     }
