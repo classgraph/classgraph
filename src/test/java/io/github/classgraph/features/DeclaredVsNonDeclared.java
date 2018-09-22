@@ -13,6 +13,8 @@ public class DeclaredVsNonDeclared {
     public abstract static class A {
         float x;
 
+        String z;
+
         abstract void y(int x, int y);
 
         abstract void y(String x);
@@ -34,6 +36,8 @@ public class DeclaredVsNonDeclared {
                 .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
+            assertThat(B.getFieldInfo("x").getClassInfo().getName()).isEqualTo(B.class.getName());
+            assertThat(B.getFieldInfo("z").getClassInfo().getName()).isEqualTo(A.class.getName());
             assertThat(A.getFieldInfo().get(0).getTypeDescriptor().toString()).isEqualTo("float");
             assertThat(B.getFieldInfo().get(0).getTypeDescriptor().toString()).isEqualTo("int");
             assertThat(B.getMethodInfo().toString()).isEqualTo(
