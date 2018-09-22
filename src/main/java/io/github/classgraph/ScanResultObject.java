@@ -35,6 +35,8 @@ abstract class ScanResultObject {
 
     private transient ClassInfo classInfo;
 
+    private transient Class<?> classRef;
+
     /** Set ScanResult backreferences in info objects after scan has completed. */
     void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
@@ -86,19 +88,24 @@ abstract class ScanResultObject {
      *             if the class could not be loaded or cast, and ignoreExceptions was false.
      */
     <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
-        String className;
-        final ClassInfo classInfo = getClassInfo();
-        if (classInfo != null) {
-            // Get class name from getClassInfo().getName() 
-            className = classInfo.getName();
-        } else {
-            // Get class name from getClassName() 
-            className = getClassName();
+        if (classRef == null) {
+            String className;
+            final ClassInfo classInfo = getClassInfo();
+            if (classInfo != null) {
+                // Get class name from getClassInfo().getName() 
+                className = classInfo.getName();
+            } else {
+                // Get class name from getClassName() 
+                className = getClassName();
+            }
+            if (className == null) {
+                throw new IllegalArgumentException("Class name is not set");
+            }
+            classRef = scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions);
         }
-        if (className == null) {
-            throw new IllegalArgumentException("Class name is not set");
-        }
-        return scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions);
+        @SuppressWarnings("unchecked")
+        final Class<T> classT = (Class<T>) classRef;
+        return classT;
     }
 
     /**
@@ -129,19 +136,22 @@ abstract class ScanResultObject {
      *             if the class could not be loaded and ignoreExceptions was false.
      */
     Class<?> loadClass(final boolean ignoreExceptions) {
-        String className;
-        final ClassInfo classInfo = getClassInfo();
-        if (classInfo != null) {
-            // Get class name from getClassInfo().getName() 
-            className = classInfo.getName();
-        } else {
-            // Get class name from getClassName() 
-            className = getClassName();
+        if (classRef == null) {
+            String className;
+            final ClassInfo classInfo = getClassInfo();
+            if (classInfo != null) {
+                // Get class name from getClassInfo().getName() 
+                className = classInfo.getName();
+            } else {
+                // Get class name from getClassName() 
+                className = getClassName();
+            }
+            if (className == null) {
+                throw new IllegalArgumentException("Class name is not set");
+            }
+            classRef = scanResult.loadClass(className, ignoreExceptions);
         }
-        if (className == null) {
-            throw new IllegalArgumentException("Class name is not set");
-        }
-        return scanResult.loadClass(className, ignoreExceptions);
+        return classRef;
     }
 
     /**
