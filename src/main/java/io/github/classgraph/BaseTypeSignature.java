@@ -84,6 +84,23 @@ public class BaseTypeSignature extends TypeSignature {
         }
     }
 
+    @Override
+    Class<?> loadClass() {
+        return getType();
+    }
+
+    @Override
+    <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
+        final Class<?> type = getType();
+        if (!superclassOrInterfaceType.isAssignableFrom(type)) {
+            throw new IllegalArgumentException(
+                    "Primitive class " + baseType + " cannot be cast to " + superclassOrInterfaceType.getName());
+        }
+        @SuppressWarnings("unchecked")
+        final Class<T> classT = (Class<T>) type;
+        return classT;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Parse a base type. */
