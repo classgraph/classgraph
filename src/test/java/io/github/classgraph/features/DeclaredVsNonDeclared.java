@@ -34,12 +34,22 @@ public class DeclaredVsNonDeclared {
                 .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
-
             assertThat(A.getFieldInfo().get(0).getTypeDescriptor().toString()).isEqualTo("float");
             assertThat(B.getFieldInfo().get(0).getTypeDescriptor().toString()).isEqualTo("int");
             assertThat(B.getMethodInfo().toString()).isEqualTo(
                     "[void y(int, int), abstract void y(java.lang.String), abstract void y(java.lang.Integer)]");
             assertThat(B.getDeclaredMethodInfo().toString()).isEqualTo("[void y(int, int)]");
+        }
+    }
+
+    @Test
+    public void loadFieldAndMethod() {
+        try (ScanResult scanResult = new ClassGraph().enableAllInfo()
+                .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
+            final ClassInfo A = scanResult.getClassInfo(A.class.getName());
+            final ClassInfo B = scanResult.getClassInfo(B.class.getName());
+            assertThat(B.getFieldInfo("x").loadClassAndGetField().getName()).isEqualTo("x");
+            assertThat(B.getMethodInfo("y").get(0).loadClassAndGetMethod().getName()).isEqualTo("y");
         }
     }
 }
