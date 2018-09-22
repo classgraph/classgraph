@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
@@ -492,6 +493,34 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Load the class this method is associated with, and get the {@link Method} reference for this method.
+     * 
+     * @return The {@link Method} reference for this field.
+     * @throws NoSuchMethodException
+     *             if the method does not exist.
+     */
+    public Method loadClassAndGetMethod() throws NoSuchMethodException {
+        final MethodParameterInfo[] allParameterInfo = getParameterInfo();
+        final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
+        for (final MethodParameterInfo parameterInfo : allParameterInfo) {
+            final TypeSignature parameterType = parameterInfo.getTypeSignatureOrTypeDescriptor();
+            parameterClasses.add(parameterType.loadClass());
+        }
+        final Class<?>[] parameterClassesArr = parameterClasses.toArray(new Class<?>[0]);
+        try {
+            return loadClass().getMethod(getName(), parameterClassesArr);
+        } catch (final NoSuchMethodException e1) {
+            try {
+                return loadClass().getDeclaredMethod(getName(), parameterClassesArr);
+            } catch (final NoSuchMethodException es2) {
+                throw new NoSuchMethodException("No such method: " + getClassName() + "." + getName());
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
      * defining class.
      */
@@ -731,8 +760,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         // otherwise don't show names for any params
         final MethodParameterInfo[] allParamInfo = getParameterInfo();
         boolean hasParamNames = false;
-        for (int i = 0, numParams = allParamInfo.length; i < numParams; i++) {
-            if (allParamInfo[i].getName() != null) {
+        for (final MethodParameterInfo methodParamInfo : allParamInfo) {
+            if (methodParamInfo.getName() != null) {
                 hasParamNames = true;
                 break;
             }
@@ -745,10 +774,9 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 buf.append(", ");
             }
 
-            final AnnotationInfo[] annInfo = paramInfo.annotationInfo;
-            if (annInfo != null) {
-                for (int j = 0; j < annInfo.length; j++) {
-                    annInfo[j].toString(buf);
+            if (paramInfo.annotationInfo != null) {
+                for (final AnnotationInfo annotationInfo : paramInfo.annotationInfo) {
+                    annotationInfo.toString(buf);
                     buf.append(' ');
                 }
             }
