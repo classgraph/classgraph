@@ -127,6 +127,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** Info on fields. */
     MethodInfoList methodInfo;
 
+    /** Reverse mapping from method name to MethodInfo. */
+    private transient Map<String, MethodInfoList> methodNameToMethodInfoList;
+
     /** For annotations, the default values of parameters. */
     List<AnnotationParameterValue> annotationDefaultParamValues;
 
@@ -1386,13 +1389,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!hasMethodWithName) {
             return MethodInfoList.EMPTY_LIST;
         }
-        final MethodInfoList methodInfoList = new MethodInfoList();
-        for (final MethodInfo f : methodInfo) {
-            if (f.getName().equals(methodName)) {
+        if (methodNameToMethodInfoList == null) {
+            methodNameToMethodInfoList = new HashMap<>();
+            for (final MethodInfo f : methodInfo) {
+                MethodInfoList methodInfoList = methodNameToMethodInfoList.get(f.getName());
+                if (methodInfoList == null) {
+                    methodNameToMethodInfoList.put(f.getName(), methodInfoList = new MethodInfoList());
+                }
                 methodInfoList.add(f);
             }
         }
-        return methodInfoList;
+        final MethodInfoList methodInfoList = methodNameToMethodInfoList.get(methodName);
+        return methodInfoList == null ? MethodInfoList.EMPTY_LIST : methodInfoList;
     }
 
     /**
