@@ -905,20 +905,48 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * @param fieldName
      *            The name of a field.
-     * @return true if this class has the named field.
+     * @return true if this class declares a field of the given name.
+     */
+    public boolean hasDeclaredField(final String fieldName) {
+        return getDeclaredFieldInfo().containsName(fieldName);
+    }
+
+    /**
+     * @param fieldName
+     *            The name of a field.
+     * @return true if this class or one of its superclasses declares a field of the given name.
      */
     public boolean hasField(final String fieldName) {
-        return getFieldInfo().containsName(fieldName);
+        for (final ClassInfo ci : getOverrideOrder()) {
+            if (ci.hasDeclaredField(fieldName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
      * @param fieldAnnotationName
      *            The name of a field annotation.
-     * @return true if this class has a field with the named annotation.
+     * @return true if this class declares a field with the named annotation.
+     */
+    public boolean hasDeclaredFieldAnnotation(final String fieldAnnotationName) {
+        for (final FieldInfo fieldInfo : getDeclaredFieldInfo()) {
+            if (fieldInfo.hasAnnotation(fieldAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param fieldAnnotationName
+     *            The name of a field annotation.
+     * @return true if this class or one of its superclasses declares a field with the named annotation.
      */
     public boolean hasFieldAnnotation(final String fieldAnnotationName) {
-        for (final FieldInfo fieldInfo : getFieldInfo()) {
-            if (fieldInfo.hasAnnotation(fieldAnnotationName)) {
+        for (final ClassInfo ci : getOverrideOrder()) {
+            if (ci.hasDeclaredFieldAnnotation(fieldAnnotationName)) {
                 return true;
             }
         }
@@ -928,20 +956,49 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * @param methodName
      *            The name of a method.
-     * @return true if this class has a method of the requested name.
+     * @return true if this class declares a field of the given name.
+     */
+    public boolean hasDeclaredMethod(final String methodName) {
+        return getDeclaredMethodInfo().containsName(methodName);
+    }
+
+    /**
+     * @param methodName
+     *            The name of a method.
+     * @return true if this class or one of its superclasses or interfaces declares a method of the given name.
      */
     public boolean hasMethod(final String methodName) {
-        return getMethodInfo().containsName(methodName);
+        for (final ClassInfo ci : getOverrideOrder()) {
+            if (ci.hasDeclaredMethod(methodName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
      * @param methodAnnotationName
      *            The name of a method annotation.
-     * @return true if this class has a method with the named annotation.
+     * @return true if this class declares a method with the named annotation.
+     */
+    public boolean hasDeclaredMethodAnnotation(final String methodAnnotationName) {
+        for (final MethodInfo methodInfo : getDeclaredMethodInfo()) {
+            if (methodInfo.hasAnnotation(methodAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param methodAnnotationName
+     *            The name of a method annotation.
+     * @return true if this class or one of its superclasses or interfaces declares a method with the named
+     *         annotation.
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
-        for (final MethodInfo methodInfo : getMethodInfo()) {
-            if (methodInfo.hasAnnotation(methodAnnotationName)) {
+        for (final ClassInfo ci : getOverrideOrder()) {
+            if (ci.hasDeclaredMethodAnnotation(methodAnnotationName)) {
                 return true;
             }
         }
@@ -951,11 +1008,25 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * @param methodParameterAnnotationName
      *            The name of a method annotation.
-     * @return true if this class has a method with the named annotation.
+     * @return true if this class declares a method with the named annotation.
+     */
+    public boolean hasDeclaredMethodParameterAnnotation(final String methodParameterAnnotationName) {
+        for (final MethodInfo methodInfo : getDeclaredMethodInfo()) {
+            if (methodInfo.hasParameterAnnotation(methodParameterAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param methodParameterAnnotationName
+     *            The name of a method annotation.
+     * @return true if this class or one of its superclasses or interfaces has a method with the named annotation.
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
-        for (final MethodInfo methodInfo : getMethodInfo()) {
-            if (methodInfo.hasParameterAnnotation(methodParameterAnnotationName)) {
+        for (final ClassInfo ci : getOverrideOrder()) {
+            if (ci.hasDeclaredMethodParameterAnnotation(methodParameterAnnotationName)) {
                 return true;
             }
         }
