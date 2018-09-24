@@ -322,8 +322,9 @@ class Scanner implements Callable<ScanResult> {
                 if (systemModules != null) {
                     for (final ModuleRef systemModule : systemModules) {
                         final String moduleName = systemModule.getName();
-                        if (!scanSpec.blacklistSystemJarsOrModules
-                                || !JarUtils.isInSystemPackageOrModule(moduleName)) {
+                        if ((!scanSpec.blacklistSystemJarsOrModules
+                                || !JarUtils.isInSystemPackageOrModule(moduleName))
+                                && scanSpec.overrideModuleLayers == null) {
                             if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
                                 rawClasspathEltOrder.add(new ClasspathOrModulePathEntry(systemModule,
                                         nestedJarHandler, getRawElementsLog));

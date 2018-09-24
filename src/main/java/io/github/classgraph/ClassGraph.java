@@ -367,6 +367,7 @@ public class ClassGraph {
     /**
      * Override the automatically-detected classpath with a custom path, with path elements separated by
      * File.pathSeparatorChar. Causes system ClassLoaders and the java.class.path system property to be ignored.
+     * Also causes modules not to be scanned.
      *
      * <p>
      * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
@@ -383,12 +384,11 @@ public class ClassGraph {
 
     /**
      * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
-     * java.class.path system property to be ignored. Works for Iterables of any type whose toString() method
-     * resolves to a classpath element string, e.g. String, File or Path.
-     *
+     * java.class.path system property to be ignored. Also causes modules not to be scanned.
+     * 
      * <p>
-     * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
-     * to be ignored, as well as the java.class.path system property.
+     * Works for Iterables of any type whose toString() method resolves to a classpath element string, e.g. String,
+     * File or Path.
      *
      * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
@@ -405,8 +405,11 @@ public class ClassGraph {
 
     /**
      * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
-     * java.class.path system property to be ignored. Works for arrays of any member type whose toString() method
-     * resolves to a classpath element string, e.g. String, File or Path.
+     * java.class.path system property to be ignored. Also causes modules not to be scanned.
+     * 
+     * <p>
+     * Works for arrays of any member type whose toString() method resolves to a classpath element string, e.g.
+     * String, File or Path.
      *
      * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
@@ -460,11 +463,8 @@ public class ClassGraph {
      * Add a ClassLoader to the list of ClassLoaders to scan.
      *
      * <p>
-     * This call is ignored if overrideClasspath() is also called, or if this method is called before
-     * overrideClassLoaders().
-     *
-     * <p>
-     * This call is ignored if overrideClasspath() is called.
+     * This call is ignored if {@link #overrideClasspath(String)} is also called, or if this method is called before
+     * {@link #overrideClassLoaders(ClassLoader...)}.
      *
      * @param classLoader
      *            The additional ClassLoader to scan.
@@ -476,10 +476,11 @@ public class ClassGraph {
     }
 
     /**
-     * Completely override (and ignore) system ClassLoaders and the java.class.path system property.
+     * Completely override (and ignore) system ClassLoaders and the java.class.path system property. Also causes
+     * modules not to be scanned.
      *
      * <p>
-     * This call is ignored if overrideClasspath() is called.
+     * This call is ignored if {@link #overrideClasspath(String)} is called.
      *
      * @param overrideClassLoaders
      *            The ClassLoaders to scan instead of the automatically-detected ClassLoaders.
@@ -498,6 +499,40 @@ public class ClassGraph {
      */
     public ClassGraph ignoreParentClassLoaders() {
         scanSpec.ignoreParentClassLoaders = true;
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you define your own ModuleLayer,
+     * but the scanning code is not running within that custom ModuleLayer.
+     *
+     * <p>
+     * This call is ignored if it is called before {@link #overrideModuleLayers(Object...)}.
+     *
+     * @param moduleLayer
+     *            The additional ModuleLayer to scan. (The parameter is of type {@link Object} for backwards
+     *            compatibility with JDK 7 and JDK 8, but the argument should be of type ModuleLayer.)
+     * @return this (for method chaining).
+     */
+    public ClassGraph addModuleLayer(final Object moduleLayer) {
+        scanSpec.addModuleLayer(moduleLayer);
+        return this;
+    }
+
+    /**
+     * Completely override (and ignore) the visible ModuleLayers, and instead scan the requested ModuleLayers.
+     *
+     * <p>
+     * This call is ignored if overrideClasspath() is called.
+     *
+     * @param overrideModuleLayers
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
+     * @return this (for method chaining).
+     */
+    public ClassGraph overrideModuleLayers(final Object... overrideModuleLayers) {
+        scanSpec.overrideModuleLayers(overrideModuleLayers);
         return this;
     }
 

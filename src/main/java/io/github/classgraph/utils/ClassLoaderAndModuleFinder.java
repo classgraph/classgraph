@@ -89,15 +89,66 @@ public class ClassLoaderAndModuleFinder {
         }
     }
 
+    /** Get all visible ModuleReferences in a list of layers. */
+    private static List<ModuleRef> findModuleRefs(final List<Object> layers, final List<Object> addedModuleLayers,
+            final LogNode log) {
+        if (layers.isEmpty()) {
+            return Collections.<ModuleRef> emptyList();
+        }
+
+        // Traverse the layer DAG to find the layer resolution order
+        final Deque<Object> /* Deque<ModuleLayer> */ layerOrder = new ArrayDeque<>();
+        for (final Object layer : layers) {
+            findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), layerOrder);
+        }
+        if (addedModuleLayers != null) {
+            layerOrder.addAll(addedModuleLayers);
+        }
+
+        // Find modules in the ordered layers
+        final Set<Object> /* Set<ModuleReference> */ addedModules = new HashSet<>();
+        final LinkedHashSet<ModuleRef> moduleRefOrder = new LinkedHashSet<>();
+        for (final Object /* ModuleLayer */ layer : layerOrder) {
+            final Object /* Configuration */ configuration = ReflectionUtils.invokeMethod(layer, "configuration",
+                    /* throwException = */ true);
+            if (configuration != null) {
+                // Get ModuleReferences from layer configuration
+                @SuppressWarnings("unchecked")
+                final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) ReflectionUtils
+                        .invokeMethod(configuration, "modules", /* throwException = */ true);
+                if (modules != null) {
+                    final List<ModuleRef> modulesInLayer = new ArrayList<>();
+                    for (final Object /* ResolvedModule */ module : modules) {
+                        final Object /* ModuleReference */ moduleReference = ReflectionUtils.invokeMethod(module,
+                                "reference", /* throwException = */ true);
+                        if (moduleReference != null) {
+                            if (addedModules.add(moduleReference)) {
+                                try {
+                                    modulesInLayer.add(new ModuleRef(moduleReference, layer));
+                                } catch (final Exception e) {
+                                    if (log != null) {
+                                        log.log("Exception while creating ModuleRef for module " + moduleReference,
+                                                e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Sort modules in layer by name
+                    Collections.sort(modulesInLayer);
+                    moduleRefOrder.addAll(modulesInLayer);
+                }
+            }
+        }
+        return new ArrayList<>(moduleRefOrder);
+    }
+
     /**
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
-     * 
-     * @param callStack
-     * @return
      */
-    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final LogNode log) {
-        Deque<Object> /* Deque<ModuleLayer> */ layerOrder = null;
-        final HashSet<Object> /* HashSet<ModuleLayer> */ layerVisited = new HashSet<>();
+    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final List<Object> addedModuleLayers,
+            final LogNode log) {
+        final List<Object> layers = new ArrayList<>();
         for (int i = 0; i < callStack.length; i++) {
             final Object /* Module */ module = ReflectionUtils.invokeMethod(callStack[i], "getModule",
                     /* throwException = */ false);
@@ -106,14 +157,10 @@ public class ClassLoaderAndModuleFinder {
                         /* throwException = */ true);
                 // getLayer() returns null for unnamed modules -- we have to get their classes from java.class.path 
                 if (layer != null) {
-                    if (layerOrder == null) {
-                        layerOrder = new ArrayDeque<>();
-                    }
-                    findLayerOrder(layer, layerVisited, layerOrder);
+                    layers.add(layer);
                 }
             }
         }
-
         // Add system modules from boot layer, if they weren't already found in stacktrace
         Class<?> moduleLayerClass = null;
         try {
@@ -124,53 +171,10 @@ public class ClassLoaderAndModuleFinder {
             final Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
                     /* throwException = */ false);
             if (bootLayer != null) {
-                if (layerOrder == null) {
-                    layerOrder = new ArrayDeque<>();
-                }
-                findLayerOrder(bootLayer, layerVisited, layerOrder);
+                layers.add(bootLayer);
             }
         }
-
-        if (layerOrder != null) {
-            // Find modules in the ordered layers
-            final Set<Object> /* Set<ModuleReference> */ addedModules = new HashSet<>();
-            final LinkedHashSet<ModuleRef> moduleRefOrder = new LinkedHashSet<>();
-            for (final Object /* ModuleLayer */ layer : layerOrder) {
-                final Object /* Configuration */ configuration = ReflectionUtils.invokeMethod(layer,
-                        "configuration", /* throwException = */ true);
-                if (configuration != null) {
-                    // Get ModuleReferences from layer configuration
-                    @SuppressWarnings("unchecked")
-                    final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) ReflectionUtils
-                            .invokeMethod(configuration, "modules", /* throwException = */ true);
-                    if (modules != null) {
-                        final List<ModuleRef> modulesInLayer = new ArrayList<>();
-                        for (final Object /* ResolvedModule */ module : modules) {
-                            final Object /* ModuleReference */ moduleReference = ReflectionUtils
-                                    .invokeMethod(module, "reference", /* throwException = */ true);
-                            if (moduleReference != null) {
-                                if (addedModules.add(moduleReference)) {
-                                    try {
-                                        modulesInLayer.add(new ModuleRef(moduleReference, layer));
-                                    } catch (final Exception e) {
-                                        if (log != null) {
-                                            log.log("Exception while creating ModuleRef for module "
-                                                    + moduleReference, e);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        // Sort modules in layer by name
-                        Collections.sort(modulesInLayer);
-                        moduleRefOrder.addAll(modulesInLayer);
-                    }
-                }
-            }
-            return new ArrayList<>(moduleRefOrder);
-        } else {
-            return Collections.<ModuleRef> emptyList();
-        }
+        return findModuleRefs(layers, addedModuleLayers, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -211,18 +215,35 @@ public class ClassLoaderAndModuleFinder {
             // the application classloader returned by ClassLoader.getSystemClassLoader() (so is delegated to
             // by the application classloader), there is no point adding it here.
 
-            try {
-                // Find classloaders for classes on callstack
-                final Class<?>[] callStack = CallStackReader.getClassContext();
-                for (int i = callStack.length - 1; i >= 0; --i) {
-                    final ClassLoader callerClassLoader = callStack[i].getClassLoader();
-                    if (callerClassLoader != null) {
-                        classLoadersUnique.add(callerClassLoader);
+            List<ModuleRef> allModuleRefsList = null;
+            if (scanSpec.overrideModuleLayers == null) {
+                try {
+                    // Find classloaders for classes on callstack
+                    final Class<?>[] callStack = CallStackReader.getClassContext();
+                    for (int i = callStack.length - 1; i >= 0; --i) {
+                        final ClassLoader callerClassLoader = callStack[i].getClassLoader();
+                        if (callerClassLoader != null) {
+                            classLoadersUnique.add(callerClassLoader);
+                        }
+                    }
+                    // Find module references for classes on callstack (for JDK9+)
+                    allModuleRefsList = findModuleRefs(callStack, scanSpec.addedModuleLayers, log);
+                } catch (final IllegalArgumentException e) {
+                    if (log != null) {
+                        log.log("Could not get call stack", e);
                     }
                 }
-                // Find module references for classes on callstack (for JDK9+)
-                final List<ModuleRef> allModuleRefsList = findModuleRefs(callStack, log);
+            } else {
+                if (log != null) {
+                    final LogNode subLog = log.log("Overriding module layers");
+                    for (final Object moduleLayer : scanSpec.overrideModuleLayers) {
+                        subLog.log(moduleLayer.toString());
+                    }
+                }
+                allModuleRefsList = findModuleRefs(scanSpec.overrideModuleLayers, scanSpec.addedModuleLayers, log);
+            }
 
+            if (allModuleRefsList != null) {
                 // Split modules into system modules and non-system modules
                 systemModuleRefs = new ArrayList<>();
                 nonSystemModuleRefs = new ArrayList<>();
@@ -232,10 +253,6 @@ public class ClassLoaderAndModuleFinder {
                     } else {
                         nonSystemModuleRefs.add(moduleRef);
                     }
-                }
-            } catch (final IllegalArgumentException e) {
-                if (log != null) {
-                    log.log("Could not get call stack", e);
                 }
             }
 

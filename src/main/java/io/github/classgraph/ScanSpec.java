@@ -176,15 +176,25 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * If non-null, specified manually-added classloaders that should be searched after the context classloader(s).
+     * If non-null, specifies manually-added classloaders that should be searched after the context classloader(s).
      */
     public transient List<ClassLoader> addedClassLoaders;
 
     /**
-     * If non-null, all ClassLoaders have been overriden. In particular, this causes ClassGraph to ignore the
-     * java.class.path system property.
+     * If non-null, this list of ClassLoaders will be searched instead of the visible/context ClassLoader(s). In
+     * particular, this causes ClassGraph to ignore the java.class.path system property.
      */
     public transient List<ClassLoader> overrideClassLoaders;
+
+    /**
+     * If non-null, specifies manually-added ModuleLayers that should be searched after the visible ModuleLayers.
+     */
+    public transient List<Object> addedModuleLayers;
+
+    /**
+     * If non-null, this list of ModuleLayers will be searched instead of the visible ModuleLayers.
+     */
+    public transient List<Object> overrideModuleLayers;
 
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;
@@ -287,6 +297,9 @@ public class ScanSpec {
      *            The classloaders to override the default context classloaders with.
      */
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
+        if (overrideClassLoaders.length == 0) {
+            throw new IllegalArgumentException("At least one override ClassLoader must be provided");
+        }
         this.addedClassLoaders = null;
         this.overrideClassLoaders = new ArrayList<>();
         for (final ClassLoader classLoader : overrideClassLoaders) {
@@ -294,12 +307,70 @@ public class ScanSpec {
                 this.overrideClassLoaders.add(classLoader);
             }
         }
-        if (this.overrideClassLoaders.isEmpty()) {
-            // Reset back to null if the list of classloaders is empty
-            this.overrideClassLoaders = null;
-        } else {
-            // overrideClassLoaders() overrides addClassloader()
-            this.addedClassLoaders = null;
+    }
+
+    /** Return true if the argument is a ModuleLayer or a subclass of ModuleLayer. */
+    private static boolean isModuleLayer(final Object moduleLayer) {
+        if (moduleLayer == null) {
+            throw new IllegalArgumentException("ModuleLayer references must not be null");
+        }
+        for (Class<?> currClass = moduleLayer.getClass(); currClass != null; currClass = currClass
+                .getSuperclass()) {
+            if (currClass.getName().equals("java.lang.ModuleLayer")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you define your own ModuleLayer,
+     * but the scanning code is not running within that custom ModuleLayer.
+     *
+     * <p>
+     * This call is ignored if it is called before {@link #overrideModuleLayers(Object...)}.
+     *
+     * @param moduleLayer
+     *            The additional ModuleLayer to scan. (The parameter is of type {@link Object} for backwards
+     *            compatibility with JDK 7 and JDK 8, but the argument should be of type ModuleLayer.)
+     */
+    public void addModuleLayer(final Object moduleLayer) {
+        if (!isModuleLayer(moduleLayer)) {
+            throw new IllegalArgumentException("moduleLayer must be of type java.lang.ModuleLayer");
+        }
+        if (this.addedModuleLayers == null) {
+            this.addedModuleLayers = new ArrayList<>();
+        }
+        if (moduleLayer != null) {
+            this.addedModuleLayers.add(moduleLayer);
+        }
+    }
+
+    /**
+     * Completely override (and ignore) the visible ModuleLayers, and instead scan the requested ModuleLayers.
+     *
+     * <p>
+     * This call is ignored if overrideClasspath() is called.
+     *
+     * @param overrideModuleLayers
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
+     */
+    public void overrideModuleLayers(final Object... overrideModuleLayers) {
+        if (overrideModuleLayers == null) {
+            throw new IllegalArgumentException("overrideModuleLayers cannot be null");
+        }
+        if (overrideModuleLayers.length == 0) {
+            throw new IllegalArgumentException("At least one override ModuleLayer must be provided");
+        }
+        for (final Object moduleLayer : overrideModuleLayers) {
+            if (!isModuleLayer(moduleLayer)) {
+                throw new IllegalArgumentException("moduleLayer must be of type java.lang.ModuleLayer");
+            }
+        }
+        this.addedModuleLayers = null;
+        this.overrideModuleLayers = new ArrayList<>();
+        for (final Object moduleLayer : overrideModuleLayers) {
+            this.overrideModuleLayers.add(moduleLayer);
         }
     }
 
