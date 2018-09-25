@@ -75,14 +75,16 @@ public class ClassLoaderAndModuleFinder {
      */
     private static void findLayerOrder(final Object /* ModuleLayer */ layer,
             final Set<Object> /* Set<ModuleLayer> */ layerVisited,
+            final Set<Object> /* Set<ModuleLayer> */ parentLayers,
             final Deque<Object> /* Deque<ModuleLayer> */ layerOrderOut) {
         if (layerVisited.add(layer)) {
             @SuppressWarnings("unchecked")
             final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
                     "parents", /* throwException = */ true);
             if (parents != null) {
+                parentLayers.addAll(parents);
                 for (int i = 0; i < parents.size(); i++) {
-                    findLayerOrder(parents.get(i), layerVisited, layerOrderOut);
+                    findLayerOrder(parents.get(i), layerVisited, parentLayers, layerOrderOut);
                 }
             }
             layerOrderOut.push(layer);
@@ -90,7 +92,7 @@ public class ClassLoaderAndModuleFinder {
     }
 
     /** Get all visible ModuleReferences in a list of layers. */
-    private static List<ModuleRef> findModuleRefs(final List<Object> layers, final List<Object> addedModuleLayers,
+    private static List<ModuleRef> findModuleRefs(final List<Object> layers, final ScanSpec scanSpec,
             final LogNode log) {
         if (layers.isEmpty()) {
             return Collections.<ModuleRef> emptyList();
@@ -98,17 +100,33 @@ public class ClassLoaderAndModuleFinder {
 
         // Traverse the layer DAG to find the layer resolution order
         final Deque<Object> /* Deque<ModuleLayer> */ layerOrder = new ArrayDeque<>();
+        final Set<Object> /* Set<ModuleLayer */ parentLayers = new HashSet<>();
         for (final Object layer : layers) {
-            findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), layerOrder);
+            findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
         }
-        if (addedModuleLayers != null) {
-            layerOrder.addAll(addedModuleLayers);
+        if (scanSpec.addedModuleLayers != null) {
+            for (final Object layer : scanSpec.addedModuleLayers) {
+                findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+            }
+        }
+
+        // Remove parent layers from layer order if scanSpec.ignoreParentModuleLayers is true
+        List<Object> /* List<ModuleLayer> */ layerOrderFinal;
+        if (scanSpec.ignoreParentModuleLayers) {
+            layerOrderFinal = new ArrayList<>();
+            for (final Object layer : layerOrder) {
+                if (!parentLayers.contains(layer)) {
+                    layerOrderFinal.add(layer);
+                }
+            }
+        } else {
+            layerOrderFinal = new ArrayList<>(layerOrder);
         }
 
         // Find modules in the ordered layers
         final Set<Object> /* Set<ModuleReference> */ addedModules = new HashSet<>();
         final LinkedHashSet<ModuleRef> moduleRefOrder = new LinkedHashSet<>();
-        for (final Object /* ModuleLayer */ layer : layerOrder) {
+        for (final Object /* ModuleLayer */ layer : layerOrderFinal) {
             final Object /* Configuration */ configuration = ReflectionUtils.invokeMethod(layer, "configuration",
                     /* throwException = */ true);
             if (configuration != null) {
@@ -146,7 +164,7 @@ public class ClassLoaderAndModuleFinder {
     /**
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
      */
-    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final List<Object> addedModuleLayers,
+    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final ScanSpec scanSpec,
             final LogNode log) {
         final List<Object> layers = new ArrayList<>();
         for (int i = 0; i < callStack.length; i++) {
@@ -174,7 +192,7 @@ public class ClassLoaderAndModuleFinder {
                 layers.add(bootLayer);
             }
         }
-        return findModuleRefs(layers, addedModuleLayers, log);
+        return findModuleRefs(layers, scanSpec, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -227,7 +245,7 @@ public class ClassLoaderAndModuleFinder {
                         }
                     }
                     // Find module references for classes on callstack (for JDK9+)
-                    allModuleRefsList = findModuleRefs(callStack, scanSpec.addedModuleLayers, log);
+                    allModuleRefsList = findModuleRefs(callStack, scanSpec, log);
                 } catch (final IllegalArgumentException e) {
                     if (log != null) {
                         log.log("Could not get call stack", e);
@@ -240,7 +258,7 @@ public class ClassLoaderAndModuleFinder {
                         subLog.log(moduleLayer.toString());
                     }
                 }
-                allModuleRefsList = findModuleRefs(scanSpec.overrideModuleLayers, scanSpec.addedModuleLayers, log);
+                allModuleRefsList = findModuleRefs(scanSpec.overrideModuleLayers, scanSpec, log);
             }
 
             if (allModuleRefsList != null) {

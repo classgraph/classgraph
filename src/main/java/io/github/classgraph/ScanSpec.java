@@ -222,6 +222,9 @@ public class ScanSpec {
     /** If true, do not fetch paths from parent classloaders. */
     public transient boolean ignoreParentClassLoaders = false;
 
+    /** If true, do not scan module layers that are the parent of other module layers. */
+    public transient boolean ignoreParentModuleLayers = false;
+
     /**
      * If true, manually strip the self extracting executable header from zipfiles (i.e. anything before the magic
      * marker "PK", e.g. a Bash script added by Spring-Boot). Slightly increases scanning time, since zipfiles have
@@ -353,7 +356,9 @@ public class ScanSpec {
      * This call is ignored if overrideClasspath() is called.
      *
      * @param overrideModuleLayers
-     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers. (The parameter is of
+     *            type {@link Object}[] for backwards compatibility with JDK 7 and JDK 8, but the argument should be
+     *            of type ModuleLayer[].)
      */
     public void overrideModuleLayers(final Object... overrideModuleLayers) {
         if (overrideModuleLayers == null) {

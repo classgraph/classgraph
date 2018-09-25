@@ -492,8 +492,8 @@ public class ClassGraph {
     }
 
     /**
-     * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
-     * parent classloader(s)).
+     * Ignore parent classloaders (i.e. only obtain paths to scan from classloaders that are not the parent of
+     * another classloader).
      *
      * @return this (for method chaining).
      */
@@ -535,6 +535,16 @@ public class ClassGraph {
      */
     public ClassGraph overrideModuleLayers(final Object... overrideModuleLayers) {
         scanSpec.overrideModuleLayers(overrideModuleLayers);
+        return this;
+    }
+
+    /**
+     * Ignore parent module layers (i.e. only scan module layers that are not the parent of another module layer).
+     *
+     * @return this (for method chaining).
+     */
+    public ClassGraph ignoreParentModuleLayers() {
+        scanSpec.ignoreParentModuleLayers = true;
         return this;
     }
 
