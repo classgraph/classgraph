@@ -8,13 +8,13 @@
 
 <img alt="ClassGraph Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png"><!-- <img align="right" alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png"> -->
 
-ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and classfile annotation processor for Java, Scala, Kotlin and other JVM languages. 
+ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and classfile annotation processor for Java, Scala, Kotlin and other JVM languages.
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**.
 
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
-* ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples).
+* ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
 * ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
 * ClassGraph is fully compatible with the new JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the visible Java modules. However, the code is also fully backwards compatible with JDK 7 and JDK 8 (i.e. it is compiled to be callable from a JDK 7 project).
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph%3F) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
