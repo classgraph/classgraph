@@ -528,7 +528,9 @@ public class ClassGraph {
      * This call is ignored if overrideClasspath() is called.
      *
      * @param overrideModuleLayers
-     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers. (The parameter is of
+     *            type {@link Object}[] for backwards compatibility with JDK 7 and JDK 8, but the argument should be
+     *            of type ModuleLayer[].)
      * @return this (for method chaining).
      */
     public ClassGraph overrideModuleLayers(final Object... overrideModuleLayers) {
