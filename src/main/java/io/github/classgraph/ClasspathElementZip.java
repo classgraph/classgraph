@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -60,6 +61,8 @@ class ClasspathElementZip extends ClasspathElement {
     private JarfileMetadataReader jarfileMetadataReader;
     /** The package root within the jarfile. */
     private String packageRootPrefix;
+    /** Additional package roots to scan. */
+    private List<String> additionalPackageRootPrefixes;
 
     private Recycler<ZipFile, IOException> zipFileRecycler;
 
@@ -96,9 +99,15 @@ class ClasspathElementZip extends ClasspathElement {
         }
         try {
             zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile, log);
-        } catch (final Exception e) {
+        } catch (final IOException e) {
             if (log != null) {
                 log.log("Exception while creating zipfile recycler for " + classpathEltZipFile + " : " + e);
+            }
+            skipClasspathElement = true;
+            return;
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while creating zipfile recycler for " + classpathEltZipFile, e);
             }
             skipClasspathElement = true;
             return;
@@ -106,11 +115,16 @@ class ClasspathElementZip extends ClasspathElement {
 
         final String packageRoot = classpathEltPath.getJarfilePackageRoot();
         try {
-            jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile, packageRoot,
-                    log);
-        } catch (final Exception e) {
+            jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile, log);
+        } catch (final IOException e) {
             if (log != null) {
                 log.log("Exception while reading metadata from " + classpathEltZipFile + " : " + e);
+            }
+            skipClasspathElement = true;
+            return;
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while reading metadata from " + classpathEltZipFile, e);
             }
             skipClasspathElement = true;
             return;
@@ -123,16 +137,20 @@ class ClasspathElementZip extends ClasspathElement {
             if (log != null) {
                 log.log("Package root within jarfile: " + packageRoot);
             }
-            packageRootPrefix = packageRoot + "/";
+            packageRootPrefix = packageRoot;
         } else {
             // Use version root, if this is a multi-release jar, and no specific package root was given in the
             // classpath element URL (otherwise packageRootPrefix will be "")
-            packageRootPrefix = jarfileMetadataReader.versionRootPrefix;
+            packageRootPrefix = jarfileMetadataReader.mainPackageRootPrefix;
         }
         while (packageRootPrefix.startsWith("/")) {
             // Strip any initial "/" to correspond with handling of relativePath below
             packageRootPrefix = packageRootPrefix.substring(1);
         }
+        if (!packageRootPrefix.isEmpty() && !packageRootPrefix.endsWith("/")) {
+            packageRootPrefix += "/";
+        }
+        additionalPackageRootPrefixes = jarfileMetadataReader.additionalPackageRootPrefixes;
 
         // Parse the manifest entry if present
         if (jarfileMetadataReader != null && jarfileMetadataReader.classPathEntriesToScan != null) {
@@ -344,13 +362,29 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(1);
             }
 
-            // Ignore entries without the correct classpath root prefix
-            if (requiredPrefixLen > 0) {
-                if (!relativePath.startsWith(packageRootPrefix)) {
-                    continue;
+            // Check if the ZipEntry's relative path has the main package root prefix
+            boolean matchesPrefix = requiredPrefixLen == 0 || relativePath.startsWith(packageRootPrefix);
+            int prefixLen = matchesPrefix ? requiredPrefixLen : 0;
+
+            // If the path doesn't have the main package root prefix, check against any additional prefixes
+            if (!matchesPrefix && additionalPackageRootPrefixes != null) {
+                for (final String additionalPackageRootPrefix : additionalPackageRootPrefixes) {
+                    if (relativePath.startsWith(additionalPackageRootPrefix)) {
+                        matchesPrefix = true;
+                        prefixLen = additionalPackageRootPrefix.length();
+                        break;
+                    }
                 }
-                // Strip the classpath root prefix from the relative path
-                relativePath = relativePath.substring(requiredPrefixLen);
+            }
+
+            // Ignore entries without the correct classpath root prefix
+            if (!matchesPrefix) {
+                continue;
+            }
+
+            // Strip the package root prefix from the relative path
+            if (prefixLen > 0) {
+                relativePath = relativePath.substring(prefixLen);
             }
 
             // Check if the relative path is within a nested classpath root

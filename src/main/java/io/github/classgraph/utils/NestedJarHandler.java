@@ -387,23 +387,16 @@ public class NestedJarHandler {
      * 
      * @param zipFile
      *            The zipfile.
-     * @param jarfilePackageRoot
-     *            The package root within the zipfile.
      * @param log
      *            The log.
      * @return The {@link JarfileMetadataReader}.
      * @throws Exception
      *             If the zipfile could not be opened.
      */
-    public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final String jarfilePackageRoot,
-            final LogNode log) throws Exception {
+    public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final LogNode log) throws Exception {
         // Get the jarfile metadata reader singleton for this zipfile
         final JarfileMetadataReader jarfileMetadataReader = zipFileToJarfileMetadataReaderMap
                 .getOrCreateSingleton(zipFile, log);
-        // Add the package root, as obtained from the classpath entry (after "!"), if any
-        if (!jarfilePackageRoot.isEmpty()) {
-            jarfileMetadataReader.addPackageRootPath(jarfilePackageRoot);
-        }
         return jarfileMetadataReader;
     }
 

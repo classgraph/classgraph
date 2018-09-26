@@ -34,9 +34,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -61,16 +59,14 @@ public class JarfileMetadataReader {
      */
     public List<String> classPathEntriesToScan;
 
-    /**
-     * Any jarfile package roots, including anything after "!" in the path to this jar in the classpath, and/or
-     * "BOOT-INF/classes" or "WEB-INF/classes", if any files with this directory prefix are contained in the jar. If
-     * classes need to be loaded from this jar, and no classloader can be found to load them, then each of these
-     * subdirectories will get unzipped and added to the classpath of a new URLClassLoader.
-     */
-    private Set<String> packageRootRelativePaths;
-
     /** If non-empty, contains a multi-release version root path, e.g. "META-INF/versions/10/". */
-    public String versionRootPrefix = "";
+    public String mainPackageRootPrefix = "";
+
+    /**
+     * If non-null, contains a list of other package roots to scan (e.g. for Spring-Boot jars, where in addition to
+     * "BOOT-INF/classes", you also need to scan "" if you want the Spring-Boot boot classes to be findable).
+     */
+    public List<String> additionalPackageRootPrefixes;
 
     /**
      * Any jarfiles found in "lib/", "BOOT-INF/lib", "WEB-INF/lib", or "WEB-INF/lib-provided". If classes need to be
@@ -102,13 +98,6 @@ public class JarfileMetadataReader {
                         : zipFilePath + "!" + classpathEntry);
             }
         }
-    }
-
-    void addPackageRootPath(final String packageRoot) {
-        if (this.packageRootRelativePaths == null) {
-            this.packageRootRelativePaths = new HashSet<>();
-        }
-        this.packageRootRelativePaths.add(packageRoot);
     }
 
     private void addLibJarEntry(final String libJarPath) {
@@ -168,8 +157,6 @@ public class JarfileMetadataReader {
         try (ZipFile zipFile = new ZipFile(jarFile)) {
             final int numEntries = zipFile.size();
             final List<ZipEntry> rawZipEntries = new ArrayList<>(numEntries);
-            boolean hasBootInfClasses = false;
-            boolean hasWebInfClasses = false;
             final String jarFileName = FastPathResolver.resolve(jarFile.getPath());
 
             // Get all ZipEntries for jar, and see if it is a multi-release jar
@@ -216,16 +203,15 @@ public class JarfileMetadataReader {
             // Use META-INF/versions/X as the package root, if present
             if (highestScannableVersion >= 9) {
                 final String versionRoot = MULTI_RELEASE_PATH_PREFIX + highestScannableVersion;
-                addPackageRootPath(versionRoot);
                 if (log != null) {
                     log.log("Found multi-release version jar -- switching package root to: " + versionRoot);
                 }
-                versionRootPrefix = versionRoot + "/";
+                mainPackageRootPrefix = versionRoot + "/";
             }
 
             // Find META-INF/versions/X/META-INF/MANIFEST.MF or META-INF/MANIFEST.MF if present
             ZipEntry manifestZipEntry = null;
-            final String versionManifestZipEntryPath = versionRootPrefix + MANIFEST_PATH;
+            final String versionManifestZipEntryPath = mainPackageRootPrefix + MANIFEST_PATH;
             for (final ZipEntry zipEntry : rawZipEntries) {
                 String zipEntryPath = zipEntry.getName();
                 if (zipEntryPath.startsWith("/")) {
@@ -239,14 +225,14 @@ public class JarfileMetadataReader {
                 }
             }
 
-            final String webInfClassesPrefix = versionRootPrefix + "WEB-INF/classes/";
-            final String webInfLibPrefix = versionRootPrefix + "WEB-INF/lib/";
-            final String webInfLibProvidedPrefix = versionRootPrefix + "WEB-INF/lib-provided/";
-            final String libPrefix = versionRootPrefix + "lib/";
+            final String webInfClassesPrefix = mainPackageRootPrefix + "WEB-INF/classes/";
+            final String webInfLibPrefix = mainPackageRootPrefix + "WEB-INF/lib/";
+            final String webInfLibProvidedPrefix = mainPackageRootPrefix + "WEB-INF/lib-provided/";
+            final String libPrefix = mainPackageRootPrefix + "lib/";
 
             // Parse manifest file, if present
-            String springBootLibPrefix = versionRootPrefix + "BOOT-INF/lib";
-            String springBootClassesPrefix = versionRootPrefix + "BOOT-INF/classes";
+            String springBootLibPrefix = mainPackageRootPrefix + "BOOT-INF/lib";
+            String springBootClassesPrefix = mainPackageRootPrefix + "BOOT-INF/classes";
             if (manifestZipEntry != null) {
                 try (InputStream inputStream = zipFile.getInputStream(manifestZipEntry)) {
                     final String manifest = FileUtils.readAllBytesAsString(inputStream, manifestZipEntry.getSize(),
@@ -271,40 +257,34 @@ public class JarfileMetadataReader {
                     // Check for Spring-Boot manifest lines
                     final int springBootClassesIdx = manifest.indexOf("\nSpring-Boot-Classes:");
                     if (springBootClassesIdx >= 0) {
-                        springBootClassesPrefix = versionRootPrefix
+                        springBootClassesPrefix = mainPackageRootPrefix
                                 + extractManifestField(manifest, springBootClassesIdx + 21);
                         if (springBootClassesPrefix.startsWith("/")) {
                             springBootClassesPrefix = springBootClassesPrefix.substring(1);
                         }
-                        if (!springBootClassesPrefix.endsWith("/")) {
+                        if (!springBootClassesPrefix.isEmpty() && !springBootClassesPrefix.endsWith("/")) {
                             springBootClassesPrefix += '/';
-                        }
-                        if (springBootClassesPrefix.equals("/")) {
-                            springBootClassesPrefix = "";
                         }
                     }
                     final int springBootLibIdx = manifest.indexOf("\nSpring-Boot-Lib:");
                     if (springBootLibIdx >= 0) {
-                        springBootLibPrefix = versionRootPrefix
+                        springBootLibPrefix = mainPackageRootPrefix
                                 + extractManifestField(manifest, springBootLibIdx + 17);
                         if (springBootLibPrefix.startsWith("/")) {
                             springBootLibPrefix = springBootLibPrefix.substring(1);
                         }
-                        if (!springBootLibPrefix.endsWith("/")) {
+                        if (!springBootLibPrefix.isEmpty() && !springBootLibPrefix.endsWith("/")) {
                             springBootLibPrefix += '/';
-                        }
-                        if (springBootLibPrefix.equals("/")) {
-                            springBootLibPrefix = "";
                         }
                     }
                 }
             }
 
             // Ignore non-version-specific ZipEntries, if this is a multi-release jar
-            if (!versionRootPrefix.isEmpty()) {
+            if (!mainPackageRootPrefix.isEmpty()) {
                 zipEntries = new ArrayList<>(rawZipEntries.size());
                 for (final ZipEntry zipEntry : rawZipEntries) {
-                    if (zipEntry.getName().startsWith(versionRootPrefix)) {
+                    if (zipEntry.getName().startsWith(mainPackageRootPrefix)) {
                         zipEntries.add(zipEntry);
                     }
                 }
@@ -313,6 +293,8 @@ public class JarfileMetadataReader {
             }
 
             // Scan through non-directory zipfile entries for classpath roots and lib jars
+            String bootInfZipEntryPathPrefix = null;
+            String webInfZipEntryPathPrefix = null;
             for (int i = 0; i < zipEntries.size(); i++) {
                 final ZipEntry zipEntry = zipEntries.get(i);
                 String zipEntryPath = zipEntry.getName();
@@ -324,27 +306,19 @@ public class JarfileMetadataReader {
                 }
 
                 // Add common package roots to the classpath (for Spring-Boot and Spring WAR files)
-                if (!hasBootInfClasses && zipEntryPath.startsWith(springBootClassesPrefix)) {
+                if (bootInfZipEntryPathPrefix == null && zipEntryPath.startsWith(springBootClassesPrefix)) {
                     if (log != null) {
                         log.log("Found Spring-Boot package root: " + springBootClassesPrefix);
                     }
                     // Only add once
-                    hasBootInfClasses = true;
-                    final String springBootClasses = springBootClassesPrefix.endsWith("/")
-                            ? springBootClassesPrefix.substring(0, springBootClassesPrefix.length() - 1)
-                            : springBootClassesPrefix;
-                    final String classPathEntryPath = jarFileName + "!" + springBootClasses;
-                    addClassPathEntryToScan(classPathEntryPath);
-                    addPackageRootPath(springBootClasses);
+                    bootInfZipEntryPathPrefix = springBootClassesPrefix;
                 }
-                if (!hasWebInfClasses && zipEntryPath.startsWith(webInfClassesPrefix)) {
+                if (webInfZipEntryPathPrefix == null && zipEntryPath.startsWith(webInfClassesPrefix)) {
                     if (log != null) {
-                        log.log("Found WAR class root: " + zipEntryPath);
+                        log.log("Found WAR class root: " + webInfClassesPrefix);
                     }
                     // Only add once
-                    hasWebInfClasses = true;
-                    addClassPathEntryToScan(jarFileName + "!WEB-INF/classes");
-                    addPackageRootPath("WEB-INF/classes");
+                    webInfZipEntryPathPrefix = webInfClassesPrefix;
                 }
 
                 // Scan for jars in common lib dirs (e.g. Spring-Boot and Spring WAR lib directories)
@@ -371,6 +345,31 @@ public class JarfileMetadataReader {
                         }
                     }
                 }
+            }
+
+            // Use BOOT-INF or WEB-INF as main package root, if present
+            if (bootInfZipEntryPathPrefix != null && !bootInfZipEntryPathPrefix.isEmpty()) {
+                // Scan "BOOT-INF/classes" as the main package root
+                mainPackageRootPrefix = bootInfZipEntryPathPrefix;
+
+                // Also scan "" so that Spring-Boot classloader classes can be found
+                if (log != null) {
+                    log.log("Adding \"\" as a package root, so that Spring Boot classes will be scanned");
+                }
+                if (additionalPackageRootPrefixes == null) {
+                    additionalPackageRootPrefixes = new ArrayList<>();
+                }
+                additionalPackageRootPrefixes.add("");
+
+                // If both BOOT-INF and WEB-INF are present, schedule WEB-INF for scanning as a separate cp entry
+                if (webInfZipEntryPathPrefix != null) {
+                    addClassPathEntryToScan(jarFileName + "!"
+                            + (webInfClassesPrefix.endsWith("/")
+                                    ? webInfClassesPrefix.substring(0, webInfClassesPrefix.length() - 1)
+                                    : webInfClassesPrefix));
+                }
+            } else if (webInfZipEntryPathPrefix != null) {
+                mainPackageRootPrefix = webInfZipEntryPathPrefix;
             }
         } catch (final IOException e) {
             zipEntries = Collections.emptyList();
