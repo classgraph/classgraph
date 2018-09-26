@@ -403,7 +403,7 @@ class Scanner implements Callable<ScanResult> {
             final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathEltOrder,
                     classpathElementMap);
 
-            // Print final classpath element order, after inserting Class-Path entries from manifest files
+            // Log final classpath element order, after inserting Class-Path entries from manifest files
             if (classpathFinderLog != null) {
                 final LogNode logNode = classpathFinderLog.log("Final classpath element order:");
                 for (int i = 0; i < classpathOrder.size(); i++) {

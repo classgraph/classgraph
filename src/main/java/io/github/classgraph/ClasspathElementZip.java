@@ -125,7 +125,9 @@ class ClasspathElementZip extends ClasspathElement {
             }
             packageRootPrefix = packageRoot + "/";
         } else {
-            packageRootPrefix = "";
+            // Use version root, if this is a multi-release jar, and no specific package root was given in the
+            // classpath element URL (otherwise packageRootPrefix will be "")
+            packageRootPrefix = jarfileMetadataReader.versionRootPrefix;
         }
         while (packageRootPrefix.startsWith("/")) {
             // Strip any initial "/" to correspond with handling of relativePath below
@@ -175,6 +177,11 @@ class ClasspathElementZip extends ClasspathElement {
             classfileMatches = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }
+    }
+
+    @Override
+    String getJarfilePackageRoot() {
+        return packageRootPrefix;
     }
 
     private Resource newClasspathResource(final File jarFile, final String packageRootPrefix,

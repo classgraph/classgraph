@@ -116,7 +116,8 @@ abstract class ClasspathElement {
      * package root (after extracting nested jars).
      */
     String getJarfilePackageRoot() {
-        return classpathEltPath.getJarfilePackageRoot();
+        // Overridden in ClasspathElementZip
+        return "";
     }
 
     /** Get the ClassLoader(s) to use when trying to load the class. */
