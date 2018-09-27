@@ -230,7 +230,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
         if (scheme == null) {
             return false;
         }
-        return !scheme.equalsIgnoreCase("file");
+        return scheme.equalsIgnoreCase("jrt");
     }
 
     /**
