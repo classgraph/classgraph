@@ -63,6 +63,12 @@ class ClasspathElementZip extends ClasspathElement {
     private String packageRootPrefix;
     /** Additional package roots to scan. */
     private List<String> additionalPackageRootPrefixes;
+    /**
+     * If true, and the package root is non-empty, indicates that the package root was obtained from the classpath
+     * element URL after a '!' character. If false, and the package root is non-empty, indicates that the package
+     * root was auto-detected (e.g. "BOOT-INF/classes/" for Spring Boot jars).
+     */
+    private boolean packageRootCameFromClasspathElementURL;
 
     private Recycler<ZipFile, IOException> zipFileRecycler;
 
@@ -138,6 +144,7 @@ class ClasspathElementZip extends ClasspathElement {
                 log.log("Package root within jarfile: " + packageRoot);
             }
             packageRootPrefix = packageRoot;
+            packageRootCameFromClasspathElementURL = true;
         } else {
             // Use version root, if this is a multi-release jar, and no specific package root was given in the
             // classpath element URL (otherwise packageRootPrefix will be "")
@@ -366,13 +373,17 @@ class ClasspathElementZip extends ClasspathElement {
             boolean matchesPrefix = requiredPrefixLen == 0 || relativePath.startsWith(packageRootPrefix);
             int prefixLen = matchesPrefix ? requiredPrefixLen : 0;
 
-            // If the path doesn't have the main package root prefix, check against any additional prefixes
-            if (!matchesPrefix && additionalPackageRootPrefixes != null) {
-                for (final String additionalPackageRootPrefix : additionalPackageRootPrefixes) {
-                    if (relativePath.startsWith(additionalPackageRootPrefix)) {
-                        matchesPrefix = true;
-                        prefixLen = additionalPackageRootPrefix.length();
-                        break;
+            // If the package root came from the classpath element URL, don't scan any other package root
+            // prefixes in the jarfile (only scan the package root prefix specified in the URL).
+            if (!packageRootCameFromClasspathElementURL) {
+                // If the path doesn't have the main package root prefix, check against any additional prefixes
+                if (!matchesPrefix && additionalPackageRootPrefixes != null) {
+                    for (final String additionalPackageRootPrefix : additionalPackageRootPrefixes) {
+                        if (relativePath.startsWith(additionalPackageRootPrefix)) {
+                            matchesPrefix = true;
+                            prefixLen = additionalPackageRootPrefix.length();
+                            break;
+                        }
                     }
                 }
             }
