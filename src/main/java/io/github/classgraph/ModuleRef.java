@@ -220,7 +220,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      *         "jre.", etc.).
      */
     public boolean isSystemModule() {
-        if (location == null || classLoader == null) {
+        if (location == null) {
             return true;
         }
         if (JarUtils.isInSystemPackageOrModule(name)) {
