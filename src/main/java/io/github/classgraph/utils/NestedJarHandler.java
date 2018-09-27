@@ -145,31 +145,21 @@ public class NestedJarHandler {
                             || nestedJarPath.startsWith("https://");
                     final File pathFile = isRemote ? downloadTempFile(nestedJarPath, log) : new File(nestedJarPath);
                     if (isRemote && pathFile == null) {
-                        if (log != null) {
-                            log.log("Could not download jarfile " + nestedJarPath);
-                        }
-                        return null;
+                        throw new IOException("Could not download jarfile " + nestedJarPath);
                     }
                     File canonicalFile;
                     try {
                         canonicalFile = pathFile.getCanonicalFile();
-                    } catch (final IOException | SecurityException e) {
-                        if (log != null) {
-                            log.log("Path component " + nestedJarPath + " could not be canonicalized: " + e);
-                        }
-                        return null;
+                    } catch (final SecurityException e) {
+                        throw new IOException(
+                                "Path component " + nestedJarPath + " could not be canonicalized: " + e);
                     }
                     if (!FileUtils.canRead(canonicalFile)) {
-                        if (log != null) {
-                            log.log("Path component " + nestedJarPath + " does not exist");
-                        }
-                        return null;
+                        throw new IOException("Path component " + nestedJarPath + " does not exist");
                     }
                     if (!canonicalFile.isFile()) {
-                        if (log != null) {
-                            log.log("Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
-                        }
-                        return null;
+                        throw new IOException(
+                                "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
                     }
                     // Handle self-extracting archives (they can be created by Spring-Boot)
                     final File bareJarfile = scanSpec.stripSFXHeader ? stripSFXHeader(canonicalFile, log)
@@ -192,12 +182,16 @@ public class NestedJarHandler {
                     // '!'-section shorter with each recursion frame.
                     final Entry<File, Set<String>> parentJarfileAndRootRelativePaths = //
                             nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(parentPath, log);
+                    if (parentJarfileAndRootRelativePaths == null) {
+                        // Failed to get topmost jarfile, e.g. file not found
+                        throw new IOException("Could not find parent jarfile " + parentPath);
+                    }
                     // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must
                     // always be a jarfile.
                     final File parentJarFile = parentJarfileAndRootRelativePaths.getKey();
                     if (parentJarFile == null) {
                         // Failed to get topmost jarfile, e.g. file not found
-                        return null;
+                        throw new IOException("Could not find parent jarfile " + parentPath);
                     }
 
                     // Avoid decompressing the same nested jarfiles multiple times for different non-canonical
@@ -207,9 +201,15 @@ public class NestedJarHandler {
                     final String parentJarFilePath = FastPathResolver.resolve(parentJarFile.getPath());
                     if (!parentJarFilePath.equals(parentPath)) {
                         // The path normalization process changed the path -- return a mapping
-                        // to the NestedJarHandler resolution of the normalized path 
-                        return nestedPathToJarfileAndRootRelativePathsMap
-                                .getOrCreateSingleton(parentJarFilePath + "!" + childPath, log);
+                        // to the NestedJarHandler resolution of the normalized path
+                        final String pathWithinParent = parentJarFilePath + "!" + childPath;
+                        final Entry<File, Set<String>> nextLevel = nestedPathToJarfileAndRootRelativePathsMap
+                                .getOrCreateSingleton(pathWithinParent, log);
+                        if (nextLevel != null) {
+                            return nextLevel;
+                        } else {
+                            throw new IOException("Could not find jarfile path " + pathWithinParent);
+                        }
                     }
 
                     // Get the ZipFile recycler for the parent jar's canonical path
@@ -248,10 +248,8 @@ public class NestedJarHandler {
                                 }
                             }
                             if (!isDirectory) {
-                                if (log != null) {
-                                    log.log("Path " + childPath + " does not exist in jarfile " + parentJarFile);
-                                }
-                                return null;
+                                throw new IOException(
+                                        "Path " + childPath + " does not exist in jarfile " + parentJarFile);
                             }
                         } else {
                             isDirectory = childZipEntry.isDirectory();
@@ -262,12 +260,9 @@ public class NestedJarHandler {
                             final boolean childPathIsLeaf = childPath.indexOf("!") < 0;
                             if (!childPathIsLeaf) {
                                 // Can only have a package root in the last component of the classpath
-                                if (log != null) {
-                                    log.log("Path " + childPath + " in jarfile " + parentJarFile + " is a "
-                                            + "directory, but this is not the last \"!\"-delimited section "
-                                            + "of the claspath entry URL -- cannot use as package root");
-                                }
-                                return null;
+                                throw new IOException("Path " + childPath + " in jarfile " + parentJarFile
+                                        + " is a " + "directory, but this is not the last \"!\"-delimited section "
+                                        + "of the claspath entry URL -- cannot use as package root");
                             }
                             if (log != null) {
                                 log.log("Path " + childPath + " in jarfile " + parentJarFile
@@ -283,11 +278,9 @@ public class NestedJarHandler {
 
                         // Do not extract nested jar, if nested jar scanning is disabled
                         if (!scanSpec.scanNestedJars) {
-                            if (log != null) {
-                                log.log("Nested jar scanning is disabled -- skipping extraction of nested jar "
-                                        + nestedJarPath);
-                            }
-                            return null;
+                            throw new IOException(
+                                    "Nested jar scanning is disabled -- skipping extraction of nested jar "
+                                            + nestedJarPath);
                         }
 
                         // Extract nested jar to a temporary file
@@ -309,10 +302,7 @@ public class NestedJarHandler {
 
                         } catch (final IOException e) {
                             // Thrown if the inner zipfile could nat be extracted
-                            if (log != null) {
-                                log.log("File does not appear to be a zipfile: " + childPath);
-                            }
-                            return null;
+                            throw new IOException("File does not appear to be a zipfile: " + childPath);
                         }
                     }
                 }
