@@ -223,14 +223,14 @@ public class ModuleRef implements Comparable<ModuleRef> {
         if (location == null) {
             return true;
         }
+        final String scheme = location.getScheme();
+        if (scheme != null && scheme.equalsIgnoreCase("jrt")) {
+            return true;
+        }
         if (JarUtils.isInSystemPackageOrModule(name)) {
             return true;
         }
-        final String scheme = location.getScheme();
-        if (scheme == null) {
-            return false;
-        }
-        return scheme.equalsIgnoreCase("jrt");
+        return false;
     }
 
     /**
