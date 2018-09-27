@@ -100,6 +100,13 @@ public class JarfileMetadataReader {
         }
     }
 
+    private void addAdditionalPackageRootPrefix(final String additionalPackageRootPrefix) {
+        if (this.additionalPackageRootPrefixes == null) {
+            this.additionalPackageRootPrefixes = new ArrayList<>();
+        }
+        this.additionalPackageRootPrefixes.add(additionalPackageRootPrefix);
+    }
+
     private void addLibJarEntry(final String libJarPath) {
         if (this.libJarPaths == null) {
             this.libJarPaths = new ArrayList<>();
@@ -356,10 +363,7 @@ public class JarfileMetadataReader {
                 if (log != null) {
                     log.log("Adding \"\" as a package root, so that Spring Boot classes will be scanned");
                 }
-                if (additionalPackageRootPrefixes == null) {
-                    additionalPackageRootPrefixes = new ArrayList<>();
-                }
-                additionalPackageRootPrefixes.add("");
+                addAdditionalPackageRootPrefix("");
 
                 // If both BOOT-INF and WEB-INF are present, schedule WEB-INF for scanning as a separate cp entry
                 if (webInfZipEntryPathPrefix != null) {
