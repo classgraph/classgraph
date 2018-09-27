@@ -934,9 +934,10 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the scanning of system packages (java.*, jdk.*, oracle.*, etc.) -- these are not scanned by default
-     * for speed. Calls {#whitelistLibOrExtJars()} with no parameters, to enable scanning of jars in JRE/JDK "lib/"
-     * and "ext/" directories. (Also automatically calls {@link #enableClassInfo()}.)
+     * Enables the scanning of system packages ("java.*", "javax.*", "javafx.*", "jdk.*", "oracle.*", "sun.*") --
+     * these are not scanned by default for speed. Calls {#whitelistLibOrExtJars()} with no parameters, to enable
+     * scanning of jars in JRE/JDK "lib/" and "ext/" directories. (Also automatically calls
+     * {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
