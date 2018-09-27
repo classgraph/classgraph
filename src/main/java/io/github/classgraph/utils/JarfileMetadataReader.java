@@ -373,7 +373,14 @@ public class JarfileMetadataReader {
                                     : webInfClassesPrefix));
                 }
             } else if (webInfZipEntryPathPrefix != null) {
+                // Scan "BOOT-INF/classes" as the main package root
                 mainPackageRootPrefix = webInfZipEntryPathPrefix;
+
+                // Also scan "" so that WAR classloader classes can be found
+                if (log != null) {
+                    log.log("Adding \"\" as a package root, so that WAR root package classes will be scanned");
+                }
+                addAdditionalPackageRootPrefix("");
             }
         } catch (final IOException e) {
             zipEntries = Collections.emptyList();
