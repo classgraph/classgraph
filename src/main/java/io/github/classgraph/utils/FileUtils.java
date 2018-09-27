@@ -89,7 +89,7 @@ public class FileUtils {
             break;
         case Windows:
             // Windows is always 10-20% faster with FileChannel than with InputStream, even for small files
-            FILECHANNEL_FILE_SIZE_THRESHOLD = 0;
+            FILECHANNEL_FILE_SIZE_THRESHOLD = -1;
             break;
         case MacOSX:
             // On older/slower Mac OS X machines, FileChannel is always 10-20% slower than InputStream,
