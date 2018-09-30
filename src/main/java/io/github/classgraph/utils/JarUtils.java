@@ -252,89 +252,6 @@ public class JarUtils {
     private static final Set<String> JRE_JARS_SET = new HashSet<>();
     private static final Set<String> JRE_LIB_OR_EXT_JARS = new HashSet<>();
 
-    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
-    static {
-        final Set<String> jrePathsSet = new HashSet<>();
-        final List<String> jreRtJarPaths = new ArrayList<>();
-        final String javaHome = getProperty("java.home");
-        if (javaHome != null && !javaHome.isEmpty()) {
-            final File javaHomeFile = new File(javaHome);
-            addJRERoot(javaHomeFile, jrePathsSet, jreRtJarPaths);
-            // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path
-            if (javaHomeFile.getName().equals("jre")) {
-                addJRERoot(javaHomeFile.getParentFile(), jrePathsSet, jreRtJarPaths);
-            } else {
-                // Try adding "{java.home}/jre" as a JRE root when java.home is not a JRE path
-                addJRERoot(new File(javaHomeFile, "jre"), jrePathsSet, jreRtJarPaths);
-            }
-            // Add "{java.home}/packages" -- apparently this is used on Solaris, so potentially elsewhere too:
-            // https://docs.oracle.com/javase/tutorial/ext/basics/load.html
-            addJRERoot(new File(javaHomeFile, "packages"), jrePathsSet, jreRtJarPaths);
-        }
-        final String javaExtDirs = getProperty("java.ext.dirs");
-        final Set<String> javaExtDirsSet = new HashSet<>();
-        if (javaExtDirs != null) {
-            for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
-                if (!javaExtDir.isEmpty()) {
-                    addJREPath(new File(javaExtDir), javaExtDirsSet);
-                }
-            }
-        }
-        jrePathsSet.addAll(javaExtDirsSet);
-
-        // Add special-case paths for Mac OS X, this is not always picked up from java.home or java.ext.dirs
-        addJRERoot(new File("/System/Library/Java"), jrePathsSet, jreRtJarPaths);
-        addJRERoot(new File("/System/Library/Java/Libraries"), jrePathsSet, jreRtJarPaths);
-        addJRERoot(new File("/System/Library/Java/Extensions"), jrePathsSet, jreRtJarPaths);
-
-        // Add some other site-wide package installation directories (these are prefixes of the typical values for
-        // java.ext.dirs, since that only covers the "ext/" dir in this location)
-        addJRERoot(new File("/usr/java/packages"), jrePathsSet, jreRtJarPaths);
-        addJRERoot(new File("/usr/jdk/packages"), jrePathsSet, jreRtJarPaths);
-        try {
-            final String systemRoot = File.separatorChar == '\\' ? System.getenv("SystemRoot") : null;
-            if (systemRoot != null) {
-                addJRERoot(new File(systemRoot, "Sun\\Java"), jrePathsSet, jreRtJarPaths);
-                addJRERoot(new File(systemRoot, "Oracle\\Java"), jrePathsSet, jreRtJarPaths);
-            }
-        } catch (final Exception e) {
-        }
-
-        // Find "lib/" and "ext/" jars
-        final Set<String> jreJarPaths = new HashSet<>();
-        for (final String jrePath : jrePathsSet) {
-            final File dir = new File(jrePath);
-            if (FileUtils.canRead(dir) && dir.isDirectory()) {
-                final boolean isLib = jrePath.endsWith("/lib");
-                final boolean isExt = jrePath.endsWith("/ext")
-                        // java.ext.dirs dirs may not necessarily end in "/ext"
-                        || javaExtDirsSet.contains(jrePath);
-                for (final File file : dir.listFiles()) {
-                    final String filePath = FastPathResolver.resolve("", file.getPath());
-                    if (!filePath.isEmpty()) {
-                        if (filePath.endsWith(".jar")) {
-                            jreJarPaths.add(filePath);
-                            if (isLib || isExt) {
-                                JRE_LIB_OR_EXT_JARS.add(filePath);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Put rt.jar first in list of JRE jar paths
-        jreJarPaths.removeAll(jreRtJarPaths);
-        final List<String> jreJarPathsSorted = new ArrayList<>(jreJarPaths);
-        Collections.sort(jreJarPathsSorted);
-        if (jreRtJarPaths.size() > 0) {
-            // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
-            JRE_JARS.add(jreRtJarPaths.get(0));
-        }
-        JRE_JARS.addAll(jreJarPathsSorted);
-        JRE_JARS_SET.addAll(JRE_JARS);
-    }
-
     private static String getProperty(final String propName) {
         try {
             return System.getProperty(propName);
@@ -343,48 +260,119 @@ public class JarUtils {
         }
     }
 
-    private static void addJRERoot(final File jreRoot, final Set<String> jrePathsSet,
-            final List<String> rtJarPaths) {
-        if (addJREPath(jreRoot, jrePathsSet)) {
+    private static void addJRERoot(final File jreRoot, final Set<File> jreDirsSet, final List<File> rtJarFiles) {
+        if (addJREPath(jreRoot, jreDirsSet)) {
             final File libFile = new File(jreRoot, "lib");
-            if (addJREPath(libFile, jrePathsSet)) {
-                final File extFile = new File(libFile, "ext");
-                addJREPath(extFile, jrePathsSet);
-                final File rtJarFile = new File(libFile, "rt.jar");
-                if (FileUtils.canRead(rtJarFile)) {
-                    final String rtJarPath = rtJarFile.getPath();
-                    if (!rtJarPaths.contains(rtJarPath)) {
-                        rtJarPaths.add(rtJarPath);
+            if (FileUtils.canRead(libFile) && libFile.isDirectory()) {
+                if (addJREPath(libFile, jreDirsSet)) {
+                    final File rtJarFile = new File(libFile, "rt.jar");
+                    if (FileUtils.canRead(rtJarFile)) {
+                        if (!rtJarFiles.contains(rtJarFile)) {
+                            rtJarFiles.add(rtJarFile);
+                        }
                     }
                 }
             }
         }
     }
 
-    private static boolean addJREPath(final File dir, final Set<String> jrePathsSet) {
+    private static boolean addJREPath(final File dir, final Set<File> jreLibExtDirsSet) {
         if (FileUtils.canRead(dir) && dir.isDirectory()) {
-            String path = dir.getPath();
-            if (!path.endsWith(File.separator)) {
-                path += File.separator;
-            }
-            final String jrePath = FastPathResolver.resolve("", path);
-            if (!jrePath.isEmpty()) {
-                jrePathsSet.add(jrePath);
-            }
             try {
-                String canonicalPath = dir.getCanonicalPath();
-                if (!canonicalPath.endsWith(File.separator)) {
-                    canonicalPath += File.separator;
-                }
-                final String jreCanonicalPath = FastPathResolver.resolve("", canonicalPath);
-                if (!jreCanonicalPath.equals(jrePath) && !jreCanonicalPath.isEmpty()) {
-                    jrePathsSet.add(jreCanonicalPath);
-                }
+                final File canonicalDir = dir.getCanonicalFile();
+                jreLibExtDirsSet.add(canonicalDir);
+                return true;
             } catch (IOException | SecurityException e) {
             }
-            return true;
         }
         return false;
+    }
+
+    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
+    static {
+        final Set<File> jreDirsSet = new HashSet<>();
+        final List<File> jreRtJarFiles = new ArrayList<>();
+        final Set<File> javaLibExtDirsSet = new HashSet<>();
+        final String javaHome = getProperty("java.home");
+        if (javaHome != null && !javaHome.isEmpty()) {
+            final File javaHomeFile = new File(javaHome);
+            addJRERoot(javaHomeFile, jreDirsSet, jreRtJarFiles);
+            // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path
+            if (javaHomeFile.getName().equals("jre")) {
+                addJRERoot(javaHomeFile.getParentFile(), jreDirsSet, jreRtJarFiles);
+            } else {
+                // Try adding "{java.home}/jre" as a JRE root when java.home is not a JRE path
+                addJRERoot(new File(javaHomeFile, "jre"), jreDirsSet, jreRtJarFiles);
+            }
+            addJREPath(new File(javaHomeFile, "lib"), javaLibExtDirsSet);
+            addJREPath(new File(javaHomeFile, "lib/ext"), javaLibExtDirsSet);
+            addJREPath(new File(javaHomeFile, "jre/lib"), javaLibExtDirsSet);
+            addJREPath(new File(javaHomeFile, "jre/lib/ext"), javaLibExtDirsSet);
+            addJREPath(new File(javaHomeFile, "packages"), javaLibExtDirsSet);
+            addJREPath(new File(javaHomeFile, "packages/lib"), javaLibExtDirsSet);
+            addJREPath(new File(javaHomeFile, "packages/lib/ext"), javaLibExtDirsSet);
+        }
+        final String javaExtDirs = getProperty("java.ext.dirs");
+        if (javaExtDirs != null) {
+            for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
+                if (!javaExtDir.isEmpty()) {
+                    addJREPath(new File(javaExtDir), javaLibExtDirsSet);
+                }
+            }
+        }
+        jreDirsSet.addAll(javaLibExtDirsSet);
+
+        // Mac OS X
+        addJRERoot(new File("/System/Library/Java"), jreDirsSet, jreRtJarFiles);
+        addJREPath(new File("/System/Library/Java/Libraries"), javaLibExtDirsSet);
+        addJREPath(new File("/System/Library/Java/Extensions"), javaLibExtDirsSet);
+
+        // Linux
+        addJREPath(new File("/usr/java/packages"), javaLibExtDirsSet);
+        addJREPath(new File("/usr/java/packages/lib"), javaLibExtDirsSet);
+        addJREPath(new File("/usr/java/packages/lib/ext"), javaLibExtDirsSet);
+
+        // Solaris
+        addJREPath(new File("/usr/jdk/packages"), javaLibExtDirsSet);
+        addJREPath(new File("/usr/jdk/packages/lib"), javaLibExtDirsSet);
+        addJREPath(new File("/usr/jdk/packages/lib/ext"), javaLibExtDirsSet);
+
+        // Windows
+        try {
+            final String systemRoot = File.separatorChar == '\\' ? System.getenv("SystemRoot") : null;
+            if (systemRoot != null) {
+                addJRERoot(new File(systemRoot, "Sun\\Java"), jreDirsSet, jreRtJarFiles);
+                addJREPath(new File(systemRoot, "Sun\\Java\\lib"), javaLibExtDirsSet);
+                addJREPath(new File(systemRoot, "Sun\\Java\\lib\\ext"), javaLibExtDirsSet);
+                addJRERoot(new File(systemRoot, "Oracle\\Java"), jreDirsSet, jreRtJarFiles);
+                addJREPath(new File(systemRoot, "Oracle\\Java\\lib"), javaLibExtDirsSet);
+                addJREPath(new File(systemRoot, "Oracle\\Java\\lib\\ext"), javaLibExtDirsSet);
+            }
+        } catch (final Exception e) {
+        }
+
+        // Find "lib/" and "ext/" jars
+        final List<String> libExtJarPaths = new ArrayList<>();
+        for (final File jreLibExtDir : javaLibExtDirsSet) {
+            for (final File file : jreLibExtDir.listFiles()) {
+                if (file.getPath().endsWith(".jar") && !jreRtJarFiles.contains(file)) {
+                    libExtJarPaths.add(FastPathResolver.resolve(file.getPath()));
+                }
+            }
+        }
+        Collections.sort(libExtJarPaths);
+        JRE_LIB_OR_EXT_JARS.addAll(libExtJarPaths);
+
+        // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
+        final String rtJarPath = jreRtJarFiles.size() > 0 ? FastPathResolver.resolve(jreRtJarFiles.get(0).getPath())
+                : null;
+
+        // Put rt.jar first in list of JRE jar paths
+        if (rtJarPath != null) {
+            JRE_JARS.add(rtJarPath);
+        }
+        JRE_JARS.addAll(libExtJarPaths);
+        JRE_JARS_SET.addAll(JRE_JARS);
     }
 
     /**
@@ -414,6 +402,7 @@ public class JarUtils {
             // This is a whitelisted lib/ or ext/ jar, so de-associate it from the JRE/JDK
             return false;
         }
+        // Should only return true for rt.jar
         return JRE_JARS_SET.contains(filePath);
     }
 
