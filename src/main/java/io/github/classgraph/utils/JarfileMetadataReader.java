@@ -189,7 +189,8 @@ public class JarfileMetadataReader {
                 log.log("This is a multi-release jar");
             }
 
-            // Sort in decreasing order of version number
+            // Sort in decreasing order of version number -- see:
+            // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-September/013935.html
             Collections.sort(versionedZipEntriesRaw);
 
             // Mask files that appear in multiple version sections, so that there is only one VersionedZipEntry

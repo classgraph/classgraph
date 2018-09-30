@@ -165,14 +165,16 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * @return the path of this classpath resource relative to the package root within the classpath element. For
      *         example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package root of
-     *         "BOOT-INF/classes/", returns "com/xyz/resource.xml".
+     *         "BOOT-INF/classes/", returns "com/xyz/resource.xml". Also drops version prefixes for multi-version
+     *         jars, for example for a resource path of "META-INF/versions/11/com/xyz/resource.xml" while running on
+     *         JDK 11+, returns "com/xyz/resource.xml".
      */
     public abstract String getPath();
 
     /**
-     * @return the path of this classpath resource within the classpath element. For example, for a resource path of
-     *         "BOOT-INF/classes/com/xyz/resource.xml", returns "BOOT-INF/classes/com/xyz/resource.xml", even if the
-     *         package root is "BOOT-INF/classes/".
+     * @return the full path of this classpath resource within the classpath element (see JarEntry::getRealPath).
+     *         For example, will return the full path of "BOOT-INF/classes/com/xyz/resource.xml" or
+     *         "META-INF/versions/11/com/xyz/resource.xml", not "com/xyz/resource.xml".
      */
     public abstract String getPathRelativeToClasspathElement();
 

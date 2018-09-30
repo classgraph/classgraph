@@ -424,8 +424,8 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Record all classpath resources found in whitelisted paths
-            fileMatches.add(newResource(classpathEltZipFile, packageRootPrefix, relativePath,
-                    versionedZipEntry.zipEntry));
+            fileMatches.add(
+                    newResource(classpathEltZipFile, packageRootPrefix, relativePath, versionedZipEntry.zipEntry));
         }
         // Don't use the last modified time from the individual zipEntry
         // objects, we use the last modified time for the zipfile itself instead.
