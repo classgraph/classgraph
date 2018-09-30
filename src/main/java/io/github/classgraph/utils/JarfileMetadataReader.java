@@ -32,9 +32,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -46,10 +49,13 @@ public class JarfileMetadataReader {
     public boolean isSystemJar;
 
     /**
-     * The ZipEntries for the zipfile. ZipEntries contain only static metadata, so can be reused between different
-     * ZipFile instances, even though ZipFile imposes a synchronized lock around each instance.
+     * The VersionedZipEntries for the zipfile, consisting of the ZipEntry, the version number (for multi-release
+     * jars), and the ZipEntry path with any version prefix path and/or Spring-Boot prefix path stripped.
+     * 
+     * N.B. the wrapped ZipEntries contain only static metadata, so can be reused between different ZipFile
+     * instances, even though ZipFile imposes a synchronized lock around each instance.
      */
-    public List<ZipEntry> zipEntries;
+    public List<VersionedZipEntry> versionedZipEntries;
 
     /**
      * "Class-Path" entries encountered in the manifest file. Also includes any "!BOOT-INF/classes" or
@@ -59,21 +65,11 @@ public class JarfileMetadataReader {
      */
     public List<String> classPathEntriesToScan;
 
-    /** If non-empty, contains a multi-release version root path, e.g. "META-INF/versions/10/". */
-    public String mainPackageRootPrefix = "";
-
     /**
-     * If non-null, contains a list of other package roots to scan (e.g. for Spring-Boot jars, where in addition to
-     * "BOOT-INF/classes", you also need to scan "" if you want the Spring-Boot boot classes to be findable).
+     * A set of path prefixes that have been (or may have been) stripped from
+     * {@link VersionedZipEntry#unversionedPath} path strings.
      */
-    public List<String> additionalPackageRootPrefixes;
-
-    /**
-     * Any jarfiles found in "lib/", "BOOT-INF/lib", "WEB-INF/lib", or "WEB-INF/lib-provided". If classes need to be
-     * loaded from this jar, and no classloader can be found to load them, then each of these subdirectories will
-     * get unzipped and added to the classpath of a new URLClassLoader.
-     */
-    private List<String> libJarPaths;
+    public List<String> strippedPathPrefixes;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -88,30 +84,6 @@ public class JarfileMetadataReader {
             this.classPathEntriesToScan = new ArrayList<>();
         }
         this.classPathEntriesToScan.add(classPathEntryPath);
-    }
-
-    private void addSpaceDelimitedClassPathToScan(final String zipFilePath, final String classPath) {
-        for (final String classpathEntry : classPath.split(" ")) {
-            if (!classpathEntry.isEmpty()) {
-                addClassPathEntryToScan(zipFilePath == null ? classpathEntry
-                        // For Spring-Boot, add zipfile name to beginning of classpath entry
-                        : zipFilePath + "!" + classpathEntry);
-            }
-        }
-    }
-
-    private void addAdditionalPackageRootPrefix(final String additionalPackageRootPrefix) {
-        if (this.additionalPackageRootPrefixes == null) {
-            this.additionalPackageRootPrefixes = new ArrayList<>();
-        }
-        this.additionalPackageRootPrefixes.add(additionalPackageRootPrefix);
-    }
-
-    private void addLibJarEntry(final String libJarPath) {
-        if (this.libJarPaths == null) {
-            this.libJarPaths = new ArrayList<>();
-        }
-        this.libJarPaths.add(libJarPath);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -163,19 +135,14 @@ public class JarfileMetadataReader {
     JarfileMetadataReader(final File jarFile, final ScanSpec scanSpec, final LogNode log) {
         try (ZipFile zipFile = new ZipFile(jarFile)) {
             final int numEntries = zipFile.size();
-            final List<ZipEntry> rawZipEntries = new ArrayList<>(numEntries);
             final String jarFileName = FastPathResolver.resolve(jarFile.getPath());
 
             // Get all ZipEntries for jar, and see if it is a multi-release jar
-            int highestScannableVersion = 8;
+            final List<VersionedZipEntry> versionedZipEntriesRaw = new ArrayList<>(numEntries);
+            boolean isMultiReleaseJar = false;
             for (final Enumeration<? extends ZipEntry> iter = zipFile.entries(); iter.hasMoreElements();) {
                 final ZipEntry zipEntry = iter.nextElement();
                 if (!zipEntry.isDirectory()) {
-                    // Store non-directory ZipEntries for later use, so that they don't have to be recreated every
-                    // time the jar is read (this avoids duplicate work when multiple threads are scanning the same
-                    // jar). We don't need the directory ZipEntries during scanning.
-                    rawZipEntries.add(zipEntry);
-
                     // Get ZipEntry path
                     String zipEntryPath = zipEntry.getName();
                     if (zipEntryPath.endsWith("/")) {
@@ -185,61 +152,66 @@ public class JarfileMetadataReader {
                         zipEntryPath = zipEntryPath.substring(1);
                     }
 
-                    if (zipEntryPath.startsWith(MULTI_RELEASE_PATH_PREFIX)
-                            && zipEntryPath.length() > MULTI_RELEASE_PATH_PREFIX.length() + 1) {
-                        // If this is a multi-release jar, don't scan the root -- instead, scan the highest version
-                        // less than or equal to the current JVM version
+                    if (!zipEntryPath.startsWith(MULTI_RELEASE_PATH_PREFIX)) {
+                        // Give the base section a version number of 8, so that it sorts after versioned sections
+                        versionedZipEntriesRaw
+                                .add(new VersionedZipEntry(zipEntry, /* version = */ 8, zipEntryPath));
+                    } else if (zipEntryPath.length() > MULTI_RELEASE_PATH_PREFIX.length() + 1) {
+                        // This is a multi-release jar path
                         final int nextSlashIdx = zipEntryPath.indexOf('/', MULTI_RELEASE_PATH_PREFIX.length());
-                        final String versionStr = zipEntryPath.substring(MULTI_RELEASE_PATH_PREFIX.length(),
-                                nextSlashIdx < 0 ? zipEntryPath.length() : nextSlashIdx);
-                        try {
-                            // Fur multi-release jars, the version number has to be an int, 9 or higher
-                            final int versionInt = Integer.parseInt(versionStr);
-                            if (versionInt <= VersionFinder.JAVA_MAJOR_VERSION
-                                    && versionInt > highestScannableVersion) {
-                                // Found a higher version number to scan in a multi-release jar
-                                highestScannableVersion = versionInt;
+                        if (nextSlashIdx > 0) {
+                            // Get path after version number
+                            final String unversionedPath = zipEntryPath.substring(nextSlashIdx + 1);
+                            if (!unversionedPath.isEmpty()) {
+                                // If path is not empty, parse version number
+                                final String versionStr = zipEntryPath.substring(MULTI_RELEASE_PATH_PREFIX.length(),
+                                        nextSlashIdx);
+                                try {
+                                    // For multi-release jars, the version number has to be an int >= 9
+                                    final int versionInt = Integer.parseInt(versionStr);
+                                    if (versionInt >= 9
+                                            // Only accept version numbers up to the JRE version number
+                                            && versionInt <= VersionFinder.JAVA_MAJOR_VERSION) {
+                                        // Found a scannable versioned section of the multi-release jar
+                                        isMultiReleaseJar = true;
+                                        versionedZipEntriesRaw
+                                                .add(new VersionedZipEntry(zipEntry, versionInt, unversionedPath));
+                                    }
+                                } catch (final NumberFormatException e) {
+                                    // Ignore
+                                }
                             }
-                        } catch (final NumberFormatException e) {
-                            // Ignore
                         }
                     }
                 }
             }
-
-            // Use META-INF/versions/X as the package root, if present
-            if (highestScannableVersion >= 9) {
-                final String versionRoot = MULTI_RELEASE_PATH_PREFIX + highestScannableVersion;
-                if (log != null) {
-                    log.log("Found multi-release version jar -- switching package root to: " + versionRoot);
-                }
-                mainPackageRootPrefix = versionRoot + "/";
+            if (isMultiReleaseJar && log != null) {
+                log.log("This is a multi-release jar");
             }
 
-            // Find META-INF/versions/X/META-INF/MANIFEST.MF or META-INF/MANIFEST.MF if present
+            // Sort in decreasing order of version number
+            Collections.sort(versionedZipEntriesRaw);
+
+            // Mask files that appear in multiple version sections, so that there is only one VersionedZipEntry
+            // for each unversioned path, i.e. the versioned path with the highest version number.
+            // (There may be multiple resources with a given unversioned path.)
+            final List<VersionedZipEntry> versionedZipEntriesMasked = new ArrayList<>(numEntries);
+            final Set<String> unversionedPathsEncountered = new HashSet<>();
             ZipEntry manifestZipEntry = null;
-            final String versionManifestZipEntryPath = mainPackageRootPrefix + MANIFEST_PATH;
-            for (final ZipEntry zipEntry : rawZipEntries) {
-                String zipEntryPath = zipEntry.getName();
-                if (zipEntryPath.startsWith("/")) {
-                    zipEntryPath = zipEntryPath.substring(1);
+            for (final VersionedZipEntry versionedZipEntry : versionedZipEntriesRaw) {
+                // Find first ZipEntry for manifest file
+                if (versionedZipEntry.unversionedPath.equals(MANIFEST_PATH) && manifestZipEntry == null) {
+                    manifestZipEntry = versionedZipEntry.zipEntry;
                 }
-                if (zipEntryPath.equals(versionManifestZipEntryPath)) {
-                    manifestZipEntry = zipEntry;
-                } else if (zipEntryPath.equals(MANIFEST_PATH)) {
-                    // Fall back to META-INF/MANIFEST.MF if there is no version-specific manifest
-                    manifestZipEntry = zipEntry;
+                // Find first ZipEntry for each unversioned path 
+                if (unversionedPathsEncountered.add(versionedZipEntry.unversionedPath)) {
+                    versionedZipEntriesMasked.add(versionedZipEntry);
                 }
             }
-
-            final String webInfClassesPrefix = mainPackageRootPrefix + "WEB-INF/classes/";
-            final String webInfLibPrefix = mainPackageRootPrefix + "WEB-INF/lib/";
-            final String webInfLibProvidedPrefix = mainPackageRootPrefix + "WEB-INF/lib-provided/";
-            final String libPrefix = mainPackageRootPrefix + "lib/";
 
             // Parse manifest file, if present
-            String springBootLibPrefix = mainPackageRootPrefix + "BOOT-INF/lib";
-            String springBootClassesPrefix = mainPackageRootPrefix + "BOOT-INF/classes";
+            String springBootLibPrefix = "BOOT-INF/lib/";
+            String springBootClassesPrefix = "BOOT-INF/classes/";
             if (manifestZipEntry != null) {
                 try (InputStream inputStream = zipFile.getInputStream(manifestZipEntry)) {
                     final String manifest = FileUtils.readAllBytesAsString(inputStream, manifestZipEntry.getSize(),
@@ -255,17 +227,21 @@ public class JarfileMetadataReader {
                     if (classPathIdx >= 0) {
                         // Add Class-Path manifest entry value to classpath
                         final String classPathField = extractManifestField(manifest, classPathIdx + 12);
-                        addSpaceDelimitedClassPathToScan(/* zipFilePath = */ null, classPathField);
+                        for (final String classpathEntry : classPathField.split(" ")) {
+                            if (!classpathEntry.isEmpty()) {
+                                addClassPathEntryToScan(classpathEntry);
+                            }
+                        }
                         if (log != null) {
                             log.log("Found Class-Path entry in manifest file: " + classPathField);
                         }
                     }
 
-                    // Check for Spring-Boot manifest lines
+                    // Check for Spring-Boot manifest lines (in case the default prefixes of "BOOT-INF/classes/"
+                    // and "BOOT-INF/lib/" are overridden, which is unlikely but possible)
                     final int springBootClassesIdx = manifest.indexOf("\nSpring-Boot-Classes:");
                     if (springBootClassesIdx >= 0) {
-                        springBootClassesPrefix = mainPackageRootPrefix
-                                + extractManifestField(manifest, springBootClassesIdx + 21);
+                        springBootClassesPrefix = extractManifestField(manifest, springBootClassesIdx + 21);
                         if (springBootClassesPrefix.startsWith("/")) {
                             springBootClassesPrefix = springBootClassesPrefix.substring(1);
                         }
@@ -275,8 +251,7 @@ public class JarfileMetadataReader {
                     }
                     final int springBootLibIdx = manifest.indexOf("\nSpring-Boot-Lib:");
                     if (springBootLibIdx >= 0) {
-                        springBootLibPrefix = mainPackageRootPrefix
-                                + extractManifestField(manifest, springBootLibIdx + 17);
+                        springBootLibPrefix = extractManifestField(manifest, springBootLibIdx + 17);
                         if (springBootLibPrefix.startsWith("/")) {
                             springBootLibPrefix = springBootLibPrefix.substring(1);
                         }
@@ -287,103 +262,75 @@ public class JarfileMetadataReader {
                 }
             }
 
-            // Ignore non-version-specific ZipEntries, if this is a multi-release jar
-            if (!mainPackageRootPrefix.isEmpty()) {
-                zipEntries = new ArrayList<>(rawZipEntries.size());
-                for (final ZipEntry zipEntry : rawZipEntries) {
-                    if (zipEntry.getName().startsWith(mainPackageRootPrefix)) {
-                        zipEntries.add(zipEntry);
+            // String Spring-Boot prefixes ("BOOT-INF/classes/", "WEB-INF/classes/") from paths, and again mask
+            // classfiles, in case there are multiple classfiles with the same path once prefixes are stripped.
+            // Since the paths were sorted lexicographically above, masking is applied in the order of "", then
+            // "BOOT-INF/classes/", then "WEB-INF/classes/", which might be different from Spring-Boot's own
+            // class resolution order, but having the same class defined in more than one of these three package
+            // roots should be more or less non-existent, so this shouldn't be a problem.
+            // Also search for lib jars ("lib/*.jar", "BOOT-INF/lib/*.jar", etc.).
+            strippedPathPrefixes = Arrays.asList(springBootClassesPrefix, "WEB-INF/classes/");
+            versionedZipEntries = new ArrayList<>();
+            final Set<String> strippedPathsEncountered = new HashSet<>();
+            for (final VersionedZipEntry versionedZipEntry : versionedZipEntriesMasked) {
+                final String unversionedPath = versionedZipEntry.unversionedPath;
+
+                // Strip "BOOT-INF/classes/" or "WEB-INF/classes/" from beginning of classfile paths, if present
+                String strippedPath = unversionedPath;
+                for (final String prefixToStrip : strippedPathPrefixes) {
+                    if (unversionedPath.startsWith(prefixToStrip)) {
+                        strippedPath = unversionedPath.substring(prefixToStrip.length());
+                        break;
                     }
                 }
-            } else {
-                zipEntries = new ArrayList<>(rawZipEntries);
-            }
 
-            // Scan through non-directory zipfile entries for classpath roots and lib jars
-            String bootInfZipEntryPathPrefix = null;
-            String webInfZipEntryPathPrefix = null;
-            for (int i = 0; i < zipEntries.size(); i++) {
-                final ZipEntry zipEntry = zipEntries.get(i);
-                String zipEntryPath = zipEntry.getName();
-                if (zipEntryPath.endsWith("/")) {
-                    zipEntryPath = zipEntryPath.substring(0, zipEntryPath.length() - 1);
-                }
-                if (zipEntryPath.startsWith("/")) {
-                    zipEntryPath = zipEntryPath.substring(1);
-                }
+                // Apply path masking
+                if (strippedPathsEncountered.add(strippedPath)) {
+                    // This stripped path is unique -- schedule it for scanning
+                    versionedZipEntries.add(strippedPath.equals(unversionedPath) ? versionedZipEntry
+                            : new VersionedZipEntry(versionedZipEntry.zipEntry, versionedZipEntry.version,
+                                    strippedPath));
 
-                // Add common package roots to the classpath (for Spring-Boot and Spring WAR files)
-                if (bootInfZipEntryPathPrefix == null && zipEntryPath.startsWith(springBootClassesPrefix)) {
-                    if (log != null) {
-                        log.log("Found Spring-Boot package root: " + springBootClassesPrefix);
-                    }
-                    // Only add once
-                    bootInfZipEntryPathPrefix = springBootClassesPrefix;
-                }
-                if (webInfZipEntryPathPrefix == null && zipEntryPath.startsWith(webInfClassesPrefix)) {
-                    if (log != null) {
-                        log.log("Found WAR class root: " + webInfClassesPrefix);
-                    }
-                    // Only add once
-                    webInfZipEntryPathPrefix = webInfClassesPrefix;
-                }
-
-                // Scan for jars in common lib dirs (e.g. Spring-Boot and Spring WAR lib directories)
-                if ((zipEntryPath.startsWith(springBootLibPrefix) || zipEntryPath.startsWith(webInfLibPrefix)
-                        || zipEntryPath.startsWith(webInfLibProvidedPrefix) || zipEntryPath.startsWith(libPrefix))
-                        // Look for jarfiles within the above lib paths
-                        && zipEntryPath.endsWith(".jar")) {
-                    // Found a jarfile in a lib dir. This jar may not be on the classpath, e.g. if this is
-                    // a Spring-Boot jar and the scanner is running outside the jar.
-                    if (scanSpec.scanNestedJars) {
-                        if (log != null) {
-                            log.log("Found lib jar: " + zipEntryPath);
-                        }
-                        final String libJarPath = jarFileName + "!" + zipEntryPath;
-                        // Add the nested lib jar to the classpath to be scanned. This will cause the jar to
-                        // be extracted from the zipfile by one of the worker threads.
-                        // Also record the lib jar in case we need to construct a custom URLClassLoader to load
-                        // classes from the jar (the entire classpath of the jar needs to be reconstructed if so)
-                        addClassPathEntryToScan(libJarPath);
-                        addLibJarEntry(libJarPath);
-                    } else {
-                        if (log != null) {
-                            log.log("Skipping lib jar because nested jar scanning is disabled: " + zipEntryPath);
+                    // Look for nested jarfiles in lib directories
+                    if ((unversionedPath.startsWith(springBootLibPrefix)
+                            || unversionedPath.startsWith("WEB-INF/lib/")
+                            || unversionedPath.startsWith("WEB-INF/lib-provided/")
+                            || unversionedPath.startsWith("lib/")) //
+                            && unversionedPath.endsWith(".jar")) {
+                        // Found a nesnted jar
+                        if (scanSpec.scanNestedJars) {
+                            String zipEntryPath = versionedZipEntry.zipEntry.getName();
+                            if (zipEntryPath.endsWith("/")) {
+                                zipEntryPath = zipEntryPath.substring(0, zipEntryPath.length() - 1);
+                            }
+                            if (zipEntryPath.startsWith("/")) {
+                                zipEntryPath = zipEntryPath.substring(1);
+                            }
+                            if (log != null) {
+                                log.log("Found lib jar: " + zipEntryPath);
+                            }
+                            // Add the nested lib jar to the classpath to be scanned. This will cause the jar to
+                            // be extracted from the zipfile by one of the worker threads.
+                            // Also record the lib jar in case we need to construct a custom URLClassLoader to load
+                            // classes from the jar (the entire classpath of the jar needs to be reconstructed if so)
+                            final String libJarPath = jarFileName + "!" + zipEntryPath;
+                            addClassPathEntryToScan(libJarPath);
+                        } else {
+                            // Not scanning nested jars
+                            if (log != null) {
+                                log.log("Skipping lib jar because nested jar scanning is disabled: "
+                                        + versionedZipEntry.zipEntry.getName());
+                            }
                         }
                     }
                 }
             }
 
-            // Use BOOT-INF or WEB-INF as main package root, if present
-            if (bootInfZipEntryPathPrefix != null && !bootInfZipEntryPathPrefix.isEmpty()) {
-                // Scan "BOOT-INF/classes" as the main package root
-                mainPackageRootPrefix = bootInfZipEntryPathPrefix;
+            // Sort the final ZipEntries lexicographically again (since prefixes may have been stripped)
+            Collections.sort(versionedZipEntries);
 
-                // Also scan "" so that Spring-Boot classloader classes can be found
-                if (log != null) {
-                    log.log("Adding \"\" as a package root, so that Spring Boot classes will be scanned");
-                }
-                addAdditionalPackageRootPrefix("");
-
-                // If both BOOT-INF and WEB-INF are present, schedule WEB-INF for scanning as a separate cp entry
-                if (webInfZipEntryPathPrefix != null) {
-                    addClassPathEntryToScan(jarFileName + "!"
-                            + (webInfClassesPrefix.endsWith("/")
-                                    ? webInfClassesPrefix.substring(0, webInfClassesPrefix.length() - 1)
-                                    : webInfClassesPrefix));
-                }
-            } else if (webInfZipEntryPathPrefix != null) {
-                // Scan "BOOT-INF/classes" as the main package root
-                mainPackageRootPrefix = webInfZipEntryPathPrefix;
-
-                // Also scan "" so that WAR classloader classes can be found
-                if (log != null) {
-                    log.log("Adding \"\" as a package root, so that WAR root package classes will be scanned");
-                }
-                addAdditionalPackageRootPrefix("");
-            }
         } catch (final IOException e) {
-            zipEntries = Collections.emptyList();
+            versionedZipEntries = Collections.emptyList();
             if (log != null) {
                 log.log("Exception while opening jarfile " + jarFile, e);
             }

@@ -37,7 +37,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -52,6 +51,7 @@ import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.Recycler;
 import io.github.classgraph.utils.URLPathEncoder;
+import io.github.classgraph.utils.VersionedZipEntry;
 import io.github.classgraph.utils.WorkQueue;
 
 /** A zip/jarfile classpath element. */
@@ -60,16 +60,8 @@ class ClasspathElementZip extends ClasspathElement {
     /** Result of parsing the manifest file for this jarfile. */
     private JarfileMetadataReader jarfileMetadataReader;
     /** The package root within the jarfile. */
-    private String packageRootPrefix;
-    /** Additional package roots to scan. */
-    private List<String> additionalPackageRootPrefixes;
-    /**
-     * If true, and the package root is non-empty, indicates that the package root was obtained from the classpath
-     * element URL after a '!' character. If false, and the package root is non-empty, indicates that the package
-     * root was auto-detected (e.g. "BOOT-INF/classes/" for Spring Boot jars).
-     */
-    private boolean packageRootCameFromClasspathElementURL;
-
+    private String packageRootPrefix = "";
+    /** The ZipFile recycler. */
     private Recycler<ZipFile, IOException> zipFileRecycler;
 
     /** A zip/jarfile classpath element. */
@@ -119,7 +111,6 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        final String packageRoot = classpathEltPath.getJarfilePackageRoot();
         try {
             jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile, log);
         } catch (final IOException e) {
@@ -139,25 +130,26 @@ class ClasspathElementZip extends ClasspathElement {
             skipClasspathElement = true;
             return;
         }
-        if (!packageRoot.isEmpty()) {
-            if (log != null) {
-                log.log("Package root within jarfile: " + packageRoot);
-            }
-            packageRootPrefix = packageRoot;
-            packageRootCameFromClasspathElementURL = true;
-        } else {
-            // Use version root, if this is a multi-release jar, and no specific package root was given in the
-            // classpath element URL (otherwise packageRootPrefix will be "")
-            packageRootPrefix = jarfileMetadataReader.mainPackageRootPrefix;
-        }
-        while (packageRootPrefix.startsWith("/")) {
+
+        String packageRoot = classpathEltPath.getJarfilePackageRoot();
+        while (packageRoot.startsWith("/")) {
             // Strip any initial "/" to correspond with handling of relativePath below
-            packageRootPrefix = packageRootPrefix.substring(1);
+            packageRoot = packageRoot.substring(1);
         }
-        if (!packageRootPrefix.isEmpty() && !packageRootPrefix.endsWith("/")) {
-            packageRootPrefix += "/";
+        if (!packageRoot.isEmpty() && !packageRoot.endsWith("/")) {
+            packageRoot += "/";
         }
-        additionalPackageRootPrefixes = jarfileMetadataReader.additionalPackageRootPrefixes;
+        if (!packageRoot.isEmpty()) {
+            // Don't use package root if it has already been stripped from paths (e.g. if the jarfile URL was
+            // "/path/to/spring-boot.jar!BOOT-INF/classes" -- the "BOOT-INF/classes/" prefix was already stripped
+            // from zipfile entries)
+            if (!jarfileMetadataReader.strippedPathPrefixes.contains(packageRoot)) {
+                if (log != null) {
+                    log.log("Package root within jarfile: " + packageRoot);
+                }
+                packageRootPrefix = packageRoot;
+            }
+        }
 
         // Parse the manifest entry if present
         if (jarfileMetadataReader != null && jarfileMetadataReader.classPathEntriesToScan != null) {
@@ -356,47 +348,19 @@ class ClasspathElementZip extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log.log(classpathEltPath.getResolvedPath(), "Scanning jarfile " + classpathEltPath);
 
-        // Support specification of a classpath root within a jarfile, e.g. "spring-project.jar!/BOOT-INF/classes"
-        final int requiredPrefixLen = packageRootPrefix.length();
-
         Set<String> loggedNestedClasspathRootPrefixes = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
-        for (final ZipEntry zipEntry : jarfileMetadataReader.zipEntries) {
-            // Normalize path of ZipEntry
-            String relativePath = zipEntry.getName();
-            while (relativePath.startsWith("/")) {
-                relativePath = relativePath.substring(1);
-            }
-
-            // Check if the ZipEntry's relative path has the main package root prefix
-            boolean matchesPrefix = requiredPrefixLen == 0 || relativePath.startsWith(packageRootPrefix);
-            int prefixLen = matchesPrefix ? requiredPrefixLen : 0;
-
-            // If the package root came from the classpath element URL, don't scan any other package root
-            // prefixes in the jarfile (only scan the package root prefix specified in the URL).
-            if (!packageRootCameFromClasspathElementURL) {
-                // If the path doesn't have the main package root prefix, check against any additional prefixes
-                if (!matchesPrefix && additionalPackageRootPrefixes != null) {
-                    for (final String additionalPackageRootPrefix : additionalPackageRootPrefixes) {
-                        if (relativePath.startsWith(additionalPackageRootPrefix)) {
-                            matchesPrefix = true;
-                            prefixLen = additionalPackageRootPrefix.length();
-                            break;
-                        }
-                    }
-                }
-            }
+        for (final VersionedZipEntry versionedZipEntry : jarfileMetadataReader.versionedZipEntries) {
+            String relativePath = versionedZipEntry.unversionedPath;
 
             // Ignore entries without the correct classpath root prefix
-            if (!matchesPrefix) {
+            if (!(packageRootPrefix.length() == 0 || relativePath.startsWith(packageRootPrefix))) {
                 continue;
             }
 
             // Strip the package root prefix from the relative path
-            if (prefixLen > 0) {
-                relativePath = relativePath.substring(prefixLen);
-            }
+            relativePath = relativePath.substring(packageRootPrefix.length());
 
             // Check if the relative path is within a nested classpath root
             if (nestedClasspathRootPrefixes != null) {
@@ -423,7 +387,7 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             }
 
-            // Get match status of the parent directory of this zipentry file's relative path (or reuse the last
+            // Get match status of the parent directory of this ZipEntry file's relative path (or reuse the last
             // match status for speed, if the directory name hasn't changed).
             final int lastSlashIdx = relativePath.lastIndexOf("/");
             final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
@@ -454,13 +418,14 @@ class ClasspathElementZip extends ClasspathElement {
             if (scanSpec.enableClassInfo) {
                 // Store relative paths of any classfiles encountered
                 if (FileUtils.isClassfile(relativePath)) {
-                    classfileMatches.add(
-                            newClasspathResource(classpathEltZipFile, packageRootPrefix, relativePath, zipEntry));
+                    classfileMatches.add(newClasspathResource(classpathEltZipFile, packageRootPrefix, relativePath,
+                            versionedZipEntry.zipEntry));
                 }
             }
 
             // Record all classpath resources found in whitelisted paths
-            fileMatches.add(newClasspathResource(classpathEltZipFile, packageRootPrefix, relativePath, zipEntry));
+            fileMatches.add(newClasspathResource(classpathEltZipFile, packageRootPrefix, relativePath,
+                    versionedZipEntry.zipEntry));
         }
         // Don't use the last modified time from the individual zipEntry
         // objects, we use the last modified time for the zipfile itself instead.
