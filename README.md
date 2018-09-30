@@ -29,7 +29,7 @@ try (ScanResult scanResult =
     for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
         AnnotationInfo routeAnnotationInfo = routeClassInfo.getAnnotationInfo(routeAnnotation);
         List<AnnotationParameterValue> routeParamVals = routeAnnotationInfo.getParameterValues();
-        System.out.println(routeClassInfo.getName() + " is annotated with route " + routeParamVals.get(0).getValue);
+        System.out.println(routeClassInfo.getName() + " is annotated with route " + routeParamVals.get(0).getValue());
     }
 }
 ```
