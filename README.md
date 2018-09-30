@@ -6,7 +6,7 @@
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
 [![Gitter](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg)](https://gitter.im/classgraph/Lobby)
 
-<img alt="ClassGraph Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png"><!-- <img align="right" alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png"> -->
+<img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png"><!-- <img align="right" alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png"> -->
 
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and classfile annotation processor for Java, Scala, Kotlin and other JVM languages.
 
