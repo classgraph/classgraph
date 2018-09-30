@@ -12,6 +12,37 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**.
 
+=== Example ===
+
+The following code prints the name of all classes annotated with an annotation of the form `@Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes:
+
+```java
+String routeAnnotation = "com.xyz.Route";
+String pkg = "com.xyz";
+
+try (ScanResult scanResult =
+        new ClassGraph()
+            .verbose()               // Enable verbose logging
+            .enableAllInfo()         // Scan classes, methods, fields, annotations
+            .whitelistPackages(pkg)  // Scan com.xyz and subpackages
+            .scan()) {               // Start the scan
+    for (ClassInfo routeClassInfo :
+            scanResult.getClassesWithAnnotation(routeAnnotation)) {
+        AnnotationInfo routeAnnotationInfo = 
+                routeClassInfo.getAnnotationInfo(routeAnnotation);
+        List<AnnotationParameterValue> routeParamVals =
+                routeAnnotationInfo.getParameterValues();
+        if (routeParamVals.size() > 0) {
+            System.out.println("Class " + routeClassInfo.getName()
+                    + " is annotated with route "
+                    + routeParamVals.get(0).getValue());
+        }
+    }
+}
+```
+
+=== Capabilities ===
+
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
 * ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
