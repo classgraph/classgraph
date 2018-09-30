@@ -12,7 +12,7 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**.
 
-=== Example ===
+### Example
 
 The following code prints the name of all classes annotated with an annotation of the form `@Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes:
 
@@ -41,7 +41,7 @@ try (ScanResult scanResult =
 }
 ```
 
-=== Capabilities ===
+### Capabilities
 
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
