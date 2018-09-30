@@ -201,7 +201,7 @@ class ClasspathElementZip extends ClasspathElement {
         return packageRootPrefix;
     }
 
-    private Resource newClasspathResource(final File jarFile, final String packageRootPrefix,
+    private Resource newResource(final File jarFile, final String packageRootPrefix,
             final String pathRelativeToPackageRoot, final ZipEntry zipEntry) {
         return new Resource() {
             private Recycler<ZipFile, IOException>.Recyclable zipFileRecyclable;
@@ -418,13 +418,13 @@ class ClasspathElementZip extends ClasspathElement {
             if (scanSpec.enableClassInfo) {
                 // Store relative paths of any classfiles encountered
                 if (FileUtils.isClassfile(relativePath)) {
-                    classfileMatches.add(newClasspathResource(classpathEltZipFile, packageRootPrefix, relativePath,
+                    classfileMatches.add(newResource(classpathEltZipFile, packageRootPrefix, relativePath,
                             versionedZipEntry.zipEntry));
                 }
             }
 
             // Record all classpath resources found in whitelisted paths
-            fileMatches.add(newClasspathResource(classpathEltZipFile, packageRootPrefix, relativePath,
+            fileMatches.add(newResource(classpathEltZipFile, packageRootPrefix, relativePath,
                     versionedZipEntry.zipEntry));
         }
         // Don't use the last modified time from the individual zipEntry

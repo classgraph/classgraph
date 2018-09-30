@@ -78,7 +78,7 @@ class ClasspathElementModule extends ClasspathElement {
         }
     }
 
-    private Resource newClasspathResource(final String moduleResourcePath) {
+    private Resource newResource(final String moduleResourcePath) {
         return new Resource() {
             private Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable;
             private ModuleReaderProxy moduleReaderProxy;
@@ -308,12 +308,12 @@ class ClasspathElementModule extends ClasspathElement {
                 if (scanSpec.enableClassInfo) {
                     // Store relative paths of any classfiles encountered
                     if (FileUtils.isClassfile(relativePath)) {
-                        classfileMatches.add(newClasspathResource(relativePath));
+                        classfileMatches.add(newResource(relativePath));
                     }
                 }
 
                 // Record all classpath resources found in whitelisted paths
-                fileMatches.add(newClasspathResource(relativePath));
+                fileMatches.add(newResource(relativePath));
 
                 // Last modified time is not tracked for system modules, since they have a "jrt:/" URL
                 if (!moduleRef.isSystemModule()) {

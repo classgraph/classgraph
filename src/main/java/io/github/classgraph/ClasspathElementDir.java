@@ -74,7 +74,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    private Resource newClasspathResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
+    private Resource newResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
             final File classpathResourceFile) {
         return new Resource() {
             private RandomAccessFile randomAccessFile;
@@ -323,12 +323,12 @@ class ClasspathElementDir extends ClasspathElement {
                 if (scanSpec.enableClassInfo) {
                     // Store relative paths of any classfiles encountered
                     if (FileUtils.isClassfile(fileInDirRelativePath)) {
-                        classfileMatches.add(newClasspathResource(classpathElt, fileInDirRelativePath, fileInDir));
+                        classfileMatches.add(newResource(classpathElt, fileInDirRelativePath, fileInDir));
                     }
                 }
 
                 // Record all classpath resources found in whitelisted paths
-                fileMatches.add(newClasspathResource(classpathElt, fileInDirRelativePath, fileInDir));
+                fileMatches.add(newResource(classpathElt, fileInDirRelativePath, fileInDir));
             }
         }
         if (matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
