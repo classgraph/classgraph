@@ -1237,14 +1237,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a list of direct annotations on this method, along with any annotation parameter values, as a list of
-     * {@link AnnotationInfo} objects, or the empty list if none.
+     * Get a list of the annotations on this class, or the empty list if none.
      * 
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
      * its subclasses.
      * 
-     * @return A list of {@link AnnotationInfo} objects for the annotations on this method, or the empty list if
+     * @return A list of {@link AnnotationInfo} objects for the annotations on this class, or the empty list if
      *         none.
      */
     public AnnotationInfoList getAnnotationInfo() {
@@ -1275,6 +1274,22 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             Collections.sort(inheritedSuperclassAnnotations);
             return inheritedSuperclassAnnotations;
         }
+    }
+
+    /**
+     * Get a the named annotation on this class, or null if the class does not have the named annotation.
+     * 
+     * <p>
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on this class, or null if the
+     *         class does not have the named annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+        return getAnnotationInfo().get(annotationName);
     }
 
     /**

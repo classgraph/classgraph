@@ -314,6 +314,18 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Get a the named annotation on this field, or null if the field does not have the named annotation.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on this field, or null if the
+     *         field does not have the named annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+        return getAnnotationInfo().get(annotationName);
+    }
+
+    /**
      * @param annotationName
      *            The name of an annotation.
      * @return true if this field has the named annotation.

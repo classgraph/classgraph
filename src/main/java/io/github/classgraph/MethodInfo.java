@@ -468,6 +468,18 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Get a the named annotation on this method, or null if the method does not have the named annotation.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on this method, or null if the
+     *         method does not have the named annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+        return getAnnotationInfo().get(annotationName);
+    }
+
+    /**
      * @param annotationName
      *            The name of an annotation.
      * @return true if this method has the named annotation.
