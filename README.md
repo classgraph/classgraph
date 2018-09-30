@@ -26,8 +26,7 @@ try (ScanResult scanResult =
             .enableAllInfo()             // Scan classes, methods, fields, annotations
             .whitelistPackages(pkg)      // Scan com.xyz and subpackages
             .scan()) {                   // Start the scan
-    for (ClassInfo routeClassInfo :
-            scanResult.getClassesWithAnnotation(routeAnnotation)) {
+    for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
         AnnotationInfo routeAnnotationInfo = routeClassInfo.getAnnotationInfo(routeAnnotation);
         List<AnnotationParameterValue> routeParamVals = routeAnnotationInfo.getParameterValues();
         if (routeParamVals.size() > 0) {
