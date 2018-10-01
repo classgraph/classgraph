@@ -44,7 +44,7 @@ public class Issue255Test {
         final String dirPath = Issue255Test.class.getClassLoader().getResource("issue255").getPath()
                 + "/test%20percent%20encoding";
 
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(dirPath).verbose().scan()) {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(dirPath).scan()) {
             final ResourceList resources = scanResult.getAllResources();
             assertThat(resources.size()).isEqualTo(1);
             resources.forEachByteArray(new ByteArrayConsumer() {
