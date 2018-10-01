@@ -36,7 +36,7 @@ try (ScanResult scanResult =
 }
 ```
 
-The following code calls the method `configServer(String)` with the string content of all resource files that have the path `META-INF/config/server.cfg`.
+The following code reads all resource files with the path `META-INF/config/server.cfg`, and calls the method `configServer(String)` with the content of each file.
 
 ```java
 try (ScanResult scanResult =
