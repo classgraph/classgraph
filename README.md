@@ -36,12 +36,12 @@ try (ScanResult scanResult =
 }
 ```
 
-The following code reads all resource files with the path `META-INF/config/server.cfg`, and calls the method `configServer(String)` with the content of each file.
+The following code finds all JSON files in `META-INF`, and calls the method `readJson(String path, String content)` with the path and content of each file.
 
 ```java
 try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-INF/config").scan()) {
-    scanResult.getResourcesWithLeafName("server.cfg").forEachByteArray((Resource res, byte[] fileContent) -> {
-        configServer(new String(fileContent, "UTF-8"));
+    scanResult.getResourcesWithExtension("json").forEachByteArray((Resource res, byte[] fileContent) -> {
+        readJson(res.getPath(), new String(fileContent, "UTF-8"));
     });
 }
 ```
