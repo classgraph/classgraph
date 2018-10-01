@@ -6,17 +6,53 @@
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
 [![Gitter](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg)](https://gitter.im/classgraph/Lobby)
 
-<img alt="ClassGraph Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png"><!-- <img align="right" alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png"> -->
+<img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png"><!-- <img align="right" alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png"> -->
 
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight classpath scanner, module scanner, and classfile annotation processor for Java, Scala, Kotlin and other JVM languages.
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**.
 
+### Examples
+
+The following code prints the name of all classes annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
+
+```java
+String pkg = "com.xyz";
+String routeAnnotation = pkg + ".Route";
+
+try (ScanResult scanResult =
+        new ClassGraph()
+            .verbose()
+            .enableAllInfo()             // Scan classes, methods, fields, annotations
+            .whitelistPackages(pkg)      // Scan com.xyz and subpackages (omit to scan all packages)
+            .scan()) {                   // Start the scan
+    for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
+        AnnotationInfo routeAnnotationInfo = routeClassInfo.getAnnotationInfo(routeAnnotation);
+        List<AnnotationParameterValue> routeParamVals = routeAnnotationInfo.getParameterValues();
+        // @com.xyz.Route has one required parameter
+        String route = (String) routeParamVals.get(0).getValue();
+        System.out.println(routeClassInfo.getName() + " is annotated with route " + route);
+    }
+}
+```
+
+The following code reads all resource files with the path `META-INF/config/server.cfg`, and calls the method `configServer(String)` with the content of each file.
+
+```java
+try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-INF/config").scan()) {
+    scanResult.getResourcesWithLeafName("server.cfg").forEachByteArray((Resource res, byte[] fileContent) -> {
+        configServer(new String(fileContent, "UTF-8"));
+    });
+}
+```
+
+### Capabilities
+
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
-* ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
+* ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling some degree of *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
 * ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
-* ClassGraph is fully compatible with the new JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the visible Java modules. However, the code is also fully backwards compatible with JDK 7 and JDK 8 (i.e. it is compiled to be callable from a JDK 7 project).
+* ClassGraph is fully compatible with the new JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the module path. However, the code is also fully backwards compatible with JDK 7 and JDK 8 (i.e. the code is compiled in Java 7 compatibility mode, and all interaction with the module system is implemented via reflection for backwards compatibility).
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph%3F) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
