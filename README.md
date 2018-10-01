@@ -14,7 +14,7 @@ ClassGraph has the ability to "invert" the Java class and/or reflection API: for
 
 ### Examples
 
-(1) The following code prints the name of all classes annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
+The following code prints the name of all classes annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
 
 ```java
 String pkg = "com.xyz";
@@ -36,7 +36,7 @@ try (ScanResult scanResult =
 }
 ```
 
-(2) The following code calls the method `configServer(String)` with all resource files that have the path `META-INF/config/server.cfg`.
+The following code calls the method `configServer(String)` with the content of all resource files that have the path `META-INF/config/server.cfg`.
 
 ```java
 try (ScanResult scanResult =
