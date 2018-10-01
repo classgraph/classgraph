@@ -36,7 +36,7 @@ try (ScanResult scanResult =
 }
 ```
 
-The following code finds all JSON files in `META-INF`, and calls the method `readJson(String path, String content)` with the path and content of each file.
+The following code finds all JSON files in `META-INF/config`, and calls the method `readJson(String path, String content)` with the path and content of each file.
 
 ```java
 try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-INF/config").scan()) {
