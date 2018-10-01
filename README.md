@@ -46,7 +46,7 @@ try (ScanResult scanResult =
     scanResult
         .getResourcesWithLeafName("server.cfg")
         .forEachByteArray((Resource res, byte[] fileContent) -> {
-            configServer(new String(fileContent));
+            configServer(new String(fileContent, "UTF-8"));
         });
 }
 ```
