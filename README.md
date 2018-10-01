@@ -12,9 +12,9 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API: for example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**.
 
-### Example
+### Examples
 
-The following code prints the name of all classes annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
+(1) The following code prints the name of all classes annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
 
 ```java
 String pkg = "com.xyz";
@@ -33,6 +33,21 @@ try (ScanResult scanResult =
         String route = (String) routeParamVals.get(0).getValue();
         System.out.println(routeClassInfo.getName() + " is annotated with route " + route);
     }
+}
+```
+
+(2) The following code calls the method `configServer(String)` with all resource files that have the path `META-INF/config/server.cfg`.
+
+```java
+try (ScanResult scanResult =
+        new ClassGraph()
+            .whitelistPathsNonRecursive("META-INF/config")
+            .scan()) {
+    scanResult
+        .getResourcesWithLeafName("server.cfg")
+        .forEachByteArray((Resource res, byte[] fileContent) -> {
+            configServer(new String(fileContent));
+        });
 }
 ```
 
