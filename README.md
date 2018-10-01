@@ -19,7 +19,6 @@ The following code prints the name of all classes annotated with an annotation o
 ```java
 String pkg = "com.xyz";
 String routeAnnotation = pkg + ".Route";
-
 try (ScanResult scanResult =
         new ClassGraph()
             .verbose()
