@@ -323,7 +323,7 @@ public class JarUtils {
         jreDirsSet.addAll(javaLibExtDirsSet);
 
         // System extension paths -- see: https://docs.oracle.com/javase/tutorial/ext/basics/install.html
-        
+
         // Mac OS X
         addJRERoot(new File("/System/Library/Java"), jreDirsSet, jreRtJarFiles);
         addJREPath(new File("/System/Library/Java/Libraries"), javaLibExtDirsSet);

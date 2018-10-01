@@ -29,6 +29,7 @@
 package io.github.classgraph.utils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -226,6 +227,57 @@ public class ClasspathOrModulePathEntry {
     }
 
     /**
+     * Try matching the file path one segment at a time, un-percent-escaping the path segments on the filesystem, in
+     * case they contain a '%' character (issue 255).
+     */
+    private static File percentEncodingMatch(final String path) throws IOException {
+        final String pathToSplit = !path.equals("/") && path.endsWith("/") ? path.substring(0, path.length() - 1)
+                : path;
+        final String[] pathSegments = pathToSplit.split("/");
+        File dirOrFile = null;
+        for (int i = 0; i < pathSegments.length; i++) {
+            String pathSegment = pathSegments[i];
+            if (i == 0 && pathSegment.isEmpty()) {
+                // Handle root directory on Unix
+                pathSegment = "/";
+            } else if (i == 0 && pathSegment.length() == 2 && Character.isLetter(pathSegment.charAt(0))
+                    && pathSegment.charAt(1) == ':') {
+                // Handle root directory on Windows
+                pathSegment += "/";
+            }
+            if (i == 0) {
+                // Find first (or root) directory
+                dirOrFile = new File(pathSegment);
+            } else {
+                // Find next subdirectory in path
+                File nextSubDirOrFile = new File(dirOrFile, pathSegment);
+                if (!nextSubDirOrFile.exists()) {
+                    // Look through parent directory for entries containing '%'
+                    for (final File file : dirOrFile.listFiles()) {
+                        if (file.getName().indexOf('%') >= 0) {
+                            final String nameNormalized = FastPathResolver.normalizePath(file.getName(),
+                                    /* isHttpURL = */ false);
+                            if (nameNormalized.equals(pathSegment)) {
+                                // The directory on disk contained "%"-encoding that matched the path segment
+                                nextSubDirOrFile = file;
+                                break;
+                            }
+                        }
+                    }
+                }
+                dirOrFile = nextSubDirOrFile;
+            }
+            if (!dirOrFile.exists()) {
+                throw new FileNotFoundException("Not found: " + dirOrFile);
+            }
+            if (!FileUtils.canRead(dirOrFile)) {
+                throw new IOException("Cannot read: " + dirOrFile);
+            }
+        }
+        return dirOrFile;
+    }
+
+    /**
      * @param log
      *            The log.
      * @return The File object for the resolved path.
@@ -296,9 +348,18 @@ public class ClasspathOrModulePathEntry {
                 jarfilePackageRoot = jarfilePackageRoot.substring(1);
             }
 
-            if (fileCached == null || !FileUtils.canRead(fileCached)) {
-                throw new IOException("Could not locate file " + (fileCached == null ? relativePath : fileCached)
+            if (fileCached == null) {
+                throw new IOException("Could not locate file " + relativePath
                         + (relativePath.equals(path) ? "" : " -- resolved to: " + path));
+            }
+
+            if (!FileUtils.canRead(fileCached)) {
+                fileCached = percentEncodingMatch(path);
+                if (fileCached == null || !FileUtils.canRead(fileCached)) {
+                    throw new IOException(
+                            "Could not locate file " + (fileCached == null ? relativePath : fileCached)
+                                    + (relativePath.equals(path) ? "" : " -- resolved to: " + path));
+                }
             }
 
             isFileCached = fileCached.isFile();

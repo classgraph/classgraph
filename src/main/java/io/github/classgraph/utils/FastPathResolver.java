@@ -66,7 +66,7 @@ public class FastPathResolver {
         }
     }
 
-    /** Unescape runs of percent encoding, e.g. "%20%43%20" -> " + ". */
+    /** Unescape runs of percent encoding, e.g. "%20%43%20" -> " + " */
     private static void unescapePercentEncoding(final String path, final int startIdx, final int endIdx,
             final StringBuilder buf) {
         if (endIdx - startIdx == 3 && path.charAt(startIdx + 1) == '2' && path.charAt(startIdx + 2) == '0') {
@@ -83,17 +83,38 @@ public class FastPathResolver {
                         : (c2 >= 'a' && c2 <= 'f') ? (c2 - 'a' + 10) : (c2 - 'A' + 10);
                 bytes[j] = (byte) ((digit1 << 4) | digit2);
             }
+            // Decode UTF-8 bytes
             final String str = new String(bytes, StandardCharsets.UTF_8);
-            // Prevent double escaping issues by translating any escaped separators
-            translateSeparator(str, 0, str.length(), false, buf);
+            // Turn a few illegal characters back into %-encoding
+            for (int i = 0; i < str.length(); i++) {
+                final char c = str.charAt(i);
+                if (c == '/') {
+                    buf.append("%2F");
+                } else if (c == '\\') {
+                    buf.append("%5C");
+                } else if (c < 32) {
+                    buf.append('%');
+                    buf.append(c >= 16 ? '1' : '0');
+                    final int l = (c & 0xf);
+                    buf.append((char) (l >= 10 ? 'a' + l : '0' + l));
+                } else {
+                    buf.append(c);
+                }
+            }
         }
     }
 
     /**
      * Parse percent encoding, e.g. "%20" -> " "; convert '/' or '\\' to SEP; remove trailing separator char if
      * present.
+     * 
+     * @param path
+     *            The path to normalize.
+     * @param isHttpURL
+     *            True if this is a URL.
+     * @return The normalized path.
      */
-    private static String normalizePath(final String path, final boolean isHttpURL) {
+    public static String normalizePath(final String path, final boolean isHttpURL) {
         final boolean hasPercent = path.indexOf('%') >= 0;
         if (!hasPercent && path.indexOf('\\') < 0 && !path.endsWith("/")) {
             return path;
