@@ -39,15 +39,10 @@ try (ScanResult scanResult =
 The following code reads all resource files with the path `META-INF/config/server.cfg`, and calls the method `configServer(String)` with the content of each file.
 
 ```java
-try (ScanResult scanResult =
-        new ClassGraph()
-            .whitelistPathsNonRecursive("META-INF/config")
-            .scan()) {
-    scanResult
-        .getResourcesWithLeafName("server.cfg")
-        .forEachByteArray((Resource res, byte[] fileContent) -> {
-            configServer(new String(fileContent, "UTF-8"));
-        });
+try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-INF/config").scan()) {
+    scanResult.getResourcesWithLeafName("server.cfg").forEachByteArray((Resource res, byte[] fileContent) -> {
+        configServer(new String(fileContent, "UTF-8"));
+    });
 }
 ```
 
