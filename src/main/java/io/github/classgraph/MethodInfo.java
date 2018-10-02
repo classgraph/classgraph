@@ -42,7 +42,7 @@ import io.github.classgraph.utils.Parser.ParseException;
  */
 public class MethodInfo extends ScanResultObject implements Comparable<MethodInfo> {
     /** Defining class name. */
-    private String definingClassName;
+    private String declaringClassName;
 
     /** Method name. */
     private String name;
@@ -124,7 +124,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
             final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody) {
-        this.definingClassName = definingClassName;
+        this.declaringClassName = definingClassName;
         this.name = methodName;
         this.modifiers = modifiers;
         this.typeDescriptorStr = typeDescriptorStr;
@@ -170,20 +170,28 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         return buf.toString();
     }
 
-    /**
-     * Get the name of the class this method is defined within.
-     * 
-     * @return The name of the enclosing class.
-     */
-    public String getDefiningClassName() {
-        return definingClassName;
+    /** @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this method). */
+    @Override
+    ClassInfo getClassInfo() {
+        return super.getClassInfo();
     }
 
     /**
-     * Get the class this method is defined within.
+     * @deprecated Use instead {@code getClassInfo().getName()}.
+     * 
+     * @return The name of the class this method is defined within.
+     */
+    @Deprecated
+    public String getDefiningClassName() {
+        return declaringClassName;
+    }
+
+    /**
+     * @deprecated Use instead {@code getClassInfo()}.
      * 
      * @return The class this method is defined within.
      */
+    @Deprecated
     public ClassInfo getDefiningClassInfo() {
         return getClassInfo();
     }
@@ -197,7 +205,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public MethodTypeSignature getTypeDescriptor() {
         if (typeDescriptor == null) {
             try {
-                typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, definingClassName);
+                typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, declaringClassName);
                 typeDescriptor.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
@@ -215,7 +223,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public MethodTypeSignature getTypeSignature() {
         if (typeSignature == null && typeSignatureStr != null) {
             try {
-                typeSignature = MethodTypeSignature.parse(typeSignatureStr, definingClassName);
+                typeSignature = MethodTypeSignature.parse(typeSignatureStr, declaringClassName);
                 typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
@@ -358,7 +366,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 // Should not happen
                 throw new RuntimeException(
                         "typeSignatureParamTypes.size() > typeDescriptorParamTypes.size() for method "
-                                + definingClassName + "." + name);
+                                + declaringClassName + "." + name);
             }
 
             // Figure out number of other fields that need alignment, and check length for consistency 
@@ -367,7 +375,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                             parameterAnnotationInfo == null ? 0 : parameterAnnotationInfo.length));
             if (otherParamMax > numParams) {
                 // Should not happen
-                throw new RuntimeException("Type descriptor for method " + definingClassName + "." + name
+                throw new RuntimeException("Type descriptor for method " + declaringClassName + "." + name
                         + " has insufficient parameters");
             }
 
@@ -533,12 +541,12 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
-     * defining class.
+     * Returns the declaring class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
+     * declaring class.
      */
     @Override
     protected String getClassName() {
-        return definingClassName;
+        return declaringClassName;
     }
 
     @Override
@@ -614,20 +622,20 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             return false;
         }
         final MethodInfo other = (MethodInfo) obj;
-        return definingClassName.equals(other.definingClassName)
+        return declaringClassName.equals(other.declaringClassName)
                 && typeDescriptorStr.equals(other.typeDescriptorStr) && name.equals(other.name);
     }
 
     /** Use hash code of class name, method name and type descriptor. */
     @Override
     public int hashCode() {
-        return name.hashCode() + typeDescriptorStr.hashCode() * 11 + definingClassName.hashCode() * 57;
+        return name.hashCode() + typeDescriptorStr.hashCode() * 11 + declaringClassName.hashCode() * 57;
     }
 
     /** Sort in order of class name, method name, then type descriptor. */
     @Override
     public int compareTo(final MethodInfo other) {
-        final int diff0 = definingClassName.compareTo(other.definingClassName);
+        final int diff0 = declaringClassName.compareTo(other.declaringClassName);
         if (diff0 != 0) {
             return diff0;
         }

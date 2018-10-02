@@ -39,7 +39,7 @@ import io.github.classgraph.utils.Parser.ParseException;
  * classfile for the class.
  */
 public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo> {
-    private String definingClassName;
+    private String declaringClassName;
     private String name;
     private int modifiers;
     private String typeSignatureStr;
@@ -79,7 +79,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         if (fieldName == null) {
             throw new IllegalArgumentException();
         }
-        this.definingClassName = definingClassName;
+        this.declaringClassName = definingClassName;
         this.name = fieldName;
         this.modifiers = modifiers;
         this.typeDescriptorStr = typeDescriptorStr;
@@ -93,28 +93,34 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the name of the field.
-     * 
      * @return The name of the field.
      */
     public String getName() {
         return name;
     }
 
-    /**
-     * Get the name of the class this field is defined within.
-     * 
-     * @return The name of the class this field is defined within.
-     */
-    public String getDefiningClassName() {
-        return definingClassName;
+    /** @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this field). */
+    @Override
+    ClassInfo getClassInfo() {
+        return super.getClassInfo();
     }
 
     /**
-     * Get the class this field is defined within.
+     * @deprecated Use instead {@code getClassInfo().getName()}.
+     * 
+     * @return The name of the class this field is defined within.
+     */
+    @Deprecated
+    public String getDefiningClassName() {
+        return declaringClassName;
+    }
+
+    /**
+     * @deprecated Use instead {@code getClassInfo()}.
      * 
      * @return The class this field is defined within.
      */
+    @Deprecated
     public ClassInfo getDefiningClassInfo() {
         return getClassInfo();
     }
@@ -238,7 +244,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
         if (typeDescriptor == null) {
             try {
-                typeDescriptor = TypeSignature.parse(typeDescriptorStr, definingClassName);
+                typeDescriptor = TypeSignature.parse(typeDescriptorStr, declaringClassName);
                 typeDescriptor.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
@@ -258,7 +264,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
         if (typeSignature == null) {
             try {
-                typeSignature = TypeSignature.parse(typeSignatureStr, definingClassName);
+                typeSignature = TypeSignature.parse(typeSignatureStr, declaringClassName);
                 typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
@@ -358,12 +364,12 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
-     * defining class.
+     * Returns the name of the declaring class, so that super.getClassInfo() returns the {@link ClassInfo} object
+     * for the declaring class.
      */
     @Override
     protected String getClassName() {
-        return definingClassName;
+        return declaringClassName;
     }
 
     @Override
@@ -415,19 +421,19 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             return false;
         }
         final FieldInfo other = (FieldInfo) obj;
-        return definingClassName.equals(other.definingClassName) && name.equals(other.name);
+        return declaringClassName.equals(other.declaringClassName) && name.equals(other.name);
     }
 
     /** Use hash code of class name and field name. */
     @Override
     public int hashCode() {
-        return name.hashCode() + definingClassName.hashCode() * 11;
+        return name.hashCode() + declaringClassName.hashCode() * 11;
     }
 
     /** Sort in order of class name then field name */
     @Override
     public int compareTo(final FieldInfo other) {
-        final int diff = definingClassName.compareTo(other.definingClassName);
+        final int diff = declaringClassName.compareTo(other.declaringClassName);
         if (diff != 0) {
             return diff;
         }
