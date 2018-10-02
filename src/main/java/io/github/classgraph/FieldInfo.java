@@ -116,7 +116,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * @deprecated Use instead {@code getClassInfo()}.
+     * @deprecated Use instead {@link #getClassInfo()}.
      * 
      * @return The class this field is defined within.
      */

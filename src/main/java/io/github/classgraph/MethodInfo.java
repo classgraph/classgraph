@@ -187,7 +187,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * @deprecated Use instead {@code getClassInfo()}.
+     * @deprecated Use instead {@link #getClassInfo()}.
      * 
      * @return The class this method is defined within.
      */
