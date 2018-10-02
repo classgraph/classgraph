@@ -14,7 +14,7 @@ ClassGraph has the ability to "invert" the Java class and/or reflection API, or 
 
 ### Examples
 
-The following code prints the name of all classes annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
+The following code prints the name of all classes in the package `com.xyz` or its subpackages, anywhere on the classpath or module path, that are annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
 
 ```java
 String pkg = "com.xyz";
