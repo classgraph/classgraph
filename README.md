@@ -45,6 +45,8 @@ try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-I
 }
 ```
 
+[See more code examples here.](https://github.com/classgraph/classgraph/wiki/Code-examples)
+
 ### Capabilities
 
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
