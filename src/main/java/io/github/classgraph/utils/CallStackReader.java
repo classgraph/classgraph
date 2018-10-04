@@ -39,19 +39,20 @@ class CallStackReader {
     private static Throwable throwableOnCreate;
 
     static {
+        // Creating a SecurityManager can fail if the current SecurityManager does not allow
+        // RuntimePermission("createSecurityManager")
         try {
-            // This can fail if the current SecurityManager does not allow RuntimePermission
-            // ("createSecurityManager"):
-            CALLER_RESOLVER = new CallerResolver();
+            // Try doPrivileged()
+            AccessController.doPrivileged(new PrivilegedAction<Object>() {
+                public Object run() {
+                    CALLER_RESOLVER = new CallerResolver();
+                    return null;
+                }
+            });
         } catch (final Throwable e) {
             try {
-                // Try doPrivileged()
-                AccessController.doPrivileged(new PrivilegedAction<Object>() {
-                    public Object run() {
-                        CALLER_RESOLVER = new CallerResolver();
-                        return null;
-                    }
-                });
+                // Try without doPrivileged()
+                CALLER_RESOLVER = new CallerResolver();
             } catch (final Throwable e2) {
                 throwableOnCreate = e2;
             }
