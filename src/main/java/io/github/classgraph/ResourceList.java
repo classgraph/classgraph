@@ -146,7 +146,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
             final String path = resource.getPath();
             ResourceList resourceList = pathToResource.get(path);
             if (resourceList == null) {
-                resourceList = new ResourceList();
+                resourceList = new ResourceList(1);
                 pathToResource.put(path, resourceList);
             }
             resourceList.add(resource);
