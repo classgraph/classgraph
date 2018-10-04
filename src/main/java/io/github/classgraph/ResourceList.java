@@ -140,18 +140,18 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * @return This {@link ResourceList} as a map from path (obtained from {@link Resource#getPath()}), to a
      *         {@link ResourceList} of {@link Resource} objects that have that path.
      */
-    private Map<String, ResourceList> asMap() {
-        final Map<String, ResourceList> pathToResource = new HashMap<>();
+    public Map<String, ResourceList> asMap() {
+        final Map<String, ResourceList> pathToResourceList = new HashMap<>();
         for (final Resource resource : this) {
             final String path = resource.getPath();
-            ResourceList resourceList = pathToResource.get(path);
+            ResourceList resourceList = pathToResourceList.get(path);
             if (resourceList == null) {
                 resourceList = new ResourceList(1);
-                pathToResource.put(path, resourceList);
+                pathToResourceList.put(path, resourceList);
             }
             resourceList.add(resource);
         }
-        return pathToResource;
+        return pathToResourceList;
     }
 
     /**
