@@ -28,6 +28,9 @@
  */
 package io.github.classgraph.utils;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+
 /** A class to find the unique ordered classpath elements. */
 class CallStackReader {
     /** Used for resolving the call stack. Requires RuntimePermission("createSecurityManager"). */
@@ -41,7 +44,17 @@ class CallStackReader {
             // ("createSecurityManager"):
             CALLER_RESOLVER = new CallerResolver();
         } catch (final Throwable e) {
-            throwableOnCreate = e;
+            try {
+                // Try doPrivileged()
+                AccessController.doPrivileged(new PrivilegedAction<Object>() {
+                    public Object run() {
+                        CALLER_RESOLVER = new CallerResolver();
+                        return null;
+                    }
+                });
+            } catch (final Throwable e2) {
+                throwableOnCreate = e2;
+            }
         }
     }
 
