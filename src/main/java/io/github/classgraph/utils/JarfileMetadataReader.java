@@ -299,19 +299,18 @@ public class JarfileMetadataReader {
             Collections.sort(versionedZipEntriesRaw);
 
             // Mask files that appear in multiple version sections, so that there is only one VersionedZipEntry
-            // for each unversioned path, the versioned path with the highest version number.
+            // for each unversioned path (the versioned path with the highest version number).
             // (There may be multiple versioned resources with the same unversioned path.)
             final List<VersionedZipEntry> versionedZipEntriesMasked = new ArrayList<>(numEntries);
             final Map<String, VersionedZipEntry> unversionedPathsEncountered = new HashMap<>();
             for (final VersionedZipEntry versionedZipEntry : versionedZipEntriesRaw) {
                 // Find first ZipEntry for each unversioned path
-                final VersionedZipEntry firstVersionedEntry = unversionedPathsEncountered
-                        .putIfAbsent(versionedZipEntry.unversionedPath, versionedZipEntry);
-                if (firstVersionedEntry == null) {
+                if (!unversionedPathsEncountered.containsKey(versionedZipEntry.unversionedPath)) {
+                    unversionedPathsEncountered.put(versionedZipEntry.unversionedPath, versionedZipEntry);
                     versionedZipEntriesMasked.add(versionedZipEntry);
                 } else if (log != null) {
-                    log.log(firstVersionedEntry.zipEntry.getName() + " masks "
-                            + versionedZipEntry.zipEntry.getName());
+                    log.log(unversionedPathsEncountered.get(versionedZipEntry.unversionedPath).zipEntry.getName()
+                            + " masks " + versionedZipEntry.zipEntry.getName());
                 }
             }
 
