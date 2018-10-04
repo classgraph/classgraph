@@ -35,8 +35,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -73,9 +75,13 @@ public class JarfileMetadataReader {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static final String MANIFEST_PATH = "META-INF/MANIFEST.MF";
+    private static final String META_INF_PATH_PREFIX = "META-INF/";
 
-    private static final String MULTI_RELEASE_PATH_PREFIX = "META-INF/versions/";
+    private static final String MANIFEST_PATH = META_INF_PATH_PREFIX + "MANIFEST.MF";
+
+    private static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
+
+    private static final String VERSIONED_META_INF_PATH_PREFIX = MULTI_RELEASE_PATH_PREFIX + META_INF_PATH_PREFIX;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -138,8 +144,8 @@ public class JarfileMetadataReader {
             final String jarFileName = FastPathResolver.resolve(jarFile.getPath());
 
             // Get all ZipEntries for jar, and see if it is a multi-release jar
-            final List<VersionedZipEntry> versionedZipEntriesRaw = new ArrayList<>(numEntries);
-            boolean isMultiReleaseJar = false;
+            ZipEntry manifestZipEntry = null;
+            final List<ZipEntry> zipEntries = new ArrayList<>(zipFile.size());
             for (final Enumeration<? extends ZipEntry> iter = zipFile.entries(); iter.hasMoreElements();) {
                 final ZipEntry zipEntry = iter.nextElement();
                 if (!zipEntry.isDirectory()) {
@@ -151,80 +157,36 @@ public class JarfileMetadataReader {
                     if (zipEntryPath.startsWith("/")) {
                         zipEntryPath = zipEntryPath.substring(1);
                     }
+                    zipEntries.add(zipEntry);
 
-                    if (!zipEntryPath.startsWith(MULTI_RELEASE_PATH_PREFIX)) {
-                        // Give the base section a version number of 8, so that it sorts after versioned sections
-                        versionedZipEntriesRaw
-                                .add(new VersionedZipEntry(zipEntry, /* version = */ 8, zipEntryPath));
-                    } else if (zipEntryPath.length() > MULTI_RELEASE_PATH_PREFIX.length() + 1) {
-                        // This is a multi-release jar path
-                        final int nextSlashIdx = zipEntryPath.indexOf('/', MULTI_RELEASE_PATH_PREFIX.length());
-                        if (nextSlashIdx > 0) {
-                            // Get path after version number
-                            final String unversionedPath = zipEntryPath.substring(nextSlashIdx + 1);
-                            if (!unversionedPath.isEmpty()) {
-                                // If path is not empty, parse version number
-                                final String versionStr = zipEntryPath.substring(MULTI_RELEASE_PATH_PREFIX.length(),
-                                        nextSlashIdx);
-                                try {
-                                    // For multi-release jars, the version number has to be an int >= 9
-                                    final int versionInt = Integer.parseInt(versionStr);
-                                    if (versionInt >= 9
-                                            // Only accept version numbers up to the JRE version number
-                                            && versionInt <= VersionFinder.JAVA_MAJOR_VERSION) {
-                                        // Found a scannable versioned section of the multi-release jar
-                                        isMultiReleaseJar = true;
-                                        versionedZipEntriesRaw
-                                                .add(new VersionedZipEntry(zipEntry, versionInt, unversionedPath));
-                                    }
-                                } catch (final NumberFormatException e) {
-                                    // Ignore
-                                }
-                            }
-                        }
+                    if (zipEntryPath.equals(MANIFEST_PATH) && manifestZipEntry == null) {
+                        manifestZipEntry = zipEntry;
                     }
                 }
             }
-            if (isMultiReleaseJar && log != null) {
-                log.log("This is a multi-release jar");
-            }
 
-            // Sort in decreasing order of version number -- see:
-            // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-September/013935.html
-            Collections.sort(versionedZipEntriesRaw);
-
-            // Mask files that appear in multiple version sections, so that there is only one VersionedZipEntry
-            // for each unversioned path, i.e. the versioned path with the highest version number.
-            // (There may be multiple resources with a given unversioned path.)
-            final List<VersionedZipEntry> versionedZipEntriesMasked = new ArrayList<>(numEntries);
-            final Set<String> unversionedPathsEncountered = new HashSet<>();
-            ZipEntry manifestZipEntry = null;
-            for (final VersionedZipEntry versionedZipEntry : versionedZipEntriesRaw) {
-                // Find first ZipEntry for manifest file
-                if (versionedZipEntry.unversionedPath.equals(MANIFEST_PATH) && manifestZipEntry == null) {
-                    manifestZipEntry = versionedZipEntry.zipEntry;
-                }
-                // Find first ZipEntry for each unversioned path 
-                if (unversionedPathsEncountered.add(versionedZipEntry.unversionedPath)) {
-                    versionedZipEntriesMasked.add(versionedZipEntry);
-                }
-            }
-
-            // Parse manifest file, if present
+            boolean isMultiReleaseJar = false;
             String springBootLibPrefix = "BOOT-INF/lib/";
             String springBootClassesPrefix = "BOOT-INF/classes/";
             if (manifestZipEntry != null) {
                 try (InputStream inputStream = zipFile.getInputStream(manifestZipEntry)) {
                     final String manifest = FileUtils.readAllBytesAsString(inputStream, manifestZipEntry.getSize(),
                             log);
+                    // Attribute names are case insensitive in manifest files
+                    final String manifestLower = manifest.toLowerCase();
 
                     // Check if this is a JRE jar
-                    this.isSystemJar = //
-                            manifest.indexOf("\nImplementation-Title: Java Runtime Environment") > 0 || manifest
-                                    .indexOf("\nSpecification-Title: Java Platform API Specification") > 0;
+                    this.isSystemJar = manifestLower
+                            .indexOf("\nimplementation-title: java runtime environment") >= 0
+                            || manifestLower.indexOf("\nspecification-title: java platform api specification") >= 0
+                            || manifestLower.indexOf("\rimplementation-title: java runtime environment") >= 0
+                            || manifestLower.indexOf("\rspecification-title: java platform api specification") >= 0;
 
                     // Check for "Class-Path:" manifest line
-                    final int classPathIdx = manifest.indexOf("\nClass-Path:");
+                    int classPathIdx = manifestLower.indexOf("\nclass-path:");
+                    if (classPathIdx < 0) {
+                        classPathIdx = manifestLower.indexOf("\rclass-path:");
+                    }
                     if (classPathIdx >= 0) {
                         // Add Class-Path manifest entry value to classpath
                         final String classPathField = extractManifestField(manifest, classPathIdx + 12);
@@ -238,28 +200,118 @@ public class JarfileMetadataReader {
                         }
                     }
 
+                    // "If the JAR file does not contain "Multi-Release" attribute in its main manifest then 
+                    // it is not a multi-release JAR.":
+                    // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013952.html
+                    isMultiReleaseJar = manifestLower.indexOf("\nmulti-release: true") >= 0
+                            || manifestLower.indexOf("\rmulti-release: true") >= 0;
+                    if (isMultiReleaseJar && log != null) {
+                        log.log("This is a multi-release jar");
+                    }
+
                     // Check for Spring-Boot manifest lines (in case the default prefixes of "BOOT-INF/classes/"
                     // and "BOOT-INF/lib/" are overridden, which is unlikely but possible)
-                    final int springBootClassesIdx = manifest.indexOf("\nSpring-Boot-Classes:");
+                    int springBootClassesIdx = manifestLower.indexOf("\nspring-boot-classes:");
+                    if (springBootClassesIdx < 0) {
+                        springBootClassesIdx = manifest.indexOf("\rspring-boot-classes:");
+                    }
                     if (springBootClassesIdx >= 0) {
                         springBootClassesPrefix = extractManifestField(manifest, springBootClassesIdx + 21);
-                        if (springBootClassesPrefix.startsWith("/")) {
+                        while (springBootClassesPrefix.startsWith("/")) {
                             springBootClassesPrefix = springBootClassesPrefix.substring(1);
                         }
                         if (!springBootClassesPrefix.isEmpty() && !springBootClassesPrefix.endsWith("/")) {
-                            springBootClassesPrefix += '/';
+                            springBootClassesPrefix += "/";
                         }
                     }
-                    final int springBootLibIdx = manifest.indexOf("\nSpring-Boot-Lib:");
+                    int springBootLibIdx = manifestLower.indexOf("\nspring-boot-lib:");
+                    if (springBootLibIdx < 0) {
+                        springBootLibIdx = manifestLower.indexOf("\rspring-boot-lib:");
+                    }
                     if (springBootLibIdx >= 0) {
                         springBootLibPrefix = extractManifestField(manifest, springBootLibIdx + 17);
-                        if (springBootLibPrefix.startsWith("/")) {
+                        while (springBootLibPrefix.startsWith("/")) {
                             springBootLibPrefix = springBootLibPrefix.substring(1);
                         }
                         if (!springBootLibPrefix.isEmpty() && !springBootLibPrefix.endsWith("/")) {
-                            springBootLibPrefix += '/';
+                            springBootLibPrefix += "/";
                         }
                     }
+                }
+            }
+
+            // For multi-release jars, find and strip any "META-INF/versions/{versionInt}/" prefix 
+            final List<VersionedZipEntry> versionedZipEntriesRaw = new ArrayList<>(numEntries);
+            for (final ZipEntry zipEntry : zipEntries) {
+                String zipEntryPath = zipEntry.getName();
+                if (zipEntryPath.endsWith("/")) {
+                    zipEntryPath = zipEntryPath.substring(0, zipEntryPath.length() - 1);
+                }
+                if (zipEntryPath.startsWith("/")) {
+                    zipEntryPath = zipEntryPath.substring(1);
+                }
+
+                // If this is not a multi-release jar, or this is the "base layer" (unversioned section of jar) 
+                if (!isMultiReleaseJar //
+                        || !zipEntryPath.startsWith(MULTI_RELEASE_PATH_PREFIX)
+                        // For META-INF/versions/{versionInt}/META-INF/*, don't strip version prefix.
+                        // "The intention is that the META-INF directory cannot be versioned."
+                        // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013954.html
+                        || zipEntryPath.startsWith(VERSIONED_META_INF_PATH_PREFIX)) {
+                    // Give the base section a version number of 8, so that it sorts after versioned sections
+                    versionedZipEntriesRaw.add(new VersionedZipEntry(zipEntry, /* version = */ 8, zipEntryPath));
+                } else if (zipEntryPath.length() > MULTI_RELEASE_PATH_PREFIX.length() + 1) {
+                    // This is a multi-release jar path
+                    final int nextSlashIdx = zipEntryPath.indexOf('/', MULTI_RELEASE_PATH_PREFIX.length());
+                    if (nextSlashIdx > 0) {
+                        // Get path after version number, i.e. strip "META-INF/versions/{versionInt}/" prefix
+                        final String unversionedPath = zipEntryPath.substring(nextSlashIdx + 1);
+                        if (!unversionedPath.isEmpty()) {
+                            // If path is not empty, parse version number
+                            final String versionStr = zipEntryPath.substring(MULTI_RELEASE_PATH_PREFIX.length(),
+                                    nextSlashIdx);
+                            try {
+                                // For multi-release jars, the version number has to be an int >= 9
+                                final int versionInt = Integer.parseInt(versionStr);
+                                if (versionInt >= 9
+                                        // Only accept version numbers up to the JRE version number
+                                        && versionInt <= VersionFinder.JAVA_MAJOR_VERSION) {
+                                    // Found a scannable versioned section of the multi-release jar
+                                    if (!zipEntryPath.startsWith(VERSIONED_META_INF_PATH_PREFIX)) {
+                                        // Strip "META-INF/versions/{versionInt}/" prefix
+                                        isMultiReleaseJar = true;
+                                        versionedZipEntriesRaw
+                                                .add(new VersionedZipEntry(zipEntry, versionInt, unversionedPath));
+                                    }
+                                } else {
+                                    // Ignore out-of-range versions
+                                }
+                            } catch (final NumberFormatException e) {
+                                // Ignore
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sort in decreasing order of version number, so that higher versions mask lower versions. See:
+            // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-September/013935.html
+            Collections.sort(versionedZipEntriesRaw);
+
+            // Mask files that appear in multiple version sections, so that there is only one VersionedZipEntry
+            // for each unversioned path, the versioned path with the highest version number.
+            // (There may be multiple versioned resources with the same unversioned path.)
+            final List<VersionedZipEntry> versionedZipEntriesMasked = new ArrayList<>(numEntries);
+            final Map<String, VersionedZipEntry> unversionedPathsEncountered = new HashMap<>();
+            for (final VersionedZipEntry versionedZipEntry : versionedZipEntriesRaw) {
+                // Find first ZipEntry for each unversioned path
+                final VersionedZipEntry firstVersionedEntry = unversionedPathsEncountered
+                        .putIfAbsent(versionedZipEntry.unversionedPath, versionedZipEntry);
+                if (firstVersionedEntry == null) {
+                    versionedZipEntriesMasked.add(versionedZipEntry);
+                } else if (log != null) {
+                    log.log(firstVersionedEntry.zipEntry.getName() + " masks "
+                            + versionedZipEntry.zipEntry.getName());
                 }
             }
 
@@ -298,7 +350,7 @@ public class JarfileMetadataReader {
                             || unversionedPath.startsWith("WEB-INF/lib-provided/")
                             || unversionedPath.startsWith("lib/")) //
                             && unversionedPath.endsWith(".jar")) {
-                        // Found a nesnted jar
+                        // Found a nested jar
                         if (scanSpec.scanNestedJars) {
                             String zipEntryPath = versionedZipEntry.zipEntry.getName();
                             if (zipEntryPath.endsWith("/")) {
@@ -312,8 +364,6 @@ public class JarfileMetadataReader {
                             }
                             // Add the nested lib jar to the classpath to be scanned. This will cause the jar to
                             // be extracted from the zipfile by one of the worker threads.
-                            // Also record the lib jar in case we need to construct a custom URLClassLoader to load
-                            // classes from the jar (the entire classpath of the jar needs to be reconstructed if so)
                             final String libJarPath = jarFileName + "!" + zipEntryPath;
                             addClassPathEntryToScan(libJarPath);
                         } else {
