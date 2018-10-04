@@ -35,8 +35,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
@@ -325,6 +327,17 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList directOnly() {
         return new ClassInfoList(directlyRelatedClasses, directlyRelatedClasses, sortByName);
+    }
+
+    /**
+     * @return This {@link ClassInfoList} as a map from class name to {@link ClassInfo} object.
+     */
+    public Map<String, ClassInfo> asMap() {
+        final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+        for (final ClassInfo classInfo : this) {
+            classNameToClassInfo.put(classInfo.getName(), classInfo);
+        }
+        return classNameToClassInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------

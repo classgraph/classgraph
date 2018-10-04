@@ -31,7 +31,9 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
@@ -131,6 +133,17 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
             }
             return toStringVals;
         }
+    }
+
+    /**
+     * @return This {@link AnnotationInfoList} as a map from annotation name to {@link AnnotationInfo} object.
+     */
+    public Map<String, AnnotationInfo> asMap() {
+        final Map<String, AnnotationInfo> annotationNameToAnnotationInfo = new HashMap<>();
+        for (final AnnotationInfo annotationInfo : this) {
+            annotationNameToAnnotationInfo.put(annotationInfo.getName(), annotationInfo);
+        }
+        return annotationNameToAnnotationInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------

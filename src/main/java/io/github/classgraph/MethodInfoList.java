@@ -31,7 +31,9 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends ArrayList<MethodInfo> {
@@ -133,6 +135,24 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
             }
             return toStringVals;
         }
+    }
+
+    /**
+     * @return This {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with
+     *         that name.
+     */
+    public Map<String, MethodInfoList> asMap() {
+        final Map<String, MethodInfoList> methodNameToMethodInfoList = new HashMap<>();
+        for (final MethodInfo methodInfo : this) {
+            final String name = methodInfo.getName();
+            MethodInfoList methodInfoList = methodNameToMethodInfoList.get(name);
+            if (methodInfoList == null) {
+                methodInfoList = new MethodInfoList(1);
+                methodNameToMethodInfoList.put(name, methodInfoList);
+            }
+            methodInfoList.add(methodInfo);
+        }
+        return methodNameToMethodInfoList;
     }
 
     // -------------------------------------------------------------------------------------------------------------

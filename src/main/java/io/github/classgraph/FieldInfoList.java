@@ -31,7 +31,9 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends ArrayList<FieldInfo> {
@@ -132,6 +134,17 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
             }
             return toStringVals;
         }
+    }
+
+    /**
+     * @return This {@link FieldInfoList} as a map from field name to {@link FieldInfo} object.
+     */
+    public Map<String, FieldInfo> asMap() {
+        final Map<String, FieldInfo> fieldNameToFieldInfo = new HashMap<>();
+        for (final FieldInfo fieldInfo : this) {
+            fieldNameToFieldInfo.put(fieldInfo.getName(), fieldInfo);
+        }
+        return fieldNameToFieldInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------
