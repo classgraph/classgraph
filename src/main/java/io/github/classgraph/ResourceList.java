@@ -32,9 +32,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
@@ -90,6 +96,86 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
             resourceURLs.add(resource.getURL());
         }
         return resourceURLs;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Returns true if a Resource has a path ending in ".class". */
+    private static final ResourceFilter CLASSFILE_FILTER = new ResourceFilter() {
+        @Override
+        public boolean accept(final Resource resource) {
+            final String path = resource.getPath();
+            if (!path.endsWith(".class") || path.length() < 7) {
+                return false;
+            }
+            // Check filename is not simply ".class"
+            final char c = path.charAt(path.length() - 7);
+            return c != '/' && c != '.';
+        }
+    };
+
+    /**
+     * @return A new {@link ResourceList} consisting of only the resources with the filename extension ".class".
+     */
+    public ResourceList classFilesOnly() {
+        return filter(CLASSFILE_FILTER);
+    }
+
+    /**
+     * @return A new {@link ResourceList} consisting of only the resources that do not have the filename extension
+     *         ".class".
+     */
+    public ResourceList nonClassFilesOnly() {
+        return filter(new ResourceFilter() {
+            @Override
+            public boolean accept(final Resource resource) {
+                return !CLASSFILE_FILTER.accept(resource);
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * @return This {@link ResourceList} as a map from path (obtained from {@link Resource#getPath()}), to a
+     *         {@link ResourceList} of {@link Resource} objects that have that path.
+     */
+    private Map<String, ResourceList> asMap() {
+        final Map<String, ResourceList> pathToResource = new HashMap<>();
+        for (final Resource resource : this) {
+            final String path = resource.getPath();
+            ResourceList resourceList = pathToResource.get(path);
+            if (resourceList == null) {
+                resourceList = new ResourceList();
+                pathToResource.put(path, resourceList);
+            }
+            resourceList.add(resource);
+        }
+        return pathToResource;
+    }
+
+    /**
+     * @return A {@link List} of {@link Entry} objects for all resources in the classpath and/or module path that
+     *         have a non-unique path (i.e. where there are at least two resources with the same path). The key of
+     *         each returned {@link Entry} is the path (obtained from {@link Resource#getPath()}), and the value is
+     *         a {@link ResourceList} of at least two unique {@link Resource} objects that have that path.
+     */
+    public List<Entry<String, ResourceList>> findDuplicatePaths() {
+        final List<Entry<String, ResourceList>> duplicatePaths = new ArrayList<>();
+        for (final Entry<String, ResourceList> pathAndResourceList : asMap().entrySet()) {
+            // Find ResourceLists with two or more entries
+            if (pathAndResourceList.getValue().size() > 1) {
+                duplicatePaths.add(new SimpleEntry<>(pathAndResourceList.getKey(), pathAndResourceList.getValue()));
+            }
+        }
+        Collections.sort(duplicatePaths, new Comparator<Entry<String, ResourceList>>() {
+            @Override
+            public int compare(final Entry<String, ResourceList> o1, final Entry<String, ResourceList> o2) {
+                // Sort in lexicographic order of path
+                return o1.getKey().compareTo(o2.getKey());
+            }
+        });
+        return duplicatePaths;
     }
 
     // -------------------------------------------------------------------------------------------------------------
