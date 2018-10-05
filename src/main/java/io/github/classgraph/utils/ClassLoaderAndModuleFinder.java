@@ -237,7 +237,7 @@ public class ClassLoaderAndModuleFinder {
             if (scanSpec.overrideModuleLayers == null) {
                 try {
                     // Find classloaders for classes on callstack
-                    final Class<?>[] callStack = CallStackReader.getClassContext();
+                    final Class<?>[] callStack = CallStackReader.getClassContext(log);
                     for (int i = callStack.length - 1; i >= 0; --i) {
                         final ClassLoader callerClassLoader = callStack[i].getClassLoader();
                         if (callerClassLoader != null) {
