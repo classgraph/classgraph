@@ -28,10 +28,7 @@
  */
 package io.github.classgraph.utils;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 /** A simple URL path encoder. */
 public class URLPathEncoder {
@@ -56,8 +53,8 @@ public class URLPathEncoder {
         safe['/'] = true;
     }
 
-    private static final char[] hexadecimal = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
-            'D', 'E', 'F' };
+    private static final char[] hexadecimal = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
+            'd', 'e', 'f' };
 
     /**
      * Encode a URL path using percent-encoding. '/' is not encoded.
@@ -67,36 +64,16 @@ public class URLPathEncoder {
      * @return The encoded path.
      */
     public static String encodePath(final String path) {
-        final StringBuilder encodedPath = new StringBuilder(path.length() * 2);
-        final ByteArrayOutputStream utf8bytes = new ByteArrayOutputStream(10);
-        OutputStreamWriter writer;
-        try {
-            writer = new OutputStreamWriter(utf8bytes, "UTF8");
-        } catch (final UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-        for (int i = 0; i < path.length(); i++) {
-            final int c = path.charAt(i);
-            if (c < 256 && safe[c]) {
-                encodedPath.append((char) c);
+        byte[] pathBytes = path.getBytes(StandardCharsets.UTF_8);
+        final StringBuilder encodedPath = new StringBuilder(pathBytes.length * 3);
+        for (int i = 0; i < pathBytes.length; i++) {
+            final int b = pathBytes[i] & 0xff;
+            if (b < 256 && safe[b]) {
+                encodedPath.append((char) b);
             } else {
-                try {
-                    writer.write(c);
-                    writer.flush();
-                } catch (final IOException e) {
-                    utf8bytes.reset();
-                    continue;
-                }
-                final byte[] charBytes = utf8bytes.toByteArray();
-                for (int j = 0; j < charBytes.length; j++) {
-                    final byte b = charBytes[j];
-                    final int low = (b & 0x0f);
-                    final int high = ((b & 0xf0) >> 4);
-                    encodedPath.append('%');
-                    encodedPath.append(hexadecimal[high]);
-                    encodedPath.append(hexadecimal[low]);
-                }
-                utf8bytes.reset();
+                encodedPath.append('%');
+                encodedPath.append(hexadecimal[(b & 0xf0) >> 4]);
+                encodedPath.append(hexadecimal[b & 0x0f]);
             }
         }
         return encodedPath.toString();
