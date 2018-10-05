@@ -21,7 +21,7 @@ String pkg = "com.xyz";
 String routeAnnotation = pkg + ".Route";
 try (ScanResult scanResult =
         new ClassGraph()
-            .verbose()
+            .verbose()                   // Log to stderr
             .enableAllInfo()             // Scan classes, methods, fields, annotations
             .whitelistPackages(pkg)      // Scan com.xyz and subpackages (omit to scan all packages)
             .scan()) {                   // Start the scan
@@ -45,7 +45,8 @@ try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-I
 }
 ```
 
-[See more code examples here.](https://github.com/classgraph/classgraph/wiki/Code-examples)
+See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examples) page for more examples of how to use the ClassGraph API.
+
 
 ### Capabilities
 
@@ -57,8 +58,8 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph%3F) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
-* ClassGraph can [find classes that are defined more than once in the classpath or module path](https://github.com/classgraph/classgraph/wiki/Code-examples#find-all-duplicate-class-definitions-in-the-classpath-or-module-path), which can help find the cause of strange class resolution behaviors.
-* ClassGraph can create GraphViz visualizations of the class graph structure, which can help with code understanding: (click to enlarge | [see graph legend here](https://github.com/classgraph/classgraph/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png))
+* ClassGraph can [find classes that are duplicated or defined more than once in the classpath or module path](https://github.com/classgraph/classgraph/wiki/Code-examples#find-all-duplicate-class-definitions-in-the-classpath-or-module-path), which can help find the cause of strange class resolution behaviors.
+* ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/API:-ClassInfo#generating-a-graphviz-dot-file-for-class-graph-visualization), which can help with code understanding: (click to enlarge | [see graph legend here](https://github.com/classgraph/classgraph/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png))
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png"><img src="https://github.com/classgraph/classgraph/blob/master/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
@@ -67,9 +68,6 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 ## Documentation
 
 [See the wiki for complete documentation and usage information.](https://github.com/classgraph/classgraph/wiki)
-
-See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examples) page for examples of how to use the ClassGraph API.
-
 
 ## Status
 
