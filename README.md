@@ -21,7 +21,7 @@ String pkg = "com.xyz";
 String routeAnnotation = pkg + ".Route";
 try (ScanResult scanResult =
         new ClassGraph()
-            .verbose()
+            .verbose()                   // Log to stderr
             .enableAllInfo()             // Scan classes, methods, fields, annotations
             .whitelistPackages(pkg)      // Scan com.xyz and subpackages (omit to scan all packages)
             .scan()) {                   // Start the scan
