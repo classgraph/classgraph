@@ -127,9 +127,9 @@ class CallStackReader {
 
         if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
             // Try with doPrivileged()
-            callStack = (Class<?>[]) AccessController.doPrivileged(new PrivilegedAction<Object>() {
+            callStack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
                 @Override
-                public Object run() {
+                public Class<?>[] run() {
                     return getCallStackViaStackWalker(log);
                 }
             });
@@ -146,9 +146,9 @@ class CallStackReader {
         // For JRE 7 and 8, use SecurityManager to get call stack
 
         // Try with doPrivileged()
-        callStack = (Class<?>[]) AccessController.doPrivileged(new PrivilegedAction<Object>() {
+        callStack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
             @Override
-            public Object run() {
+            public Class<?>[] run() {
                 return getCallStackViaSecurityManager(log);
             }
         });
