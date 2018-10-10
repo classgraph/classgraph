@@ -125,12 +125,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     final ScanResult scanResult = weakReference.get();
                     if (scanResult != null) {
                         scanResult.close();
-                    } else {
-                        // Should not happen --
-                        // if object has been garbage collected, finalizer should have been called already,
-                        // which will call close(), removing the WeakReference from nonClosedWeakReferences.
-                        nonClosedWeakReferences.remove(weakReference);
                     }
+                    // The WeakReference is also removed by scanResult.close(), but in case there's a race
+                    // condition between manually closing the ScanResult (or the finalizer calling close())
+                    // and the shutdown hook being run, also remove the WeakReference here
+                    nonClosedWeakReferences.remove(weakReference);
                 }
             }
         });
