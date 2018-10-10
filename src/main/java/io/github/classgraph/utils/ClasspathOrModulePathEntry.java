@@ -50,7 +50,7 @@ public class ClasspathOrModulePathEntry {
     private final String pathToResolveAgainst;
 
     /** The relative path. */
-    private final String relativePath;
+    private final String rawPath;
 
     /**
      * For jarfiles, the section of the path after the last '!' character (if the section after the last '!' is a
@@ -118,8 +118,8 @@ public class ClasspathOrModulePathEntry {
      * 
      * @param pathToResolveAgainst
      *            The base path.
-     * @param relativePath
-     *            The relative path.
+     * @param rawPath
+     *            The raw path. May be relative to pathToResolveAgainst.
      * @param classLoaders
      *            The environment classloaders.
      * @param nestedJarHandler
@@ -129,7 +129,7 @@ public class ClasspathOrModulePathEntry {
      * @param log
      *            The log.
      */
-    public ClasspathOrModulePathEntry(final String pathToResolveAgainst, final String relativePath,
+    public ClasspathOrModulePathEntry(final String pathToResolveAgainst, final String rawPath,
             final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec,
             final LogNode log) {
         this.classLoaders = classLoaders;
@@ -138,16 +138,16 @@ public class ClasspathOrModulePathEntry {
         this.scanSpec = scanSpec;
 
         // Fix Spring relative paths with empty zip resource sections
-        if (relativePath.endsWith("!")) {
-            this.relativePath = relativePath.substring(0, relativePath.length() - 1);
-        } else if (relativePath.endsWith("!/")) {
-            this.relativePath = relativePath.substring(0, relativePath.length() - 2);
-        } else if (relativePath.endsWith("/!")) {
-            this.relativePath = relativePath.substring(0, relativePath.length() - 2);
-        } else if (relativePath.endsWith("/!/")) {
-            this.relativePath = relativePath.substring(0, relativePath.length() - 3);
+        if (rawPath.endsWith("!")) {
+            this.rawPath = rawPath.substring(0, rawPath.length() - 1);
+        } else if (rawPath.endsWith("!/")) {
+            this.rawPath = rawPath.substring(0, rawPath.length() - 2);
+        } else if (rawPath.endsWith("/!")) {
+            this.rawPath = rawPath.substring(0, rawPath.length() - 2);
+        } else if (rawPath.endsWith("/!/")) {
+            this.rawPath = rawPath.substring(0, rawPath.length() - 3);
         } else {
-            this.relativePath = relativePath;
+            this.rawPath = rawPath;
         }
     }
 
@@ -172,7 +172,7 @@ public class ClasspathOrModulePathEntry {
         this.classLoaders = classLoader == null ? null : new ClassLoader[] { classLoader };
         this.pathToResolveAgainst = "";
         this.nestedJarHandler = nestedJarHandler;
-        this.relativePath = moduleRef.getLocationStr();
+        this.rawPath = moduleRef.getLocationStr();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -185,11 +185,18 @@ public class ClasspathOrModulePathEntry {
     }
 
     /**
+     * @return The raw path of this classpath element.
+     */
+    public String getRawPath() {
+        return rawPath;
+    }
+
+    /**
      * @return The path of this classpath element, resolved against the parent path.
      */
     public String getResolvedPath() {
         if (!resolvedPathIsCached) {
-            resolvedPathCached = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
+            resolvedPathCached = FastPathResolver.resolve(pathToResolveAgainst, rawPath);
             resolvedPathIsCached = true;
         }
         return resolvedPathCached;
@@ -289,12 +296,12 @@ public class ClasspathOrModulePathEntry {
             final String path = getResolvedPath();
             if (path == null) {
                 throw new IOException(
-                        "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
+                        "Path " + rawPath + " could not be resolved relative to " + pathToResolveAgainst);
             }
 
             if (isJrtURL) {
                 // jrt:/ URLs don't correspond to file paths
-                throw new IOException("Cannot use jrt:/ URL for non-module classpath entry " + relativePath);
+                throw new IOException("Cannot use jrt:/ URL for non-module classpath entry " + rawPath);
             }
 
             final int lastPlingIdx = path.lastIndexOf('!');
@@ -338,9 +345,9 @@ public class ClasspathOrModulePathEntry {
                     } catch (final Exception e) {
                         // Unexpected exception
                         if (log != null) {
-                            log.log("Exception while locating jarfile " + relativePath, e);
+                            log.log("Exception while locating jarfile " + rawPath, e);
                         }
-                        throw new IOException("Exception while locating jarfile " + relativePath + " : " + e);
+                        throw new IOException("Exception while locating jarfile " + rawPath + " : " + e);
                     }
                 }
             }
@@ -349,16 +356,15 @@ public class ClasspathOrModulePathEntry {
             }
 
             if (fileCached == null) {
-                throw new IOException("Could not locate file " + relativePath
-                        + (relativePath.equals(path) ? "" : " -- resolved to: " + path));
+                throw new IOException("Could not locate file " + rawPath
+                        + (rawPath.equals(path) ? "" : " -- resolved to: " + path));
             }
 
             if (!FileUtils.canRead(fileCached)) {
                 fileCached = percentEncodingMatch(path);
                 if (fileCached == null || !FileUtils.canRead(fileCached)) {
-                    throw new IOException(
-                            "Could not locate file " + (fileCached == null ? relativePath : fileCached)
-                                    + (relativePath.equals(path) ? "" : " -- resolved to: " + path));
+                    throw new IOException("Could not locate file " + (fileCached == null ? rawPath : fileCached)
+                            + (rawPath.equals(path) ? "" : " -- resolved to: " + path));
                 }
             }
 
