@@ -60,8 +60,8 @@ public class JarfileMetadataReader {
     public List<VersionedZipEntry> versionedZipEntries;
 
     /**
-     * "Class-Path" entries encountered in the manifest file. Also includes any "!BOOT-INF/classes" or
-     * "!WEB-INF/classes" package roots. Will also include classpath entries for any jars found in one of the lib
+     * "Class-Path" entries encountered in the manifest file. Also includes any "BOOT-INF/classes" or
+     * "WEB-INF/classes" package roots. Will also include classpath entries for any jars found in one of the lib
      * directories of the jar ("lib/", "BOOT-INF/lib", "WEB-INF/lib", or "WEB-INF/lib-provided"), if
      * {@code ClassGraph#addNestedLibJarsToClasspath(true)} is called before scanning.
      */
