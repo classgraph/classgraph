@@ -955,8 +955,10 @@ public class ScanResult implements Closeable, AutoCloseable {
     }
 
     /** Finalizer. A runtime shutdown hook is also added in the constructor, since finalizers are not reliable. */
+    @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable {
         close();
+        super.finalize();
     }
 }
