@@ -99,10 +99,10 @@ class ClasspathElementModule extends ClasspathElement {
                     if (moduleRef.getLocationStr() == null) {
                         // If there is no known module location, just guess a "jrt:/" path based on the module
                         // name, so that the user can see something reasonable in the result
-                        return new URL(new URL("jrt:/" + moduleRef.getName()).toString() + "!"
+                        return new URL(new URL("jrt:/" + moduleRef.getName()).toString() + "!/"
                                 + URLPathEncoder.encodePath(moduleResourcePath));
                     } else {
-                        return new URL(new URL(moduleRef.getLocationStr()).toString() + "!"
+                        return new URL(new URL(moduleRef.getLocationStr()).toString() + "!/"
                                 + URLPathEncoder.encodePath(moduleResourcePath));
                     }
                 } catch (final MalformedURLException e) {
@@ -114,10 +114,16 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URL getClasspathElementURL() {
                 try {
-                    return moduleRef.getLocation().toURL();
+                    if (moduleRef.getLocation() == null) {
+                        // If there is no known module location, just guess a "jrt:/" path based on the module
+                        // name, so that the user can see something reasonable in the result
+                        return new URL(new URL("jrt:/" + moduleRef.getName()).toString());
+                    } else {
+                        return moduleRef.getLocation().toURL();
+                    }
                 } catch (final MalformedURLException e) {
-                    // Shouldn't happen
-                    throw new IllegalArgumentException(e);
+                    throw new IllegalArgumentException(
+                            "Could not form URL for module classpath element: " + moduleRef.getLocationStr());
                 }
             }
 

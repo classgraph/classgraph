@@ -120,12 +120,12 @@ class CallStackReader {
                     public Class<?>[] run() {
                         try {
                             return getCallStackViaStackWalker(log);
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             throw new RuntimeException(e);
                         }
                     }
                 });
-            } catch (Throwable ignored) {
+            } catch (final Throwable ignored) {
             }
         }
 
@@ -137,7 +137,7 @@ class CallStackReader {
                     return getCallStackViaSecurityManager(log);
                 }
             });
-        } catch (Throwable ignored) {
+        } catch (final Throwable ignored) {
         }
 
         // As a fallback, use getStackTrace() to try to get the call stack

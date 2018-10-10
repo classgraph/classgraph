@@ -2057,7 +2057,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     classpathElementURL = moduleRef.getLocation().toURL();
                 } else if (classpathElementFile.isFile() && !jarfilePackageRoot.isEmpty()) {
                     // Classpath elt is a jarfile with a non-empty package root
-                    classpathElementURL = new URL("jar:" + classpathElementFile.toURI().toURL().toString() + "!"
+                    classpathElementURL = new URL("jar:" + classpathElementFile.toURI().toURL().toString() + "!/"
                             + URLPathEncoder.encodePath(jarfilePackageRoot));
                 } else {
                     // Classpath elt is a directory, or a jarfile with an empty package root

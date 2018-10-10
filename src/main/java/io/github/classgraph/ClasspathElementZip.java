@@ -228,7 +228,7 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    return new URL(jarFile.toURI().toURL().toString() + "!"
+                    return new URL("jar:" + jarFile.toURI().toURL().toString() + "!/"
                             + URLPathEncoder.encodePath(getPathRelativeToClasspathElement()));
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for jarfile: " + jarFile + " ; path: "
@@ -241,7 +241,7 @@ class ClasspathElementZip extends ClasspathElement {
                 try {
                     return new URL(
                             "jar:" + getClasspathElementFile().toURI().toURL() + (packageRootPrefix.isEmpty() ? ""
-                                    : "!" + URLPathEncoder.encodePath(packageRootPrefix)));
+                                    : "!/" + URLPathEncoder.encodePath(packageRootPrefix)));
                 } catch (final MalformedURLException e) {
                     // Shouldn't happen
                     throw new IllegalArgumentException(e);
