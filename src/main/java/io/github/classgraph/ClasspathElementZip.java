@@ -239,9 +239,9 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public URL getClasspathElementURL() {
                 try {
-                    return new URL(
-                            "jar:" + getClasspathElementFile().toURI().toURL() + (packageRootPrefix.isEmpty() ? ""
-                                    : "!/" + URLPathEncoder.encodePath(packageRootPrefix)));
+                    return packageRootPrefix.isEmpty() ? getClasspathElementFile().toURI().toURL()
+                            : new URL("jar:" + getClasspathElementFile().toURI().toURL() + "!/"
+                                    + URLPathEncoder.encodePath(packageRootPrefix));
                 } catch (final MalformedURLException e) {
                     // Shouldn't happen
                     throw new IllegalArgumentException(e);

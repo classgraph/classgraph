@@ -247,9 +247,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 try {
                     final File classpathElementFile = classpathElement.getClasspathElementFile(log);
                     final String jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
-                    final String baseURLStr = (classpathElementFile.isFile() ? "jar:" : "")
+                    final boolean isJarURL = classpathElementFile.isFile() && !jarfilePackageRoot.isEmpty();
+                    final String baseURLStr = (isJarURL ? "jar:" : "")
                             + classpathElementFile.toURI().toURL().toString()
-                            + (jarfilePackageRoot.isEmpty() ? "" : "!/" + jarfilePackageRoot);
+                            + (isJarURL ? "!/" + jarfilePackageRoot : "");
                     classpathElementOrderURLs.add(new URL(baseURLStr));
                 } catch (final Exception e) {
                     // Skip
