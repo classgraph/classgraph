@@ -97,7 +97,7 @@ abstract class ClasspathElement {
     String getRawPath() {
         return classpathEltPath.getRawPath();
     }
-    
+
     /**
      * @return The classpath element's file (directory or jarfile), or null if this is a module. May trigger the
      *         extraction of nested jars.

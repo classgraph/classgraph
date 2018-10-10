@@ -245,13 +245,35 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 }
             } else {
                 try {
-                    final File classpathElementFile = classpathElement.getClasspathElementFile(log);
-                    final String jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
-                    final boolean isJarURL = classpathElementFile.isFile() && !jarfilePackageRoot.isEmpty();
-                    final String baseURLStr = (isJarURL ? "jar:" : "")
-                            + classpathElementFile.toURI().toURL().toString()
-                            + (isJarURL ? "!/" + jarfilePackageRoot : "");
-                    classpathElementOrderURLs.add(new URL(baseURLStr));
+                    if (scanSpec.performScan) {
+                        // Return URL of classpath element, possibly employing temporary file as a base
+                        // (for nested jarfiles that have been extracted)
+                        final File classpathElementFile = classpathElement.getClasspathElementFile(log);
+                        final String jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
+                        final boolean isJarURL = classpathElementFile.isFile() && !jarfilePackageRoot.isEmpty();
+                        final String baseURLStr = (isJarURL ? "jar:" : "")
+                                + classpathElementFile.toURI().toURL().toString()
+                                + (isJarURL ? "!/" + jarfilePackageRoot : "");
+                        classpathElementOrderURLs.add(new URL(baseURLStr));
+                    } else {
+                        // If not scanning, nested jarfiles were not extracted, so use the raw classpath
+                        // element paths to form the resulting URL
+                        String rawPath = classpathElement.getRawPath();
+                        if (rawPath.startsWith("jrt:/") || rawPath.startsWith("http://")
+                                || rawPath.startsWith("https://")) {
+                            classpathElementOrderURLs.add(new URL(rawPath));
+                        } else {
+                            if (!rawPath.startsWith("file:") && !rawPath.startsWith("jar:")) {
+                                rawPath = "file:" + rawPath;
+                            }
+                            if (rawPath.contains("!") && !rawPath.startsWith("jar:")) {
+                                rawPath = "jar:" + rawPath;
+                            }
+                            // Any URL with the "jar:" prefix must have "/" after any "!"
+                            rawPath = rawPath.replace("!/", "!").replace("!", "!/");
+                            classpathElementOrderURLs.add(new URL(rawPath));
+                        }
+                    }
                 } catch (final Exception e) {
                     // Skip
                 }
