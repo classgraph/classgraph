@@ -38,7 +38,9 @@ public class VersionedZipEntry implements Comparable<VersionedZipEntry> {
     /** The {@link ZipEntry}. */
     public final ZipEntry zipEntry;
 
-    /** The version code (>= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible). */
+    /**
+     * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
+     */
     public final int version;
 
     /**

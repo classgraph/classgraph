@@ -105,7 +105,7 @@ public class FastPathResolver {
     }
 
     /**
-     * Parse percent encoding, e.g. "%20" -> " "; convert '/' or '\\' to SEP; remove trailing separator char if
+     * Parse percent encoding, e.g. "%20" -&gt; " "; convert '/' or '\\' to SEP; remove trailing separator char if
      * present.
      * 
      * @param path
