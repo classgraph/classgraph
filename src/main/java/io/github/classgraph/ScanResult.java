@@ -126,9 +126,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     if (scanResult != null) {
                         scanResult.close();
                     }
-                    // The WeakReference is also removed by scanResult.close(), but in case there's a race
-                    // condition between manually closing the ScanResult (or the finalizer calling close())
-                    // and the shutdown hook being run, also remove the WeakReference here
                     nonClosedWeakReferences.remove(weakReference);
                 }
             }
@@ -951,13 +948,5 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 log.flush();
             }
         }
-    }
-
-    /** Finalizer. A runtime shutdown hook is also added in the constructor, since finalizers are not reliable. */
-    @SuppressWarnings("deprecation")
-    @Override
-    protected void finalize() throws Throwable {
-        close();
-        super.finalize();
     }
 }
