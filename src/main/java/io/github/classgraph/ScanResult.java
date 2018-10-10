@@ -258,7 +258,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     } else {
                         // If not scanning, nested jarfiles were not extracted, so use the raw classpath
                         // element paths to form the resulting URL
-                        String rawPath = classpathElement.getRawPath();
+                        String rawPath = classpathElement.getResolvedPath();
                         if (rawPath.startsWith("jrt:/") || rawPath.startsWith("http://")
                                 || rawPath.startsWith("https://")) {
                             classpathElementOrderURLs.add(new URL(rawPath));

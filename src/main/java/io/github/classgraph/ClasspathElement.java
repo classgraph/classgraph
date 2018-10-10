@@ -42,6 +42,7 @@ import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.WorkQueue;
 
 /** A classpath element (a directory or jarfile on the classpath). */
+// TODO: This can probably be merged with ClasspathOrModulePathEntry, since it is mostly a wrapper for that class. 
 abstract class ClasspathElement {
     /** The path of the classpath element relative to the current directory. */
     final ClasspathOrModulePathEntry classpathEltPath;
@@ -96,6 +97,11 @@ abstract class ClasspathElement {
     /** Return the raw path for this classpath element, as found in the classpath. */
     String getRawPath() {
         return classpathEltPath.getRawPath();
+    }
+
+    /** Return the resolved path for this classpath element (i.e. the raw path resolved against the current dir). */
+    String getResolvedPath() {
+        return classpathEltPath.getResolvedPath();
     }
 
     /**
