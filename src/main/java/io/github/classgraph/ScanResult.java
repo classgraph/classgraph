@@ -54,7 +54,7 @@ import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
 
 /** The result of a scan. */
-public class ScanResult implements Closeable, AutoCloseable {
+public final class ScanResult implements Closeable, AutoCloseable {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
