@@ -147,9 +147,7 @@ public class ScanSpec {
     public boolean enableExternalClasses = false;
 
     /**
-     * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned. This can
-     * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
-     * memory required to scan the classpath.
+     * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned.
      */
     public boolean blacklistSystemJarsOrModules = true;
 
