@@ -221,11 +221,6 @@ class ClasspathElementDir extends ClasspathElement {
                     randomAccessFile = null;
                 }
             }
-
-            @Override
-            protected String toStringImpl() {
-                return "[dir " + classpathEltFile + "]/" + pathRelativeToClasspathElt;
-            }
         };
     }
 

@@ -241,11 +241,6 @@ class ClasspathElementModule extends ClasspathElement {
                     moduleReaderProxyRecyclable = null;
                 }
             }
-
-            @Override
-            protected String toStringImpl() {
-                return "[module " + moduleRef.getName() + "]/" + moduleResourcePath;
-            }
         };
     }
 

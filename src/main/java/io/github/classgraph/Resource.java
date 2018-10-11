@@ -256,15 +256,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    protected abstract String toStringImpl();
-
-    /** Return a string representation of the resource's location. */
+    /** Return a string representation of the resource's location (as a URL string). */
     @Override
     public String toString() {
         if (toString != null) {
             return toString;
         } else {
-            return toString = toStringImpl();
+            return toString = getURL().toString();
         }
     }
 

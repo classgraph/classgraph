@@ -330,11 +330,6 @@ class ClasspathElementZip extends ClasspathElement {
                     zipFileRecyclable = null;
                 }
             }
-
-            @Override
-            protected String toStringImpl() {
-                return "[jar " + jarFile + "]/" + getPathRelativeToClasspathElement();
-            }
         };
     }
 
