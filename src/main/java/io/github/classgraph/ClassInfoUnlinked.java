@@ -114,8 +114,11 @@ class ClassInfoUnlinked {
         classContainmentEntries.add(new SimpleEntry<>(innerClassName, outerClassName));
     }
 
-    public void addAnnotationParamDefaultValues(final AnnotationParameterValueList annotationParamDefaultValues) {
-        this.annotationParamDefaultValues = annotationParamDefaultValues;
+    public void addAnnotationParamDefaultValue(final AnnotationParameterValue annotationParamDefaultValue) {
+        if (annotationParamDefaultValues == null) {
+            annotationParamDefaultValues = new AnnotationParameterValueList();
+        }
+        this.annotationParamDefaultValues.add(annotationParamDefaultValue);
     }
 
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */

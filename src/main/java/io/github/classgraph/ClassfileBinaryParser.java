@@ -576,7 +576,6 @@ class ClassfileBinaryParser {
             String[] methodParameterNames = null;
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
-            AnnotationParameterValueList annotationParamDefaultValues = null;
             AnnotationInfoList methodAnnotationInfo = null;
             boolean methodHasBody = false;
             if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
@@ -633,22 +632,16 @@ class ClassfileBinaryParser {
                         // Add type params to method type signature
                         methodTypeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
-                        // Get annotation parameter default values
-                        if (annotationParamDefaultValues == null) {
-                            annotationParamDefaultValues = new AnnotationParameterValueList();
-                        }
+                        // Get annotation parameter default value
                         final Object annotationParamDefaultValue = readAnnotationElementValue();
-                        annotationParamDefaultValues
-                                .add(new AnnotationParameterValue(methodName, annotationParamDefaultValue));
+                        classInfoUnlinked.addAnnotationParamDefaultValue(
+                                new AnnotationParameterValue(methodName, annotationParamDefaultValue));
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
                         methodHasBody = true;
                         inputStreamOrByteBuffer.skip(attributeLength);
                     } else {
                         inputStreamOrByteBuffer.skip(attributeLength);
                     }
-                }
-                if (isAnnotation && annotationParamDefaultValues != null) {
-                    classInfoUnlinked.addAnnotationParamDefaultValues(annotationParamDefaultValues);
                 }
                 // Create MethodInfo
                 if (scanSpec.enableMethodInfo) {
