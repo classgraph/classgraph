@@ -28,7 +28,13 @@
  */
 package io.github.classgraph;
 
+import java.io.Serializable;
+import java.lang.annotation.Annotation;
+import java.lang.annotation.IncompleteAnnotationException;
 import java.lang.annotation.Inherited;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +45,13 @@ import java.util.Set;
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
 
     private String name;
-    private AnnotationParameterValueList annotationParamValues;
+    AnnotationParameterValueList annotationParamValues;
+
+    /**
+     * Set to true once any Object[] arrays of boxed types in annotationParamValues have been lazily converted to
+     * primitive arrays.
+     */
+    private boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
     private transient AnnotationParameterValueList annotationParamValuesWithDefaults;
 
@@ -93,11 +105,23 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             if (classInfo == null) {
                 // ClassInfo has not yet been set, just return values without defaults
                 // (happens when trying to log AnnotationInfo during scanning, before ScanResult is available)
-                return annotationParamValues;
+                return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST
+                        : annotationParamValues;
             }
-            final AnnotationParameterValueList defaultParamValues = classInfo.annotationDefaultParamValues;
+
+            // Lazily convert any Object[] arrays of boxed types to primitive arrays
+            if (annotationParamValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
+                annotationParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
+                annotationParamValuesHasBeenConvertedToPrimitive = true;
+            }
+            if (classInfo.annotationDefaultParamValues != null
+                    && !classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
+                classInfo.annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
+                classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
+            }
 
             // Check if one or both of the defaults and the values in this annotation instance are null (empty)
+            final AnnotationParameterValueList defaultParamValues = classInfo.annotationDefaultParamValues;
             if (defaultParamValues == null && annotationParamValues == null) {
                 return AnnotationParameterValueList.EMPTY_LIST;
             } else if (defaultParamValues == null) {
@@ -143,9 +167,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         super.setScanResult(scanResult);
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue a : annotationParamValues) {
-                if (a != null) {
-                    a.setScanResult(scanResult);
-                }
+                a.setScanResult(scanResult);
             }
         }
     }
@@ -158,6 +180,116 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
                 annotationParamValue.getClassNamesFromTypeDescriptors(classNames);
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Load the {@link Annotation} class corresponding to this {@link AnnotationInfo} object, by calling
+     * {@code getClassInfo().loadClass()}, then create a new instance of the annotation, with the annotation
+     * parameter values obtained from this {@link AnnotationInfo} object.
+     * 
+     * @return The new {@link Annotation} instance.
+     */
+    public Annotation loadClassAndInstantiate() {
+        final Class<? extends Annotation> annotationClass = getClassInfo().loadClass(Annotation.class);
+        return (Annotation) Proxy.newProxyInstance(annotationClass.getClassLoader(),
+                new Class[] { annotationClass }, new AnnotationInvocationHandler(annotationClass, this));
+    }
+
+    /** {@link InvocationHandler} for dynamically instantiating an {@link Annotation} object. */
+    private static class AnnotationInvocationHandler implements InvocationHandler, Serializable {
+        private final Class<? extends Annotation> annotationClass;
+        private final AnnotationInfo annotationInfo;
+
+        AnnotationInvocationHandler(final Class<? extends Annotation> annotationClass,
+                final AnnotationInfo annotationInfo) {
+            this.annotationClass = annotationClass;
+            this.annotationInfo = annotationInfo;
+        }
+
+        @Override
+        public Object invoke(final Object proxy, final Method method, final Object[] args) {
+            final String methodName = method.getName();
+            final Class<?>[] paramTypes = method.getParameterTypes();
+
+            if (paramTypes.length == 1) {
+                // .equals(Object) is the only method of an enum that can take a parameter
+                if (methodName.equals("equals") && paramTypes[0] == Object.class) {
+                    return annotationInfo.equals(args[0]);
+                } else {
+                    throw new IllegalArgumentException();
+                }
+            } else if (paramTypes.length == 0) {
+                // Handle .toString(), .hashCode(), .annotationType()
+                if (methodName.equals("toString")) {
+                    return annotationInfo.toString();
+                } else if (methodName.equals("hashCode")) {
+                    return annotationInfo.hashCode();
+                } else if (methodName.equals("annotationType")) {
+                    return annotationClass;
+                }
+            } else {
+                // Throw exception for 2 or more params
+                throw new IllegalArgumentException();
+            }
+
+            // Instantiate the annotation parameter value (this loads and gets references for class literals,
+            // enum constants, etc.)
+            Object annotationParameterValue = null;
+            boolean found = false;
+            for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
+                if (apv.getName().equals(methodName)) {
+                    annotationParameterValue = apv.instantiate(annotationInfo.getClassInfo());
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                // Undefined enum constant
+                throw new IncompleteAnnotationException(annotationClass, methodName);
+            }
+            if (annotationParameterValue == null) {
+                // Should not happen (annotation parameter values cannot be null)
+            }
+
+            // Clone any array-typed annotation parameter values, in keeping with the Java Annotation API
+            final Class<? extends Object> annotationParameterValueClass = annotationParameterValue.getClass();
+            if (annotationParameterValueClass.isArray()) {
+                // Handle array types
+                final Class<?> arrayType = annotationParameterValueClass;
+                if (arrayType == String[].class) {
+                    return ((String[]) annotationParameterValue).clone();
+                } else if (arrayType == byte[].class) {
+                    return ((byte[]) annotationParameterValue).clone();
+                } else if (arrayType == char[].class) {
+                    return ((char[]) annotationParameterValue).clone();
+                } else if (arrayType == double[].class) {
+                    return ((double[]) annotationParameterValue).clone();
+                } else if (arrayType == float[].class) {
+                    return ((float[]) annotationParameterValue).clone();
+                } else if (arrayType == int[].class) {
+                    return ((int[]) annotationParameterValue).clone();
+                } else if (arrayType == long[].class) {
+                    return ((long[]) annotationParameterValue).clone();
+                } else if (arrayType == short[].class) {
+                    return ((short[]) annotationParameterValue).clone();
+                } else if (arrayType == boolean[].class) {
+                    return ((boolean[]) annotationParameterValue).clone();
+                } else {
+                    // Handle arrays of nested annotation types
+                    final Object[] arr = (Object[]) annotationParameterValue;
+                    return arr.clone();
+                }
+            }
+            return annotationParameterValue;
+        }
+    }
+
+    void convertWrapperArraysToPrimitiveArrays() {
+        if (annotationParamValues != null) {
+            annotationParamValues.convertWrapperArraysToPrimitiveArrays(getClassInfo());
         }
     }
 

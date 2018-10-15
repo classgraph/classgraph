@@ -564,7 +564,9 @@ class ClassfileBinaryParser {
             String methodName = null;
             String methodTypeDescriptor = null;
             String methodTypeSignature = null;
-            if (scanSpec.enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
+            // Always enable MethodInfo for annotations (this is how annotation constants are defined)
+            final boolean enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
+            if (enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
                 final int methodNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
                 final int methodTypeDescriptorCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
@@ -578,7 +580,7 @@ class ClassfileBinaryParser {
             AnnotationInfo[][] methodParameterAnnotations = null;
             AnnotationInfoList methodAnnotationInfo = null;
             boolean methodHasBody = false;
-            if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
+            if (!methodIsVisible || (!enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
                     inputStreamOrByteBuffer.skip(2); // attribute_name_index
@@ -644,7 +646,7 @@ class ClassfileBinaryParser {
                     }
                 }
                 // Create MethodInfo
-                if (scanSpec.enableMethodInfo) {
+                if (enableMethodInfo) {
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
                             methodParameterModifiers, methodParameterAnnotations, methodHasBody));

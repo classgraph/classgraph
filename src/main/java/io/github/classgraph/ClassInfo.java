@@ -129,6 +129,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** For annotations, the default values of parameters. */
     AnnotationParameterValueList annotationDefaultParamValues;
 
+    /**
+     * Set to true once any Object[] arrays of boxed types in annotationDefaultParamValues have been lazily
+     * converted to primitive arrays.
+     */
+    boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
+
     /** The set of classes related to this one. */
     private final Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
 

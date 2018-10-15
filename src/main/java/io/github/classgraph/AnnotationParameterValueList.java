@@ -150,6 +150,19 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
+     * to check the type of each method of the annotation class to determine if it is a primitive array type).
+     */
+    void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
+        for (int i = 0; i < size(); i++) {
+            final AnnotationParameterValue annotationParamValue = get(i);
+            annotationParamValue.convertWrapperArraysToPrimitiveArrays(annotationClassInfo);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * @param parameterName
      *            The name of an annotation parameter.
      * @return true if this list contains an annotation parameter with the given name.
@@ -173,9 +186,12 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
      *         The annotation parameter value may be one of the following types:
      *         <ul>
      *         <li>String for string constants
-     *         <li>A wrapper type, e.g. Integer or Character, for primitive-typed constants
-     *         <li>{@link Object}[] for array types (and then the array element type may be one of the types in this
-     *         list)
+     *         <li>String[] for arrays of strings
+     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed constants
+     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[], short[], char[], byte[], boolean[],
+     *         float[], or double[]), for arrays of primitives
+     *         <li>A 1-dimensional {@link Object}[] array for array types (and then the array element type may be
+     *         one of the types in this list)
      *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string name of
      *         the constant)
      *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of the

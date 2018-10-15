@@ -35,6 +35,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -165,9 +166,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.nestedJarHandler = nestedJarHandler;
         this.log = log;
 
-        // Add backrefs from info objects back to this ScanResult
         if (classNameToClassInfo != null) {
-            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+            final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
+            // Add backrefs from info objects back to this ScanResult
+            for (final ClassInfo classInfo : allClassInfo) {
                 classInfo.setScanResult(this);
             }
         }
