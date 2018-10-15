@@ -1309,8 +1309,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!isAnnotation) {
             throw new IllegalArgumentException("Class is not an annotation: " + getName());
         }
-        return annotationDefaultParamValues == null ? AnnotationParameterValueList.EMPTY_LIST
-                : annotationDefaultParamValues;
+        if (annotationDefaultParamValues == null) {
+            return AnnotationParameterValueList.EMPTY_LIST;
+        }
+        if (!annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
+            annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(this);
+            annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
+        }
+        return annotationDefaultParamValues;
     }
 
     /**
