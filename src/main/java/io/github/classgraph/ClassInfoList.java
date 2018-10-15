@@ -96,52 +96,52 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
     static final ClassInfoList EMPTY_LIST = new ClassInfoList() {
         @Override
         public boolean add(final ClassInfo e) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public void add(final int index, final ClassInfo element) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean remove(final Object o) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public ClassInfo remove(final int index) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean addAll(final Collection<? extends ClassInfo> c) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean addAll(final int index, final Collection<? extends ClassInfo> c) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public void clear() {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public ClassInfo set(final int index, final ClassInfo element) {
-            throw new IllegalArgumentException("List  is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
     };
 

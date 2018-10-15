@@ -127,7 +127,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     MethodInfoList methodInfo;
 
     /** For annotations, the default values of parameters. */
-    List<AnnotationParameterValue> annotationDefaultParamValues;
+    AnnotationParameterValueList annotationDefaultParamValues;
 
     /** The set of classes related to this one. */
     private final Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
@@ -394,7 +394,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Add annotation default values. (Only called in the case of annotation class definitions, when the annotation
      * has default parameter values.)
      */
-    void addAnnotationParamDefaultValues(final List<AnnotationParameterValue> paramNamesAndValues) {
+    void addAnnotationParamDefaultValues(final AnnotationParameterValueList paramNamesAndValues) {
         if (this.annotationDefaultParamValues == null) {
             this.annotationDefaultParamValues = paramNamesAndValues;
         } else {
@@ -1296,14 +1296,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A list of {@link AnnotationParameterValue} objects for each of the default parameter values for this
      *         annotation, if this is an annotation class with default parameter values, otherwise the empty list.
      */
-    public List<AnnotationParameterValue> getAnnotationDefaultParameterValues() {
+    public AnnotationParameterValueList getAnnotationDefaultParameterValues() {
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
         if (!isAnnotation) {
             throw new IllegalArgumentException("Class is not an annotation: " + getName());
         }
-        return annotationDefaultParamValues == null ? Collections.<AnnotationParameterValue> emptyList()
+        return annotationDefaultParamValues == null ? AnnotationParameterValueList.EMPTY_LIST
                 : annotationDefaultParamValues;
     }
 

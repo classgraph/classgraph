@@ -30,9 +30,7 @@ package io.github.classgraph;
 
 import java.io.IOException;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
@@ -252,9 +250,9 @@ class ClassfileBinaryParser {
         final String annotationClassName = getConstantPoolClassDescriptor(
                 inputStreamOrByteBuffer.readUnsignedShort());
         final int numElementValuePairs = inputStreamOrByteBuffer.readUnsignedShort();
-        List<AnnotationParameterValue> paramVals = null;
+        AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
-            paramVals = new ArrayList<>(numElementValuePairs);
+            paramVals = new AnnotationParameterValueList(numElementValuePairs);
         }
         for (int i = 0; i < numElementValuePairs; i++) {
             final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
@@ -578,7 +576,7 @@ class ClassfileBinaryParser {
             String[] methodParameterNames = null;
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
-            List<AnnotationParameterValue> annotationParamDefaultValues = null;
+            AnnotationParameterValueList annotationParamDefaultValues = null;
             AnnotationInfoList methodAnnotationInfo = null;
             boolean methodHasBody = false;
             if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
@@ -637,7 +635,7 @@ class ClassfileBinaryParser {
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
                         // Get annotation parameter default values
                         if (annotationParamDefaultValues == null) {
-                            annotationParamDefaultValues = new ArrayList<>();
+                            annotationParamDefaultValues = new AnnotationParameterValueList();
                         }
                         final Object annotationParamDefaultValue = readAnnotationElementValue();
                         annotationParamDefaultValues

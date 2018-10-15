@@ -52,7 +52,7 @@ class ClassInfoUnlinked {
     private AnnotationInfoList classAnnotations;
     private String fullyQualifiedDefiningMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
-    private List<AnnotationParameterValue> annotationParamDefaultValues;
+    private AnnotationParameterValueList annotationParamDefaultValues;
     final ClasspathElement classpathElement;
     private FieldInfoList fieldInfoList;
     private MethodInfoList methodInfoList;
@@ -114,7 +114,7 @@ class ClassInfoUnlinked {
         classContainmentEntries.add(new SimpleEntry<>(innerClassName, outerClassName));
     }
 
-    public void addAnnotationParamDefaultValues(final List<AnnotationParameterValue> annotationParamDefaultValues) {
+    public void addAnnotationParamDefaultValues(final AnnotationParameterValueList annotationParamDefaultValues) {
         this.annotationParamDefaultValues = annotationParamDefaultValues;
     }
 

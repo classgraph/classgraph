@@ -29,10 +29,8 @@
 package io.github.classgraph;
 
 import java.lang.annotation.Inherited;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -41,9 +39,9 @@ import java.util.Set;
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
 
     private String name;
-    private List<AnnotationParameterValue> annotationParamValues;
+    private AnnotationParameterValueList annotationParamValues;
 
-    private transient List<AnnotationParameterValue> annotationParamValuesWithDefaults;
+    private transient AnnotationParameterValueList annotationParamValuesWithDefaults;
 
     /** Default constructor for deserialization. */
     AnnotationInfo() {
@@ -57,7 +55,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @param annotationParamValues
      *            The annotation parameter values, or null if none.
      */
-    AnnotationInfo(final String name, final List<AnnotationParameterValue> annotationParamValues) {
+    AnnotationInfo(final String name, final AnnotationParameterValueList annotationParamValues) {
         this.name = name;
         this.annotationParamValues = annotationParamValues;
     }
@@ -81,7 +79,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * @return the list of default parameter values for this annotation, or the empty list if none.
      */
-    public List<AnnotationParameterValue> getDefaultParameterValues() {
+    public AnnotationParameterValueList getDefaultParameterValues() {
         return getClassInfo().getAnnotationDefaultParameterValues();
     }
 
@@ -89,7 +87,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @return The parameter values of this annotation, including any default parameter values inherited from the
      *         annotation class definition, or the empty list if none.
      */
-    public List<AnnotationParameterValue> getParameterValues() {
+    public AnnotationParameterValueList getParameterValues() {
         if (annotationParamValuesWithDefaults == null) {
             final ClassInfo classInfo = getClassInfo();
             if (classInfo == null) {
@@ -97,11 +95,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 // (happens when trying to log AnnotationInfo during scanning, before ScanResult is available)
                 return annotationParamValues;
             }
-            final List<AnnotationParameterValue> defaultParamValues = classInfo.annotationDefaultParamValues;
+            final AnnotationParameterValueList defaultParamValues = classInfo.annotationDefaultParamValues;
 
             // Check if one or both of the defaults and the values in this annotation instance are null (empty)
             if (defaultParamValues == null && annotationParamValues == null) {
-                return Collections.<AnnotationParameterValue> emptyList();
+                return AnnotationParameterValueList.EMPTY_LIST;
             } else if (defaultParamValues == null) {
                 return annotationParamValues;
             } else if (annotationParamValues == null) {
@@ -116,7 +114,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             for (final AnnotationParameterValue annotationParamValue : this.annotationParamValues) {
                 allParamValues.put(annotationParamValue.getName(), annotationParamValue.getValue());
             }
-            annotationParamValuesWithDefaults = new ArrayList<>();
+            annotationParamValuesWithDefaults = new AnnotationParameterValueList();
             for (final Entry<String, Object> ent : allParamValues.entrySet()) {
                 annotationParamValuesWithDefaults.add(new AnnotationParameterValue(ent.getKey(), ent.getValue()));
             }
@@ -224,7 +222,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     void toString(final StringBuilder buf) {
         buf.append("@" + getName());
-        final List<AnnotationParameterValue> paramVals = getParameterValues();
+        final AnnotationParameterValueList paramVals = getParameterValues();
         if (paramVals != null && !paramVals.isEmpty()) {
             buf.append('(');
             for (int i = 0; i < paramVals.size(); i++) {
