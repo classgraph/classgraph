@@ -105,26 +105,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return super.getClassInfo();
     }
 
-    /**
-     * @deprecated Use instead {@code getClassInfo().getName()}.
-     * 
-     * @return The name of the class this field is defined within.
-     */
-    @Deprecated
-    public String getDefiningClassName() {
-        return declaringClassName;
-    }
-
-    /**
-     * @deprecated Use instead {@link #getClassInfo()}.
-     * 
-     * @return The class this field is defined within.
-     */
-    @Deprecated
-    public ClassInfo getDefiningClassInfo() {
-        return getClassInfo();
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**

@@ -177,26 +177,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * @deprecated Use instead {@code getClassInfo().getName()}.
-     * 
-     * @return The name of the class this method is defined within.
-     */
-    @Deprecated
-    public String getDefiningClassName() {
-        return declaringClassName;
-    }
-
-    /**
-     * @deprecated Use instead {@link #getClassInfo()}.
-     * 
-     * @return The class this method is defined within.
-     */
-    @Deprecated
-    public ClassInfo getDefiningClassInfo() {
-        return getClassInfo();
-    }
-
-    /**
      * Returns the parsed type descriptor for the method, which will not include type parameters. If you need
      * generic type parameters, call getTypeSignature() instead.
      * 
