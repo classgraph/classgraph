@@ -168,6 +168,20 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
      *            The name of an annotation parameter.
      * @return The value of the {@link AnnotationParameterValue} object in the list with the given name, or null if
      *         not found.
+     * 
+     *         <p>
+     *         The annotation parameter value may be one of the following types:
+     *         <ul>
+     *         <li>String for string constants
+     *         <li>A wrapper type, e.g. Integer or Character, for primitive-typed constants
+     *         <li>{@link Object}[] for array types (and then the array element type may be one of the types in this
+     *         list)
+     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string name of
+     *         the constant)
+     *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of the
+     *         referenced class)
+     *         <li>{@link AnnotationInfo}, for nested annotations
+     *         </ul>
      */
     public Object get(final String parameterName) {
         for (final AnnotationParameterValue apv : this) {
