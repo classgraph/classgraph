@@ -12,7 +12,7 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API, or has the ability to index classes and resources. For example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**. The Java API can load the content of a resource file with a specific path in a specific ClassLoader, but ClassGraph can find and load **all resources in all classloaders with paths matching a given pattern**.
 
->If you are migrating from the formerly **FastClasspathScanner** to **ClassGraph**, You can check the wiki page [*Porting FastClasspathScanner code to ClassGraph*](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph),or you may want to check the [*ClassGraph API*](https://github.com/classgraph/classgraph/wiki/ClassGraph-API) first.
+>Information on porting from the older **FastClasspathScanner** API to the new **ClassGraph** API can be found on the wiki page [*Porting FastClasspathScanner code to ClassGraph*](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph), or see the [*ClassGraph API documentation*](https://github.com/classgraph/classgraph/wiki/ClassGraph-API).
 
 ### Examples
 
