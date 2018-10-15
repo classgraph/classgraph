@@ -32,9 +32,9 @@ import java.util.Set;
 
 import io.github.classgraph.utils.Parser;
 
-/** A type signature for a base type. */
+/** A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void). */
 public class BaseTypeSignature extends TypeSignature {
-    /** A base type, such as "int", "float", or "void". */
+    /** A base type (byte, char, double, float, int, long, short, boolean, or void). */
     private final String baseType;
 
     // -------------------------------------------------------------------------------------------------------------
