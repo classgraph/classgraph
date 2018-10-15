@@ -201,12 +201,25 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /** {@link InvocationHandler} for dynamically instantiating an {@link Annotation} object. */
     private static class AnnotationInvocationHandler implements InvocationHandler, Serializable {
         private final Class<? extends Annotation> annotationClass;
-        private final AnnotationInfo annotationInfo;
+        private final Map<String, Object> annotationParameterValuesInstantiated = new HashMap<>();
+        private final String toString;
 
         AnnotationInvocationHandler(final Class<? extends Annotation> annotationClass,
                 final AnnotationInfo annotationInfo) {
             this.annotationClass = annotationClass;
-            this.annotationInfo = annotationInfo;
+            this.toString = annotationInfo.toString();
+
+            // Instantiate the annotation parameter values (this loads and gets references for class literals,
+            // enum constants, etc.)
+            for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
+                final Object instantiatedValue = apv.instantiate(annotationInfo.getClassInfo());
+                if (instantiatedValue == null) {
+                    // Annotations cannot contain null values
+                    throw new IllegalArgumentException("Got null value for annotation parameter " + apv.getName()
+                            + " of annotation " + annotationInfo.getName());
+                }
+                this.annotationParameterValuesInstantiated.put(apv.getName(), instantiatedValue);
+            }
         }
 
         @Override
@@ -215,18 +228,21 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             final Class<?>[] paramTypes = method.getParameterTypes();
 
             if (paramTypes.length == 1) {
-                // .equals(Object) is the only method of an enum that can take a parameter
                 if (methodName.equals("equals") && paramTypes[0] == Object.class) {
-                    return annotationInfo.equals(args[0]);
+                    return args[0] != null && args[0] instanceof AnnotationInvocationHandler
+                            && ((AnnotationInvocationHandler) args[0]).annotationClass == annotationClass
+                            && ((AnnotationInvocationHandler) args[0]).annotationParameterValuesInstantiated == //
+                            annotationParameterValuesInstantiated;
                 } else {
+                    // .equals(Object) is the only method of an enum that can take one parameter
                     throw new IllegalArgumentException();
                 }
             } else if (paramTypes.length == 0) {
                 // Handle .toString(), .hashCode(), .annotationType()
                 if (methodName.equals("toString")) {
-                    return annotationInfo.toString();
+                    return toString;
                 } else if (methodName.equals("hashCode")) {
-                    return annotationInfo.hashCode();
+                    return toString.hashCode();
                 } else if (methodName.equals("annotationType")) {
                     return annotationClass;
                 }
@@ -237,21 +253,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
             // Instantiate the annotation parameter value (this loads and gets references for class literals,
             // enum constants, etc.)
-            Object annotationParameterValue = null;
-            boolean found = false;
-            for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
-                if (apv.getName().equals(methodName)) {
-                    annotationParameterValue = apv.instantiate(annotationInfo.getClassInfo());
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                // Undefined enum constant
-                throw new IncompleteAnnotationException(annotationClass, methodName);
-            }
+            final Object annotationParameterValue = annotationParameterValuesInstantiated.get(methodName);
             if (annotationParameterValue == null) {
-                // Should not happen (annotation parameter values cannot be null)
+                // Undefined enum constant (enum values cannot be null)
+                throw new IncompleteAnnotationException(annotationClass, methodName);
             }
 
             // Clone any array-typed annotation parameter values, in keeping with the Java Annotation API
