@@ -231,8 +231,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 if (methodName.equals("equals") && paramTypes[0] == Object.class) {
                     return args[0] != null && args[0] instanceof AnnotationInvocationHandler
                             && ((AnnotationInvocationHandler) args[0]).annotationClass == annotationClass
-                            && ((AnnotationInvocationHandler) args[0]).annotationParameterValuesInstantiated == //
-                            annotationParameterValuesInstantiated;
+                            && ((AnnotationInvocationHandler) args[0]).annotationParameterValuesInstantiated
+                                    .equals(annotationParameterValuesInstantiated);
                 } else {
                     // .equals(Object) is the only method of an enum that can take one parameter
                     throw new IllegalArgumentException();
