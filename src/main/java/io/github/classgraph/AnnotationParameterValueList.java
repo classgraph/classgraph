@@ -166,12 +166,13 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
     /**
      * @param parameterName
      *            The name of an annotation parameter.
-     * @return The {@link AnnotationParameterValue} object in the list with the given name, or null if not found.
+     * @return The value of the {@link AnnotationParameterValue} object in the list with the given name, or null if
+     *         not found.
      */
-    public AnnotationParameterValue get(final String parameterName) {
+    public Object get(final String parameterName) {
         for (final AnnotationParameterValue apv : this) {
             if (apv.getName().equals(parameterName)) {
-                return apv;
+                return apv.getValue();
             }
         }
         return null;
