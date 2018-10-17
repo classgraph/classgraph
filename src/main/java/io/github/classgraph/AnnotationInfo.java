@@ -51,7 +51,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * Set to true once any Object[] arrays of boxed types in annotationParamValues have been lazily converted to
      * primitive arrays.
      */
-    private boolean annotationParamValuesHasBeenConvertedToPrimitive;
+    private transient boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
     private transient AnnotationParameterValueList annotationParamValuesWithDefaults;
 
