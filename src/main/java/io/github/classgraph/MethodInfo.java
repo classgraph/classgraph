@@ -767,6 +767,23 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             }
         }
 
+        // Find varargs param index, if present -- this is, for varargs methods, the last argument that
+        // is not a synthetic or mandated parameter (turns out the Java compiler can tack on parameters
+        // *after* the varargs parameter, for variable capture with anonymous inner classes -- see #260).
+        int varArgsParamIndex = -1;
+        if (isVarArgs()) {
+            for (int i = allParamInfo.length - 1; i >= 0; --i) {
+                final int mods = allParamInfo[i].getModifiers();
+                if ((mods & /* synthetic */ 0x1000) == 0 && (mods & /* mandated */ 0x8000) == 0) {
+                    final TypeSignature paramType = allParamInfo[i].getTypeSignatureOrTypeDescriptor();
+                    if (paramType instanceof ArrayTypeSignature) {
+                        varArgsParamIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+
         buf.append('(');
         for (int i = 0, numParams = allParamInfo.length; i < numParams; i++) {
             final MethodParameterInfo paramInfo = allParamInfo[i];
@@ -784,7 +801,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
             final TypeSignature paramType = paramInfo.getTypeSignatureOrTypeDescriptor();
-            if (isVarArgs() && i == numParams - 1) {
+            if (i == varArgsParamIndex) {
                 // Show varargs params correctly -- replace last "[]" with "..."
                 if (!(paramType instanceof ArrayTypeSignature)) {
                     throw new IllegalArgumentException(
