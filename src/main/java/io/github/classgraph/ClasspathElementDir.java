@@ -227,8 +227,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
     private void scanDirRecursively(final File classpathElt, final File dir, final int ignorePrefixLen,
-            final boolean prevInWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final LogNode log) {
-        boolean inWhitelistedPath = prevInWhitelistedPath;
+            final HashSet<String> scannedCanonicalPaths, final LogNode log) {
         // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
         // infinite loop due to symlinks
         String canonicalPath;
@@ -261,17 +260,13 @@ class ClasspathElementDir extends ClasspathElement {
             }
         }
 
-        final ScanSpecPathMatch matchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
-        if (matchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
+        final ScanSpecPathMatch parentMatchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
+        if (parentMatchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
             // Reached a non-whitelisted or blacklisted path -- stop the recursive scan
             if (log != null) {
                 log.log("Reached blacklisted directory, stopping recursive scan: " + dirRelativePath);
             }
             return;
-        } else if (matchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                || matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX) {
-            // Reached a whitelisted path -- can start scanning directories and files from this point
-            inWhitelistedPath = true;
         }
 
         final File[] filesInDir = dir.listFiles();
@@ -287,8 +282,7 @@ class ClasspathElementDir extends ClasspathElement {
         for (final File fileInDir : filesInDir) {
             if (fileInDir.isDirectory()) {
                 // Recurse into subdirectory
-                scanDirRecursively(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath,
-                        scannedCanonicalPaths, subLog);
+                scanDirRecursively(classpathElt, fileInDir, ignorePrefixLen, scannedCanonicalPaths, subLog);
                 if (subLog != null) {
                     subLog.addElapsedTime();
                 }
@@ -308,8 +302,10 @@ class ClasspathElementDir extends ClasspathElement {
 
                 // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that
                 // has been specifically-whitelisted
-                if (inWhitelistedPath || (matchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                        && scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
+                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                && scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
                     if (subLog != null) {
                         subLog.log(fileInDirRelativePath, "Found whitelisted path: " + fileInDirRelativePath);
                     }
@@ -328,8 +324,8 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             }
         }
-        if (matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
+        if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                || parentMatchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
             // Need to timestamp whitelisted directories, so that changes to directory content can be detected. Also
             // need to timestamp ancestors of whitelisted directories, in case a new directory is added that matches
             // whitelist criteria.
@@ -343,8 +339,8 @@ class ClasspathElementDir extends ClasspathElement {
         final LogNode logNode = log == null ? null
                 : log.log(classpathEltPath.getResolvedPath(), "Scanning directory " + classpathEltPath);
         final HashSet<String> scannedCanonicalPaths = new HashSet<>();
-        scanDirRecursively(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1,
-                /* inWhitelistedPath = */ false, scannedCanonicalPaths, logNode);
+        scanDirRecursively(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, scannedCanonicalPaths,
+                logNode);
         if (logNode != null) {
             logNode.addElapsedTime();
         }
