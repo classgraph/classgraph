@@ -565,11 +565,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 !scanSpec.classIsBlacklisted(classInfo.name)
                         // If not blacklisted, and strictWhitelist is false, add class
                         && (!strictWhitelist || (
-                        // Don't include external classes unless enableExternalClasses is true
-                        (!classInfo.isExternalClass || scanSpec.enableExternalClasses)
-                                // If this is a system class, ignore blacklist unless the blanket blacklisting of
-                                // all system jars or modules has been disabled, and this system class was specifically
-                                // blacklisted by name
+                        // Don't include external (non-scanned) classes unless enableExternalClasses is true
+                        (!classInfo.isScannedClass || scanSpec.enableExternalClasses)
+                                // If this is a system class, ignore blacklist unless the blanket blacklisting
+                                // of all system jars or modules has been disabled, and this system class was
+                                // specifically blacklisted by name
                                 && (!scanSpec.blacklistSystemJarsOrModules
                                         || !JarUtils.isInSystemPackageOrModule(classInfo.name))))) {
                     // Class passed strict whitelist criteria
