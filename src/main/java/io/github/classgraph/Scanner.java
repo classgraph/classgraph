@@ -219,12 +219,12 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Used to enqueue classfiles for scanning. */
-    private static class ClassfileScanWorkItem {
+    private static class ClassfileScanWorkUnit {
         ClasspathElement classpathElement;
         Resource classfileResource;
         boolean isExternalClass;
 
-        ClassfileScanWorkItem(final ClasspathElement classpathElement, final Resource classfileResource,
+        ClassfileScanWorkUnit(final ClasspathElement classpathElement, final Resource classfileResource,
                 final boolean isExternalClass) {
             this.classpathElement = classpathElement;
             this.classfileResource = classfileResource;
@@ -233,7 +233,7 @@ class Scanner implements Callable<ScanResult> {
     }
 
     /** WorkUnitProcessor for scanning classfiles. */
-    private static class ClassfileScannerWorkUnitProcessor implements WorkUnitProcessor<ClassfileScanWorkItem> {
+    private static class ClassfileScannerWorkUnitProcessor implements WorkUnitProcessor<ClassfileScanWorkUnit> {
         private final ScanSpec scanSpec;
         private final Map<String, Resource> classNameToNonBlacklistedResource;
         private final Set<String> scannedClassNames;
@@ -253,113 +253,120 @@ class Scanner implements Callable<ScanResult> {
             this.interruptionChecker = interruptionChecker;
         }
 
+        /** Extend scanning to a superclass, interface or annotation. */
+        private List<ClassfileScanWorkUnit> extendScanningUpwards(final String className, final String relationship,
+                final ClasspathElement classpathElement, final List<ClassfileScanWorkUnit> additionalWorkUnitsIn,
+                final LogNode subLog) {
+            List<ClassfileScanWorkUnit> additionalWorkUnits = additionalWorkUnitsIn;
+            // Don't scan a class more than once 
+            if (className != null && scannedClassNames.add(className)) {
+                // See if the named class can be found as a non-blacklisted resource
+                final Resource classResource = classNameToNonBlacklistedResource.get(className);
+                if (classResource != null) {
+                    // Class is a non-blacklisted external class -- enqueue for scanning
+                    if (subLog != null) {
+                        subLog.log("Scheduling external class for scanning: " + relationship + " " + className);
+                    }
+                    if (additionalWorkUnits == null) {
+                        additionalWorkUnits = new ArrayList<>();
+                    }
+                    additionalWorkUnits.add(new ClassfileScanWorkUnit(classpathElement, classResource,
+                            /* isExternalClass = */ true));
+                } else {
+                    if (subLog != null && !className.equals("java.lang.Object")) {
+                        subLog.log("External " + relationship + " " + className
+                                + " was not found in non-blacklisted packages -- "
+                                + "cannot extend scanning to this superclass");
+                    }
+                }
+            }
+            return additionalWorkUnits;
+        }
+
         @Override
-        public void processWorkUnit(final ClassfileScanWorkItem workItem,
-                final WorkQueue<ClassfileScanWorkItem> workQueue) throws Exception {
+        public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
+                final WorkQueue<ClassfileScanWorkUnit> workQueue) throws Exception {
             final LogNode subLog = log == null ? null
-                    : log.log(workItem.classfileResource.getPath(),
-                            "Parsing classfile " + workItem.classfileResource);
+                    : log.log(workUnit.classfileResource.getPath(),
+                            "Parsing classfile " + workUnit.classfileResource);
             try {
                 // Open classfile as an InputStream
                 final InputStreamOrByteBufferAdapter classfileInputstream = //
-                        workItem.classfileResource.openOrRead();
+                        workUnit.classfileResource.openOrRead();
+
                 // Parse classfile binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked classInfoUnlinked = new ClassfileBinaryParser()
-                        .readClassInfoFromClassfileHeader(workItem.classpathElement,
-                                workItem.classfileResource.getPath(), classfileInputstream,
-                                workItem.isExternalClass, scanSpec, subLog);
+                        .readClassInfoFromClassfileHeader(workUnit.classpathElement,
+                                workUnit.classfileResource.getPath(), classfileInputstream,
+                                workUnit.isExternalClass, scanSpec, subLog);
+
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (classInfoUnlinked != null) {
                     classInfoUnlinkedQueue.add(classInfoUnlinked);
                     classInfoUnlinked.logTo(subLog);
 
+                    // Check if any superclasses, interfaces or annotations are external (non-whitelisted) classes
                     if (scanSpec.extendScanningUpwardsToExternalClasses) {
-                        // Check if any superclasses, interfaces or annotations are external
-                        // classes, and if so, add them to the work queue to be scanned
-                        List<ClassfileScanWorkItem> additionalWorkUnits = null;
-                        if (classInfoUnlinked.superclassName != null
-                                && scannedClassNames.add(classInfoUnlinked.superclassName)) {
-                            final Resource superclassResource = classNameToNonBlacklistedResource
-                                    .get(classInfoUnlinked.superclassName);
-                            if (superclassResource != null) {
-                                // Superclass is a non-blacklisted external class -- enqueue for scanning
-                                if (subLog != null) {
-                                    subLog.log("Scheduling external class for scanning: superclass "
-                                            + classInfoUnlinked.superclassName + " of class "
-                                            + classInfoUnlinked.className);
-                                }
-                                additionalWorkUnits = new ArrayList<>();
-                                additionalWorkUnits.add(new ClassfileScanWorkItem(workItem.classpathElement,
-                                        superclassResource, /* isExternalClass = */ true));
-                            } else {
-                                if (subLog != null
-                                        && !classInfoUnlinked.superclassName.equals("java.lang.Object")) {
-                                    subLog.log("External superclass " + classInfoUnlinked.superclassName
-                                            + " of class " + classInfoUnlinked.className
-                                            + " was not found in non-blacklisted packages -- "
-                                            + "cannot extend scanning to this superclass");
-                                }
+                        // Check superclass
+                        List<ClassfileScanWorkUnit> additionalWorkUnits = null;
+                        additionalWorkUnits = extendScanningUpwards(classInfoUnlinked.superclassName, "superclass",
+                                workUnit.classpathElement, additionalWorkUnits, subLog);
+
+                        // Check implemented interfaces
+                        if (classInfoUnlinked.implementedInterfaces != null) {
+                            for (final String className : classInfoUnlinked.implementedInterfaces) {
+                                additionalWorkUnits = extendScanningUpwards(className, "interface",
+                                        workUnit.classpathElement, additionalWorkUnits, subLog);
                             }
-                            if (classInfoUnlinked.implementedInterfaces != null) {
-                                for (final String implementedInterfaceName : classInfoUnlinked.implementedInterfaces) {
-                                    if (scannedClassNames.add(implementedInterfaceName)) {
-                                        final Resource implementedIfaceResource = classNameToNonBlacklistedResource
-                                                .get(implementedInterfaceName);
-                                        if (implementedIfaceResource != null) {
-                                            // Interface is a non-blacklisted external class -- enqueue for scanning
-                                            if (subLog != null) {
-                                                subLog.log("Scheduling external class for scanning: interface "
-                                                        + implementedInterfaceName + " implemented by class "
-                                                        + classInfoUnlinked.className);
-                                            }
-                                            if (additionalWorkUnits == null) {
-                                                additionalWorkUnits = new ArrayList<>();
-                                            }
-                                            additionalWorkUnits.add(new ClassfileScanWorkItem(
-                                                    workItem.classpathElement, implementedIfaceResource,
-                                                    /* isExternalClass = */ true));
-                                        } else {
-                                            if (subLog != null) {
-                                                subLog.log("External interface " + implementedInterfaceName
-                                                        + " implemented by class " + classInfoUnlinked.className
-                                                        + " was not found in non-blacklisted packages -- "
-                                                        + "cannot extend scanning to this interface");
-                                            }
-                                        }
+                        }
+
+                        // Check class annotations
+                        if (classInfoUnlinked.classAnnotations != null) {
+                            for (final AnnotationInfo annotationInfo : classInfoUnlinked.classAnnotations) {
+                                additionalWorkUnits = extendScanningUpwards(annotationInfo.getName(),
+                                        "class annotation", workUnit.classpathElement, additionalWorkUnits, subLog);
+                            }
+                        }
+
+                        // Check method annotations and method parameter annotations
+                        if (classInfoUnlinked.methodInfoList != null) {
+                            for (final MethodInfo methodInfo : classInfoUnlinked.methodInfoList) {
+                                if (methodInfo.annotationInfo != null) {
+                                    for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
+                                        additionalWorkUnits = extendScanningUpwards(methodAnnotationInfo.getName(),
+                                                "method annotation", workUnit.classpathElement, additionalWorkUnits,
+                                                subLog);
                                     }
-                                }
-                            }
-                            if (classInfoUnlinked.classAnnotations != null) {
-                                for (final AnnotationInfo annotationInfo : classInfoUnlinked.classAnnotations) {
-                                    final String annotationName = annotationInfo.getName();
-                                    if (scannedClassNames.add(annotationName)) {
-                                        final Resource annotationResource = classNameToNonBlacklistedResource
-                                                .get(annotationName);
-                                        if (annotationResource != null) {
-                                            // Annotation is a non-blacklisted ext class -- enqueue for scanning
-                                            if (subLog != null) {
-                                                subLog.log("Scheduling external class for scanning: annotation "
-                                                        + annotationName + " on class "
-                                                        + classInfoUnlinked.className);
-                                            }
-                                            if (additionalWorkUnits == null) {
-                                                additionalWorkUnits = new ArrayList<>();
-                                            }
-                                            additionalWorkUnits
-                                                    .add(new ClassfileScanWorkItem(workItem.classpathElement,
-                                                            annotationResource, /* isExternalClass = */ true));
-                                        } else {
-                                            if (subLog != null) {
-                                                subLog.log("Annotation " + annotationName + " implemented by class "
-                                                        + classInfoUnlinked.className
-                                                        + " was not found in non-blacklisted packages -- "
-                                                        + "cannot extend scanning to this annotation");
+                                    if (methodInfo.parameterAnnotationInfo != null
+                                            && methodInfo.parameterAnnotationInfo.length > 0) {
+                                        for (final AnnotationInfo[] paramAnns : methodInfo.parameterAnnotationInfo) {
+                                            if (paramAnns != null && paramAnns.length > 0) {
+                                                for (final AnnotationInfo paramAnn : paramAnns) {
+                                                    additionalWorkUnits = extendScanningUpwards(paramAnn.getName(),
+                                                            "method parameter annotation",
+                                                            workUnit.classpathElement, additionalWorkUnits, subLog);
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
+
+                        // Check field annotations
+                        if (classInfoUnlinked.fieldInfoList != null) {
+                            for (final FieldInfo fieldInfo : classInfoUnlinked.fieldInfoList) {
+                                if (fieldInfo.annotationInfo != null) {
+                                    for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
+                                        additionalWorkUnits = extendScanningUpwards(fieldAnnotationInfo.getName(),
+                                                "field annotation", workUnit.classpathElement, additionalWorkUnits,
+                                                subLog);
+                                    }
+                                }
+                            }
+                        }
+
+                        // If any external classes were found, schedule them for scanning
                         if (additionalWorkUnits != null) {
                             workQueue.addWorkUnits(additionalWorkUnits);
                         }
@@ -368,24 +375,27 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.addElapsedTime();
                 }
-            } catch (final IOException e) {
+            } catch (
+
+            final IOException e) {
                 if (subLog != null) {
-                    subLog.log("IOException while attempting to read classfile " + workItem.classfileResource
+                    subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
                             + " -- skipping", e);
                 }
             } catch (final Throwable e) {
                 if (subLog != null) {
-                    subLog.log("Exception while parsing classfile " + workItem.classfileResource, e);
+                    subLog.log("Exception while parsing classfile " + workUnit.classfileResource, e);
                 }
                 // Re-throw
                 throw e;
             } finally {
                 // Close classfile InputStream (and any associated ZipEntry);
                 // recycle ZipFile or ModuleReaderProxy if applicable
-                workItem.classfileResource.close();
+                workUnit.classfileResource.close();
             }
             interruptionChecker.check();
         }
+
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -638,14 +648,14 @@ class Scanner implements Callable<ScanResult> {
                     }
                 } else {
                     // Get whitelisted classfile order, and a map from class name to non-blacklisted classfile
-                    final List<ClassfileScanWorkItem> classfileScanWorkItems = new ArrayList<>();
+                    final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
                     final Map<String, Resource> classNameToNonBlacklistedResource = new HashMap<>();
                     final Set<String> scannedClassNames = Collections
                             .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
                     for (final ClasspathElement classpathElement : classpathOrder) {
                         // Get classfile scan order across all classpath elements
                         for (final Resource resource : classpathElement.whitelistedClassfileResources) {
-                            classfileScanWorkItems.add(new ClassfileScanWorkItem(classpathElement, resource,
+                            classfileScanWorkItems.add(new ClassfileScanWorkUnit(classpathElement, resource,
                                     /* isExternal = */ false));
                             // Pre-seed scanned class names with all whitelisted classes (since these will
                             // be scanned for sure)

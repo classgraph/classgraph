@@ -84,7 +84,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     private int[] parameterModifiers;
 
     /** Unaligned parameter annotations */
-    private AnnotationInfo[][] parameterAnnotationInfo;
+    AnnotationInfo[][] parameterAnnotationInfo;
 
     /** Aligned method parameter info */
     private transient MethodParameterInfo[] parameterInfo;

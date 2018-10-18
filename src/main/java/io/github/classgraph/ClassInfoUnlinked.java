@@ -55,8 +55,8 @@ class ClassInfoUnlinked {
     private List<SimpleEntry<String, String>> classContainmentEntries;
     private AnnotationParameterValueList annotationParamDefaultValues;
     final ClasspathElement classpathElement;
-    private FieldInfoList fieldInfoList;
-    private MethodInfoList methodInfoList;
+    FieldInfoList fieldInfoList;
+    MethodInfoList methodInfoList;
     private String typeSignature;
 
     ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,
