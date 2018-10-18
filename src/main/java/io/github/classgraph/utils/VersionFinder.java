@@ -110,8 +110,7 @@ public class VersionFinder {
         final Class<?> cls = ClassGraph.class;
         try {
             final String className = cls.getName();
-            final String classfileName = "/" + className.replace('.', '/') + ".class";
-            final URL classpathResource = cls.getResource(classfileName);
+            final URL classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
             if (classpathResource != null) {
                 final Path absolutePackagePath = Paths.get(classpathResource.toURI()).getParent();
                 final int packagePathSegments = className.length() - className.replace(".", "").length();
