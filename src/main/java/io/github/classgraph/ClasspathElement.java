@@ -34,8 +34,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
+import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
@@ -68,9 +71,6 @@ abstract class ClasspathElement {
      */
     List<ClasspathOrModulePathEntry> childClasspathElts;
 
-    /** The scan spec. */
-    final ScanSpec scanSpec;
-
     /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
     protected List<Resource> resourceMatches;
 
@@ -85,6 +85,12 @@ abstract class ClasspathElement {
 
     /** The map from File to last modified timestamp, if scanFiles is true. */
     protected Map<File, Long> fileToLastModified;
+
+    /** Flag to ensure classpath element is only scanned once. */
+    protected AtomicBoolean scanned = new AtomicBoolean(false);
+
+    /** The scan spec. */
+    final ScanSpec scanSpec;
 
     /** A classpath element (a directory or jarfile on the classpath). */
     ClasspathElement(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec) {
@@ -262,8 +268,48 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Scan the classpath element */
-    abstract void scanPaths(LogNode log);
+    /** Add a resource discovered during the scan. */
+    protected boolean addResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
+            final LogNode log) {
+        final String path = resource.getPath();
+        final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(path)
+                && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path);
+
+        // Record non-blacklisted classfile resources
+        if (isClassfile) {
+            nonBlacklistedClassfileResources.add(resource);
+        }
+
+        // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
+        // that has been specifically-whitelisted
+        final boolean isWhitelisted = parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                        && scanSpec.isSpecificallyWhitelistedClass(path));
+        if (isWhitelisted) {
+            if (log != null) {
+                log.log(path, "Found whitelisted path: " + path);
+            }
+
+            // Record whitelisted classfile and non-classfile resources
+            if (isClassfile) {
+                whitelistedClassfileResources.add(resource);
+            }
+            resourceMatches.add(resource);
+
+        } else {
+            if (log != null) {
+                log.log("Skipping non-whitelisted path: " + path);
+            }
+        }
+        return isWhitelisted;
+    }
+
+    /**
+     * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for
+     * whitelisted and non-blacklisted resources and classfiles.
+     */
+    abstract void scanPaths(final LogNode log);
 
     /**
      * Closes and empties the classpath element's resource recyclers (this closes and frees any open ZipFiles or

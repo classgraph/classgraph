@@ -40,6 +40,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -51,7 +52,11 @@ import io.github.classgraph.utils.LogNode;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
-    private File dir;
+    private File classpathEltDir;
+    private int ignorePrefixLen;
+
+    /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
+    private final HashSet<String> scannedCanonicalPaths = new HashSet<>();
 
     /** A directory classpath element. */
     ClasspathElementDir(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
@@ -59,7 +64,7 @@ class ClasspathElementDir extends ClasspathElement {
         super(classpathEltPath, scanSpec);
         if (scanSpec.performScan) {
             try {
-                dir = classpathEltPath.getFile(log);
+                classpathEltDir = classpathEltPath.getFile(log);
             } catch (final IOException e) {
                 // Technically can't happen, was already checked by caller
                 if (log != null) {
@@ -68,6 +73,8 @@ class ClasspathElementDir extends ClasspathElement {
                 skipClasspathElement = true;
                 return;
             }
+            ignorePrefixLen = classpathEltDir.getPath().length() + 1;
+
             resourceMatches = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
             nonBlacklistedClassfileResources = new ArrayList<>();
@@ -75,6 +82,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
+    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
     private Resource newResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
             final File classpathResourceFile) {
         return new Resource() {
@@ -117,7 +125,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public File getClasspathElementFile() {
-                return dir;
+                return classpathEltDir;
             }
 
             @Override
@@ -226,8 +234,7 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
-    private void scanDirRecursively(final File classpathElt, final File dir, final int ignorePrefixLen,
-            final HashSet<String> scannedCanonicalPaths, final LogNode log) {
+    private void scanDirRecursively(final File dir, final LogNode log) {
         // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
         // infinite loop due to symlinks
         String canonicalPath;
@@ -270,6 +277,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         final File[] filesInDir = dir.listFiles();
+        Arrays.sort(filesInDir);
         if (filesInDir == null) {
             if (log != null) {
                 log.log("Invalid directory " + dir);
@@ -282,7 +290,7 @@ class ClasspathElementDir extends ClasspathElement {
         for (final File fileInDir : filesInDir) {
             if (fileInDir.isDirectory()) {
                 // Recurse into subdirectory
-                scanDirRecursively(classpathElt, fileInDir, ignorePrefixLen, scannedCanonicalPaths, subLog);
+                scanDirRecursively(fileInDir, subLog);
                 if (subLog != null) {
                     subLog.addElapsedTime();
                 }
@@ -290,60 +298,35 @@ class ClasspathElementDir extends ClasspathElement {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
                         ? fileInDir.getName()
                         : dirRelativePath + fileInDir.getName();
-
-                final Resource resource = newResource(classpathElt, fileInDirRelativePath, fileInDir);
-                final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(fileInDirRelativePath)
-                        && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(fileInDirRelativePath);
-
-                // Record non-blacklisted classfile resources
-                if (isClassfile) {
-                    nonBlacklistedClassfileResources.add(resource);
-                }
-
-                // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that
-                // has been specifically-whitelisted
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                && scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
-                    if (subLog != null) {
-                        subLog.log(fileInDirRelativePath, "Found whitelisted path: " + fileInDirRelativePath);
-                    }
-
-                    // Record whitelisted classfile and non-classfile resources
-                    if (isClassfile) {
-                        whitelistedClassfileResources.add(resource);
-                    }
-                    resourceMatches.add(resource);
-
+                // Add the file path as a Resource
+                final Resource resource = newResource(classpathEltDir, fileInDirRelativePath, fileInDir);
+                final boolean isWhitelisted = addResource(resource, parentMatchStatus, subLog);
+                if (isWhitelisted) {
+                    // If the resource file was whitelisted, save last modified time  
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
-                } else {
-                    if (subLog != null) {
-                        subLog.log("Skipping non-whitelisted path: " + fileInDirRelativePath);
-                    }
                 }
             }
         }
-        if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                || parentMatchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
-            // Need to timestamp whitelisted directories, so that changes to directory content can be detected. Also
-            // need to timestamp ancestors of whitelisted directories, in case a new directory is added that matches
-            // whitelist criteria.
-            fileToLastModified.put(dir, dir.lastModified());
-        }
+
+        // Save the last modified time of the directory
+        fileToLastModified.put(dir, dir.lastModified());
     }
 
     /** Hierarchically scan directory structure for classfiles and matching files. */
     @Override
     void scanPaths(final LogNode log) {
-        final LogNode logNode = log == null ? null
-                : log.log(classpathEltPath.getResolvedPath(), "Scanning directory " + classpathEltPath);
-        final HashSet<String> scannedCanonicalPaths = new HashSet<>();
-        scanDirRecursively(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, scannedCanonicalPaths,
-                logNode);
-        if (logNode != null) {
-            logNode.addElapsedTime();
+        if (skipClasspathElement) {
+            return;
         }
+        if (scanned.getAndSet(true)) {
+            // Should not happen
+            throw new IllegalArgumentException("Already scanned classpath element " + toString());
+        }
+
+        final LogNode logNode = log == null ? null
+                : log.log(classpathEltPath.getResolvedPath(),
+                        "Scanning directory classpath element " + classpathEltPath);
+        scanDirRecursively(classpathEltDir, logNode);
     }
 
     @Override

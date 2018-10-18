@@ -617,6 +617,9 @@ class Scanner implements Callable<ScanResult> {
                                     final WorkQueue<ClasspathElement> workQueueIgnored) throws Exception {
                                 // Scan the paths within a directory or jar
                                 classpathElement.scanPaths(pathScanLog);
+                                if (preScanLog != null) {
+                                    preScanLog.addElapsedTime();
+                                }
                             }
                         }, interruptionChecker, pathScanLog);
 

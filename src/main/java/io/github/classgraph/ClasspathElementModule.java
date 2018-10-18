@@ -35,12 +35,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
-import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
@@ -79,6 +79,7 @@ class ClasspathElementModule extends ClasspathElement {
         }
     }
 
+    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
     private Resource newResource(final String moduleResourcePath) {
         return new Resource() {
             private Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable;
@@ -248,9 +249,18 @@ class ClasspathElementModule extends ClasspathElement {
     /** Scan for package matches within module */
     @Override
     void scanPaths(final LogNode log) {
+        if (skipClasspathElement) {
+            return;
+        }
+        if (scanned.getAndSet(true)) {
+            // Should not happen
+            throw new IllegalArgumentException("Already scanned classpath element " + toString());
+        }
+
         final String moduleLocationStr = moduleRef.getLocationStr();
         final LogNode subLog = log == null ? null
                 : log.log(moduleLocationStr, "Scanning module " + moduleRef.getName());
+
         try (Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable = //
                 moduleReaderProxyRecycler.acquire()) {
             final ModuleReaderProxy moduleReaderProxy = moduleReaderProxyRecyclable.get();
@@ -259,6 +269,7 @@ class ClasspathElementModule extends ClasspathElement {
             List<String> resourceRelativePaths;
             try {
                 resourceRelativePaths = moduleReaderProxy.list();
+                Collections.sort(resourceRelativePaths);
             } catch (final Exception e) {
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName(), e);
@@ -275,8 +286,7 @@ class ClasspathElementModule extends ClasspathElement {
                 // a resource is a directory without trying to open it, unless ModuleReader#list() also decides
                 // to put a "/" on the end of resource paths corresponding to directories. Skip directories if
                 // they are found, but if they are not able to be skipped, we will have to settle for having
-                // some IOExceptions thrown when directories are mistaken for files when trying to call a
-                // FileMatchProcessor on a directory path that matches a given path criterion.
+                // some IOExceptions thrown when directories are mistaken for resource files.
                 if (relativePath.endsWith("/")) {
                     continue;
                 }
@@ -299,51 +309,23 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
+                // Add the module resource path as a Resource
                 final Resource resource = newResource(relativePath);
-                final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(relativePath)
-                        && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(relativePath);
-
-                // Record non-blacklisted classfile resources
-                if (isClassfile) {
-                    nonBlacklistedClassfileResources.add(resource);
-                }
-
-                // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
-                // that has been specifically-whitelisted
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                && scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
-                    if (subLog != null) {
-                        subLog.log(relativePath, "Found whitelisted path: " + relativePath);
-                    }
-
-                    // Record whitelisted classfile and non-classfile resources
-                    if (isClassfile) {
-                        whitelistedClassfileResources.add(resource);
-                    }
-                    resourceMatches.add(resource);
-
-                    // Last modified time is not tracked for system modules, they have a "jrt:/" URL
-                    final File moduleFile = moduleRef.getLocationFile();
-                    if (moduleFile != null && moduleFile.exists()) {
-                        fileToLastModified.put(moduleFile, moduleFile.lastModified());
-                    }
-                } else {
-                    if (subLog != null) {
-                        subLog.log("Skipping non-whitelisted path: " + relativePath);
-                    }
-                }
+                addResource(resource, parentMatchStatus, subLog);
             }
+
+            // Save last modified time for the module file
+            final File moduleFile = moduleRef.getLocationFile();
+            if (moduleFile != null && moduleFile.exists()) {
+                fileToLastModified.put(moduleFile, moduleFile.lastModified());
+            }
+
         } catch (final IOException e) {
             if (subLog != null) {
                 subLog.log("Exception opening module " + classpathEltPath, e);
             }
             skipClasspathElement = true;
             return;
-        }
-        if (subLog != null) {
-            subLog.addElapsedTime();
         }
     }
 

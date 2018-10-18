@@ -202,6 +202,7 @@ class ClasspathElementZip extends ClasspathElement {
         return packageRootPrefix;
     }
 
+    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
     private Resource newResource(final File jarFile, final String packageRootPrefix,
             final String pathRelativeToPackageRoot, final ZipEntry zipEntry) {
         return new Resource() {
@@ -339,10 +340,18 @@ class ClasspathElementZip extends ClasspathElement {
     void scanPaths(final LogNode log) {
         if (jarfileMetadataReader == null) {
             skipClasspathElement = true;
+        }
+        if (skipClasspathElement) {
             return;
         }
+        if (scanned.getAndSet(true)) {
+            // Should not happen
+            throw new IllegalArgumentException("Already scanned classpath element " + toString());
+        }
+
         final LogNode subLog = log == null ? null
-                : log.log(classpathEltPath.getResolvedPath(), "Scanning jarfile " + classpathEltPath);
+                : log.log(classpathEltPath.getResolvedPath(),
+                        "Scanning jarfile classpath element " + classpathEltPath);
 
         Set<String> loggedNestedClasspathRootPrefixes = null;
         String prevParentRelativePath = null;
@@ -400,45 +409,14 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
+            // Add the ZipEntry path as a Resource
             final Resource resource = newResource(classpathEltZipFile, packageRootPrefix, relativePath,
                     versionedZipEntry.zipEntry);
-            final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(relativePath)
-                    && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(relativePath);
-
-            // Record non-blacklisted classfile resources
-            if (isClassfile) {
-                nonBlacklistedClassfileResources.add(resource);
-            }
-
-            // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that has
-            // been specifically-whitelisted
-            if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                    || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                    || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                            && scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
-                if (subLog != null) {
-                    subLog.log(relativePath, "Found whitelisted path: " + relativePath);
-                }
-
-                // Record whitelisted classfile and non-classfile resources
-                if (isClassfile) {
-                    whitelistedClassfileResources.add(resource);
-                }
-                resourceMatches.add(resource);
-
-            } else {
-                if (subLog != null) {
-                    subLog.log("Skipping non-whitelisted path: " + relativePath);
-                }
-            }
+            addResource(resource, parentMatchStatus, subLog);
         }
-        // Don't use the last modified time from the individual zipEntry
-        // objects, we use the last modified time for the zipfile itself instead.
+
+        // Save the last modified time for the zipfile
         fileToLastModified.put(classpathEltZipFile, classpathEltZipFile.lastModified());
-
-        if (subLog != null) {
-            subLog.addElapsedTime();
-        }
     }
 
     /** Close and free all open ZipFiles. */
