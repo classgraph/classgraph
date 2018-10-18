@@ -39,7 +39,7 @@ public class Issue260Test {
     @Test
     public void issue260Test() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue260Test.class.getPackage().getName())
-                .enableAllInfo().verbose().scan()) {
+                .enableAllInfo().scan()) {
             // Should be no exception here
             assertThat(true).isTrue();
         }
