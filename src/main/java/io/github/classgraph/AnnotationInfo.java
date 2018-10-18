@@ -359,15 +359,14 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     void toString(final StringBuilder buf) {
         buf.append("@" + getName());
-        final AnnotationParameterValueList paramVals = getParameterValues();
-        if (paramVals != null && !paramVals.isEmpty()) {
+        if (annotationParamValues != null && !annotationParamValues.isEmpty()) {
             buf.append('(');
-            for (int i = 0; i < paramVals.size(); i++) {
+            for (int i = 0; i < annotationParamValues.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                final AnnotationParameterValue annotationParamValue = paramVals.get(i);
-                if (paramVals.size() > 1 || !"value".equals(annotationParamValue.getName())) {
+                final AnnotationParameterValue annotationParamValue = annotationParamValues.get(i);
+                if (annotationParamValues.size() > 1 || !"value".equals(annotationParamValue.getName())) {
                     annotationParamValue.toString(buf);
                 } else {
                     annotationParamValue.toStringParamValueOnly(buf);
