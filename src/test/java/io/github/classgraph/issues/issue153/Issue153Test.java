@@ -145,10 +145,10 @@ public class Issue153Test {
 
             assertThat(classInfo.getFieldInfo("testFieldWithAndWitoutDefault").getAnnotationInfo().toString()) //
                     .isEqualTo("[@" + AnnotationWithAndWithoutDefaultValue.class.getName()
-                            + "(valueWithDefault = 5, valueWithoutDefault = \"x\")]");
+                            + "(valueWithoutDefault = \"x\")]");
 
             assertThat(classInfo.getFieldInfo("testFieldWithOnlyDefault").getAnnotationInfo().toString()) //
-                    .isEqualTo("[@" + AnnotationWithOnlyDefaultValue.class.getName() + "(6)]");
+                    .isEqualTo("[@" + AnnotationWithOnlyDefaultValue.class.getName() + "]");
 
             // Make sure enum constants can be instantiated
             final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(2);
