@@ -361,7 +361,7 @@ public abstract class WhiteBlackList {
      * @return The classfile path (including a ".class" suffix).
      */
     public static String classNameToClassfilePath(final String className) {
-        return normalizePackageOrClassName(className).replace('.', '/') + ".class";
+        return JarUtils.classNameToClassfilePath(normalizePackageOrClassName(className));
     }
 
     /**
