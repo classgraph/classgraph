@@ -34,6 +34,8 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.Enumeration;
 
+import io.github.classgraph.utils.JarUtils;
+
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
 class ClassGraphClassLoader extends ClassLoader {
     private final ScanResult scanResult;
@@ -97,7 +99,7 @@ class ClassGraphClassLoader extends ClassLoader {
 
         // Try obtaining the classfile as a resource, and defining the class from the resource content
         final ResourceList classfileResources = scanResult
-                .getResourcesWithPath(className.replace('.', '/') + ".class");
+                .getResourcesWithPath(JarUtils.classNameToClassfilePath(className));
         if (classfileResources != null) {
             for (final Resource resource : classfileResources) {
                 // Iterate through resources (only loading of first resource in the list will be attempted)

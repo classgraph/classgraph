@@ -438,6 +438,21 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Convert a classfile path to the corresponding class name. */
+    public static String classfilePathToClassName(String classfilePath) {
+        if (!classfilePath.endsWith(".class")) {
+            throw new IllegalArgumentException("Classfile path does not end with \".class\": " + classfilePath);
+        }
+        return classfilePath.substring(0, classfilePath.length() - 6).replace('/', '.');
+    }
+    
+    /** Convert a class name to the corresponding classfile path. */
+    public static String classNameToClassfilePath(String className) {
+        return className.replace('.', '/') + ".class";
+    }
+    
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Count the number of bytes before the characters "PK" in a zipfile.
      * 
