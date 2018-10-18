@@ -90,7 +90,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
      * whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
      */
-    private boolean isExternalClass;
+    private boolean isExternalClass = true;
+
+    /**
+     * Set to true when the class is actually scanned (as opposed to just referenced as a superclass, interface or
+     * annotation of a scanned class).
+     */
+    private boolean isScannedClass;
 
     /**
      * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
@@ -150,7 +156,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     ClassInfo() {
     }
 
-    private ClassInfo(final String name, final int classModifiers, final boolean isExternalClass) {
+    private ClassInfo(final String name, final int classModifiers) {
         this();
         this.name = name;
         if (name.endsWith(";")) {
@@ -158,7 +164,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new RuntimeException("Bad class name");
         }
         this.modifiers = classModifiers;
-        this.isExternalClass = isExternalClass;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -254,8 +259,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className,
-                    classInfo = new ClassInfo(className, classModifiers, /* isExternalClass = */ true));
+            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers));
         }
         classInfo.modifiers |= classModifiers;
         if ((classModifiers & ANNOTATION_CLASS_MODIFIER) != 0) {
@@ -413,18 +417,27 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * should be run in single threaded context.
      */
     static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isInterface,
-            final boolean isAnnotation, final Map<String, ClassInfo> classNameToClassInfo,
-            final ClasspathElement classpathElement, final ScanSpec scanSpec, final LogNode log) {
+            final boolean isAnnotation, final boolean isExternalClass,
+            final Map<String, ClassInfo> classNameToClassInfo, final ClasspathElement classpathElement,
+            final ScanSpec scanSpec, final LogNode log) {
         boolean classEncounteredMultipleTimes = false;
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             // This is the first time this class has been seen, add it
-            classNameToClassInfo.put(className,
-                    classInfo = new ClassInfo(className, classModifiers, /* isExternalClass = */ false));
+            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers));
         } else {
-            if (!classInfo.isExternalClass) {
+            // Check if the class was scanned more than once
+            if (classInfo.isScannedClass) {
                 classEncounteredMultipleTimes = true;
             }
+        }
+
+        // Mark the class as scanned
+        classInfo.isScannedClass = true;
+
+        // Mark the class as non-external if it is a whitelisted class
+        if (isExternalClass == false) {
+            classInfo.isExternalClass = isExternalClass;
         }
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
@@ -473,9 +486,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final List<ClassLoader> classLoaderOrder = new ArrayList<>(allClassLoaders);
             classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[0]);
         }
-
-        // Mark the classfile as scanned
-        classInfo.isExternalClass = false;
 
         // Merge modifiers
         classInfo.modifiers |= classModifiers;

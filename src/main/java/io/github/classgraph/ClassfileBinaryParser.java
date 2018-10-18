@@ -331,7 +331,7 @@ class ClassfileBinaryParser {
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
             final String relativePath, final InputStreamOrByteBufferAdapter inputStreamOrByteBuffer,
-            final ScanSpec scanSpec, final LogNode log) throws IOException {
+            final boolean isExternalClass, final ScanSpec scanSpec, final LogNode log) throws IOException {
 
         this.inputStreamOrByteBuffer = inputStreamOrByteBuffer;
 
@@ -470,7 +470,7 @@ class ClassfileBinaryParser {
         // Create holder object for the class information. This is "unlinked", in the sense that it is
         // not linked other class info references at this point.
         final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, classModifierFlags,
-                isInterface, isAnnotation, classpathElement);
+                isInterface, isAnnotation, isExternalClass, classpathElement);
 
         // Connect class to superclass
         classInfoUnlinked.addSuperclass(superclassName);

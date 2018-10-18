@@ -68,8 +68,9 @@ class ClasspathElementDir extends ClasspathElement {
                 skipClasspathElement = true;
                 return;
             }
-            fileMatches = new ArrayList<>();
-            classfileMatches = new ArrayList<>();
+            resourceMatches = new ArrayList<>();
+            whitelistedClassfileResources = new ArrayList<>();
+            nonBlacklistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }
     }
@@ -261,11 +262,10 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         final ScanSpecPathMatch matchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
-        if (matchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH
-                || matchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
+        if (matchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
             // Reached a non-whitelisted or blacklisted path -- stop the recursive scan
             if (log != null) {
-                log.log("Reached non-whitelisted (or blacklisted) directory: " + dirRelativePath);
+                log.log("Reached blacklisted directory, stopping recursive scan: " + dirRelativePath);
             }
             return;
         } else if (matchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
@@ -281,49 +281,51 @@ class ClasspathElementDir extends ClasspathElement {
             }
             return;
         }
-        final LogNode dirLog = log == null ? null
+        final LogNode subLog = log == null ? null
                 : log.log(canonicalPath, "Scanning directory: " + dir
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         for (final File fileInDir : filesInDir) {
             if (fileInDir.isDirectory()) {
-                if (inWhitelistedPath //
-                        || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
-                    // Recurse into subdirectory
-                    scanDirRecursively(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath,
-                            scannedCanonicalPaths, dirLog);
-                    if (dirLog != null) {
-                        dirLog.addElapsedTime();
-                    }
+                // Recurse into subdirectory
+                scanDirRecursively(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath,
+                        scannedCanonicalPaths, subLog);
+                if (subLog != null) {
+                    subLog.addElapsedTime();
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
                         ? fileInDir.getName()
                         : dirRelativePath + fileInDir.getName();
 
+                final Resource resource = newResource(classpathElt, fileInDirRelativePath, fileInDir);
+                final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(fileInDirRelativePath)
+                        && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(fileInDirRelativePath);
+
+                // Record non-blacklisted classfile resources
+                if (isClassfile) {
+                    nonBlacklistedClassfileResources.add(resource);
+                }
+
                 // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that
                 // has been specifically-whitelisted
-                if (!inWhitelistedPath && !(matchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                if (inWhitelistedPath || (matchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                         && scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
-                    // Ignore files that are siblings of specifically-whitelisted files, but that are not themselves
-                    // specifically whitelisted
-                    continue;
-                }
+                    if (subLog != null) {
+                        subLog.log(fileInDirRelativePath, "Found whitelisted path: " + fileInDirRelativePath);
+                    }
 
-                if (dirLog != null) {
-                    dirLog.log(fileInDirRelativePath, "Found whitelisted file: " + fileInDirRelativePath);
-                }
+                    // Record whitelisted classfile and non-classfile resources
+                    if (isClassfile) {
+                        whitelistedClassfileResources.add(resource);
+                    }
+                    resourceMatches.add(resource);
 
-                fileToLastModified.put(fileInDir, fileInDir.lastModified());
-
-                if (scanSpec.enableClassInfo) {
-                    // Store relative paths of any classfiles encountered
-                    if (FileUtils.isClassfile(fileInDirRelativePath)) {
-                        classfileMatches.add(newResource(classpathElt, fileInDirRelativePath, fileInDir));
+                    fileToLastModified.put(fileInDir, fileInDir.lastModified());
+                } else {
+                    if (subLog != null) {
+                        subLog.log("Skipping non-whitelisted path: " + fileInDirRelativePath);
                     }
                 }
-
-                // Record all classpath resources found in whitelisted paths
-                fileMatches.add(newResource(classpathElt, fileInDirRelativePath, fileInDir));
             }
         }
         if (matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX

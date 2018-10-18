@@ -83,71 +83,12 @@ public class WorkQueue<T> implements AutoCloseable {
         /**
          * @param workUnit
          *            The work unit.
+         * @param workQueue
+         *            The work queue.
          * @throws Exception
          *             If something goes wrong while processing the work unit.
          */
-        public void processWorkUnit(T workUnit) throws Exception;
-    }
-
-    /**
-     * A hook that is called once a WorkQueue is created, inside its try-with-resources block, before the workers
-     * are started.
-     * 
-     * @param <T>
-     *            The type of work unit to process.
-     */
-    public interface WorkQueuePreStartHook<T> {
-        /**
-         * @param workQueue
-         *            The work queue.
-         */
-        public void processWorkQueueRef(WorkQueue<T> workQueue);
-    }
-
-    /**
-     * Start a work queue on the elements in the provided collection, blocking until all work units have been
-     * completed. Calls workQueuePreStartHook with a ref to the work queue before starting the workers.
-     *
-     * @param <U>
-     *            The type of the work queue units.
-     * @param elements
-     *            The work queue units to process.
-     * @param executorService
-     *            The {@link ExecutorService}.
-     * @param numParallelTasks
-     *            The number of parallel tasks.
-     * @param workUnitProcessor
-     *            The {@link WorkUnitProcessor}.
-     * @param workQueuePreStartHook
-     *            The {@link WorkQueuePreStartHook}.
-     * @param interruptionChecker
-     *            The {@link InterruptionChecker}.
-     * @param log
-     *            The log.
-     * @throws ExecutionException
-     *             If an exception is thrown while processing a work unit.
-     * @throws InterruptedException
-     *             If the work was interrupted.
-     */
-    public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
-            final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
-            final WorkQueuePreStartHook<U> workQueuePreStartHook, final InterruptionChecker interruptionChecker,
-            final LogNode log) throws ExecutionException, InterruptedException {
-        // Wrap in a try-with-resources block, so that the WorkQueue is closed on exception
-        try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, interruptionChecker, log)) {
-            // Call work queue pre-start hook, if available
-            if (workQueuePreStartHook != null) {
-                workQueuePreStartHook.processWorkQueueRef(workQueue);
-            }
-            // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
-            workQueue.startWorkers(executorService, numParallelTasks - 1, log);
-            // Use the current thread to do work too, in case there is only one thread available in the
-            // ExecutorService, or in case numParallelTasks is greater than the number of available threads in the
-            // ExecutorService.
-            workQueue.runWorkLoop();
-        }
-        // WorkQueue#close() is called when the above try-with-resources block terminates, initiating a barrier wait
-        // while all worker threads complete.
+        public void processWorkUnit(T workUnit, WorkQueue<T> workQueue) throws Exception;
     }
 
     /**
@@ -177,8 +118,17 @@ public class WorkQueue<T> implements AutoCloseable {
             final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
             final InterruptionChecker interruptionChecker, final LogNode log)
             throws ExecutionException, InterruptedException {
-        runWorkQueue(elements, executorService, numParallelTasks, workUnitProcessor,
-                /* workQueuePreStartHook = */ null, interruptionChecker, log);
+        // Wrap in a try-with-resources block, so that the WorkQueue is closed on exception
+        try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, interruptionChecker, log)) {
+            // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
+            workQueue.startWorkers(executorService, numParallelTasks - 1, log);
+            // Use the current thread to do work too, in case there is only one thread available in the
+            // ExecutorService, or in case numParallelTasks is greater than the number of available threads in the
+            // ExecutorService.
+            workQueue.runWorkLoop();
+        }
+        // WorkQueue#close() is called when the above try-with-resources block terminates, initiating a barrier wait
+        // while all worker threads complete.
     }
 
     /** A parallel work queue. */
@@ -242,7 +192,7 @@ public class WorkQueue<T> implements AutoCloseable {
             try {
                 // Process the work unit
                 numRunningThreads.incrementAndGet();
-                workUnitProcessor.processWorkUnit(workUnit);
+                workUnitProcessor.processWorkUnit(workUnit, this);
             } catch (final InterruptedException e) {
                 // Interrupt all threads
                 interruptionChecker.interrupt();

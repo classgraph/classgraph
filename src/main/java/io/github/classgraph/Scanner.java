@@ -29,16 +29,18 @@
 package io.github.classgraph;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -48,13 +50,13 @@ import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
 import io.github.classgraph.utils.ClasspathFinder;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
+import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.InterruptionChecker;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.SingletonMap;
 import io.github.classgraph.utils.WorkQueue;
-import io.github.classgraph.utils.WorkQueue.WorkQueuePreStartHook;
 import io.github.classgraph.utils.WorkQueue.WorkUnitProcessor;
 
 /** The classpath scanner. */
@@ -67,14 +69,6 @@ class Scanner implements Callable<ScanResult> {
     private final FailureHandler failureHandler;
     private final LogNode topLevelLog;
     private NestedJarHandler nestedJarHandler;
-
-    /**
-     * The number of files within a given classpath element (directory or zipfile) to send in a chunk to the workers
-     * that are calling the classfile binary parser. The smaller this number is, the better the load leveling at the
-     * end of the scan, but the higher the overhead in re-opening the same ZipFile or module in different worker
-     * threads.
-     */
-    private static final int NUM_FILES_PER_CHUNK = 32;
 
     /** The classpath scanner. */
     Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
@@ -224,70 +218,174 @@ class Scanner implements Callable<ScanResult> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Holds range limits for chunks of classpath files that need to be scanned in a given classpath element.
-     */
-    private static class ClassfileParserChunk {
-        private final ClasspathElement classpathElement;
-        private final int classfileStartIdx;
-        private final int classfileEndIdx;
+    /** Used to enqueue classfiles for scanning. */
+    private static class ClassfileScanWorkItem {
+        ClasspathElement classpathElement;
+        Resource classfileResource;
+        boolean isExternalClass;
 
-        public ClassfileParserChunk(final ClasspathElement classpathElementSingleton, final int classfileStartIdx,
-                final int classfileEndIdx) {
-            this.classpathElement = classpathElementSingleton;
-            this.classfileStartIdx = classfileStartIdx;
-            this.classfileEndIdx = classfileEndIdx;
+        ClassfileScanWorkItem(final ClasspathElement classpathElement, final Resource classfileResource,
+                final boolean isExternalClass) {
+            this.classpathElement = classpathElement;
+            this.classfileResource = classfileResource;
+            this.isExternalClass = isExternalClass;
         }
     }
 
-    /**
-     * Break the classfiles that need to be scanned in each classpath element into chunks of approximately
-     * NUM_FILES_PER_CHUNK files. This helps with load leveling so that the worker threads all complete their work
-     * at approximately the same time.
-     */
-    private static List<ClassfileParserChunk> getClassfileParserChunks(
-            final List<ClasspathElement> classpathOrder) {
-        LinkedList<LinkedList<ClassfileParserChunk>> chunks = new LinkedList<>();
-        for (final ClasspathElement classpathElement : classpathOrder) {
-            final LinkedList<ClassfileParserChunk> chunksForClasspathElt = new LinkedList<>();
-            final int numClassfileMatches = classpathElement.getNumClassfileMatches();
-            if (numClassfileMatches > 0) {
-                final int numChunks = (int) Math.ceil((float) numClassfileMatches / (float) NUM_FILES_PER_CHUNK);
-                final float filesPerChunk = (float) numClassfileMatches / (float) numChunks;
-                for (int i = 0; i < numChunks; i++) {
-                    final int classfileStartIdx = (int) (i * filesPerChunk);
-                    final int classfileEndIdx = i < numChunks - 1 ? (int) ((i + 1) * filesPerChunk)
-                            : numClassfileMatches;
-                    if (classfileEndIdx > classfileStartIdx) {
-                        chunksForClasspathElt.add(
-                                new ClassfileParserChunk(classpathElement, classfileStartIdx, classfileEndIdx));
+    /** WorkUnitProcessor for scanning classfiles. */
+    private static class ClassfileScannerWorkUnitProcessor implements WorkUnitProcessor<ClassfileScanWorkItem> {
+        private final ScanSpec scanSpec;
+        private final Map<String, Resource> classNameToNonBlacklistedResource;
+        private final Set<String> scannedClassNames;
+        private final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue;
+        private final LogNode log;
+        private final InterruptionChecker interruptionChecker;
+
+        public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
+                final Map<String, Resource> classNameToNonBlacklistedResource, final Set<String> scannedClassNames,
+                final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue, final LogNode log,
+                final InterruptionChecker interruptionChecker) {
+            this.scanSpec = scanSpec;
+            this.classNameToNonBlacklistedResource = classNameToNonBlacklistedResource;
+            this.scannedClassNames = scannedClassNames;
+            this.classInfoUnlinkedQueue = classInfoUnlinkedQueue;
+            this.log = log;
+            this.interruptionChecker = interruptionChecker;
+        }
+
+        @Override
+        public void processWorkUnit(final ClassfileScanWorkItem workItem,
+                final WorkQueue<ClassfileScanWorkItem> workQueue) throws Exception {
+            final LogNode subLog = log == null ? null
+                    : log.log(workItem.classfileResource.getPath(),
+                            "Parsing classfile " + workItem.classfileResource);
+            try {
+                // Open classfile as an InputStream
+                final InputStreamOrByteBufferAdapter classfileInputstream = //
+                        workItem.classfileResource.openOrRead();
+                // Parse classfile binary format, creating a ClassInfoUnlinked object
+                final ClassInfoUnlinked classInfoUnlinked = new ClassfileBinaryParser()
+                        .readClassInfoFromClassfileHeader(workItem.classpathElement,
+                                workItem.classfileResource.getPath(), classfileInputstream,
+                                workItem.isExternalClass, scanSpec, subLog);
+                // If class was successfully read, output new ClassInfoUnlinked object
+                if (classInfoUnlinked != null) {
+                    classInfoUnlinkedQueue.add(classInfoUnlinked);
+                    classInfoUnlinked.logTo(subLog);
+
+                    if (scanSpec.extendScanningUpwardsToExternalClasses) {
+                        // Check if any superclasses, interfaces or annotations are external
+                        // classes, and if so, add them to the work queue to be scanned
+                        List<ClassfileScanWorkItem> additionalWorkUnits = null;
+                        if (classInfoUnlinked.superclassName != null
+                                && scannedClassNames.add(classInfoUnlinked.superclassName)) {
+                            final Resource superclassResource = classNameToNonBlacklistedResource
+                                    .get(classInfoUnlinked.superclassName);
+                            if (superclassResource != null) {
+                                // Superclass is a non-blacklisted external class -- enqueue for scanning
+                                if (subLog != null) {
+                                    subLog.log("Scheduling external class for scanning: superclass "
+                                            + classInfoUnlinked.superclassName + " of class "
+                                            + classInfoUnlinked.className);
+                                }
+                                additionalWorkUnits = new ArrayList<>();
+                                additionalWorkUnits.add(new ClassfileScanWorkItem(workItem.classpathElement,
+                                        superclassResource, /* isExternalClass = */ true));
+                            } else {
+                                if (subLog != null
+                                        && !classInfoUnlinked.superclassName.equals("java.lang.Object")) {
+                                    subLog.log("External superclass " + classInfoUnlinked.superclassName
+                                            + " of class " + classInfoUnlinked.className
+                                            + " was not found in non-blacklisted packages -- "
+                                            + "cannot extend scanning to this superclass");
+                                }
+                            }
+                            if (classInfoUnlinked.implementedInterfaces != null) {
+                                for (final String implementedInterfaceName : classInfoUnlinked.implementedInterfaces) {
+                                    if (scannedClassNames.add(implementedInterfaceName)) {
+                                        final Resource implementedIfaceResource = classNameToNonBlacklistedResource
+                                                .get(implementedInterfaceName);
+                                        if (implementedIfaceResource != null) {
+                                            // Interface is a non-blacklisted external class -- enqueue for scanning
+                                            if (subLog != null) {
+                                                subLog.log("Scheduling external class for scanning: interface "
+                                                        + implementedInterfaceName + " implemented by class "
+                                                        + classInfoUnlinked.className);
+                                            }
+                                            if (additionalWorkUnits == null) {
+                                                additionalWorkUnits = new ArrayList<>();
+                                            }
+                                            additionalWorkUnits.add(new ClassfileScanWorkItem(
+                                                    workItem.classpathElement, implementedIfaceResource,
+                                                    /* isExternalClass = */ true));
+                                        } else {
+                                            if (subLog != null) {
+                                                subLog.log("External interface " + implementedInterfaceName
+                                                        + " implemented by class " + classInfoUnlinked.className
+                                                        + " was not found in non-blacklisted packages -- "
+                                                        + "cannot extend scanning to this interface");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (classInfoUnlinked.classAnnotations != null) {
+                                for (final AnnotationInfo annotationInfo : classInfoUnlinked.classAnnotations) {
+                                    final String annotationName = annotationInfo.getName();
+                                    if (scannedClassNames.add(annotationName)) {
+                                        final Resource annotationResource = classNameToNonBlacklistedResource
+                                                .get(annotationName);
+                                        if (annotationResource != null) {
+                                            // Annotation is a non-blacklisted ext class -- enqueue for scanning
+                                            if (subLog != null) {
+                                                subLog.log("Scheduling external class for scanning: annotation "
+                                                        + annotationName + " on class "
+                                                        + classInfoUnlinked.className);
+                                            }
+                                            if (additionalWorkUnits == null) {
+                                                additionalWorkUnits = new ArrayList<>();
+                                            }
+                                            additionalWorkUnits
+                                                    .add(new ClassfileScanWorkItem(workItem.classpathElement,
+                                                            annotationResource, /* isExternalClass = */ true));
+                                        } else {
+                                            if (subLog != null) {
+                                                subLog.log("Annotation " + annotationName + " implemented by class "
+                                                        + classInfoUnlinked.className
+                                                        + " was not found in non-blacklisted packages -- "
+                                                        + "cannot extend scanning to this annotation");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (additionalWorkUnits != null) {
+                            workQueue.addWorkUnits(additionalWorkUnits);
+                        }
                     }
                 }
-            }
-            chunks.add(chunksForClasspathElt);
-        }
-        // There should be no overlap between the relative paths in any of the chunks, because classpath masking has
-        // already been applied, so these chunks can be scanned in any order. But since a ZipFile instance can only
-        // be used by one thread at a time, we want to space the chunks for a given ZipFile as far apart as possible
-        // in the work queue to minimize the chance that two threads will try to open the same ZipFile at the same
-        // time, as this will cause a second copy of the ZipFile to have to be opened by the ZipFile recycler. The
-        // combination of chunking and interleaving therefore lets us achieve load leveling without work stealing or
-        // other more complex mechanism.
-        final List<ClassfileParserChunk> interleavedChunks = new ArrayList<>();
-        while (!chunks.isEmpty()) {
-            final LinkedList<LinkedList<ClassfileParserChunk>> nextChunks = new LinkedList<>();
-            for (final LinkedList<ClassfileParserChunk> chunksForClasspathElt : chunks) {
-                if (!chunksForClasspathElt.isEmpty()) {
-                    final ClassfileParserChunk head = chunksForClasspathElt.remove();
-                    interleavedChunks.add(head);
-                    if (!chunksForClasspathElt.isEmpty()) {
-                        nextChunks.add(chunksForClasspathElt);
-                    }
+                if (subLog != null) {
+                    subLog.addElapsedTime();
                 }
+            } catch (final IOException e) {
+                if (subLog != null) {
+                    subLog.log("IOException while attempting to read classfile " + workItem.classfileResource
+                            + " -- skipping", e);
+                }
+            } catch (final Throwable e) {
+                if (subLog != null) {
+                    subLog.log("Exception while parsing classfile " + workItem.classfileResource, e);
+                }
+                // Re-throw
+                throw e;
+            } finally {
+                // Close classfile InputStream (and any associated ZipEntry);
+                // recycle ZipFile or ModuleReaderProxy if applicable
+                workItem.classfileResource.close();
             }
-            chunks = nextChunks;
+            interruptionChecker.check();
         }
-        return interleavedChunks;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -373,9 +471,12 @@ class Scanner implements Callable<ScanResult> {
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<ClasspathOrModulePathEntry>() {
                         @Override
-                        public void processWorkUnit(final ClasspathOrModulePathEntry rawClasspathEltPath)
-                                throws Exception {
+                        public void processWorkUnit(final ClasspathOrModulePathEntry rawClasspathEltPath,
+                                final WorkQueue<ClasspathOrModulePathEntry> workQueue) throws Exception {
                             try {
+                                // Ensure the work queue is set -- will be done multiple times, but is idempotent
+                                classpathElementMap.setWorkQueue(workQueue);
+
                                 // Add the classpath element as a singleton. This will trigger calling
                                 // the ClasspathElementZip constructor in the case of jarfiles, which
                                 // will check the manifest file for Class-Path entries, and if any are
@@ -384,17 +485,10 @@ class Scanner implements Callable<ScanResult> {
                                 // as child elements of the current classpath element, so that they can
                                 // be inserted at the correct location in the classpath order.
                                 classpathElementMap.getOrCreateSingleton(rawClasspathEltPath, preScanLog);
+
                             } catch (final IllegalArgumentException e) {
                                 // Thrown if classpath element is invalid (already logged)
                             }
-                        }
-                    }, new WorkQueuePreStartHook<ClasspathOrModulePathEntry>() {
-                        @Override
-                        public void processWorkQueueRef(final WorkQueue<ClasspathOrModulePathEntry> workQueue) {
-                            // Store a ref back to the work queue in the classpath element map, because some
-                            // classpath elements will need to schedule additional classpath elements for scanning,
-                            // e.g. "Class-Path:" refs in jar manifest files
-                            classpathElementMap.setWorkQueue(workQueue);
                         }
                     }, interruptionChecker, preScanLog);
 
@@ -509,7 +603,8 @@ class Scanner implements Callable<ScanResult> {
                 WorkQueue.runWorkQueue(classpathOrder, executorService, numParallelTasks,
                         new WorkUnitProcessor<ClasspathElement>() {
                             @Override
-                            public void processWorkUnit(final ClasspathElement classpathElement) throws Exception {
+                            public void processWorkUnit(final ClasspathElement classpathElement,
+                                    final WorkQueue<ClasspathElement> workQueueIgnored) throws Exception {
                                 // Scan the paths within a directory or jar
                                 classpathElement.scanPaths(pathScanLog);
                             }
@@ -520,11 +615,13 @@ class Scanner implements Callable<ScanResult> {
                 // performed whether or not a jar is whitelisted, and whether or not jar or dir scanning is enabled,
                 // in order to ensure that class references passed into MatchProcessors are the same as those that
                 // would be loaded by standard classloading. (See bug #100.)
-                final LogNode maskLog = topLevelLog == null ? null : topLevelLog.log("Masking classpath files");
-                final HashSet<String> classpathRelativePathsFound = new HashSet<>();
-                for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
-                    final ClasspathElement classpathElement = classpathOrder.get(classpathIdx);
-                    classpathElement.maskFiles(classpathIdx, classpathRelativePathsFound, maskLog);
+                {
+                    final LogNode maskLog = topLevelLog == null ? null : topLevelLog.log("Masking classfiles");
+                    final HashSet<String> classpathRelativePathsFound = new HashSet<>();
+                    for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
+                        classpathOrder.get(classpathIdx).maskClassfiles(classpathIdx, classpathRelativePathsFound,
+                                maskLog);
+                    }
                 }
 
                 // Merge the maps from file to timestamp across all classpath elements (there will be no overlap in
@@ -540,22 +637,39 @@ class Scanner implements Callable<ScanResult> {
                         topLevelLog.log("Classfile scanning is disabled");
                     }
                 } else {
-                    // Scan classfile binary headers in parallel
-                    final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = //
+                    // Get whitelisted classfile order, and a map from class name to non-blacklisted classfile
+                    final List<ClassfileScanWorkItem> classfileScanWorkItems = new ArrayList<>();
+                    final Map<String, Resource> classNameToNonBlacklistedResource = new HashMap<>();
+                    final Set<String> scannedClassNames = Collections
+                            .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+                    for (final ClasspathElement classpathElement : classpathOrder) {
+                        // Get classfile scan order across all classpath elements
+                        for (final Resource resource : classpathElement.whitelistedClassfileResources) {
+                            classfileScanWorkItems.add(new ClassfileScanWorkItem(classpathElement, resource,
+                                    /* isExternal = */ false));
+                            // Pre-seed scanned class names with all whitelisted classes (since these will
+                            // be scanned for sure)
+                            scannedClassNames.add(JarUtils.classfilePathToClassName(resource.getPath()));
+                        }
+                        // Get mapping from class name to Resource object for non-blacklisted classes
+                        // (these are used to scan superclasses, interfaces and annotations of whitelisted
+                        // classes that are not themselves whitelisted)
+                        for (final Resource resource : classpathElement.nonBlacklistedClassfileResources) {
+                            classNameToNonBlacklistedResource
+                                    .put(JarUtils.classfilePathToClassName(resource.getPath()), resource);
+                        }
+                    }
+
+                    // Scan classfiles in parallel
+                    final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue = //
                             new ConcurrentLinkedQueue<>();
                     final LogNode classfileScanLog = topLevelLog == null ? null
-                            : topLevelLog.log("Scanning classfile binary headers");
-                    final List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(
-                            classpathOrder);
-                    WorkQueue.runWorkQueue(classfileParserChunks, executorService, numParallelTasks,
-                            new WorkUnitProcessor<ClassfileParserChunk>() {
-                                @Override
-                                public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
-                                    chunk.classpathElement.parseClassfiles(chunk.classfileStartIdx,
-                                            chunk.classfileEndIdx, classInfoUnlinked, classfileScanLog);
-                                    interruptionChecker.check();
-                                }
-                            }, interruptionChecker, classfileScanLog);
+                            : topLevelLog.log("Scanning classfiles");
+                    WorkQueue.runWorkQueue(classfileScanWorkItems, executorService, numParallelTasks,
+                            new ClassfileScannerWorkUnitProcessor(scanSpec, classNameToNonBlacklistedResource,
+                                    scannedClassNames, classInfoUnlinkedQueue, classfileScanLog,
+                                    interruptionChecker),
+                            interruptionChecker, classfileScanLog);
                     if (classfileScanLog != null) {
                         classfileScanLog.addElapsedTime();
                     }
@@ -563,7 +677,7 @@ class Scanner implements Callable<ScanResult> {
                     // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
                     final LogNode classGraphLog = topLevelLog == null ? null
                             : topLevelLog.log("Building class graph");
-                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
+                    for (final ClassInfoUnlinked c : classInfoUnlinkedQueue) {
                         c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
 

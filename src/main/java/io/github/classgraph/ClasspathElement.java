@@ -34,9 +34,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
+import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.WorkQueue;
@@ -71,13 +71,17 @@ abstract class ClasspathElement {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
-    /** The list of all classpath resources found within whitelisted paths within this classpath element. */
-    protected List<Resource> fileMatches;
+    /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
+    protected List<Resource> resourceMatches;
 
-    /**
-     * The list of whitelisted classfiles found within this classpath resource, if scanFiles is true.
-     */
-    protected List<Resource> classfileMatches;
+    /** The list of all classfiles found within this classpath element that were whitelisted and not blacklisted. */
+    protected List<Resource> whitelistedClassfileResources;
+
+    /** The list of all classfiles found within this classpath element that were not specifically blacklisted. */
+    protected List<Resource> nonBlacklistedClassfileResources;
+
+    /** Map from class name to non-blacklisted resource. */
+    protected Map<String, Resource> classNameToNonBlacklistedResource;
 
     /** The map from File to last modified timestamp, if scanFiles is true. */
     protected Map<File, Long> fileToLastModified;
@@ -190,14 +194,20 @@ abstract class ClasspathElement {
 
     /** Get the number of classfile matches. */
     int getNumClassfileMatches() {
-        return classfileMatches == null ? 0 : classfileMatches.size();
+        return whitelistedClassfileResources == null ? 0 : whitelistedClassfileResources.size();
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
      * earlier classpath element.
+     * 
+     * @return the masked classfile resources.
      */
-    void maskFiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound, final LogNode log) {
+    static List<Resource> maskClassfiles(final ScanSpec scanSpec, final int classpathIdx,
+            final List<Resource> classfileResources, final HashSet<String> classpathRelativePathsFound,
+            final LogNode log) {
         if (!scanSpec.performScan) {
             // Should not happen
             throw new IllegalArgumentException("performScan is false");
@@ -205,7 +215,7 @@ abstract class ClasspathElement {
         // Take the union of classfile and file match relative paths, since matches can be in both lists if a user
         // adds a custom file path matcher that matches paths ending in ".class"
         final HashSet<String> maskedRelativePaths = new HashSet<>();
-        for (final Resource res : classfileMatches) {
+        for (final Resource res : classfileResources) {
             // Don't mask module-info.class, since all modules need this classfile to be read
             final String getPathRelativeToPackageRoot = res.getPath();
             if (!getPathRelativeToPackageRoot.equals("module-info.class")
@@ -219,65 +229,35 @@ abstract class ClasspathElement {
         }
         if (!maskedRelativePaths.isEmpty()) {
             // Replace the lists of matching resources with filtered versions with masked paths removed
-            final List<Resource> filteredClassfileMatches = new ArrayList<>();
-            for (final Resource classfileMatch : classfileMatches) {
-                final String getPathRelativeToPackageRoot = classfileMatch.getPath();
-                if (!maskedRelativePaths.contains(getPathRelativeToPackageRoot)) {
-                    filteredClassfileMatches.add(classfileMatch);
+            final List<Resource> maskedClassfileResources = new ArrayList<>();
+            for (final Resource classfileMatch : classfileResources) {
+                final String classfileRelativePath = classfileMatch.getPath();
+                if (!maskedRelativePaths.contains(classfileRelativePath)) {
+                    maskedClassfileResources.add(classfileMatch);
                 } else {
                     if (log != null) {
                         log.log(String.format("%06d-1", classpathIdx),
-                                "Ignoring duplicate (masked) class " + getPathRelativeToPackageRoot
-                                        .substring(0, getPathRelativeToPackageRoot.length() - 6).replace('/', '.')
+                                "Ignoring duplicate (masked) class "
+                                        + JarUtils.classfilePathToClassName(classfileRelativePath)
                                         + " for classpath element " + classfileMatch);
                     }
                 }
             }
-            classfileMatches = filteredClassfileMatches;
+            return maskedClassfileResources;
         }
+        return classfileResources;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
+    /** Implement masking for classfiles defined more than once on the classpath. */
+    void maskClassfiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound,
+            final LogNode maskLog) {
+        // Mask whitelisted classfile resources
+        ClasspathElement.maskClassfiles(scanSpec, classpathIdx, whitelistedClassfileResources,
+                classpathRelativePathsFound, maskLog);
 
-    /** Parse any classfiles for any whitelisted classes found within this classpath element. */
-    void parseClassfiles(final int classfileStartIdx, final int classfileEndIdx,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log) throws Exception {
-        for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
-            final Resource classfileResource = classfileMatches.get(i);
-            try {
-                final LogNode logNode = log == null ? null
-                        : log.log(classfileResource.getPath(), "Parsing classfile " + classfileResource);
-                // Parse classpath binary format, creating a ClassInfoUnlinked object
-                final ClassInfoUnlinked thisClassInfoUnlinked = new ClassfileBinaryParser()
-                        .readClassInfoFromClassfileHeader(this, classfileResource.getPath(),
-                                // Open classfile as an InputStream
-                                /* inputStreamOrByteBuffer = */ classfileResource.openOrRead(), //
-                                scanSpec, logNode);
-                // If class was successfully read, output new ClassInfoUnlinked object
-                if (thisClassInfoUnlinked != null) {
-                    classInfoUnlinked.add(thisClassInfoUnlinked);
-                    thisClassInfoUnlinked.logTo(logNode);
-                }
-                if (logNode != null) {
-                    logNode.addElapsedTime();
-                }
-            } catch (final IOException e) {
-                if (log != null) {
-                    log.log("IOException while attempting to read classfile " + classfileResource + " -- skipping",
-                            e);
-                }
-            } catch (final Throwable e) {
-                if (log != null) {
-                    log.log("Exception while parsing classfile " + classfileResource, e);
-                }
-                // Re-throw
-                throw e;
-            } finally {
-                // Close classfile InputStream (and any associated ZipEntry);
-                // recycle ZipFile or ModuleReaderProxy if applicable
-                classfileResource.close();
-            }
-        }
+        // Mask all non-blacklisted classfile resources
+        ClasspathElement.maskClassfiles(scanSpec, classpathIdx, nonBlacklistedClassfileResources,
+                classpathRelativePathsFound, /* no need to log */ null);
     }
 
     // -------------------------------------------------------------------------------------------------------------

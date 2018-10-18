@@ -190,8 +190,9 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
         if (scanSpec.performScan) {
-            fileMatches = new ArrayList<>();
-            classfileMatches = new ArrayList<>();
+            resourceMatches = new ArrayList<>();
+            whitelistedClassfileResources = new ArrayList<>();
+            nonBlacklistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }
     }
@@ -394,33 +395,42 @@ class ClasspathElementZip extends ClasspathElement {
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
-            // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that has
-            // been specifically-whitelisted
-            if (parentMatchStatus != ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                    && parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_PATH
-                    && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                            || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
-                if (subLog != null) {
-                    subLog.log("Skipping non-whitelisted path: " + relativePath);
-                }
+            if (parentMatchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
+                // The parent dir or one of its ancestral dirs is blacklisted
                 continue;
             }
 
-            if (subLog != null) {
-                subLog.log(relativePath, "Found whitelisted file: " + relativePath);
+            final Resource resource = newResource(classpathEltZipFile, packageRootPrefix, relativePath,
+                    versionedZipEntry.zipEntry);
+            final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(relativePath)
+                    && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(relativePath);
+
+            // Record non-blacklisted classfile resources
+            if (isClassfile) {
+                nonBlacklistedClassfileResources.add(resource);
             }
 
-            if (scanSpec.enableClassInfo) {
-                // Store relative paths of any classfiles encountered
-                if (FileUtils.isClassfile(relativePath)) {
-                    classfileMatches.add(newResource(classpathEltZipFile, packageRootPrefix, relativePath,
-                            versionedZipEntry.zipEntry));
+            // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that has
+            // been specifically-whitelisted
+            if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                    || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                    || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                            && scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
+                if (subLog != null) {
+                    subLog.log(relativePath, "Found whitelisted path: " + relativePath);
+                }
+
+                // Record whitelisted classfile and non-classfile resources
+                if (isClassfile) {
+                    whitelistedClassfileResources.add(resource);
+                }
+                resourceMatches.add(resource);
+
+            } else {
+                if (subLog != null) {
+                    subLog.log("Skipping non-whitelisted path: " + relativePath);
                 }
             }
-
-            // Record all classpath resources found in whitelisted paths
-            fileMatches.add(
-                    newResource(classpathEltZipFile, packageRootPrefix, relativePath, versionedZipEntry.zipEntry));
         }
         // Don't use the last modified time from the individual zipEntry
         // objects, we use the last modified time for the zipfile itself instead.

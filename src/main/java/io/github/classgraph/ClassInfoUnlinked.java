@@ -42,14 +42,15 @@ import io.github.classgraph.utils.Parser.ParseException;
  * classes. (The cross-linking is done in a separate step to avoid the complexity of dealing with race conditions.)
  */
 class ClassInfoUnlinked {
-    private final String className;
+    final String className;
     private final int classModifiers;
     private final boolean isInterface;
     private final boolean isAnnotation;
+    private final boolean isExternalClass;
     // Superclass (can be null if no superclass, or if superclass is blacklisted)
-    private String superclassName;
-    private List<String> implementedInterfaces;
-    private AnnotationInfoList classAnnotations;
+    String superclassName;
+    List<String> implementedInterfaces;
+    AnnotationInfoList classAnnotations;
     private String fullyQualifiedDefiningMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
     private AnnotationParameterValueList annotationParamDefaultValues;
@@ -59,11 +60,12 @@ class ClassInfoUnlinked {
     private String typeSignature;
 
     ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,
-            final boolean isAnnotation, final ClasspathElement classpathElement) {
+            final boolean isAnnotation, final boolean isExternalClass, final ClasspathElement classpathElement) {
         this.className = (className);
         this.classModifiers = classModifiers;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
+        this.isExternalClass = isExternalClass;
         this.classpathElement = classpathElement;
     }
 
@@ -124,7 +126,7 @@ class ClassInfoUnlinked {
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface, isAnnotation,
-                classNameToClassInfo, classpathElement, scanSpec, log);
+                isExternalClass, classNameToClassInfo, classpathElement, scanSpec, log);
         if (superclassName != null) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }

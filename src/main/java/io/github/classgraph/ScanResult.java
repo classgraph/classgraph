@@ -144,13 +144,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
         for (final ClasspathElement classpathElt : classpathOrder) {
-            if (classpathElt.fileMatches != null) {
+            if (classpathElt.resourceMatches != null) {
                 if (allResources == null) {
                     allResources = new ResourceList();
                     pathToResourceList = new HashMap<>();
                 }
-                allResources.addAll(classpathElt.fileMatches);
-                for (final Resource resource : classpathElt.fileMatches) {
+                allResources.addAll(classpathElt.resourceMatches);
+                for (final Resource resource : classpathElt.resourceMatches) {
                     final String path = resource.getPath();
                     ResourceList resourceList = pathToResourceList.get(path);
                     if (resourceList == null) {

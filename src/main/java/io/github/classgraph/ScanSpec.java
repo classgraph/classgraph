@@ -171,6 +171,13 @@ public class ScanSpec {
      */
     public boolean disableRuntimeInvisibleAnnotations = false;
 
+    /**
+     * If true, when classes have superclasses, implemented interfaces or annotations that are external classes,
+     * those classes are also scanned. (Even though this slows down scanning a bit, there is no API for disabling
+     * this currently, since disabling it can lead to problems -- see #261.)
+     */
+    public boolean extendScanningUpwardsToExternalClasses = true;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
