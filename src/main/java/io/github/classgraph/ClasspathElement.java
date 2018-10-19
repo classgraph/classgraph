@@ -218,8 +218,11 @@ abstract class ClasspathElement {
             // Should not happen
             throw new IllegalArgumentException("performScan is false");
         }
-        // Take the union of classfile and file match relative paths, since matches can be in both lists if a user
-        // adds a custom file path matcher that matches paths ending in ".class"
+        // Find relative paths that occur more than once in the classpath / module path.
+        // Usually duplicate relative paths occur only between classpath / module path elements, not within,
+        // but actually there is no restriction for paths within a zipfile to be unique, and in fact
+        // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
+        // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
         final HashSet<String> maskedRelativePaths = new HashSet<>();
         for (final Resource res : classfileResources) {
             // Don't mask module-info.class, since all modules need this classfile to be read
@@ -233,8 +236,8 @@ abstract class ClasspathElement {
                 }
             }
         }
+        // Remove masked (duplicated) paths
         if (!maskedRelativePaths.isEmpty()) {
-            // Replace the lists of matching resources with filtered versions with masked paths removed
             final List<Resource> maskedClassfileResources = new ArrayList<>();
             for (final Resource classfileMatch : classfileResources) {
                 final String classfileRelativePath = classfileMatch.getPath();

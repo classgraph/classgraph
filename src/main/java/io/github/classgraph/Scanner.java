@@ -50,7 +50,6 @@ import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
 import io.github.classgraph.utils.ClasspathFinder;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
-import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.InterruptionChecker;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
@@ -290,14 +289,10 @@ class Scanner implements Callable<ScanResult> {
                     : log.log(workUnit.classfileResource.getPath(),
                             "Parsing classfile " + workUnit.classfileResource);
             try {
-                // Open classfile as an InputStream
-                final InputStreamOrByteBufferAdapter classfileInputstream = //
-                        workUnit.classfileResource.openOrRead();
-
                 // Parse classfile binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked classInfoUnlinked = new ClassfileBinaryParser()
                         .readClassInfoFromClassfileHeader(workUnit.classpathElement,
-                                workUnit.classfileResource.getPath(), classfileInputstream,
+                                workUnit.classfileResource.getPath(), workUnit.classfileResource,
                                 workUnit.isExternalClass, scanSpec, subLog);
 
                 // If class was successfully read, output new ClassInfoUnlinked object
@@ -388,10 +383,6 @@ class Scanner implements Callable<ScanResult> {
                 }
                 // Re-throw
                 throw e;
-            } finally {
-                // Close classfile InputStream (and any associated ZipEntry);
-                // recycle ZipFile or ModuleReaderProxy if applicable
-                workUnit.classfileResource.close();
             }
             interruptionChecker.check();
         }

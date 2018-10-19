@@ -329,20 +329,9 @@ class ClassfileBinaryParser {
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
      */
-    ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
-            final String relativePath, final InputStreamOrByteBufferAdapter inputStreamOrByteBuffer,
-            final boolean isExternalClass, final ScanSpec scanSpec, final LogNode log) throws IOException {
-
-        this.inputStreamOrByteBuffer = inputStreamOrByteBuffer;
-
-        // Read the initial chunk of data into the buffer
-        inputStreamOrByteBuffer.readInitialChunk();
-
-        // Check magic number
-        if (inputStreamOrByteBuffer.readInt() != 0xCAFEBABE) {
-            throw new IOException("Classfile " + relativePath + " does not have correct classfile magic number");
-        }
-
+    private ClassInfoUnlinked readClassfile(final ClasspathElement classpathElement, final String relativePath,
+            final boolean isExternalClass, final Resource classfileResource, final ScanSpec scanSpec,
+            final LogNode log) throws IOException {
         // Minor version
         inputStreamOrByteBuffer.readUnsignedShort();
         // Major version
@@ -470,7 +459,7 @@ class ClassfileBinaryParser {
         // Create holder object for the class information. This is "unlinked", in the sense that it is
         // not linked other class info references at this point.
         final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, classModifierFlags,
-                isInterface, isAnnotation, isExternalClass, classpathElement);
+                isInterface, isAnnotation, isExternalClass, classpathElement, classfileResource);
 
         // Connect class to superclass
         classInfoUnlinked.addSuperclass(superclassName);
@@ -707,5 +696,35 @@ class ClassfileBinaryParser {
             }
         }
         return classInfoUnlinked;
+    }
+
+    /**
+     * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
+     * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
+     * masking has already been performed, so that only one class of a given name will be added.
+     */
+    ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
+            final String relativePath, final Resource classfileResource, final boolean isExternalClass,
+            final ScanSpec scanSpec, final LogNode log) throws IOException {
+        try {
+            // Open classfile as a ByteBuffer or InputStream
+            this.inputStreamOrByteBuffer = classfileResource.openOrRead();
+
+            // Read the initial chunk of data into the buffer
+            inputStreamOrByteBuffer.readInitialChunk();
+
+            // Check magic number
+            if (inputStreamOrByteBuffer.readInt() != 0xCAFEBABE) {
+                throw new IOException(
+                        "Classfile " + relativePath + " does not have correct classfile magic number");
+            }
+
+            return readClassfile(classpathElement, relativePath, isExternalClass, classfileResource, scanSpec, log);
+
+        } finally {
+            // Close classfile InputStream (and any associated ZipEntry);
+            // recycle ZipFile or ModuleReaderProxy if applicable
+            classfileResource.close();
+        }
     }
 }

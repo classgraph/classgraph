@@ -120,6 +120,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The classpath element URL (classpath root dir or jar) that this class was found within. */
     private transient URL classpathElementURL;
 
+    /** The {@link Resource} for the classfile of this class. */
+    private transient Resource resource;
+
     /** The classloaders to try to load this class with before calling a MatchProcessor. */
     transient ClassLoader[] classLoaders;
 
@@ -415,11 +418,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add a class that has just been scanned (as opposed to just referenced by a scanned class). Not threadsafe,
      * should be run in single threaded context.
+     * 
+     * @param classfileResource
      */
     static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isInterface,
             final boolean isAnnotation, final boolean isExternalClass,
             final Map<String, ClassInfo> classNameToClassInfo, final ClasspathElement classpathElement,
-            final ScanSpec scanSpec, final LogNode log) {
+            final Resource classfileResource, final ScanSpec scanSpec, final LogNode log) {
         boolean classEncounteredMultipleTimes = false;
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
@@ -450,26 +455,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
 
         if (classEncounteredMultipleTimes) {
-            // The same class was encountered more than once in a single jarfile -- should not happen. However,
-            // actually there is no restriction for paths within a zipfile to be unique (!!), and in fact
-            // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
-            // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
+            // Should not happen, since classpath masking was applied
             if (log != null) {
                 log.log("Class " + className + " is defined in multiple different classpath elements or modules -- "
-                        + "ClassInfo#getClasspathElementFile() and/or ClassInfo#getClasspathElementModuleRef "
-                        + "will only return the first of these; attempting to merge info from all copies of "
-                        + "the classfile");
+                        + "ClassInfo::getClasspathElementFile, ClassInfo::getClasspathElementModuleRef, "
+                        + "ClassInfo::getResource etc. will only return the first of these. Attempting to merge "
+                        + "info from all copies of the classfile");
             }
         }
+        // If class was found in more than one classpath element, keep only the first reference 
         if (classInfo.classpathElementFile == null) {
-            // If class was found in more than one classpath element, keep the first classpath element reference 
             classInfo.classpathElementFile = file;
-            // Save jarfile package root, if any
             classInfo.jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
         }
         if (classInfo.moduleRef == null) {
-            // If class was found in more than one module, keep the first module reference 
             classInfo.moduleRef = modRef;
+        }
+        if (classInfo.resource == null) {
+            classInfo.resource = classfileResource;
         }
 
         // Remember which classloader handles the class was found in, for classloading
@@ -749,7 +752,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public String getName() {
         return name;
     }
-    
+
     /** @return The simple name of the class. */
     public String getSimpleName() {
         return name.substring(name.lastIndexOf('.') + 1, name.length());
@@ -2113,6 +2116,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public ModuleRef getModuleRef() {
         return moduleRef;
+    }
+
+    /**
+     * @return The {@link Resource} for the classfile of this class. Will return null if this is an "external" class
+     *         (a blacklisted class, or a class in a blacklisted package, or a class that was referenced as a
+     *         superclass, interface or annotation, but that wasn't in the scanned path).
+     */
+    public Resource getResource() {
+        return resource;
     }
 
     // -------------------------------------------------------------------------------------------------------------

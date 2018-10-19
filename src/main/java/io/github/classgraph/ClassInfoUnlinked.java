@@ -55,18 +55,21 @@ class ClassInfoUnlinked {
     private List<SimpleEntry<String, String>> classContainmentEntries;
     private AnnotationParameterValueList annotationParamDefaultValues;
     final ClasspathElement classpathElement;
+    final Resource classfileResource;
     FieldInfoList fieldInfoList;
     MethodInfoList methodInfoList;
     private String typeSignature;
 
     ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,
-            final boolean isAnnotation, final boolean isExternalClass, final ClasspathElement classpathElement) {
+            final boolean isAnnotation, final boolean isExternalClass, final ClasspathElement classpathElement,
+            final Resource classfileResource) {
         this.className = (className);
         this.classModifiers = classModifiers;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
         this.isExternalClass = isExternalClass;
         this.classpathElement = classpathElement;
+        this.classfileResource = classfileResource;
     }
 
     void addTypeSignature(final String typeSignature) {
@@ -126,7 +129,7 @@ class ClassInfoUnlinked {
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface, isAnnotation,
-                isExternalClass, classNameToClassInfo, classpathElement, scanSpec, log);
+                isExternalClass, classNameToClassInfo, classpathElement, classfileResource, scanSpec, log);
         if (superclassName != null) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }
