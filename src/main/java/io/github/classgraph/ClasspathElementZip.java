@@ -406,6 +406,9 @@ class ClasspathElementZip extends ClasspathElement {
 
             if (parentMatchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
                 // The parent dir or one of its ancestral dirs is blacklisted
+                if (subLog != null) {
+                    subLog.log("Skipping blacklisted path: " + relativePath);
+                }
                 continue;
             }
 
