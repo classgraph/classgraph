@@ -257,7 +257,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     @Override
     public String toString() {
-        return reference.toString() + "; ClassLoader " + classLoader;
+        return reference.toString();
     }
 
     @Override
