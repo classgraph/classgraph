@@ -455,12 +455,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
 
         if (classEncounteredMultipleTimes) {
-            // Should not happen, since classpath masking was applied
+            // Should not happen, since classpath masking was applied, except maybe in the class of
+            // package-info.class being defined in multiple classpath elements.
             if (log != null) {
-                log.log("Class " + className + " is defined in multiple different classpath elements or modules -- "
-                        + "ClassInfo::getClasspathElementFile, ClassInfo::getClasspathElementModuleRef, "
-                        + "ClassInfo::getResource etc. will only return the first of these. Attempting to merge "
-                        + "info from all copies of the classfile");
+                log.log("Class " + className + " is defined in multiple different classpath elements or modules. "
+                        + "Attempting to merge info from all copies of the classfile.");
             }
         }
         // If class was found in more than one classpath element, keep only the first reference 

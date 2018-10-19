@@ -228,7 +228,9 @@ abstract class ClasspathElement {
             // Don't mask module-info.class, since all modules need this classfile to be read
             final String getPathRelativeToPackageRoot = res.getPath();
             if (!getPathRelativeToPackageRoot.equals("module-info.class")
-                    && !getPathRelativeToPackageRoot.endsWith("/module-info.class")) {
+                    && !getPathRelativeToPackageRoot.endsWith("/module-info.class")
+                    && !getPathRelativeToPackageRoot.equals("package-info.class")
+                    && !getPathRelativeToPackageRoot.endsWith("/package-info.class")) {
                 if (!classpathRelativePathsFound.add(getPathRelativeToPackageRoot)) {
                     // This relative path has been encountered more than once; mask the second and subsequent
                     // occurrences of the path
