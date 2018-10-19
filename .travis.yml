@@ -1,13 +1,11 @@
 language: java
 jdk:
-  - openjdk8      # Current LTS version (we build the library in JDK 7 mode, tests in JDK 8 mode) 
-  - openjdk10     # Feature release
-  - openjdk11     # Upcoming LTS
+  - openjdk8
+  - oraclejdk8
+  - openjdk11     # LTS
+  - oraclejdk11
   - openjdk-ea    # Early access
-  - oraclejdk8    # Current LTS version
-  - oraclejdk10   # Feature release
-  - oraclejdk11   # upcoming LTS
-#  - oraclejdk-ea  # Early access
+#  - oraclejdk-ea
 
 sudo: true  # https://github.com/travis-ci/travis-ci/issues/6593
 
