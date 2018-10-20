@@ -144,11 +144,11 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * Get the {@link ClassInfo} object for the named class in this package, or null if the class was not found in
      * this module.
      */
-    public ClassInfo getClassInfo(String className) {
+    public ClassInfo getClassInfo(final String className) {
         if (classInfoSet == null) {
             return null;
         }
-        for (ClassInfo ci : classInfoSet) {
+        for (final ClassInfo ci : classInfoSet) {
             if (ci.getName().equals(className)) {
                 return ci;
             }

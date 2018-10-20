@@ -40,7 +40,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     /** The location of the module. */
     private URI location;
-    
+
     /** The {@link ModuleRef}. */
     private ModuleRef moduleRef;
 
@@ -76,7 +76,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     public URI getLocation() {
         return location;
     }
-    
+
     /** The {@link ModuleRef} for this module. */
     public ModuleRef getModuleRef() {
         return moduleRef;
@@ -93,11 +93,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * Get the {@link ClassInfo} object for the named class in this module, or null if the class was not found in
      * this module.
      */
-    public ClassInfo getClassInfo(String className) {
+    public ClassInfo getClassInfo(final String className) {
         if (classInfoSet == null) {
             return null;
         }
-        for (ClassInfo ci : classInfoSet) {
+        for (final ClassInfo ci : classInfoSet) {
             if (ci.getName().equals(className)) {
                 return ci;
             }
@@ -124,11 +124,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * Get the {@link PackageInfo} object for the named packagein this module, or null if the package was not found
      * in this module.
      */
-    public PackageInfo getPackageInfo(String packageName) {
+    public PackageInfo getPackageInfo(final String packageName) {
         if (packageInfoSet == null) {
             return null;
         }
-        for (PackageInfo pi : packageInfoSet) {
+        for (final PackageInfo pi : packageInfoSet) {
             if (pi.getName().equals(packageName)) {
                 return pi;
             }
@@ -141,7 +141,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         if (packageInfoSet == null) {
             return new PackageInfoList(1);
         }
-        PackageInfoList packageInfoList = new PackageInfoList(packageInfoSet);
+        final PackageInfoList packageInfoList = new PackageInfoList(packageInfoSet);
         Collections.sort(packageInfoList);
         return packageInfoList;
     }
