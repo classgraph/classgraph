@@ -527,7 +527,8 @@ class Scanner implements Callable<ScanResult> {
                 // This is the result of a call to ClassGraph#getUniqueClasspathElements(), so just
                 // create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, rawClasspathEltOrderStrs, classLoaderOrder,
-                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
+                        /* classNameToClassInfo = */ null, /* packageNameToPackageInfo = */ null,
+                        /* moduleNameToModuleInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
                         topLevelLog);
 
             } else {
@@ -636,6 +637,8 @@ class Scanner implements Callable<ScanResult> {
                 }
 
                 final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+                final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
+                final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
                 if (!scanSpec.enableClassInfo) {
                     if (topLevelLog != null) {
                         topLevelLog.log("Classfile scanning is disabled");
@@ -682,7 +685,8 @@ class Scanner implements Callable<ScanResult> {
                     final LogNode classGraphLog = topLevelLog == null ? null
                             : topLevelLog.log("Building class graph");
                     for (final ClassInfoUnlinked c : classInfoUnlinkedQueue) {
-                        c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                        c.link(scanSpec, classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo,
+                                classGraphLog);
                     }
 
                     // Uncomment the following code to create placeholder external classes for any classes
@@ -714,7 +718,8 @@ class Scanner implements Callable<ScanResult> {
 
                 // Create ScanResult
                 scanResult = new ScanResult(scanSpec, classpathOrder, rawClasspathEltOrderStrs, classLoaderOrder,
-                        classNameToClassInfo, fileToLastModified, nestedJarHandler, topLevelLog);
+                        classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified,
+                        nestedJarHandler, topLevelLog);
 
             }
             if (topLevelLog != null) {

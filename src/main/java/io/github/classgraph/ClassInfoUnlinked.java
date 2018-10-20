@@ -60,10 +60,11 @@ class ClassInfoUnlinked {
     MethodInfoList methodInfoList;
     private String typeSignature;
 
-    ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,
-            final boolean isAnnotation, final boolean isExternalClass, final ClasspathElement classpathElement,
-            final Resource classfileResource) {
+    ClassInfoUnlinked(final String className, final String superclassName, final int classModifiers,
+            final boolean isInterface, final boolean isAnnotation, final boolean isExternalClass,
+            final ClasspathElement classpathElement, final Resource classfileResource) {
         this.className = (className);
+        this.superclassName = superclassName;
         this.classModifiers = classModifiers;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
@@ -74,10 +75,6 @@ class ClassInfoUnlinked {
 
     void addTypeSignature(final String typeSignature) {
         this.typeSignature = typeSignature;
-    }
-
-    void addSuperclass(final String superclassName) {
-        this.superclassName = superclassName;
     }
 
     void addImplementedInterface(final String interfaceName) {
@@ -126,40 +123,97 @@ class ClassInfoUnlinked {
         this.annotationParamDefaultValues.add(annotationParamDefaultValue);
     }
 
-    /** Link classes. Not threadsafe, should be run in a single-threaded context. */
-    void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
-        final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface, isAnnotation,
-                isExternalClass, classNameToClassInfo, classpathElement, classfileResource, scanSpec, log);
-        if (superclassName != null) {
-            classInfo.addSuperclass(superclassName, classNameToClassInfo);
-        }
-        if (implementedInterfaces != null) {
-            for (final String interfaceName : implementedInterfaces) {
-                classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
+    /**
+     * Link classes. Not threadsafe, should be run in a single-threaded context.
+     */
+    void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, PackageInfo> packageNameToPackageInfo,
+            final Map<String, ModuleInfo> moduleNameToModuleInfo, final LogNode log) {
+        if (className.equals("module-info") || className.endsWith(".module-info")) {
+            // Handle module descriptor classfile
+            final ModuleRef moduleRef = classfileResource.getModuleRef();
+            if (moduleRef == null) {
+                if (log != null) {
+                    log.log("Found module descriptor " + className + " but module was included in traditional "
+                            + "classpath -- will not create ModuleInfo for this classpath element");
+                }
+            } else {
+                String moduleName = moduleRef.getName();
+                if (moduleName == null || moduleName.isEmpty()) {
+                    moduleName = "<unnamed>";
+                }
+                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+                if (moduleInfo == null) {
+                    moduleNameToModuleInfo.put(moduleName, moduleInfo = new ModuleInfo(moduleRef));
+                }
+                moduleInfo.addAnnotations(classAnnotations);
             }
-        }
-        if (classAnnotations != null) {
-            for (final AnnotationInfo classAnnotation : classAnnotations) {
-                classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
+        } else if (className.equals("package-info") || className.endsWith(".package-info")) {
+            // Handle package descriptor classfile
+            final int lastDotIdx = className.lastIndexOf('.');
+            final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
+            PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
+            if (packageInfo == null) {
+                packageNameToPackageInfo.put(packageName, packageInfo = new PackageInfo(packageName));
             }
-        }
-        if (classContainmentEntries != null) {
-            ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
-        }
-        if (annotationParamDefaultValues != null) {
-            classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
-        }
-        if (fullyQualifiedDefiningMethodName != null) {
-            classInfo.addFullyQualifiedDefiningMethodName(fullyQualifiedDefiningMethodName);
-        }
-        if (fieldInfoList != null) {
-            classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
-        }
-        if (methodInfoList != null) {
-            classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
-        }
-        if (typeSignature != null) {
-            classInfo.addTypeSignature(typeSignature);
+            packageInfo.addAnnotations(classAnnotations);
+        } else {
+            // Handle regular classfile
+            final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface,
+                    isAnnotation, isExternalClass, classNameToClassInfo, classpathElement, classfileResource,
+                    scanSpec, log);
+            if (superclassName != null) {
+                classInfo.addSuperclass(superclassName, classNameToClassInfo);
+            }
+            if (implementedInterfaces != null) {
+                for (final String interfaceName : implementedInterfaces) {
+                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
+                }
+            }
+            if (classAnnotations != null) {
+                for (final AnnotationInfo classAnnotation : classAnnotations) {
+                    classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
+                }
+            }
+            if (classContainmentEntries != null) {
+                ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
+            }
+            if (annotationParamDefaultValues != null) {
+                classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
+            }
+            if (fullyQualifiedDefiningMethodName != null) {
+                classInfo.addFullyQualifiedDefiningMethodName(fullyQualifiedDefiningMethodName);
+            }
+            if (fieldInfoList != null) {
+                classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
+            }
+            if (methodInfoList != null) {
+                classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
+            }
+            if (typeSignature != null) {
+                classInfo.addTypeSignature(typeSignature);
+            }
+
+            final int lastDotIdx = className.lastIndexOf('.');
+            final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
+            PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
+            if (packageInfo == null) {
+                packageNameToPackageInfo.put(packageName, packageInfo = new PackageInfo(packageName));
+            }
+            packageInfo.addClassInfo(classInfo, classNameToClassInfo);
+
+            final ModuleRef moduleRef = classInfo.getModuleRef();
+            if (moduleRef != null) {
+                String moduleName = moduleRef.getName();
+                if (moduleName == null || moduleName.isEmpty()) {
+                    moduleName = "<unnamed>";
+                }
+                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+                if (moduleInfo == null) {
+                    moduleNameToModuleInfo.put(moduleName, moduleInfo = new ModuleInfo(moduleRef));
+                }
+                moduleInfo.addClassInfo(classInfo, classNameToClassInfo);
+            }
         }
     }
 

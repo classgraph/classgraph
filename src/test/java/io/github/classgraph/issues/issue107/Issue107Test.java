@@ -44,8 +44,11 @@ public class Issue107Test {
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
                 .scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames())
-                    .containsOnly(pkg + ".package-info");
+            assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getPackageInfo().getNames())
+                    .containsOnly(Issue107Test.class.getPackage().getName());
+            assertThat(scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo()
+                    .getNames()).containsOnly(PackageAnnotation.class.getName());
         }
     }
 }

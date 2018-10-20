@@ -85,11 +85,14 @@ public final class ScanResult implements Closeable, AutoCloseable {
      */
     private final Map<File, Long> fileToLastModified;
 
-    /**
-     * The map from class name to {@link ClassInfo}. May be null, if getting classpath elements rather than
-     * performing a full scan.
-     */
+    /** The map from class name to {@link ClassInfo}. */
     private final Map<String, ClassInfo> classNameToClassInfo;
+
+    /** The map from package name to {@link PackageInfo}. */
+    private final Map<String, PackageInfo> packageNameToPackageInfo;
+
+    /** The map from class name to {@link ClassInfo}. */
+    private final Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
      * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
@@ -106,39 +109,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
     final LogNode log;
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** The {@link WeakReference} for this ScanResult. */
-    private final WeakReference<ScanResult> weakReference;
+    // Constructor
 
     /**
-     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
-     * not blocked. (Bug #233)
+     * The result of a scan. Make sure you call complete() after calling the constructor.
      */
-    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
-            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
-
-    static {
-        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                for (final WeakReference<ScanResult> weakReference : new ArrayList<>(nonClosedWeakReferences)) {
-                    final ScanResult scanResult = weakReference.get();
-                    if (scanResult != null) {
-                        scanResult.close();
-                    }
-                    nonClosedWeakReferences.remove(weakReference);
-                }
-            }
-        });
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** The result of a scan. Make sure you call complete() after calling the constructor. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final List<String> rawClasspathEltOrderStrs, final ClassLoader[] envClassLoaderOrder,
-            final Map<String, ClassInfo> classNameToClassInfo, final Map<File, Long> fileToLastModified,
+            final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, PackageInfo> packageNameToPackageInfo,
+            final Map<String, ModuleInfo> moduleNameToModuleInfo, final Map<File, Long> fileToLastModified,
             final NestedJarHandler nestedJarHandler, final LogNode log) {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
@@ -163,6 +143,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.envClassLoaderOrder = envClassLoaderOrder;
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
+        this.packageNameToPackageInfo = packageNameToPackageInfo;
+        this.moduleNameToModuleInfo = moduleNameToModuleInfo;
         this.nestedJarHandler = nestedJarHandler;
         this.log = log;
 
@@ -183,6 +165,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Classpath / module path
 
     /**
      * Returns the list of File objects for unique classpath elements (directories or jarfiles), in classloader
@@ -302,6 +285,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Resources
 
     /** @return A list of all resources (including classfiles and non-classfiles) found in whitelisted packages. */
     public ResourceList getAllResources() {
@@ -414,69 +398,87 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Modules
 
     /**
-     * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
-     * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
-     * scan, so cannot detect the addition of directories that newly match whitelist criteria -- you need to perform
-     * a full scan to detect those changes.
-     *
-     * @return true if the classpath contents have been modified since the last scan.
+     * Get the {@link ModuleInfo} object for the named module, or null if no module of the requested name was found
+     * during the scan.
+     * 
+     * @param moduleName
+     *            The module name.
+     * @return The {@link ModuleInfo} object for the named module, or null if the module was not found.
      */
-    public boolean classpathContentsModifiedSinceScan() {
+    public ModuleInfo getModuleInfo(final String moduleName) {
         if (isClosed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        if (fileToLastModified == null) {
-            return true;
-        } else {
-            for (final Entry<File, Long> ent : fileToLastModified.entrySet()) {
-                if (ent.getKey().lastModified() != ent.getValue()) {
-                    return true;
-                }
-            }
-            return false;
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
+        return moduleNameToModuleInfo.get(moduleName);
     }
 
     /**
-     * Find the maximum last-modified timestamp of any whitelisted file/directory/jarfile encountered during the
-     * scan. Checks the current timestamps, so this should increase between calls if something changes in
-     * whitelisted paths. Assumes both file and system timestamps were generated from clocks whose time was
-     * accurate. Ignores timestamps greater than the system time.
-     * 
-     * <p>
-     * This method cannot in general tell if classpath has changed (or modules have been added or removed) if it is
-     * run twice during the same runtime session.
+     * Get all modules found during the scan.
      *
-     * @return the maximum last-modified time for whitelisted files/directories/jars encountered during the scan.
+     * @return A list of all modules found during the scan, or the empty list if none.
      */
-    public long classpathContentsLastModifiedTime() {
+    public ModuleInfoList getModuleInfo() {
         if (isClosed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        long maxLastModifiedTime = 0L;
-        if (fileToLastModified != null) {
-            final long currTime = System.currentTimeMillis();
-            for (final long timestamp : fileToLastModified.values()) {
-                if (timestamp > maxLastModifiedTime && timestamp < currTime) {
-                    maxLastModifiedTime = timestamp;
-                }
-            }
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return maxLastModifiedTime;
+        return new ModuleInfoList(moduleNameToModuleInfo.values());
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Packages
+
+    /**
+     * Get the {@link PackageInfo} object for the named package, or null if no package of the requested name was
+     * found during the scan.
+     * 
+     * @param packageName
+     *            The package name.
+     * @return The {@link PackageInfo} object for the named package, or null if the package was not found.
+     */
+    public PackageInfo getPackageInfo(final String packageName) {
+        if (isClosed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+        }
+        return packageNameToPackageInfo.get(packageName);
+    }
+
+    /**
+     * Get all packages found during the scan.
+     *
+     * @return A list of all packages found during the scan, or the empty list if none.
+     */
+    public PackageInfoList getPackageInfo() {
+        if (isClosed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+        }
+        return new PackageInfoList(packageNameToPackageInfo.values());
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
     /**
-     * Get the ClassInfo object for the named class, or null if no class of the requested name was found in a
-     * whitelisted/non-blacklisted package during scanning.
+     * Get the {@link ClassInfo} object for the named class, or null if no class of the requested name was found in
+     * a whitelisted/non-blacklisted package during the scan.
      * 
      * @param className
      *            The class name.
-     * @return The ClassInfo object for the named class, or null if the class was not found.
+     * @return The {@link ClassInfo} object for the named class, or null if the class was not found.
      */
     public ClassInfo getClassInfo(final String className) {
         if (isClosed.get()) {
@@ -735,6 +737,62 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Classpath modification tests
+
+    /**
+     * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
+     * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
+     * scan, so cannot detect the addition of directories that newly match whitelist criteria -- you need to perform
+     * a full scan to detect those changes.
+     *
+     * @return true if the classpath contents have been modified since the last scan.
+     */
+    public boolean classpathContentsModifiedSinceScan() {
+        if (isClosed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (fileToLastModified == null) {
+            return true;
+        } else {
+            for (final Entry<File, Long> ent : fileToLastModified.entrySet()) {
+                if (ent.getKey().lastModified() != ent.getValue()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Find the maximum last-modified timestamp of any whitelisted file/directory/jarfile encountered during the
+     * scan. Checks the current timestamps, so this should increase between calls if something changes in
+     * whitelisted paths. Assumes both file and system timestamps were generated from clocks whose time was
+     * accurate. Ignores timestamps greater than the system time.
+     * 
+     * <p>
+     * This method cannot in general tell if classpath has changed (or modules have been added or removed) if it is
+     * run twice during the same runtime session.
+     *
+     * @return the maximum last-modified time for whitelisted files/directories/jars encountered during the scan.
+     */
+    public long classpathContentsLastModifiedTime() {
+        if (isClosed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        long maxLastModifiedTime = 0L;
+        if (fileToLastModified != null) {
+            final long currTime = System.currentTimeMillis();
+            for (final long timestamp : fileToLastModified.values()) {
+                if (timestamp > maxLastModifiedTime && timestamp < currTime) {
+                    maxLastModifiedTime = timestamp;
+                }
+            }
+        }
+        return maxLastModifiedTime;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Classloading
 
     /**
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
@@ -837,9 +895,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Serialization / deserialization
 
     /** The current serialization format. */
-    private static final String CURRENT_SERIALIZATION_FORMAT = "4";
+    private static final String CURRENT_SERIALIZATION_FORMAT = "5";
 
     /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
     private static class SerializationFormat {
@@ -847,17 +906,22 @@ public final class ScanResult implements Closeable, AutoCloseable {
         public ScanSpec scanSpec;
         public List<String> classpath;
         public List<ClassInfo> classInfo;
+        public List<PackageInfo> packageInfo;
+        public List<ModuleInfo> moduleInfo;
 
         @SuppressWarnings("unused")
         public SerializationFormat() {
         }
 
         public SerializationFormat(final String serializationFormat, final ScanSpec scanSpec,
-                final List<ClassInfo> classInfo, final List<String> classpath) {
+                final List<ClassInfo> classInfo, final List<PackageInfo> packageInfo,
+                final List<ModuleInfo> moduleInfo, final List<String> classpath) {
             this.serializationFormat = serializationFormat;
             this.scanSpec = scanSpec;
             this.classpath = classpath;
             this.classInfo = classInfo;
+            this.packageInfo = packageInfo;
+            this.moduleInfo = moduleInfo;
         }
     }
 
@@ -900,18 +964,26 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final URLClassLoader urlClassLoader = new URLClassLoader(urls.toArray(new URL[0]), parentClassLoader);
         final ClassLoader[] classLoaderOrder = new ClassLoader[] { urlClassLoader };
 
-        // Index ClassInfo objects by name, and set the classLoaders field of each one, for classloading
+        // Index ClassInfo, PackageInfo and MethodInfo objects by name
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
         for (final ClassInfo ci : deserialized.classInfo) {
             ci.classLoaders = classLoaderOrder;
             classNameToClassInfo.put(ci.getName(), ci);
         }
+        final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
+        for (final PackageInfo pi : deserialized.packageInfo) {
+            packageNameToPackageInfo.put(pi.getName(), pi);
+        }
+        final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
+        for (final ModuleInfo mi : deserialized.moduleInfo) {
+            moduleNameToModuleInfo.put(mi.getName(), mi);
+        }
 
         // Produce a new ScanResult
         final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
                 /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), deserialized.classpath,
-                classLoaderOrder, classNameToClassInfo, /* fileToLastModified = */ null,
-                /* nestedJarHandler = */ null, /* log = */ null);
+                classLoaderOrder, classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo,
+                /* fileToLastModified = */ null, /* nestedJarHandler = */ null, /* log = */ null);
         return scanResult;
     }
 
@@ -931,8 +1003,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final List<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
         Collections.sort(allClassInfo);
+        final List<PackageInfo> allPackageInfo = new ArrayList<>(packageNameToPackageInfo.values());
+        Collections.sort(allPackageInfo);
+        final List<ModuleInfo> allModuleInfo = new ArrayList<>(moduleNameToModuleInfo.values());
+        Collections.sort(allModuleInfo);
         return JSONSerializer.serializeObject(new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec,
-                allClassInfo, rawClasspathEltOrderStrs), indentWidth, false);
+                allClassInfo, allPackageInfo, allModuleInfo, rawClasspathEltOrderStrs), indentWidth, false);
     }
 
     /**
@@ -945,6 +1021,33 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Shutdown hook / close()
+
+    /** The {@link WeakReference} for this ScanResult. */
+    private final WeakReference<ScanResult> weakReference;
+
+    /**
+     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
+     * not blocked. (Bug #233)
+     */
+    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
+            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+
+    static {
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                for (final WeakReference<ScanResult> weakReference : new ArrayList<>(nonClosedWeakReferences)) {
+                    final ScanResult scanResult = weakReference.get();
+                    if (scanResult != null) {
+                        scanResult.close();
+                    }
+                    nonClosedWeakReferences.remove(weakReference);
+                }
+            }
+        });
+    }
 
     /**
      * Free any temporary files created by extracting jars or files from within jars. Without calling this method,

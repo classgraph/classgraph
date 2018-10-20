@@ -411,11 +411,8 @@ class ClassfileBinaryParser {
         final boolean isInterface = (classModifierFlags & 0x0200) != 0;
         final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
         final boolean isModule = (classModifierFlags & 0x8000) != 0;
-
-        // Ignore module-info.class
-        if (isModule) {
-            return null;
-        }
+        final boolean isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1,
+                "package-info.class", 0, 18);
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         final String classNamePath = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
@@ -430,7 +427,7 @@ class ClassfileBinaryParser {
         }
 
         // Check class visibility modifiers
-        if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifierFlags)) {
+        if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifierFlags) && !isModule && !isPackage) {
             if (log != null) {
                 log.log("Skipping non-public class: " + className);
             }
@@ -454,15 +451,15 @@ class ClassfileBinaryParser {
         }
 
         // Superclass name, with slashes replaced with dots
-        final String superclassName = getConstantPoolClassName(inputStreamOrByteBuffer.readUnsignedShort());
+        final int superclassNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+        final String superclassName = superclassNameCpIdx > 0 ? getConstantPoolClassName(superclassNameCpIdx)
+                : null;
 
         // Create holder object for the class information. This is "unlinked", in the sense that it is
         // not linked other class info references at this point.
-        final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, classModifierFlags,
-                isInterface, isAnnotation, isExternalClass, classpathElement, classfileResource);
-
-        // Connect class to superclass
-        classInfoUnlinked.addSuperclass(superclassName);
+        final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, superclassName,
+                classModifierFlags, isInterface, isAnnotation, isExternalClass, classpathElement,
+                classfileResource);
 
         // Interfaces
         final int interfaceCount = inputStreamOrByteBuffer.readUnsignedShort();
