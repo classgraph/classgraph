@@ -29,8 +29,8 @@
 package io.github.classgraph;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /** Holds metadata about a package encountered during a scan. */
@@ -40,12 +40,20 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     /** The location of the module. */
     private URI location;
+    
+    /** The {@link ModuleRef}. */
+    private ModuleRef moduleRef;
 
-    /** {@link AnnotationInfo} for any annotations on the package-info.class file, if present, else null. */
+    /** {@link AnnotationInfo} objects for any annotations on the package-info.class file, if present, else null. */
     private AnnotationInfoList annotationInfo;
 
+    /** {@link PackageInfo} objects for packages found within the class, if any, else null. */
+    private Set<PackageInfo> packageInfoSet;
+
     /** Set of classes in the module. */
-    private final Set<ClassInfo> memberClassInfo = new HashSet<>();
+    private final Set<ClassInfo> classInfoSet = new HashSet<>();
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Deerialization constructor. */
     ModuleInfo() {
@@ -53,28 +61,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     /** Construct a ModuleInfo object. */
     ModuleInfo(final ModuleRef moduleRef) {
+        this.moduleRef = moduleRef;
         this.name = moduleRef.getName();
         this.location = moduleRef.getLocation();
-    }
-
-    /** Add annotations found in a module descriptor classfile. */
-    void addAnnotations(final AnnotationInfoList moduleAnnotations) {
-        // Currently only class annotations are used in the module-info.class file
-        if (moduleAnnotations != null && !moduleAnnotations.isEmpty()) {
-            if (this.annotationInfo == null) {
-                this.annotationInfo = new AnnotationInfoList(moduleAnnotations);
-            } else {
-                this.annotationInfo.addAll(moduleAnnotations);
-            }
-        }
-    }
-
-    /**
-     * Merge a {@link ClassInfo} object for a module-info.class file into this ModuleInfo. (The same
-     * module-info.class file may be present in multiple definitions of the same module in the module path.)
-     */
-    void addClassInfo(final ClassInfo classInfo, final Map<String, ClassInfo> classNameToClassInfo) {
-        memberClassInfo.add(classInfo);
     }
 
     /** The module name ({@code "<unnamed>"} for the unnamed module). */
@@ -86,6 +75,86 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** The module location. */
     public URI getLocation() {
         return location;
+    }
+    
+    /** The {@link ModuleRef} for this module. */
+    public ModuleRef getModuleRef() {
+        return moduleRef;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Add a {@link ClassiInfo} object to this {@link ModuleInfo}. */
+    void addClassInfo(final ClassInfo classInfo) {
+        classInfoSet.add(classInfo);
+    }
+
+    /**
+     * Get the {@link ClassInfo} object for the named class in this module, or null if the class was not found in
+     * this module.
+     */
+    public ClassInfo getClassInfo(String packageName) {
+        if (classInfoSet == null) {
+            return null;
+        }
+        for (ClassInfo ci : classInfoSet) {
+            if (ci.getName().equals(packageName)) {
+                return ci;
+            }
+        }
+        return null;
+    }
+
+    /** Get the {@link ClassInfo} objects for all classes that are members of this package. */
+    public ClassInfoList getClassInfo() {
+        return new ClassInfoList(classInfoSet, /* sortByName = */ true);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Add a {@link PackageInfo} object to this {@link ModuleInfo}. */
+    void addPackageInfo(final PackageInfo packageInfo) {
+        packageInfoSet.add(packageInfo);
+    }
+
+    /**
+     * Get the {@link PackageInfo} object for the named packagein this module, or null if the package was not found
+     * in this module.
+     */
+    public PackageInfo getPackageInfo(String packageName) {
+        if (packageInfoSet == null) {
+            return null;
+        }
+        for (PackageInfo pi : packageInfoSet) {
+            if (pi.getName().equals(packageName)) {
+                return pi;
+            }
+        }
+        return null;
+    }
+
+    /** Get the {@link PackageInfo} objects for all packages that are members of this module. */
+    public PackageInfoList getPackageInfo() {
+        if (packageInfoSet == null) {
+            return new PackageInfoList(1);
+        }
+        PackageInfoList packageInfoList = new PackageInfoList(packageInfoSet);
+        Collections.sort(packageInfoList);
+        return packageInfoList;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Add annotations found in a module descriptor classfile. */
+    void addAnnotations(final AnnotationInfoList moduleAnnotations) {
+        // Currently only class annotations are used in the module-info.class file
+        if (moduleAnnotations != null && !moduleAnnotations.isEmpty()) {
+            if (this.annotationInfo == null) {
+                this.annotationInfo = new AnnotationInfoList(moduleAnnotations);
+            } else {
+                this.annotationInfo.addAll(moduleAnnotations);
+            }
+        }
     }
 
     /**
@@ -114,10 +183,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return getAnnotationInfo().containsName(annotationName);
     }
 
-    /** Get the {@link ClassInfo} objects for all classes that are members of this package. */
-    public ClassInfoList getMemberClassInfo() {
-        return new ClassInfoList(memberClassInfo, /* sortByName = */ true);
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public int compareTo(final ModuleInfo o) {
