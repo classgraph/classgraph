@@ -92,6 +92,15 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
+    /**
+     * @param annotationName
+     *            The name of an annotation.
+     * @return true if this package has the named annotation.
+     */
+    public boolean hasAnnotation(final String annotationName) {
+        return getAnnotationInfo().containsName(annotationName);
+    }
+
     /** The parent package of this package, or null if this is the root package. */
     public PackageInfo getParent() {
         return parent;

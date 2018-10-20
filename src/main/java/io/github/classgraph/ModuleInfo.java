@@ -93,6 +93,15 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
+    /**
+     * @param annotationName
+     *            The name of an annotation.
+     * @return true if this module has the named annotation.
+     */
+    public boolean hasAnnotation(final String annotationName) {
+        return getAnnotationInfo().containsName(annotationName);
+    }
+
     /** Get the {@link ClassInfo} objects for all classes that are members of this package. */
     public ClassInfoList getMemberClassInfo() {
         return new ClassInfoList(memberClassInfo, /* sortByName = */ true);
