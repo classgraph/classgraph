@@ -114,6 +114,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     /** Add a {@link PackageInfo} object to this {@link ModuleInfo}. */
     void addPackageInfo(final PackageInfo packageInfo) {
+        if (packageInfoSet == null) {
+            packageInfoSet = new HashSet<>();
+        }
         packageInfoSet.add(packageInfo);
     }
 
