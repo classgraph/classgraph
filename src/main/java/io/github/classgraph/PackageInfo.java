@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.Set;
 
 /** Holds metadata about a package encountered during a scan. */
-public class PackageInfo implements Comparable<PackageInfo> {
+public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /** Name of the package. */
     private String name;
 
@@ -60,7 +60,7 @@ public class PackageInfo implements Comparable<PackageInfo> {
     PackageInfo(final String packageName) {
         this.name = packageName;
     }
-    
+
     /** Add annotations found in a package descriptor classfile. */
     void addAnnotations(final AnnotationInfoList packageAnnotations) {
         // Currently only class annotations are used in the package-info.class file
@@ -82,6 +82,7 @@ public class PackageInfo implements Comparable<PackageInfo> {
     }
 
     /** The package name ("" for the root package). */
+    @Override
     public String getName() {
         return name;
     }

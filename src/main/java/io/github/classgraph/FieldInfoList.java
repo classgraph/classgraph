@@ -28,15 +28,12 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link FieldInfo} objects. */
-public class FieldInfoList extends ArrayList<FieldInfo> {
+public class FieldInfoList extends MappableInfoList<FieldInfo> {
 
     FieldInfoList() {
         super();
@@ -101,81 +98,6 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @return The names of all fields in this list, by calling {@link FieldInfo#getName()} for each item in the
-     *         list.
-     */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> fieldNames = new ArrayList<>(this.size());
-            for (final FieldInfo fi : this) {
-                fieldNames.add(fi.getName());
-            }
-            return fieldNames;
-        }
-    }
-
-    /**
-     * @return The string representations of all fields in this list (with annotations, modifiers, etc.), by calling
-     *         {@link FieldInfo#toString()} for each item in the list.
-     */
-    public List<String> getAsStrings() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> toStringVals = new ArrayList<>(this.size());
-            for (final FieldInfo fi : this) {
-                toStringVals.add(fi.toString());
-            }
-            return toStringVals;
-        }
-    }
-
-    /**
-     * @return This {@link FieldInfoList} as a map from field name to {@link FieldInfo} object.
-     */
-    public Map<String, FieldInfo> asMap() {
-        final Map<String, FieldInfo> fieldNameToFieldInfo = new HashMap<>();
-        for (final FieldInfo fieldInfo : this) {
-            fieldNameToFieldInfo.put(fieldInfo.getName(), fieldInfo);
-        }
-        return fieldNameToFieldInfo;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @param fieldName
-     *            The name of a field.
-     * @return true if this list contains a field with the given name.
-     */
-    public boolean containsName(final String fieldName) {
-        for (final FieldInfo fi : this) {
-            if (fi.getName().equals(fieldName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @param fieldName
-     *            The name of a field.
-     * @return The {@link FieldInfo} object in the list with the given name, or null if not found.
-     */
-    public FieldInfo get(final String fieldName) {
-        for (final FieldInfo fi : this) {
-            if (fi.getName().equals(fieldName)) {
-                return fi;
-            }
-        }
-        return null;
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 

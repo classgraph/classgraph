@@ -40,7 +40,7 @@ import io.github.classgraph.utils.Parser.ParseException;
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class MethodInfo extends ScanResultObject implements Comparable<MethodInfo> {
+public class MethodInfo extends ScanResultObject implements Comparable<MethodInfo>, HasName {
     /** Defining class name. */
     private String declaringClassName;
 
@@ -145,6 +145,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * 
      * @return The name of the method.
      */
+    @Override
     public String getName() {
         return name;
     }

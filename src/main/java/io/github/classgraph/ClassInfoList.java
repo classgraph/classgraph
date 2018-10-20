@@ -35,13 +35,12 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
+import io.github.classgraph.InfoList.MappableInfoList;
 
 /**
  * A list of {@link ClassInfo} objects, which stores both reachable classes (obtained through a given class
@@ -52,7 +51,7 @@ import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
  * By default, this list returns reachable classes. By calling {@link #directOnly()}, you can get the directly
  * related classes.
  */
-public class ClassInfoList extends ArrayList<ClassInfo> {
+public class ClassInfoList extends MappableInfoList<ClassInfo> {
 
     private final Set<ClassInfo> directlyRelatedClasses;
     private final boolean sortByName;
@@ -255,70 +254,6 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return The names of all classes in this list, by calling {@link ClassInfo#getName()} for each item in the
-     *         list.
-     */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> names = new ArrayList<>(this.size());
-            for (final ClassInfo ci : this) {
-                names.add(ci.getName());
-            }
-            return names;
-        }
-    }
-
-    /**
-     * @return The string representations of all classes in this list (with annotations, modifiers, etc.), by
-     *         calling {@link ClassInfo#toString()} for each item in the list.
-     */
-    public List<String> getAsStrings() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> toStringVals = new ArrayList<>(this.size());
-            for (final ClassInfo ci : this) {
-                toStringVals.add(ci.toString());
-            }
-            return toStringVals;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @param className
-     *            The name of a class.
-     * @return true if the list contains a class with the given name.
-     */
-    public boolean containsName(final String className) {
-        for (final ClassInfo ci : this) {
-            if (ci.getName().equals(className)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @param className
-     *            The fully-qualified name of a class.
-     * @return The {@link ClassInfo} object in the list with the given name, or null if not found.
-     */
-    public ClassInfo get(final String className) {
-        for (final ClassInfo ci : this) {
-            if (ci.getName().equals(className)) {
-                return ci;
-            }
-        }
-        return null;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Get the list of classes that were directly related, as opposed to reachable through multiple steps. For
      * example, if this {@link ClassInfoList} was produced by querying for all superclasses of a given class, then
      * {@link #directOnly()} will return only the direct superclass of this class.
@@ -327,17 +262,6 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList directOnly() {
         return new ClassInfoList(directlyRelatedClasses, directlyRelatedClasses, sortByName);
-    }
-
-    /**
-     * @return This {@link ClassInfoList} as a map from class name to {@link ClassInfo} object.
-     */
-    public Map<String, ClassInfo> asMap() {
-        final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-        for (final ClassInfo classInfo : this) {
-            classNameToClassInfo.put(classInfo.getName(), classInfo);
-        }
-        return classNameToClassInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------

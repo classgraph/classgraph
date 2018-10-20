@@ -28,15 +28,12 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link ModuleInfo} objects. */
-public class ModuleInfoList extends ArrayList<ModuleInfo> {
+public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
 
     ModuleInfoList() {
         super();
@@ -48,65 +45,6 @@ public class ModuleInfoList extends ArrayList<ModuleInfo> {
 
     ModuleInfoList(final Collection<ModuleInfo> moduleInfoCollection) {
         super(moduleInfoCollection);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @return The names of all modules in this list, by calling {@link ModuleInfo#getName()} for each item in the
-     *         list.
-     */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> moduleNames = new ArrayList<>(this.size());
-            for (final ModuleInfo mi : this) {
-                moduleNames.add(mi.getName());
-            }
-            return moduleNames;
-        }
-    }
-
-    /**
-     * @return This {@link ModuleInfoList} as a map from module name to {@link ModuleInfo} object.
-     */
-    public Map<String, ModuleInfo> asMap() {
-        final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
-        for (final ModuleInfo mi : this) {
-            moduleNameToModuleInfo.put(mi.getName(), mi);
-        }
-        return moduleNameToModuleInfo;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @param moduleName
-     *            The name of a module.
-     * @return true if this list contains a module with the given name.
-     */
-    public boolean containsName(final String moduleName) {
-        for (final ModuleInfo mi : this) {
-            if (mi.getName().equals(moduleName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @param moduleName
-     *            The name of a module.
-     * @return The {@link ModuleInfo} object in the list with the given name, or null if not found.
-     */
-    public ModuleInfo get(final String moduleName) {
-        for (final ModuleInfo mi : this) {
-            if (mi.getName().equals(moduleName)) {
-                return mi;
-            }
-        }
-        return null;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -54,7 +54,7 @@ import io.github.classgraph.utils.Parser.ParseException;
 import io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */
-public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo> {
+public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
     /** Name of the class. */
     private @Id String name;
 
@@ -748,6 +748,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Predicates
 
     /** @return The name of the class. */
+    @Override
     public String getName() {
         return name;
     }

@@ -28,15 +28,12 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link PackageInfo} objects. */
-public class PackageInfoList extends ArrayList<PackageInfo> {
+public class PackageInfoList extends MappableInfoList<PackageInfo> {
 
     PackageInfoList() {
         super();
@@ -48,65 +45,6 @@ public class PackageInfoList extends ArrayList<PackageInfo> {
 
     PackageInfoList(final Collection<PackageInfo> packageInfoCollection) {
         super(packageInfoCollection);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @return The names of all packages in this list, by calling {@link PackageInfo#getName()} for each item in the
-     *         list.
-     */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> packageNames = new ArrayList<>(this.size());
-            for (final PackageInfo pi : this) {
-                packageNames.add(pi.getName());
-            }
-            return packageNames;
-        }
-    }
-
-    /**
-     * @return This {@link PackageInfoList} as a map from package name to {@link PackageInfo} object.
-     */
-    public Map<String, PackageInfo> asMap() {
-        final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
-        for (final PackageInfo pi : this) {
-            packageNameToPackageInfo.put(pi.getName(), pi);
-        }
-        return packageNameToPackageInfo;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @param packageName
-     *            The name of a package.
-     * @return true if this list contains a package with the given name.
-     */
-    public boolean containsName(final String packageName) {
-        for (final PackageInfo pi : this) {
-            if (pi.getName().equals(packageName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @param packageName
-     *            The name of a package.
-     * @return The {@link PackageInfo} object in the list with the given name, or null if not found.
-     */
-    public PackageInfo get(final String packageName) {
-        for (final PackageInfo pi : this) {
-            if (pi.getName().equals(packageName)) {
-                return pi;
-            }
-        }
-        return null;
     }
 
     // -------------------------------------------------------------------------------------------------------------

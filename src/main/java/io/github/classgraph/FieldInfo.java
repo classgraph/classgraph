@@ -38,7 +38,7 @@ import io.github.classgraph.utils.Parser.ParseException;
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo> {
+public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>, HasName {
     private String declaringClassName;
     private String name;
     private int modifiers;
@@ -95,6 +95,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     /**
      * @return The name of the field.
      */
+    @Override
     public String getName() {
         return name;
     }

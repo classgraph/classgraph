@@ -28,15 +28,12 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /** A list of {@link MethodInfo} objects. */
-public class MethodInfoList extends ArrayList<MethodInfo> {
+public class MethodInfoList extends InfoList<MethodInfo> {
 
     /** Construct a list of {@link MethodInfo} objects. */
     MethodInfoList() {
@@ -104,38 +101,6 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
     };
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @return The names of all methods in this list, by calling {@link MethodInfo#getName()} for each item in the
-     *         list.
-     */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> methodNames = new ArrayList<>(this.size());
-            for (final MethodInfo mi : this) {
-                methodNames.add(mi.getName());
-            }
-            return methodNames;
-        }
-    }
-
-    /**
-     * @return The string representations of all methods in this list (with annotations, modifiers, params, etc.),
-     *         by calling {@link MethodInfo#toString()} for each item in the list.
-     */
-    public List<String> getAsStrings() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> toStringVals = new ArrayList<>(this.size());
-            for (final MethodInfo mi : this) {
-                toStringVals.add(mi.toString());
-            }
-            return toStringVals;
-        }
-    }
 
     /**
      * @return This {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with

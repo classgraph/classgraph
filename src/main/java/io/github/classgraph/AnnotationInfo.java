@@ -42,7 +42,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 /** Holds metadata about a specific annotation instance on a class, method, method parameter or field. */
-public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
+public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
 
     private String name;
     AnnotationParameterValueList annotationParamValues;
@@ -77,6 +77,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * @return The name of the annotation class.
      */
+    @Override
     public String getName() {
         return name;
     }

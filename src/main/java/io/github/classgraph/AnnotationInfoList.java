@@ -28,15 +28,12 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link AnnotationInfo} objects. */
-public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
+public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     AnnotationInfoList() {
         super();
     }
@@ -100,81 +97,6 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @return The names of all annotations in this list, by calling {@link AnnotationInfo#getName()} for each item
-     *         in the list.
-     */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> classNames = new ArrayList<>(this.size());
-            for (final AnnotationInfo ai : this) {
-                classNames.add(ai.getName());
-            }
-            return classNames;
-        }
-    }
-
-    /**
-     * @return The string representations of all annotations in this list, by calling
-     *         {@link AnnotationInfo#toString()} for each item in the list.
-     */
-    public List<String> getAsStrings() {
-        if (this.isEmpty()) {
-            return Collections.<String> emptyList();
-        } else {
-            final List<String> toStringVals = new ArrayList<>(this.size());
-            for (final AnnotationInfo ai : this) {
-                toStringVals.add(ai.toString());
-            }
-            return toStringVals;
-        }
-    }
-
-    /**
-     * @return This {@link AnnotationInfoList} as a map from annotation name to {@link AnnotationInfo} object.
-     */
-    public Map<String, AnnotationInfo> asMap() {
-        final Map<String, AnnotationInfo> annotationNameToAnnotationInfo = new HashMap<>();
-        for (final AnnotationInfo annotationInfo : this) {
-            annotationNameToAnnotationInfo.put(annotationInfo.getName(), annotationInfo);
-        }
-        return annotationNameToAnnotationInfo;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * @param annotationName
-     *            The fully-qualified class name of an annotation.
-     * @return true if this list contains the annotation with the given name.
-     */
-    public boolean containsName(final String annotationName) {
-        for (final AnnotationInfo ai : this) {
-            if (ai.getName().equals(annotationName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @param annotationName
-     *            The fully-qualified class name of an annotation.
-     * @return The {@link AnnotationInfo} object in the list with the given name, or null if not found.
-     */
-    public AnnotationInfo get(final String annotationName) {
-        for (final AnnotationInfo ai : this) {
-            if (ai.getName().equals(annotationName)) {
-                return ai;
-            }
-        }
-        return null;
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 

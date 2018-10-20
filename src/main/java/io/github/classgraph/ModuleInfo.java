@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 /** Holds metadata about a package encountered during a scan. */
-public class ModuleInfo implements Comparable<ModuleInfo> {
+public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** The name of the module. */
     private String name;
 
@@ -56,8 +56,7 @@ public class ModuleInfo implements Comparable<ModuleInfo> {
         this.name = moduleRef.getName();
         this.location = moduleRef.getLocation();
     }
-    
-    
+
     /** Add annotations found in a module descriptor classfile. */
     void addAnnotations(final AnnotationInfoList moduleAnnotations) {
         // Currently only class annotations are used in the module-info.class file
@@ -78,7 +77,8 @@ public class ModuleInfo implements Comparable<ModuleInfo> {
         memberClassInfo.add(classInfo);
     }
 
-    /** The module name ("<unnamed>" for the unnamed module). */
+    /** The module name ({@code "<unnamed>"} for the unnamed module). */
+    @Override
     public String getName() {
         return name;
     }
