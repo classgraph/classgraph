@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -47,7 +48,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     private PackageInfo parent;
 
     /** The child packages of this package. */
-    private List<PackageInfo> children;
+    private Set<PackageInfo> children;
 
     /** Set of classes in the package. */
     private final Set<ClassInfo> classInfoSet = new HashSet<>();
@@ -128,14 +129,15 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
     /** The child packages of this package, or the empty list if none. */
     public List<PackageInfo> getChildren() {
+        final List<PackageInfo> childrenSorted = new ArrayList<>(children);
         // Ensure children are sorted
-        Collections.sort(children, new Comparator<PackageInfo>() {
+        Collections.sort(childrenSorted, new Comparator<PackageInfo>() {
             @Override
             public int compare(final PackageInfo o1, final PackageInfo o2) {
                 return o1.name.compareTo(o2.name);
             }
         });
-        return children;
+        return childrenSorted;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -173,6 +175,51 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         final Set<ClassInfo> reachableClassInfo = new HashSet<>();
         getClassInfoRecursive(reachableClassInfo);
         return new ClassInfoList(reachableClassInfo, /* sortByName = */ true);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the {@link PackageInfo} object for the named package, also creating {@link PackageInfo} objects for any
+     * needed parent packages.
+     */
+    public static PackageInfo getPackage(final String packageName,
+            final Map<String, PackageInfo> packageNameToPackageInfo) {
+        // Get or create PackageInfo object for this package
+        PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
+        if (packageInfo != null) {
+            // PackageInfo object already exists for this package
+            return packageInfo;
+        }
+        packageNameToPackageInfo.put(packageName, packageInfo = new PackageInfo(packageName));
+
+        // Create PackageInfo objects for parent packages, and connect parents to children and vice versa
+        for (PackageInfo parentPackageInfo, currPackageInfo = packageInfo;
+                // Stop after root package is reached
+                !currPackageInfo.name.isEmpty(); currPackageInfo = parentPackageInfo) {
+            final int lastDotIdx = currPackageInfo.name.lastIndexOf('.');
+            final String parentPackageName = lastDotIdx < 0 ? "" : currPackageInfo.name.substring(0, lastDotIdx);
+            parentPackageInfo = packageNameToPackageInfo.get(parentPackageName);
+            final boolean parentPackageAlreadyExisted = parentPackageInfo != null;
+            if (!parentPackageAlreadyExisted) {
+                packageNameToPackageInfo.put(parentPackageName,
+                        parentPackageInfo = new PackageInfo(parentPackageName));
+                if (currPackageInfo != null) {
+                    parentPackageInfo.children = new HashSet<>();
+                }
+            }
+            if (currPackageInfo != null) {
+                currPackageInfo.parent = parentPackageInfo;
+                parentPackageInfo.children.add(parentPackageInfo);
+            }
+            if (parentPackageAlreadyExisted) {
+                // Stop once an already-existant parent package is reached
+                break;
+            }
+        }
+
+        // Return the newly-created PackageInfo object
+        return packageInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------
