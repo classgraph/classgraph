@@ -88,6 +88,18 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return location;
     }
 
+    /**
+     * Get a the named annotation on this module, or null if the module does not have the named annotation.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on this module, or null if the
+     *         module does not have the named annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+        return getAnnotationInfo().get(annotationName);
+    }
+
     /** Get any annotations on the {@code package-info.class} file. */
     public AnnotationInfoList getAnnotationInfo() {
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;

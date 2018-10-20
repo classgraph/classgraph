@@ -93,6 +93,18 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
+     * Get a the named annotation on this package, or null if the package does not have the named annotation.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on this package, or null if the
+     *         package does not have the named annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+        return getAnnotationInfo().get(annotationName);
+    }
+
+    /**
      * @param annotationName
      *            The name of an annotation.
      * @return true if this package has the named annotation.
