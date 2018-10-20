@@ -50,7 +50,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     private List<PackageInfo> children;
 
     /** Set of classes in the package. */
-    private final Set<ClassInfo> memberClassInfo = new HashSet<>();
+    private final Set<ClassInfo> classInfoSet = new HashSet<>();
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Deerialization constructor. */
     PackageInfo() {
@@ -60,6 +62,14 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     PackageInfo(final String packageName) {
         this.name = packageName;
     }
+
+    /** The package name ("" for the root package). */
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Add annotations found in a package descriptor classfile. */
     void addAnnotations(final AnnotationInfoList packageAnnotations) {
@@ -78,19 +88,10 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * package-info.class file may be present in multiple definitions of the package in different modules.)
      */
     void addClassInfo(final ClassInfo classInfo, final Map<String, ClassInfo> classNameToClassInfo) {
-        memberClassInfo.add(classInfo);
+        classInfoSet.add(classInfo);
     }
 
-    /** The package name ("" for the root package). */
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    /** Get any annotations on the {@code package-info.class} file. */
-    public AnnotationInfoList getAnnotationInfo() {
-        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get a the named annotation on this package, or null if the package does not have the named annotation.
@@ -104,6 +105,11 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         return getAnnotationInfo().get(annotationName);
     }
 
+    /** Get any annotations on the {@code package-info.class} file. */
+    public AnnotationInfoList getAnnotationInfo() {
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+    }
+
     /**
      * @param annotationName
      *            The name of an annotation.
@@ -112,6 +118,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     public boolean hasAnnotation(final String annotationName) {
         return getAnnotationInfo().containsName(annotationName);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** The parent package of this package, or null if this is the root package. */
     public PackageInfo getParent() {
@@ -130,24 +138,44 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         return children;
     }
 
-    /** Get the {@link ClassInfo} objects for all classes that are members of this package. */
-    public ClassInfoList getMemberClassInfo() {
-        return new ClassInfoList(memberClassInfo, /* sortByName = */ true);
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the {@link ClassInfo} object for the named class in this package, or null if the class was not found in
+     * this module.
+     */
+    public ClassInfo getClassInfo(String className) {
+        if (classInfoSet == null) {
+            return null;
+        }
+        for (ClassInfo ci : classInfoSet) {
+            if (ci.getName().equals(className)) {
+                return ci;
+            }
+        }
+        return null;
     }
 
-    private void getMemberClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
-        reachableClassInfo.addAll(memberClassInfo);
+    /** Get the {@link ClassInfo} objects for all classes that are members of this package. */
+    public ClassInfoList getClassInfo() {
+        return new ClassInfoList(classInfoSet, /* sortByName = */ true);
+    }
+
+    private void getClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
+        reachableClassInfo.addAll(classInfoSet);
         for (final PackageInfo subPackageInfo : getChildren()) {
-            subPackageInfo.getMemberClassInfoRecursive(reachableClassInfo);
+            subPackageInfo.getClassInfoRecursive(reachableClassInfo);
         }
     }
 
     /** Get the {@link ClassInfo} objects for all classes that are members of this package or a sub-package. */
-    public ClassInfoList getMemberClassInfoRecursive() {
+    public ClassInfoList getClassInfoRecursive() {
         final Set<ClassInfo> reachableClassInfo = new HashSet<>();
-        getMemberClassInfoRecursive(reachableClassInfo);
+        getClassInfoRecursive(reachableClassInfo);
         return new ClassInfoList(reachableClassInfo, /* sortByName = */ true);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public int compareTo(final PackageInfo o) {
