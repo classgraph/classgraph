@@ -212,7 +212,8 @@ class ClassInfoUnlinked {
                 if (moduleInfo == null) {
                     moduleNameToModuleInfo.put(moduleName, moduleInfo = new ModuleInfo(moduleRef));
                 }
-                moduleInfo.addClassInfo(classInfo, classNameToClassInfo);
+                moduleInfo.addClassInfo(classInfo);
+                moduleInfo.addPackageInfo(packageInfo);
             }
         }
     }
