@@ -551,11 +551,15 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Scan one or more specific packages and their sub-packages. (Automatically calls {@link #enableClassInfo()}.)
+     * Scan one or more specific packages and their sub-packages.
+     * 
+     * <p>
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #whitelistPaths(String...)} instead if you
+     * only need to scan resources.
      *
      * @param packageNames
      *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
-     *            wildcard ('*').
+     *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph whitelistPackages(final String... packageNames) {
@@ -568,6 +572,7 @@ public class ClassGraph {
             // Whitelist package
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
             scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+            // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!packageName.contains("*")) {
                 // Whitelist sub-packages
                 scanSpec.packagePrefixWhiteBlackList
@@ -583,7 +588,7 @@ public class ClassGraph {
      *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
-     *            separator). May include a glob wildcard ('*').
+     *            separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph whitelistPaths(final String... paths) {
@@ -591,6 +596,7 @@ public class ClassGraph {
             // Whitelist path
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path));
             scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path));
+            // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!path.contains("*")) {
                 // Whitelist sub-directories / nested paths
                 scanSpec.packagePrefixWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path) + ".");
@@ -602,14 +608,20 @@ public class ClassGraph {
 
     /**
      * Scan one or more specific packages, without recursively scanning sub-packages unless they are themselves
-     * whitelisted. (Automatically calls {@link #enableClassInfo()}.)
+     * whitelisted.
+     * 
+     * <p>
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #whitelistPathsNonRecursive(String...)}
+     * instead if you only need to scan resources.
      * 
      * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
      * the jar, dir or module.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to scan (with '.' as a separator).
+     *            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
+     *            wildcard ({@code '*'}).
+     * 
      * @return this (for method chaining).
      */
     public ClassGraph whitelistPackagesNonRecursive(final String... packageNames) {
@@ -635,7 +647,7 @@ public class ClassGraph {
      *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
-     *            separator).
+     *            separator). May not include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph whitelistPathsNonRecursive(final String... paths) {
@@ -651,12 +663,15 @@ public class ClassGraph {
     }
 
     /**
-     * Prevent the scanning of one or more specific packages and their sub-packages. (Automatically calls
-     * {@link #enableClassInfo()}.)
+     * Prevent the scanning of one or more specific packages and their sub-packages.
+     * 
+     * <p>
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #blacklistPaths(String...)} instead if you
+     * only need to scan resources.
      *
      * @param packageNames
      *            The fully-qualified names of packages to blacklist (with '.' as a separator). May include a glob
-     *            wildcard ('*').
+     *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph blacklistPackages(final String... packageNames) {
@@ -679,7 +694,7 @@ public class ClassGraph {
      * Prevent the scanning of one or more specific paths and their sub-directories / nested paths.
      *
      * @param paths
-     *            The paths to blacklist (with '/' as a separator). May include a glob wildcard ('*').
+     *            The paths to blacklist (with '/' as a separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph blacklistPaths(final String... paths) {
@@ -698,10 +713,15 @@ public class ClassGraph {
 
     /**
      * Scan one or more specific classes, without scanning other classes in the same package unless the package is
-     * itself whitelisted. (Automatically calls {@link #enableClassInfo()}.)
+     * itself whitelisted.
+     * 
+     * <p>
+     * N.B. Automatically calls {@link #enableClassInfo()}.
      *
+     * 
      * @param classNames
-     *            The fully-qualified names of classes to scan (using '.' as a separator).
+     *            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
+     *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph whitelistClasses(final String... classNames) {
@@ -726,10 +746,14 @@ public class ClassGraph {
 
     /**
      * Specifically blacklist one or more specific classes, preventing them from being scanned even if they are in a
-     * whitelisted package. (Automatically calls {@link #enableClassInfo()}.)
+     * whitelisted package.
+     * 
+     * <p>
+     * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      * @param classNames
-     *            The fully-qualified names of classes to blacklist (using '.' as a separator).
+     *            The fully-qualified names of classes to blacklist (using '.' as a separator). May not include a
+     *            glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph blacklistClasses(final String... classNames) {
@@ -748,8 +772,8 @@ public class ClassGraph {
      * Whitelist one or more jars. This will cause only the whitelisted jars to be scanned.
      *
      * @param jarLeafNames
-     *            The leafnames of the jars that should be scanned (e.g. "badlib.jar"). May contain a wildcard glob
-     *            ('*').
+     *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain a
+     *            wildcard glob ({@code "mylib-*.jar"}).
      * @return this (for method chaining).
      */
     public ClassGraph whitelistJars(final String... jarLeafNames) {
@@ -767,8 +791,8 @@ public class ClassGraph {
      * Blacklist one or more jars, preventing them from being scanned.
      *
      * @param jarLeafNames
-     *            The leafnames of the jars that should not be scanned (e.g. "badlib.jar"). May contain a wildcard
-     *            glob ('*').
+     *            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain a
+     *            wildcard glob ({@code "badlib-*.jar"}).
      * @return this (for method chaining).
      */
     public ClassGraph blacklistJars(final String... jarLeafNames) {
@@ -787,9 +811,9 @@ public class ClassGraph {
      * {@link #enableSystemPackages()} is called, by association with the JRE/JDK).
      *
      * @param jarLeafNames
-     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. "mylib.jar"). May contain a
-     *            wildcard glob ('*'). If you call this method with no parameters, all JRE/JDK "lib/" or "ext/" jars
-     *            will be whitelisted.
+     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
+     *            a wildcard glob ({@code '*'}). If you call this method with no parameters, all JRE/JDK "lib/" or
+     *            "ext/" jars will be whitelisted.
      * @return this (for method chaining).
      */
     public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
@@ -848,9 +872,9 @@ public class ClassGraph {
      * Blacklist one or more jars in a JRE/JDK "lib/" or "ext/" directory, preventing them from being scanned.
      *
      * @param jarLeafNames
-     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g. "badlib.jar"). May contain a
-     *            wildcard glob ('*'). If you call this method with no parameters, all JRE/JDK "lib/" or "ext/" jars
-     *            will be blacklisted.
+     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
+     *            {@code "jre/lib/badlib.jar"}). May contain a wildcard glob ({@code '*'}). If you call this method
+     *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be blacklisted.
      * @return this (for method chaining).
      */
     public ClassGraph blacklistLibOrExtJars(final String... jarLeafNames) {
@@ -909,7 +933,7 @@ public class ClassGraph {
      * Whitelist one or more modules to scan.
      *
      * @param moduleNames
-     *            The names of the modules that should not be scanned. May contain a wildcard glob ('*').
+     *            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph whitelistModules(final String... moduleNames) {
@@ -923,7 +947,7 @@ public class ClassGraph {
      * Blacklist one or more modules, preventing them from being scanned.
      *
      * @param moduleNames
-     *            The names of the modules that should not be scanned. May contain a wildcard glob ('*').
+     *            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph blacklistModules(final String... moduleNames) {
@@ -934,10 +958,13 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the scanning of system packages ("java.*", "javax.*", "javafx.*", "jdk.*", "oracle.*", "sun.*") --
-     * these are not scanned by default for speed. Calls {#whitelistLibOrExtJars()} with no parameters, to enable
-     * scanning of jars in JRE/JDK "lib/" and "ext/" directories. (Also automatically calls
-     * {@link #enableClassInfo()}.)
+     * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"}, {@code "javafx.*"},
+     * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed. Calls
+     * {#whitelistLibOrExtJars()} with no parameters, to enable scanning of jars in JRE/JDK {@code "lib/"} and
+     * {@code "ext/"} directories.
+     * 
+     * <p>
+     * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      * @return this (for method chaining).
      */
