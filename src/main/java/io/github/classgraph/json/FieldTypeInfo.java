@@ -174,13 +174,13 @@ class FieldTypeInfo {
 
     /** Set the field's value, appropriately handling primitive-typed fields. */
     void setFieldValue(final Object containingObj, final Object value) {
-        if (primitiveTypeIdx != 0 && value == null) {
-            throw new IllegalArgumentException("Tried to set primitive-typed field to null value");
-        }
         try {
-            if (value == null) {
+            if (primitiveTypeIdx == 0) {
                 field.set(containingObj, value);
             } else {
+                if (value == null) {
+                    throw new IllegalArgumentException("Tried to set primitive-typed field to null value");
+                }
                 switch (primitiveTypeIdx) {
                 case 1:
                     if (!(value instanceof Integer)) {
