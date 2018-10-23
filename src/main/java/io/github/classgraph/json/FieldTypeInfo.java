@@ -178,68 +178,69 @@ class FieldTypeInfo {
             throw new IllegalArgumentException("Tried to set primitive-typed field to null value");
         }
         try {
-            switch (primitiveTypeIdx) {
-            case 0:
+            if (value == null) {
                 field.set(containingObj, value);
-                break;
-            case 1:
-                if (!(value instanceof Integer)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Integer; got " + value.getClass().getName());
+            } else {
+                switch (primitiveTypeIdx) {
+                case 1:
+                    if (!(value instanceof Integer)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Integer; got " + value.getClass().getName());
+                    }
+                    field.setInt(containingObj, ((Integer) value).intValue());
+                    break;
+                case 2:
+                    if (!(value instanceof Long)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Long; got " + value.getClass().getName());
+                    }
+                    field.setLong(containingObj, ((Long) value).longValue());
+                    break;
+                case 3:
+                    if (!(value instanceof Short)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Short; got " + value.getClass().getName());
+                    }
+                    field.setShort(containingObj, ((Short) value).shortValue());
+                    break;
+                case 4:
+                    if (!(value instanceof Double)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Double; got " + value.getClass().getName());
+                    }
+                    field.setDouble(containingObj, ((Double) value).doubleValue());
+                    break;
+                case 5:
+                    if (!(value instanceof Float)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Float; got " + value.getClass().getName());
+                    }
+                    field.setFloat(containingObj, ((Float) value).floatValue());
+                    break;
+                case 6:
+                    if (!(value instanceof Boolean)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Boolean; got " + value.getClass().getName());
+                    }
+                    field.setBoolean(containingObj, ((Boolean) value).booleanValue());
+                    break;
+                case 7:
+                    if (!(value instanceof Byte)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Byte; got " + value.getClass().getName());
+                    }
+                    field.setByte(containingObj, ((Byte) value).byteValue());
+                    break;
+                case 8:
+                    if (!(value instanceof Character)) {
+                        throw new IllegalArgumentException(
+                                "Expected value of type Character; got " + value.getClass().getName());
+                    }
+                    field.setChar(containingObj, ((Character) value).charValue());
+                    break;
+                default:
+                    throw new IllegalArgumentException();
                 }
-                field.setInt(containingObj, ((Integer) value).intValue());
-                break;
-            case 2:
-                if (!(value instanceof Long)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Long; got " + value.getClass().getName());
-                }
-                field.setLong(containingObj, ((Long) value).longValue());
-                break;
-            case 3:
-                if (!(value instanceof Short)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Short; got " + value.getClass().getName());
-                }
-                field.setShort(containingObj, ((Short) value).shortValue());
-                break;
-            case 4:
-                if (!(value instanceof Double)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Double; got " + value.getClass().getName());
-                }
-                field.setDouble(containingObj, ((Double) value).doubleValue());
-                break;
-            case 5:
-                if (!(value instanceof Float)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Float; got " + value.getClass().getName());
-                }
-                field.setFloat(containingObj, ((Float) value).floatValue());
-                break;
-            case 6:
-                if (!(value instanceof Boolean)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Boolean; got " + value.getClass().getName());
-                }
-                field.setBoolean(containingObj, ((Boolean) value).booleanValue());
-                break;
-            case 7:
-                if (!(value instanceof Byte)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Byte; got " + value.getClass().getName());
-                }
-                field.setByte(containingObj, ((Byte) value).byteValue());
-                break;
-            case 8:
-                if (!(value instanceof Character)) {
-                    throw new IllegalArgumentException(
-                            "Expected value of type Character; got " + value.getClass().getName());
-                }
-                field.setChar(containingObj, ((Character) value).charValue());
-                break;
-            default:
-                throw new IllegalArgumentException();
             }
         } catch (IllegalArgumentException | IllegalAccessException e) {
             throw new IllegalArgumentException(

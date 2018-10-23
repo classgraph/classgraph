@@ -349,9 +349,7 @@ public class ScanSpec {
         if (this.addedModuleLayers == null) {
             this.addedModuleLayers = new ArrayList<>();
         }
-        if (moduleLayer != null) {
-            this.addedModuleLayers.add(moduleLayer);
-        }
+        this.addedModuleLayers.add(moduleLayer);
     }
 
     /**

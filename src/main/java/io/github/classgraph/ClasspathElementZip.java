@@ -152,7 +152,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
 
         // Parse the manifest entry if present
-        if (jarfileMetadataReader != null && jarfileMetadataReader.classPathEntriesToScan != null) {
+        if (jarfileMetadataReader.classPathEntriesToScan != null) {
             // Class-Path entries in the manifest file are resolved relative to the dir the manifest's jarfile
             // is contaiin. Get the parent path.
             final String pathOfContainingDir = FastPathResolver.resolve(classpathEltZipFile.getParent());

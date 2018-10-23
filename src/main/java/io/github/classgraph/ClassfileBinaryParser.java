@@ -99,7 +99,7 @@ class ClassfileBinaryParser {
             // CONSTANT_NameAndType_info
             final int compoundIndirIdx = indirectStringRefs[cpIdx];
             final int indirIdx = (subFieldIdx == 0 ? (compoundIndirIdx >> 16) : compoundIndirIdx) & 0xffff;
-            if (indirIdx == 0 || indirIdx == -1) {
+            if (indirIdx == 0) {
                 // Should not happen
                 throw new RuntimeException("Bad string indirection index, cannot continue reading class. "
                         + "Please report this at https://github.com/classgraph/classgraph/issues");
@@ -183,6 +183,8 @@ class ClassfileBinaryParser {
         final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (strOffset == 0) {
             return otherString == null;
+        } else if (otherString == null) {
+            return false;
         }
         final int strLen = inputStreamOrByteBuffer.readUnsignedShort(strOffset);
         final int otherLen = otherString.length();
@@ -253,11 +255,11 @@ class ClassfileBinaryParser {
         AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
             paramVals = new AnnotationParameterValueList(numElementValuePairs);
-        }
-        for (int i = 0; i < numElementValuePairs; i++) {
-            final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
-            final Object paramValue = readAnnotationElementValue();
-            paramVals.add(new AnnotationParameterValue(paramName, paramValue));
+            for (int i = 0; i < numElementValuePairs; i++) {
+                final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+                final Object paramValue = readAnnotationElementValue();
+                paramVals.add(new AnnotationParameterValue(paramName, paramValue));
+            }
         }
         return new AnnotationInfo(annotationClassName, paramVals);
     }
@@ -523,9 +525,11 @@ class ClassfileBinaryParser {
                         if (fieldAnnotationInfo == null && fieldAnnotationCount > 0) {
                             fieldAnnotationInfo = new AnnotationInfoList(1);
                         }
-                        for (int k = 0; k < fieldAnnotationCount; k++) {
-                            final AnnotationInfo fieldAnnotation = readAnnotation();
-                            fieldAnnotationInfo.add(fieldAnnotation);
+                        if (fieldAnnotationInfo != null) {
+                            for (int k = 0; k < fieldAnnotationCount; k++) {
+                                final AnnotationInfo fieldAnnotation = readAnnotation();
+                                fieldAnnotationInfo.add(fieldAnnotation);
+                            }
                         }
                     } else {
                         // No match, just skip attribute
@@ -586,9 +590,11 @@ class ClassfileBinaryParser {
                         if (methodAnnotationInfo == null && methodAnnotationCount > 0) {
                             methodAnnotationInfo = new AnnotationInfoList(1);
                         }
-                        for (int k = 0; k < methodAnnotationCount; k++) {
-                            final AnnotationInfo annotationInfo = readAnnotation();
-                            methodAnnotationInfo.add(annotationInfo);
+                        if (methodAnnotationInfo != null) {
+                            for (int k = 0; k < methodAnnotationCount; k++) {
+                                final AnnotationInfo annotationInfo = readAnnotation();
+                                methodAnnotationInfo.add(annotationInfo);
+                            }
                         }
                     } else if (scanSpec.enableAnnotationInfo
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")

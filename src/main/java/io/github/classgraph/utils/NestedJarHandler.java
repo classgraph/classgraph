@@ -143,9 +143,14 @@ public class NestedJarHandler {
                     // If the path starts with "http(s)://", download the jar to a temp file
                     final boolean isRemote = nestedJarPath.startsWith("http://")
                             || nestedJarPath.startsWith("https://");
-                    final File pathFile = isRemote ? downloadTempFile(nestedJarPath, log) : new File(nestedJarPath);
-                    if (isRemote && pathFile == null) {
-                        throw new IOException("Could not download jarfile " + nestedJarPath);
+                    final File pathFile;
+                    if (isRemote) { 
+                        pathFile = downloadTempFile(nestedJarPath, log);
+                        if (pathFile == null) {
+                            throw new IOException("Could not download jarfile " + nestedJarPath);
+                        }
+                    } else {
+                        pathFile = new File(nestedJarPath);
                     }
                     File canonicalFile;
                     try {
@@ -742,7 +747,7 @@ public class NestedJarHandler {
                 } catch (final Throwable t) {
                     e = t;
                 }
-                if (log != null) {
+                if (rmLog != null) {
                     rmLog.log(
                             (success ? "Removed" : "Unable to remove") + " " + path + (e == null ? "" : " : " + e));
                 }

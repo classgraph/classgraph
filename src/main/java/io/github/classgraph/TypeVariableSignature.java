@@ -212,17 +212,19 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
                         return false;
                     }
                 }
-                for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
-                    if (interfaceBound instanceof ClassRefTypeSignature) {
-                        if (interfaceBound.equals(other)) {
-                            // T implements X, and X == other
-                            return true;
+                if (typeParameter.interfaceBounds != null) {
+                    for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
+                        if (interfaceBound instanceof ClassRefTypeSignature) {
+                            if (interfaceBound.equals(other)) {
+                                // T implements X, and X == other
+                                return true;
+                            }
+                        } else if (interfaceBound instanceof TypeVariableSignature) {
+                            // "X" is reconcilable with "Y implements X"
+                            return this.equalsIgnoringTypeParams(interfaceBound);
+                        } else /* if (interfaceBound instanceof ArrayTypeSignature) */ {
+                            return false;
                         }
-                    } else if (interfaceBound instanceof TypeVariableSignature) {
-                        // "X" is reconcilable with "Y implements X"
-                        return this.equalsIgnoringTypeParams(interfaceBound);
-                    } else /* if (interfaceBound instanceof ArrayTypeSignature) */ {
-                        return false;
                     }
                 }
                 // Type variable has a concrete bound that is not reconcilable with 'other'

@@ -329,7 +329,8 @@ public class JSONDeserializer {
         ArrayList<ObjectInstantiation> itemsToRecurseToInPass2 = new ArrayList<>();
 
         // Pass 1: Convert JSON objects in JSONObject items into Java objects
-        final int numItems = isJsonObject ? jsonObject.items.size() : jsonArray.items.size();
+        final int numItems = isJsonObject ? jsonObject.items.size()
+                : isJsonArray ? jsonArray.items.size() : /* can't happen */ 0;
         for (int i = 0; i < numItems; i++) {
             // Iterate through items of JSONObject or JSONArray (key is null for JSONArray)
             final Entry<String, Object> jsonObjectItem = isJsonObject ? jsonObject.items.get(i) : null;
@@ -444,7 +445,8 @@ public class JSONDeserializer {
                         // Map or other class type. For collections and Maps, call the size hint constructor
                         // for speed when adding items.
                         final int numSubItems = itemJsonValueIsJsonObject ? itemJsonValueJsonObject.items.size()
-                                : itemJsonValueJsonArray.items.size();
+                                : itemJsonValueIsJsonArray ? itemJsonValueJsonArray.items.size()
+                                        : /* can't happen */ 0;
                         if ((resolvedItemValueType instanceof Class<?>
                                 && ((Class<?>) resolvedItemValueType).isArray())) {
                             // Instantiate inner array with same number of items as the inner JSONArray
@@ -462,7 +464,9 @@ public class JSONDeserializer {
                                         // Instantiate collection or map with size hint
                                         ? commonValueConstructorWithSizeHint.newInstance(numSubItems)
                                         // Instantiate other object types
-                                        : commonValueDefaultConstructor.newInstance();
+                                        : commonValueDefaultConstructor != null
+                                                ? commonValueDefaultConstructor.newInstance()
+                                                : /* can't happen */ null;
                             } else if (isObj) {
                                 // For object types, each field has its own constructor, and the constructor can
                                 // vary if the field type is completely generic (e.g. "T field").
@@ -491,7 +495,7 @@ public class JSONDeserializer {
                     // Look up any id field in the object (it will be the first field), and if present,
                     // add it to the idToObjectInstance map, so that it is available before recursing 
                     // into any sibling objects.
-                    if (itemJsonValue != null && itemJsonValue instanceof JSONObject) {
+                    if (itemJsonValue instanceof JSONObject) {
                         final JSONObject itemJsonObject = (JSONObject) itemJsonValue;
                         if (itemJsonObject.objectId != null) {
                             idToObjectInstance.put(itemJsonObject.objectId, instantiatedItemObject);

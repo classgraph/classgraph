@@ -91,7 +91,7 @@ class ClassGraphClassLoader extends ClassLoader {
         // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
         // encapsulation rules by refusing to load modular classes that the context/system classloaders
         // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
-        if (classInfo.classpathElementFile == null && !classInfo.isPublic()) {
+        if (classInfo != null && classInfo.classpathElementFile == null && !classInfo.isPublic()) {
             throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
                     + "but the context and system classloaders could not load the class, probably because "
                     + "the class is not public.");

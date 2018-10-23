@@ -824,7 +824,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 final String paramName = paramInfo.getName();
                 if (paramName != null) {
                     buf.append(' ');
-                    buf.append(paramName == null ? "_unnamed_param_" + i : paramName);
+                    buf.append("_unnamed_param_" + i);
                 }
             }
         }

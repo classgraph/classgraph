@@ -131,10 +131,6 @@ class TypeResolutions {
             // TODO: Support WildcardType
             throw new RuntimeException("WildcardType not yet supported: " + type);
 
-        } else if (type instanceof Class<?>) {
-            // Nothing to resolve for non-generics
-            return type;
-
         } else {
             throw new RuntimeException("Got unexpected type: " + type);
         }

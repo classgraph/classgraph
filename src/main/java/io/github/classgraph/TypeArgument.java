@@ -207,16 +207,16 @@ public class TypeArgument extends HierarchicalTypeSignature {
 
     @Override
     public String toString() {
-        final String typeSigStr = typeSignature == null ? null : typeSignature.toString();
         switch (wildcard) {
         case ANY:
             return "?";
         case EXTENDS:
+            final String typeSigStr = typeSignature.toString();
             return typeSigStr.equals("java.lang.Object") ? "?" : "? extends " + typeSigStr;
         case SUPER:
-            return "? super " + typeSigStr;
+            return "? super " + typeSignature.toString();
         case NONE:
-            return typeSigStr;
+            return typeSignature.toString();
         default:
             throw new RuntimeException("Unknown wildcard type");
         }

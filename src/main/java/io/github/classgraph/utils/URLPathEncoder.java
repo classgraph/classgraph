@@ -68,7 +68,7 @@ public class URLPathEncoder {
         final StringBuilder encodedPath = new StringBuilder(pathBytes.length * 3);
         for (int i = 0; i < pathBytes.length; i++) {
             final int b = pathBytes[i] & 0xff;
-            if (b < 256 && safe[b]) {
+            if (safe[b]) {
                 encodedPath.append((char) b);
             } else {
                 encodedPath.append('%');

@@ -210,7 +210,7 @@ public class ClassLoaderAndModuleFinder {
         LogNode classLoadersFoundLog = null;
         List<ModuleRef> systemModuleRefs = null;
         List<ModuleRef> nonSystemModuleRefs = null;
-        if (scanSpec == null || scanSpec.overrideClassLoaders == null) {
+        if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
             // Add the ClassLoaders in the order system, caller, context; then remove any of them that are

@@ -70,8 +70,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      *            The static constant value the field is initialized to, if any.
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on the field.
-     * @param scanSpec
-     *            The {@link ScanSpec}.
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constantInitializerValue,

@@ -740,9 +740,7 @@ class Scanner implements Callable<ScanResult> {
 
         } catch (final Throwable e) {
             // Remove temporary files if an exception was thrown
-            if (this.nestedJarHandler != null) {
-                this.nestedJarHandler.close(topLevelLog);
-            }
+            this.nestedJarHandler.close(topLevelLog);
             if (topLevelLog != null) {
                 topLevelLog.log(e);
             }

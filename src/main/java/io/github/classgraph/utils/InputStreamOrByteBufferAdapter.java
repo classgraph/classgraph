@@ -111,11 +111,7 @@ public abstract class InputStreamOrByteBufferAdapter {
                 extraBytesStillNotRead -= bytesRead;
             } else {
                 // EOF
-                if (extraBytesStillNotRead > 0) {
-                    throw new IOException("Premature EOF while reading classfile");
-                } else {
-                    break;
-                }
+                throw new IOException("Premature EOF while reading classfile");
             }
         }
     }
