@@ -339,9 +339,12 @@ public class JSONDeserializer {
             if (isJsonObject) {
                 itemJsonKey = jsonObjectItem.getKey();
                 itemJsonValue = jsonObjectItem.getValue();
-            } else {
+            } else if (isJsonArray) {
                 itemJsonKey = null;
                 itemJsonValue = jsonArray.items.get(i);
+            } else {
+                // Can't happen
+                throw new RuntimeException();
             }
             final boolean itemJsonValueIsJsonObject = itemJsonValue instanceof JSONObject;
             final boolean itemJsonValueIsJsonArray = itemJsonValue instanceof JSONArray;

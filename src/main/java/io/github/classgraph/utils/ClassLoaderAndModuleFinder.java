@@ -281,7 +281,7 @@ public class ClassLoaderAndModuleFinder {
             }
 
             // Add any custom-added classloaders after system/context classloaders
-            if (scanSpec != null && scanSpec.addedClassLoaders != null) {
+            if (scanSpec.addedClassLoaders != null) {
                 classLoadersUnique.addAll(scanSpec.addedClassLoaders);
             }
             classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");
