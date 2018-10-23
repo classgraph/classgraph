@@ -42,8 +42,8 @@ The following code finds all JSON files in `META-INF/config` in all ClassLoaders
 
 ```java
 try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-INF/config").scan()) {
-    scanResult.getResourcesWithExtension("json").forEachByteArray((Resource res, byte[] fileContent) -> {
-        readJson(res.getPath(), new String(fileContent, StandardCharsets.UTF_8));
+    scanResult.getResourcesWithExtension("json").forEachByteArray((Resource res, byte[] content) -> {
+        readJson(res.getPath(), new String(content, StandardCharsets.UTF_8));
     });
 }
 ```
