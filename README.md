@@ -7,7 +7,7 @@
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
 <!-- [![Total alerts](https://img.shields.io/lgtm/alerts/g/lukehutch/fast-classpath-scanner.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/lukehutch/fast-classpath-scanner/alerts/) -->
 
-<img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png"><img align="right" alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png">
+<img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png"><img alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png">
 
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight, parallelized classpath scanner, module scanner, and build-time/runtime annotation processor for Java, Scala, Kotlin and other JVM languages.
 
