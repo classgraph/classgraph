@@ -5,8 +5,8 @@
 [![Gitter](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg)](https://gitter.im/classgraph/Lobby)
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-brightgreen.svg)](https://seladb.github.io/StarTrack-js/?u=classgraph&r=classgraph)
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
-[![lgtm alerts](https://img.shields.io/lgtm/alerts/g/lukehutch/fast-classpath-scanner.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/lukehutch/fast-classpath-scanner/alerts/)
-[![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/lukehutch/fast-classpath-scanner.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/lukehutch/fast-classpath-scanner/context:java)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
+[![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
 
 <img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png">
 
