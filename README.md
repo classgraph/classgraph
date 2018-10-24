@@ -11,9 +11,11 @@
 
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight, parallelized classpath scanner, module scanner, and build-time/runtime annotation processor for Java, Scala, Kotlin and other JVM languages.
 
-ClassGraph has the ability to "invert" the Java class and/or reflection API, or has the ability to index classes and resources. For example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**. The Java API can load the content of a resource file with a specific path in a specific ClassLoader, but ClassGraph can find and load **all resources in all classloaders with paths matching a given pattern**.
+> **ClassGraph won a Duke's Choice Award at Oracle Code One 2018,** a recognition of the most useful and/or innovative software in the Java ecosystem. Thanks to all the users who have reported bugs, requested features, submitted pull requests, and endured a lot of churn to get ClassGraph to where it is today.
 
->Information on porting from the older **FastClasspathScanner** API to the new **ClassGraph** API can be found on the wiki page [*Porting FastClasspathScanner code to ClassGraph*](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph), or see the [*ClassGraph API documentation*](https://github.com/classgraph/classgraph/wiki/ClassGraph-API).
+### ClassGraph vs. Java Introspection
+
+ClassGraph has the ability to "invert" the Java class and/or reflection API, or has the ability to index classes and resources. For example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**. The Java API can load the content of a resource file with a specific path in a specific ClassLoader, but ClassGraph can find and load **all resources in all classloaders with paths matching a given pattern**.
 
 ### Examples
 
@@ -50,6 +52,7 @@ try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-I
 
 See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examples) page for more examples of how to use the ClassGraph API.
 
+>Information on porting from the older **FastClasspathScanner** API to the new **ClassGraph** API can be found on the wiki page [*Porting FastClasspathScanner code to ClassGraph*](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph), or see the [*ClassGraph API documentation*](https://github.com/classgraph/classgraph/wiki/ClassGraph-API).
 
 ### Capabilities
 
