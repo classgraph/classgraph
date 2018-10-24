@@ -53,8 +53,6 @@ try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-I
 
 See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examples) page for more examples of how to use the ClassGraph API.
 
->Information on porting from the older **FastClasspathScanner** API to the new **ClassGraph** API can be found on the wiki page [*Porting FastClasspathScanner code to ClassGraph*](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph), or see the [*ClassGraph API documentation*](https://github.com/classgraph/classgraph/wiki/ClassGraph-API).
-
 ### Capabilities
 
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
