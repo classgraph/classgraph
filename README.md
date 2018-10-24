@@ -11,7 +11,7 @@
 
 ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweight, parallelized classpath scanner, module scanner, and build-time/runtime annotation processor for Java, Scala, Kotlin and other JVM languages.
 
-> **ClassGraph won a Duke's Choice Award at Oracle Code One 2018,** a recognition of the most useful and/or innovative software in the Java ecosystem. Thanks to all the users who have reported bugs, requested features, submitted pull requests, and endured a lot of churn to get ClassGraph to where it is today.
+| **ClassGraph won a Duke's Choice Award at Oracle Code One 2018,** a recognition of the most useful and/or innovative software in the Java ecosystem. Thanks to all the users who have reported bugs, requested features, submitted pull requests, and endured a lot of churn to get ClassGraph to where it is today. |
 
 ### ClassGraph vs. Java Introspection
 
