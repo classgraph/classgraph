@@ -28,34 +28,51 @@
  */
 package io.github.classgraph.classloaderhandler;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.ServiceLoader;
 
 import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
+
+    static {
+        //  If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
+        final List<ClassLoaderHandlerRegistryEntry> builtInHandlers = Arrays.asList(
+                // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
+                new ClassLoaderHandlerRegistryEntry(AntClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(EquinoxContextFinderClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
+
+                // JPMS support
+                new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
+
+                // Java 7/8 support (list last, as fallback)
+                new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class)
+        );
+
+        final List<ClassLoaderHandlerRegistryEntry> registeredHandlers = new ArrayList<>();
+        registeredHandlers.addAll(builtInHandlers);
+        // Load additional entries through Service Loader SPI
+        registeredHandlers.addAll(loadAdditionalClassLoaderHandlers());
+
+        DEFAULT_CLASS_LOADER_HANDLERS = Collections.unmodifiableList(registeredHandlers);
+    }
+
     /**
-     * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
+     * Default ClassLoaderHandlers.
      */
-    public static final List<ClassLoaderHandlerRegistryEntry> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
-            // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
-            new ClassLoaderHandlerRegistryEntry(AntClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(EquinoxContextFinderClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
-
-            // JPMS support
-            new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
-
-            // Java 7/8 support (list last, as fallback)
-            new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
+    public static final List<ClassLoaderHandlerRegistryEntry> DEFAULT_CLASS_LOADER_HANDLERS;
 
     /** The fallback ClassLoaderHandler. Do not need to add FallbackClassLoaderHandler to the above list. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
@@ -87,8 +104,16 @@ public class ClassLoaderHandlerRegistry {
         }
 
         /**
+         * @param classLoaderHandler The ClassLoaderHandler.
+         */
+        public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
+            this.classLoaderHandlerClass = classLoaderHandler.getClass();
+            this.handledClassLoaderNames = classLoaderHandler.handledClassLoaders();
+        }
+
+        /**
          * Instantiate a ClassLoaderHandler, or return null if the class could not be instantiated.
-         * 
+         *
          * @param log
          *            The log.
          * @return The ClassLoaderHandler instance.
@@ -104,5 +129,16 @@ public class ClassLoaderHandlerRegistry {
                 return null;
             }
         }
+    }
+
+    private static List<ClassLoaderHandlerRegistryEntry> loadAdditionalClassLoaderHandlers() {
+
+        final ServiceLoader<ClassLoaderHandler> serviceLoader = ServiceLoader.load(ClassLoaderHandler.class);
+        final List<ClassLoaderHandlerRegistryEntry> foundClassLoaderHandlers = new ArrayList<>();
+        for (ClassLoaderHandler classLoaderHandler : serviceLoader) {
+            foundClassLoaderHandlers.add(new ClassLoaderHandlerRegistryEntry(classLoaderHandler));
+        }
+
+        return foundClassLoaderHandlers;
     }
 }
