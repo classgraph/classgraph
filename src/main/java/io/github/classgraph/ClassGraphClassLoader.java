@@ -45,7 +45,7 @@ class ClassGraphClassLoader extends ClassLoader {
      *            The ScanResult.
      */
     ClassGraphClassLoader(final ScanResult scanResult) {
-        super();
+        super(null);
         this.scanResult = scanResult;
         registerAsParallelCapable();
     }
