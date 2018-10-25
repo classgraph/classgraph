@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -223,52 +224,54 @@ abstract class ClasspathElement {
         // but actually there is no restriction for paths within a zipfile to be unique, and in fact
         // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
         // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
-        final HashSet<String> maskedRelativePaths = new HashSet<>();
-        for (final Resource res : classfileResources) {
-            // Don't mask module-info.class, since all modules need this classfile to be read
-            final String getPathRelativeToPackageRoot = res.getPath();
-            if (!getPathRelativeToPackageRoot.equals("module-info.class")
-                    && !getPathRelativeToPackageRoot.endsWith("/module-info.class")
-                    && !getPathRelativeToPackageRoot.equals("package-info.class")
-                    && !getPathRelativeToPackageRoot.endsWith("/package-info.class")) {
-                if (!classpathRelativePathsFound.add(getPathRelativeToPackageRoot)) {
+        final BitSet masked = new BitSet(classfileResources.size());
+        boolean foundMasked = false;
+        for (int i = 0; i < classfileResources.size(); i++) {
+            final Resource res = classfileResources.get(i);
+            final String pathRelativeToPackageRoot = res.getPath();
+            // Don't mask module-info.class or package-info.class, these are read for every module/package
+            if (!pathRelativeToPackageRoot.equals("module-info.class")
+                    && !pathRelativeToPackageRoot.endsWith("/module-info.class")
+                    && !pathRelativeToPackageRoot.equals("package-info.class")
+                    && !pathRelativeToPackageRoot.endsWith("/package-info.class")) {
+                if (!classpathRelativePathsFound.add(pathRelativeToPackageRoot)) {
                     // This relative path has been encountered more than once; mask the second and subsequent
                     // occurrences of the path
-                    maskedRelativePaths.add(getPathRelativeToPackageRoot);
-                }
-            }
-        }
-        // Remove masked (duplicated) paths
-        if (!maskedRelativePaths.isEmpty()) {
-            final List<Resource> maskedClassfileResources = new ArrayList<>();
-            for (final Resource classfileMatch : classfileResources) {
-                final String classfileRelativePath = classfileMatch.getPath();
-                if (!maskedRelativePaths.contains(classfileRelativePath)) {
-                    maskedClassfileResources.add(classfileMatch);
-                } else {
+                    masked.set(i);
+                    foundMasked = true;
                     if (log != null) {
                         log.log(String.format("%06d-1", classpathIdx),
                                 "Ignoring duplicate (masked) class "
-                                        + JarUtils.classfilePathToClassName(classfileRelativePath)
-                                        + " for classpath element " + classfileMatch);
+                                        + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot)
+                                        + " for classpath element " + res);
                     }
                 }
             }
-            return maskedClassfileResources;
         }
-        return classfileResources;
+        if (!foundMasked) {
+            return classfileResources;
+        }
+        // Remove masked (duplicated) paths
+        final List<Resource> maskedClassfileResources = new ArrayList<>();
+        for (int i = 0; i < classfileResources.size(); i++) {
+            if (!masked.get(i)) {
+                maskedClassfileResources.add(classfileResources.get(i));
+            }
+        }
+        return maskedClassfileResources;
     }
 
     /** Implement masking for classfiles defined more than once on the classpath. */
-    void maskClassfiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound,
-            final LogNode maskLog) {
+    void maskClassfiles(final int classpathIdx, final HashSet<String> whitelistedClasspathRelativePathsFound,
+            final HashSet<String> nonBlacklistedClasspathRelativePathsFound, final LogNode maskLog) {
         // Mask whitelisted classfile resources
-        ClasspathElement.maskClassfiles(scanSpec, classpathIdx, whitelistedClassfileResources,
-                classpathRelativePathsFound, maskLog);
+        whitelistedClassfileResources = ClasspathElement.maskClassfiles(scanSpec, classpathIdx,
+                whitelistedClassfileResources, whitelistedClasspathRelativePathsFound, maskLog);
 
         // Mask all non-blacklisted classfile resources
-        ClasspathElement.maskClassfiles(scanSpec, classpathIdx, nonBlacklistedClassfileResources,
-                classpathRelativePathsFound, /* no need to log */ null);
+        nonBlacklistedClassfileResources = ClasspathElement.maskClassfiles(scanSpec, classpathIdx,
+                nonBlacklistedClassfileResources, nonBlacklistedClasspathRelativePathsFound,
+                /* no need to log */ null);
     }
 
     // -------------------------------------------------------------------------------------------------------------

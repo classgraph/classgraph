@@ -622,9 +622,11 @@ class Scanner implements Callable<ScanResult> {
                 // would be loaded by standard classloading. (See bug #100.)
                 {
                     final LogNode maskLog = topLevelLog == null ? null : topLevelLog.log("Masking classfiles");
-                    final HashSet<String> classpathRelativePathsFound = new HashSet<>();
+                    final HashSet<String> nonBlacklistedClasspathRelativePathsFound = new HashSet<>();
+                    final HashSet<String> whitelistedClasspathRelativePathsFound = new HashSet<>();
                     for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
-                        classpathOrder.get(classpathIdx).maskClassfiles(classpathIdx, classpathRelativePathsFound,
+                        classpathOrder.get(classpathIdx).maskClassfiles(classpathIdx,
+                                whitelistedClasspathRelativePathsFound, nonBlacklistedClasspathRelativePathsFound,
                                 maskLog);
                     }
                 }

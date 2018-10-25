@@ -144,7 +144,7 @@ public class NestedJarHandler {
                     final boolean isRemote = nestedJarPath.startsWith("http://")
                             || nestedJarPath.startsWith("https://");
                     final File pathFile;
-                    if (isRemote) { 
+                    if (isRemote) {
                         pathFile = downloadTempFile(nestedJarPath, log);
                         if (pathFile == null) {
                             throw new IOException("Could not download jarfile " + nestedJarPath);
