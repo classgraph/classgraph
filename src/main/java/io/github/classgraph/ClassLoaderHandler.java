@@ -36,7 +36,7 @@ import io.github.classgraph.utils.LogNode;
  *
  * <p>
  * Custom ClassLoaderHandlers can be registered by listing their fully-qualified class name in the file:
- * META-INF/services/io.github.classgraph.scanner.classloaderhandler.ClassLoaderHandler
+ * META-INF/services/io.github.classgraph.ClassLoaderHandler
  *
  * <p>
  * However, if you do create a custom ClassLoaderHandler, please consider submitting a patch upstream for
@@ -45,16 +45,16 @@ import io.github.classgraph.utils.LogNode;
 public interface ClassLoaderHandler {
     /**
      * The fully-qualified names of handled classloader classes.
-     * 
+     *
      * @return The names of ClassLoaders that this ClassLoaderHandler can handle.
      */
-    public String[] handledClassLoaders();
+    String[] handledClassLoaders();
 
     /**
      * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most
      * ClassLoaders, but this can be overridden by some ClassLoaders, e.g. WebSphere).
      */
-    public enum DelegationOrder {
+    enum DelegationOrder {
         /** Delegate to parent before handling in child. */
         PARENT_FIRST,
         /** Handle classloading in child before delegating to parent. */
@@ -64,24 +64,24 @@ public interface ClassLoaderHandler {
     /**
      * If this ClassLoader delegates directly to an embedded classloader instance, return it here, otherwise return
      * null.
-     * 
+     *
      * @param outerClassLoaderInstance
      *            The outer ClassLoader instance to check for an embedded ClassLoader.
      * @return The embedded ClassLoader to use instead of the outer ClassLoader, or null to use the outer
      *         ClassLoader.
      */
-    public ClassLoader getEmbeddedClassLoader(ClassLoader outerClassLoaderInstance);
+    ClassLoader getEmbeddedClassLoader(ClassLoader outerClassLoaderInstance);
 
     /**
      * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most
      * ClassLoaders, since you don't generally want to be able to override system classes with user classes, but
      * this can be overridden by some ClassLoaders, e.g. WebSphere).
-     * 
+     *
      * @param classLoaderInstance
      *            The ClassLoader to get the delegation order for.
      * @return The delegation order for the given ClassLoader.
      */
-    public DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance);
+    DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance);
 
     /**
      * Determine if a given ClassLoader can be handled (meaning that its classpath elements can be extracted from
@@ -106,6 +106,6 @@ public interface ClassLoaderHandler {
      * @throws Exception
      *             If anything goes wrong while fetching classpath elements.
      */
-    public void handle(ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
+    void handle(ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
             LogNode log) throws Exception;
 }
