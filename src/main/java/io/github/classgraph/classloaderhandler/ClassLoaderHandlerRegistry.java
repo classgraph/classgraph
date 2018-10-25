@@ -58,8 +58,7 @@ public class ClassLoaderHandlerRegistry {
                 new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
 
                 // Java 7/8 support (list last, as fallback)
-                new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class)
-        );
+                new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
         final List<ClassLoaderHandlerRegistryEntry> registeredHandlers = new ArrayList<>();
         registeredHandlers.addAll(builtInHandlers);
@@ -104,7 +103,8 @@ public class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * @param classLoaderHandler The ClassLoaderHandler.
+         * @param classLoaderHandler
+         *            The ClassLoaderHandler.
          */
         public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandlerClass = classLoaderHandler.getClass();
@@ -135,7 +135,7 @@ public class ClassLoaderHandlerRegistry {
 
         final ServiceLoader<ClassLoaderHandler> serviceLoader = ServiceLoader.load(ClassLoaderHandler.class);
         final List<ClassLoaderHandlerRegistryEntry> foundClassLoaderHandlers = new ArrayList<>();
-        for (ClassLoaderHandler classLoaderHandler : serviceLoader) {
+        for (final ClassLoaderHandler classLoaderHandler : serviceLoader) {
             foundClassLoaderHandlers.add(new ClassLoaderHandlerRegistryEntry(classLoaderHandler));
         }
 
