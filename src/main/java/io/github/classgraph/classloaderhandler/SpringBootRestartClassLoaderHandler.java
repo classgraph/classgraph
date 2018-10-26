@@ -57,6 +57,18 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
         return null;
     }
 
+    /**
+     * Spring Boot's RestartClassLoader sits in front of the parent class loader and watches a given set of
+     * directories for changes. While those classes are reachable from the parent class loader directly, they should
+     * always be loaded through direct access from the RestartClassLoader until it's completely turned of by means
+     * of Spring Boot Developer tools.
+     * 
+     * The RestartClassLoader shades only the project classes and additional directories that are configurable, so
+     * itself needs access to parent, but last.
+     * 
+     * See: <a href="https://github.com/classgraph/classgraph/issues/267">#267</a>,
+     * <a href="https://github.com/classgraph/classgraph/issues/268">#268</a>
+     */
     @Override
     public ClassLoaderHandler.DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_LAST;
