@@ -40,7 +40,7 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 
 public class ClassLoadingWorksWithParentLastLoaders {
-    public void assertCorrectClassLoaders(final String expectedClassLoader) throws Exception {
+    public void assertCorrectClassLoaders(final String parentClassLoader, final String expectedClassLoader) throws Exception {
 
         final A a = new A();
         // Checking the precondition here: We forced our classloader onto "everything"
@@ -53,7 +53,7 @@ public class ClassLoadingWorksWithParentLastLoaders {
         // ClassGraph is in that setup not part of the RestartClass loader. That one takes by default only
         // URLs from the current project into consideration and can only be modified by adding additional
         // directories, see https://github.com/spring-projects/spring-boot/issues/12869
-        assertThat(classGraph.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo("AppClassLoader");
+        assertThat(classGraph.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo(parentClassLoader);
 
         // Now use ClassGraph to find everything
         try (ScanResult scanResult = classGraph.scan()) {

@@ -39,9 +39,12 @@ public class ClassLoadingWorksWithParentLastLoadersStub {
 
     @Test
     public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Exception {
-        new ClassLoadingWorksWithParentLastLoaders().assertCorrectClassLoaders("AppClassLoader");
+        String currentClassLoadersName
+            = Thread.currentThread().getContextClassLoader().getClass().getSimpleName();
 
-        final TestLauncher launcher = new TestLauncher();
+        new ClassLoadingWorksWithParentLastLoaders().assertCorrectClassLoaders(currentClassLoadersName, currentClassLoadersName);
+
+        final TestLauncher launcher = new TestLauncher(currentClassLoadersName);
         launcher.start();
         launcher.join();
     }
@@ -49,9 +52,10 @@ public class ClassLoadingWorksWithParentLastLoadersStub {
 
 class TestLauncher extends Thread {
 
-    private Throwable error;
+    private final String parentClassLoader;
 
-    TestLauncher() {
+    TestLauncher(final String parentClassLoader) {
+        this.parentClassLoader = parentClassLoader;
         setDaemon(false);
         setContextClassLoader(new FakeRestartClassLoader());
     }
@@ -61,11 +65,10 @@ class TestLauncher extends Thread {
         try {
             final Class<?> mainClass = getContextClassLoader()
                     .loadClass("io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders");
-            final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class);
+            final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class, String.class);
             mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(),
-                    new Object[] { "FakeRestartClassLoader" });
+                    new Object[] { parentClassLoader, "FakeRestartClassLoader" });
         } catch (final Throwable ex) {
-            this.error = ex;
             getUncaughtExceptionHandler().uncaughtException(this, ex);
         }
     }
