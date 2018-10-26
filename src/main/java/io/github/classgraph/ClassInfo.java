@@ -1211,6 +1211,37 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Annotations
 
     /**
+     * Returns information on visible methods declared by this class, but not by its interfaces or superclasses,
+     *
+     * <p>
+     * It does not include any the {@link Inherited} meta-annotation.
+     *
+     * @return A list of {@link AnnotationInfo} objects for the annotations on this class, or the empty list if
+     *         none.
+     */
+    public AnnotationInfoList getDeclaredAnnotationInfo() {
+        if (!scanResult.scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+        }
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+    }
+
+    /**
+     * Get a the named annotation on this class, or null if the class does not have the named annotation.
+     *
+     * <p>
+     * It does not include any the {@link Inherited} meta-annotation.
+     *
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on this class, or null if the
+     *         class does not have the named annotation.
+     */
+    public AnnotationInfo getDeclaredAnnotationInfo(final String annotationName) {
+        return getAnnotationInfo().get(annotationName);
+    }
+
+    /**
      * Get the annotations and meta-annotations on this class. (Call {@link #getAnnotationInfo()} instead, if you
      * need the parameter values of annotations, rather than just the annotation classes.)
      * 
