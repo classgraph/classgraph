@@ -40,7 +40,8 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 
 public class ClassLoadingWorksWithParentLastLoaders {
-    public void assertCorrectClassLoaders(final String parentClassLoader, final String expectedClassLoader) throws Exception {
+    public void assertCorrectClassLoaders(final String parentClassLoader, final String expectedClassLoader)
+            throws Exception {
 
         final A a = new A();
         // Checking the precondition here: We forced our classloader onto "everything"
