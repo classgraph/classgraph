@@ -30,27 +30,26 @@ package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.assertj.core.api.iterable.Extractor;
+import org.junit.Test;
+
 import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.ScanSpec;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
 
-import org.assertj.core.api.iterable.Extractor;
-import org.junit.Test;
-
 public class ClassLoaderHandlerSPI {
     @Test
     public void shouldLoadAdditionalClassLoaderThroughSPI() {
-        assertThat(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS).extracting(
-            new Extractor<ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry, Object>() {
+        assertThat(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS)
+                .extracting(new Extractor<ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry, Object>() {
 
-                @Override
-                public Object extract(ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry input) {
-                    return input.classLoaderHandlerClass;
-                }
-            }
-        ).contains(AFancyClassLoaderHandler.class);
+                    @Override
+                    public Object extract(final ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry input) {
+                        return input.classLoaderHandlerClass;
+                    }
+                }).contains(AFancyClassLoaderHandler.class);
     }
 
     public static class AFancyClassLoaderHandler implements ClassLoaderHandler {
@@ -64,16 +63,18 @@ public class ClassLoaderHandlerSPI {
         }
 
         @Override
-        public ClassLoader getEmbeddedClassLoader(ClassLoader outerClassLoaderInstance) {
-            return null;
-        }
-
-        @Override public DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance) {
+        public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
             return null;
         }
 
         @Override
-        public void handle(ScanSpec scanSpec, ClassLoader classLoader, ClasspathOrder classpathOrderOut, LogNode log) {
+        public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
+            return null;
+        }
+
+        @Override
+        public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+                final ClasspathOrder classpathOrderOut, final LogNode log) {
         }
     }
 }

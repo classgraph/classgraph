@@ -34,36 +34,37 @@ import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
 
 /**
- * This handler uses {@link io.github.classgraph.ClassLoaderHandler.DelegationOrder#PARENT_LAST} to support
- * the <code>RestartClassLoader</code> of Spring Boot's devtools. <code>RestartClassLoader</code> provides
- * parent last loading for specified URLs (those are all that are supposed to be changed during development).
- * Therefor the handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
+ * This handler uses {@link io.github.classgraph.ClassLoaderHandler.DelegationOrder#PARENT_LAST} to support the
+ * <code>RestartClassLoader</code> of Spring Boot's devtools. <code>RestartClassLoader</code> provides parent last
+ * loading for specified URLs (those are all that are supposed to be changed during development). Therefor the
+ * handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
 
-	// Spring Boots devtools class loader is an extension of URLClassLoader so there's no need
-	// to use reflection to access the urls supported and we can delegate the handling to an
-	// internal instance of URLClassLoaderHandler.
-	private final URLClassLoaderHandler handlerDelegate = new URLClassLoaderHandler();
+    // Spring Boots devtools class loader is an extension of URLClassLoader so there's no need
+    // to use reflection to access the urls supported and we can delegate the handling to an
+    // internal instance of URLClassLoaderHandler.
+    private final URLClassLoaderHandler handlerDelegate = new URLClassLoaderHandler();
 
-	@Override
-	public String[] handledClassLoaders() {
-		return new String[] { //
-			"org.springframework.boot.devtools.restart.classloader.RestartClassLoader" };
-	}
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { //
+                "org.springframework.boot.devtools.restart.classloader.RestartClassLoader" };
+    }
 
-	@Override
-	public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
-		return null;
-	}
+    @Override
+    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
+        return null;
+    }
 
-	@Override
-	public ClassLoaderHandler.DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
-		return DelegationOrder.PARENT_LAST;
-	}
+    @Override
+    public ClassLoaderHandler.DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
+        return DelegationOrder.PARENT_LAST;
+    }
 
-	@Override
-	public void handle(final ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final LogNode log) {
-		handlerDelegate.handle(scanSpec, classLoader, classpathOrderOut, log);
-	}
+    @Override
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
+        handlerDelegate.handle(scanSpec, classLoader, classpathOrderOut, log);
+    }
 }

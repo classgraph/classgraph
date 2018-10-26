@@ -28,53 +28,54 @@
  */
 package io.github.classgraph.issues.issue267;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.lang.reflect.Field;
+
+import com.xyz.meta.A;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 
-import java.lang.reflect.Field;
-
-import com.xyz.meta.A;
-
 public class ClassLoadingWorksWithParentLastLoaders {
-	public void assertCorrectClassLoaders(final String expectedClassLoader) throws Exception {
+    public void assertCorrectClassLoaders(final String expectedClassLoader) throws Exception {
 
-		A a = new A();
-		// Checking the precondition here: We forced our classloader onto "everything"
-		assertThat(ClassLoadingWorksWithParentLastLoaders.class.getClassLoader().getClass().getSimpleName()).isEqualTo(expectedClassLoader);
-		assertThat(a.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo(expectedClassLoader);
+        final A a = new A();
+        // Checking the precondition here: We forced our classloader onto "everything"
+        assertThat(ClassLoadingWorksWithParentLastLoaders.class.getClassLoader().getClass().getSimpleName())
+                .isEqualTo(expectedClassLoader);
+        assertThat(a.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo(expectedClassLoader);
 
-		ClassGraph classGraph = new ClassGraph()
-			.whitelistPackages("com.xyz.meta").enableAllInfo();
+        final ClassGraph classGraph = new ClassGraph().whitelistPackages("com.xyz.meta").enableAllInfo();
 
-		// ClassGraph is in that setup not part of the RestartClass loader. That one takes by default only
-		// URLs from the current project into consideration and can only be modified by adding additional
-		// directories, see https://github.com/spring-projects/spring-boot/issues/12869
-		assertThat(classGraph.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo("AppClassLoader");
+        // ClassGraph is in that setup not part of the RestartClass loader. That one takes by default only
+        // URLs from the current project into consideration and can only be modified by adding additional
+        // directories, see https://github.com/spring-projects/spring-boot/issues/12869
+        assertThat(classGraph.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo("AppClassLoader");
 
-		// Now use ClassGraph to find everything
-		try (ScanResult scanResult = classGraph.scan()) {
-			ClassInfo classInfo = scanResult.getAllClasses().filter(new ClassInfoList.ClassInfoFilter() {
-				@Override public boolean accept(ClassInfo classInfo) {
-					return "A".equals(classInfo.getSimpleName());
-				}
-			}).get(0);
+        // Now use ClassGraph to find everything
+        try (ScanResult scanResult = classGraph.scan()) {
+            final ClassInfo classInfo = scanResult.getAllClasses().filter(new ClassInfoList.ClassInfoFilter() {
+                @Override
+                public boolean accept(final ClassInfo classInfo) {
+                    return "A".equals(classInfo.getSimpleName());
+                }
+            }).get(0);
 
-			// ClassGraph finds "A" through the RestartClass Loader
-			final Field classLoadersField = classInfo.getClass().getDeclaredField("classLoaders");
-			classLoadersField.setAccessible(true);
-			assertThat(((ClassLoader[]) classLoadersField.get(classInfo))[0].getClass().getSimpleName())
-				.isEqualTo(expectedClassLoader);
+            // ClassGraph finds "A" through the RestartClass Loader
+            final Field classLoadersField = classInfo.getClass().getDeclaredField("classLoaders");
+            classLoadersField.setAccessible(true);
+            assertThat(((ClassLoader[]) classLoadersField.get(classInfo))[0].getClass().getSimpleName())
+                    .isEqualTo(expectedClassLoader);
 
-			// And it should load it through the same class loader it found it with
-			Class<?> aClassLoadedThroughClassGraph = classInfo.loadClass();
-			assertThat(aClassLoadedThroughClassGraph.getClassLoader().getClass().getSimpleName())
-				.isEqualTo(expectedClassLoader);
-			// and thus assignable
-			assertThat(a.getClass().isAssignableFrom(aClassLoadedThroughClassGraph));
-		}
-	}
+            // And it should load it through the same class loader it found it with
+            final Class<?> aClassLoadedThroughClassGraph = classInfo.loadClass();
+            assertThat(aClassLoadedThroughClassGraph.getClassLoader().getClass().getSimpleName())
+                    .isEqualTo(expectedClassLoader);
+            // and thus assignable
+            assertThat(a.getClass().isAssignableFrom(aClassLoadedThroughClassGraph));
+        }
+    }
 }

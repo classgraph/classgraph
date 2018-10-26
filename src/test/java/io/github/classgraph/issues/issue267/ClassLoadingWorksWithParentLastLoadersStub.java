@@ -37,68 +37,69 @@ import org.junit.Test;
 
 public class ClassLoadingWorksWithParentLastLoadersStub {
 
-	@Test
-	public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Exception {
-		new ClassLoadingWorksWithParentLastLoaders().assertCorrectClassLoaders("AppClassLoader");
+    @Test
+    public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Exception {
+        new ClassLoadingWorksWithParentLastLoaders().assertCorrectClassLoaders("AppClassLoader");
 
-		final TestLauncher launcher = new TestLauncher();
-		launcher.start();
-		launcher.join();
-	}
+        final TestLauncher launcher = new TestLauncher();
+        launcher.start();
+        launcher.join();
+    }
 }
 
 class TestLauncher extends Thread {
 
-	private Throwable error;
+    private Throwable error;
 
-	TestLauncher() {
-		setDaemon(false);
-		setContextClassLoader(new FakeRestartClassLoader());
-	}
+    TestLauncher() {
+        setDaemon(false);
+        setContextClassLoader(new FakeRestartClassLoader());
+    }
 
-	@Override
-	public void run() {
-		try {
-			final Class<?> mainClass = getContextClassLoader().loadClass(
-				"io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders");
-			final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class);
-			mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(),
-				new Object[] { "FakeRestartClassLoader" });
-		} catch (Throwable ex) {
-			this.error = ex;
-			getUncaughtExceptionHandler().uncaughtException(this, ex);
-		}
-	}
+    @Override
+    public void run() {
+        try {
+            final Class<?> mainClass = getContextClassLoader()
+                    .loadClass("io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders");
+            final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class);
+            mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(),
+                    new Object[] { "FakeRestartClassLoader" });
+        } catch (final Throwable ex) {
+            this.error = ex;
+            getUncaughtExceptionHandler().uncaughtException(this, ex);
+        }
+    }
 }
 
 class FakeRestartClassLoader extends ClassLoader {
-	private Class getClass(final String name) throws ClassNotFoundException {
-		try {
-			final byte[] b = loadClassFileData(name.replace('.', File.separatorChar) + ".class");
-			return defineClass(name, b, 0, b.length);
-		} catch (IOException e) {
-			throw new ClassNotFoundException(name);
-		}
-	}
+    private Class getClass(final String name) throws ClassNotFoundException {
+        try {
+            final byte[] b = loadClassFileData(name.replace('.', File.separatorChar) + ".class");
+            return defineClass(name, b, 0, b.length);
+        } catch (final IOException e) {
+            throw new ClassNotFoundException(name);
+        }
+    }
 
-	@Override
-	public Class loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
-		if (name.startsWith("com.xyz.meta.A") || name
-			.startsWith("io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders")) {
-			Class clazz = getClass(name);
-			if (resolve) {
-				resolveClass(clazz);
-			}
-		}
-		return super.loadClass(name, resolve);
-	}
+    @Override
+    public Class loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+        if (name.startsWith("com.xyz.meta.A")
+                || name.startsWith("io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders")) {
+            final Class clazz = getClass(name);
+            if (resolve) {
+                resolveClass(clazz);
+            }
+        }
+        return super.loadClass(name, resolve);
+    }
 
-	private byte[] loadClassFileData(final String name) throws IOException {
-		try (final DataInputStream in = new DataInputStream(getClass().getClassLoader().getResourceAsStream(name))) {
-			int size = in.available();
-			byte buff[] = new byte[size];
-			in.readFully(buff);
-			return buff;
-		}
-	}
+    private byte[] loadClassFileData(final String name) throws IOException {
+        try (final DataInputStream in = new DataInputStream(
+                getClass().getClassLoader().getResourceAsStream(name))) {
+            final int size = in.available();
+            final byte buff[] = new byte[size];
+            in.readFully(buff);
+            return buff;
+        }
+    }
 }
