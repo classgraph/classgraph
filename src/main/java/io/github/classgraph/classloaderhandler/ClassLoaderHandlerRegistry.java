@@ -53,6 +53,7 @@ public class ClassLoaderHandlerRegistry {
                 new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
                 new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
                 new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(SpringBootRestartClassLoaderHandler.class),
 
                 // JPMS support
                 new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
