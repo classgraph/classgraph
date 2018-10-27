@@ -78,6 +78,51 @@ public class DeclaredVsNonDeclared {
     }
 
     @Test
+    public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
+        Extractor<AnnotationInfo, Object> annotationNameExtractor = new Extractor<AnnotationInfo, Object>() {
+            @Override
+            public Object extract(AnnotationInfo input) {
+                return input.getName();
+            }
+        };
+
+        try (ScanResult scanResult = new ClassGraph().enableAllInfo()
+            .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
+            final ClassInfo A = scanResult.getClassInfo(A.class.getName());
+            final ClassInfo B = scanResult.getClassInfo(B.class.getName());
+            final ClassInfo C = scanResult.getClassInfo(C.class.getName());
+
+            final AnnotationInfoList annotationInfossOnA = A.getAnnotationInfo();
+            final AnnotationInfoList annotationsInfosOnB = B.getAnnotationInfo();
+
+            assertThat(annotationInfossOnA).extracting(annotationNameExtractor)
+                .containsExactly(NormalAnnotation.class.getName(), InheritedAnnotation.class.getName());
+            assertThat(annotationsInfosOnB).extracting(annotationNameExtractor)
+                .containsExactly(InheritedAnnotation.class.getName());
+            assertThat(annotationInfossOnA.directOnly()).extracting(annotationNameExtractor)
+                .containsExactly(NormalAnnotation.class.getName(), InheritedAnnotation.class.getName());
+            assertThat(annotationsInfosOnB.directOnly()).isEmpty();
+            assertThat(C.getAnnotationInfo().directOnly()).extracting(annotationNameExtractor)
+                .containsExactly(NormalAnnotation.class.getName());
+
+            final AnnotationInfoList annotationsOnAw = A.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
+            assertThat(annotationsOnAw).extracting(annotationNameExtractor)
+                .containsExactly(InheritedAnnotation.class.getName());
+
+            final AnnotationInfoList annotationsOnBw = B.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
+            assertThat(annotationsOnBw).extracting(annotationNameExtractor)
+                .isEmpty();
+            // See note on inherited annotations on methods
+            // https://docs.oracle.com/javase/8/docs/api/java/lang/annotation/Inherited.html
+            // "Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used to annotate
+            // anything other than a class. Note also that this meta-annotation only causes annotations to be inherited
+            // from superclasses; annotations on implemented interfaces have no effect."
+            assertThat(annotationsOnBw.directOnly()).extracting(annotationNameExtractor)
+                .isEmpty();
+        }
+    }
+
+    @Test
     public void annotationsShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
             .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
