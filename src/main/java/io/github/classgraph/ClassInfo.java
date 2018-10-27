@@ -1239,7 +1239,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 if (superclassAnnotations != null) {
                     // Check if any of the meta-annotations on this annotation are @Inherited,
                     // which causes an annotation to annotate a class and all of its subclasses.
-                    if (isInherited) {
+                    if (superclassAnnotationClass.isInherited) {
                         // inheritedSuperclassAnnotations is an inherited annotation
                         if (inheritedSuperclassAnnotations == null) {
                             inheritedSuperclassAnnotations = new LinkedHashSet<>();
