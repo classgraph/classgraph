@@ -721,7 +721,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get all annotation classes found during the scan. See also {@link #getAllInterfacesOrAnnotationClasses(Collection, ScanSpec, ScanResult)} ()}.
+     * Get all annotation classes found during the scan. See also
+     * {@link #getAllInterfacesOrAnnotationClasses(Collection, ScanSpec, ScanResult)} ()}.
      *
      * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
@@ -1288,7 +1289,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
 
-        AnnotationInfoList directlyRelatedAnnotations = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+        final AnnotationInfoList directlyRelatedAnnotations = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
+                : annotationInfo;
         if (inheritedSuperclassAnnotations == null) {
             // No inherited superclass annotations
             return directlyRelatedAnnotations;
@@ -1296,7 +1298,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Merge inherited superclass annotations and annotations on this class
             inheritedSuperclassAnnotations.addAll(directlyRelatedAnnotations);
             Collections.sort(inheritedSuperclassAnnotations);
-            inheritedSuperclassAnnotations = new AnnotationInfoList(inheritedSuperclassAnnotations, directlyRelatedAnnotations);
+            inheritedSuperclassAnnotations = new AnnotationInfoList(inheritedSuperclassAnnotations,
+                    directlyRelatedAnnotations);
             return inheritedSuperclassAnnotations;
         }
     }
