@@ -126,32 +126,30 @@ public class Issue153Test {
                     .getClassInfo(Issue153Test.class.getName());
 
             // Read class annotation parameters
-            assertThat(classInfo.getAnnotationInfo().toString()) //
-                    .isEqualTo("[" //
-                            + "@" + StringAnnotation.class.getName() + "(\"classlabel\"), " //
-                            + "@" + TwoParamAnnotation.class.getName() + "(value1 = 'x', value2 = {1, 2, 3}), " //
-                            + "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA"
-                            + "), " //
-                            + "@" + NestedAnnotation.class.getName() + "({@" + StringAnnotation.class.getName()
-                            + "(\"one\"), " + "@" + StringAnnotation.class.getName() + "(\"two\")}), " //
-                            + "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName() + ")" //
-                            + "]");
+            assertThat(classInfo.getAnnotationInfo().getAsStrings()) //
+                    .containsExactlyInAnyOrder("@" + StringAnnotation.class.getName() + "(\"classlabel\")", //
+                            "@" + TwoParamAnnotation.class.getName() + "(value1 = 'x', value2 = {1, 2, 3})", //
+                            "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA"
+                                    + ")", //
+                            "@" + NestedAnnotation.class.getName() + "({@" + StringAnnotation.class.getName()
+                                    + "(\"one\"), @" + StringAnnotation.class.getName() + "(\"two\")})", //
+                            "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName() + ")");
 
-            assertThat(classInfo.getFieldInfo("testField").getAnnotationInfo().toString()) //
-                    .isEqualTo("[@" + StringAnnotation.class.getName() + "(\"fieldlabel\")]");
+            assertThat(classInfo.getFieldInfo("testField").getAnnotationInfo().getAsStrings()) //
+                    .containsExactly("@" + StringAnnotation.class.getName() + "(\"fieldlabel\")");
 
-            assertThat(classInfo.getMethodInfo("testMethod").get(0).getAnnotationInfo().toString()) //
-                    .isEqualTo("[@" + StringAnnotation.class.getName() + "(\"methodlabel\")]");
+            assertThat(classInfo.getMethodInfo("testMethod").get(0).getAnnotationInfo().getAsStrings()) //
+                    .containsExactly("@" + StringAnnotation.class.getName() + "(\"methodlabel\")");
 
-            assertThat(classInfo.getFieldInfo("testFieldWithAndWitoutDefault").getAnnotationInfo().toString()) //
-                    .isEqualTo("[@" + AnnotationWithAndWithoutDefaultValue.class.getName()
-                            + "(valueWithoutDefault = \"x\")]");
+            assertThat(classInfo.getFieldInfo("testFieldWithAndWitoutDefault").getAnnotationInfo().getAsStrings()) //
+                    .containsExactly("@" + AnnotationWithAndWithoutDefaultValue.class.getName()
+                            + "(valueWithoutDefault = \"x\")");
 
-            assertThat(classInfo.getFieldInfo("testFieldWithOnlyDefault").getAnnotationInfo().toString()) //
-                    .isEqualTo("[@" + AnnotationWithOnlyDefaultValue.class.getName() + "]");
+            assertThat(classInfo.getFieldInfo("testFieldWithOnlyDefault").getAnnotationInfo().getAsStrings()) //
+                    .containsExactly("@" + AnnotationWithOnlyDefaultValue.class.getName());
 
             // Make sure enum constants can be instantiated
-            final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(2);
+            final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(EnumAnnotation.class.getName());
             final AnnotationParameterValue annotationParam0 = annotation2.getParameterValues().get(0);
             final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getValue())
                     .loadClassAndReturnEnumValue();
