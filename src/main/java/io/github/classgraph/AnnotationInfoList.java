@@ -236,18 +236,18 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * For lists of class annotations (obtained using {@link ClassInfo#getAnnotationInfo()},) Get the list of direct
-     * annotations, i.e. annotations declared on the class itself, and not on a superclass or implemented interface
-     * and meta-annotated with {@link java.lang.annotation.Inherited @Inherited}
+     * Get the list of direct annotations, i.e. exclude meta-annotations, and if this {@link AnnotationInfoList}
+     * consists of class annotations, also exclude annotations inherited from a superclass or implemented interface
+     * that were meta-annotated with {@link java.lang.annotation.Inherited @Inherited}.
      *
      * @return The list of directly-related annotations.
      */
     public AnnotationInfoList directOnly() {
-        // Return "this" seems a bit odd at first, but it is necessary due to the way annotation info lists are
-        // constructed in ClassInfo: They are initialized on first annotation added and then modified in place.
-        // So they _are_ the direct annotations already and returned as is in ClassInfo#getAnnotationInfo() and
-        // can be passed on here. Otherwise create the sublist.
+        // If directlyRelatedAnnotations == null, this is already a list of direct annotations (the list of
+        // AnnotationInfo objects created when the classfile is read). Otherwise return a new list consisting
+        // of only the direct annotations.
         return this.directlyRelatedAnnotations == null ? this
-                : new AnnotationInfoList(directlyRelatedAnnotations, directlyRelatedAnnotations);
+                // Make .directOnly() idempotent
+                : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
     }
 }
