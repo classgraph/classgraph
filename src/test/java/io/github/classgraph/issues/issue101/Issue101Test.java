@@ -41,7 +41,7 @@ public class Issue101Test {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class.getName()).getNames())
-                    .containsOnly(AnnotatedClass.class.getName());
+                    .containsExactlyInAnyOrder(AnnotatedClass.class.getName());
         }
     }
 
@@ -50,7 +50,7 @@ public class Issue101Test {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class.getName())
-                    .getStandardClasses().getNames()).containsOnly(AnnotatedClass.class.getName(),
+                    .getStandardClasses().getNames()).containsExactlyInAnyOrder(AnnotatedClass.class.getName(),
                             NonAnnotatedSubclass.class.getName());
         }
     }
@@ -60,7 +60,7 @@ public class Issue101Test {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class.getName()).getNames())
-                    .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
+                    .containsExactlyInAnyOrder(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
                             AnnotatedInterface.class.getName());
         }
     }

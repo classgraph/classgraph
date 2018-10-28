@@ -18,7 +18,7 @@ public class Issue38Test {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue38Test.class.getPackage().getName())
                 .scan()) {
             assertThat(scanResult.getClassesImplementing(SuppressWarnings.class.getName()).getNames())
-                    .containsOnly(ImplementsSuppressWarnings.class.getName());
+                    .containsExactlyInAnyOrder(ImplementsSuppressWarnings.class.getName());
         }
     }
 }

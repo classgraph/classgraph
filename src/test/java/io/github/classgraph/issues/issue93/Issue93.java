@@ -35,9 +35,9 @@ public class Issue93 {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(PKG).enableAnnotationInfo()
                 .ignoreClassVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames())
-                    .containsOnly(RetentionClassAnnotated.class.getName());
+                    .containsExactlyInAnyOrder(RetentionClassAnnotated.class.getName());
             assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
-                    .containsOnly(RetentionRuntimeAnnotated.class.getName());
+                    .containsExactlyInAnyOrder(RetentionRuntimeAnnotated.class.getName());
         }
     }
 
@@ -51,7 +51,7 @@ public class Issue93 {
                 .ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
-                    .containsOnly(RetentionRuntimeAnnotated.class.getName());
+                    .containsExactlyInAnyOrder(RetentionRuntimeAnnotated.class.getName());
         }
     }
 }

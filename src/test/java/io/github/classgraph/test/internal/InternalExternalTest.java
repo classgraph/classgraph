@@ -15,7 +15,7 @@ public class InternalExternalTest {
     public void testWhitelistingExternalClasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(
                 InternalExternalTest.class.getPackage().getName(), ExternalAnnotation.class.getName()).scan()) {
-            assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
+            assertThat(scanResult.getAllStandardClasses().getNames()).containsExactlyInAnyOrder(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
                     InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
         }
@@ -27,7 +27,7 @@ public class InternalExternalTest {
                 .whitelistPackages(InternalExternalTest.class.getPackage().getName(),
                         ExternalAnnotation.class.getName())
                 .enableExternalClasses().scan()) {
-            assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
+            assertThat(scanResult.getAllStandardClasses().getNames()).containsExactlyInAnyOrder(
                     ExternalSuperclass.class.getName(), InternalExternalTest.class.getName(),
                     InternalExtendsExternal.class.getName(), InternalImplementsExternal.class.getName(),
                     InternalAnnotatedByExternal.class.getName());
@@ -40,17 +40,17 @@ public class InternalExternalTest {
                 .whitelistPackages(InternalExternalTest.class.getPackage().getName(),
                         ExternalAnnotation.class.getName())
                 .enableAllInfo().scan()) {
-            assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
+            assertThat(scanResult.getAllStandardClasses().getNames()).containsExactlyInAnyOrder(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
                     InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
             assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
-                    .containsOnly(InternalExtendsExternal.class.getName());
+                    .containsExactlyInAnyOrder(InternalExtendsExternal.class.getName());
             assertThat(scanResult.getAllInterfaces()).isEmpty();
             assertThat(scanResult.getClassesImplementing(ExternalInterface.class.getName()).getNames())
-                    .containsOnly(InternalImplementsExternal.class.getName());
+                    .containsExactlyInAnyOrder(InternalImplementsExternal.class.getName());
             assertThat(scanResult.getAllAnnotations().getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(ExternalAnnotation.class.getName()).getNames())
-                    .containsOnly(InternalAnnotatedByExternal.class.getName());
+                    .containsExactlyInAnyOrder(InternalAnnotatedByExternal.class.getName());
         }
     }
 
@@ -61,14 +61,14 @@ public class InternalExternalTest {
             assertThat(scanResult.getAllStandardClasses().getNames())
                     .doesNotContain(ExternalSuperclass.class.getName());
             assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
-                    .containsOnly(InternalExtendsExternal.class.getName());
+                    .containsExactlyInAnyOrder(InternalExtendsExternal.class.getName());
             assertThat(scanResult.getAllInterfaces().getNames()).doesNotContain(ExternalInterface.class.getName());
             assertThat(scanResult.getClassesImplementing(ExternalInterface.class.getName()).getNames())
-                    .containsOnly(InternalImplementsExternal.class.getName());
+                    .containsExactlyInAnyOrder(InternalImplementsExternal.class.getName());
             assertThat(scanResult.getAllAnnotations().getNames())
                     .doesNotContain(ExternalAnnotation.class.getName());
             assertThat(scanResult.getClassesWithAnnotation(ExternalAnnotation.class.getName()).getNames())
-                    .containsOnly(InternalAnnotatedByExternal.class.getName());
+                    .containsExactlyInAnyOrder(InternalAnnotatedByExternal.class.getName());
         }
     }
 }

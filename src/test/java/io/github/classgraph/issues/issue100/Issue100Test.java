@@ -62,7 +62,7 @@ public class Issue100Test {
                 }
             }
         }
-        assertThat(fieldNames1).containsOnly("a");
+        assertThat(fieldNames1).containsExactlyInAnyOrder("a");
 
         // However, if "...b.jar" is specifically whitelisted, "...a.jar" should not be visible. Originally, the
         // version of the class in "...a.jar" was supposed to mask the same class in "...b.jar" (#100). However,
@@ -78,6 +78,6 @@ public class Issue100Test {
                 }
             }
         }
-        assertThat(fieldNames2).containsOnly("b");
+        assertThat(fieldNames2).containsExactlyInAnyOrder("b");
     }
 }

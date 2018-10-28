@@ -75,7 +75,7 @@ public class MethodInfoTest {
                             // JDK 10 fix
                             return !methodInfo.getName().equals("$closeResource");
                         }
-                    }).getAsStrings()).containsOnly( //
+                    }).getAsStrings()).containsExactlyInAnyOrder( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
@@ -92,7 +92,7 @@ public class MethodInfoTest {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
-                    .containsOnly("public <init>()");
+                    .containsExactlyInAnyOrder("public <init>()");
         }
     }
 
@@ -107,7 +107,7 @@ public class MethodInfoTest {
                             // JDK 10 fix
                             return !methodInfo.getName().equals("$closeResource");
                         }
-                    }).getAsStrings()).containsOnly( //
+                    }).getAsStrings()).containsExactlyInAnyOrder( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "

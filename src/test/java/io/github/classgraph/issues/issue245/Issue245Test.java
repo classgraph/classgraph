@@ -49,7 +49,7 @@ public class Issue245Test {
                 .whitelistPaths("org.springframework/gs-spring-boot") //
                 .disableNestedJarScanning() //
                 .scan()) {
-            assertThat(scanResult.getAllResources().getPaths()).containsOnly(
+            assertThat(scanResult.getAllResources().getPaths()).containsExactlyInAnyOrder(
                     "org.springframework/gs-spring-boot/pom.xml",
                     "org.springframework/gs-spring-boot/pom.properties");
         }

@@ -81,8 +81,8 @@ public class TestMethodMetaAnnotation {
                 .scan()) {
             final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class.getName())
                     .getNames();
-            assertThat(testClasses).containsOnly(MethodAnnotation.class.getName(), ClassAnnotation.class.getName(),
-                    MetaAnnotatedClass.class.getName());
+            assertThat(testClasses).containsExactlyInAnyOrder(MethodAnnotation.class.getName(),
+                    ClassAnnotation.class.getName(), MetaAnnotatedClass.class.getName());
         }
     }
 
@@ -94,7 +94,7 @@ public class TestMethodMetaAnnotation {
                 .scan()) {
             final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class.getName())
                     .getStandardClasses().getNames();
-            assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
+            assertThat(testClasses).containsExactlyInAnyOrder(MetaAnnotatedClass.class.getName());
         }
     }
 
@@ -106,7 +106,7 @@ public class TestMethodMetaAnnotation {
                 .enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithMethodAnnotation(MetaAnnotation.class.getName()).getNames();
-            assertThat(testClasses).containsOnly(ClassWithMetaAnnotatedMethod.class.getName());
+            assertThat(testClasses).containsExactlyInAnyOrder(ClassWithMetaAnnotatedMethod.class.getName());
         }
     }
 }

@@ -52,7 +52,7 @@ public class ClassInfoTest {
             public boolean accept(final ClassInfo ci) {
                 return ci.getName().contains("ClsSub");
             }
-        }).getNames()).containsOnly(ClsSub.class.getName(), ClsSubSub.class.getName());
+        }).getNames()).containsExactlyInAnyOrder(ClsSub.class.getName(), ClsSubSub.class.getName());
     }
 
     @Test
@@ -62,7 +62,7 @@ public class ClassInfoTest {
             public boolean accept(final ClassInfo ci) {
                 return ci.getInterfaces().directOnly().getNames().contains(Iface.class.getName());
             }
-        }).getNames()).containsOnly(IfaceSub.class.getName(), Impl2.class.getName());
+        }).getNames()).containsExactlyInAnyOrder(IfaceSub.class.getName(), Impl2.class.getName());
     }
 
     @Test
@@ -72,20 +72,20 @@ public class ClassInfoTest {
             public boolean accept(final ClassInfo ci) {
                 return ci.getInterfaces().getNames().contains(Iface.class.getName());
             }
-        }).getNames()).containsOnly(IfaceSub.class.getName(), IfaceSubSub.class.getName(), Impl2.class.getName(),
-                Impl2Sub.class.getName(), Impl2SubSub.class.getName(), Impl1.class.getName(),
+        }).getNames()).containsExactlyInAnyOrder(IfaceSub.class.getName(), IfaceSubSub.class.getName(),
+                Impl2.class.getName(), Impl2Sub.class.getName(), Impl2SubSub.class.getName(), Impl1.class.getName(),
                 Impl1Sub.class.getName(), Impl1SubSub.class.getName());
     }
 
     @Test
     public void implementsInterfaceDirect() {
         assertThat(scanResult.getClassesImplementing(Iface.class.getName()).directOnly().getNames())
-                .containsOnly(IfaceSub.class.getName(), Impl2.class.getName());
+                .containsExactlyInAnyOrder(IfaceSub.class.getName(), Impl2.class.getName());
     }
 
     @Test
     public void implementsInterface() {
-        assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames()).containsOnly(
+        assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames()).containsExactlyInAnyOrder(
                 Impl1.class.getName(), Impl1Sub.class.getName(), Impl1SubSub.class.getName(), Impl2.class.getName(),
                 Impl2Sub.class.getName(), Impl2SubSub.class.getName(), IfaceSub.class.getName(),
                 IfaceSubSub.class.getName());
@@ -99,6 +99,6 @@ public class ClassInfoTest {
                 return ci.getInterfaces().getNames().contains(Iface.class.getName())
                         && ci.getSuperclasses().getNames().contains(Impl1.class.getName());
             }
-        }).getNames()).containsOnly(Impl1Sub.class.getName(), Impl1SubSub.class.getName());
+        }).getNames()).containsExactlyInAnyOrder(Impl1Sub.class.getName(), Impl1SubSub.class.getName());
     }
 }

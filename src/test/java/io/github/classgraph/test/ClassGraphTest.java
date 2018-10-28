@@ -238,7 +238,7 @@ public class ClassGraphTest {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableAnnotationInfo()
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames())
-                    .containsOnly(BlacklistedAnnotation.class.getName());
+                    .containsExactlyInAnyOrder(BlacklistedAnnotation.class.getName());
         }
     }
 

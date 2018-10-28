@@ -46,7 +46,7 @@ public class Issue209Test {
                 .overrideClassLoaders(new URLClassLoader(
                         new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
                 .scan()) {
-            assertThat(result.getAllClasses().getNames()).containsOnly(
+            assertThat(result.getAllClasses().getNames()).containsExactlyInAnyOrder(
                     // Test reading from /
                     "org.springframework.boot.loader.util.SystemPropertyUtils",
                     // Test reading from /BOOT-INF/classes

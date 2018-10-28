@@ -66,7 +66,8 @@ public class Issue128Test {
                             + Issue128Test.class.getName() + ": " + e);
                 }
             } else {
-                assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
+                assertThat(filesInsideLevel3).containsExactlyInAnyOrder("com/test/Test.java",
+                        "com/test/Test.class");
             }
         }
     }

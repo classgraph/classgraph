@@ -51,7 +51,7 @@ public class Issue261Test {
         try (ScanResult scanResult = new ClassGraph().whitelistClasses(Cls.class.getName()).enableAllInfo()
                 .scan()) {
             assertThat(scanResult.getSubclasses(SuperSuperCls.class.getName()).getNames())
-                    .containsOnly(SuperCls.class.getName(), Cls.class.getName());
+                    .containsExactlyInAnyOrder(SuperCls.class.getName(), Cls.class.getName());
         }
     }
 }

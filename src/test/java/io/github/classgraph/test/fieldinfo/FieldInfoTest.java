@@ -65,7 +65,7 @@ public class FieldInfoTest {
                 .scan()) {
             final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();
-            assertThat(fieldInfoStrs).containsOnly(
+            assertThat(fieldInfoStrs).containsExactlyInAnyOrder(
                     "@" + ExternalAnnotation.class.getName()
                             + " public static final int publicFieldWithAnnotation = 3",
                     "public int fieldWithoutAnnotation");
@@ -79,7 +79,7 @@ public class FieldInfoTest {
                 .ignoreFieldVisibility().scan()) {
             final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();
-            assertThat(fieldInfoStrs).containsOnly(
+            assertThat(fieldInfoStrs).containsExactlyInAnyOrder(
                     "@" + ExternalAnnotation.class.getName()
                             + " public static final int publicFieldWithAnnotation = 3",
                     "@" + ExternalAnnotation.class.getName()
