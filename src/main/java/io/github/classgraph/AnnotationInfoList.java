@@ -34,11 +34,9 @@ import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
-
     /**
      * The set of annotations directly related to a class or method and not inherited through a meta-annotated
-     * annotation. This field is nullable, as they annotation info list is build incremental. To fill it
-     * accordingly, we would have to overwrite all list methods. Instead, checks are handled in
+     * annotation. This field is nullable, as the annotation info list is incrementally built. See
      * {@link #directOnly()}.
      */
     private final AnnotationInfoList directlyRelatedAnnotations;
@@ -157,9 +155,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the list of annotations that were directly related, as opposed to reachable through multiple steps.
-     * Direct annotations are all annotations declared on the element itself and not annotations on a super class or
-     * overriden method that are meta-annotated with {@link java.lang.annotation.Inherited @Inherited}.
+     * For lists of class annotations (obtained using {@link ClassInfo#getAnnotationInfo()},) Get the list of direct
+     * annotations, i.e. annotations declared on the class itself, and not on a superclass or implemented interface
+     * and meta-annotated with {@link java.lang.annotation.Inherited @Inherited}
      *
      * @return The list of directly-related annotations.
      */
