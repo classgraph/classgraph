@@ -721,7 +721,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get all annotation classes found during the scan. See also {@link #getAllInterfaceOrAnnotationClasses()}.
+     * Get all annotation classes found during the scan. See also {@link #getAllInterfacesOrAnnotationClasses(Collection, ScanSpec, ScanResult)} ()}.
      *
      * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
@@ -1228,7 +1228,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Get all annotations on this class
         final ReachableAndDirectlyRelatedClasses annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                 /* strictWhitelist = */ false);
-
         // Check for any @Inherited annotations on superclasses
         Set<ClassInfo> inheritedSuperclassAnnotations = null;
         for (final ClassInfo superclass : getSuperclasses()) {
@@ -1288,15 +1287,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
+
+        AnnotationInfoList directlyRelatedAnnotations = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
         if (inheritedSuperclassAnnotations == null) {
             // No inherited superclass annotations
-            return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+            return directlyRelatedAnnotations;
         } else {
             // Merge inherited superclass annotations and annotations on this class
-            if (annotationInfo != null) {
-                inheritedSuperclassAnnotations.addAll(annotationInfo);
-            }
+            inheritedSuperclassAnnotations.addAll(directlyRelatedAnnotations);
             Collections.sort(inheritedSuperclassAnnotations);
+            inheritedSuperclassAnnotations = new AnnotationInfoList(inheritedSuperclassAnnotations, directlyRelatedAnnotations);
             return inheritedSuperclassAnnotations;
         }
     }

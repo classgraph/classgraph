@@ -29,21 +29,41 @@
 package io.github.classgraph;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
+
+    /**
+     * The set of annotations directly related to a class or method and not inherited through a meta-annotated annotation.
+     * This field is nullable, as they annotation info list is build incremental. To fill it accordingly, we would have
+     * to overwrite all list methods. Instead, checks are handled in {@link #directOnly()}.
+     */
+    private final AnnotationInfoList directlyRelatedAnnotations;
+
     AnnotationInfoList() {
         super();
+        this.directlyRelatedAnnotations = null;
     }
 
     AnnotationInfoList(final int sizeHint) {
         super(sizeHint);
+        this.directlyRelatedAnnotations = null;
     }
 
-    AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
-        super(annotationInfoCollection);
+    AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
+        // If only reachable annotations are given, treat all of them as direct
+        this(reachableAnnotations, reachableAnnotations);
+    }
+
+    AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
+        final AnnotationInfoList directlyRelatedAnnotations) {
+        super(reachableAnnotations);
+        this.directlyRelatedAnnotations = directlyRelatedAnnotations;
     }
 
     static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList() {
@@ -114,7 +134,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
          * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
          *         list; if false, it is excluded.
          */
-        public boolean accept(AnnotationInfo annotationInfo);
+        boolean accept(AnnotationInfo annotationInfo);
     }
 
     /**
@@ -134,5 +154,23 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             }
         }
         return annotationInfoFiltered;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the list of annotations that were directly related, as opposed to reachable through multiple steps. Direct
+     * annotations are all annotations declared on the element itself and not annotations on a super class or overriden
+     * method that are meta-annotated with {@link java.lang.annotation.Inherited @Inherited}.
+     *
+     * @return The list of directly-related annotations.
+     */
+    public AnnotationInfoList directOnly() {
+        // Return "this" seems a bit odd at first, but it is necessary due to the way annotation info lists are
+        // constructed in ClassInfo: They are initialized on first annotation added and then modified in place.
+        // So they _are_ the direct annotations already and returned as is in ClassInfo#getAnnotationInfo() and
+        // can be passed on here. Otherwise create the sublist.
+        return this.directlyRelatedAnnotations == null ?
+            this : new AnnotationInfoList(directlyRelatedAnnotations, directlyRelatedAnnotations);
     }
 }
