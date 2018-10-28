@@ -237,9 +237,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     /**
      * returns the list of direct annotations, excluding meta-annotations. If this {@link AnnotationInfoList}
-     * consists of class annotations (i.e. if it was produced using `ClassInfo#getAnnotationInfo()`), also excludes
-     * annotations inherited from a superclass or implemented interface that were meta-annotated with
-     * {@link java.lang.annotation.Inherited @Inherited}.
+     * consists of class annotations, i.e. if it was produced using `ClassInfo#getAnnotationInfo()`, then the
+     * returned list also excludes annotations inherited from a superclass or implemented interface that were
+     * meta-annotated with {@link java.lang.annotation.Inherited @Inherited}.
      *
      * @return The list of directly-related annotations.
      */
