@@ -295,7 +295,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
-        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
+                : AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null);
     }
 
     /**

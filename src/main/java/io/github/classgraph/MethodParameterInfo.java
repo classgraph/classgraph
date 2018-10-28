@@ -155,7 +155,7 @@ public class MethodParameterInfo {
             for (final AnnotationInfo ai : annotationInfo) {
                 annotationInfoList.add(ai);
             }
-            return annotationInfoList;
+            return AnnotationInfoList.getIndirectAnnotations(annotationInfoList, /* annotatedClass = */ null);
         }
     }
 

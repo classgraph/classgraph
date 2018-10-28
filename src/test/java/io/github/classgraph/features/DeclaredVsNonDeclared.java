@@ -18,6 +18,17 @@ import io.github.classgraph.ScanResult;
 
 @Retention(value = RetentionPolicy.RUNTIME)
 @Inherited
+@interface InheritedMetaAnnotation {
+}
+
+@Retention(value = RetentionPolicy.RUNTIME)
+@interface NonInheritedMetaAnnotation {
+}
+
+@Retention(value = RetentionPolicy.RUNTIME)
+@Inherited
+@InheritedMetaAnnotation
+@NonInheritedMetaAnnotation
 @interface InheritedAnnotation {
 }
 
@@ -94,19 +105,22 @@ public class DeclaredVsNonDeclared {
             final AnnotationInfoList annotationInfossOnA = A.getAnnotationInfo();
             final AnnotationInfoList annotationsInfosOnB = B.getAnnotationInfo();
 
-            assertThat(annotationInfossOnA).extracting(annotationNameExtractor)
-                    .containsExactly(NormalAnnotation.class.getName(), InheritedAnnotation.class.getName());
-            assertThat(annotationsInfosOnB).extracting(annotationNameExtractor)
-                    .containsExactly(InheritedAnnotation.class.getName());
+            assertThat(annotationInfossOnA).extracting(annotationNameExtractor).containsExactlyInAnyOrder(
+                    InheritedAnnotation.class.getName(), NormalAnnotation.class.getName(),
+                    InheritedMetaAnnotation.class.getName(), NonInheritedMetaAnnotation.class.getName());
+            assertThat(annotationsInfosOnB).extracting(annotationNameExtractor).containsExactlyInAnyOrder(
+                    InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName());
             assertThat(annotationInfossOnA.directOnly()).extracting(annotationNameExtractor)
-                    .containsExactly(NormalAnnotation.class.getName(), InheritedAnnotation.class.getName());
+                    .containsExactlyInAnyOrder(NormalAnnotation.class.getName(),
+                            InheritedAnnotation.class.getName());
             assertThat(annotationsInfosOnB.directOnly()).isEmpty();
             assertThat(C.getAnnotationInfo().directOnly()).extracting(annotationNameExtractor)
-                    .containsExactly(NormalAnnotation.class.getName());
+                    .containsExactlyInAnyOrder(NormalAnnotation.class.getName());
 
             final AnnotationInfoList annotationsOnAw = A.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
-            assertThat(annotationsOnAw).extracting(annotationNameExtractor)
-                    .containsExactly(InheritedAnnotation.class.getName());
+            assertThat(annotationsOnAw).extracting(annotationNameExtractor).containsExactlyInAnyOrder(
+                    InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName(),
+                    NonInheritedMetaAnnotation.class.getName());
 
             final AnnotationInfoList annotationsOnBw = B.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
             assertThat(annotationsOnBw).extracting(annotationNameExtractor).isEmpty();
@@ -130,8 +144,9 @@ public class DeclaredVsNonDeclared {
             final ClassInfoList annotationsOnB = B.getAnnotations();
 
             assertThat(annotationsOnA.loadClasses()).containsExactlyInAnyOrder(NormalAnnotation.class,
-                    InheritedAnnotation.class);
-            assertThat(annotationsOnB.loadClasses()).containsExactlyInAnyOrder(InheritedAnnotation.class);
+                    InheritedAnnotation.class, InheritedMetaAnnotation.class, NonInheritedMetaAnnotation.class);
+            assertThat(annotationsOnB.loadClasses()).containsExactlyInAnyOrder(InheritedAnnotation.class,
+                    InheritedMetaAnnotation.class);
             assertThat(annotationsOnA.directOnly().loadClasses()).containsExactlyInAnyOrder(NormalAnnotation.class,
                     InheritedAnnotation.class);
             assertThat(annotationsOnB.directOnly()).isEmpty();

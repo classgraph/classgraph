@@ -453,7 +453,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
-        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
+                : AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null);
     }
 
     /**

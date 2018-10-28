@@ -29,6 +29,9 @@
 package io.github.classgraph;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import io.github.classgraph.InfoList.MappableInfoList;
 
@@ -153,6 +156,84 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /** Find the transitive closure of meta-annotations. */
+    private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
+            final Set<ClassInfo> visited) {
+        final ClassInfo annotationClassInfo = ai.getClassInfo();
+        if (annotationClassInfo != null && annotationClassInfo.annotationInfo != null) {
+            // Don't get in a cycle
+            if (visited.add(annotationClassInfo)) {
+                for (final AnnotationInfo metaAnnotationInfo : annotationClassInfo.annotationInfo) {
+                    final ClassInfo metaAnnotationClassInfo = metaAnnotationInfo.getClassInfo();
+                    final String metaAnnotationClassName = metaAnnotationClassInfo.getName();
+                    // Don't treat java.lang.annotation annotations as meta-annotations 
+                    if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
+                        // Add the meta-annotation to the transitive closure
+                        allAnnotationsOut.add(metaAnnotationInfo);
+                        // Recurse to meta-meta-annotation
+                        findMetaAnnotations(metaAnnotationInfo, allAnnotationsOut, visited);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the indirect annotations on a class (meta-annotations and/or inherited annotations).
+     * 
+     * @param directAnnotationInfo
+     *            the direct annotations on the class, method, method parameter or field.
+     * @param annotatedClass
+     *            for class annotations, this is the annotated class, else null.
+     */
+    static AnnotationInfoList getIndirectAnnotations(final AnnotationInfoList directAnnotationInfo,
+            final ClassInfo annotatedClass) {
+        // Add direct annotations
+        final Set<ClassInfo> directOrInheritedAnnotationClasses = new HashSet<>();
+        final Set<ClassInfo> reachedAnnotationClasses = new HashSet<>();
+        final AnnotationInfoList reachableAnnotationInfo = new AnnotationInfoList(
+                directAnnotationInfo == null ? 2 : directAnnotationInfo.size());
+        if (directAnnotationInfo != null) {
+            for (final AnnotationInfo dai : directAnnotationInfo) {
+                directOrInheritedAnnotationClasses.add(dai.getClassInfo());
+                reachableAnnotationInfo.add(dai);
+                findMetaAnnotations(dai, reachableAnnotationInfo, reachedAnnotationClasses);
+            }
+        }
+        if (annotatedClass != null) {
+            // Add any @Inherited annotations on superclasses
+            for (final ClassInfo superclass : annotatedClass.getSuperclasses()) {
+                if (superclass.annotationInfo != null) {
+                    for (final AnnotationInfo sai : superclass.annotationInfo) {
+                        if (sai.isInherited()) {
+                            // Don't add inherited superclass annotation if it is overridden in a subclass 
+                            if (directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
+                                reachableAnnotationInfo.add(sai);
+                                final AnnotationInfoList reachableMetaAnnotationInfo = new AnnotationInfoList(2);
+                                findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses);
+                                // Meta-annotations also have to have @Inherited to be inherited
+                                for (final AnnotationInfo rmai : reachableMetaAnnotationInfo) {
+                                    if (rmai.isInherited()) {
+                                        reachableAnnotationInfo.add(rmai);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Return sorted annotation list
+        final AnnotationInfoList directAnnotationInfoSorted = directAnnotationInfo == null
+                ? AnnotationInfoList.EMPTY_LIST
+                : new AnnotationInfoList(directAnnotationInfo);
+        Collections.sort(directAnnotationInfoSorted);
+        final AnnotationInfoList annotationInfoList = new AnnotationInfoList(reachableAnnotationInfo,
+                directAnnotationInfoSorted);
+        Collections.sort(annotationInfoList);
+        return annotationInfoList;
+    }
 
     /**
      * For lists of class annotations (obtained using {@link ClassInfo#getAnnotationInfo()},) Get the list of direct

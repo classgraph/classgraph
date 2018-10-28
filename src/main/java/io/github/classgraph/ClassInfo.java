@@ -1234,9 +1234,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final ClassInfo superclass : getSuperclasses()) {
             for (final ClassInfo superclassAnnotationClass : superclass.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                     /* strictWhitelist = */ false).reachableClasses) {
-                final Set<ClassInfo> superclassAnnotations = superclassAnnotationClass.relatedClasses
-                        .get(RelType.CLASS_ANNOTATIONS);
-                if (superclassAnnotations != null) {
+                if (superclassAnnotationClass != null) {
                     // Check if any of the meta-annotations on this annotation are @Inherited,
                     // which causes an annotation to annotate a class and all of its subclasses.
                     if (superclassAnnotationClass.isInherited) {
@@ -1275,33 +1273,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
-        // Check for any @Inherited annotations on superclasses
-        AnnotationInfoList inheritedSuperclassAnnotations = null;
-        for (final ClassInfo superclass : getSuperclasses()) {
-            for (final AnnotationInfo superclassAnnotationInfo : superclass.getAnnotationInfo()) {
-                if (superclassAnnotationInfo.isInherited()) {
-                    // inheritedSuperclassAnnotations is an inherited annotation
-                    if (inheritedSuperclassAnnotations == null) {
-                        inheritedSuperclassAnnotations = new AnnotationInfoList();
-                    }
-                    inheritedSuperclassAnnotations.add(superclassAnnotationInfo);
-                }
-            }
-        }
-
-        final AnnotationInfoList directlyRelatedAnnotations = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
-                : annotationInfo;
-        if (inheritedSuperclassAnnotations == null) {
-            // No inherited superclass annotations
-            return directlyRelatedAnnotations;
-        } else {
-            // Merge inherited superclass annotations and annotations on this class
-            inheritedSuperclassAnnotations.addAll(directlyRelatedAnnotations);
-            Collections.sort(inheritedSuperclassAnnotations);
-            inheritedSuperclassAnnotations = new AnnotationInfoList(inheritedSuperclassAnnotations,
-                    directlyRelatedAnnotations);
-            return inheritedSuperclassAnnotations;
-        }
+        return AnnotationInfoList.getIndirectAnnotations(annotationInfo, this);
     }
 
     /**
@@ -1310,6 +1282,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
      * its subclasses.
+     * 
+     * <p>
+     * Note that if you need to get multiple named annotations, it is faster to call {@link #getAnnotationInfo()},
+     * and then get the named annotations from the returned {@link AnnotationInfoList}, so that the returned list
+     * doesn't have to be built multiple times.
      * 
      * @param annotationName
      *            The annotation name.
