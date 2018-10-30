@@ -66,9 +66,9 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         final Object module = ReflectionUtils.invokeMethod(classLoader, "getModule", false);
-        final Object serviceLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader", false);
+        final Object callerModuleLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader", false);
         @SuppressWarnings("unchecked")
-        final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(serviceLoader,
+        final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(callerModuleLoader,
                 "moduleMap", false);
         for (final Object key : moduleMap.keySet()) {
             final Object futureModule = moduleMap.get(key);
