@@ -94,7 +94,7 @@ public class NestedJarHandler {
             @Override
             public Recycler<ZipFile, IOException> newInstance(final File zipFile, final LogNode log)
                     throws Exception {
-                return new Recycler<>() {
+                return new Recycler<ZipFile, IOException>() {
                     @Override
                     public ZipFile newInstance() throws IOException {
                         return new ZipFile(zipFile.getPath());
@@ -120,7 +120,7 @@ public class NestedJarHandler {
                     @Override
                     public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
                             final LogNode log) throws Exception {
-                        return new Recycler<>() {
+                        return new Recycler<ModuleReaderProxy, IOException>() {
                             @Override
                             public ModuleReaderProxy newInstance() throws IOException {
                                 return moduleRef.open();
