@@ -133,7 +133,7 @@ class ClassGraphClassLoader extends ClassLoader {
         if (resourceList == null || resourceList.isEmpty()) {
             return super.getResources(path);
         } else {
-            return new Enumeration<>() {
+            return new Enumeration<URL>() {
                 int idx = 0;
 
                 @Override
