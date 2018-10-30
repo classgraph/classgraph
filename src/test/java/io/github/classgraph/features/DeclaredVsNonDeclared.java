@@ -89,7 +89,7 @@ public class DeclaredVsNonDeclared {
 
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
-        final Extractor<AnnotationInfo, Object> annotationNameExtractor = new Extractor<>() {
+        final Extractor<AnnotationInfo, Object> annotationNameExtractor = new Extractor<AnnotationInfo, Object>() {
             @Override
             public Object extract(final AnnotationInfo input) {
                 return input.getName();
@@ -126,9 +126,9 @@ public class DeclaredVsNonDeclared {
             assertThat(annotationsOnBw).extracting(annotationNameExtractor).isEmpty();
             // See note on inherited annotations on methods
             // https://docs.oracle.com/javase/8/docs/api/java/lang/annotation/Inherited.html
-            // "Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used to annotate
-            // anything other than a class. Note also that this meta-annotation only causes annotations to be inherited
-            // from superclasses; annotations on implemented interfaces have no effect."
+            // "Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used to
+            // annotate anything other than a class. Note also that this meta-annotation only causes annotations
+            // to be inherited from superclasses; annotations on implemented interfaces have no effect."
             assertThat(annotationsOnBw.directOnly()).extracting(annotationNameExtractor).isEmpty();
         }
     }
