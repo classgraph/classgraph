@@ -34,14 +34,9 @@ import io.github.classgraph.utils.LogNode;
 
 /**
  * A ClassLoader handler.
- *
+ * 
  * <p>
- * Custom ClassLoaderHandlers can be registered by listing their fully-qualified class name in the file:
- * META-INF/services/io.github.classgraph.ClassLoaderHandler
- *
- * <p>
- * However, if you do create a custom ClassLoaderHandler, please consider submitting a patch upstream for
- * incorporation into ClassGraph.
+ * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
  */
 public interface ClassLoaderHandler {
     /**
