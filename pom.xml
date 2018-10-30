@@ -1,4 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.github.classgraph</groupId>
@@ -70,7 +72,8 @@
 						</goals>
 						<configuration>
 							<rules>
-								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+								<checkSignatureRule
+									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
 										<artifactId>java17</artifactId>
@@ -99,9 +102,13 @@
 						<configuration>
 							<overwriteExistingFiles>true</overwriteExistingFiles>
 							<module>
-								<moduleInfoFile>
-									src/moditect/module-info.java
-								</moduleInfoFile>
+								<moduleInfoSource>
+									module io.github.classgraph {
+									exports
+									io.github.classgraph;
+									requires java.xml;
+									}
+								</moduleInfoSource>
 							</module>
 						</configuration>
 					</execution>
