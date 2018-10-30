@@ -28,16 +28,15 @@
  */
 package io.github.classgraph.classloaderhandler;
 
-import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
 
 /**
- * This handler uses {@link io.github.classgraph.ClassLoaderHandler.DelegationOrder#PARENT_LAST} to support the
- * <code>RestartClassLoader</code> of Spring Boot's devtools. <code>RestartClassLoader</code> provides parent last
- * loading for specified URLs (those are all that are supposed to be changed during development). Therefor the
- * handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
+ * This handler uses {@link io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder#PARENT_LAST}
+ * to support the <code>RestartClassLoader</code> of Spring Boot's devtools. <code>RestartClassLoader</code>
+ * provides parent last loading for specified URLs (those are all that are supposed to be changed during
+ * development). Therefor the handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
 

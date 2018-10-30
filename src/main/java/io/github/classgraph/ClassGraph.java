@@ -346,25 +346,6 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Register an extra {@link ClassLoaderHandler}. Needed if ClassGraph doesn't know how to extract classpath
-     * entries from your runtime environment's {@link ClassLoader}. If you need to define a new
-     * {@link ClassLoaderHandler} for a non-custom {@link ClassLoader}, please consider
-     * <a href="https://github.com/classgraph/classgraph">contributing it upstream</a> to the ClassGraph project so
-     * that other users of ClassGraph can benefit.
-     *
-     * @param classLoaderHandlerClass
-     *            The ClassLoaderHandler class to register.
-     * @return this (for method chaining).
-     */
-    public ClassGraph registerClassLoaderHandler(
-            final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
-        scanSpec.registerClassLoaderHandler(classLoaderHandlerClass);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Override the automatically-detected classpath with a custom path, with path elements separated by
      * File.pathSeparatorChar. Causes system ClassLoaders and the java.class.path system property to be ignored.
      * Also causes modules not to be scanned.

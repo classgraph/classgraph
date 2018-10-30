@@ -35,9 +35,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.ClassLoaderHandler;
-import io.github.classgraph.ClassLoaderHandler.DelegationOrder;
 import io.github.classgraph.ScanSpec;
+import io.github.classgraph.classloaderhandler.ClassLoaderHandler;
+import io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 
@@ -222,21 +222,11 @@ public class ClasspathFinder {
                 }
             }
 
-            // Get all manually-added ClassLoaderHandlers (these are added before the default ClassLoaderHandlers,
-            // so that the behavior of the defaults can be overridden)
-            List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries;
-            if (scanSpec.extraClassLoaderHandlers.isEmpty()) {
-                allClassLoaderHandlerRegistryEntries = ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS;
-            } else {
-                allClassLoaderHandlerRegistryEntries = new ArrayList<>(scanSpec.extraClassLoaderHandlers);
-                allClassLoaderHandlerRegistryEntries
-                        .addAll(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS);
-            }
-
+            // List ClassLoaderHandlers
             if (classpathFinderLog != null) {
                 final LogNode classLoaderHandlerLog = classpathFinderLog.log("ClassLoaderHandlers:");
                 for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : //
-                allClassLoaderHandlerRegistryEntries) {
+                ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
                     classLoaderHandlerLog.log(classLoaderHandlerEntry.classLoaderHandlerClass.getName());
                 }
             }
@@ -249,7 +239,7 @@ public class ClasspathFinder {
             for (final ClassLoader envClassLoader : classLoaders) {
                 findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
                         /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
-                        allClassLoaderHandlerRegistryEntries, classLoaderAndHandlerOrder,
+                        ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS, classLoaderAndHandlerOrder,
                         ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
             }
 

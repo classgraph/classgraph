@@ -33,8 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.assertj.core.api.iterable.Extractor;
 import org.junit.Test;
 
-import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.ScanSpec;
+import io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
@@ -42,7 +42,7 @@ import io.github.classgraph.utils.LogNode;
 public class ClassLoaderHandlerSPI {
     @Test
     public void shouldLoadAdditionalClassLoaderThroughSPI() {
-        assertThat(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS)
+        assertThat(ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS)
                 .extracting(new Extractor<ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry, Object>() {
 
                     @Override

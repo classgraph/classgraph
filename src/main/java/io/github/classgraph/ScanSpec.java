@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
-import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.WhiteBlackList;
 import io.github.classgraph.utils.WhiteBlackList.WhiteBlackListLeafname;
@@ -207,9 +206,6 @@ public class ScanSpec {
     /** If non-null, a list of filter operations to apply to classpath elements. */
     public transient List<ClasspathElementFilter> classpathElementFilters;
 
-    /** Manually-registered ClassLoaderHandlers. */
-    public transient final ArrayList<ClassLoaderHandlerRegistryEntry> extraClassLoaderHandlers = new ArrayList<>();
-
     /**
      * If true, classes loaded with Class.forName() are initialized before passing class references to
      * MatchProcessors. If false (the default), matched classes are loaded but not initialized before passing class
@@ -243,16 +239,6 @@ public class ScanSpec {
     public transient boolean stripSFXHeader = false;
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Register an extra ClassLoaderHandler.
-     *
-     * @param classLoaderHandler
-     *            The class of the ClassLoaderHandler that can handle those ClassLoaders.
-     */
-    public void registerClassLoaderHandler(final Class<? extends ClassLoaderHandler> classLoaderHandler) {
-        this.extraClassLoaderHandlers.add(new ClassLoaderHandlerRegistryEntry(classLoaderHandler));
-    }
 
     /**
      * Override the automatically-detected classpath with a custom search path. You can specify multiple elements,

@@ -33,7 +33,6 @@ import java.lang.reflect.Array;
 import java.nio.file.Path;
 import java.util.Map;
 
-import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.FileUtils;

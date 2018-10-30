@@ -90,11 +90,11 @@ public class NestedJarHandler {
      */
     public NestedJarHandler(final ScanSpec scanSpec, final LogNode log) {
         // Set up a singleton map from canonical path to ZipFile recycler
-        this.zipFileToRecyclerMap = new SingletonMap<File, Recycler<ZipFile, IOException>>() {
+        this.zipFileToRecyclerMap = new SingletonMap<>() {
             @Override
             public Recycler<ZipFile, IOException> newInstance(final File zipFile, final LogNode log)
                     throws Exception {
-                return new Recycler<ZipFile, IOException>() {
+                return new Recycler<>() {
                     @Override
                     public ZipFile newInstance() throws IOException {
                         return new ZipFile(zipFile.getPath());
@@ -104,7 +104,7 @@ public class NestedJarHandler {
         };
 
         // Set up a singleton map from canonical path to FastManifestParser
-        this.zipFileToJarfileMetadataReaderMap = new SingletonMap<File, JarfileMetadataReader>() {
+        this.zipFileToJarfileMetadataReaderMap = new SingletonMap<>() {
             @Override
             public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) throws Exception {
                 return new JarfileMetadataReader(canonicalFile, scanSpec, log);
@@ -116,11 +116,11 @@ public class NestedJarHandler {
 
         // Set up a singleton map from ModuleRef object to ModuleReaderProxy recycler
         this.moduleRefToModuleReaderProxyRecyclerMap = //
-                new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>>() {
+                new SingletonMap<>() {
                     @Override
                     public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
                             final LogNode log) throws Exception {
-                        return new Recycler<ModuleReaderProxy, IOException>() {
+                        return new Recycler<>() {
                             @Override
                             public ModuleReaderProxy newInstance() throws IOException {
                                 return moduleRef.open();
@@ -131,7 +131,7 @@ public class NestedJarHandler {
 
         // Create a singleton map from path to zipfile File, in order to eliminate repeatedly unzipping the same
         // file when there are multiple jars-within-jars that need unzipping to temporary files.
-        this.nestedPathToJarfileAndRootRelativePathsMap = new SingletonMap<String, Entry<File, Set<String>>>() {
+        this.nestedPathToJarfileAndRootRelativePathsMap = new SingletonMap<>() {
             @Override
             public Entry<File, Set<String>> newInstance(final String nestedJarPath, final LogNode log)
                     throws Exception {
@@ -316,7 +316,7 @@ public class NestedJarHandler {
 
         // Create a singleton map indicating which directories were able to be successfully created (or
         // already existed), to avoid duplicating work calling mkdirs() multiple times for the same directories
-        mkDirs = new SingletonMap<File, Boolean>() {
+        mkDirs = new SingletonMap<>() {
             @Override
             public Boolean newInstance(final File dir, final LogNode log) throws Exception {
                 boolean dirExists = dir.exists();

@@ -32,9 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.ServiceLoader;
 
-import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
@@ -63,16 +61,14 @@ public class ClassLoaderHandlerRegistry {
 
         final List<ClassLoaderHandlerRegistryEntry> registeredHandlers = new ArrayList<>();
         registeredHandlers.addAll(builtInHandlers);
-        // Load additional entries through Service Loader SPI
-        registeredHandlers.addAll(loadAdditionalClassLoaderHandlers());
 
-        DEFAULT_CLASS_LOADER_HANDLERS = Collections.unmodifiableList(registeredHandlers);
+        CLASS_LOADER_HANDLERS = Collections.unmodifiableList(registeredHandlers);
     }
 
     /**
      * Default ClassLoaderHandlers.
      */
-    public static final List<ClassLoaderHandlerRegistryEntry> DEFAULT_CLASS_LOADER_HANDLERS;
+    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS;
 
     /** The fallback ClassLoaderHandler. Do not need to add FallbackClassLoaderHandler to the above list. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
@@ -130,16 +126,5 @@ public class ClassLoaderHandlerRegistry {
                 return null;
             }
         }
-    }
-
-    private static List<ClassLoaderHandlerRegistryEntry> loadAdditionalClassLoaderHandlers() {
-
-        final ServiceLoader<ClassLoaderHandler> serviceLoader = ServiceLoader.load(ClassLoaderHandler.class);
-        final List<ClassLoaderHandlerRegistryEntry> foundClassLoaderHandlers = new ArrayList<>();
-        for (final ClassLoaderHandler classLoaderHandler : serviceLoader) {
-            foundClassLoaderHandlers.add(new ClassLoaderHandlerRegistryEntry(classLoaderHandler));
-        }
-
-        return foundClassLoaderHandlers;
     }
 }

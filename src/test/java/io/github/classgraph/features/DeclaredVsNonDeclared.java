@@ -89,7 +89,7 @@ public class DeclaredVsNonDeclared {
 
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
-        final Extractor<AnnotationInfo, Object> annotationNameExtractor = new Extractor<AnnotationInfo, Object>() {
+        final Extractor<AnnotationInfo, Object> annotationNameExtractor = new Extractor<>() {
             @Override
             public Object extract(final AnnotationInfo input) {
                 return input.getName();

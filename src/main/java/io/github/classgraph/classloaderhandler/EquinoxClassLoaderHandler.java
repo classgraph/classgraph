@@ -31,7 +31,6 @@ package io.github.classgraph.classloaderhandler;
 import java.lang.reflect.Array;
 import java.util.HashSet;
 
-import io.github.classgraph.ClassLoaderHandler;
 import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
