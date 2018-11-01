@@ -761,7 +761,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** @return The name of the class' package. */
     public String getPackageName() {
-        return name.substring(name.lastIndexOf('.') + 1);
+        final int dotIdx = name.lastIndexOf('.');
+        return dotIdx < 0 ? "" : name.substring(0, dotIdx);
     }
 
     /**
