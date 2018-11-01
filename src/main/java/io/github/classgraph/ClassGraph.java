@@ -862,7 +862,7 @@ public class ClassGraph {
         if (jarLeafNames.length == 0) {
             // Blacklist all lib or ext jars
             for (final String libOrExtJar : JarUtils.getJreLibOrExtJars()) {
-                blacklistLibOrExtJars(libOrExtJar);
+                blacklistLibOrExtJars(JarUtils.leafName(libOrExtJar));
             }
         } else {
             for (final String jarLeafName : jarLeafNames) {
