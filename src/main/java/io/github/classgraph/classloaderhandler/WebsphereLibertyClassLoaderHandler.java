@@ -31,10 +31,10 @@ package io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.util.List;
 
-import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ReflectionUtils;
+import io.github.classgraph.utils.ScanSpec;
 
 /**
  * WebsphereLibertyClassLoaderHandler.

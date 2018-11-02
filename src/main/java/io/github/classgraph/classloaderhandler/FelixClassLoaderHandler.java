@@ -33,10 +33,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ReflectionUtils;
+import io.github.classgraph.utils.ScanSpec;
 
 /**
  * Custom Class Loader Handler for OSGi Felix ClassLoader.

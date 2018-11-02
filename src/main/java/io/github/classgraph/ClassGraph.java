@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 import io.github.classgraph.utils.AutoCloseableExecutorService;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
+import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.VersionFinder;
 import io.github.classgraph.utils.WhiteBlackList;
 

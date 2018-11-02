@@ -35,7 +35,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.ScanSpec;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;

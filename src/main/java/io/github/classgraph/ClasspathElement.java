@@ -37,12 +37,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
+import io.github.classgraph.utils.ScanSpec;
+import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.WorkQueue;
 
 /** A classpath element (a directory or jarfile on the classpath). */

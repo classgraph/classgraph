@@ -51,6 +51,7 @@ import io.github.classgraph.json.Id;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.Parser.ParseException;
+import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */

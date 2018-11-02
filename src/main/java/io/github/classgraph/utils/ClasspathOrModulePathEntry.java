@@ -35,7 +35,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.ModuleRef;
-import io.github.classgraph.ScanSpec;
 
 /**
  * An entry in the classpath or module path. If the path is an http(s):// URL, the remote jar will be fetched and

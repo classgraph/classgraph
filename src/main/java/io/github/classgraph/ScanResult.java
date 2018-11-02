@@ -53,6 +53,7 @@ import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
+import io.github.classgraph.utils.ScanSpec;
 
 /** The result of a scan. */
 public final class ScanResult implements Closeable, AutoCloseable {

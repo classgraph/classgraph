@@ -34,6 +34,7 @@ import java.util.Arrays;
 
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
+import io.github.classgraph.utils.ScanSpec;
 
 /**
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.

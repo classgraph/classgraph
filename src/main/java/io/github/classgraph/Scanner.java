@@ -54,6 +54,7 @@ import io.github.classgraph.utils.InterruptionChecker;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
+import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.SingletonMap;
 import io.github.classgraph.utils.WorkQueue;
 import io.github.classgraph.utils.WorkQueue.WorkUnitProcessor;

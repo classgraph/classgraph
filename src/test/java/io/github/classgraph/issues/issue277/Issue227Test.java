@@ -1,7 +1,8 @@
 package io.github.classgraph.issues.issue277;
 
-import io.github.classgraph.ClassGraph;
 import org.junit.Test;
+
+import io.github.classgraph.ClassGraph;
 
 /**
  * https://github.com/classgraph/classgraph/issues/277

@@ -44,11 +44,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
+import io.github.classgraph.utils.ScanSpec;
+import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {

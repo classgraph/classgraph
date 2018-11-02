@@ -34,7 +34,6 @@ import java.lang.reflect.Array;
 import java.util.LinkedHashSet;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
-import io.github.classgraph.ScanSpec;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {

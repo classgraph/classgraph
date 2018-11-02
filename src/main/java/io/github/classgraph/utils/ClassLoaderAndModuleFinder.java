@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ModuleRef;
-import io.github.classgraph.ScanSpec;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderAndModuleFinder {

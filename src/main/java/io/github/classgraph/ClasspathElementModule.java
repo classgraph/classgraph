@@ -39,12 +39,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.Recycler;
+import io.github.classgraph.utils.ScanSpec;
+import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.URLPathEncoder;
 
 /** A module classpath element. */

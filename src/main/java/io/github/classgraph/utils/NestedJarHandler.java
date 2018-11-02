@@ -47,7 +47,6 @@ import java.util.zip.ZipFile;
 
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
-import io.github.classgraph.ScanSpec;
 
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs

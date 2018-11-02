@@ -43,8 +43,6 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import io.github.classgraph.ScanSpec;
-
 /** Fast parser for jar manifest files. */
 public class JarfileMetadataReader {
     /** If true, this is a JRE jar. */

@@ -33,6 +33,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import io.github.classgraph.utils.ScanSpec;
+
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {
 

@@ -28,9 +28,9 @@
  */
 package io.github.classgraph.classloaderhandler;
 
-import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
+import io.github.classgraph.utils.ScanSpec;
 
 /**
  * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does not attempt to extract URLs from

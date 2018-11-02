@@ -28,10 +28,10 @@
  */
 package io.github.classgraph.classloaderhandler;
 
-import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ReflectionUtils;
+import io.github.classgraph.utils.ScanSpec;
 
 /**
  * Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names.

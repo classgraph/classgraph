@@ -26,15 +26,15 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph;
+package io.github.classgraph.utils;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
-import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.WhiteBlackList;
+import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.utils.WhiteBlackList.WhiteBlackListLeafname;
 import io.github.classgraph.utils.WhiteBlackList.WhiteBlackListPrefix;
 import io.github.classgraph.utils.WhiteBlackList.WhiteBlackListWholeString;
@@ -46,7 +46,7 @@ import io.github.classgraph.utils.WhiteBlackList.WhiteBlackListWholeString;
 public class ScanSpec {
 
     /** Constructor for deserialization. */
-    ScanSpec() {
+    public ScanSpec() {
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -84,8 +84,8 @@ public class ScanSpec {
     /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
     public WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
 
-    /** Need to sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
-    void sortPrefixes() {
+    /** Sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
+    public void sortPrefixes() {
         for (final Field field : ScanSpec.class.getDeclaredFields()) {
             if (WhiteBlackList.class.isAssignableFrom(field.getType())) {
                 try {
@@ -373,16 +373,26 @@ public class ScanSpec {
     /**
      * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
      */
-    static enum ScanSpecPathMatch {
-        HAS_BLACKLISTED_PATH_PREFIX, HAS_WHITELISTED_PATH_PREFIX, AT_WHITELISTED_PATH, //
-        ANCESTOR_OF_WHITELISTED_PATH, AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
+    public static enum ScanSpecPathMatch {
+        /** Path starts with (or is) a blacklisted path prefix. */
+        HAS_BLACKLISTED_PATH_PREFIX,
+        /** Path starts with a whitelisted path prefix. */
+        HAS_WHITELISTED_PATH_PREFIX,
+        /** Path is whitelisted. */
+        AT_WHITELISTED_PATH,
+        /** Path is an ancestor of a whitelisted path. */
+        ANCESTOR_OF_WHITELISTED_PATH,
+        /** Path is the package of a specifically-whitelisted class. */
+        AT_WHITELISTED_CLASS_PACKAGE,
+        /** Path is not whitelisted and not blacklisted. */
+        NOT_WITHIN_WHITELISTED_PATH;
     }
 
     /**
      * Returns true if the given directory path is a descendant of a blacklisted path, or an ancestor or descendant
      * of a whitelisted path. The path should end in "/".
      */
-    ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
+    public ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
         // In blacklisted path
         if (pathWhiteBlackList.isBlacklisted(relativePath)) {
             // The directory is blacklisted.
@@ -435,18 +445,22 @@ public class ScanSpec {
      * Returns true if the given relative path (for a classfile name, including ".class") matches a
      * specifically-whitelisted (and non-blacklisted) classfile's relative path.
      */
-    boolean isSpecificallyWhitelistedClass(final String relativePath) {
+    public boolean isSpecificallyWhitelistedClass(final String relativePath) {
         return classfilePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath);
     }
 
     /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
-    boolean classIsBlacklisted(final String className) {
+    public boolean classIsBlacklisted(final String className) {
         return classWhiteBlackList.isBlacklisted(className) || packagePrefixWhiteBlackList.isBlacklisted(className);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    void log(final LogNode log) {
+    /**
+     * @param log
+     *            The {@link LogNode} to log to.
+     */
+    public void log(final LogNode log) {
         if (log != null) {
             final LogNode scanSpecLog = log.log("ScanSpec:");
             for (final Field field : ScanSpec.class.getDeclaredFields()) {

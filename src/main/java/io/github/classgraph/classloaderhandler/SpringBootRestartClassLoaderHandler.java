@@ -28,9 +28,9 @@
  */
 package io.github.classgraph.classloaderhandler;
 
-import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
+import io.github.classgraph.utils.ScanSpec;
 
 /**
  * This handler uses {@link io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder#PARENT_LAST}

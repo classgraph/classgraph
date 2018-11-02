@@ -41,7 +41,6 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
 import io.github.classgraph.utils.FastPathResolver;
 import io.github.classgraph.utils.FileUtils;
@@ -50,6 +49,8 @@ import io.github.classgraph.utils.JarfileMetadataReader;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.Recycler;
+import io.github.classgraph.utils.ScanSpec;
+import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.URLPathEncoder;
 import io.github.classgraph.utils.VersionedZipEntry;
 import io.github.classgraph.utils.WorkQueue;

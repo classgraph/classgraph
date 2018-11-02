@@ -31,9 +31,9 @@ package io.github.classgraph.classloaderhandler;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import io.github.classgraph.ScanSpec;
 import io.github.classgraph.utils.ClasspathOrder;
 import io.github.classgraph.utils.LogNode;
+import io.github.classgraph.utils.ScanSpec;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
 public class URLClassLoaderHandler implements ClassLoaderHandler {
