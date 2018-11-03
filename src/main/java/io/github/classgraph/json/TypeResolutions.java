@@ -145,7 +145,7 @@ class TypeResolutions {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                buf.append(typeVariables[i] + " => " + resolvedTypeArguments[i]);
+                buf.append(typeVariables[i]).append(" => ").append(resolvedTypeArguments[i]);
             }
             buf.append(" }");
             return buf.toString();

@@ -2307,7 +2307,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 buf.append(name);
                 final ClassInfo superclass = getSuperclass();
                 if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
-                    buf.append(" extends " + superclass.toString(/* typeNameOnly = */ true));
+                    buf.append(" extends ").append(superclass.toString(/* typeNameOnly = */ true));
                 }
                 final Set<ClassInfo> interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
                         /* strictWhitelist = */ false).directlyRelatedClasses;

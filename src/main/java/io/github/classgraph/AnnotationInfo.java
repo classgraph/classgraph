@@ -359,7 +359,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *            The buffer.
      */
     void toString(final StringBuilder buf) {
-        buf.append("@" + getName());
+        buf.append("@").append(getName());
         if (annotationParamValues != null && !annotationParamValues.isEmpty()) {
             buf.append('(');
             for (int i = 0; i < annotationParamValues.size(); i++) {
