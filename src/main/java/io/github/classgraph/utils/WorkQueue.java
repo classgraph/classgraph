@@ -88,7 +88,7 @@ public class WorkQueue<T> implements AutoCloseable {
          * @throws Exception
          *             If something goes wrong while processing the work unit.
          */
-        public void processWorkUnit(T workUnit, WorkQueue<T> workQueue) throws Exception;
+        void processWorkUnit(T workUnit, WorkQueue<T> workQueue) throws Exception;
     }
 
     /**

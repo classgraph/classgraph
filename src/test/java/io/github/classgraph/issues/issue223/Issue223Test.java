@@ -42,7 +42,7 @@ import io.github.classgraph.ScanResult;
 
 @Entity
 public class Issue223Test {
-    public static interface InnerInterface {
+    public interface InnerInterface {
     }
 
     @Test

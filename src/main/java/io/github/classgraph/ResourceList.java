@@ -194,7 +194,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
          * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
          *         list; if false, it is excluded.
          */
-        public boolean accept(Resource resource);
+        boolean accept(Resource resource);
     }
 
     /**
@@ -227,7 +227,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
          * @param byteArray
          *            The complete content of the resource.
          */
-        public void accept(final Resource resource, final byte[] byteArray);
+        void accept(final Resource resource, final byte[] byteArray);
     }
 
     /**
@@ -286,7 +286,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
          * @param inputStream
          *            The {@link InputStream} opened on the resource.
          */
-        public void accept(final Resource resource, final InputStream inputStream);
+        void accept(final Resource resource, final InputStream inputStream);
     }
 
     /**
@@ -345,7 +345,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
          * @param byteBuffer
          *            The {@link ByteBuffer} mapped to the resource.
          */
-        public void accept(final Resource resource, final ByteBuffer byteBuffer);
+        void accept(final Resource resource, final ByteBuffer byteBuffer);
     }
 
     /**

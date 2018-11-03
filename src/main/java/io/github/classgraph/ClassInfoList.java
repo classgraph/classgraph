@@ -352,7 +352,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
          * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
          *         list; if false, it is excluded.
          */
-        public boolean accept(ClassInfo classInfo);
+        boolean accept(ClassInfo classInfo);
     }
 
     /**

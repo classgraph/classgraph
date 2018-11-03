@@ -213,7 +213,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
          * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
          *         list; if false, it is excluded.
          */
-        public boolean accept(MethodInfo methodInfo);
+        boolean accept(MethodInfo methodInfo);
     }
 
     /**

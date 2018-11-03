@@ -57,15 +57,15 @@ import io.github.classgraph.issues.issue153.Issue153Test.TwoParamAnnotation;
 public class Issue153Test {
 
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface StringAnnotation {
-        public String value();
+    public @interface StringAnnotation {
+        String value();
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface TwoParamAnnotation {
-        public char value1();
+    public @interface TwoParamAnnotation {
+        char value1();
 
-        public int[] value2();
+        int[] value2();
     }
 
     public enum FruitEnum {
@@ -73,18 +73,18 @@ public class Issue153Test {
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface EnumAnnotation {
-        public FruitEnum value();
+    public @interface EnumAnnotation {
+        FruitEnum value();
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface NestedAnnotation {
-        public StringAnnotation[] value();
+    public @interface NestedAnnotation {
+        StringAnnotation[] value();
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface ClassRefAnnotation {
-        public Class<?> value();
+    public @interface ClassRefAnnotation {
+        Class<?> value();
     }
 
     @StringAnnotation("fieldlabel")
@@ -95,15 +95,15 @@ public class Issue153Test {
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface AnnotationWithAndWithoutDefaultValue {
-        public String valueWithoutDefault();
+    public @interface AnnotationWithAndWithoutDefaultValue {
+        String valueWithoutDefault();
 
-        public int valueWithDefault() default 5;
+        int valueWithDefault() default 5;
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface AnnotationWithOnlyDefaultValue {
-        public int value() default 6;
+    public @interface AnnotationWithOnlyDefaultValue {
+        int value() default 6;
     }
 
     @AnnotationWithAndWithoutDefaultValue(valueWithoutDefault = "x")

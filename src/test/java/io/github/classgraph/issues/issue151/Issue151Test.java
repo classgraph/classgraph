@@ -65,17 +65,17 @@ public class Issue151Test {
 
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation0 {
+    public @interface ParamAnnotation0 {
     }
 
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation1 {
+    public @interface ParamAnnotation1 {
     }
 
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation2 {
+    public @interface ParamAnnotation2 {
     }
 
     public void method(@ParamAnnotation0 final String annotatedValue0,

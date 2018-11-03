@@ -46,19 +46,19 @@ public class TestMethodMetaAnnotation {
 
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface MetaAnnotation {
+    public @interface MetaAnnotation {
     }
 
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
     @MetaAnnotation
-    public static @interface ClassAnnotation {
+    public @interface ClassAnnotation {
     }
 
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @MetaAnnotation
-    public static @interface MethodAnnotation {
+    public @interface MethodAnnotation {
     }
 
     @ClassAnnotation

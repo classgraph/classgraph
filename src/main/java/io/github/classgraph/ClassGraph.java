@@ -422,7 +422,7 @@ public class ClassGraph {
          *            stripped from the beginning, if they were present in the classpath.
          * @return true if the path string passed is a path you want to scan.
          */
-        public boolean includeClasspathElement(String classpathElementPathStr);
+        boolean includeClasspathElement(String classpathElementPathStr);
     }
 
     /**
@@ -1001,7 +1001,7 @@ public class ClassGraph {
          * @param scanResult
          *            the {@link ScanResult} to process.
          */
-        public void processScanResult(ScanResult scanResult);
+        void processScanResult(ScanResult scanResult);
     }
 
     /** A callback used to handle failure during an asynchronous scan. */
@@ -1013,7 +1013,7 @@ public class ClassGraph {
          * @param throwable
          *            the {@link Throwable} that was thrown during scanning.
          */
-        public void onFailure(Throwable throwable);
+        void onFailure(Throwable throwable);
     }
 
     /**
