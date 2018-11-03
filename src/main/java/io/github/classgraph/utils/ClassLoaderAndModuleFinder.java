@@ -94,7 +94,7 @@ public class ClassLoaderAndModuleFinder {
     private static List<ModuleRef> findModuleRefs(final List<Object> layers, final ScanSpec scanSpec,
             final LogNode log) {
         if (layers.isEmpty()) {
-            return Collections.<ModuleRef> emptyList();
+            return Collections.emptyList();
         }
 
         // Traverse the layer DAG to find the layer resolution order

@@ -130,7 +130,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /** The child packages of this package, or the empty list if none. */
     public List<PackageInfo> getChildren() {
         if (children == null) {
-            return Collections.<PackageInfo> emptyList();
+            return Collections.emptyList();
         }
         final List<PackageInfo> childrenSorted = new ArrayList<>(children);
         // Ensure children are sorted

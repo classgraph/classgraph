@@ -89,7 +89,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     private ClassInfoList() {
         super(1);
         this.sortByName = false;
-        directlyRelatedClasses = Collections.<ClassInfo> emptySet();
+        directlyRelatedClasses = Collections.emptySet();
     }
 
     /** Unmodifiable empty ClassInfoList. */
@@ -175,7 +175,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     public <T> List<Class<T>> loadClasses(final Class<T> superclassOrInterfaceType,
             final boolean ignoreExceptions) {
         if (this.isEmpty()) {
-            return Collections.<Class<T>> emptyList();
+            return Collections.emptyList();
         } else {
             final List<Class<T>> classRefs = new ArrayList<>();
             for (final ClassInfo classInfo : this) {
@@ -226,7 +226,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     public List<Class<?>> loadClasses(final boolean ignoreExceptions) {
         if (this.isEmpty()) {
-            return Collections.<Class<?>> emptyList();
+            return Collections.emptyList();
         } else {
             final List<Class<?>> classRefs = new ArrayList<>();
             // Try loading each class

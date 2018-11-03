@@ -58,7 +58,7 @@ class InfoList<T extends HasName> extends ArrayList<T> {
      */
     public List<String> getNames() {
         if (this.isEmpty()) {
-            return Collections.<String> emptyList();
+            return Collections.emptyList();
         } else {
             final List<String> names = new ArrayList<>(this.size());
             for (final T i : this) {
@@ -74,7 +74,7 @@ class InfoList<T extends HasName> extends ArrayList<T> {
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
-            return Collections.<String> emptyList();
+            return Collections.emptyList();
         } else {
             final List<String> toStringVals = new ArrayList<>(this.size());
             for (final T i : this) {
