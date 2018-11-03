@@ -44,7 +44,7 @@ import io.github.classgraph.issues.issue167.a.TestA;
 import io.github.classgraph.issues.issue167.a.b.TestAB;
 
 public class Issue167Test {
-    public static List<Class<?>> classes = Arrays.asList(new Class<?>[] { TestA.class, TestAB.class });
+    public static List<Class<?>> classes = Arrays.asList(TestA.class, TestAB.class);
     public static List<String> packages = new ArrayList<>();
     public static List<String> classNames = new ArrayList<>();
     static {
