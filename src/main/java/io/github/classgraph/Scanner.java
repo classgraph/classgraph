@@ -68,7 +68,6 @@ class Scanner implements Callable<ScanResult> {
     private final ScanResultProcessor scanResultProcessor;
     private final FailureHandler failureHandler;
     private final LogNode topLevelLog;
-    private NestedJarHandler nestedJarHandler;
 
     /** The classpath scanner. */
     Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
@@ -400,7 +399,7 @@ class Scanner implements Callable<ScanResult> {
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = topLevelLog == null ? null
                 : topLevelLog.log("Finding classpath entries");
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
+        NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
         final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
                 new ClasspathOrModulePathEntryToClasspathElementMap(scanSpec, nestedJarHandler);
         try {
@@ -753,7 +752,7 @@ class Scanner implements Callable<ScanResult> {
 
         } catch (final Throwable e) {
             // Remove temporary files if an exception was thrown
-            this.nestedJarHandler.close(topLevelLog);
+            nestedJarHandler.close(topLevelLog);
             if (topLevelLog != null) {
                 topLevelLog.log(e);
             }
