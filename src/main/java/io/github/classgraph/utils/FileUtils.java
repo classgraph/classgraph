@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -213,7 +214,7 @@ public class FileUtils {
         final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize, log);
         final byte[] buf = ent.getKey();
         final int bufBytesUsed = ent.getValue();
-        return new String(buf, 0, bufBytesUsed, "UTF-8");
+        return new String(buf, 0, bufBytesUsed, StandardCharsets.UTF_8);
     }
 
     // -------------------------------------------------------------------------------------------------------------
