@@ -442,7 +442,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         classInfo.isScannedClass = true;
 
         // Mark the class as non-external if it is a whitelisted class
-        if (isExternalClass == false) {
+        if (!isExternalClass) {
             classInfo.isExternalClass = isExternalClass;
         }
 
