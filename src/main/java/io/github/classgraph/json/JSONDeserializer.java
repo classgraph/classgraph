@@ -97,7 +97,7 @@ public class JSONDeserializer {
             if (isLong) {
                 return jsonVal;
             } else {
-                return (long) ((Integer) jsonVal).intValue();
+                return (long) (Integer) jsonVal;
             }
 
         } else if (rawType == Short.class || rawType == Short.TYPE) {
