@@ -269,9 +269,7 @@ public class JSONSerializer {
 
             // Convert items to JSON values
             final List<Object> convertedValsList = new ArrayList<>();
-            for (final Object item : collection) {
-                convertedValsList.add(item);
-            }
+            convertedValsList.addAll(collection);
             final Object[] convertedVals = convertedValsList.toArray();
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
