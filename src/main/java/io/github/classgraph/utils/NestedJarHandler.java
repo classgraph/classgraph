@@ -261,7 +261,7 @@ public class NestedJarHandler {
 
                         // If path component is a directory, it is a package root
                         if (isDirectory) {
-                            final boolean childPathIsLeaf = childPath.indexOf("!") < 0;
+                            final boolean childPathIsLeaf = !childPath.contains("!");
                             if (!childPathIsLeaf) {
                                 // Can only have a package root in the last component of the classpath
                                 throw new IOException("Path " + childPath + " in jarfile " + parentJarFile

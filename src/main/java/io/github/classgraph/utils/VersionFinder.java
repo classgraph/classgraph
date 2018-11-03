@@ -86,11 +86,11 @@ public class VersionFinder {
 
     static {
         final String osName = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
-        if ((osName.indexOf("mac") >= 0) || (osName.indexOf("darwin") >= 0)) {
+        if ((osName.contains("mac")) || (osName.contains("darwin"))) {
             OS = OperatingSystem.MacOSX;
-        } else if (osName.indexOf("win") >= 0) {
+        } else if (osName.contains("win")) {
             OS = OperatingSystem.Windows;
-        } else if (osName.indexOf("nux") >= 0) {
+        } else if (osName.contains("nux")) {
             OS = OperatingSystem.Linux;
         } else {
             OS = OperatingSystem.Unknown;
