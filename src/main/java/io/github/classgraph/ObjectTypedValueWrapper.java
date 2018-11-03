@@ -344,7 +344,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    intArrayValue[j] = objectArrayValue[j].integerValue.intValue();
+                    intArrayValue[j] = objectArrayValue[j].integerValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -357,7 +357,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    longArrayValue[j] = objectArrayValue[j].longValue.longValue();
+                    longArrayValue[j] = objectArrayValue[j].longValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -370,7 +370,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    shortArrayValue[j] = objectArrayValue[j].shortValue.shortValue();
+                    shortArrayValue[j] = objectArrayValue[j].shortValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -383,7 +383,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    charArrayValue[j] = objectArrayValue[j].characterValue.charValue();
+                    charArrayValue[j] = objectArrayValue[j].characterValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -396,7 +396,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    floatArrayValue[j] = objectArrayValue[j].floatValue.floatValue();
+                    floatArrayValue[j] = objectArrayValue[j].floatValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -409,7 +409,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    doubleArrayValue[j] = objectArrayValue[j].doubleValue.doubleValue();
+                    doubleArrayValue[j] = objectArrayValue[j].doubleValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -422,7 +422,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    booleanArrayValue[j] = objectArrayValue[j].booleanValue.booleanValue();
+                    booleanArrayValue[j] = objectArrayValue[j].booleanValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -435,7 +435,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    byteArrayValue[j] = objectArrayValue[j].byteValue.byteValue();
+                    byteArrayValue[j] = objectArrayValue[j].byteValue;
                 }
                 objectArrayValue = null;
                 break;

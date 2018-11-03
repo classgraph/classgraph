@@ -107,7 +107,7 @@ public class JSONDeserializer {
             if (!(jsonVal instanceof Integer)) {
                 throw new IllegalArgumentException("Expected short; got " + jsonVal.getClass().getName());
             }
-            final int intValue = ((Integer) jsonVal).intValue();
+            final int intValue = (Integer) jsonVal;
             if (intValue < Short.MIN_VALUE || intValue > Short.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected short; got out-of-range value " + intValue);
             }
@@ -120,7 +120,7 @@ public class JSONDeserializer {
             if (!(jsonVal instanceof Double)) {
                 throw new IllegalArgumentException("Expected float; got " + jsonVal.getClass().getName());
             }
-            final double doubleValue = ((Double) jsonVal).doubleValue();
+            final double doubleValue = (Double) jsonVal;
             if (doubleValue < Float.MIN_VALUE || doubleValue > Float.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected float; got out-of-range value " + doubleValue);
             }
@@ -142,7 +142,7 @@ public class JSONDeserializer {
             if (!(jsonVal instanceof Integer)) {
                 throw new IllegalArgumentException("Expected byte; got " + jsonVal.getClass().getName());
             }
-            final int intValue = ((Integer) jsonVal).intValue();
+            final int intValue = (Integer) jsonVal;
             if (intValue < Byte.MIN_VALUE || intValue > Byte.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected byte; got out-of-range value " + intValue);
             }
