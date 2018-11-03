@@ -137,7 +137,7 @@ public class JarfileMetadataReader {
      * Assumes there is only one of each entry present in the manifest.
      */
     JarfileMetadataReader(final File jarFile, final ScanSpec scanSpec, final LogNode log) {
-        try (ZipFile zipFile = new ZipFile(jarFile)) {
+        try (ZipFile zipFile = NestedJarHandler.openZipFile(jarFile)) {
             final int numEntries = zipFile.size();
             final String jarFileName = FastPathResolver.resolve(jarFile.getPath());
 

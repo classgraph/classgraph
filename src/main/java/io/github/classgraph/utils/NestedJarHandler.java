@@ -47,6 +47,7 @@ import java.util.zip.ZipFile;
 
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
+import org.springframework.boot.loader.jar.JarFile;
 
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs
@@ -79,6 +80,29 @@ public class NestedJarHandler {
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
+    public static final boolean canUseSpringBootApi = checkSpringBootApi();
+
+    private static boolean checkSpringBootApi() {
+        try {
+            Class.forName("org.springframework.boot.loader.jar.JarFile");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    static ZipFile openZipFile(File zipFile) throws IOException {
+        if (canUseSpringBootApi) {
+            if (zipFile instanceof NestedJarFile) {
+                return ((NestedJarFile) zipFile).openAsJarFile();
+            } else {
+                return new JarFile(zipFile);
+            }
+        } else {
+            return new ZipFile(zipFile);
+        }
+    }
+
     /**
      * A handler for nested jars.
      * 
@@ -96,7 +120,7 @@ public class NestedJarHandler {
                 return new Recycler<ZipFile, IOException>() {
                     @Override
                     public ZipFile newInstance() throws IOException {
-                        return new ZipFile(zipFile.getPath());
+                        return openZipFile(zipFile);
                     }
                 };
             }
@@ -289,8 +313,17 @@ public class NestedJarHandler {
 
                         // Extract nested jar to a temporary file
                         try {
-                            // Unzip the child jarfile to a temporary file
-                            final File childJarFile = unzipToTempFile(parentZipFile, childZipEntry, log);
+                            File childJarFile = null;
+                            if (canUseSpringBootApi) {
+                                if (parentZipFile instanceof JarFile && childZipEntry.getMethod() == ZipEntry.STORED) {
+                                    childJarFile = new NestedJarFile((JarFile) parentZipFile, childZipEntry);
+                                }
+                            }
+
+                            if (childJarFile == null) {
+                                // Unzip the child jarfile to a temporary file
+                                childJarFile = unzipToTempFile(parentZipFile, childZipEntry, log);
+                            }
 
                             // Handle self-extracting archives (can be created by Spring-Boot)
                             final File noHeaderChildJarFile = scanSpec.stripSFXHeader
