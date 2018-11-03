@@ -448,12 +448,18 @@ public class ScanSpec {
      * Returns true if the given relative path (for a classfile name, including ".class") matches a
      * specifically-whitelisted (and non-blacklisted) classfile's relative path.
      */
-    public boolean isSpecificallyWhitelistedClass(final String relativePath) {
+    public boolean classfileIsSpecificallyWhitelisted(final String relativePath) {
         return classfilePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath);
     }
 
+    /** Returns true if the class is specifically whitelisted, or is within a whitelisted package. */
+    public boolean classOrPackageIsSpecificallyWhitelisted(final String className) {
+        return classWhiteBlackList.isSpecificallyWhitelisted(className)
+                || packagePrefixWhiteBlackList.isSpecificallyWhitelisted(className);
+    }
+
     /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
-    public boolean classIsBlacklisted(final String className) {
+    public boolean classOrPackageIsBlacklisted(final String className) {
         return classWhiteBlackList.isBlacklisted(className) || packagePrefixWhiteBlackList.isBlacklisted(className);
     }
 

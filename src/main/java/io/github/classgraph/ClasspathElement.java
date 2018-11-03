@@ -297,7 +297,7 @@ abstract class ClasspathElement {
         final boolean isWhitelisted = parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
                 || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
                 || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                        && scanSpec.isSpecificallyWhitelistedClass(path));
+                        && scanSpec.classfileIsSpecificallyWhitelisted(path));
         if (isWhitelisted) {
             if (log != null) {
                 log.log(path, "Found whitelisted path: " + path);
