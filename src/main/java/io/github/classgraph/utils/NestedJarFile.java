@@ -10,11 +10,13 @@ public class NestedJarFile extends File {
 
     private final JarFile parentJarFile;
     private final ZipEntry nestedJarEntry;
+    private final boolean directory;
 
     public NestedJarFile(JarFile parentJarFile, ZipEntry nestedJarEntry) {
-        super(parentJarFile.getName() + "!" + nestedJarEntry.getName());
+        super(parentJarFile.getName() + "!/" + nestedJarEntry.getName());
         this.parentJarFile = parentJarFile;
         this.nestedJarEntry = nestedJarEntry;
+        this.directory = nestedJarEntry.isDirectory();
     }
 
     public JarFile openAsJarFile() throws IOException {
@@ -33,12 +35,12 @@ public class NestedJarFile extends File {
 
     @Override
     public boolean isFile() {
-        return !nestedJarEntry.isDirectory();
+        return !directory;
     }
 
     @Override
     public boolean isDirectory() {
-        return nestedJarEntry.isDirectory();
+        return directory;
     }
 
     @Override
