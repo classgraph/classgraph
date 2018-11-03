@@ -84,7 +84,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add a {@link ClassiInfo} object to this {@link ModuleInfo}. */
+    /** Add a {@link ClassInfo} object to this {@link ModuleInfo}. */
     void addClassInfo(final ClassInfo classInfo) {
         classInfoSet.add(classInfo);
     }

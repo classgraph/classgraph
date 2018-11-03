@@ -492,7 +492,7 @@ public class NestedJarHandler {
 
     /**
      * Unzip a ZipEntry to a temporary file, then return the temporary file. The temporary file will be removed when
-     * {@link NestedJarHandler#close()} is called.
+     * {@link NestedJarHandler#close(LogNode)} is called.
      */
     private File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry, final LogNode log)
             throws IOException {

@@ -113,7 +113,7 @@ public class FileUtils {
     private static final int DEFAULT_BUFFER_SIZE = 16384;
 
     /**
-     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer.MAX_VALUE}, since some VMs
+     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
      * reserve header words in arrays.
      */
     private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
