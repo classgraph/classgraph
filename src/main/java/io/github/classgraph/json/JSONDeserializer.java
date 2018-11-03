@@ -357,10 +357,9 @@ public class JSONDeserializer {
             if (isObj) {
                 // Standard objects must interpret the key as a string, since field names are strings.
                 // Look up field name directly, using the itemJsonKey string
-                final String fieldName = itemJsonKey;
-                fieldTypeInfo = classFields.fieldNameToFieldTypeInfo.get(fieldName);
+                fieldTypeInfo = classFields.fieldNameToFieldTypeInfo.get(itemJsonKey);
                 if (fieldTypeInfo == null) {
-                    throw new IllegalArgumentException("Field " + rawType.getName() + "." + fieldName
+                    throw new IllegalArgumentException("Field " + rawType.getName() + "." + itemJsonKey
                             + " does not exist or is not accessible, non-final, and non-transient");
                 }
             } else {
@@ -638,8 +637,7 @@ public class JSONDeserializer {
             throws IllegalArgumentException {
         final ClassFieldCache classFieldCache = new ClassFieldCache(/* resolveTypes = */ true,
                 /* onlySerializePublicFields = */ false);
-        final T result = deserializeObject(expectedType, json, classFieldCache);
-        return result;
+        return deserializeObject(expectedType, json, classFieldCache);
     }
 
     /**

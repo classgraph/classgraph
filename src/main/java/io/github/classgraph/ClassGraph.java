@@ -1083,17 +1083,16 @@ public class ClassGraph {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan and wait for completion
-            final ScanResult scanResult = executorService
-                    .submit(new Scanner(scanSpec, executorService, numParallelTasks,
-                            /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)) //
-                    .get();
 
             //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
             //    final String scanResultJson = scanResult.toJSON();
             //    scanResult = ScanResult.fromJSON(scanResultJson);
 
             // Return the scanResult
-            return scanResult;
+            return executorService
+                    .submit(new Scanner(scanSpec, executorService, numParallelTasks,
+                            /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)) //
+                    .get();
 
         } catch (final InterruptedException e) {
             if (topLevelLog != null) {

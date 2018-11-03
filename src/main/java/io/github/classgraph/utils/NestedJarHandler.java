@@ -388,9 +388,8 @@ public class NestedJarHandler {
      */
     public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final LogNode log) throws Exception {
         // Get the jarfile metadata reader singleton for this zipfile
-        final JarfileMetadataReader jarfileMetadataReader = zipFileToJarfileMetadataReaderMap
+        return zipFileToJarfileMetadataReaderMap
                 .getOrCreateSingleton(zipFile, log);
-        return jarfileMetadataReader;
     }
 
     /**

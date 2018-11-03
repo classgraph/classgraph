@@ -981,11 +981,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
 
         // Produce a new ScanResult
-        final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
+        return new ScanResult(deserialized.scanSpec,
                 /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), deserialized.classpath,
                 classLoaderOrder, classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo,
                 /* fileToLastModified = */ null, /* nestedJarHandler = */ null, /* log = */ null);
-        return scanResult;
     }
 
     /**

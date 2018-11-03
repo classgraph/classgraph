@@ -116,7 +116,7 @@ public class VersionFinder {
                 final int packagePathSegments = className.length() - className.replace(".", "").length();
                 // Remove package segments from path
                 Path path = absolutePackagePath;
-                for (int i = 0, segmentsToRemove = packagePathSegments; i < segmentsToRemove && path != null; i++) {
+                for (int i = 0; i < packagePathSegments && path != null; i++) {
                     path = path.getParent();
                 }
                 // Remove up to two more levels for "bin" or "target/classes"
