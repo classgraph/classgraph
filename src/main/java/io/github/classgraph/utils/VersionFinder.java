@@ -105,7 +105,7 @@ public class VersionFinder {
     /**
      * @return the version number of ClassGraph.
      */
-    public static final synchronized String getVersion() {
+    public static synchronized String getVersion() {
         // Try to get version number from pom.xml (available when running in Eclipse)
         final Class<?> cls = ClassGraph.class;
         try {

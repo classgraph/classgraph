@@ -86,7 +86,7 @@ public class ClassGraph {
      *
      * @return the ClassGraph version, or "unknown" if it could not be determined.
      */
-    public static final String getVersion() {
+    public static String getVersion() {
         return VersionFinder.getVersion();
     }
 
