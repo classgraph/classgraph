@@ -416,8 +416,7 @@ class ClasspathElementZip extends ClasspathElement {
             // match status for speed, if the directory name hasn't changed).
             final int lastSlashIdx = relativePath.lastIndexOf("/");
             final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
-            final boolean parentRelativePathChanged = prevParentRelativePath == null
-                    || !parentRelativePath.equals(prevParentRelativePath);
+            final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
             final ScanSpecPathMatch parentMatchStatus = //
                     parentRelativePathChanged ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
                             : prevParentMatchStatus;

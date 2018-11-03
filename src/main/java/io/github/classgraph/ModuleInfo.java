@@ -207,7 +207,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     public boolean equals(final Object o) {
         if (this == o) {
             return true;
-        } else if (o == null || !(o instanceof ModuleInfo)) {
+        } else if (!(o instanceof ModuleInfo)) {
             return false;
         }
         return this.compareTo((ModuleInfo) o) == 0;

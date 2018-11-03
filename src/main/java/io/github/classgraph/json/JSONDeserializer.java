@@ -555,7 +555,7 @@ public class JSONDeserializer {
     private static HashMap<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
             final Object parsedJSON) {
         final HashMap<CharSequence, Object> idToObjectInstance = new HashMap<>();
-        if (parsedJSON != null && parsedJSON instanceof JSONObject) {
+        if (parsedJSON instanceof JSONObject) {
             final JSONObject itemJsonObject = (JSONObject) parsedJSON;
             if (itemJsonObject.items.size() > 0) {
                 final Entry<String, Object> firstItem = itemJsonObject.items.get(0);

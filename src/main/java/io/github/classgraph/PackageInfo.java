@@ -241,7 +241,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     public boolean equals(final Object o) {
         if (this == o) {
             return true;
-        } else if (o == null || !(o instanceof PackageInfo)) {
+        } else if (!(o instanceof PackageInfo)) {
             return false;
         }
         return this.name.equals(((PackageInfo) o).name);
