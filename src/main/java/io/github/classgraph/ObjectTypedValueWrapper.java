@@ -67,7 +67,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
 
     public ObjectTypedValueWrapper(final Object annotationParamValue) {
         if (annotationParamValue != null) {
-            final Class<? extends Object> annotationParameterValueClass = annotationParamValue.getClass();
+            final Class<?> annotationParameterValueClass = annotationParamValue.getClass();
             if (annotationParameterValueClass.isArray()) {
                 // Support for 1D primitive and string arrays is needed for annotation parameter values
                 if (annotationParameterValueClass == String[].class) {

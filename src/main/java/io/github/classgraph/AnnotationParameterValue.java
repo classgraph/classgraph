@@ -152,7 +152,7 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
             buf.append("null");
         } else {
             final Object paramVal = value.get();
-            final Class<? extends Object> valClass = paramVal.getClass();
+            final Class<?> valClass = paramVal.getClass();
             if (valClass.isArray()) {
                 buf.append('{');
                 for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {

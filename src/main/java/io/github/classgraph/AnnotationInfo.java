@@ -261,7 +261,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             }
 
             // Clone any array-typed annotation parameter values, in keeping with the Java Annotation API
-            final Class<? extends Object> annotationParameterValueClass = annotationParameterValue.getClass();
+            final Class<?> annotationParameterValueClass = annotationParameterValue.getClass();
             if (annotationParameterValueClass.isArray()) {
                 // Handle array types
                 final Class<?> arrayType = annotationParameterValueClass;

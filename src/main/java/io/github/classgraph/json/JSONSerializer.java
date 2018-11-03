@@ -194,7 +194,7 @@ public class JSONSerializer {
         }
 
         Object jsonVal;
-        final Class<? extends Object> cls = obj.getClass();
+        final Class<?> cls = obj.getClass();
 
         if (Map.class.isAssignableFrom(cls)) {
             final Map<Object, Object> map = (Map<Object, Object>) obj;

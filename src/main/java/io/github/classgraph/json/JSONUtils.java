@@ -257,7 +257,7 @@ public class JSONUtils {
      * Return true for objects that are collections or arrays (i.e. objects that are convertible to a JSON array).
      */
     static boolean isCollectionOrArray(final Object obj) {
-        final Class<? extends Object> cls = obj.getClass();
+        final Class<?> cls = obj.getClass();
         return Collection.class.isAssignableFrom(cls) || cls.isArray();
     }
 
