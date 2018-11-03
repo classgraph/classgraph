@@ -376,9 +376,7 @@ public class ClasspathOrModulePathEntry {
 
             try {
                 fileCached = fileCached.getCanonicalFile();
-            } catch (final IOException e) {
-                throw new IOException("Could not canonicalize path " + path + " : " + e);
-            } catch (final SecurityException e) {
+            } catch (final IOException | SecurityException e) {
                 throw new IOException("Could not canonicalize path " + path + " : " + e);
             }
             fileIsCached = true;
