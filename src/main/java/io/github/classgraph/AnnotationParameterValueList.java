@@ -154,8 +154,7 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
      * to check the type of each method of the annotation class to determine if it is a primitive array type).
      */
     void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
-        for (int i = 0; i < size(); i++) {
-            final AnnotationParameterValue annotationParamValue = get(i);
+        for (final AnnotationParameterValue annotationParamValue : this) {
             annotationParamValue.convertWrapperArraysToPrimitiveArrays(annotationClassInfo);
         }
     }

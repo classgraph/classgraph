@@ -541,14 +541,12 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             this.typeSignature.setScanResult(scanResult);
         }
         if (this.annotationInfo != null) {
-            for (int i = 0; i < this.annotationInfo.size(); i++) {
-                final AnnotationInfo ai = this.annotationInfo.get(i);
+            for (final AnnotationInfo ai : this.annotationInfo) {
                 ai.setScanResult(scanResult);
             }
         }
         if (this.parameterAnnotationInfo != null) {
-            for (int i = 0; i < this.parameterAnnotationInfo.length; i++) {
-                final AnnotationInfo[] pai = this.parameterAnnotationInfo[i];
+            for (final AnnotationInfo[] pai : this.parameterAnnotationInfo) {
                 if (pai != null) {
                     for (final AnnotationInfo ai : pai) {
                         ai.setScanResult(scanResult);

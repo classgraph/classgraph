@@ -152,8 +152,8 @@ public class LogNode {
         }
         if (stackTrace != null && !stackTrace.isEmpty()) {
             final String[] parts = stackTrace.split("\n");
-            for (int i = 0; i < parts.length; i++) {
-                appendLine(timeStampStr, indentLevel, parts[i], buf);
+            for (String part : parts) {
+                appendLine(timeStampStr, indentLevel, part, buf);
             }
         }
 

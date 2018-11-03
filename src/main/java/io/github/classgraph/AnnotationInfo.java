@@ -344,8 +344,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     public int hashCode() {
         int h = getName().hashCode();
         if (annotationParamValues != null) {
-            for (int i = 0; i < annotationParamValues.size(); i++) {
-                final AnnotationParameterValue e = annotationParamValues.get(i);
+            for (final AnnotationParameterValue e : annotationParamValues) {
                 h = h * 7 + e.getName().hashCode() * 3 + e.getValue().hashCode();
             }
         }

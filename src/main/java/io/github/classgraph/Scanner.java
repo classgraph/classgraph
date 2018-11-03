@@ -536,8 +536,7 @@ class Scanner implements Callable<ScanResult> {
                 // Find classpath elements that are path prefixes of other classpath elements
                 final List<SimpleEntry<String, ClasspathElement>> classpathEltResolvedPathToElement = //
                         new ArrayList<>();
-                for (int i = 0; i < classpathOrder.size(); i++) {
-                    final ClasspathElement classpathElement = classpathOrder.get(i);
+                for (final ClasspathElement classpathElement : classpathOrder) {
                     classpathEltResolvedPathToElement.add(new SimpleEntry<>(
                             classpathElement.classpathEltPath.getResolvedPath(), classpathElement));
                 }

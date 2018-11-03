@@ -105,9 +105,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         if (fullyQualifiedClassName == null) {
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
-            for (int i = 0; i < suffixes.size(); i++) {
+            for (String suffixe : suffixes) {
                 buf.append('$');
-                buf.append(suffixes.get(i));
+                buf.append(suffixe);
             }
             fullyQualifiedClassName = buf.toString();
         }
