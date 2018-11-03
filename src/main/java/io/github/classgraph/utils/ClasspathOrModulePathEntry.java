@@ -493,7 +493,7 @@ public class ClasspathOrModulePathEntry {
             // Call isFile(), which calls getFile(), which will fetch URLs and/or unzip nested jarfiles.
             final boolean isFile = isFile(log);
             final boolean isDirectory = isDirectory(log);
-            if (isFile != !isDirectory) {
+            if (isFile == isDirectory) {
                 // Exactly one of isFile and isDirectory should be true
                 if (log != null) {
                     log.log("Ignoring invalid classpath element: " + path);
