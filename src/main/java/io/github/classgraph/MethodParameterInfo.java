@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Modifier;
+import java.util.Collections;
 
 /**
  * Information on the parameters of a method.
@@ -152,9 +153,7 @@ public class MethodParameterInfo {
             return AnnotationInfoList.EMPTY_LIST;
         } else {
             final AnnotationInfoList annotationInfoList = new AnnotationInfoList(annotationInfo.length);
-            for (final AnnotationInfo ai : annotationInfo) {
-                annotationInfoList.add(ai);
-            }
+            Collections.addAll(annotationInfoList, annotationInfo);
             return AnnotationInfoList.getIndirectAnnotations(annotationInfoList, /* annotatedClass = */ null);
         }
     }

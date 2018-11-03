@@ -483,9 +483,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Merge together ClassLoader list (concatenate and dedup)
             final LinkedHashSet<ClassLoader> allClassLoaders = new LinkedHashSet<>(
                     Arrays.asList(classInfo.classLoaders));
-            for (final ClassLoader classLoader : classLoaders) {
-                allClassLoaders.add(classLoader);
-            }
+            Collections.addAll(allClassLoaders, classLoaders);
             final List<ClassLoader> classLoaderOrder = new ArrayList<>(allClassLoaders);
             classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[0]);
         }

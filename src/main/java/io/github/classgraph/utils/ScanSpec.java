@@ -30,6 +30,7 @@ package io.github.classgraph.utils;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
@@ -366,9 +367,7 @@ public class ScanSpec {
         }
         this.addedModuleLayers = null;
         this.overrideModuleLayers = new ArrayList<>();
-        for (final Object moduleLayer : overrideModuleLayers) {
-            this.overrideModuleLayers.add(moduleLayer);
-        }
+        Collections.addAll(this.overrideModuleLayers, overrideModuleLayers);
     }
 
     // -------------------------------------------------------------------------------------------------------------
