@@ -376,7 +376,7 @@ public class ScanSpec {
     /**
      * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
      */
-    public static enum ScanSpecPathMatch {
+    public enum ScanSpecPathMatch {
         /** Path starts with (or is) a blacklisted path prefix. */
         HAS_BLACKLISTED_PATH_PREFIX,
         /** Path starts with a whitelisted path prefix. */

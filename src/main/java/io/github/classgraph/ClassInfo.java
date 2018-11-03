@@ -173,7 +173,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /** How classes are related. */
-    private static enum RelType {
+    private enum RelType {
 
         // Classes:
 
@@ -501,7 +501,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /** The class type to return. */
-    private static enum ClassType {
+    private enum ClassType {
         /** Get all class types. */
         ALL,
         /** A standard class (not an interface or annotation). */
