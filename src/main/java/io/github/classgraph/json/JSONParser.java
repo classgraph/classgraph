@@ -260,7 +260,7 @@ class JSONParser extends Parser {
             }
         }
         final int endIdx = getPosition();
-        final String numberStr = getSubstring(startIdx, endIdx).toString();
+        final String numberStr = getSubstring(startIdx, endIdx);
         if (hasFractionalPart || hasExponentPart) {
             return Double.valueOf(numberStr);
         } else if (numIntegralDigits < 9) {

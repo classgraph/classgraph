@@ -754,7 +754,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** @return The simple name of the class. */
     public String getSimpleName() {
-        return name.substring(name.lastIndexOf('.') + 1, name.length());
+        return name.substring(name.lastIndexOf('.') + 1);
     }
 
     /** @return The name of the class' package. */
