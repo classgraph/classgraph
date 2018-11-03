@@ -79,7 +79,7 @@ public class VersionFinder {
         Linux,
         /** Unknown */
         Unknown
-    };
+    }
 
     /** The operating system type. */
     public static final OperatingSystem OS;

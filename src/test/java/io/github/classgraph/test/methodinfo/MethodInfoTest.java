@@ -50,7 +50,7 @@ public class MethodInfoTest {
     @SuppressWarnings("unused")
     private static String[] privateMethod() {
         return null;
-    };
+    }
 
     @Test
     public void methodInfoNotEnabled() throws Exception {

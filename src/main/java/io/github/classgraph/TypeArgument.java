@@ -48,7 +48,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
         EXTENDS,
         /** super */
         SUPER
-    };
+    }
 
     /** A wildcard type. */
     private final Wildcard wildcard;

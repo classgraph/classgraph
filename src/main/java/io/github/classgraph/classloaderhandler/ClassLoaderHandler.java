@@ -54,7 +54,7 @@ public interface ClassLoaderHandler {
         /** Delegate to parent before handling in child. */
         PARENT_FIRST,
         /** Handle classloading in child before delegating to parent. */
-        PARENT_LAST;
+        PARENT_LAST
     }
 
     /**

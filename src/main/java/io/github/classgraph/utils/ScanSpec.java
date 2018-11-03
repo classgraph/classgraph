@@ -388,7 +388,7 @@ public class ScanSpec {
         /** Path is the package of a specifically-whitelisted class. */
         AT_WHITELISTED_CLASS_PACKAGE,
         /** Path is not whitelisted and not blacklisted. */
-        NOT_WITHIN_WHITELISTED_PATH;
+        NOT_WITHIN_WHITELISTED_PATH
     }
 
     /**

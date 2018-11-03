@@ -69,7 +69,7 @@ public class Issue153Test {
     }
 
     public enum FruitEnum {
-        APPLE, BANANA;
+        APPLE, BANANA
     }
 
     @Retention(RetentionPolicy.RUNTIME)
