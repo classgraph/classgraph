@@ -267,8 +267,7 @@ public class JSONSerializer {
             final Collection<?> collection = (Collection<?>) obj;
 
             // Convert items to JSON values
-            final List<Object> convertedValsList = new ArrayList<>();
-            convertedValsList.addAll(collection);
+            final List<Object> convertedValsList = new ArrayList<>(collection);
             final Object[] convertedVals = convertedValsList.toArray();
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
