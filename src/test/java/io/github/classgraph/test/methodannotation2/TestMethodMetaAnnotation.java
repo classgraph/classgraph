@@ -100,7 +100,7 @@ public class TestMethodMetaAnnotation {
 
     @Test
     @ExternalAnnotation
-    public void testMethodMetaAnnotation() throws Exception {
+    public void testMethodMetaAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {

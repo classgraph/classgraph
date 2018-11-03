@@ -40,7 +40,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue148Test {
     @Test
-    public void issue148Test() throws IOException {
+    public void issue148Test() {
         @SuppressWarnings("unused")
         final Runnable anonymousInnerClass1 = new Runnable() {
             @Override

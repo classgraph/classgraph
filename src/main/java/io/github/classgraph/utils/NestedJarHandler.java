@@ -91,8 +91,7 @@ public class NestedJarHandler {
         // Set up a singleton map from canonical path to ZipFile recycler
         this.zipFileToRecyclerMap = new SingletonMap<File, Recycler<ZipFile, IOException>>() {
             @Override
-            public Recycler<ZipFile, IOException> newInstance(final File zipFile, final LogNode log)
-                    throws Exception {
+            public Recycler<ZipFile, IOException> newInstance(final File zipFile, final LogNode log) {
                 return new Recycler<ZipFile, IOException>() {
                     @Override
                     public ZipFile newInstance() throws IOException {
@@ -105,7 +104,7 @@ public class NestedJarHandler {
         // Set up a singleton map from canonical path to FastManifestParser
         this.zipFileToJarfileMetadataReaderMap = new SingletonMap<File, JarfileMetadataReader>() {
             @Override
-            public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) throws Exception {
+            public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) {
                 return new JarfileMetadataReader(canonicalFile, scanSpec, log);
             }
         };
@@ -118,7 +117,7 @@ public class NestedJarHandler {
                 new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>>() {
                     @Override
                     public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
-                            final LogNode log) throws Exception {
+                            final LogNode log) {
                         return new Recycler<ModuleReaderProxy, IOException>() {
                             @Override
                             public ModuleReaderProxy newInstance() throws IOException {

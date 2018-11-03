@@ -44,7 +44,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue151Test {
     @Test
-    public void issue151Test() throws IOException {
+    public void issue151Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue151Test.class.getPackage().getName();

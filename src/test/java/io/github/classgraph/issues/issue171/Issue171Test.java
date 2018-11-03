@@ -13,7 +13,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue171Test {
     @Test
-    public void springBootFullyExecutableJar() throws IOException {
+    public void springBootFullyExecutableJar() {
         final URL jarURL = Issue171Test.class.getClassLoader().getResource("spring-boot-fully-executable-jar.jar");
 
         try (ScanResult scanResult = new ClassGraph()

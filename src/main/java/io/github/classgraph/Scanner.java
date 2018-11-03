@@ -604,7 +604,7 @@ class Scanner implements Callable<ScanResult> {
                         new WorkUnitProcessor<ClasspathElement>() {
                             @Override
                             public void processWorkUnit(final ClasspathElement classpathElement,
-                                    final WorkQueue<ClasspathElement> workQueueIgnored) throws Exception {
+                                    final WorkQueue<ClasspathElement> workQueueIgnored) {
                                 // Scan the paths within a directory or jar
                                 classpathElement.scanPaths(pathScanLog);
                                 if (preScanLog != null) {

@@ -46,7 +46,7 @@ public class ClassInfoTest {
     }
 
     @Test
-    public void filter() throws Exception {
+    public void filter() {
         assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
             @Override
             public boolean accept(final ClassInfo ci) {
@@ -56,7 +56,7 @@ public class ClassInfoTest {
     }
 
     @Test
-    public void streamHasSuperInterfaceDirect() throws Exception {
+    public void streamHasSuperInterfaceDirect() {
         assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
             @Override
             public boolean accept(final ClassInfo ci) {
@@ -66,7 +66,7 @@ public class ClassInfoTest {
     }
 
     @Test
-    public void streamHasSuperInterface() throws Exception {
+    public void streamHasSuperInterface() {
         assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
             @Override
             public boolean accept(final ClassInfo ci) {

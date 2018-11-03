@@ -53,7 +53,7 @@ public class MethodInfoTest {
     }
 
     @Test
-    public void methodInfoNotEnabled() throws Exception {
+    public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .scan()) {
@@ -65,7 +65,7 @@ public class MethodInfoTest {
     }
 
     @Test
-    public void getMethodInfo() throws Exception {
+    public void getMethodInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
@@ -88,7 +88,7 @@ public class MethodInfoTest {
     }
 
     @Test
-    public void getConstructorInfo() throws Exception {
+    public void getConstructorInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
@@ -97,7 +97,7 @@ public class MethodInfoTest {
     }
 
     @Test
-    public void getMethodInfoIgnoringVisibility() throws Exception {
+    public void getMethodInfoIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()

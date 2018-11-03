@@ -103,5 +103,5 @@ public interface ClassLoaderHandler {
      *             If anything goes wrong while fetching classpath elements.
      */
     void handle(ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
-            LogNode log) throws Exception;
+            LogNode log);
 }

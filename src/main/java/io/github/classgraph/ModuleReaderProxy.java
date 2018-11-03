@@ -91,7 +91,7 @@ public class ModuleReaderProxy implements Closeable {
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
-    public List<String> list() throws IOException, SecurityException {
+    public List<String> list() throws SecurityException {
         if (collectorsToList == null) {
             throw new IllegalArgumentException("Could not call Collectors.toList()");
         }
@@ -121,7 +121,7 @@ public class ModuleReaderProxy implements Closeable {
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
-    public InputStream open(final String path) throws IOException, SecurityException {
+    public InputStream open(final String path) throws SecurityException {
         final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils.invokeMethod(moduleReader,
                 "open", String.class, path, /* throwException = */ true);
         if (optionalInputStream == null) {
@@ -149,7 +149,7 @@ public class ModuleReaderProxy implements Closeable {
      * @throws OutOfMemoryError
      *             if the resource is larger than Integer.MAX_VALUE, the maximum capacity of a byte buffer.
      */
-    public ByteBuffer read(final String path) throws IOException, SecurityException, OutOfMemoryError {
+    public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
         final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils.invokeMethod(moduleReader,
                 "read", String.class, path, /* throwException = */ true);
         if (optionalByteBuffer == null) {

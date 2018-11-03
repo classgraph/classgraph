@@ -48,7 +48,7 @@ public class FieldInfoTest {
     public int fieldWithoutAnnotation;
 
     @Test
-    public void fieldInfoNotEnabled() throws Exception {
+    public void fieldInfoNotEnabled() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .scan()) {
             scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo();
@@ -59,7 +59,7 @@ public class FieldInfoTest {
     }
 
     @Test
-    public void getFieldInfo() throws Exception {
+    public void getFieldInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
                 .scan()) {
@@ -73,7 +73,7 @@ public class FieldInfoTest {
     }
 
     @Test
-    public void getFieldInfoIgnoringVisibility() throws Exception {
+    public void getFieldInfoIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
                 .ignoreFieldVisibility().scan()) {

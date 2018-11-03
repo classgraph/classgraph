@@ -63,7 +63,7 @@ public class Issue238Test {
     }
 
     @Test
-    public void testSuperclassInheritanceOrder() throws Exception {
+    public void testSuperclassInheritanceOrder() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue238Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             final List<String> classNames = scanResult.getAllClasses().get(E.class.getName()).getSuperclasses()

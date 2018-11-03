@@ -115,7 +115,7 @@ public class Issue153Test {
     private static final String pkg = Issue153Test.class.getPackage().getName();
 
     @Test
-    public void classAnnotationParameters() throws IOException {
+    public void classAnnotationParameters() {
         try (ScanResult scanResult = new ClassGraph() //
                 .whitelistPackages(pkg) //
                 .enableMethodInfo() //

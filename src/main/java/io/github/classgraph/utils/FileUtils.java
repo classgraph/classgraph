@@ -232,7 +232,7 @@ public class FileUtils {
             final ByteBuffer buf = byteBuffer;
 
             @Override
-            public int read() throws IOException {
+            public int read() {
                 if (!buf.hasRemaining()) {
                     return -1;
                 }
@@ -240,7 +240,7 @@ public class FileUtils {
             }
 
             @Override
-            public int read(final byte[] bytes, final int off, final int len) throws IOException {
+            public int read(final byte[] bytes, final int off, final int len) {
                 if (!buf.hasRemaining()) {
                     return -1;
                 }

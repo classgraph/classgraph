@@ -203,7 +203,7 @@ class ClassfileBinaryParser {
 
     /** Get a field constant from the constant pool. */
     private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
-            final int cpIdx) throws IOException {
+            final int cpIdx) {
         switch (tag) {
         case 1: // Modified UTF8
         case 7: // Class -- N.B. Unused? Class references do not seem to actually be stored as constant initalizers
