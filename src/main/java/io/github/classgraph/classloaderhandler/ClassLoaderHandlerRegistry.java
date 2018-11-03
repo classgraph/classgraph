@@ -59,8 +59,7 @@ public class ClassLoaderHandlerRegistry {
                 // Java 7/8 support (list last, as fallback)
                 new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
-        final List<ClassLoaderHandlerRegistryEntry> registeredHandlers = new ArrayList<>();
-        registeredHandlers.addAll(builtInHandlers);
+        final List<ClassLoaderHandlerRegistryEntry> registeredHandlers = new ArrayList<>(builtInHandlers);
 
         CLASS_LOADER_HANDLERS = Collections.unmodifiableList(registeredHandlers);
     }

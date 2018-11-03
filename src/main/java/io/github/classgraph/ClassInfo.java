@@ -631,8 +631,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else {
             // For other relationship types, the reachable type stays the same over the transitive closure. Find the
             // transitive closure, breaking cycles where necessary.
-            final LinkedList<ClassInfo> queue = new LinkedList<>();
-            queue.addAll(directlyRelatedClasses);
+            final LinkedList<ClassInfo> queue = new LinkedList<>(directlyRelatedClasses);
             while (!queue.isEmpty()) {
                 final ClassInfo head = queue.removeFirst();
                 final Set<ClassInfo> headRelatedClasses = head.relatedClasses.get(relType);
