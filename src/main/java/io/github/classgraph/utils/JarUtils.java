@@ -462,8 +462,8 @@ public class JarUtils {
      *             If the file could not be read.
      */
     public static long countBytesBeforePKMarker(final File zipfile) throws IOException {
-        if (zipfile instanceof NestedJarFile) {
-            return 0;
+        if (zipfile instanceof NestedJarHandler.NestedJarFile) {
+            return 0L;
         }
 
         try (BufferedReader reader = new BufferedReader(new FileReader(zipfile))) {
