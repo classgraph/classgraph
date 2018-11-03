@@ -242,7 +242,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         if (other instanceof TypeVariableSignature) {
             // Compare class type signature to type variable -- the logic for this
             // is implemented in TypeVariableSignature, and is not duplicated here
-            return ((TypeVariableSignature) other).equalsIgnoringTypeParams(this);
+            return other.equalsIgnoringTypeParams(this);
         }
         if (!(other instanceof ClassRefTypeSignature)) {
             return false;
