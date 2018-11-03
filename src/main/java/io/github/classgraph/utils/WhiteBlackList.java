@@ -395,6 +395,20 @@ public abstract class WhiteBlackList {
     }
 
     /**
+     * @return true if there were no blacklist criteria added.
+     */
+    public boolean blacklistIsEmpty() {
+        return blacklist == null && blacklistPrefixes == null && blacklistGlobs == null;
+    }
+
+    /**
+     * @return true if there were no whitelist or blacklist criteria added.
+     */
+    public boolean whitelistAndBlacklistAreEmpty() {
+        return whitelistIsEmpty() && blacklistIsEmpty();
+    }
+
+    /**
      * @param str
      *            The string to test.
      * @return true if the requested string is <i>specifically</i> whitelisted and not blacklisted, i.e. will not

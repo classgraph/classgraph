@@ -915,7 +915,7 @@ public class ClassGraph {
      * Whitelist one or more modules to scan.
      *
      * @param moduleNames
-     *            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
+     *            The names of the modules that should be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
     public ClassGraph whitelistModules(final String... moduleNames) {
@@ -935,6 +935,38 @@ public class ClassGraph {
     public ClassGraph blacklistModules(final String... moduleNames) {
         for (final String moduleName : moduleNames) {
             scanSpec.moduleWhiteBlackList.addToBlacklist(moduleName);
+        }
+        return this;
+    }
+
+    /**
+     * Whitelist classpath elements based on resource paths. Only classpath elements that contain resources with
+     * paths matching the whitelist will be scanned.
+     *
+     * @param resourcePaths
+     *            The resource paths, any of which must be present in a classpath element for the classpath element
+     *            to be scanned. May contain a wildcard glob ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    public ClassGraph whitelistClasspathElementsContainingResourcePath(final String... resourcePaths) {
+        for (final String resourcePath : resourcePaths) {
+            scanSpec.classpathElementResourcePathWhiteBlackList.addToWhitelist(resourcePath);
+        }
+        return this;
+    }
+
+    /**
+     * Blacklist classpath elements based on resource paths. Classpath elements that contain resources with paths
+     * matching the blacklist will not be scanned.
+     *
+     * @param resourcePaths
+     *            The resource paths which cause a classpath not to be scanned if any are present in a classpath
+     *            element for the classpath element. May contain a wildcard glob ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    public ClassGraph blacklistClasspathElementsContainingResourcePath(final String... resourcePaths) {
+        for (final String resourcePath : resourcePaths) {
+            scanSpec.classpathElementResourcePathWhiteBlackList.addToBlacklist(resourcePath);
         }
         return this;
     }

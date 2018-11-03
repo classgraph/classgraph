@@ -67,6 +67,9 @@ abstract class ClasspathElement {
      */
     boolean skipClasspathElement;
 
+    /** True if classpath element contains a specifically-whitelisted resource path. */
+    boolean containsSpecificallyWhitelistedClasspathElementResourcePath;
+
     /**
      * The child classpath elements. These are the entries obtained from Class-Path entries in the manifest file, if
      * this classpath element is a jarfile.

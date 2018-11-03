@@ -81,6 +81,9 @@ public class ScanSpec {
     /** Jar white/blacklist (leafname only, ending in ".jar"). */
     public WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
 
+    /** Classpath element resource path white/blacklist. */
+    public WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = new WhiteBlackListWholeString();
+
     /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
     public WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
 

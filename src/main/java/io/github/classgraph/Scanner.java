@@ -496,8 +496,7 @@ class Scanner implements Callable<ScanResult> {
 
             // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
-            final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathEltOrder,
-                    classpathElementMap);
+            List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathEltOrder, classpathElementMap);
 
             // Log final classpath element order, after inserting Class-Path entries from manifest files
             if (classpathFinderLog != null) {
@@ -615,6 +614,17 @@ class Scanner implements Callable<ScanResult> {
                                 }
                             }
                         }, interruptionChecker, pathScanLog);
+
+                // Filter out classpath elements that do not contain required whitelisted paths.
+                if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistIsEmpty()) {
+                    final List<ClasspathElement> classpathOrderFiltered = new ArrayList<>(classpathOrder.size());
+                    for (final ClasspathElement classpathElement : classpathOrder) {
+                        if (classpathElement.containsSpecificallyWhitelistedClasspathElementResourcePath) {
+                            classpathOrderFiltered.add(classpathElement);
+                        }
+                    }
+                    classpathOrder = classpathOrderFiltered;
+                }
 
                 // Implement classpath masking -- if the same relative classfile path occurs multiple times in the
                 // classpath, ignore (remove) the second and subsequent occurrences. Note that classpath masking is
