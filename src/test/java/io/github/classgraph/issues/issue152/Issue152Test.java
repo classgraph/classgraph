@@ -30,7 +30,6 @@ package io.github.classgraph.issues.issue152;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

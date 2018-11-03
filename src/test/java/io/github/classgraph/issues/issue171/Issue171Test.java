@@ -2,7 +2,6 @@ package io.github.classgraph.issues.issue171;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 
