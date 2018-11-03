@@ -97,7 +97,7 @@ public class JSONDeserializer {
             if (isLong) {
                 return jsonVal;
             } else {
-                return Long.valueOf(((Integer) jsonVal).intValue());
+                return (long) ((Integer) jsonVal).intValue();
             }
 
         } else if (rawType == Short.class || rawType == Short.TYPE) {
@@ -111,7 +111,7 @@ public class JSONDeserializer {
             if (intValue < Short.MIN_VALUE || intValue > Short.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected short; got out-of-range value " + intValue);
             }
-            return Short.valueOf((short) intValue);
+            return (short) intValue;
 
         } else if (rawType == Float.class || rawType == Float.TYPE) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
@@ -124,7 +124,7 @@ public class JSONDeserializer {
             if (doubleValue < Float.MIN_VALUE || doubleValue > Float.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected float; got out-of-range value " + doubleValue);
             }
-            return Float.valueOf((float) doubleValue);
+            return (float) doubleValue;
 
         } else if (rawType == Double.class || rawType == Double.TYPE) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
@@ -146,7 +146,7 @@ public class JSONDeserializer {
             if (intValue < Byte.MIN_VALUE || intValue > Byte.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected byte; got out-of-range value " + intValue);
             }
-            return Byte.valueOf((byte) intValue);
+            return (byte) intValue;
 
         } else if (rawType == Character.class || rawType == Character.TYPE) {
             if (!(jsonVal instanceof CharSequence)) {
@@ -156,7 +156,7 @@ public class JSONDeserializer {
             if (charSequence.length() != 1) {
                 throw new IllegalArgumentException("Expected single character; got string");
             }
-            return Character.valueOf(charSequence.charAt(0));
+            return charSequence.charAt(0);
 
         } else if (rawType == Boolean.class || rawType == Boolean.TYPE) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {

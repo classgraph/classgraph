@@ -269,9 +269,9 @@ class JSONParser extends Parser {
             // For 9-digit numbers, could be int or long
             final long longVal = Long.parseLong(numberStr);
             if (longVal >= Integer.MIN_VALUE && longVal < Integer.MAX_VALUE) {
-                return Integer.valueOf((int) longVal);
+                return (int) longVal;
             } else {
-                return Long.valueOf(longVal);
+                return longVal;
             }
         } else {
             return Long.valueOf(numberStr);
@@ -402,12 +402,12 @@ class JSONParser extends Parser {
             } else if (peekMatches("true")) {
                 // Parse true value
                 advance(4);
-                return Boolean.valueOf(true);
+                return Boolean.TRUE;
 
             } else if (peekMatches("false")) {
                 // Parse true value
                 advance(5);
-                return Boolean.valueOf(false);
+                return Boolean.FALSE;
 
             } else if (peekMatches("null")) {
                 advance(4);

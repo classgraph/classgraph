@@ -215,15 +215,15 @@ class ClassfileBinaryParser {
             final int intVal = inputStreamOrByteBuffer.readInt(offset[cpIdx]);
             switch (fieldTypeDescriptorFirstChar) {
             case 'I':
-                return Integer.valueOf(intVal);
+                return intVal;
             case 'S':
-                return Short.valueOf((short) intVal);
+                return (short) intVal;
             case 'C':
-                return Character.valueOf((char) intVal);
+                return (char) intVal;
             case 'B':
-                return Byte.valueOf((byte) intVal);
+                return (byte) intVal;
             case 'Z':
-                return Boolean.valueOf(intVal != 0);
+                return intVal != 0;
             default:
                 throw new RuntimeException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar + ", "
                         + "cannot continue reading class. Please report this at "
@@ -231,11 +231,11 @@ class ClassfileBinaryParser {
             }
         }
         case 4: // float
-            return Float.valueOf(Float.intBitsToFloat(inputStreamOrByteBuffer.readInt(offset[cpIdx])));
+            return Float.intBitsToFloat(inputStreamOrByteBuffer.readInt(offset[cpIdx]));
         case 5: // long
-            return Long.valueOf(inputStreamOrByteBuffer.readLong(offset[cpIdx]));
+            return inputStreamOrByteBuffer.readLong(offset[cpIdx]);
         case 6: // double
-            return Double.valueOf(Double.longBitsToDouble(inputStreamOrByteBuffer.readLong(offset[cpIdx])));
+            return Double.longBitsToDouble(inputStreamOrByteBuffer.readLong(offset[cpIdx]));
         default:
             // ClassGraph doesn't expect other types
             // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)  
@@ -270,29 +270,23 @@ class ClassfileBinaryParser {
         final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
         switch (tag) {
         case 'B':
-            return Byte.valueOf(
-                    (byte) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
+            return (byte) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]);
         case 'C':
-            return Character.valueOf(
-                    (char) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
+            return (char) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]);
         case 'D':
-            return Double.valueOf(Double.longBitsToDouble(
-                    inputStreamOrByteBuffer.readLong(offset[inputStreamOrByteBuffer.readUnsignedShort()])));
+            return Double.longBitsToDouble(
+                    inputStreamOrByteBuffer.readLong(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
         case 'F':
-            return Float.valueOf(Float.intBitsToFloat(
-                    inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()])));
+            return Float.intBitsToFloat(
+                    inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
         case 'I':
-            return Integer
-                    .valueOf(inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
+            return inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]);
         case 'J':
-            return Long
-                    .valueOf(inputStreamOrByteBuffer.readLong(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
+            return inputStreamOrByteBuffer.readLong(offset[inputStreamOrByteBuffer.readUnsignedShort()]);
         case 'S':
-            return Short.valueOf(
-                    (short) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
+            return (short) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]);
         case 'Z':
-            return Boolean.valueOf(
-                    inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]) != 0);
+            return inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]) != 0;
         case 's':
             return getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
         case 'e': {

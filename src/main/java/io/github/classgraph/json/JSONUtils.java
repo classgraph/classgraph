@@ -196,21 +196,21 @@ public class JSONUtils {
             throws IllegalArgumentException, IllegalAccessException {
         final Class<?> fieldType = field.getType();
         if (fieldType == Integer.TYPE) {
-            return Integer.valueOf(field.getInt(containingObj));
+            return field.getInt(containingObj);
         } else if (fieldType == Long.TYPE) {
-            return Long.valueOf(field.getLong(containingObj));
+            return field.getLong(containingObj);
         } else if (fieldType == Short.TYPE) {
-            return Short.valueOf(field.getShort(containingObj));
+            return field.getShort(containingObj);
         } else if (fieldType == Double.TYPE) {
-            return Double.valueOf(field.getDouble(containingObj));
+            return field.getDouble(containingObj);
         } else if (fieldType == Float.TYPE) {
-            return Float.valueOf(field.getFloat(containingObj));
+            return field.getFloat(containingObj);
         } else if (fieldType == Boolean.TYPE) {
-            return Boolean.valueOf(field.getBoolean(containingObj));
+            return field.getBoolean(containingObj);
         } else if (fieldType == Byte.TYPE) {
-            return Byte.valueOf(field.getByte(containingObj));
+            return field.getByte(containingObj);
         } else if (fieldType == Character.TYPE) {
-            return Character.valueOf(field.getChar(containingObj));
+            return field.getChar(containingObj);
         } else {
             return field.get(containingObj);
         }
