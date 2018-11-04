@@ -99,8 +99,6 @@ public interface ClassLoaderHandler {
      *            The ClasspathOrder to register any discovered classpath elements with.
      * @param log
      *            A logger instance -- if this is non-null, write debug information using log.log("message").
-     * @throws Exception
-     *             If anything goes wrong while fetching classpath elements.
      */
     void handle(ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
             LogNode log);

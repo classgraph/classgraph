@@ -86,8 +86,6 @@ public class ModuleReaderProxy implements Closeable {
      * by the security manager."
      * 
      * @return A list of the paths of resources in the module.
-     * @throws IOException
-     *             If the module cannot be read.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
@@ -116,8 +114,6 @@ public class ModuleReaderProxy implements Closeable {
      * @param path
      *            The path to the resource to open.
      * @return An {@link InputStream} for the content of the resource.
-     * @throws IOException
-     *             If the resource cannot be read.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
@@ -142,8 +138,6 @@ public class ModuleReaderProxy implements Closeable {
      * @param path
      *            The path to the resource to open.
      * @return A {@link ByteBuffer} for the content of the resource.
-     * @throws IOException
-     *             If the resource cannot be read.
      * @throws SecurityException
      *             If the module cannot be accessed.
      * @throws OutOfMemoryError
