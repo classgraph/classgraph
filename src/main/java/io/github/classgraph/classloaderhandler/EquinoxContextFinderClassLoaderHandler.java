@@ -53,7 +53,7 @@ public class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandle
 
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) throws Exception {
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         // Nothing to handle -- embedded parentContextClassLoader will be used instead.
     }
 }

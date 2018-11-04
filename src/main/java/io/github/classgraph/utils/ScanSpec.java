@@ -30,6 +30,7 @@ package io.github.classgraph.utils;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
@@ -366,9 +367,7 @@ public class ScanSpec {
         }
         this.addedModuleLayers = null;
         this.overrideModuleLayers = new ArrayList<>();
-        for (final Object moduleLayer : overrideModuleLayers) {
-            this.overrideModuleLayers.add(moduleLayer);
-        }
+        Collections.addAll(this.overrideModuleLayers, overrideModuleLayers);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -376,7 +375,7 @@ public class ScanSpec {
     /**
      * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
      */
-    public static enum ScanSpecPathMatch {
+    public enum ScanSpecPathMatch {
         /** Path starts with (or is) a blacklisted path prefix. */
         HAS_BLACKLISTED_PATH_PREFIX,
         /** Path starts with a whitelisted path prefix. */
@@ -388,7 +387,7 @@ public class ScanSpec {
         /** Path is the package of a specifically-whitelisted class. */
         AT_WHITELISTED_CLASS_PACKAGE,
         /** Path is not whitelisted and not blacklisted. */
-        NOT_WITHIN_WHITELISTED_PATH;
+        NOT_WITHIN_WHITELISTED_PATH
     }
 
     /**

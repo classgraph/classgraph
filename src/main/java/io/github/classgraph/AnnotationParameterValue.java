@@ -152,7 +152,7 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
             buf.append("null");
         } else {
             final Object paramVal = value.get();
-            final Class<? extends Object> valClass = paramVal.getClass();
+            final Class<?> valClass = paramVal.getClass();
             if (valClass.isArray()) {
                 buf.append('{');
                 for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
@@ -203,9 +203,7 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
             return false;
         }
         final AnnotationParameterValue o = (AnnotationParameterValue) obj;
-        final int diff = this.compareTo(o);
-        return (diff != 0 ? false
-                : value == null && o.value == null ? true : value == null || o.value == null ? false : true);
+        return this.compareTo(o) == 0 && (value == null) == (o.value == null) && (value == null || value.equals(o.value));
     }
 
     @Override

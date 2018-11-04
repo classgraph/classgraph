@@ -39,7 +39,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue245Test {
     @Test
-    public void testCustomPackageRoot() throws Exception {
+    public void testCustomPackageRoot() {
         final ClassLoader classLoader = Issue245Test.class.getClassLoader();
         final String jarName = "spring-boot-fully-executable-jar.jar";
         final URL jarURL = classLoader.getResource(jarName);

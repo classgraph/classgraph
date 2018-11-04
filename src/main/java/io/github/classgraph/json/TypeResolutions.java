@@ -71,10 +71,8 @@ class TypeResolutions {
                     if (!typeArgResolved.equals(typeArgs[i])) {
                         // After the first difference is found, lazily allocate typeArgsResolved 
                         typeArgsResolved = new Type[typeArgs.length];
-                        for (int j = 0; j < i; j++) {
-                            // Go back and copy all the previous args
-                            typeArgsResolved[j] = typeArgs[j];
-                        }
+                        // Go back and copy all the previous args
+                        System.arraycopy(typeArgs, 0, typeArgsResolved, 0, i);
                         // Insert the first different arg
                         typeArgsResolved[i] = typeArgResolved;
                     }
@@ -147,7 +145,7 @@ class TypeResolutions {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                buf.append(typeVariables[i] + " => " + resolvedTypeArguments[i]);
+                buf.append(typeVariables[i]).append(" => ").append(resolvedTypeArguments[i]);
             }
             buf.append(" }");
             return buf.toString();

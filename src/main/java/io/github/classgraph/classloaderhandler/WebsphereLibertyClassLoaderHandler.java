@@ -68,7 +68,7 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
-        Object smartClassPath = null;
+        Object smartClassPath;
         final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader", false);
         if (appLoader != null) {
             smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath", false);

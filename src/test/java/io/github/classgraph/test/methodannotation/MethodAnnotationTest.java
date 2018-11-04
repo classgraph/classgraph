@@ -43,7 +43,7 @@ import io.github.classgraph.test.external.ExternalAnnotation;
 
 public class MethodAnnotationTest {
     @Test
-    public void getNamesOfClassesWithMethodAnnotation() throws Exception {
+    public void getNamesOfClassesWithMethodAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().scan()) {
@@ -54,7 +54,7 @@ public class MethodAnnotationTest {
     }
 
     @Test
-    public void getNamesOfClassesWithMethodAnnotationIgnoringVisibility() throws Exception {
+    public void getNamesOfClassesWithMethodAnnotationIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {

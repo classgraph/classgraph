@@ -67,7 +67,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
 
     public ObjectTypedValueWrapper(final Object annotationParamValue) {
         if (annotationParamValue != null) {
-            final Class<? extends Object> annotationParameterValueClass = annotationParamValue.getClass();
+            final Class<?> annotationParameterValueClass = annotationParamValue.getClass();
             if (annotationParameterValueClass.isArray()) {
                 // Support for 1D primitive and string arrays is needed for annotation parameter values
                 if (annotationParameterValueClass == String[].class) {
@@ -215,19 +215,18 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 } else {
                     // Could not find a method with this name -- this is an external class.
                     // Find first non-null object in array, and use its type as the type of the array.
-                    for (int i = 0; i < objectArrayValue.length; i++) {
-                        final ObjectTypedValueWrapper elt = objectArrayValue[i];
+                    for (final ObjectTypedValueWrapper elt : objectArrayValue) {
                         if (elt != null) {
                             eltClass = elt.integerValue != null ? Integer.class
                                     : elt.longValue != null ? Long.class
-                                            : elt.shortValue != null ? Short.class
-                                                    : elt.characterValue != null ? Character.class
-                                                            : elt.byteValue != null ? Byte.class
-                                                                    : elt.booleanValue != null ? Boolean.class
-                                                                            : elt.doubleValue != null ? Double.class
-                                                                                    : elt.floatValue != null
-                                                                                            ? Float.class
-                                                                                            : null;
+                                    : elt.shortValue != null ? Short.class
+                                    : elt.characterValue != null ? Character.class
+                                    : elt.byteValue != null ? Byte.class
+                                    : elt.booleanValue != null ? Boolean.class
+                                    : elt.doubleValue != null ? Double.class
+                                    : elt.floatValue != null
+                                    ? Float.class
+                                    : null;
                         }
                     }
                 }
@@ -266,8 +265,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             // Recursively convert primitive arrays in nested annotations
             annotationInfo.convertWrapperArraysToPrimitiveArrays();
         } else if (objectArrayValue != null) {
-            for (int i = 0; i < objectArrayValue.length; i++) {
-                final ObjectTypedValueWrapper elt = objectArrayValue[i];
+            for (final ObjectTypedValueWrapper elt : objectArrayValue) {
                 if (elt.annotationInfo != null) {
                     // Recurse
                     elt.annotationInfo.convertWrapperArraysToPrimitiveArrays();
@@ -312,18 +310,17 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             } else {
                 // Could not find a method with this name -- this is an external class.
                 // Find first non-null object in array, and use its type as the type of the array.
-                for (int i = 0; i < objectArrayValue.length; i++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[i];
+                for (final ObjectTypedValueWrapper elt : objectArrayValue) {
                     if (elt != null) {
                         targetElementTypeName = elt.integerValue != null ? "int"
                                 : elt.longValue != null ? "long"
-                                        : elt.shortValue != null ? "short"
-                                                : elt.characterValue != null ? "char"
-                                                        : elt.byteValue != null ? "byte"
-                                                                : elt.booleanValue != null ? "boolean"
-                                                                        : elt.doubleValue != null ? "double"
-                                                                                : elt.floatValue != null ? "float"
-                                                                                        : "";
+                                : elt.shortValue != null ? "short"
+                                : elt.characterValue != null ? "char"
+                                : elt.byteValue != null ? "byte"
+                                : elt.booleanValue != null ? "boolean"
+                                : elt.doubleValue != null ? "double"
+                                : elt.floatValue != null ? "float"
+                                : "";
                     }
                 }
             }
@@ -347,7 +344,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    intArrayValue[j] = objectArrayValue[j].integerValue.intValue();
+                    intArrayValue[j] = objectArrayValue[j].integerValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -360,7 +357,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    longArrayValue[j] = objectArrayValue[j].longValue.longValue();
+                    longArrayValue[j] = objectArrayValue[j].longValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -373,7 +370,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    shortArrayValue[j] = objectArrayValue[j].shortValue.shortValue();
+                    shortArrayValue[j] = objectArrayValue[j].shortValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -386,7 +383,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    charArrayValue[j] = objectArrayValue[j].characterValue.charValue();
+                    charArrayValue[j] = objectArrayValue[j].characterValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -399,7 +396,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    floatArrayValue[j] = objectArrayValue[j].floatValue.floatValue();
+                    floatArrayValue[j] = objectArrayValue[j].floatValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -412,7 +409,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    doubleArrayValue[j] = objectArrayValue[j].doubleValue.doubleValue();
+                    doubleArrayValue[j] = objectArrayValue[j].doubleValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -425,7 +422,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    booleanArrayValue[j] = objectArrayValue[j].booleanValue.booleanValue();
+                    booleanArrayValue[j] = objectArrayValue[j].booleanValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -438,7 +435,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + annotationClassInfo.getName());
                     }
-                    byteArrayValue[j] = objectArrayValue[j].byteValue.byteValue();
+                    byteArrayValue[j] = objectArrayValue[j].byteValue;
                 }
                 objectArrayValue = null;
                 break;
@@ -469,9 +466,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         } else if (annotationInfo != null) {
             annotationInfo.setScanResult(scanResult);
         } else if (objectArrayValue != null) {
-            for (int i = 0; i < objectArrayValue.length; i++) {
-                if (objectArrayValue[i] != null) {
-                    objectArrayValue[i].setScanResult(scanResult);
+            for (ObjectTypedValueWrapper anObjectArrayValue : objectArrayValue) {
+                if (anObjectArrayValue != null) {
+                    anObjectArrayValue.setScanResult(scanResult);
                 }
             }
         }

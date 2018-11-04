@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -112,7 +113,7 @@ public class FileUtils {
     private static final int DEFAULT_BUFFER_SIZE = 16384;
 
     /**
-     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer.MAX_VALUE}, since some VMs
+     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
      * reserve header words in arrays.
      */
     private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
@@ -213,7 +214,7 @@ public class FileUtils {
         final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize, log);
         final byte[] buf = ent.getKey();
         final int bufBytesUsed = ent.getValue();
-        return new String(buf, 0, bufBytesUsed, "UTF-8");
+        return new String(buf, 0, bufBytesUsed, StandardCharsets.UTF_8);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -231,7 +232,7 @@ public class FileUtils {
             final ByteBuffer buf = byteBuffer;
 
             @Override
-            public int read() throws IOException {
+            public int read() {
                 if (!buf.hasRemaining()) {
                     return -1;
                 }
@@ -239,7 +240,7 @@ public class FileUtils {
             }
 
             @Override
-            public int read(final byte[] bytes, final int off, final int len) throws IOException {
+            public int read(final byte[] bytes, final int off, final int len) {
                 if (!buf.hasRemaining()) {
                     return -1;
                 }

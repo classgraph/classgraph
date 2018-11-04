@@ -152,12 +152,6 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        // No need to set type signature in containing class or method, they are backlinks
-    }
-
-    @Override
     void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
         // No class names present in type variables
     }

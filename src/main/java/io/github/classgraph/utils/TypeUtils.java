@@ -47,11 +47,8 @@ public class TypeUtils {
      * @param separatorReplace
      *            The character to replace the separator with.
      * @return true if at least one identifier character was parsed.
-     * @throws ParseException
-     *             If the parser ran out of input.
      */
-    public static boolean getIdentifierToken(final Parser parser, final char separator, final char separatorReplace)
-            throws ParseException {
+    public static boolean getIdentifierToken(final Parser parser, final char separator, final char separatorReplace) {
         boolean consumedChar = false;
         while (parser.hasMore()) {
             final char c = parser.peek();

@@ -115,7 +115,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
          * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
          *         list; if false, it is excluded.
          */
-        public boolean accept(FieldInfo fieldInfo);
+        boolean accept(FieldInfo fieldInfo);
     }
 
     /**

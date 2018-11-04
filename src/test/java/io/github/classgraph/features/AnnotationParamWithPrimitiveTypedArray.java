@@ -16,23 +16,23 @@ import io.github.classgraph.ScanResult;
 public class AnnotationParamWithPrimitiveTypedArray {
 
     @Retention(RetentionPolicy.RUNTIME)
-    public abstract static @interface NestedAnnotation {
-        public String str();
+    public @interface NestedAnnotation {
+        String str();
 
-        public int[] intArray();
+        int[] intArray();
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public abstract static @interface AnnotationWithPrimitiveArrayParams {
-        public int[] v0() default { 1, 2 };
+    public @interface AnnotationWithPrimitiveArrayParams {
+        int[] v0() default { 1, 2 };
 
-        public char[] v1();
+        char[] v1();
 
-        public String[] v2();
+        String[] v2();
 
-        public int[] v3();
+        int[] v3();
 
-        public NestedAnnotation[] v4();
+        NestedAnnotation[] v4();
     }
 
     @AnnotationWithPrimitiveArrayParams(v1 = { 'a' }, v2 = { "x" }, v3 = {}, v4 = {
