@@ -206,7 +206,7 @@ public class ClassLoaderAndModuleFinder {
      */
     public ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
-        LogNode classLoadersFoundLog = null;
+        LogNode classLoadersFoundLog;
         List<ModuleRef> systemModuleRefs = null;
         List<ModuleRef> nonSystemModuleRefs = null;
         if (scanSpec.overrideClassLoaders == null) {

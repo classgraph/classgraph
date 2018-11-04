@@ -70,7 +70,7 @@ public class LogNode {
     private final Map<String, LogNode> children = new ConcurrentSkipListMap<>();
 
     /** The sort key prefix for deterministic ordering of log entries. */
-    private String sortKeyPrefix = "";
+    private String sortKeyPrefix;
 
     /** The sort key suffix for this log entry, used to make sort keys unique. */
     private static AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);

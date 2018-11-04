@@ -461,7 +461,7 @@ public class NestedJarHandler {
     /** Download a jar from a URL to a temporary file. */
     private File downloadTempFile(final String jarURL, final LogNode log) {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
-        File tempFile = null;
+        File tempFile;
         try {
             final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(jarURL));
             tempFile = File.createTempFile("ClassGraph--", suffix);

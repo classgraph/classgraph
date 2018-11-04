@@ -77,7 +77,6 @@ class ClassFields {
                 currParameterizedType = (ParameterizedType) currType;
                 currRawType = (Class<?>) currParameterizedType.getRawType();
             } else if (currType instanceof Class<?>) {
-                currParameterizedType = null;
                 currRawType = (Class<?>) currType;
             } else {
                 // Class definitions should not be of type WildcardType or GenericArrayType 
