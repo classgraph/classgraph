@@ -54,6 +54,7 @@ public class JSONSerializer {
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final AtomicInteger objId, final boolean onlySerializePublicFields) {
         if (jsonVal == null) {
+            // No referenced JSON object
         } else if (jsonVal instanceof JSONObject) {
             for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
                 assignObjectIds(item.getValue(), objToJSONVal, classFieldCache, jsonReferenceToId, objId,
