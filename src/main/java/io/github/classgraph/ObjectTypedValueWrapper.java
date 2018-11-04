@@ -219,14 +219,14 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                         if (elt != null) {
                             eltClass = elt.integerValue != null ? Integer.class
                                     : elt.longValue != null ? Long.class
-                                    : elt.shortValue != null ? Short.class
-                                    : elt.characterValue != null ? Character.class
-                                    : elt.byteValue != null ? Byte.class
-                                    : elt.booleanValue != null ? Boolean.class
-                                    : elt.doubleValue != null ? Double.class
-                                    : elt.floatValue != null
-                                    ? Float.class
-                                    : null;
+                                            : elt.shortValue != null ? Short.class
+                                                    : elt.characterValue != null ? Character.class
+                                                            : elt.byteValue != null ? Byte.class
+                                                                    : elt.booleanValue != null ? Boolean.class
+                                                                            : elt.doubleValue != null ? Double.class
+                                                                                    : elt.floatValue != null
+                                                                                            ? Float.class
+                                                                                            : null;
                         }
                     }
                 }
@@ -314,13 +314,13 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt != null) {
                         targetElementTypeName = elt.integerValue != null ? "int"
                                 : elt.longValue != null ? "long"
-                                : elt.shortValue != null ? "short"
-                                : elt.characterValue != null ? "char"
-                                : elt.byteValue != null ? "byte"
-                                : elt.booleanValue != null ? "boolean"
-                                : elt.doubleValue != null ? "double"
-                                : elt.floatValue != null ? "float"
-                                : "";
+                                        : elt.shortValue != null ? "short"
+                                                : elt.characterValue != null ? "char"
+                                                        : elt.byteValue != null ? "byte"
+                                                                : elt.booleanValue != null ? "boolean"
+                                                                        : elt.doubleValue != null ? "double"
+                                                                                : elt.floatValue != null ? "float"
+                                                                                        : "";
                     }
                 }
             }
@@ -466,7 +466,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         } else if (annotationInfo != null) {
             annotationInfo.setScanResult(scanResult);
         } else if (objectArrayValue != null) {
-            for (ObjectTypedValueWrapper anObjectArrayValue : objectArrayValue) {
+            for (final ObjectTypedValueWrapper anObjectArrayValue : objectArrayValue) {
                 if (anObjectArrayValue != null) {
                     anObjectArrayValue.setScanResult(scanResult);
                 }

@@ -399,7 +399,7 @@ class Scanner implements Callable<ScanResult> {
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = topLevelLog == null ? null
                 : topLevelLog.log("Finding classpath entries");
-        NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
+        final NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
         final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
                 new ClasspathOrModulePathEntryToClasspathElementMap(scanSpec, nestedJarHandler);
         try {

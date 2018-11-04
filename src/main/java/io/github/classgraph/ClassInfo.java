@@ -563,7 +563,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     || includeAnnotations && classInfo.isAnnotation()) {
                 if (
                 // Always check blacklist 
-                !scanSpec.classIsBlacklisted(classInfo.name)
+                !scanSpec.classOrPackageIsBlacklisted(classInfo.name)
                         // If not blacklisted, and strictWhitelist is false, add class
                         && (!strictWhitelist || (
                         // Don't include external (non-scanned) classes unless enableExternalClasses is true
