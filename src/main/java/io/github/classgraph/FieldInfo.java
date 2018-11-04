@@ -452,9 +452,9 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             final Object val = constantInitializerValue.get();
             buf.append(" = ");
             if (val instanceof String) {
-                buf.append("\"" + ((String) val).replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+                buf.append("\"").append(((String) val).replace("\\", "\\\\").replace("\"", "\\\"")).append("\"");
             } else if (val instanceof Character) {
-                buf.append("'" + ((Character) val).toString().replace("\\", "\\\\").replaceAll("'", "\\'") + "'");
+                buf.append("'").append(((Character) val).toString().replace("\\", "\\\\").replaceAll("'", "\\'")).append("'");
             } else {
                 buf.append(val.toString());
             }

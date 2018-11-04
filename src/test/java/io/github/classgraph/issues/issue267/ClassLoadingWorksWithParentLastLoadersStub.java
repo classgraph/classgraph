@@ -69,7 +69,7 @@ class TestLauncher extends Thread {
             final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class,
                     String.class);
             mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(),
-                    new Object[] { parentClassLoader, "FakeRestartClassLoader" });
+                    parentClassLoader, "FakeRestartClassLoader");
         } catch (final Throwable ex) {
             getUncaughtExceptionHandler().uncaughtException(this, ex);
         }

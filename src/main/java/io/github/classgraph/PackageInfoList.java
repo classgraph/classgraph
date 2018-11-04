@@ -63,7 +63,7 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
          * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
          *         list; if false, it is excluded.
          */
-        public boolean accept(PackageInfo packageInfo);
+        boolean accept(PackageInfo packageInfo);
     }
 
     /**

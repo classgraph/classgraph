@@ -97,7 +97,7 @@ public class JSONDeserializer {
             if (isLong) {
                 return jsonVal;
             } else {
-                return Long.valueOf(((Integer) jsonVal).intValue());
+                return (long) (Integer) jsonVal;
             }
 
         } else if (rawType == Short.class || rawType == Short.TYPE) {
@@ -107,11 +107,11 @@ public class JSONDeserializer {
             if (!(jsonVal instanceof Integer)) {
                 throw new IllegalArgumentException("Expected short; got " + jsonVal.getClass().getName());
             }
-            final int intValue = ((Integer) jsonVal).intValue();
+            final int intValue = (Integer) jsonVal;
             if (intValue < Short.MIN_VALUE || intValue > Short.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected short; got out-of-range value " + intValue);
             }
-            return Short.valueOf((short) intValue);
+            return (short) intValue;
 
         } else if (rawType == Float.class || rawType == Float.TYPE) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
@@ -120,11 +120,11 @@ public class JSONDeserializer {
             if (!(jsonVal instanceof Double)) {
                 throw new IllegalArgumentException("Expected float; got " + jsonVal.getClass().getName());
             }
-            final double doubleValue = ((Double) jsonVal).doubleValue();
+            final double doubleValue = (Double) jsonVal;
             if (doubleValue < Float.MIN_VALUE || doubleValue > Float.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected float; got out-of-range value " + doubleValue);
             }
-            return Float.valueOf((float) doubleValue);
+            return (float) doubleValue;
 
         } else if (rawType == Double.class || rawType == Double.TYPE) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
@@ -142,11 +142,11 @@ public class JSONDeserializer {
             if (!(jsonVal instanceof Integer)) {
                 throw new IllegalArgumentException("Expected byte; got " + jsonVal.getClass().getName());
             }
-            final int intValue = ((Integer) jsonVal).intValue();
+            final int intValue = (Integer) jsonVal;
             if (intValue < Byte.MIN_VALUE || intValue > Byte.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected byte; got out-of-range value " + intValue);
             }
-            return Byte.valueOf((byte) intValue);
+            return (byte) intValue;
 
         } else if (rawType == Character.class || rawType == Character.TYPE) {
             if (!(jsonVal instanceof CharSequence)) {
@@ -156,7 +156,7 @@ public class JSONDeserializer {
             if (charSequence.length() != 1) {
                 throw new IllegalArgumentException("Expected single character; got string");
             }
-            return Character.valueOf(charSequence.charAt(0));
+            return charSequence.charAt(0);
 
         } else if (rawType == Boolean.class || rawType == Boolean.TYPE) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
@@ -357,10 +357,9 @@ public class JSONDeserializer {
             if (isObj) {
                 // Standard objects must interpret the key as a string, since field names are strings.
                 // Look up field name directly, using the itemJsonKey string
-                final String fieldName = itemJsonKey;
-                fieldTypeInfo = classFields.fieldNameToFieldTypeInfo.get(fieldName);
+                fieldTypeInfo = classFields.fieldNameToFieldTypeInfo.get(itemJsonKey);
                 if (fieldTypeInfo == null) {
-                    throw new IllegalArgumentException("Field " + rawType.getName() + "." + fieldName
+                    throw new IllegalArgumentException("Field " + rawType.getName() + "." + itemJsonKey
                             + " does not exist or is not accessible, non-final, and non-transient");
                 }
             } else {
@@ -555,7 +554,7 @@ public class JSONDeserializer {
     private static HashMap<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
             final Object parsedJSON) {
         final HashMap<CharSequence, Object> idToObjectInstance = new HashMap<>();
-        if (parsedJSON != null && parsedJSON instanceof JSONObject) {
+        if (parsedJSON instanceof JSONObject) {
             final JSONObject itemJsonObject = (JSONObject) parsedJSON;
             if (itemJsonObject.items.size() > 0) {
                 final Entry<String, Object> firstItem = itemJsonObject.items.get(0);
@@ -638,8 +637,7 @@ public class JSONDeserializer {
             throws IllegalArgumentException {
         final ClassFieldCache classFieldCache = new ClassFieldCache(/* resolveTypes = */ true,
                 /* onlySerializePublicFields = */ false);
-        final T result = deserializeObject(expectedType, json, classFieldCache);
-        return result;
+        return deserializeObject(expectedType, json, classFieldCache);
     }
 
     /**

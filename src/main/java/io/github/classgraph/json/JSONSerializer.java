@@ -54,7 +54,7 @@ public class JSONSerializer {
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final AtomicInteger objId, final boolean onlySerializePublicFields) {
         if (jsonVal == null) {
-            return;
+            // No referenced JSON object
         } else if (jsonVal instanceof JSONObject) {
             for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
                 assignObjectIds(item.getValue(), objToJSONVal, classFieldCache, jsonReferenceToId, objId,
@@ -194,7 +194,7 @@ public class JSONSerializer {
         }
 
         Object jsonVal;
-        final Class<? extends Object> cls = obj.getClass();
+        final Class<?> cls = obj.getClass();
 
         if (Map.class.isAssignableFrom(cls)) {
             final Map<Object, Object> map = (Map<Object, Object>) obj;
@@ -268,10 +268,7 @@ public class JSONSerializer {
             final Collection<?> collection = (Collection<?>) obj;
 
             // Convert items to JSON values
-            final List<Object> convertedValsList = new ArrayList<>();
-            for (final Object item : collection) {
-                convertedValsList.add(item);
-            }
+            final List<Object> convertedValsList = new ArrayList<>(collection);
             final Object[] convertedVals = convertedValsList.toArray();
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);

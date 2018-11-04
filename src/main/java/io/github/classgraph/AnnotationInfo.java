@@ -240,12 +240,13 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 }
             } else if (paramTypes.length == 0) {
                 // Handle .toString(), .hashCode(), .annotationType()
-                if (methodName.equals("toString")) {
-                    return toString;
-                } else if (methodName.equals("hashCode")) {
-                    return toString.hashCode();
-                } else if (methodName.equals("annotationType")) {
-                    return annotationClass;
+                switch (methodName) {
+                    case "toString":
+                        return toString;
+                    case "hashCode":
+                        return toString.hashCode();
+                    case "annotationType":
+                        return annotationClass;
                 }
             } else {
                 // Throw exception for 2 or more params
@@ -261,27 +262,26 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             }
 
             // Clone any array-typed annotation parameter values, in keeping with the Java Annotation API
-            final Class<? extends Object> annotationParameterValueClass = annotationParameterValue.getClass();
+            final Class<?> annotationParameterValueClass = annotationParameterValue.getClass();
             if (annotationParameterValueClass.isArray()) {
                 // Handle array types
-                final Class<?> arrayType = annotationParameterValueClass;
-                if (arrayType == String[].class) {
+                if (annotationParameterValueClass == String[].class) {
                     return ((String[]) annotationParameterValue).clone();
-                } else if (arrayType == byte[].class) {
+                } else if (annotationParameterValueClass == byte[].class) {
                     return ((byte[]) annotationParameterValue).clone();
-                } else if (arrayType == char[].class) {
+                } else if (annotationParameterValueClass == char[].class) {
                     return ((char[]) annotationParameterValue).clone();
-                } else if (arrayType == double[].class) {
+                } else if (annotationParameterValueClass == double[].class) {
                     return ((double[]) annotationParameterValue).clone();
-                } else if (arrayType == float[].class) {
+                } else if (annotationParameterValueClass == float[].class) {
                     return ((float[]) annotationParameterValue).clone();
-                } else if (arrayType == int[].class) {
+                } else if (annotationParameterValueClass == int[].class) {
                     return ((int[]) annotationParameterValue).clone();
-                } else if (arrayType == long[].class) {
+                } else if (annotationParameterValueClass == long[].class) {
                     return ((long[]) annotationParameterValue).clone();
-                } else if (arrayType == short[].class) {
+                } else if (annotationParameterValueClass == short[].class) {
                     return ((short[]) annotationParameterValue).clone();
-                } else if (arrayType == boolean[].class) {
+                } else if (annotationParameterValueClass == boolean[].class) {
                     return ((boolean[]) annotationParameterValue).clone();
                 } else {
                     // Handle arrays of nested annotation types
@@ -344,8 +344,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     public int hashCode() {
         int h = getName().hashCode();
         if (annotationParamValues != null) {
-            for (int i = 0; i < annotationParamValues.size(); i++) {
-                final AnnotationParameterValue e = annotationParamValues.get(i);
+            for (final AnnotationParameterValue e : annotationParamValues) {
                 h = h * 7 + e.getName().hashCode() * 3 + e.getValue().hashCode();
             }
         }
@@ -359,7 +358,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *            The buffer.
      */
     void toString(final StringBuilder buf) {
-        buf.append("@" + getName());
+        buf.append("@").append(getName());
         if (annotationParamValues != null && !annotationParamValues.isEmpty()) {
             buf.append('(');
             for (int i = 0; i < annotationParamValues.size(); i++) {

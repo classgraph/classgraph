@@ -30,8 +30,6 @@ package io.github.classgraph.issues.issue148;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
@@ -40,7 +38,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue148Test {
     @Test
-    public void issue148Test() throws IOException {
+    public void issue148Test() {
         @SuppressWarnings("unused")
         final Runnable anonymousInnerClass1 = new Runnable() {
             @Override
@@ -52,11 +50,11 @@ public class Issue148Test {
         final StringBuilder buf = new StringBuilder();
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg).enableAllInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
-                buf.append(ci.getName() + "|");
-                buf.append(ci.isInnerClass() + " " + ci.isAnonymousInnerClass() + " " + ci.isOuterClass() + "|");
-                buf.append(ci.getInnerClasses().getNames() + "|");
-                buf.append(ci.getOuterClasses().getNames() + "|");
-                buf.append(ci.getFullyQualifiedDefiningMethodName() + "\n");
+                buf.append(ci.getName()).append("|");
+                buf.append(ci.isInnerClass()).append(" ").append(ci.isAnonymousInnerClass()).append(" ").append(ci.isOuterClass()).append("|");
+                buf.append(ci.getInnerClasses().getNames()).append("|");
+                buf.append(ci.getOuterClasses().getNames()).append("|");
+                buf.append(ci.getFullyQualifiedDefiningMethodName()).append("\n");
             }
         }
         final String bufStr = buf.toString().replace(pkg + ".", "");

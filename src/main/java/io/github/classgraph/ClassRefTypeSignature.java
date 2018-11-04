@@ -105,9 +105,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         if (fullyQualifiedClassName == null) {
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
-            for (int i = 0; i < suffixes.size(); i++) {
+            for (final String suffix : suffixes) {
                 buf.append('$');
-                buf.append(suffixes.get(i));
+                buf.append(suffix);
             }
             fullyQualifiedClassName = buf.toString();
         }
@@ -242,7 +242,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         if (other instanceof TypeVariableSignature) {
             // Compare class type signature to type variable -- the logic for this
             // is implemented in TypeVariableSignature, and is not duplicated here
-            return ((TypeVariableSignature) other).equalsIgnoringTypeParams(this);
+            return other.equalsIgnoringTypeParams(this);
         }
         if (!(other instanceof ClassRefTypeSignature)) {
             return false;

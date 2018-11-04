@@ -14,11 +14,11 @@ public class Issue93 {
     private static final String PKG = Issue93.class.getPackage().getName();
 
     @Retention(RetentionPolicy.CLASS)
-    private static @interface RetentionClass {
+    private @interface RetentionClass {
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    private static @interface RetentionRuntime {
+    private @interface RetentionRuntime {
     }
 
     @RetentionClass

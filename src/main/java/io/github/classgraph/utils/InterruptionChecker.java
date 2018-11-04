@@ -93,9 +93,8 @@ public class InterruptionChecker {
      * @return A new {@link ExecutionException}.
      */
     public ExecutionException executionException(final Exception e) {
-        final ExecutionException newExecutionException = e instanceof ExecutionException ? (ExecutionException) e
+        executionException = e instanceof ExecutionException ? (ExecutionException) e
                 : new ExecutionException(e);
-        executionException = newExecutionException;
         return executionException;
     }
 }

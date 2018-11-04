@@ -30,7 +30,6 @@ package io.github.classgraph.issues.issue167;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,7 +43,7 @@ import io.github.classgraph.issues.issue167.a.TestA;
 import io.github.classgraph.issues.issue167.a.b.TestAB;
 
 public class Issue167Test {
-    public static List<Class<?>> classes = Arrays.asList(new Class<?>[] { TestA.class, TestAB.class });
+    public static List<Class<?>> classes = Arrays.asList(TestA.class, TestAB.class);
     public static List<String> packages = new ArrayList<>();
     public static List<String> classNames = new ArrayList<>();
     static {
@@ -55,7 +54,7 @@ public class Issue167Test {
     }
 
     @Test
-    public void scanPackagesTest1() throws IOException {
+    public void scanPackagesTest1() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(packages.toArray(new String[0]))
                 .enableClassInfo().scan()) {
             assertEquals(classNames, scanResult.getAllClasses().getNames());
@@ -63,7 +62,7 @@ public class Issue167Test {
     }
 
     @Test
-    public void scanPackagesTest2() throws IOException {
+    public void scanPackagesTest2() {
         final List<String> reversedPackages = new ArrayList<>(packages);
         Collections.reverse(reversedPackages);
         try (ScanResult scanResult = new ClassGraph()

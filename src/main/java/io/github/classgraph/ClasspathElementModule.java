@@ -349,7 +349,6 @@ class ClasspathElementModule extends ClasspathElement {
                 subLog.log("Exception opening module " + classpathEltPath, e);
             }
             skipClasspathElement = true;
-            return;
         }
     }
 

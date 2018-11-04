@@ -86,12 +86,10 @@ public class ModuleReaderProxy implements Closeable {
      * by the security manager."
      * 
      * @return A list of the paths of resources in the module.
-     * @throws IOException
-     *             If the module cannot be read.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
-    public List<String> list() throws IOException, SecurityException {
+    public List<String> list() throws SecurityException {
         if (collectorsToList == null) {
             throw new IllegalArgumentException("Could not call Collectors.toList()");
         }
@@ -116,12 +114,10 @@ public class ModuleReaderProxy implements Closeable {
      * @param path
      *            The path to the resource to open.
      * @return An {@link InputStream} for the content of the resource.
-     * @throws IOException
-     *             If the resource cannot be read.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
-    public InputStream open(final String path) throws IOException, SecurityException {
+    public InputStream open(final String path) throws SecurityException {
         final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils.invokeMethod(moduleReader,
                 "open", String.class, path, /* throwException = */ true);
         if (optionalInputStream == null) {
@@ -142,14 +138,12 @@ public class ModuleReaderProxy implements Closeable {
      * @param path
      *            The path to the resource to open.
      * @return A {@link ByteBuffer} for the content of the resource.
-     * @throws IOException
-     *             If the resource cannot be read.
      * @throws SecurityException
      *             If the module cannot be accessed.
      * @throws OutOfMemoryError
      *             if the resource is larger than Integer.MAX_VALUE, the maximum capacity of a byte buffer.
      */
-    public ByteBuffer read(final String path) throws IOException, SecurityException, OutOfMemoryError {
+    public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
         final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils.invokeMethod(moduleReader,
                 "read", String.class, path, /* throwException = */ true);
         if (optionalByteBuffer == null) {

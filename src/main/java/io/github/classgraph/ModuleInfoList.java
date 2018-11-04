@@ -63,7 +63,7 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
          * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
          *         list; if false, it is excluded.
          */
-        public boolean accept(ModuleInfo moduleInfo);
+        boolean accept(ModuleInfo moduleInfo);
     }
 
     /**
