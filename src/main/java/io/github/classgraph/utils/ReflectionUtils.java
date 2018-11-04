@@ -195,7 +195,7 @@ public class ReflectionUtils {
     public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException)
             throws IllegalArgumentException {
         if (obj != null) {
-            final Class<? extends Object> cls = obj.getClass();
+            final Class<?> cls = obj.getClass();
 
             // Iterate through implemented interfaces, top-down, then superclass to subclasses, top-down
             // (since higher-up superclasses and superinterfaces have the highest chance of being visible)
@@ -259,7 +259,7 @@ public class ReflectionUtils {
     public static Object invokeMethod(final Object obj, final String methodName, final Class<?> argType,
             final Object arg, final boolean throwException) throws IllegalArgumentException {
         if (obj != null) {
-            final Class<? extends Object> cls = obj.getClass();
+            final Class<?> cls = obj.getClass();
 
             // Iterate through implemented interfaces, top-down, then superclass to subclasses, top-down
             // (since higher-up superclasses and superinterfaces have the highest chance of being visible)

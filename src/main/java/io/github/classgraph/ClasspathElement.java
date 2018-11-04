@@ -163,9 +163,9 @@ abstract class ClasspathElement {
     static ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathRelativePath,
             final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
             final WorkQueue<ClasspathOrModulePathEntry> workQueue, final LogNode log) {
-        boolean isModule = false;
+        boolean isModule;
         boolean isDir = false;
-        String resolvedPath = null;
+        String resolvedPath;
         try {
             resolvedPath = classpathRelativePath.getResolvedPath();
             isModule = classpathRelativePath.getModuleRef() != null;

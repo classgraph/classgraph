@@ -43,7 +43,7 @@ public class DefaultPackageTest {
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
 
     @Test
-    public void scan() throws Exception {
+    public void scan() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive("").scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(DefaultPackageTest.class.getName());
@@ -56,7 +56,7 @@ public class DefaultPackageTest {
     }
 
     @Test
-    public void scanWithWhitelist() throws Exception {
+    public void scanWithWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());

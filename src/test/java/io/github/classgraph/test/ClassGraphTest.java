@@ -67,7 +67,7 @@ public class ClassGraphTest {
     private static final String WHITELIST_PACKAGE = Whitelisted.class.getPackage().getName();
 
     @Test
-    public void scan() throws Exception {
+    public void scan() {
         try (ScanResult scanResult = new ClassGraph().enableClassInfo().scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
@@ -79,7 +79,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanWithWhitelist() throws Exception {
+    public void scanWithWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
@@ -91,7 +91,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanWithWhitelistAndBlacklist() throws Exception {
+    public void scanWithWhitelistAndBlacklist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
                 .blacklistPackages(BlacklistedSub.class.getPackage().getName()).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
@@ -104,7 +104,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanSubAndSuperclasses() throws Exception {
+    public void scanSubAndSuperclasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             final List<String> subclasses = scanResult.getSubclasses(Cls.class.getName()).getNames();
             assertThat(subclasses).doesNotContain(Cls.class.getName());
@@ -118,7 +118,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanSubAndSuperinterface() throws Exception {
+    public void scanSubAndSuperinterface() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             final List<String> subinterfaces = scanResult.getClassesImplementing(Iface.class.getName()).getNames();
             assertThat(subinterfaces).doesNotContain(Iface.class.getName());
@@ -132,7 +132,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanTransitiveImplements() throws Exception {
+    public void scanTransitiveImplements() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
                     .doesNotContain(Iface.class.getName());
@@ -180,7 +180,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void testExternalSuperclassReturned() throws Exception {
+    public void testExternalSuperclassReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames())
                     .containsExactly(BlacklistedSuperclass.class.getName());
@@ -193,7 +193,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void testWhitelistedWithoutExceptionWithoutStrictWhitelist() throws Exception {
+    public void testWhitelistedWithoutExceptionWithoutStrictWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableExternalClasses()
                 .scan()) {
             assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames())
@@ -201,7 +201,7 @@ public class ClassGraphTest {
         }
     }
 
-    public void testCanQueryWithBlacklistedAnnotation() throws Exception {
+    public void testCanQueryWithBlacklistedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getNames())
@@ -210,7 +210,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void testBlacklistedPlaceholderNotReturned() throws Exception {
+    public void testBlacklistedPlaceholderNotReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE)
                 .blacklistPackages(BlacklistedAnnotation.class.getPackage().getName()).enableAnnotationInfo()
                 .scan()) {
@@ -225,7 +225,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void testBlacklistedPackageOverridesWhitelistedClassWithWhitelistedOverrideReturned() throws Exception {
+    public void testBlacklistedPackageOverridesWhitelistedClassWithWhitelistedOverrideReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE)
                 .blacklistPackages(BlacklistedAnnotation.class.getPackage().getName())
                 .whitelistClasses(BlacklistedAnnotation.class.getName()).enableAnnotationInfo().scan()) {
@@ -234,7 +234,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void testNonWhitelistedAnnotationReturnedWithoutStrictWhitelist() throws Exception {
+    public void testNonWhitelistedAnnotationReturnedWithoutStrictWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableAnnotationInfo()
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames())
@@ -243,7 +243,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void testExternalAnnotationReturned() throws Exception {
+    public void testExternalAnnotationReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableAnnotationInfo()
                 .scan()) {
             assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames())
@@ -251,7 +251,7 @@ public class ClassGraphTest {
         }
     }
 
-    public void testBlacklistedPackage() throws Exception {
+    public void testBlacklistedPackage() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(ROOT_PACKAGE, "-" + BlacklistedSuperclass.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames()).isEmpty();
@@ -264,7 +264,7 @@ public class ClassGraphTest {
         }
     }
 
-    public void testNoExceptionIfQueryingBlacklisted() throws Exception {
+    public void testNoExceptionIfQueryingBlacklisted() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(WHITELIST_PACKAGE, "-" + BlacklistedSuperclass.class.getPackage().getName())
                 .scan()) {
@@ -272,7 +272,7 @@ public class ClassGraphTest {
         }
     }
 
-    public void testNoExceptionIfExplicitlyWhitelistedClassInBlacklistedPackage() throws Exception {
+    public void testNoExceptionIfExplicitlyWhitelistedClassInBlacklistedPackage() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE,
                 "-" + BlacklistedSuperclass.class.getPackage().getName() + BlacklistedSuperclass.class.getName())
                 .scan()) {
@@ -281,7 +281,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void testVisibleIfNotBlacklisted() throws Exception {
+    public void testVisibleIfNotBlacklisted() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE).enableAnnotationInfo()
                 .scan()) {
             assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames())
@@ -298,7 +298,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanFilePattern() throws Exception {
+    public void scanFilePattern() {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
         try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("").scan()) {
             scanResult.getResourcesWithLeafName("file-content-test.txt").forEachByteArray(new ByteArrayConsumer() {
@@ -312,7 +312,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanStaticFinalFieldName() throws Exception {
+    public void scanStaticFinalFieldName() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
                 .enableStaticFinalFieldConstantInitializerValues().scan()) {
             int numInitializers = 0;
@@ -326,7 +326,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void scanStaticFinalFieldNameIgnoreVisibility() throws Exception {
+    public void scanStaticFinalFieldNameIgnoreVisibility() {
         final HashSet<String> fieldNames = new HashSet<>();
         for (final String fieldName : new String[] { "stringField", "intField", "boolField", "charField",
                 "integerField", "booleanField" }) {
@@ -379,7 +379,7 @@ public class ClassGraphTest {
     }
 
     @Test
-    public void getManifest() throws Exception {
+    public void getManifest() {
         final AtomicBoolean foundManifest = new AtomicBoolean();
         try (ScanResult scanResult = new ClassGraph().whitelistPaths("META-INF").enableAllInfo().scan()) {
             for (final Resource res : scanResult.getResourcesWithLeafName("MANIFEST.MF")) {

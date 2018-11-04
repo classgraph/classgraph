@@ -42,11 +42,11 @@ import io.github.classgraph.ScanResult;
 
 @Entity
 public class Issue223Test {
-    public static interface InnerInterface {
+    public interface InnerInterface {
     }
 
     @Test
-    public void testClassloadInnerClasses() throws Exception {
+    public void testClassloadInnerClasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue223Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             final ClassInfoList innerClasses = scanResult.getAllClasses().filter(new ClassInfoFilter() {

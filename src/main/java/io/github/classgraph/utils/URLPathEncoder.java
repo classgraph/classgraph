@@ -66,8 +66,8 @@ public class URLPathEncoder {
     public static String encodePath(final String path) {
         final byte[] pathBytes = path.getBytes(StandardCharsets.UTF_8);
         final StringBuilder encodedPath = new StringBuilder(pathBytes.length * 3);
-        for (int i = 0; i < pathBytes.length; i++) {
-            final int b = pathBytes[i] & 0xff;
+        for (byte pathByte : pathBytes) {
+            final int b = pathByte & 0xff;
             if (safe[b]) {
                 encodedPath.append((char) b);
             } else {

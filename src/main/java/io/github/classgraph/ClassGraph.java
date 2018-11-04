@@ -86,7 +86,7 @@ public class ClassGraph {
      *
      * @return the ClassGraph version, or "unknown" if it could not be determined.
      */
-    public static final String getVersion() {
+    public static String getVersion() {
         return VersionFinder.getVersion();
     }
 
@@ -422,7 +422,7 @@ public class ClassGraph {
          *            stripped from the beginning, if they were present in the classpath.
          * @return true if the path string passed is a path you want to scan.
          */
-        public boolean includeClasspathElement(String classpathElementPathStr);
+        boolean includeClasspathElement(String classpathElementPathStr);
     }
 
     /**
@@ -1001,7 +1001,7 @@ public class ClassGraph {
          * @param scanResult
          *            the {@link ScanResult} to process.
          */
-        public void processScanResult(ScanResult scanResult);
+        void processScanResult(ScanResult scanResult);
     }
 
     /** A callback used to handle failure during an asynchronous scan. */
@@ -1013,7 +1013,7 @@ public class ClassGraph {
          * @param throwable
          *            the {@link Throwable} that was thrown during scanning.
          */
-        public void onFailure(Throwable throwable);
+        void onFailure(Throwable throwable);
     }
 
     /**
@@ -1083,17 +1083,16 @@ public class ClassGraph {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan and wait for completion
-            final ScanResult scanResult = executorService
-                    .submit(new Scanner(scanSpec, executorService, numParallelTasks,
-                            /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)) //
-                    .get();
 
             //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
             //    final String scanResultJson = scanResult.toJSON();
             //    scanResult = ScanResult.fromJSON(scanResultJson);
 
             // Return the scanResult
-            return scanResult;
+            return executorService
+                    .submit(new Scanner(scanSpec, executorService, numParallelTasks,
+                            /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)) //
+                    .get();
 
         } catch (final InterruptedException e) {
             if (topLevelLog != null) {

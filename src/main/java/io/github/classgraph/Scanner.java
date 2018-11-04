@@ -68,7 +68,6 @@ class Scanner implements Callable<ScanResult> {
     private final ScanResultProcessor scanResultProcessor;
     private final FailureHandler failureHandler;
     private final LogNode topLevelLog;
-    private NestedJarHandler nestedJarHandler;
 
     /** The classpath scanner. */
     Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
@@ -400,7 +399,7 @@ class Scanner implements Callable<ScanResult> {
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = topLevelLog == null ? null
                 : topLevelLog.log("Finding classpath entries");
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
+        NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
         final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
                 new ClasspathOrModulePathEntryToClasspathElementMap(scanSpec, nestedJarHandler);
         try {
@@ -537,8 +536,7 @@ class Scanner implements Callable<ScanResult> {
                 // Find classpath elements that are path prefixes of other classpath elements
                 final List<SimpleEntry<String, ClasspathElement>> classpathEltResolvedPathToElement = //
                         new ArrayList<>();
-                for (int i = 0; i < classpathOrder.size(); i++) {
-                    final ClasspathElement classpathElement = classpathOrder.get(i);
+                for (final ClasspathElement classpathElement : classpathOrder) {
                     classpathEltResolvedPathToElement.add(new SimpleEntry<>(
                             classpathElement.classpathEltPath.getResolvedPath(), classpathElement));
                 }
@@ -606,7 +604,7 @@ class Scanner implements Callable<ScanResult> {
                         new WorkUnitProcessor<ClasspathElement>() {
                             @Override
                             public void processWorkUnit(final ClasspathElement classpathElement,
-                                    final WorkQueue<ClasspathElement> workQueueIgnored) throws Exception {
+                                    final WorkQueue<ClasspathElement> workQueueIgnored) {
                                 // Scan the paths within a directory or jar
                                 classpathElement.scanPaths(pathScanLog);
                                 if (preScanLog != null) {
@@ -753,7 +751,7 @@ class Scanner implements Callable<ScanResult> {
 
         } catch (final Throwable e) {
             // Remove temporary files if an exception was thrown
-            this.nestedJarHandler.close(topLevelLog);
+            nestedJarHandler.close(topLevelLog);
             if (topLevelLog != null) {
                 topLevelLog.log(e);
             }

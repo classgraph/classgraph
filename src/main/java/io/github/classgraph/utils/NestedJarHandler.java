@@ -115,8 +115,7 @@ public class NestedJarHandler {
         // Set up a singleton map from canonical path to ZipFile recycler
         this.zipFileToRecyclerMap = new SingletonMap<File, Recycler<ZipFile, IOException>>() {
             @Override
-            public Recycler<ZipFile, IOException> newInstance(final File zipFile, final LogNode log)
-                    throws Exception {
+            public Recycler<ZipFile, IOException> newInstance(final File zipFile, final LogNode log) {
                 return new Recycler<ZipFile, IOException>() {
                     @Override
                     public ZipFile newInstance() throws IOException {
@@ -129,7 +128,7 @@ public class NestedJarHandler {
         // Set up a singleton map from canonical path to FastManifestParser
         this.zipFileToJarfileMetadataReaderMap = new SingletonMap<File, JarfileMetadataReader>() {
             @Override
-            public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) throws Exception {
+            public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) {
                 return new JarfileMetadataReader(canonicalFile, scanSpec, log);
             }
         };
@@ -142,7 +141,7 @@ public class NestedJarHandler {
                 new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>>() {
                     @Override
                     public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
-                            final LogNode log) throws Exception {
+                            final LogNode log) {
                         return new Recycler<ModuleReaderProxy, IOException>() {
                             @Override
                             public ModuleReaderProxy newInstance() throws IOException {
@@ -285,7 +284,7 @@ public class NestedJarHandler {
 
                         // If path component is a directory, it is a package root
                         if (isDirectory) {
-                            final boolean childPathIsLeaf = childPath.indexOf("!") < 0;
+                            final boolean childPathIsLeaf = !childPath.contains("!");
                             if (!childPathIsLeaf) {
                                 // Can only have a package root in the last component of the classpath
                                 throw new IOException("Path " + childPath + " in jarfile " + parentJarFile
@@ -422,9 +421,8 @@ public class NestedJarHandler {
      */
     public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final LogNode log) throws Exception {
         // Get the jarfile metadata reader singleton for this zipfile
-        final JarfileMetadataReader jarfileMetadataReader = zipFileToJarfileMetadataReaderMap
+        return zipFileToJarfileMetadataReaderMap
                 .getOrCreateSingleton(zipFile, log);
-        return jarfileMetadataReader;
     }
 
     /**
@@ -496,7 +494,7 @@ public class NestedJarHandler {
     /** Download a jar from a URL to a temporary file. */
     private File downloadTempFile(final String jarURL, final LogNode log) {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
-        File tempFile = null;
+        File tempFile;
         try {
             final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(jarURL));
             tempFile = File.createTempFile("ClassGraph--", suffix);
@@ -526,7 +524,7 @@ public class NestedJarHandler {
 
     /**
      * Unzip a ZipEntry to a temporary file, then return the temporary file. The temporary file will be removed when
-     * {@link NestedJarHandler#close()} is called.
+     * {@link NestedJarHandler#close(LogNode)} is called.
      */
     private File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry, final LogNode log)
             throws IOException {

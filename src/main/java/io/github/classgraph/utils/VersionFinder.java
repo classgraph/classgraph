@@ -79,18 +79,18 @@ public class VersionFinder {
         Linux,
         /** Unknown */
         Unknown
-    };
+    }
 
     /** The operating system type. */
     public static final OperatingSystem OS;
 
     static {
         final String osName = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
-        if ((osName.indexOf("mac") >= 0) || (osName.indexOf("darwin") >= 0)) {
+        if ((osName.contains("mac")) || (osName.contains("darwin"))) {
             OS = OperatingSystem.MacOSX;
-        } else if (osName.indexOf("win") >= 0) {
+        } else if (osName.contains("win")) {
             OS = OperatingSystem.Windows;
-        } else if (osName.indexOf("nux") >= 0) {
+        } else if (osName.contains("nux")) {
             OS = OperatingSystem.Linux;
         } else {
             OS = OperatingSystem.Unknown;
@@ -105,7 +105,7 @@ public class VersionFinder {
     /**
      * @return the version number of ClassGraph.
      */
-    public static final synchronized String getVersion() {
+    public static synchronized String getVersion() {
         // Try to get version number from pom.xml (available when running in Eclipse)
         final Class<?> cls = ClassGraph.class;
         try {
@@ -116,7 +116,7 @@ public class VersionFinder {
                 final int packagePathSegments = className.length() - className.replace(".", "").length();
                 // Remove package segments from path
                 Path path = absolutePackagePath;
-                for (int i = 0, segmentsToRemove = packagePathSegments; i < segmentsToRemove && path != null; i++) {
+                for (int i = 0; i < packagePathSegments && path != null; i++) {
                     path = path.getParent();
                 }
                 // Remove up to two more levels for "bin" or "target/classes"

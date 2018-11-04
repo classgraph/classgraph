@@ -54,7 +54,7 @@ public interface ClassLoaderHandler {
         /** Delegate to parent before handling in child. */
         PARENT_FIRST,
         /** Handle classloading in child before delegating to parent. */
-        PARENT_LAST;
+        PARENT_LAST
     }
 
     /**
@@ -99,9 +99,7 @@ public interface ClassLoaderHandler {
      *            The ClasspathOrder to register any discovered classpath elements with.
      * @param log
      *            A logger instance -- if this is non-null, write debug information using log.log("message").
-     * @throws Exception
-     *             If anything goes wrong while fetching classpath elements.
      */
     void handle(ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
-            LogNode log) throws Exception;
+            LogNode log);
 }

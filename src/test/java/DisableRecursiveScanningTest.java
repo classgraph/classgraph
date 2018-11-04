@@ -43,7 +43,7 @@ public class DisableRecursiveScanningTest {
     private static final String PKG = Cls.class.getPackage().getName();
 
     @Test
-    public void nonRootPackage() throws Exception {
+    public void nonRootPackage() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(PKG).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
@@ -52,7 +52,7 @@ public class DisableRecursiveScanningTest {
     }
 
     @Test
-    public void rootPackage() throws Exception {
+    public void rootPackage() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive("").scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());

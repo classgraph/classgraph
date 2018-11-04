@@ -37,7 +37,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue246Test {
     @Test
-    public void testMethodParameterAnnotations() throws Exception {
+    public void testMethodParameterAnnotations() {
         try (ScanResult scanResult = new ClassGraph() //
                 .whitelistClasses(Issue246Test.class.getName()) //
                 .enableAllInfo() //
