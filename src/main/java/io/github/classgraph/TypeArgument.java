@@ -39,7 +39,7 @@ import io.github.classgraph.utils.Parser.ParseException;
 /** A type argument. */
 public class TypeArgument extends HierarchicalTypeSignature {
     /** A type wildcard. */
-    public static enum Wildcard {
+    public enum Wildcard {
         /** No wildcard. */
         NONE,
         /** The '?' wildcard */
@@ -48,7 +48,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
         EXTENDS,
         /** super */
         SUPER
-    };
+    }
 
     /** A wildcard type. */
     private final Wildcard wildcard;

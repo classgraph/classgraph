@@ -60,8 +60,8 @@ class JSONObject {
             numDisplayedFields = n;
         } else {
             numDisplayedFields = 0;
-            for (int i = 0; i < n; i++) {
-                if (items.get(i).getValue() != null) {
+            for (Entry<String, Object> item : items) {
+                if (item.getValue() != null) {
                     numDisplayedFields++;
                 }
             }

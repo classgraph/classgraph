@@ -88,7 +88,7 @@ public class WorkQueue<T> implements AutoCloseable {
          * @throws Exception
          *             If something goes wrong while processing the work unit.
          */
-        public void processWorkUnit(T workUnit, WorkQueue<T> workQueue) throws Exception;
+        void processWorkUnit(T workUnit, WorkQueue<T> workQueue) throws Exception;
     }
 
     /**
@@ -242,7 +242,7 @@ public class WorkQueue<T> implements AutoCloseable {
      * uncompleted (e.g. in the case of an exception), will shut down remaining workers.
      */
     @Override
-    public void close() throws ExecutionException {
+    public void close() {
         boolean uncompletedWork = false;
         if (numWorkUnitsRemaining.get() > 0) {
             uncompletedWork = true;

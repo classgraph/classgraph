@@ -77,7 +77,6 @@ class ClassFields {
                 currParameterizedType = (ParameterizedType) currType;
                 currRawType = (Class<?>) currParameterizedType.getRawType();
             } else if (currType instanceof Class<?>) {
-                currParameterizedType = null;
                 currRawType = (Class<?>) currType;
             } else {
                 // Class definitions should not be of type WildcardType or GenericArrayType 
@@ -85,8 +84,7 @@ class ClassFields {
             }
             final Field[] fields = currRawType.getDeclaredFields();
             final List<FieldTypeInfo> fieldOrderWithinClass = new ArrayList<>();
-            for (int i = 0; i < fields.length; i++) {
-                final Field field = fields[i];
+            for (final Field field : fields) {
                 // Mask superclass fields if subclass has a field of the same name
                 if (visibleFieldNames.add(field.getName())) {
                     // Check for @Id annotation

@@ -30,7 +30,6 @@ package io.github.classgraph.issues.issue152;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +54,7 @@ public class Issue152Test {
     }
 
     @Test
-    public void issue152Test() throws IOException {
+    public void issue152Test() {
         final String pkg = Issue152Test.class.getPackage().getName();
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
                 .enableMethodInfo() //

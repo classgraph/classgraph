@@ -173,7 +173,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /** How classes are related. */
-    private static enum RelType {
+    private enum RelType {
 
         // Classes:
 
@@ -442,7 +442,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         classInfo.isScannedClass = true;
 
         // Mark the class as non-external if it is a whitelisted class
-        if (isExternalClass == false) {
+        if (!isExternalClass) {
             classInfo.isExternalClass = isExternalClass;
         }
 
@@ -483,9 +483,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Merge together ClassLoader list (concatenate and dedup)
             final LinkedHashSet<ClassLoader> allClassLoaders = new LinkedHashSet<>(
                     Arrays.asList(classInfo.classLoaders));
-            for (final ClassLoader classLoader : classLoaders) {
-                allClassLoaders.add(classLoader);
-            }
+            Collections.addAll(allClassLoaders, classLoaders);
             final List<ClassLoader> classLoaderOrder = new ArrayList<>(allClassLoaders);
             classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[0]);
         }
@@ -501,7 +499,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /** The class type to return. */
-    private static enum ClassType {
+    private enum ClassType {
         /** Get all class types. */
         ALL,
         /** A standard class (not an interface or annotation). */
@@ -633,8 +631,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else {
             // For other relationship types, the reachable type stays the same over the transitive closure. Find the
             // transitive closure, breaking cycles where necessary.
-            final LinkedList<ClassInfo> queue = new LinkedList<>();
-            queue.addAll(directlyRelatedClasses);
+            final LinkedList<ClassInfo> queue = new LinkedList<>(directlyRelatedClasses);
             while (!queue.isEmpty()) {
                 final ClassInfo head = queue.removeFirst();
                 final Set<ClassInfo> headRelatedClasses = head.relatedClasses.get(relType);
@@ -757,7 +754,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** @return The simple name of the class. */
     public String getSimpleName() {
-        return name.substring(name.lastIndexOf('.') + 1, name.length());
+        return name.substring(name.lastIndexOf('.') + 1);
     }
 
     /** @return The name of the class' package. */
@@ -2310,7 +2307,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 buf.append(name);
                 final ClassInfo superclass = getSuperclass();
                 if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
-                    buf.append(" extends " + superclass.toString(/* typeNameOnly = */ true));
+                    buf.append(" extends ").append(superclass.toString(/* typeNameOnly = */ true));
                 }
                 final Set<ClassInfo> interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
                         /* strictWhitelist = */ false).directlyRelatedClasses;

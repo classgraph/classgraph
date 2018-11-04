@@ -30,8 +30,6 @@ package io.github.classgraph.issues.issue140;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-
 import org.junit.Test;
 
 import io.github.classgraph.ArrayTypeSignature;
@@ -49,7 +47,7 @@ public class Issue140Test {
     public String[] stringArrField;
 
     @Test
-    public void issue140Test() throws IOException {
+    public void issue140Test() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue140Test.class.getPackage().getName())
                 .enableFieldInfo().scan()) {
             final ClassInfo ci = scanResult.getClassInfo(Issue140Test.class.getName());

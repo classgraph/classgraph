@@ -247,7 +247,7 @@ public class ClasspathOrder {
                     }
                 }
             } else {
-                final Class<? extends Object> valClass = pathObject.getClass();
+                final Class<?> valClass = pathObject.getClass();
                 if (valClass.isArray()) {
                     for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
                         final Object elt = Array.get(pathObject, j);

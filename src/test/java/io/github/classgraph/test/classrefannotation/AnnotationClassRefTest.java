@@ -61,7 +61,7 @@ public class AnnotationClassRefTest {
     }
 
     @Test
-    public void testClassRefAnnotation() throws Exception {
+    public void testClassRefAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(AnnotationClassRefTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {

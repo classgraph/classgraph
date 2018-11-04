@@ -30,8 +30,6 @@ package io.github.classgraph.issues.issue146;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
@@ -41,7 +39,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue146Test {
     @Test
-    public void issue146Test() throws IOException {
+    public void issue146Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue146Test.class.getPackage().getName();

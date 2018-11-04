@@ -82,7 +82,7 @@ public class JSONSerializationTest {
     }
 
     private static class E extends D<Short> {
-        C<Integer> c = new C<>(Integer.valueOf(5));
+        C<Integer> c = new C<>(5);
         int z = 42;
 
         public E() {
@@ -105,7 +105,7 @@ public class JSONSerializationTest {
     }
 
     private static class G {
-        E e = new E(Short.valueOf((short) 3));
+        E e = new E((short) 3);
         F f = new F(1.5f);
     }
 

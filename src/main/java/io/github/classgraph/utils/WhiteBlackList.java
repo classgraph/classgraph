@@ -442,37 +442,37 @@ public abstract class WhiteBlackList {
     public String toString() {
         final StringBuilder buf = new StringBuilder();
         if (whitelist != null) {
-            buf.append("whitelist: " + whitelist);
+            buf.append("whitelist: ").append(whitelist);
         }
         if (whitelistPrefixes != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("whitelistPrefixes: " + whitelistPrefixes);
+            buf.append("whitelistPrefixes: ").append(whitelistPrefixes);
         }
         if (whitelistGlobs != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("whitelistGlobs: " + whitelistGlobs);
+            buf.append("whitelistGlobs: ").append(whitelistGlobs);
         }
         if (blacklist != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklist: " + blacklist);
+            buf.append("blacklist: ").append(blacklist);
         }
         if (blacklistPrefixes != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklistPrefixes: " + blacklistPrefixes);
+            buf.append("blacklistPrefixes: ").append(blacklistPrefixes);
         }
         if (blacklistGlobs != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklistGlobs: " + blacklistGlobs);
+            buf.append("blacklistGlobs: ").append(blacklistGlobs);
         }
         return buf.toString();
     }

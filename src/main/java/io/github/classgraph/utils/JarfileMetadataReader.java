@@ -174,11 +174,10 @@ public class JarfileMetadataReader {
                     final String manifestLower = manifest.toLowerCase();
 
                     // Check if this is a JRE jar
-                    this.isSystemJar = manifestLower
-                            .indexOf("\nimplementation-title: java runtime environment") >= 0
-                            || manifestLower.indexOf("\nspecification-title: java platform api specification") >= 0
-                            || manifestLower.indexOf("\rimplementation-title: java runtime environment") >= 0
-                            || manifestLower.indexOf("\rspecification-title: java platform api specification") >= 0;
+                    this.isSystemJar = manifestLower.contains("\nimplementation-title: java runtime environment")
+                            || manifestLower.contains("\nspecification-title: java platform api specification")
+                            || manifestLower.contains("\rimplementation-title: java runtime environment")
+                            || manifestLower.contains("\rspecification-title: java platform api specification");
 
                     // Check for "Class-Path:" manifest line
                     int classPathIdx = manifestLower.indexOf("\nclass-path:");
@@ -201,8 +200,8 @@ public class JarfileMetadataReader {
                     // "If the JAR file does not contain "Multi-Release" attribute in its main manifest then 
                     // it is not a multi-release JAR.":
                     // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013952.html
-                    isMultiReleaseJar = manifestLower.indexOf("\nmulti-release: true") >= 0
-                            || manifestLower.indexOf("\rmulti-release: true") >= 0;
+                    isMultiReleaseJar = manifestLower.contains("\nmulti-release: true")
+                            || manifestLower.contains("\rmulti-release: true");
                     if (isMultiReleaseJar && log != null) {
                         log.log("This is a multi-release jar");
                     }

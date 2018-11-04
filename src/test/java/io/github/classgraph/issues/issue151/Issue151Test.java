@@ -30,7 +30,6 @@ package io.github.classgraph.issues.issue151;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -44,7 +43,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue151Test {
     @Test
-    public void issue151Test() throws IOException {
+    public void issue151Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue151Test.class.getPackage().getName();
@@ -65,17 +64,17 @@ public class Issue151Test {
 
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation0 {
+    public @interface ParamAnnotation0 {
     }
 
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation1 {
+    public @interface ParamAnnotation1 {
     }
 
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation2 {
+    public @interface ParamAnnotation2 {
     }
 
     public void method(@ParamAnnotation0 final String annotatedValue0,

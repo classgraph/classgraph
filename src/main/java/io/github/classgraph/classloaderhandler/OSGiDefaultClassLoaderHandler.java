@@ -62,8 +62,8 @@ public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
         final Object classpathManager = ReflectionUtils.invokeMethod(classloader, "getClasspathManager", false);
         final Object[] entries = (Object[]) ReflectionUtils.getFieldVal(classpathManager, "entries", false);
         if (entries != null) {
-            for (int i = 0; i < entries.length; i++) {
-                final Object bundleFile = ReflectionUtils.invokeMethod(entries[i], "getBundleFile", false);
+            for (Object entry : entries) {
+                final Object bundleFile = ReflectionUtils.invokeMethod(entry, "getBundleFile", false);
                 final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile", false);
                 if (baseFile != null) {
                     classpathOrderOut.addClasspathElement(baseFile.getPath(), classloader, log);

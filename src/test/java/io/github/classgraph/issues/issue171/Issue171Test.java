@@ -2,7 +2,6 @@ package io.github.classgraph.issues.issue171;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 
@@ -13,7 +12,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue171Test {
     @Test
-    public void springBootFullyExecutableJar() throws IOException {
+    public void springBootFullyExecutableJar() {
         final URL jarURL = Issue171Test.class.getClassLoader().getResource("spring-boot-fully-executable-jar.jar");
 
         try (ScanResult scanResult = new ClassGraph()

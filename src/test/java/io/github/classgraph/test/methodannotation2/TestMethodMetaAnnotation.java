@@ -46,19 +46,19 @@ public class TestMethodMetaAnnotation {
 
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
-    public static @interface MetaAnnotation {
+    public @interface MetaAnnotation {
     }
 
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
     @MetaAnnotation
-    public static @interface ClassAnnotation {
+    public @interface ClassAnnotation {
     }
 
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @MetaAnnotation
-    public static @interface MethodAnnotation {
+    public @interface MethodAnnotation {
     }
 
     @ClassAnnotation
@@ -100,7 +100,7 @@ public class TestMethodMetaAnnotation {
 
     @Test
     @ExternalAnnotation
-    public void testMethodMetaAnnotation() throws Exception {
+    public void testMethodMetaAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
