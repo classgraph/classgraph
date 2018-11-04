@@ -1,23 +1,24 @@
-package io.github.classgraph.issues;
+package io.github.classgraph;
 
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
-import org.junit.Before;
-import org.junit.Test;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 
 import java.net.URL;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@State(Scope.Benchmark)
 public class NestedJarPerformanceTest {
     private URL jarURL;
 
-    @Before
+    @Setup
     public void setUp() {
         jarURL = NestedJarPerformanceTest.class.getClassLoader().getResource("spring-boot-fully-executable-jar.jar");
     }
 
-    @Test
+    @Benchmark
     public void springBootFullyExecutableJar() {
 
         long start = System.currentTimeMillis();
