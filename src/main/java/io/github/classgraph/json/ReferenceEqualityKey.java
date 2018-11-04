@@ -46,8 +46,7 @@ class ReferenceEqualityKey<K> {
 
     @Override
     public boolean equals(final Object other) {
-        return other instanceof ReferenceEqualityKey
-                && wrappedKey == ((ReferenceEqualityKey<?>) other).wrappedKey;
+        return other instanceof ReferenceEqualityKey && wrappedKey == ((ReferenceEqualityKey<?>) other).wrappedKey;
     }
 
     @Override

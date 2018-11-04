@@ -241,12 +241,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             } else if (paramTypes.length == 0) {
                 // Handle .toString(), .hashCode(), .annotationType()
                 switch (methodName) {
-                    case "toString":
-                        return toString;
-                    case "hashCode":
-                        return toString.hashCode();
-                    case "annotationType":
-                        return annotationClass;
+                case "toString":
+                    return toString;
+                case "hashCode":
+                    return toString.hashCode();
+                case "annotationType":
+                    return annotationClass;
                 }
             } else {
                 // Throw exception for 2 or more params

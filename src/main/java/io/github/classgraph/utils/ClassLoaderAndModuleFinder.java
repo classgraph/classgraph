@@ -82,7 +82,7 @@ public class ClassLoaderAndModuleFinder {
                     "parents", /* throwException = */ true);
             if (parents != null) {
                 parentLayers.addAll(parents);
-                for (Object parent : parents) {
+                for (final Object parent : parents) {
                     findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
                 }
             }
@@ -166,7 +166,7 @@ public class ClassLoaderAndModuleFinder {
     private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final ScanSpec scanSpec,
             final LogNode log) {
         final List<Object> layers = new ArrayList<>();
-        for (Class<?> aCallStack : callStack) {
+        for (final Class<?> aCallStack : callStack) {
             final Object /* Module */ module = ReflectionUtils.invokeMethod(aCallStack, "getModule",
                     /* throwException = */ false);
             if (module != null) {

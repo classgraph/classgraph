@@ -68,8 +68,8 @@ class TestLauncher extends Thread {
                     .loadClass("io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders");
             final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class,
                     String.class);
-            mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(),
-                    parentClassLoader, "FakeRestartClassLoader");
+            mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(), parentClassLoader,
+                    "FakeRestartClassLoader");
         } catch (final Throwable ex) {
             getUncaughtExceptionHandler().uncaughtException(this, ex);
         }

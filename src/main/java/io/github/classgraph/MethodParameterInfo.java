@@ -224,7 +224,7 @@ public class MethodParameterInfo {
         final StringBuilder buf = new StringBuilder();
 
         if (annotationInfo != null) {
-            for (AnnotationInfo anAnnotationInfo : annotationInfo) {
+            for (final AnnotationInfo anAnnotationInfo : annotationInfo) {
                 anAnnotationInfo.toString(buf);
                 buf.append(' ');
             }
