@@ -1,9 +1,6 @@
 package io.github.classgraph;
 
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.*;
 
 import java.net.URL;
 
@@ -19,25 +16,17 @@ public class NestedJarPerformanceTest {
     }
 
     @Benchmark
+    @BenchmarkMode(Mode.SingleShotTime)
     public void springBootFullyExecutableJar() {
-
-        long start = System.currentTimeMillis();
-
-        for (int i = 0; i < 10; i++) {
-            performFullNestedJarScan();
-        }
-
-        long end = System.currentTimeMillis();
-
-        System.out.println("Full nested jar scan took ~" + ((end - start) / 10) + "ms");
-    }
-
-    private void performFullNestedJarScan() {
         try (ScanResult scanResult = new ClassGraph()
                 .enableClassInfo()
                 .overrideClasspath(jarURL)
                 .scan()) {
             assertThat(scanResult.getAllClasses()).isNotEmpty();
         }
+    }
+
+    public static void main(String[] args) throws Exception {
+        org.openjdk.jmh.Main.main(new String[]{NestedJarPerformanceTest.class.getName()});
     }
 }
