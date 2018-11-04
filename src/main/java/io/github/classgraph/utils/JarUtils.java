@@ -426,8 +426,8 @@ public class JarUtils {
      * @return Whether this is a system class, package or module.
      */
     public static boolean isInSystemPackageOrModule(final String packageOrModuleName) {
-        for (String SYSTEM_PACKAGE_PREFIXE : SYSTEM_PACKAGE_PREFIXES) {
-            if (packageOrModuleName.startsWith(SYSTEM_PACKAGE_PREFIXE)) {
+        for (final String prefix : SYSTEM_PACKAGE_PREFIXES) {
+            if (packageOrModuleName.startsWith(prefix)) {
                 return true;
             }
         }
