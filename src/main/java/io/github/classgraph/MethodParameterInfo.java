@@ -152,9 +152,7 @@ public class MethodParameterInfo {
         if (annotationInfo == null || annotationInfo.length == 0) {
             return AnnotationInfoList.EMPTY_LIST;
         } else {
-            final AnnotationInfoList annotationInfoList = new AnnotationInfoList(annotationInfo.length);
-            Collections.addAll(annotationInfoList, annotationInfo);
-            return AnnotationInfoList.getIndirectAnnotations(annotationInfoList, /* annotatedClass = */ null);
+            return AnnotationInfoList.getIndirectAnnotations(new AnnotationInfoList(annotationInfo), /* annotatedClass = */ null);
         }
     }
 
