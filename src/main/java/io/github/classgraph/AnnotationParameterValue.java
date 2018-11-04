@@ -203,8 +203,7 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
             return false;
         }
         final AnnotationParameterValue o = (AnnotationParameterValue) obj;
-        final int diff = this.compareTo(o);
-        return (diff == 0 && (value == null && o.value == null || value != null && o.value != null));
+        return this.compareTo(o) == 0 && (value == null) == (o.value == null) && (value == null || value.equals(o.value));
     }
 
     @Override
