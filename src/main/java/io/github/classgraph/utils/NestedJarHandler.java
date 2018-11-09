@@ -31,6 +31,8 @@ package io.github.classgraph.utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -68,6 +70,7 @@ import org.springframework.boot.loader.jar.JarFile;
  * ZipInputStream. Therefore, decompressing the inner zipfile to disk is the only efficient option.
  */
 public class NestedJarHandler {
+
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
     private final SingletonMap<String, Entry<File, Set<String>>> nestedPathToJarfileAndRootRelativePathsMap;
     private final SingletonMap<File, Recycler<ZipFile, IOException>> zipFileToRecyclerMap;
@@ -80,23 +83,29 @@ public class NestedJarHandler {
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
-    public static final boolean canUseSpringBootApi = checkSpringBootApi();
+    private static final Constructor<? extends ZipFile> springBootJarFileConstructor = checkSpringBootApi();
 
-    private static boolean checkSpringBootApi() {
+    private static Constructor<? extends ZipFile> checkSpringBootApi() {
         try {
-            Class.forName("org.springframework.boot.loader.jar.JarFile");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
+            Class<?> jarFileClass = Class.forName("org.springframework.boot.loader.jar.JarFile");
+            return (Constructor<? extends ZipFile>) jarFileClass.getConstructor(File.class);
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            return null;
         }
     }
 
     static ZipFile openZipFile(File zipFile) throws IOException {
-        if (canUseSpringBootApi) {
+        if (springBootJarFileConstructor != null) {
             if (zipFile instanceof NestedJarFile) {
                 return ((NestedJarFile) zipFile).openAsJarFile();
             } else {
-                return new JarFile(zipFile);
+                try {
+                    return springBootJarFileConstructor.newInstance(zipFile);
+                } catch (InstantiationException | IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                } catch (InvocationTargetException e) {
+                    throw new RuntimeException(e.getTargetException());
+                }
             }
         } else {
             return new ZipFile(zipFile);
@@ -313,7 +322,7 @@ public class NestedJarHandler {
                         // Extract nested jar to a temporary file
                         try {
                             File childJarFile = null;
-                            if (canUseSpringBootApi && childZipEntry.getMethod() == ZipEntry.STORED) {
+                            if (springBootJarFileConstructor != null && childZipEntry.getMethod() == ZipEntry.STORED) {
                                 if (parentZipFile instanceof JarFile) {
                                     childJarFile = new NestedJarFile((JarFile) parentZipFile, childZipEntry);
                                 }
