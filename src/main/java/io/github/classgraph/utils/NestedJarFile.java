@@ -11,27 +11,27 @@ import java.util.zip.ZipFile;
  * Fake {@link File} for nested jar files handled by Spring-Boot's {@link JarFile}-API.
  *
  * This class is only loaded when the Spring-Boot API is available, so it can use the
- * Spring-Boot types in it's interface.
+ * Spring-Boot types.
  */
 class NestedJarFile extends File {
 
-    private final JarFile parentJarFile;
+    private final ZipFile parentJarFile;
     private final ZipEntry nestedJarEntry;
     private final boolean directory;
 
     NestedJarFile(ZipFile parentJarFile, ZipEntry nestedJarEntry) {
-        this((JarFile) parentJarFile, nestedJarEntry);
-    }
-
-    NestedJarFile(JarFile parentJarFile, ZipEntry nestedJarEntry) {
         super(parentJarFile.getName() + "!/" + nestedJarEntry.getName());
         this.parentJarFile = parentJarFile;
         this.nestedJarEntry = nestedJarEntry;
         this.directory = nestedJarEntry.isDirectory();
+
+        if (parentJarFile instanceof JarFile) {
+            throw new ClassCastException();
+        }
     }
 
-    JarFile openAsJarFile() throws IOException {
-        return parentJarFile.getNestedJarFile(nestedJarEntry);
+    ZipFile openAsJarFile() throws IOException {
+        return ((JarFile) parentJarFile).getNestedJarFile(nestedJarEntry);
     }
 
     @Override
