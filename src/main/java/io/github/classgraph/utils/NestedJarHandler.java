@@ -83,15 +83,20 @@ public class NestedJarHandler {
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
-    private static final Constructor<? extends ZipFile> springBootJarFileConstructor = checkSpringBootApi();
+    private static final Class<?> springBootjarFileClass;
+    private static final Constructor<? extends ZipFile> springBootJarFileConstructor;
 
-    private static Constructor<? extends ZipFile> checkSpringBootApi() {
+    static {
+        Class<?> jarFileClass = null;
+        Constructor<? extends ZipFile> jarFileConstructor = null;
+
         try {
-            Class<?> jarFileClass = Class.forName("org.springframework.boot.loader.jar.JarFile");
-            return (Constructor<? extends ZipFile>) jarFileClass.getConstructor(File.class);
-        } catch (ClassNotFoundException | NoSuchMethodException e) {
-            return null;
+            jarFileClass = Class.forName("org.springframework.boot.loader.jar.JarFile");
+            jarFileConstructor = (Constructor<? extends ZipFile>) jarFileClass.getConstructor(File.class);
+        } catch (ClassNotFoundException | NoSuchMethodException ignored) {
         }
+        springBootjarFileClass = jarFileClass;
+        springBootJarFileConstructor = jarFileConstructor;
     }
 
     static ZipFile openZipFile(File zipFile) throws IOException {
@@ -323,8 +328,8 @@ public class NestedJarHandler {
                         try {
                             File childJarFile = null;
                             if (springBootJarFileConstructor != null && childZipEntry.getMethod() == ZipEntry.STORED) {
-                                if (parentZipFile instanceof JarFile) {
-                                    childJarFile = new NestedJarFile((JarFile) parentZipFile, childZipEntry);
+                                if (springBootjarFileClass.isInstance(parentZipFile)) {
+                                    childJarFile = new NestedJarFile(parentZipFile, childZipEntry);
                                 }
                             }
 
@@ -804,6 +809,10 @@ public class NestedJarHandler {
         private final JarFile parentJarFile;
         private final ZipEntry nestedJarEntry;
         private final boolean directory;
+
+        NestedJarFile(ZipFile parentJarFile, ZipEntry nestedJarEntry) {
+            this((JarFile) parentJarFile, nestedJarEntry);
+        }
 
         NestedJarFile(JarFile parentJarFile, ZipEntry nestedJarEntry) {
             super(parentJarFile.getName() + "!/" + nestedJarEntry.getName());
