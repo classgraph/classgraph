@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -64,6 +65,8 @@ class ClasspathElementZip extends ClasspathElement {
     private String packageRootPrefix = "";
     /** The ZipFile recycler. */
     private Recycler<ZipFile, IOException> zipFileRecycler;
+    /** A map from relative path to {@link Resource} for all non-blacklisted zip entries. */
+    private final Map<String, Resource> relativePathToResource = new HashMap<>();
 
     /** A zip/jarfile classpath element. */
     ClasspathElementZip(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
@@ -336,6 +339,24 @@ class ClasspathElementZip extends ClasspathElement {
         };
     }
 
+    /**
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
+     */
+    @Override
+    Resource getResource(final String relativePath) {
+        String path = relativePath;
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        if (path.isEmpty() || path.endsWith("/")) {
+            return null;
+        }
+        return relativePathToResource.get(path);
+    }
+
     /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
     @Override
     void scanPaths(final LogNode log) {
@@ -434,6 +455,8 @@ class ClasspathElementZip extends ClasspathElement {
             // Add the ZipEntry path as a Resource
             final Resource resource = newResource(classpathEltZipFile, packageRootPrefix, relativePath,
                     versionedZipEntry.zipEntry);
+            relativePathToResource.put(relativePath, resource);
+
             addResource(resource, parentMatchStatus, subLog);
         }
 

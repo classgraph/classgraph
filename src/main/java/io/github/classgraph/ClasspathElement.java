@@ -136,6 +136,14 @@ abstract class ClasspathElement {
     }
 
     /**
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
+     */
+    abstract Resource getResource(final String relativePath);
+
+    /**
      * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
      * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes". N.B. for non-modules, this
      * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the

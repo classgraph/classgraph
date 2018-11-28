@@ -109,8 +109,8 @@ class ClasspathElementDir extends ClasspathElement {
                 try {
                     return new File(classpathEltFile, relativePath).toURI().toURL();
                 } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException("Could not form URL for dir: " + classpathEltFile
-                            + " ; path: " + relativePath);
+                    throw new IllegalArgumentException(
+                            "Could not form URL for dir: " + classpathEltFile + " ; path: " + relativePath);
                 }
             }
 
@@ -232,6 +232,26 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             }
         };
+    }
+
+    /**
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
+     */
+    @Override
+    Resource getResource(final String relativePath) {
+        String path = relativePath;
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        if (path.isEmpty() || path.endsWith("/")) {
+            return null;
+        }
+        final File resourceFile = new File(classpathEltDir, relativePath);
+        return resourceFile.canRead() && resourceFile.isFile() ? newResource(classpathEltDir, path, resourceFile)
+                : null;
     }
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */

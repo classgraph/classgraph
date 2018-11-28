@@ -37,7 +37,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
@@ -51,8 +53,8 @@ import io.github.classgraph.utils.URLPathEncoder;
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {
     private final ModuleRef moduleRef;
-
     private Recycler<ModuleReaderProxy, IOException> moduleReaderProxyRecycler;
+    private final Set<String> allResourcePaths = new HashSet<>();
 
     /** A zip/jarfile classpath element. */
     ClasspathElementModule(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
@@ -247,6 +249,24 @@ class ClasspathElementModule extends ClasspathElement {
         };
     }
 
+    /**
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
+     */
+    @Override
+    Resource getResource(final String relativePath) {
+        String path = relativePath;
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        if (path.isEmpty() || path.endsWith("/")) {
+            return null;
+        }
+        return allResourcePaths.contains(path) ? newResource(path) : null;
+    }
+
     /** Scan for package matches within module */
     @Override
     void scanPaths(final LogNode log) {
@@ -270,13 +290,15 @@ class ClasspathElementModule extends ClasspathElement {
             List<String> resourceRelativePaths;
             try {
                 resourceRelativePaths = moduleReaderProxy.list();
-                Collections.sort(resourceRelativePaths);
             } catch (final Exception e) {
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName(), e);
                 }
                 return;
             }
+            Collections.sort(resourceRelativePaths);
+            allResourcePaths.addAll(resourceRelativePaths);
+
             String prevParentRelativePath = null;
             ScanSpecPathMatch prevParentMatchStatus = null;
             for (final String relativePath : resourceRelativePaths) {
