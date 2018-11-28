@@ -74,7 +74,6 @@ public class NestedJarHandler {
     private final SingletonMap<File, JarfileMetadataReader> zipFileToJarfileMetadataReaderMap;
     private final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
     moduleRefToModuleReaderProxyRecyclerMap;
-    private final SingletonMap<File, Boolean> mkDirs;
 
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
@@ -301,50 +300,6 @@ public class NestedJarHandler {
                         }
                     }
                 }
-            }
-        };
-
-        // Create a singleton map indicating which directories were able to be successfully created (or
-        // already existed), to avoid duplicating work calling mkdirs() multiple times for the same directories
-        mkDirs = new SingletonMap<File, Boolean>() {
-            @Override
-            public Boolean newInstance(final File dir, final LogNode log) throws Exception {
-                boolean dirExists = dir.exists();
-                if (!dirExists) {
-                    final File parentDir = dir.getParentFile();
-                    // If parentDir == null, then dir in the root directory of the filesystem --
-                    // it is unlikely that this is going to work, but try creating dir anyway,
-                    // in case this is a RAM disk or something. If parentDir is not null, try
-                    // recursively creating parent dir
-                    if (parentDir == null || mkDirs.getOrCreateSingleton(parentDir, log)) {
-                        // Succeeded in creating parent dir, or parent dir already existed, or parent is root
-                        // -- try creating dir
-                        dirExists = dir.mkdir();
-                        if (!dirExists) {
-                            // Check one more time, if mkdir failed, in case there were some existing
-                            // symlinks putting the same dir on two physical paths, and another thread
-                            // already created the dir. 
-                            dirExists = dir.exists();
-                        }
-                        if (log != null) {
-                            if (!dirExists) {
-                                log.log("Cannot create directory: " + dir.toPath());
-                            } else if (!dir.isDirectory()) {
-                                log.log("Can't overwrite a file with a directory: " + dir.toPath());
-                            } else {
-                                log.log("Creating directory: " + dir.toPath());
-                            }
-                        }
-                        if (!dir.isDirectory()) {
-                            dirExists = false;
-                        }
-                        if (dirExists) {
-                            // If dir was able to be created, mark it for removal as a temporary dir
-                            markTempFileForDeletion(dir);
-                        }
-                    }
-                }
-                return dirExists;
             }
         };
     }
