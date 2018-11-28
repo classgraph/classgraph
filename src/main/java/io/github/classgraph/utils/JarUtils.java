@@ -28,15 +28,10 @@
  */
 package io.github.classgraph.utils;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -447,63 +442,6 @@ public class JarUtils {
     /** Convert a class name to the corresponding classfile path. */
     public static String classNameToClassfilePath(final String className) {
         return className.replace('.', '/') + ".class";
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Count the number of bytes before the characters "PK" in a zipfile.
-     * 
-     * @param zipfile
-     *            The zipfile.
-     * @return The number of bytes before the characters "PK" in a zipfile. Returns -1 if PK is not found anywhere
-     *         in the file.
-     * @throws IOException
-     *             If the file could not be read.
-     */
-    public static long countBytesBeforePKMarker(final File zipfile) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(zipfile))) {
-            boolean readP = false;
-            long fileIdx = 0;
-            for (int c; (c = reader.read()) != -1; fileIdx++) {
-                if (!readP) {
-                    if (c == 'P') {
-                        readP = true;
-                    }
-                } else {
-                    if (c == 'K') {
-                        // Found PK marker
-                        return fileIdx - 1;
-                    } else {
-                        readP = false;
-                    }
-                }
-            }
-            return -1;
-        }
-    }
-
-    /**
-     * Strip the self-extracting archive header from the beginning of a zipfile.
-     * 
-     * @param srcZipfile
-     *            The source zipfile.
-     * @param sfxHeaderBytes
-     *            The number of bytes of the header to strip.
-     * @param destZipfile
-     *            The destination to save to.
-     * @throws IOException
-     *             If the operation could not be completed.
-     */
-    public static void stripSFXHeader(final File srcZipfile, final long sfxHeaderBytes, final File destZipfile)
-            throws IOException {
-        try (FileInputStream inputStream = new FileInputStream(srcZipfile);
-                FileChannel inputChannel = inputStream.getChannel();
-                FileOutputStream outputStream = new FileOutputStream(destZipfile);
-                FileChannel outputChannel = outputStream.getChannel()) {
-            inputChannel.position(sfxHeaderBytes);
-            outputChannel.transferFrom(inputChannel, 0, inputChannel.size());
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -164,12 +164,9 @@ public class NestedJarHandler {
                         throw new IOException(
                                 "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
                     }
-                    // Handle self-extracting archives (they can be created by Spring-Boot)
-                    final File bareJarfile = scanSpec.stripSFXHeader ? stripSFXHeader(canonicalFile, log)
-                            : canonicalFile;
                     // Return canonical file as the singleton entry for this path
                     final Set<String> rootRelativePaths = new HashSet<>();
-                    return new SimpleEntry<>(bareJarfile, rootRelativePaths);
+                    return new SimpleEntry<>(canonicalFile, rootRelativePaths);
 
                 } else {
                     // This path has one or more '!' sections.
@@ -291,17 +288,12 @@ public class NestedJarHandler {
                             // Unzip the child jarfile to a temporary file
                             final File childJarFile = unzipToTempFile(parentZipFile, childZipEntry, log);
 
-                            // Handle self-extracting archives (can be created by Spring-Boot)
-                            final File noHeaderChildJarFile = scanSpec.stripSFXHeader
-                                    ? stripSFXHeader(childJarFile, log)
-                                    : childJarFile;
-
                             // Record mapping between inner and outer jar
-                            innerJarToOuterJarMap.put(noHeaderChildJarFile, parentJarFile);
+                            innerJarToOuterJarMap.put(childJarFile, parentJarFile);
 
                             // Return the child temp zipfile as a new entry
                             final Set<String> rootRelativePaths = new HashSet<>();
-                            return new SimpleEntry<>(noHeaderChildJarFile, rootRelativePaths);
+                            return new SimpleEntry<>(childJarFile, rootRelativePaths);
 
                         } catch (final IOException e) {
                             // Thrown if the inner zipfile could nat be extracted
@@ -348,8 +340,7 @@ public class NestedJarHandler {
                         }
                         if (dirExists) {
                             // If dir was able to be created, mark it for removal as a temporary dir
-                            dir.deleteOnExit();
-                            tempFiles.add(dir);
+                            markTempFileForDeletion(dir);
                         }
                     }
                 }
@@ -462,10 +453,7 @@ public class NestedJarHandler {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
         File tempFile;
         try {
-            final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(jarURL));
-            tempFile = File.createTempFile("ClassGraph--", suffix);
-            tempFile.deleteOnExit();
-            tempFiles.add(tempFile);
+            tempFile = makeTempFile(jarURL, /* onlyUseLeafname = */ true);
             final URL url = new URL(jarURL);
             try (InputStream inputStream = url.openStream()) {
                 Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -499,10 +487,7 @@ public class NestedJarHandler {
             zipEntryPath = zipEntryPath.substring(1);
         }
         // The following filename format is also expected by JarUtils.leafName()
-        final File tempFile = File.createTempFile("ClassGraph--",
-                TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(zipEntryPath)));
-        tempFile.deleteOnExit();
-        tempFiles.add(tempFile);
+        final File tempFile = makeTempFile(zipEntryPath, /* onlyUseLeafname = */ true);
         LogNode subLog = null;
         if (log != null) {
             subLog = log.log("Unzipping " + (zipFile.getName() + "!/" + zipEntryPath))
@@ -517,180 +502,28 @@ public class NestedJarHandler {
         return tempFile;
     }
 
-    // There is no longer any need to extract an entire jarfile to disk, since ClassGraphClassLoader can load
-    // classfiles using their corresponding Resource, but the unzip code is left here for reference, since it
-    // may be needed for some purpose in the future.
-
-    //    /**
-    //     * The number of threads to use for unzipping package roots. These unzip threads are started from within a
-    //     * worker thread, so this is kept relatively small.
-    //     */
-    //    private static final int NUM_UNZIP_THREADS = 4;
-    //
-    //    /**
-    //     * Unzip a given package root within a zipfile to a temporary directory, starting several more threads to
-    //     * perform the unzip in parallel, then return the temporary directory. The temporary directory and all of its
-    //     * contents will be removed when {@code NestedJarHandler#close())} is called.
-    //     * 
-    //     * <p>
-    //     * N.B. standalone code for parallel unzip can be found at https://github.com/lukehutch/quickunzip
-    //     * 
-    //     * @param jarFile
-    //     *            The jarfile.
-    //     * @param packageRoot
-    //     *            The package root to extract from the jar.
-    //     * @param log
-    //     *            The log.
-    //     * @return The {@link File} object for the temporary directory the package root was extracted to.
-    //     * @throws IOException
-    //     *             If the package root could not be extracted from the jar.
-    //     */
-    //    public File unzipToTempDir(final File jarFile, final String packageRoot, final LogNode log) throws IOException {
-    //        final LogNode subLog = log == null ? null
-    //                : log.log("Unzipping " + jarFile + " from package root " + packageRoot);
-    //
-    //        // Create temporary directory to unzip into
-    //        final Path tempDirPath = Files.createTempDirectory("ClassGraph--"
-    //                + sanitizeFilename(leafname(jarFile.getName())) + "--" + sanitizeFilename(packageRoot) + "--");
-    //        final File tempDir = tempDirPath.toFile();
-    //        tempDir.deleteOnExit();
-    //        tempFiles.add(tempDir);
-    //
-    //        // Get ZipEntries from ZipFile that start with the package root prefix
-    //        final List<ZipEntry> zipEntries = new ArrayList<>();
-    //        final List<String> zipEntryNamesWithoutPrefix = new ArrayList<>();
-    //        final String packageRootPrefix = !packageRoot.endsWith("/") && !packageRoot.isEmpty() ? packageRoot + '/'
-    //                : packageRoot;
-    //        final int packageRootPrefixLen = packageRootPrefix.length();
-    //        try (ZipFile zipFile = new ZipFile(jarFile)) {
-    //            for (final Enumeration<? extends ZipEntry> e = zipFile.entries(); e.hasMoreElements();) {
-    //                final ZipEntry zipEntry = e.nextElement();
-    //                String zipEntryName = zipEntry.getName();
-    //                while (zipEntryName.startsWith("/")) {
-    //                    // Prevent against "Zip Slip" vulnerability (path starting with '/')
-    //                    zipEntryName = zipEntryName.substring(1);
-    //                }
-    //                if (zipEntryName.startsWith(packageRootPrefix) && zipEntryName.length() > packageRootPrefixLen) {
-    //                    // Found a ZipEntry with the correct package prefix
-    //                    zipEntries.add(zipEntry);
-    //                    // Strip the prefix from the name
-    //                    zipEntryNamesWithoutPrefix.add(packageRootPrefixLen == 0 ? zipEntryName
-    //                            : zipEntryName.substring(packageRootPrefixLen));
-    //                }
-    //            }
-    //        }
-    //
-    //        // Start parallel unzip threads
-    //        try (final AutoCloseableConcurrentQueue<ZipFile> openZipFiles = new AutoCloseableConcurrentQueue<>();
-    //                final AutoCloseableExecutorService executor = new AutoCloseableExecutorService(NUM_UNZIP_THREADS);
-    //                final AutoCloseableFutureListWithCompletionBarrier futures = //
-    //                        new AutoCloseableFutureListWithCompletionBarrier(zipEntries.size(), subLog)) {
-    //
-    //            // Iterate through ZipEntries within the package root
-    //            for (int i = 0; i < zipEntries.size(); i++) {
-    //                final ZipEntry zipEntry = zipEntries.get(i);
-    //                final String zipEntryNameWithoutPrefix = zipEntryNamesWithoutPrefix.get(i);
-    //                futures.add(executor.submit(new Callable<Void>() {
-    //                    @Override
-    //                    public Void call() throws Exception {
-    //                        ZipFile zipFile;
-    //                        final ThreadLocal<ZipFile> zipFileTL = new ThreadLocal<>();
-    //                        if ((zipFile = zipFileTL.get()) == null) {
-    //                            try {
-    //                                // Open one ZipFile instance per thread
-    //                                zipFile = new ZipFile(jarFile);
-    //                                openZipFiles.add(zipFile);
-    //                                zipFileTL.set(zipFile);
-    //                            } catch (final IOException e) {
-    //                                // Should not happen unless zipfile was just barely deleted, since we
-    //                                // opened it already
-    //                                if (subLog != null) {
-    //                                    subLog.log("Cannot open zipfile: " + jarFile + " : " + e);
-    //                                }
-    //                                return null;
-    //                            }
-    //                        }
-    //
-    //                        try {
-    //                            // Make sure we don't allow paths that use "../" to break out of the unzip root dir
-    //                            final Path unzippedFilePath = tempDirPath.resolve(zipEntryNameWithoutPrefix);
-    //                            if (!unzippedFilePath.startsWith(tempDirPath)) {
-    //                                if (subLog != null) {
-    //                                    subLog.log("Bad path: " + zipEntry.getName());
-    //                                }
-    //                            } else {
-    //                                final File unzippedFile = unzippedFilePath.toFile();
-    //                                if (zipEntry.isDirectory()) {
-    //                                    // Recreate directory entries, so that empty directories are recreated
-    //                                    // (in case any of the classes that are loaded expect a directory to be
-    //                                    // present, even if it is empty)
-    //                                    mkDirs.getOrCreateSingleton(/* dir */ unzippedFile, subLog);
-    //                                } else {
-    //                                    // Create parent directories if needed
-    //                                    final File parentDir = unzippedFile.getParentFile();
-    //                                    final boolean parentDirExists = mkDirs.getOrCreateSingleton(parentDir, subLog);
-    //                                    if (parentDirExists) {
-    //                                        // Open ZipEntry as an InputStream
-    //                                        try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-    //                                            if (subLog != null) {
-    //                                                subLog.log("Unzipping: " + zipEntry.getName() + " -> "
-    //                                                        + unzippedFilePath);
-    //                                            }
-    //
-    //                                            // Copy the contents of the ZipEntry InputStream to the output file,
-    //                                            // overwriting existing files of the same name
-    //                                            Files.copy(inputStream, unzippedFilePath,
-    //                                                    StandardCopyOption.REPLACE_EXISTING);
-    //
-    //                                            // If file was able to be unzipped, mark it for removal on exit
-    //                                            unzippedFile.deleteOnExit();
-    //                                            tempFiles.add(parentDir);
-    //                                        }
-    //                                    }
-    //                                }
-    //                            }
-    //                        } catch (final InvalidPathException ex) {
-    //                            if (subLog != null) {
-    //                                subLog.log("Invalid path: " + zipEntry.getName());
-    //                            }
-    //                        }
-    //                        // Return placeholder Void result for Future<Void>
-    //                        return null;
-    //                    }
-    //                }));
-    //            }
-    //        }
-    //        return tempDir;
-    //    }
-
     /**
-     * Strip self-extracting archive ("ZipSFX") header from zipfile, if present. (Simply strips everything before
-     * the first "PK".)
+     * Create a temporary file, and mark it for deletion on exit.
      * 
-     * @return The zipfile with the ZipSFX header removed
+     * @param filePath
+     *            The path to derive the temporary filename from.
+     * @param onlyUseLeafname
+     *            If true, only use the leafname of filePath to derive the temporary filename.
+     * @return The temporary {@link File}.
      * @throws IOException
-     *             if the file does not appear to be a zipfile (i.e. if no "PK" marker is found).
+     *             If the temporary file could not be created.
      */
-    private File stripSFXHeader(final File zipfile, final LogNode log) throws IOException {
-        final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
-        if (sfxHeaderBytes == -1L) {
-            throw new IOException("Could not find zipfile \"PK\" marker in file " + zipfile);
-        } else if (sfxHeaderBytes == 0L) {
-            // No self-extracting zipfile header
-            return zipfile;
-        } else {
-            // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
-            final File bareZipfile = File.createTempFile("ClassGraph--",
-                    TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
-            bareZipfile.deleteOnExit();
-            tempFiles.add(bareZipfile);
-            if (log != null) {
-                log.log("Zipfile " + zipfile + " contains a self-extracting executable header of " + sfxHeaderBytes
-                        + " bytes. Stripping off header to create bare zipfile " + bareZipfile);
-            }
-            JarUtils.stripSFXHeader(zipfile, sfxHeaderBytes, bareZipfile);
-            return bareZipfile;
-        }
+    public File makeTempFile(String filePath, boolean onlyUseLeafname) throws IOException {
+        File tempFile = File.createTempFile("ClassGraph--",
+                TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(onlyUseLeafname ? leafname(filePath) : filePath));
+        markTempFileForDeletion(tempFile);
+        return tempFile;
+    }
+
+    /** Mark a temp file for deletion on exit. */
+    private void markTempFileForDeletion(File file) {
+        file.deleteOnExit();
+        tempFiles.add(file);
     }
 
     /**
