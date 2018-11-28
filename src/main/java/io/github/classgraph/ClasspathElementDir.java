@@ -84,7 +84,7 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
-    private Resource newResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
+    private Resource newResource(final File classpathEltFile, final String relativePath,
             final File classpathResourceFile) {
         return new Resource() {
             private RandomAccessFile randomAccessFile;
@@ -96,21 +96,21 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public String getPath() {
-                return pathRelativeToClasspathElt;
+                return relativePath;
             }
 
             @Override
             public String getPathRelativeToClasspathElement() {
-                return pathRelativeToClasspathElt;
+                return relativePath;
             }
 
             @Override
             public URL getURL() {
                 try {
-                    return new File(classpathEltFile, pathRelativeToClasspathElt).toURI().toURL();
+                    return new File(classpathEltFile, relativePath).toURI().toURL();
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for dir: " + classpathEltFile
-                            + " ; path: " + pathRelativeToClasspathElt);
+                            + " ; path: " + relativePath);
                 }
             }
 
