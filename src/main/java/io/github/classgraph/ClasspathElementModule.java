@@ -77,7 +77,6 @@ class ClasspathElementModule extends ClasspathElement {
         if (scanSpec.performScan) {
             resourceMatches = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
-            nonBlacklistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }
     }
@@ -297,7 +296,6 @@ class ClasspathElementModule extends ClasspathElement {
                 return;
             }
             Collections.sort(resourceRelativePaths);
-            allResourcePaths.addAll(resourceRelativePaths);
 
             String prevParentRelativePath = null;
             ScanSpecPathMatch prevParentMatchStatus = null;
@@ -355,9 +353,22 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // Add the module resource path as a Resource
-                final Resource resource = newResource(relativePath);
-                addResource(resource, parentMatchStatus, subLog);
+                // Found non-blacklisted relative path
+                allResourcePaths.add(relativePath);
+
+                // If resource is whitelisted
+                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
+                    // Add whitelisted resource
+                    final Resource resource = newResource(relativePath);
+                    addWhitelistedResource(resource, parentMatchStatus, subLog);
+                } else {
+                    if (log != null) {
+                        log.log("Skipping non-whitelisted path: " + relativePath);
+                    }
+                }
             }
 
             // Save last modified time for the module file

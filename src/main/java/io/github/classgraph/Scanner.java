@@ -234,18 +234,18 @@ class Scanner implements Callable<ScanResult> {
     /** WorkUnitProcessor for scanning classfiles. */
     private static class ClassfileScannerWorkUnitProcessor implements WorkUnitProcessor<ClassfileScanWorkUnit> {
         private final ScanSpec scanSpec;
-        private final Map<String, Resource> classNameToNonBlacklistedResource;
+        private final List<ClasspathElement> classpathOrder;
         private final Set<String> scannedClassNames;
         private final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue;
         private final LogNode log;
         private final InterruptionChecker interruptionChecker;
 
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
-                final Map<String, Resource> classNameToNonBlacklistedResource, final Set<String> scannedClassNames,
+                final List<ClasspathElement> classpathOrder, final Set<String> scannedClassNames,
                 final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue, final LogNode log,
                 final InterruptionChecker interruptionChecker) {
             this.scanSpec = scanSpec;
-            this.classNameToNonBlacklistedResource = classNameToNonBlacklistedResource;
+            this.classpathOrder = classpathOrder;
             this.scannedClassNames = scannedClassNames;
             this.classInfoUnlinkedQueue = classInfoUnlinkedQueue;
             this.log = log;
@@ -254,28 +254,36 @@ class Scanner implements Callable<ScanResult> {
 
         /** Extend scanning to a superclass, interface or annotation. */
         private List<ClassfileScanWorkUnit> extendScanningUpwards(final String className, final String relationship,
-                final ClasspathElement classpathElement, final List<ClassfileScanWorkUnit> additionalWorkUnitsIn,
-                final LogNode subLog) {
+                final ClasspathElement currClasspathElement,
+                final List<ClassfileScanWorkUnit> additionalWorkUnitsIn, final LogNode subLog) {
             List<ClassfileScanWorkUnit> additionalWorkUnits = additionalWorkUnitsIn;
             // Don't scan a class more than once 
             if (className != null && scannedClassNames.add(className)) {
-                // See if the named class can be found as a non-blacklisted resource
-                final Resource classResource = classNameToNonBlacklistedResource.get(className);
-                if (classResource != null) {
-                    // Class is a non-blacklisted external class -- enqueue for scanning
-                    if (subLog != null) {
-                        subLog.log("Scheduling external class for scanning: " + relationship + " " + className);
+                // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
+                // for each class, but there shouldn't be too many cases of extending scanning upwards)
+                final String classfilePath = JarUtils.classNameToClassfilePath(className);
+                boolean foundClassfile = false;
+                for (final ClasspathElement classpathElt : classpathOrder) {
+                    final Resource classResource = classpathElt.getResource(classfilePath);
+                    if (classResource != null) {
+                        // Found class resource 
+                        if (subLog != null) {
+                            subLog.log("Scheduling external class for scanning: " + relationship + " " + className
+                                    + " -- found in classpath element " + classpathElt);
+                        }
+                        if (additionalWorkUnits == null) {
+                            additionalWorkUnits = new ArrayList<>();
+                        }
+                        additionalWorkUnits.add(new ClassfileScanWorkUnit(classpathElt, classResource,
+                                /* isExternalClass = */ true));
+                        foundClassfile = true;
+                        break;
                     }
-                    if (additionalWorkUnits == null) {
-                        additionalWorkUnits = new ArrayList<>();
-                    }
-                    additionalWorkUnits.add(new ClassfileScanWorkUnit(classpathElement, classResource,
-                            /* isExternalClass = */ true));
-                } else {
+                }
+                if (!foundClassfile) {
                     if (subLog != null && !className.equals("java.lang.Object")) {
-                        subLog.log("External " + relationship + " " + className
-                                + " was not found in non-blacklisted packages -- "
-                                + "cannot extend scanning to this superclass");
+                        subLog.log("External " + relationship + " " + className + " was not found in "
+                                + "non-blacklisted packages -- cannot extend scanning to this class");
                     }
                 }
             }
@@ -655,9 +663,8 @@ class Scanner implements Callable<ScanResult> {
                         topLevelLog.log("Classfile scanning is disabled");
                     }
                 } else {
-                    // Get whitelisted classfile order, and a map from class name to non-blacklisted classfile
+                    // Get whitelisted classfile order
                     final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-                    final Map<String, Resource> classNameToNonBlacklistedResource = new HashMap<>();
                     final Set<String> scannedClassNames = Collections
                             .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
                     for (final ClasspathElement classpathElement : classpathOrder) {
@@ -669,13 +676,6 @@ class Scanner implements Callable<ScanResult> {
                             // be scanned for sure)
                             scannedClassNames.add(JarUtils.classfilePathToClassName(resource.getPath()));
                         }
-                        // Get mapping from class name to Resource object for non-blacklisted classes
-                        // (these are used to scan superclasses, interfaces and annotations of whitelisted
-                        // classes that are not themselves whitelisted)
-                        for (final Resource resource : classpathElement.nonBlacklistedClassfileResources) {
-                            classNameToNonBlacklistedResource
-                                    .put(JarUtils.classfilePathToClassName(resource.getPath()), resource);
-                        }
                     }
 
                     // Scan classfiles in parallel
@@ -684,9 +684,8 @@ class Scanner implements Callable<ScanResult> {
                     final LogNode classfileScanLog = topLevelLog == null ? null
                             : topLevelLog.log("Scanning classfiles");
                     WorkQueue.runWorkQueue(classfileScanWorkItems, executorService, numParallelTasks,
-                            new ClassfileScannerWorkUnitProcessor(scanSpec, classNameToNonBlacklistedResource,
-                                    scannedClassNames, classInfoUnlinkedQueue, classfileScanLog,
-                                    interruptionChecker),
+                            new ClassfileScannerWorkUnitProcessor(scanSpec, classpathOrder, scannedClassNames,
+                                    classInfoUnlinkedQueue, classfileScanLog, interruptionChecker),
                             interruptionChecker, classfileScanLog);
                     if (classfileScanLog != null) {
                         classfileScanLog.addElapsedTime();

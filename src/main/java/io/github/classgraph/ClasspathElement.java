@@ -82,9 +82,6 @@ abstract class ClasspathElement {
     /** The list of all classfiles found within this classpath element that were whitelisted and not blacklisted. */
     protected List<Resource> whitelistedClassfileResources;
 
-    /** The list of all classfiles found within this classpath element that were not specifically blacklisted. */
-    protected List<Resource> nonBlacklistedClassfileResources;
-
     /** Map from class name to non-blacklisted resource. */
     protected Map<String, Resource> classNameToNonBlacklistedResource;
 
@@ -279,50 +276,26 @@ abstract class ClasspathElement {
         // Mask whitelisted classfile resources
         whitelistedClassfileResources = ClasspathElement.maskClassfiles(scanSpec, classpathIdx,
                 whitelistedClassfileResources, whitelistedClasspathRelativePathsFound, maskLog);
-
-        // Mask all non-blacklisted classfile resources
-        nonBlacklistedClassfileResources = ClasspathElement.maskClassfiles(scanSpec, classpathIdx,
-                nonBlacklistedClassfileResources, nonBlacklistedClasspathRelativePathsFound,
-                /* no need to log */ null);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** Add a resource discovered during the scan. */
-    protected boolean addResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
+    protected void addWhitelistedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final LogNode log) {
         final String path = resource.getPath();
         final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(path)
                 && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path);
 
-        // Record non-blacklisted classfile resources
+        if (log != null) {
+            log.log(path, "Found whitelisted path: " + path);
+        }
+
+        // Record whitelisted classfile and non-classfile resources
         if (isClassfile) {
-            nonBlacklistedClassfileResources.add(resource);
+            whitelistedClassfileResources.add(resource);
         }
-
-        // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
-        // that has been specifically-whitelisted
-        final boolean isWhitelisted = parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                        && scanSpec.classfileIsSpecificallyWhitelisted(path));
-        if (isWhitelisted) {
-            if (log != null) {
-                log.log(path, "Found whitelisted path: " + path);
-            }
-
-            // Record whitelisted classfile and non-classfile resources
-            if (isClassfile) {
-                whitelistedClassfileResources.add(resource);
-            }
-            resourceMatches.add(resource);
-
-        } else {
-            if (log != null) {
-                log.log("Skipping non-whitelisted path: " + path);
-            }
-        }
-        return isWhitelisted;
+        resourceMatches.add(resource);
     }
 
     /**

@@ -196,7 +196,6 @@ class ClasspathElementZip extends ClasspathElement {
         if (scanSpec.performScan) {
             resourceMatches = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
-            nonBlacklistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }
     }
@@ -456,8 +455,17 @@ class ClasspathElementZip extends ClasspathElement {
             final Resource resource = newResource(classpathEltZipFile, packageRootPrefix, relativePath,
                     versionedZipEntry.zipEntry);
             relativePathToResource.put(relativePath, resource);
-
-            addResource(resource, parentMatchStatus, subLog);
+            if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                    || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                    || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                            && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
+                // Resource is whitelisted
+                addWhitelistedResource(resource, parentMatchStatus, subLog);
+            } else {
+                if (log != null) {
+                    log.log("Skipping non-whitelisted path: " + relativePath);
+                }
+            }
         }
 
         // Save the last modified time for the zipfile
