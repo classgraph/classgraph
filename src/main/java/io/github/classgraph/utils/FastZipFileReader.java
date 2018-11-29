@@ -275,6 +275,7 @@ public class FastZipFileReader {
                 private final byte[] skipBuf = new byte[8192];
                 private final byte[] oneByteBuf = new byte[1];
                 private ByteBuffer currChunkByteBuf;
+                private boolean isLastChunk;
                 private int currChunkIdx;
                 private boolean eof = false;
                 private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -294,6 +295,7 @@ public class FastZipFileReader {
                     // Calculate end pos for the first chunk, and truncate it if it overflows 2GB
                     final long endPos = chunkPos + len;
                     currChunkByteBuf.limit((int) Math.min(Integer.MAX_VALUE, endPos));
+                    isLastChunk = endPos <= Integer.MAX_VALUE;
                 }
 
                 private boolean getNextChunk() throws IOException {
@@ -320,6 +322,7 @@ public class FastZipFileReader {
 
                     // Calculate end pos for the next chunk, and truncate it if it overflows 2GB
                     currChunkByteBuf.limit((int) Math.min(Integer.MAX_VALUE, remainingBytes));
+                    isLastChunk = remainingBytes <= Integer.MAX_VALUE;
                     return true;
                 }
 
@@ -348,12 +351,26 @@ public class FastZipFileReader {
                                 }
                                 if (inflater.needsInput()) {
                                     if (!currChunkByteBuf.hasRemaining()) {
+                                        // No more bytes in current chunk -- get next chunk
                                         if (!getNextChunk()) {
                                             throw new IOException("Unexpected EOF in deflated data");
                                         }
                                     }
                                     // Set inflater input for the current chunk
-                                    inflater.setInput(currChunkByteBuf);
+
+                                    // TODO (JDK11+): simply use the following instead of the lines below:
+                                    // inflater.setInput(currChunkByteBuf);
+                                    // N.B. the ByteBuffer version of setInput doesn't seem to need the extra
+                                    // padding byte at the end when using the "nowrap" Inflater option.
+
+                                    // Copy from the ByteBuffer into a temporary byte[] array (needed for JDK<11). 
+                                    final byte[] remainingBytes = new byte[currChunkByteBuf.remaining()
+                                            // An extra dummy byte is needed at the end of the input stream when
+                                            // using the "nowrap" Inflater option.
+                                            // See: ZipFile.ZipFileInputStream.fill()
+                                            + (isLastChunk ? 1 : 0)];
+                                    currChunkByteBuf.get(remainingBytes, 0, currChunkByteBuf.remaining());
+                                    inflater.setInput(remainingBytes);
                                 }
                             }
                             return numInflatedBytes;
@@ -629,7 +646,7 @@ public class FastZipFileReader {
 
         private static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
             final int ioff = (int) off;
-            if (ioff < 0 || ioff > buf.length - 8) {
+            if (ioff < 0 || ioff > buf.length - numBytes) {
                 throw new IndexOutOfBoundsException();
             }
             return new String(buf, ioff, numBytes, StandardCharsets.UTF_8);
@@ -890,8 +907,8 @@ public class FastZipFileReader {
     }
 
     private static void listEntriesRecursive(final LogicalZipFile logicalZipFile, final int depth,
-            final NestedJarHandler nestedJarHandler, final boolean print, final int[] counts, final LogNode log)
-            throws IOException {
+            final NestedJarHandler nestedJarHandler, final boolean print, final boolean readAll, final int[] counts,
+            final LogNode log) throws IOException {
         counts[0]++; // Num jars
         for (final FastZipEntry ent : logicalZipFile.entries) {
             counts[1]++; // Num entries
@@ -906,11 +923,16 @@ public class FastZipFileReader {
                 //                    System.out.print(b < 32 || b > 126 ? '.' : (char) b);
                 //                }
                 //            }
-                System.out.println();
+            }
+            if (readAll) {
+                try (InputStream is = ent.open(log)) {
+                    FileUtils.readAllBytesAsArray(is, ent.len, log);
+                }
             }
             if (ent.entryName.endsWith(".jar")) {
                 final LogicalZipFile nestedLogicalZipFile = ent.getNestedLogicalZipFile(nestedJarHandler, log);
-                listEntriesRecursive(nestedLogicalZipFile, depth + 1, nestedJarHandler, print, counts, log);
+                listEntriesRecursive(nestedLogicalZipFile, depth + 1, nestedJarHandler, print, readAll, counts,
+                        log);
             }
         }
     }
@@ -923,29 +945,33 @@ public class FastZipFileReader {
         final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(), log); // TODO
 
         {
-            final File zipFile = new File(classLoader.getResource("nested-jars-level1.zip").getFile());
+            final File zipFile = new File("/home/luke/Work/classgraph/src/test/resources/nested-jars-level1.zip");
+            @SuppressWarnings("resource")
             final PhysicalZipFile physicalZipFile = new PhysicalZipFile(zipFile);
             final LogicalZipFile logicalZipFile = physicalZipFile.getToplevelLogicalZipFile(log);
             final int[] counts = new int[2];
-            listEntriesRecursive(logicalZipFile, 0, nestedJarHandler, /* print = */ true, counts, log);
+            listEntriesRecursive(logicalZipFile, 0, nestedJarHandler, /* print = */ true, /* readAll = */ false,
+                    counts, log);
             System.out.println(counts[0] + " jars; " + counts[1] + " entries");
         }
 
         {
             final File zipFile = new File(
-                    classLoader.getResource("spring-boot-fully-executable-jar.jar").getFile());
+                    "/home/luke/Work/classgraph/src/test/resources/spring-boot-fully-executable-jar.jar");
+            @SuppressWarnings("resource")
             final PhysicalZipFile physicalZipFile = new PhysicalZipFile(zipFile);
             final LogicalZipFile logicalZipFile = physicalZipFile.getToplevelLogicalZipFile(log);
             final long t0 = System.nanoTime();
-            final int numIter = 500;
+            final int numIter = 1;
             for (int i = 0; i < numIter; i++) {
                 final int[] counts = new int[2];
-                listEntriesRecursive(logicalZipFile, 0, nestedJarHandler, /* print = */ false, counts, log);
+                listEntriesRecursive(logicalZipFile, 0, nestedJarHandler, /* print = */ false,
+                        /* readAll = */ false, counts, log);
                 if (i == 0) {
                     System.out.println(counts[0] + " jars; " + counts[1] + " entries");
                 }
             }
-            // Baseline: 0.007586343742
+            // 500 iters: baseline: 0.007586343742
             System.out.println((System.nanoTime() - t0) * 1.0e-9 / numIter);
         }
 
@@ -959,7 +985,8 @@ public class FastZipFileReader {
 
         final long t1 = System.nanoTime();
         new ClassGraph()
-                .overrideClasspath(classLoader.getResource("spring-boot-fully-executable-jar.jar").getFile())
+                .overrideClasspath(
+                        "/home/luke/Work/classgraph/src/test/resources/spring-boot-fully-executable-jar.jar")
                 .scan();
         // 0.175894356
         System.out.println((System.nanoTime() - t1) * 1.0e-9);
