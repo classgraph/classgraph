@@ -131,7 +131,7 @@ public class FileUtils {
      * @param log
      *            The log.
      * @return The contents of the {@link InputStream} as an Entry consisting of the byte array and number of bytes
-     *         used in the array..
+     *         used in the array.
      * @throws IOException
      *             If the contents could not be read.
      */
