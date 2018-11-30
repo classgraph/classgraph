@@ -397,7 +397,7 @@ class ClassfileBinaryParser {
                 inputStreamOrByteBuffer.skip(2);
                 break;
             default:
-                throw new RuntimeException("Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
+                throw new IOException("Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
                         + " (element size unknown, cannot continue reading class). Please report this at "
                         + "https://github.com/classgraph/classgraph/issues");
             }
