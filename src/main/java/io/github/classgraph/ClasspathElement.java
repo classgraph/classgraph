@@ -223,7 +223,8 @@ abstract class ClasspathElement {
             final LogNode log) {
         final String path = resource.getPath();
         if (log != null) {
-            log.log(path, "Found whitelisted path: " + path);
+            log.log(path,
+                    "Found whitelisted " + (path.endsWith(".class") ? "classfile" : "resource") + ": " + path);
         }
 
         if (scanSpec.enableClassInfo && FileUtils.isClassfile(path)
