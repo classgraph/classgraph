@@ -99,7 +99,7 @@ class ZipFileSliceReader {
         if (read(off, buf, 0, 2) < 2) {
             throw new EOFException("Unexpected EOF");
         }
-        return ((buf[1] & 0xff) << 8) + (buf[0] & 0xff);
+        return ((buf[1] & 0xff) << 8) | (buf[0] & 0xff);
     }
 
     int getInt(final long off) throws IOException {
@@ -109,7 +109,7 @@ class ZipFileSliceReader {
         if (read(off, buf, 0, 4) < 4) {
             throw new EOFException("Unexpected EOF");
         }
-        return ((buf[3] & 0xff) << 24) + ((buf[2] & 0xff) << 16) + ((buf[1] & 0xff) << 8) + (buf[0] & 0xff);
+        return ((buf[3] & 0xff) << 24) | ((buf[2] & 0xff) << 16) | ((buf[1] & 0xff) << 8) | (buf[0] & 0xff);
     }
 
     long getLong(final long off) throws IOException {
@@ -119,8 +119,9 @@ class ZipFileSliceReader {
         if (read(off, buf, 0, 8) < 8) {
             throw new EOFException("Unexpected EOF");
         }
-        return ((buf[7] & 0xff) << 56) + ((buf[6] & 0xff) << 48) + ((buf[5] & 0xff) << 40) + ((buf[4] & 0xff) << 32)
-                + ((buf[3] & 0xff) << 24) + ((buf[2] & 0xff) << 16) + ((buf[1] & 0xff) << 8) + (buf[0] & 0xff);
+        return ((buf[7] & 0xffL) << 56) | ((buf[6] & 0xffL) << 48) | ((buf[5] & 0xffL) << 40)
+                | ((buf[4] & 0xffL) << 32) | ((buf[3] & 0xffL) << 24) | ((buf[2] & 0xffL) << 16)
+                | ((buf[1] & 0xffL) << 8) | (buf[0] & 0xffL);
     }
 
     String getString(final long off, final int numBytes) throws IOException {
