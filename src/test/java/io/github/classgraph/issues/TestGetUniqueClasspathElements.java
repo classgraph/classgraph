@@ -12,7 +12,7 @@ import io.github.classgraph.ClassGraph;
 public class TestGetUniqueClasspathElements {
     @Test
     public void testGetUniqueClasspathElements() {
-        final List<File> classpathElements = new ClassGraph().verbose().whitelistPackages("com.xyz").getClasspathFiles();
+        final List<File> classpathElements = new ClassGraph().whitelistPackages("com.xyz").getClasspathFiles();
         assertThat(classpathElements).isNotEmpty();
     }
 }
