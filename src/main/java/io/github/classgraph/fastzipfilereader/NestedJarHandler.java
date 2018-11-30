@@ -66,7 +66,10 @@ import io.github.classgraph.utils.SingletonMap;
  * ZipInputStream. Therefore, decompressing the inner zipfile to disk is the only efficient option.
  */
 public class NestedJarHandler {
+    /** A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file. */
     private SingletonMap<File, PhysicalZipFile> canonicalFileToPhysicalZipFileMap;
+
+    /** A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. */
     private SingletonMap<ZipFileSlice, LogicalZipFile> zipFileSliceToLogicalZipFileMap;
 
     /**
@@ -80,6 +83,7 @@ public class NestedJarHandler {
     public final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
     moduleRefToModuleReaderProxyRecyclerMap;
 
+    /** Any temporary files created while scanning. */
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
 
     /** The separator between random temp filename part and leafname. */
