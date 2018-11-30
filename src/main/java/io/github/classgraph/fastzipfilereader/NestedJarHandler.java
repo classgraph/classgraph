@@ -102,6 +102,7 @@ public class NestedJarHandler {
 
     /** Wrapper class that allows an {@link Inflater} instance to be reused. */
     public static class RecyclableInflater implements Resettable, AutoCloseable {
+        /** Create a new {@link Inflater} instance. */
         private final Inflater inflater = new Inflater(/* nowrap = */ true);
 
         /** Get the {@link Inflater} instance. */
@@ -109,11 +110,13 @@ public class NestedJarHandler {
             return inflater;
         }
 
+        /** Called when an {@link Inflater} instance is recycled. */
         @Override
         public void reset() {
             inflater.reset();
         }
 
+        /** Called when the {@link Recycler} instance is closed, to destroy unused {@link Inflater} instances. */
         @Override
         public void close() {
             inflater.end();
