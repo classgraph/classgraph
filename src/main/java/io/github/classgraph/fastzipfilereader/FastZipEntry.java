@@ -374,12 +374,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             }
 
             @Override
-            public void mark(final int readlimit) {
+            public synchronized void mark(final int readlimit) {
                 throw new IllegalArgumentException("Not supported");
             }
 
             @Override
-            public void reset() throws IOException {
+            public synchronized void reset() throws IOException {
                 throw new IllegalArgumentException("Not supported");
             }
 
