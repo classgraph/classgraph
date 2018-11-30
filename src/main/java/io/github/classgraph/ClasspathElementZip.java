@@ -149,8 +149,8 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
 
-        if (scanSpec.blacklistSystemJarsOrModules && logicalZipFile.isJREJar
-                || JarUtils.isJREJar(zipFilePath, scanSpec, jarLog)) {
+        if (scanSpec.blacklistSystemJarsOrModules && ((logicalZipFile != null && logicalZipFile.isJREJar)
+                || JarUtils.isJREJar(zipFilePath, scanSpec, jarLog))) {
             // Don't scan system jars if they are blacklisted
             if (jarLog != null) {
                 jarLog.log("Ignoring JRE jar");
