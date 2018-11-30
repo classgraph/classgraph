@@ -721,6 +721,9 @@ class Scanner implements Callable<ScanResult> {
                     throw new ExecutionException("Exception while calling failure handler", t);
                 }
             } else {
+                if (topLevelLog != null) {
+                    topLevelLog.log("Exception while scanning", e);
+                }
                 throw new ExecutionException("Exception while scanning", e);
             }
 
