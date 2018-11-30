@@ -2,20 +2,20 @@ package io.github.classgraph.issues;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.Closeable;
-import java.io.IOException;
-
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassRefTypeSignature;
 import io.github.classgraph.FieldInfoList;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.utils.Recycler;
 
 public class GenericInnerClassTypedField {
+    private static class A<X, Y> {
+        private class B {
+        }
+    }
 
-    Recycler<Closeable, IOException>.Recyclable recyclable;
+    A<Integer, String>.B field;
 
     @Test
     public void testGenericInnerClassTypedField() {
@@ -27,10 +27,8 @@ public class GenericInnerClassTypedField {
             final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) fields.get(0)
                     .getTypeSignature();
             assertThat(classRefTypeSignature.toString()).isEqualTo(
-                    "io.github.classgraph.utils.Recycler<java.io.Closeable, java.io.IOException>.Recyclable");
-            assertThat(classRefTypeSignature.getFullyQualifiedClassName())
-                    .isEqualTo("io.github.classgraph.utils.Recycler$Recyclable");
+                    A.class.getName() + "<" + Integer.class.getName() + ", " + String.class.getName() + ">.B");
+            assertThat(classRefTypeSignature.getFullyQualifiedClassName()).isEqualTo(A.class.getName() + "$B");
         }
     }
-
 }
