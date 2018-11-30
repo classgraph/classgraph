@@ -38,8 +38,10 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
+import io.github.classgraph.fastzipfilereader.NestedJarHandler.RecyclableInflater;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.LogNode;
+import io.github.classgraph.utils.Recycler;
 import io.github.classgraph.utils.VersionFinder;
 
 /** A zip entry within a {@link LogicalZipFile}. */
@@ -75,6 +77,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      */
     public final String entryNameUnversioned;
 
+    /** The {@link Inflater} recycler. */
+    private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
+
+    /** The {@link Recycler.Recyclable} instance wrapping recyclable {@link Inflater} instances. */
+    private Recycler<RecyclableInflater, RuntimeException>.Recyclable inflaterRecyclable;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -90,15 +98,19 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The compressed size of the entry.
      * @param uncompressedSize
      *            The uncompressed size of the entry.
+     * @param nestedJarHandler
+     *            The {@link NestedJarHandler}.
      */
     public FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
-            final boolean isDeflated, final long compressedSize, final long uncompressedSize) {
+            final boolean isDeflated, final long compressedSize, final long uncompressedSize,
+            final NestedJarHandler nestedJarHandler) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;
         this.isDeflated = isDeflated;
         this.compressedSize = compressedSize;
         this.uncompressedSize = !isDeflated && uncompressedSize < 0 ? compressedSize : uncompressedSize;
+        this.inflaterRecycler = nestedJarHandler.inflaterRecycler;
 
         // Get multi-release jar version number, and strip any version prefix
         int version = 8;
@@ -174,12 +186,15 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /** Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated. */
     public InputStream open() throws IOException {
-        final Inflater inflater;
+        if (inflaterRecyclable != null) {
+            throw new IOException("Zip entry already open");
+        }
         if (isDeflated) {
-            // TODO: recycle the Inflater
-            inflater = new Inflater(/* nowrap = */ true);
-        } else {
-            inflater = null;
+            inflaterRecyclable = inflaterRecycler.acquire();
+            if (inflaterRecyclable == null) {
+                // Should not happen
+                throw new RuntimeException("Could not get Inflater instance");
+            }
         }
         return new InputStream() {
             private final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
@@ -189,6 +204,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private boolean isLastChunk;
             private int currChunkIdx;
             private boolean eof = false;
+            private final Inflater inflater = isDeflated ? inflaterRecyclable.get().getInflater() : null;
             private final AtomicBoolean closed = new AtomicBoolean(false);
 
             private static final int INFLATE_BUF_SIZE = 1024;
@@ -339,13 +355,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 if (closed.get()) {
                     throw new IOException("Stream closed");
                 }
-                if (eof) {
-                    return 0;
-                } else if (inflater.finished()) {
+                if (inflater.finished()) {
                     eof = true;
-                    return 0;
                 }
-                return 1;
+                return eof ? 0 : 1;
             }
 
             @Override
@@ -386,11 +399,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             @Override
             public void close() throws IOException {
                 if (!closed.getAndSet(true)) {
-                    if (inflater != null) {
-                        inflater.end();
-                        // TODO: recycle inflater
-                    }
                     currChunkByteBuf = null;
+                    // Reset and recycle the Inflater
+                    inflaterRecyclable.close();
+                    inflaterRecyclable = null;
                 }
             }
         };

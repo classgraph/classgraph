@@ -28,52 +28,22 @@
  */
 package io.github.classgraph.utils;
 
-import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Recycle instances of type T. The method T#close() is called when this class' own close() method is called. Use
- * RuntimeException for type E if the newInstance() method does not throw an exception.
- * 
- * Example usage:
- * 
- * <code>
- *       // Autoclose the Recycler when last instance has been released
- *       try (Recycler&lt;ZipFile, IOException&gt; recycler = new Recycler&lt;&gt;() {
- *               &#64;Override
- *               public ZipFile newInstance() throws IOException {
- *                   return new ZipFile(zipFilePath);
- *               }
- *           }) {
- *           // Repeat the following as many times as needed, on as many threads as needed 
- *           try {
- *               ZipFile zipFile = recycler.acquire();
- *               try {
- *                   // Read from zipFile -- don't put recycler.acquire() in this try block, otherwise the
- *                   // finally block will try to release the zipfile even when recycler.acquire() failed
- *                   // [...]
- *               } finally {
- *                   recycler.release(zipFile);
- *                   zipFile = null;
- *               }
- *           } catch (IOException e) {
- *               // May be thrown by recycler.acquire()
- *           }
- *       }
- * </code>
+ * Recycler for instances of type T.
  * 
  * @param <T>
  *            The type to recycle.
  * @param <E>
  *            An exception type that can be thrown while acquiring an instance of the type to recycle.
  */
-public abstract class Recycler<T extends Closeable, E extends Exception> implements AutoCloseable {
+public abstract class Recycler<T, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */
-    private final ConcurrentLinkedQueue<T> allocatedInstances = new ConcurrentLinkedQueue<>();
+    private final Set<T> usedInstances = Collections.newSetFromMap(new ConcurrentHashMap<T, Boolean>());
 
     /** Instances that have been allocated but are unused. */
     private final ConcurrentLinkedQueue<T> unusedInstances = new ConcurrentLinkedQueue<>();
@@ -110,19 +80,18 @@ public abstract class Recycler<T extends Closeable, E extends Exception> impleme
          */
         public Recyclable() throws E {
             final T recycledInstance = unusedInstances.poll();
-            if (recycledInstance != null) {
-                // Use an unused instance
-                instance = recycledInstance;
-            } else {
+            if (recycledInstance == null) {
                 // Allocate a new instance
                 final T newInstance = newInstance(); // May throw exception E
                 if (newInstance == null) {
                     throw new RuntimeException("Failed to allocate a new recyclable instance");
-                } else {
-                    allocatedInstances.add(newInstance);
-                    instance = newInstance;
                 }
+                instance = newInstance;
+            } else {
+                // Reuse an unused instance
+                instance = recycledInstance;
             }
+            usedInstances.add(instance);
         }
 
         /**
@@ -132,38 +101,60 @@ public abstract class Recycler<T extends Closeable, E extends Exception> impleme
             return instance;
         }
 
-        /**
-         * Release/recycle an instance.
-         */
+        /** Recycle an instance. Calls {@link Resettable#reset()} if the instance implements {@link Resettable}. */
         @Override
         public void close() {
             if (instance != null) {
+                if (instance instanceof Resettable) {
+                    try {
+                        ((Resettable) instance).reset();
+                    } catch (final Throwable e) {
+                        // Ignore
+                    }
+                }
+                usedInstances.remove(instance);
                 unusedInstances.add(instance);
             }
         }
     }
 
     /**
-     * Calls close() on all the unused instances. May be called multiple times, if {@link #acquire()} is called
-     * again after {@link #close()}.
+     * An interface for recycleable objects that need to be reset when {@link Recycler.Recyclable#close()} is called
+     * to recycle the object.
+     */
+    public static interface Resettable {
+        /** Reset a recycleable object (called when the object is recycled). */
+        public void reset();
+    }
+
+    /**
+     * Free all unused instances. Calls {@link AutoCloseable#close()} on any unused instances that implement
+     * {@link AutoCloseable}.
+     * 
+     * <p>
+     * The {@link Recycler} may continue to be used to acquire new instances after calling close(), and close() may
+     * be called as often as needed.
      */
     @Override
     public void close() {
-        final Set<T> closedInstances = new HashSet<>();
         for (T unusedInstance; (unusedInstance = unusedInstances.poll()) != null;) {
-            try {
-                unusedInstance.close();
-            } catch (final Throwable e) {
-                // Ignore
-            }
-            closedInstances.add(unusedInstance);
-        }
-        final List<T> unclosedInstances = new ArrayList<>();
-        for (T allocatedInstance; (allocatedInstance = allocatedInstances.poll()) != null;) {
-            if (!closedInstances.contains(allocatedInstance)) {
-                unclosedInstances.add(allocatedInstance);
+            if (unusedInstance instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) unusedInstance).close();
+                } catch (final Throwable e) {
+                    // Ignore
+                }
             }
         }
-        allocatedInstances.addAll(unclosedInstances);
+    }
+
+    /**
+     * Force-close this {@link Recycler}, by moving all used instances into the unused instances list, then calling
+     * {@link #close()}.
+     */
+    public void forceClose() {
+        unusedInstances.addAll(usedInstances);
+        usedInstances.clear();
+        close();
     }
 }

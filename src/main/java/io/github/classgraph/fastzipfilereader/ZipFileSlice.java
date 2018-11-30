@@ -43,9 +43,7 @@ public class ZipFileSlice {
     final long startOffsetWithinPhysicalZipFile;
     /** The compressed or stored size of the zipfile slice or entry. */
     final long len;
-    /**
-     * For the toplevel zipfile slice, the path to the zipfile. For nested slices, the name of the zipfile entry.
-     */
+    /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name of the zipfile entry. */
     String name;
 
     /** Create a ZipFileSlice that wraps an entire {@link PhysicalZipFile}. */

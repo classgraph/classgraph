@@ -37,13 +37,17 @@ import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.Inflater;
 
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.utils.FastPathResolver;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.Recycler;
+import io.github.classgraph.utils.Recycler.Resettable;
 import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.SingletonMap;
 
@@ -83,11 +87,38 @@ public class NestedJarHandler {
     public final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
     moduleRefToModuleReaderProxyRecyclerMap;
 
+    /** A recycler for {@link Inflater} instances. */
+    public final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
+
     /** Any temporary files created while scanning. */
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
 
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
+
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Wrapper class that allows an {@link Inflater} instance to be reused. */
+    public static class RecyclableInflater implements Resettable, AutoCloseable {
+        private final Inflater inflater = new Inflater(/* nowrap = */ true);
+
+        /** Get the {@link Inflater} instance. */
+        public Inflater getInflater() {
+            return inflater;
+        }
+
+        @Override
+        public void reset() {
+            inflater.reset();
+        }
+
+        @Override
+        public void close() {
+            inflater.end();
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -100,12 +131,26 @@ public class NestedJarHandler {
      *            The log.
      */
     public NestedJarHandler(final ScanSpec scanSpec, final LogNode log) {
+        // Set up a recycler for Inflater instances.
+        this.inflaterRecycler = new Recycler<RecyclableInflater, RuntimeException>() {
+            @Override
+            public RecyclableInflater newInstance() throws RuntimeException {
+                if (closed.get()) {
+                    throw new RuntimeException(getClass().getSimpleName() + " already closed");
+                }
+                return new RecyclableInflater();
+            }
+        };
+
         // Set up a singleton map from canonical File to PhysicalZipFile instance, so that the RandomAccessFile
         // and FileChannel for any given zipfile is opened only once
         this.canonicalFileToPhysicalZipFileMap = new SingletonMap<File, PhysicalZipFile>() {
             @Override
             public PhysicalZipFile newInstance(final File canonicalFile, final LogNode log) throws IOException {
-                return new PhysicalZipFile(canonicalFile);
+                if (closed.get()) {
+                    throw new IOException(getClass().getSimpleName() + " already closed");
+                }
+                return new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
             }
         };
 
@@ -114,6 +159,9 @@ public class NestedJarHandler {
         this.zipFileSliceToLogicalZipFileMap = new SingletonMap<ZipFileSlice, LogicalZipFile>() {
             @Override
             public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log) throws Exception {
+                if (closed.get()) {
+                    throw new IOException(getClass().getSimpleName() + " already closed");
+                }
                 // Read the central directory for the logical zipfile slice
                 return new LogicalZipFile(zipFileSlice, scanSpec, log);
             }
@@ -126,6 +174,9 @@ public class NestedJarHandler {
             @Override
             public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
                     throws Exception {
+                if (closed.get()) {
+                    throw new IOException(getClass().getSimpleName() + " already closed");
+                }
                 final String nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
                 final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
                 if (lastPlingIdx < 0) {
@@ -309,6 +360,9 @@ public class NestedJarHandler {
                         return new Recycler<ModuleReaderProxy, IOException>() {
                             @Override
                             public ModuleReaderProxy newInstance() throws IOException {
+                                if (closed.get()) {
+                                    throw new IOException(getClass().getSimpleName() + " already closed");
+                                }
                                 return moduleRef.open();
                             }
                         };
@@ -317,34 +371,6 @@ public class NestedJarHandler {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** Download a jar from a URL to a temporary file. */
-    private File downloadTempFile(final String jarURL, final LogNode log) {
-        final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
-        File tempFile;
-        try {
-            tempFile = makeTempFile(jarURL, /* onlyUseLeafname = */ true);
-            final URL url = new URL(jarURL);
-            try (InputStream inputStream = url.openStream()) {
-                Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
-            if (subLog != null) {
-                subLog.addElapsedTime();
-            }
-        } catch (final Exception e) {
-            if (subLog != null) {
-                subLog.log("Could not download " + jarURL, e);
-            }
-            return null;
-        }
-        if (subLog != null) {
-            subLog.log("Downloaded to temporary file " + tempFile);
-            subLog.log("***** Note that it is time-consuming to scan jars at http(s) addresses, "
-                    + "they must be downloaded for every scan, and the same jars must also be "
-                    + "separately downloaded by the ClassLoader *****");
-        }
-        return tempFile;
-    }
 
     private String leafname(final String path) {
         return path.substring(path.lastIndexOf('/') + 1);
@@ -374,53 +400,82 @@ public class NestedJarHandler {
         return tempFile;
     }
 
+    /** Download a jar from a URL to a temporary file. */
+    private File downloadTempFile(final String jarURL, final LogNode log) {
+        final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
+        File tempFile;
+        try {
+            tempFile = makeTempFile(jarURL, /* onlyUseLeafname = */ true);
+            final URL url = new URL(jarURL);
+            try (InputStream inputStream = url.openStream()) {
+                Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            if (subLog != null) {
+                subLog.addElapsedTime();
+            }
+        } catch (final Exception e) {
+            if (subLog != null) {
+                subLog.log("Could not download " + jarURL, e);
+            }
+            return null;
+        }
+        if (subLog != null) {
+            subLog.log("Downloaded to temporary file " + tempFile);
+            subLog.log("***** Note that it is time-consuming to scan jars at http(s) addresses, "
+                    + "they must be downloaded for every scan, and the same jars must also be "
+                    + "separately downloaded by the ClassLoader *****");
+        }
+        return tempFile;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Close zipfiles and modules, and delete temporary files.
+     * Close zipfiles, modules, and recyclers, and delete temporary files. Called by {@link ScanResult#close()}.
      * 
      * @param log
      *            The log.
      */
     public void close(final LogNode log) {
-        try {
-            for (final Recycler<ModuleReaderProxy, IOException> recycler : //
-            moduleRefToModuleReaderProxyRecyclerMap.values()) {
-                try {
-                    recycler.close();
-                } catch (final Throwable e) {
+        if (!closed.getAndSet(true)) {
+            inflaterRecycler.forceClose();
+            try {
+                for (final Recycler<ModuleReaderProxy, IOException> recycler : //
+                moduleRefToModuleReaderProxyRecyclerMap.values()) {
+                    recycler.forceClose();
                 }
+                moduleRefToModuleReaderProxyRecyclerMap.clear();
+            } catch (final InterruptedException e) {
             }
-            moduleRefToModuleReaderProxyRecyclerMap.clear();
-        } catch (final InterruptedException e) {
-        }
-        zipFileSliceToLogicalZipFileMap.clear();
-        nestedPathToLogicalZipFileAndPackageRootMap.clear();
-        try {
-            for (final PhysicalZipFile physicalZipFile : canonicalFileToPhysicalZipFileMap.values()) {
-                try {
-                    physicalZipFile.close();
-                } catch (final Throwable e) {
+            zipFileSliceToLogicalZipFileMap.clear();
+            nestedPathToLogicalZipFileAndPackageRootMap.clear();
+            try {
+                for (final PhysicalZipFile physicalZipFile : canonicalFileToPhysicalZipFileMap.values()) {
+                    try {
+                        physicalZipFile.close();
+                    } catch (final Throwable e) {
+                    }
                 }
+                canonicalFileToPhysicalZipFileMap.clear();
+            } catch (final InterruptedException e) {
             }
-            canonicalFileToPhysicalZipFileMap.clear();
-        } catch (final InterruptedException e) {
-        }
-        if (tempFiles != null) {
-            final LogNode rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
-            while (!tempFiles.isEmpty()) {
-                final File tempFile = tempFiles.removeLast();
-                final String path = tempFile.getPath();
-                boolean success = false;
-                Throwable e = null;
-                try {
-                    success = tempFile.delete();
-                } catch (final Throwable t) {
-                    e = t;
-                }
-                if (rmLog != null) {
-                    rmLog.log(
-                            (success ? "Removed" : "Unable to remove") + " " + path + (e == null ? "" : " : " + e));
+            if (tempFiles != null) {
+                final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
+                        : log.log("Removing temporary files");
+                while (!tempFiles.isEmpty()) {
+                    final File tempFile = tempFiles.removeLast();
+                    final String path = tempFile.getPath();
+                    boolean success = false;
+                    Throwable e = null;
+                    try {
+                        success = tempFile.delete();
+                    } catch (final Throwable t) {
+                        e = t;
+                    }
+                    if (rmLog != null) {
+                        rmLog.log((success ? "Removed" : "Unable to remove") + " " + path
+                                + (e == null ? "" : " : " + e));
+                    }
                 }
             }
         }

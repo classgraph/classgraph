@@ -51,10 +51,12 @@ public class PhysicalZipFile implements Closeable {
     final int numMappedByteBuffers;
     private MappedByteBuffer[] mappedByteBuffersCached;
     private SingletonMap<Integer, MappedByteBuffer> chunkIdxToByteBuffer;
+    final NestedJarHandler nestedJarHandler;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    PhysicalZipFile(final File file) throws IOException {
+    PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler) throws IOException {
         this.file = file;
+        this.nestedJarHandler = nestedJarHandler;
 
         if (!file.exists()) {
             throw new IOException("File does not exist: " + file);

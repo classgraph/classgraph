@@ -513,7 +513,7 @@ public class LogicalZipFile extends ZipFileSlice {
 
             // Add zip entry
             final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryName, isDeflated, compressedSize,
-                    uncompressedSize);
+                    uncompressedSize, physicalZipFile.nestedJarHandler);
             entries.add(entry);
 
             // Record manifest entry

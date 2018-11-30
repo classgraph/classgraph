@@ -86,7 +86,7 @@ abstract class ClasspathElement {
     protected Map<File, Long> fileToLastModified;
 
     /** Flag to ensure classpath element is only scanned once. */
-    protected AtomicBoolean scanned = new AtomicBoolean(false);
+    protected final AtomicBoolean scanned = new AtomicBoolean(false);
 
     /** The classloader(s) handling this classpath element. */
     protected ClassLoader[] classLoaders;
