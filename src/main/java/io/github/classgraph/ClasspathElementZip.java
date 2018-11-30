@@ -159,38 +159,42 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        if (logicalZipFile != null && !logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
-            if (jarLog != null) {
-                jarLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+        if (logicalZipFile != null) {
+            if (!logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
+                if (jarLog != null) {
+                    jarLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+                }
+                skipClasspathElement = true;
+                return;
             }
-            skipClasspathElement = true;
-            return;
-        }
 
-        // Schedule any child classpath elements for scanning
-        if (logicalZipFile.additionalClassPathEntriesToScan != null) {
-            // Class-Path entries in the manifest file are resolved relative to the dir that
-            // the manifest's jarfile is contained in -- get parent dir of outermost zipfile
-            final String pathOfContainingDir = FastPathResolver
-                    .resolve(logicalZipFile.physicalZipFile.getFile().getParent());
+            // Schedule any child classpath elements for scanning
+            if (logicalZipFile.additionalClassPathEntriesToScan != null) {
+                // Class-Path entries in the manifest file are resolved relative to the dir that
+                // the manifest's jarfile is contained in -- get parent dir of outermost zipfile
+                final String pathOfContainingDir = FastPathResolver
+                        .resolve(logicalZipFile.physicalZipFile.getFile().getParent());
 
-            // Create child classpath elements from Class-Path entry
-            if (childClasspathEltPaths == null) {
-                childClasspathEltPaths = new ArrayList<>(logicalZipFile.additionalClassPathEntriesToScan.size());
-            }
-            for (final String childClassPathEltPath : logicalZipFile.additionalClassPathEntriesToScan) {
-                final String resolvedPath = FastPathResolver.resolve(pathOfContainingDir, childClassPathEltPath);
-                childClasspathEltPaths.add(resolvedPath);
-            }
-            if (!childClasspathEltPaths.isEmpty()) {
-                // Schedule child classpath elements for scanning
-                if (workQueue != null) {
-                    workQueue.addWorkUnits(childClasspathEltPaths);
-                } else {
-                    // When adding rt.jar, workQueue will be null. But rt.jar should not include Class-Path
-                    // references (so this block should not be reached).
-                    if (log != null) {
-                        log.log("Ignoring Class-Path entries in rt.jar: " + childClasspathEltPaths);
+                // Create child classpath elements from Class-Path entry
+                if (childClasspathEltPaths == null) {
+                    childClasspathEltPaths = new ArrayList<>(
+                            logicalZipFile.additionalClassPathEntriesToScan.size());
+                }
+                for (final String childClassPathEltPath : logicalZipFile.additionalClassPathEntriesToScan) {
+                    final String resolvedPath = FastPathResolver.resolve(pathOfContainingDir,
+                            childClassPathEltPath);
+                    childClasspathEltPaths.add(resolvedPath);
+                }
+                if (!childClasspathEltPaths.isEmpty()) {
+                    // Schedule child classpath elements for scanning
+                    if (workQueue != null) {
+                        workQueue.addWorkUnits(childClasspathEltPaths);
+                    } else {
+                        // When adding rt.jar, workQueue will be null. But rt.jar should not include Class-Path
+                        // references (so this block should not be reached).
+                        if (log != null) {
+                            log.log("Ignoring Class-Path entries in rt.jar: " + childClasspathEltPaths);
+                        }
                     }
                 }
             }
