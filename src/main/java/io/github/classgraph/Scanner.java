@@ -300,9 +300,7 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.addElapsedTime();
                 }
-            } catch (
-
-            final IOException e) {
+            } catch (final IOException e) {
                 if (subLog != null) {
                     subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
                             + " -- skipping", e);
@@ -311,8 +309,6 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.log("Exception while parsing classfile " + workUnit.classfileResource, e);
                 }
-                // Re-throw
-                throw e;
             }
             interruptionChecker.check();
         }
@@ -710,7 +706,7 @@ class Scanner implements Callable<ScanResult> {
             // Remove temporary files if an exception was thrown
             nestedJarHandler.close(topLevelLog);
             if (topLevelLog != null) {
-                topLevelLog.log(e);
+                topLevelLog.log("Exception while scanning", e);
             }
             if (failureHandler != null) {
                 try {
@@ -721,9 +717,6 @@ class Scanner implements Callable<ScanResult> {
                     throw new ExecutionException("Exception while calling failure handler", t);
                 }
             } else {
-                if (topLevelLog != null) {
-                    topLevelLog.log("Exception while scanning", e);
-                }
                 throw new ExecutionException("Exception while scanning", e);
             }
 
