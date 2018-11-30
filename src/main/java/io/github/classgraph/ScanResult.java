@@ -59,9 +59,6 @@ import io.github.classgraph.utils.URLPathEncoder;
 
 /** The result of a scan. */
 public final class ScanResult implements Closeable, AutoCloseable {
-    /** The scan spec. */
-    final ScanSpec scanSpec;
-
     /** The order of raw classpath elements. */
     private final List<String> rawClasspathEltOrderStrs;
 
@@ -72,21 +69,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
     private ResourceList allResources;
 
     /**
-     * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
-     * a record of which ClassLoader provided the URL used to locate the class (e.g. if the class is found using
-     * java.class.path).
+     * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
      */
-    final ClassLoader[] envClassLoaderOrder;
-
-    /** The nested jar handler instance. */
-    private final NestedJarHandler nestedJarHandler;
-
-    /**
-     * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
-     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. May be null,
-     * if this ScanResult object is the result of a call to ClassGraph#getUniqueClasspathElementsAsync().
-     */
-    private final Map<File, Long> fileToLastModified;
+    private Map<String, ResourceList> pathToResourceList;
 
     /** The map from class name to {@link ClassInfo}. */
     private final Map<String, ClassInfo> classNameToClassInfo;
@@ -98,12 +83,27 @@ public final class ScanResult implements Closeable, AutoCloseable {
     private final Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
-     * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
+     * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
+     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. May be null,
+     * if this ScanResult object is the result of a call to ClassGraph#getUniqueClasspathElementsAsync().
      */
-    private Map<String, ResourceList> pathToResourceList;
+    private final Map<File, Long> fileToLastModified;
 
     /** A custom ClassLoader that can load classes found during the scan. */
     private ClassGraphClassLoader classGraphClassLoader;
+
+    /**
+     * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
+     * a record of which ClassLoader provided the URL used to locate the class (e.g. if the class is found using
+     * java.class.path).
+     */
+    ClassLoader[] envClassLoaderOrder;
+
+    /** The nested jar handler instance. */
+    private NestedJarHandler nestedJarHandler;
+
+    /** The scan spec. */
+    final ScanSpec scanSpec;
 
     /** If true, this ScanResult has already been closed. */
     private volatile AtomicBoolean isClosed = new AtomicBoolean(false);
@@ -1036,15 +1036,25 @@ public final class ScanResult implements Closeable, AutoCloseable {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
+            classpathOrder.clear();
             if (allResources != null) {
                 for (final Resource classpathResource : allResources) {
                     classpathResource.close();
                 }
             }
+            allResources.clear();
+            pathToResourceList.clear();
             if (nestedJarHandler != null) {
                 nestedJarHandler.close(log);
             }
+            nestedJarHandler = null;
             classGraphClassLoader = null;
+            classNameToClassInfo.clear();
+            packageNameToPackageInfo.clear();
+            moduleNameToModuleInfo.clear();
+            fileToLastModified.clear();
+            classGraphClassLoader = null;
+            envClassLoaderOrder = null;
             nonClosedWeakReferences.remove(weakReference);
             if (log != null) {
                 log.flush();
