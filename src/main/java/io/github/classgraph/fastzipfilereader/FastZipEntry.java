@@ -400,9 +400,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             public void close() throws IOException {
                 if (!closed.getAndSet(true)) {
                     currChunkByteBuf = null;
-                    // Reset and recycle the Inflater
-                    inflaterRecyclable.close();
-                    inflaterRecyclable = null;
+                    if (inflaterRecyclable != null) {
+                        // Reset and recycle the Inflater
+                        inflaterRecyclable.close();
+                        inflaterRecyclable = null;
+                    }
                 }
             }
         };
