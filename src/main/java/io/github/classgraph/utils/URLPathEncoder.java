@@ -53,8 +53,10 @@ public class URLPathEncoder {
         safe['/'] = true;
     }
 
-    private static final char[] hexadecimal = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
+    private static final char[] HEXADECIMAL = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
             'd', 'e', 'f' };
+
+    private static final String[] SCHEME_PREFIXES = { "file:", "jar:file:", "jar:", "http:", "https:" };
 
     /**
      * Encode a URL path using percent-encoding. '/' is not encoded.
@@ -64,16 +66,25 @@ public class URLPathEncoder {
      * @return The encoded path.
      */
     public static String encodePath(final String path) {
+        // Accept ':' if it is part of a scheme prefix
+        int validColonPrefixLen = 0;
+        for (final String scheme : SCHEME_PREFIXES) {
+            if (path.startsWith(scheme)) {
+                validColonPrefixLen = scheme.length();
+                break;
+            }
+        }
         final byte[] pathBytes = path.getBytes(StandardCharsets.UTF_8);
         final StringBuilder encodedPath = new StringBuilder(pathBytes.length * 3);
-        for (final byte pathByte : pathBytes) {
+        for (int i = 0; i < pathBytes.length; i++) {
+            final byte pathByte = pathBytes[i];
             final int b = pathByte & 0xff;
-            if (safe[b]) {
+            if (safe[b] || (b == ':' && i < validColonPrefixLen)) {
                 encodedPath.append((char) b);
             } else {
                 encodedPath.append('%');
-                encodedPath.append(hexadecimal[(b & 0xf0) >> 4]);
-                encodedPath.append(hexadecimal[b & 0x0f]);
+                encodedPath.append(HEXADECIMAL[(b & 0xf0) >> 4]);
+                encodedPath.append(HEXADECIMAL[b & 0x0f]);
             }
         }
         return encodedPath.toString();

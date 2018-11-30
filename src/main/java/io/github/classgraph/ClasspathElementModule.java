@@ -41,43 +41,47 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.utils.ClasspathOrModulePathEntry;
+import io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.Recycler;
 import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.URLPathEncoder;
+import io.github.classgraph.utils.WorkQueue;
 
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {
     private final ModuleRef moduleRef;
+    private final NestedJarHandler nestedJarHandler;
     private Recycler<ModuleReaderProxy, IOException> moduleReaderProxyRecycler;
     private final Set<String> allResourcePaths = new HashSet<>();
 
     /** A zip/jarfile classpath element. */
-    ClasspathElementModule(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final NestedJarHandler nestedJarHandler, final LogNode log) {
-        super(classpathEltPath, scanSpec);
-        moduleRef = classpathEltPath.getModuleRef();
-        if (moduleRef == null) {
-            // Should not happen
-            throw new IllegalArgumentException();
-        }
-        try {
-            moduleReaderProxyRecycler = nestedJarHandler.getModuleReaderProxyRecycler(moduleRef, log);
-        } catch (final Exception e) {
-            if (log != null) {
-                log.log("Exception while creating zipfile recycler for " + moduleRef.getName() + " : " + e);
-            }
-            skipClasspathElement = true;
-            return;
-        }
+    ClasspathElementModule(final ModuleRef moduleRef, final ClassLoader[] classLoaders,
+            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
+        super(classLoaders, scanSpec);
+        this.moduleRef = moduleRef;
+        this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.performScan) {
             resourceMatches = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
+        }
+    }
+
+    @Override
+    void checkValid(final WorkQueue<String> workQueue, final LogNode log) {
+        try {
+            moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap
+                    .getOrCreateSingleton(moduleRef, log);
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName() + " : "
+                        + e);
+            }
+            skipClasspathElement = true;
+            return;
         }
     }
 
@@ -379,19 +383,20 @@ class ClasspathElementModule extends ClasspathElement {
 
         } catch (final IOException e) {
             if (subLog != null) {
-                subLog.log("Exception opening module " + classpathEltPath, e);
+                subLog.log("Exception opening module " + moduleRef.getName(), e);
             }
             skipClasspathElement = true;
         }
     }
 
-    /** Close and free all open ZipFiles. */
+    /** Get the ModuleRef for this classpath element. */
+    ModuleRef getModuleRef() {
+        return moduleRef;
+    }
+
+    /** Return the module reference. */
     @Override
-    void closeRecyclers() {
-        if (moduleReaderProxyRecycler != null) {
-            // Close all ModuleReaderProxy instances, which will in turn call ModuleReader#close()
-            // on each open ModuleReader.
-            moduleReaderProxyRecycler.close();
-        }
+    public String toString() {
+        return moduleRef.toString();
     }
 }

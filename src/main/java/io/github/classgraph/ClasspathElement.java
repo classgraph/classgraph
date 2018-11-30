@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -37,21 +38,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.utils.ClasspathOrModulePathEntry;
+import io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import io.github.classgraph.utils.FastPathResolver;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.utils.WorkQueue;
 
 /** A classpath element (a directory or jarfile on the classpath). */
-// TODO: This can probably be merged with ClasspathOrModulePathEntry, since it is mostly a wrapper for that class. 
 abstract class ClasspathElement {
-    /** The path of the classpath element relative to the current directory. */
-    final ClasspathOrModulePathEntry classpathEltPath;
-
     /**
      * If non-null, contains a list of resolved paths for any classpath element roots nested inside this classpath
      * element. (Scanning should stop at a nested classpath element root, otherwise that subtree will be scanned
@@ -71,10 +68,10 @@ abstract class ClasspathElement {
     boolean containsSpecificallyWhitelistedClasspathElementResourcePath;
 
     /**
-     * The child classpath elements. These are the entries obtained from Class-Path entries in the manifest file, if
-     * this classpath element is a jarfile.
+     * The child classpath element paths. These are the entries obtained from Class-Path entries in the manifest
+     * file, if this classpath element is a jarfile.
      */
-    List<ClasspathOrModulePathEntry> childClasspathElts;
+    List<String> childClasspathEltPaths;
 
     /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
     protected List<Resource> resourceMatches;
@@ -91,54 +88,21 @@ abstract class ClasspathElement {
     /** Flag to ensure classpath element is only scanned once. */
     protected AtomicBoolean scanned = new AtomicBoolean(false);
 
+    /** The classloader(s) handling this classpath element. */
+    protected ClassLoader[] classLoaders;
+
     /** The scan spec. */
     final ScanSpec scanSpec;
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** A classpath element (a directory or jarfile on the classpath). */
-    ClasspathElement(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec) {
-        this.classpathEltPath = classpathEltPath;
+    ClasspathElement(final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
+        this.classLoaders = classLoaders;
         this.scanSpec = scanSpec;
     }
 
-    /** Return the classpath element's path. */
-    @Override
-    public String toString() {
-        return classpathEltPath.toString();
-    }
-
-    /** Return the raw path for this classpath element, as found in the classpath. */
-    String getRawPath() {
-        return classpathEltPath.getRawPath();
-    }
-
-    /** Return the resolved path for this classpath element (i.e. the raw path resolved against the current dir). */
-    String getResolvedPath() {
-        return classpathEltPath.getResolvedPath();
-    }
-
-    /**
-     * @return The classpath element's file (directory or jarfile), or null if this is a module. May trigger the
-     *         extraction of nested jars.
-     */
-    File getClasspathElementFile(final LogNode log) {
-        if (classpathEltPath.getModuleRef() != null) {
-            return null;
-        }
-        try {
-            return classpathEltPath.getFile(log);
-        } catch (final IOException e) {
-            // Shouldn't happen; files have already been screened for IOException during canonicalization
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * @param relativePath
-     *            The relative path of the {@link Resource} to return.
-     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
-     *         classpath element.
-     */
-    abstract Resource getResource(final String relativePath);
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
@@ -146,71 +110,45 @@ abstract class ClasspathElement {
      * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the
      * package root (after extracting nested jars).
      */
-    String getJarfilePackageRoot() {
+    String getPackageRoot() {
         // Overridden in ClasspathElementZip
         return "";
     }
 
     /** Get the ClassLoader(s) to use when trying to load the class. */
     ClassLoader[] getClassLoaders() {
-        return classpathEltPath.getClassLoaders();
-    }
-
-    /** Get the ModuleRef for the classpath element, if this is a module, otherwise returns null. */
-    ModuleRef getClasspathElementModuleRef() {
-        return classpathEltPath.getModuleRef();
-    }
-
-    /**
-     * Factory for creating a ClasspathElementDir singleton for directory classpath entries or a ClasspathElementZip
-     * singleton for jarfile classpath entries.
-     */
-    static ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathRelativePath,
-            final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
-            final WorkQueue<ClasspathOrModulePathEntry> workQueue, final LogNode log) {
-        boolean isModule;
-        boolean isDir = false;
-        String resolvedPath;
-        try {
-            resolvedPath = classpathRelativePath.getResolvedPath();
-            isModule = classpathRelativePath.getModuleRef() != null;
-            if (!isModule) {
-                isDir = classpathRelativePath.isDirectory(log);
-            }
-        } catch (final IOException e) {
-            if (log != null) {
-                log.log("Exception while trying to canonicalize path " + classpathRelativePath.getResolvedPath(),
-                        e);
-            }
-            return null;
-        }
-        LogNode subLog = null;
-        if (log != null) {
-            subLog = log.log(resolvedPath,
-                    "Scanning " + (isModule ? "module " : isDir ? "directory " : "jarfile ")
-                            + (isModule
-                                    ? classpathRelativePath.getModuleRef()
-                                            + (classpathRelativePath.getModuleRef().getLocationStr() == null ? ""
-                                                    : " -> " + classpathRelativePath.getModuleRef()
-                                                            .getLocationStr())
-                                    : classpathRelativePath));
-        }
-
-        // Dispatch to appropriate constructor
-        final ClasspathElement newInstance = isModule
-                ? new ClasspathElementModule(classpathRelativePath, scanSpec, nestedJarHandler, subLog)
-                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, subLog)
-                        : new ClasspathElementZip(classpathRelativePath, scanSpec, nestedJarHandler, workQueue,
-                                subLog);
-        if (subLog != null) {
-            subLog.addElapsedTime();
-        }
-        return newInstance;
+        return classLoaders;
     }
 
     /** Get the number of classfile matches. */
     int getNumClassfileMatches() {
         return whitelistedClassfileResources == null ? 0 : whitelistedClassfileResources.size();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Factory for creating a {@link ClasspathElementDir} or {@link ClasspathElementZip} from a raw path string. */
+    static ClasspathElement newClasspathElementDirOrZip(final String rawPath, final ClassLoader[] classLoaders,
+            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) throws IOException {
+        final boolean isRemote = rawPath.startsWith("http://") || rawPath.startsWith("https://");
+        boolean isJar = rawPath.startsWith("jar:") || rawPath.indexOf('!') > 0 || isRemote;
+        File dir = null;
+
+        if (!isJar) {
+            final File file = new File(FastPathResolver.resolve(rawPath));
+            if (!file.exists()) {
+                throw new FileNotFoundException("File/directory not found");
+            }
+            if (file.isFile()) {
+                isJar = true;
+            } else if (file.isDirectory()) {
+                dir = file;
+            } else {
+                throw new IOException("Not a file or directory");
+            }
+        }
+        return dir != null ? new ClasspathElementDir(dir, classLoaders, scanSpec)
+                : new ClasspathElementZip(rawPath, classLoaders, nestedJarHandler, scanSpec);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -284,19 +222,22 @@ abstract class ClasspathElement {
     protected void addWhitelistedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final LogNode log) {
         final String path = resource.getPath();
-        final boolean isClassfile = scanSpec.enableClassInfo && FileUtils.isClassfile(path)
-                && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path);
-
         if (log != null) {
             log.log(path, "Found whitelisted path: " + path);
         }
 
-        // Record whitelisted classfile and non-classfile resources
-        if (isClassfile) {
+        if (scanSpec.enableClassInfo && FileUtils.isClassfile(path)
+                && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path)) {
+            // ClassInfo is enabled, and found a whitelisted classfile
             whitelistedClassfileResources.add(resource);
         }
         resourceMatches.add(resource);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Determine if this classpath element is valid. If it is not valid, sets skipClasspathElement. */
+    abstract void checkValid(final WorkQueue<String> workQueue, final LogNode log);
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for
@@ -305,8 +246,10 @@ abstract class ClasspathElement {
     abstract void scanPaths(final LogNode log);
 
     /**
-     * Closes and empties the classpath element's resource recyclers (this closes and frees any open ZipFiles or
-     * ModuleReaders, and is a no-op for directory classpath elements).
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
      */
-    abstract void closeRecyclers();
+    abstract Resource getResource(final String relativePath);
 }

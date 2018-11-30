@@ -44,41 +44,40 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import io.github.classgraph.utils.ClasspathOrModulePathEntry;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
+import io.github.classgraph.utils.WorkQueue;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
-    private File classpathEltDir;
+    private final File classpathEltDir;
     private int ignorePrefixLen;
 
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final HashSet<String> scannedCanonicalPaths = new HashSet<>();
 
     /** A directory classpath element. */
-    ClasspathElementDir(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final LogNode log) {
-        super(classpathEltPath, scanSpec);
+    ClasspathElementDir(final File classpathEltDir, final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
+        super(classLoaders, scanSpec);
+        this.classpathEltDir = classpathEltDir;
         if (scanSpec.performScan) {
-            try {
-                classpathEltDir = classpathEltPath.getFile(log);
-            } catch (final IOException e) {
-                // Technically can't happen, was already checked by caller
-                if (log != null) {
-                    log.log("Exception while trying to canonicalize path " + classpathEltPath.getResolvedPath(), e);
-                }
-                skipClasspathElement = true;
-                return;
-            }
             ignorePrefixLen = classpathEltDir.getPath().length() + 1;
-
             resourceMatches = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
+        }
+    }
+
+    @Override
+    void checkValid(final WorkQueue<String> workQueue, final LogNode log) {
+        if (!scanSpec.scanDirs) {
+            if (log != null) {
+                log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
+            }
+            skipClasspathElement = true;
         }
     }
 
@@ -189,7 +188,7 @@ class ClasspathElementDir extends ClasspathElement {
                         byteArray = byteBufferToByteArray();
                     } else {
                         open();
-                        byteArray = FileUtils.readAllBytesAsArray(inputStream, length, null);
+                        byteArray = FileUtils.readAllBytesAsArray(inputStream, length);
                     }
                     length = byteArray.length;
                     return byteArray;
@@ -416,13 +415,18 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         final LogNode logNode = log == null ? null
-                : log.log(classpathEltPath.getResolvedPath(),
-                        "Scanning directory classpath element " + classpathEltPath);
+                : log.log(classpathEltDir.getPath(), "Scanning directory classpath element " + classpathEltDir);
         scanDirRecursively(classpathEltDir, logNode);
     }
 
+    /** @return The classpath element directory as a {@link File}. */
+    public File getDirFile() {
+        return classpathEltDir;
+    }
+
+    /** Return the classpath element directory. */
     @Override
-    void closeRecyclers() {
-        // Nothing to do for directories
+    public String toString() {
+        return classpathEltDir.toString();
     }
 }

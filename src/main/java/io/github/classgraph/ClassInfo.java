@@ -447,8 +447,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
-        final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
-        final File file = modRef != null ? null : classpathElement.getClasspathElementFile(log);
+        final ModuleRef modRef = classpathElement instanceof ClasspathElementModule
+                ? ((ClasspathElementModule) classpathElement).getModuleRef()
+                : null;
+        final File file = modRef != null ? null
+                : classpathElement instanceof ClasspathElementDir
+                        ? ((ClasspathElementDir) classpathElement).getDirFile()
+                        : classpathElement instanceof ClasspathElementZip
+                                ? ((ClasspathElementZip) classpathElement).getZipFile()
+                                : null;
         if ((classInfo.moduleRef != null && modRef != null && !classInfo.moduleRef.equals(modRef))
                 || (classInfo.classpathElementFile != null && file != null
                         && !classInfo.classpathElementFile.equals(file))) {
@@ -466,7 +473,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // If class was found in more than one classpath element, keep only the first reference 
         if (classInfo.classpathElementFile == null) {
             classInfo.classpathElementFile = file;
-            classInfo.jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
+            classInfo.jarfilePackageRoot = classpathElement.getPackageRoot();
         }
         if (classInfo.moduleRef == null) {
             classInfo.moduleRef = modRef;

@@ -41,15 +41,15 @@ import io.github.classgraph.ModuleRef;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderAndModuleFinder {
-    private final ClassLoader[] classLoaders;
+    private final ClassLoader[] contextClassLoaders;
     private final List<ModuleRef> systemModuleRefs;
     private final List<ModuleRef> nonSystemModuleRefs;
 
     /**
      * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
      */
-    public ClassLoader[] getClassLoaders() {
-        return classLoaders;
+    public ClassLoader[] getContextClassLoaders() {
+        return contextClassLoaders;
     }
 
     /** @return The system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8). */
@@ -343,7 +343,7 @@ public class ClassLoaderAndModuleFinder {
             }
         }
 
-        this.classLoaders = classLoaderFinalOrder.toArray(new ClassLoader[0]);
+        this.contextClassLoaders = classLoaderFinalOrder.toArray(new ClassLoader[0]);
         this.systemModuleRefs = systemModuleRefs;
         this.nonSystemModuleRefs = nonSystemModuleRefs;
     }

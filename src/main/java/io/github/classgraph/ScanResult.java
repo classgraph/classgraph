@@ -32,6 +32,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -47,13 +48,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import io.github.classgraph.json.JSONDeserializer;
 import io.github.classgraph.json.JSONSerializer;
 import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.ScanSpec;
+import io.github.classgraph.utils.URLPathEncoder;
 
 /** The result of a scan. */
 public final class ScanResult implements Closeable, AutoCloseable {
@@ -180,17 +182,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final List<File> classpathElementOrderFiles = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
-            final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
-            if (modRef != null) {
-                if (!modRef.isSystemModule()) {
-                    // Add module files when they don't have a "jrt:/" scheme
-                    final File moduleLocationFile = modRef.getLocationFile();
-                    if (moduleLocationFile != null) {
-                        classpathElementOrderFiles.add(moduleLocationFile);
-                    }
-                }
-            } else {
-                classpathElementOrderFiles.add(classpathElement.getClasspathElementFile(log));
+            final File file = classpathElement instanceof ClasspathElementModule
+                    ? ((ClasspathElementModule) classpathElement).getModuleRef().getLocationFile()
+                    : classpathElement instanceof ClasspathElementDir
+                            ? ((ClasspathElementDir) classpathElement).getDirFile()
+                            : classpathElement instanceof ClasspathElementZip
+                                    ? ((ClasspathElementZip) classpathElement).getZipFile()
+                                    : null;
+            if (file != null) {
+                classpathElementOrderFiles.add(file);
             }
         }
         return classpathElementOrderFiles;
@@ -221,48 +221,27 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final List<URL> classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
-            final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
-            if (modRef != null) {
-                // Add module URLs whether or not they have a "jrt:/" scheme
-                try {
-                    classpathElementOrderURLs.add(modRef.getLocation().toURL());
-                } catch (final MalformedURLException e) {
-                    // Skip malformed URLs (shouldn't happen)
-                }
-            } else {
-                try {
-                    if (scanSpec.performScan) {
-                        // Return URL of classpath element, possibly employing temporary file as a base
-                        // (for nested jarfiles that have been extracted)
-                        final File classpathElementFile = classpathElement.getClasspathElementFile(log);
-                        final String jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
-                        final boolean isJarURL = classpathElementFile.isFile() && !jarfilePackageRoot.isEmpty();
-                        final String baseURLStr = (isJarURL ? "jar:" : "")
-                                + classpathElementFile.toURI().toURL().toString()
-                                + (isJarURL ? "!/" + jarfilePackageRoot : "");
-                        classpathElementOrderURLs.add(new URL(baseURLStr));
-                    } else {
-                        // If not scanning, nested jarfiles were not extracted, so use the raw classpath
-                        // element paths to form the resulting URL
-                        String rawPath = classpathElement.getResolvedPath();
-                        if (rawPath.startsWith("jrt:/") || rawPath.startsWith("http://")
-                                || rawPath.startsWith("https://")) {
-                            classpathElementOrderURLs.add(new URL(rawPath));
-                        } else {
-                            if (!rawPath.startsWith("file:") && !rawPath.startsWith("jar:")) {
-                                rawPath = "file:" + rawPath;
-                            }
-                            if (rawPath.contains("!") && !rawPath.startsWith("jar:")) {
-                                rawPath = "jar:" + rawPath;
-                            }
-                            // Any URL with the "jar:" prefix must have "/" after any "!"
-                            rawPath = rawPath.replace("!/", "!").replace("!", "!/");
-                            classpathElementOrderURLs.add(new URL(rawPath));
-                        }
+            try {
+                if (classpathElement instanceof ClasspathElementModule) {
+                    // Get the URL for a module, if it has a location
+                    final URI location = ((ClasspathElementModule) classpathElement).getModuleRef().getLocation();
+                    if (location != null) {
+                        classpathElementOrderURLs.add(location.toURL());
                     }
-                } catch (final Exception e) {
-                    // Skip
+
+                } else if (classpathElement instanceof ClasspathElementDir) {
+                    // Get the URL for a classpath directory
+                    classpathElementOrderURLs
+                            .add(((ClasspathElementDir) classpathElement).getDirFile().toURI().toURL());
+
+                } else if (classpathElement instanceof ClasspathElementZip) {
+                    // Get the URL for a jarfile, with "!/" separating any nested jars, or an optional package root
+                    final String nestedZipFileURLStr = ((ClasspathElementZip) classpathElement)
+                            .getNestedZipFileURLStr();
+                    classpathElementOrderURLs.add(new URL(URLPathEncoder.encodePath(nestedZipFileURLStr)));
                 }
+            } catch (final MalformedURLException e) {
+                // Skip malformed URLs
             }
         }
         return classpathElementOrderURLs;
@@ -277,9 +256,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final List<ModuleRef> moduleRefs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
-            final ModuleRef moduleRef = classpathElement.getClasspathElementModuleRef();
-            if (moduleRef != null) {
-                moduleRefs.add(moduleRef);
+            if (classpathElement instanceof ClasspathElementModule) {
+                moduleRefs.add(((ClasspathElementModule) classpathElement).getModuleRef());
             }
         }
         return moduleRefs;
@@ -959,7 +937,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
         // Define a custom URLClassLoader with the result that delegates to the first environment classloader
         final ClassLoader[] envClassLoaderOrder = new ClassLoaderAndModuleFinder(deserialized.scanSpec,
-                /* log = */ null).getClassLoaders();
+                /* log = */ null).getContextClassLoaders();
         final ClassLoader parentClassLoader = envClassLoaderOrder == null || envClassLoaderOrder.length == 0 ? null
                 : envClassLoaderOrder[0];
         final URLClassLoader urlClassLoader = new URLClassLoader(urls.toArray(new URL[0]), parentClassLoader);
@@ -1065,11 +1043,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
             if (nestedJarHandler != null) {
                 nestedJarHandler.close(log);
-            }
-            if (classpathOrder != null) {
-                for (final ClasspathElement classpathElement : classpathOrder) {
-                    classpathElement.closeRecyclers();
-                }
             }
             classGraphClassLoader = null;
             nonClosedWeakReferences.remove(weakReference);

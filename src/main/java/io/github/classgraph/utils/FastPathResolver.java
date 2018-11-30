@@ -110,23 +110,20 @@ public class FastPathResolver {
      * 
      * @param path
      *            The path to normalize.
-     * @param isHttpURL
-     *            True if this is a URL.
+     * @param isFileOrJarURL
+     *            True if this is a "file:" or "jar:" URL.
      * @return The normalized path.
      */
-    public static String normalizePath(final String path, final boolean isHttpURL) {
+    public static String normalizePath(final String path, final boolean isFileOrJarURL) {
         final boolean hasPercent = path.indexOf('%') >= 0;
         if (!hasPercent && path.indexOf('\\') < 0 && !path.endsWith("/")) {
             return path;
         } else {
             final int len = path.length();
             final StringBuilder buf = new StringBuilder();
-            if (!hasPercent || isHttpURL) {
-                // Fast path -- no '%' or is http(s):// or jrt:/ URL, don't do regexp matching
-                translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
-                return buf.toString();
-            } else {
-                // Translate '%'-encoding
+            // Only "file:" and "jar:" URLs are %-decoded (issue 255)
+            if (hasPercent && isFileOrJarURL) {
+                // Perform '%'-decoding of path segment
                 int prevEndMatchIdx = 0;
                 final Matcher matcher = percentMatcher.matcher(path);
                 while (matcher.find()) {
@@ -138,6 +135,10 @@ public class FastPathResolver {
                     prevEndMatchIdx = endMatchIdx;
                 }
                 translateSeparator(path, prevEndMatchIdx, len, /* stripFinalSeparator = */ true, buf);
+            } else {
+                // Fast path -- no '%', or "http(s)://" or "jrt:/" URL, or non-"file:" or non-"jar:" URL
+                translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
+                return buf.toString();
             }
             return buf.toString();
         }
@@ -158,17 +159,18 @@ public class FastPathResolver {
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
         if (relativePathStr == null || relativePathStr.isEmpty()) {
-            return resolveBasePath;
+            return resolveBasePath == null ? "" : resolveBasePath;
         }
 
         String prefix = "";
         boolean isAbsolutePath = false;
-        boolean isHttpOrJRTURL = false;
+        boolean isFileOrJarURL = false;
 
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
         int startIdx = 0;
         if (relativePathStr.regionMatches(true, startIdx, "jar:", 0, 4)) {
             startIdx += 4;
+            isFileOrJarURL = true;
         }
         if (relativePathStr.regionMatches(true, startIdx, "http://", 0, 7)) {
             // Detect http://
@@ -179,19 +181,16 @@ public class FastPathResolver {
             // relative to the current directory.
             isAbsolutePath = true;
             // Don't un-escape percent encoding etc.
-            isHttpOrJRTURL = true;
         } else if (relativePathStr.regionMatches(true, startIdx, "https://", 0, 8)) {
             // Detect https://
             startIdx += 8;
             prefix = "https://";
             isAbsolutePath = true;
-            isHttpOrJRTURL = true;
         } else if (relativePathStr.regionMatches(true, startIdx, "jrt:/", 0, 5)) {
             // Detect jrt:/
             startIdx += 5;
             prefix = "jrt:/";
             isAbsolutePath = true;
-            isHttpOrJRTURL = true;
         } else if (relativePathStr.regionMatches(true, startIdx, "file:", 0, 5)) {
             // Strip off any "file:" prefix from relative path
             startIdx += 5;
@@ -211,6 +210,7 @@ public class FastPathResolver {
             if (relativePathStr.startsWith("//", startIdx)) {
                 startIdx += 2;
             }
+            isFileOrJarURL = true;
         } else if (WINDOWS && (relativePathStr.startsWith("//") || relativePathStr.startsWith("\\\\"))) {
             // Windows UNC path
             startIdx += 2;
@@ -238,7 +238,7 @@ public class FastPathResolver {
 
         // Normalize the path, then add any UNC prefix
         String pathStr = normalizePath(startIdx == 0 ? relativePathStr : relativePathStr.substring(startIdx),
-                isHttpOrJRTURL);
+                isFileOrJarURL);
         if (!prefix.isEmpty()) {
             pathStr = prefix + pathStr;
         }

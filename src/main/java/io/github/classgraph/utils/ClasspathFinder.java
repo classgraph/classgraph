@@ -33,16 +33,18 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import io.github.classgraph.fastzipfilereader.NestedJarHandler;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
-    private final List<ClasspathOrModulePathEntry> rawClasspathElements;
+    private final ClasspathOrder classpathOrder;
     private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -177,21 +179,23 @@ public class ClasspathFinder {
      * 
      * @param scanSpec
      *            The {@link ScanSpec}.
+     * @param classpathEltPathToClassLoaders
+     *            A map from classpath element path to classloader(s).
      * @param nestedJarHandler
      *            The {@link NestedJarHandler}.
      * @param log
      *            The log.
      */
-    public ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
+    public ClasspathFinder(final ScanSpec scanSpec, final Map<String, ClassLoader[]> classpathEltPathToClassLoaders,
+            final NestedJarHandler nestedJarHandler, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders and modules");
 
-        // Get environment ClassLoader order
         classLoaderAndModuleFinder = new ClassLoaderAndModuleFinder(scanSpec, classpathFinderLog);
 
-        final ClasspathOrder classpathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
-        final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
+        classpathOrder = new ClasspathOrder(classpathEltPathToClassLoaders, scanSpec);
+        final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(classpathEltPathToClassLoaders, scanSpec);
 
-        final ClassLoader[] classLoaders = classLoaderAndModuleFinder.getClassLoaders();
+        final ClassLoader[] classLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             if (scanSpec.overrideClassLoaders != null) {
@@ -285,9 +289,9 @@ public class ClasspathFinder {
                     final LogNode sysPropLog = classpathFinderLog == null ? null
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
-                        if (!ignoredClasspathOrder.get()
-                                .contains(new ClasspathOrModulePathEntry(FileUtils.CURR_DIR_PATH, pathElement,
-                                        classLoaders, nestedJarHandler, scanSpec, log))) {
+                        final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                                pathElement);
+                        if (!ignoredClasspathOrder.getOrder().contains(pathElementResolved)) {
                             // pathElement is not also listed in an ignored parent classloader
                             classpathOrder.addClasspathElement(pathElement, classLoaders, scanSpec, sysPropLog);
                         } else {
@@ -302,14 +306,11 @@ public class ClasspathFinder {
                 }
             }
         }
-        rawClasspathElements = new ArrayList<>(classpathOrder.get());
     }
 
-    /**
-     * @return The raw classpath elements obtained from ClassLoaders.
-     */
-    public List<ClasspathOrModulePathEntry> getRawClasspathElements() {
-        return rawClasspathElements;
+    /** @return The order of raw classpath elements obtained from ClassLoaders. */
+    public ClasspathOrder getClasspathOrder() {
+        return classpathOrder;
     }
 
     /**

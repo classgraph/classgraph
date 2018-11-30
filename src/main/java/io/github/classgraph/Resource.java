@@ -61,7 +61,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     protected byte[] inputStreamToByteArray() throws IOException {
-        return FileUtils.readAllBytesAsArray(inputStream, length, null);
+        return FileUtils.readAllBytesAsArray(inputStream, length);
     }
 
     protected byte[] byteBufferToByteArray() {

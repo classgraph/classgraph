@@ -128,15 +128,13 @@ public class FileUtils {
      *            The {@link InputStream}.
      * @param fileSizeHint
      *            The file size, if known, otherwise -1L.
-     * @param log
-     *            The log.
      * @return The contents of the {@link InputStream} as an Entry consisting of the byte array and number of bytes
      *         used in the array.
      * @throws IOException
      *             If the contents could not be read.
      */
-    private static SimpleEntry<byte[], Integer> readAllBytes(final InputStream inputStream, final long fileSizeHint,
-            final LogNode log) throws IOException {
+    private static SimpleEntry<byte[], Integer> readAllBytes(final InputStream inputStream, final long fileSizeHint)
+            throws IOException {
         if (fileSizeHint > MAX_BUFFER_SIZE) {
             throw new IOException("InputStream is too large to read");
         }
@@ -182,15 +180,13 @@ public class FileUtils {
      *            The {@link InputStream}.
      * @param fileSize
      *            The file size, if known, otherwise -1L.
-     * @param log
-     *            The log.
      * @return The contents of the {@link InputStream} as a byte array.
      * @throws IOException
      *             If the contents could not be read.
      */
-    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSize, final LogNode log)
+    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSize)
             throws IOException {
-        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize, log);
+        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize);
         final byte[] buf = ent.getKey();
         final int bufBytesUsed = ent.getValue();
         return (buf.length == bufBytesUsed) ? buf : Arrays.copyOf(buf, bufBytesUsed);
@@ -203,15 +199,13 @@ public class FileUtils {
      *            The {@link InputStream}.
      * @param fileSize
      *            The file size, if known, otherwise -1L.
-     * @param log
-     *            The log.
      * @return The contents of the {@link InputStream} as a String.
      * @throws IOException
      *             If the contents could not be read.
      */
-    public static String readAllBytesAsString(final InputStream inputStream, final long fileSize, final LogNode log)
+    public static String readAllBytesAsString(final InputStream inputStream, final long fileSize)
             throws IOException {
-        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize, log);
+        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize);
         final byte[] buf = ent.getKey();
         final int bufBytesUsed = ent.getValue();
         return new String(buf, 0, bufBytesUsed, StandardCharsets.UTF_8);

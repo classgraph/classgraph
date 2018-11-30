@@ -25,6 +25,7 @@ public class MultiReleaseJar {
         try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
                 .enableAllInfo().scan()) {
             if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                // Multi-release jar sections are ignored by ClassGraph if JDK<9 
                 System.out.println("Skipping test, as JDK version is less than 9");
             } else {
                 try {
