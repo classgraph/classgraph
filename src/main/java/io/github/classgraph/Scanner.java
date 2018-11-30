@@ -47,13 +47,13 @@ import java.util.concurrent.ExecutorService;
 
 import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
+import io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
 import io.github.classgraph.utils.ClasspathFinder;
 import io.github.classgraph.utils.ClasspathOrModulePathEntry;
 import io.github.classgraph.utils.InterruptionChecker;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.NestedJarHandler;
 import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.SingletonMap;
 import io.github.classgraph.utils.WorkQueue;
@@ -290,6 +290,69 @@ class Scanner implements Callable<ScanResult> {
             return additionalWorkUnits;
         }
 
+        /** Check if scanning needs to be extended upwards to an external superclass, interface or annotation. */
+        private List<ClassfileScanWorkUnit> extendScanningUpwards(final ClasspathElement classpathElement,
+                final ClassInfoUnlinked classInfoUnlinked, final LogNode subLog) {
+            // Check superclass
+            List<ClassfileScanWorkUnit> additionalWorkUnits = null;
+            additionalWorkUnits = extendScanningUpwards(classInfoUnlinked.superclassName, "superclass",
+                    classpathElement, additionalWorkUnits, subLog);
+
+            // Check implemented interfaces
+            if (classInfoUnlinked.implementedInterfaces != null) {
+                for (final String className : classInfoUnlinked.implementedInterfaces) {
+                    additionalWorkUnits = extendScanningUpwards(className, "interface", classpathElement,
+                            additionalWorkUnits, subLog);
+                }
+            }
+
+            // Check class annotations
+            if (classInfoUnlinked.classAnnotations != null) {
+                for (final AnnotationInfo annotationInfo : classInfoUnlinked.classAnnotations) {
+                    additionalWorkUnits = extendScanningUpwards(annotationInfo.getName(), "class annotation",
+                            classpathElement, additionalWorkUnits, subLog);
+                }
+            }
+
+            // Check method annotations and method parameter annotations
+            if (classInfoUnlinked.methodInfoList != null) {
+                for (final MethodInfo methodInfo : classInfoUnlinked.methodInfoList) {
+                    if (methodInfo.annotationInfo != null) {
+                        for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
+                            additionalWorkUnits = extendScanningUpwards(methodAnnotationInfo.getName(),
+                                    "method annotation", classpathElement, additionalWorkUnits, subLog);
+                        }
+                        if (methodInfo.parameterAnnotationInfo != null
+                                && methodInfo.parameterAnnotationInfo.length > 0) {
+                            for (final AnnotationInfo[] paramAnns : methodInfo.parameterAnnotationInfo) {
+                                if (paramAnns != null && paramAnns.length > 0) {
+                                    for (final AnnotationInfo paramAnn : paramAnns) {
+                                        additionalWorkUnits = extendScanningUpwards(paramAnn.getName(),
+                                                "method parameter annotation", classpathElement,
+                                                additionalWorkUnits, subLog);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check field annotations
+            if (classInfoUnlinked.fieldInfoList != null) {
+                for (final FieldInfo fieldInfo : classInfoUnlinked.fieldInfoList) {
+                    if (fieldInfo.annotationInfo != null) {
+                        for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
+                            additionalWorkUnits = extendScanningUpwards(fieldAnnotationInfo.getName(),
+                                    "field annotation", classpathElement, additionalWorkUnits, subLog);
+                        }
+                    }
+                }
+            }
+
+            return additionalWorkUnits;
+        }
+
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
                 final WorkQueue<ClassfileScanWorkUnit> workQueue) throws Exception {
@@ -310,69 +373,13 @@ class Scanner implements Callable<ScanResult> {
 
                     // Check if any superclasses, interfaces or annotations are external (non-whitelisted) classes
                     if (scanSpec.extendScanningUpwardsToExternalClasses) {
-                        // Check superclass
-                        List<ClassfileScanWorkUnit> additionalWorkUnits = null;
-                        additionalWorkUnits = extendScanningUpwards(classInfoUnlinked.superclassName, "superclass",
-                                workUnit.classpathElement, additionalWorkUnits, subLog);
-
-                        // Check implemented interfaces
-                        if (classInfoUnlinked.implementedInterfaces != null) {
-                            for (final String className : classInfoUnlinked.implementedInterfaces) {
-                                additionalWorkUnits = extendScanningUpwards(className, "interface",
-                                        workUnit.classpathElement, additionalWorkUnits, subLog);
-                            }
-                        }
-
-                        // Check class annotations
-                        if (classInfoUnlinked.classAnnotations != null) {
-                            for (final AnnotationInfo annotationInfo : classInfoUnlinked.classAnnotations) {
-                                additionalWorkUnits = extendScanningUpwards(annotationInfo.getName(),
-                                        "class annotation", workUnit.classpathElement, additionalWorkUnits, subLog);
-                            }
-                        }
-
-                        // Check method annotations and method parameter annotations
-                        if (classInfoUnlinked.methodInfoList != null) {
-                            for (final MethodInfo methodInfo : classInfoUnlinked.methodInfoList) {
-                                if (methodInfo.annotationInfo != null) {
-                                    for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
-                                        additionalWorkUnits = extendScanningUpwards(methodAnnotationInfo.getName(),
-                                                "method annotation", workUnit.classpathElement, additionalWorkUnits,
-                                                subLog);
-                                    }
-                                    if (methodInfo.parameterAnnotationInfo != null
-                                            && methodInfo.parameterAnnotationInfo.length > 0) {
-                                        for (final AnnotationInfo[] paramAnns : methodInfo.parameterAnnotationInfo) {
-                                            if (paramAnns != null && paramAnns.length > 0) {
-                                                for (final AnnotationInfo paramAnn : paramAnns) {
-                                                    additionalWorkUnits = extendScanningUpwards(paramAnn.getName(),
-                                                            "method parameter annotation",
-                                                            workUnit.classpathElement, additionalWorkUnits, subLog);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Check field annotations
-                        if (classInfoUnlinked.fieldInfoList != null) {
-                            for (final FieldInfo fieldInfo : classInfoUnlinked.fieldInfoList) {
-                                if (fieldInfo.annotationInfo != null) {
-                                    for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
-                                        additionalWorkUnits = extendScanningUpwards(fieldAnnotationInfo.getName(),
-                                                "field annotation", workUnit.classpathElement, additionalWorkUnits,
-                                                subLog);
-                                    }
-                                }
-                            }
-                        }
-
+                        final List<ClassfileScanWorkUnit> additionalWorkUnits = extendScanningUpwards(
+                                workUnit.classpathElement, classInfoUnlinked, subLog);
                         // If any external classes were found, schedule them for scanning
                         if (additionalWorkUnits != null) {
                             workQueue.addWorkUnits(additionalWorkUnits);
                         }
+
                     }
                 }
                 if (subLog != null) {
@@ -394,7 +401,6 @@ class Scanner implements Callable<ScanResult> {
             }
             interruptionChecker.check();
         }
-
     }
 
     // -------------------------------------------------------------------------------------------------------------
