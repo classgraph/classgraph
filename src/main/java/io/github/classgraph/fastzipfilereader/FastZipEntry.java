@@ -152,14 +152,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the path to this zip entry, using "!/" as a separator between the parent logical zipfile and the entry
-     * name.
-     */
-    public String getPath() {
-        return parentLogicalZipFile.getPath() + "!/" + entryName;
-    }
-
-    /**
      * Lazily find zip entry data start offset -- this is deferred until zip entry data needs to be read, in order
      * to avoid randomly seeking within zipfile for every entry as the central directory is read.
      */
@@ -427,6 +419,19 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the path to this zip entry, using "!/" as a separator between the parent logical zipfile and the entry
+     * name.
+     */
+    public String getPath() {
+        return parentLogicalZipFile.getPath() + "!/" + entryName;
+    }
+
+    @Override
+    public String toString() {
+        return getPath();
+    }
+
+    /**
      * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
      * path.
      */
@@ -448,5 +453,22 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         // so that the earliest entry overrides later entries (this is an arbitrary decision for consistency)
         final long diff3 = locHeaderPos - o.locHeaderPos;
         return diff3 < 0L ? -1 : diff3 > 0L ? 1 : 0;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof FastZipEntry)) {
+            return false;
+        }
+        final FastZipEntry other = (FastZipEntry) obj;
+        return this.parentLogicalZipFile.equals(other.parentLogicalZipFile) && this.compareTo(other) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return parentLogicalZipFile.hashCode() ^ version ^ entryName.hashCode() ^ (int) locHeaderPos;
     }
 }

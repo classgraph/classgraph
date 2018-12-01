@@ -280,19 +280,19 @@ public class LogicalZipFile extends ZipFileSlice {
             }
         }
         if (eocdPos < 0) {
-            throw new IOException("Jarfile central directory signature not found: " + physicalZipFile.file);
+            throw new IOException("Jarfile central directory signature not found: " + getPath());
         }
         long numEnt = zipFileSliceReader.getShort(eocdPos + 8);
         if (zipFileSliceReader.getShort(eocdPos + 4) > 0 || zipFileSliceReader.getShort(eocdPos + 6) > 0
                 || numEnt != zipFileSliceReader.getShort(eocdPos + 10)) {
-            throw new IOException("Multi-disk jarfiles not supported: " + physicalZipFile.file);
+            throw new IOException("Multi-disk jarfiles not supported: " + getPath());
         }
         long cenOff = zipFileSliceReader.getInt(eocdPos + 16);
         long cenSize = zipFileSliceReader.getInt(eocdPos + 12);
         final long cenPos = eocdPos - cenSize;
         if (cenSize > eocdPos) {
-            throw new IOException("Central directory size out of range: " + cenSize + " vs. " + eocdPos + ": "
-                    + physicalZipFile.file);
+            throw new IOException(
+                    "Central directory size out of range: " + cenSize + " vs. " + eocdPos + ": " + getPath());
         }
 
         // Check for Zip64 End Of Central Directory Locator record
@@ -301,17 +301,17 @@ public class LogicalZipFile extends ZipFileSlice {
         if (zip64cdLocIdx >= 0 && zipFileSliceReader.getInt(zip64cdLocIdx) == 0x07064b50) {
             if (zipFileSliceReader.getInt(zip64cdLocIdx + 4) > 0
                     || zipFileSliceReader.getInt(zip64cdLocIdx + 16) > 1) {
-                throw new IOException("Multi-disk jarfiles not supported: " + physicalZipFile.file);
+                throw new IOException("Multi-disk jarfiles not supported: " + getPath());
             }
             final long eocdPos64 = zipFileSliceReader.getLong(zip64cdLocIdx + 8);
             if (zipFileSliceReader.getInt(eocdPos64) != 0x06064b50) {
                 throw new IOException("Zip64 central directory at location " + eocdPos64
-                        + " does not have Zip64 central directory header: " + physicalZipFile.file);
+                        + " does not have Zip64 central directory header: " + getPath());
             }
             final long numEnt64 = zipFileSliceReader.getLong(eocdPos64 + 24);
             if (zipFileSliceReader.getInt(eocdPos64 + 16) > 0 || zipFileSliceReader.getInt(eocdPos64 + 20) > 0
                     || numEnt64 != zipFileSliceReader.getLong(eocdPos64 + 32)) {
-                throw new IOException("Multi-disk jarfiles not supported: " + physicalZipFile.file);
+                throw new IOException("Multi-disk jarfiles not supported: " + getPath());
             }
             if (numEnt != numEnt64 && numEnt != 0xffff) {
                 // Entry size mismatch -- trigger manual counting of entries
@@ -322,15 +322,15 @@ public class LogicalZipFile extends ZipFileSlice {
 
             final long cenSize64 = zipFileSliceReader.getLong(eocdPos64 + 40);
             if (cenSize != cenSize64 && cenSize != 0xffffffff) {
-                throw new IOException("Mismatch in central directory size: " + cenSize + " vs. " + cenSize64 + ": "
-                        + physicalZipFile.file);
+                throw new IOException(
+                        "Mismatch in central directory size: " + cenSize + " vs. " + cenSize64 + ": " + getPath());
             }
             cenSize = cenSize64;
 
             final long cenOff64 = zipFileSliceReader.getLong(eocdPos64 + 48);
             if (cenOff != cenOff64 && cenOff != 0xffffffff) {
-                throw new IOException("Mismatch in central directory offset: " + cenOff + " vs. " + cenOff64 + ": "
-                        + physicalZipFile.file);
+                throw new IOException(
+                        "Mismatch in central directory offset: " + cenOff + " vs. " + cenOff64 + ": " + getPath());
             }
             cenOff = cenOff64;
 
@@ -344,7 +344,7 @@ public class LogicalZipFile extends ZipFileSlice {
         // Get offset of first local file header
         final long locPos = cenPos - cenOff;
         if (locPos < 0) {
-            throw new IOException("Local file header offset out of range: " + locPos + ": " + physicalZipFile.file);
+            throw new IOException("Local file header offset out of range: " + locPos + ": " + getPath());
         }
 
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory
@@ -362,7 +362,7 @@ public class LogicalZipFile extends ZipFileSlice {
                         : zipFileSliceReader.getInt(cenPos + entOff);
                 if (sig != 0x02014b50) {
                     throw new IOException("Invalid central directory signature: 0x" + Integer.toString(sig, 16)
-                            + ": " + physicalZipFile.file);
+                            + ": " + getPath());
                 }
                 final int filenameLen = entryBytes != null ? getShort(entryBytes, entOff + 28)
                         : zipFileSliceReader.getShort(cenPos + entOff + 28);
@@ -395,8 +395,8 @@ public class LogicalZipFile extends ZipFileSlice {
             final int sig = entryBytes != null ? getInt(entryBytes, entOff)
                     : zipFileSliceReader.getInt(cenPos + entOff);
             if (sig != 0x02014b50) {
-                throw new IOException("Invalid central directory signature: 0x" + Integer.toString(sig, 16) + ": "
-                        + physicalZipFile.file);
+                throw new IOException(
+                        "Invalid central directory signature: 0x" + Integer.toString(sig, 16) + ": " + getPath());
             }
             final int filenameLen = entryBytes != null ? getShort(entryBytes, entOff + 28)
                     : zipFileSliceReader.getShort(cenPos + entOff + 28);

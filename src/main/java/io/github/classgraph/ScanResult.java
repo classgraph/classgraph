@@ -55,7 +55,6 @@ import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ScanSpec;
-import io.github.classgraph.utils.URLPathEncoder;
 
 /** The result of a scan. */
 public final class ScanResult implements Closeable, AutoCloseable {
@@ -235,10 +234,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
                             .add(((ClasspathElementDir) classpathElement).getDirFile().toURI().toURL());
 
                 } else if (classpathElement instanceof ClasspathElementZip) {
-                    // Get the URL for a jarfile, with "!/" separating any nested jars, or an optional package root
-                    final String nestedZipFileURLStr = ((ClasspathElementZip) classpathElement)
-                            .getNestedZipFileURLStr();
-                    classpathElementOrderURLs.add(new URL(URLPathEncoder.encodePath(nestedZipFileURLStr)));
+                    // Get the URL for a jarfile, with "!/" separating any nested jars, and optional package root
+                    classpathElementOrderURLs.add(((ClasspathElementZip) classpathElement).getZipFileURL());
                 }
             } catch (final MalformedURLException e) {
                 // Skip malformed URLs

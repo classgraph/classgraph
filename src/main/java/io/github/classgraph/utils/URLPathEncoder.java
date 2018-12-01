@@ -28,6 +28,8 @@
  */
 package io.github.classgraph.utils;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /** A simple URL path encoder. */
@@ -56,7 +58,7 @@ public class URLPathEncoder {
     private static final char[] HEXADECIMAL = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
             'd', 'e', 'f' };
 
-    private static final String[] SCHEME_PREFIXES = { "file:", "jar:file:", "jar:", "http:", "https:" };
+    private static final String[] SCHEME_PREFIXES = { "jrt:", "file:", "jar:file:", "jar:", "http:", "https:" };
 
     /**
      * Encode a URL path using percent-encoding. '/' is not encoded.
@@ -65,7 +67,7 @@ public class URLPathEncoder {
      *            The path to encode.
      * @return The encoded path.
      */
-    public static String encodePath(final String path) {
+    private static String encodePath(final String path) {
         // Accept ':' if it is part of a scheme prefix
         int validColonPrefixLen = 0;
         for (final String scheme : SCHEME_PREFIXES) {
@@ -88,5 +90,28 @@ public class URLPathEncoder {
             }
         }
         return encodedPath.toString();
+    }
+
+    /** Convert a URL path to a URL. */
+    public static URL urlPathToURL(final String urlPath) throws MalformedURLException {
+        String urlPathNormalized = urlPath;
+        if (!urlPathNormalized.startsWith("jrt:/") && !urlPathNormalized.startsWith("http://")
+                && !urlPathNormalized.startsWith("https://")) {
+            // Any URL with the "jar:" prefix must have "/" after any "!"
+            urlPathNormalized = urlPathNormalized.replace("!/", "!").replace("!", "!/");
+            // Prepend "jar:file:"
+            if (!urlPathNormalized.startsWith("file:") && !urlPathNormalized.startsWith("jar:")) {
+                urlPathNormalized = "file:" + urlPathNormalized;
+            }
+            if (urlPathNormalized.contains("!") && !urlPathNormalized.startsWith("jar:")) {
+                urlPathNormalized = "jar:" + urlPathNormalized;
+            }
+        }
+        urlPathNormalized = encodePath(urlPathNormalized);
+        try {
+            return new URL(urlPathNormalized);
+        } catch (final MalformedURLException e) {
+            throw new MalformedURLException("Cannot parse URL " + urlPathNormalized + ": " + e);
+        }
     }
 }

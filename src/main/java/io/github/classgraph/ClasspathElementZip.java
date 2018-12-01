@@ -205,13 +205,15 @@ class ClasspathElementZip extends ClasspathElement {
     private Resource newResource(final FastZipEntry zipEntry, final String packageRootPrefix,
             final String pathRelativeToPackageRoot) {
         return new Resource() {
-            private String pathRelativeToClasspathElt = null;
-
             {
                 // ZipEntry size may be unknown (-1L), or even completely wrong
                 length = zipEntry.uncompressedSize;
             }
 
+            /**
+             * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
+             * "WEB-INF/classes/") removed.
+             */
             @Override
             public String getPath() {
                 return pathRelativeToPackageRoot;
@@ -219,30 +221,21 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public String getPathRelativeToClasspathElement() {
-                return pathRelativeToClasspathElt == null
-                        ? pathRelativeToClasspathElt = packageRootPrefix + pathRelativeToPackageRoot
-                        : pathRelativeToClasspathElt;
+                return zipEntry.entryName;
             }
 
             @Override
             public URL getURL() {
                 try {
-                    return new URL(URLPathEncoder.encodePath(getNestedZipFileURLStr()
-                            + (packageRootPrefix.isEmpty() ? "!/" : "/") + getPathRelativeToClasspathElement()));
+                    return URLPathEncoder.urlPathToURL(zipFilePath + "!/" + zipEntry.entryName);
                 } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException("Could not form URL for jarfile: " + getZipFilePath() + "/"
-                            + pathRelativeToClasspathElt);
+                    throw new IllegalArgumentException("Could not form URL for resource: " + e);
                 }
             }
 
             @Override
             public URL getClasspathElementURL() {
-                try {
-                    return new URL(URLPathEncoder.encodePath(getNestedZipFileURLStr()));
-                } catch (final MalformedURLException e) {
-                    // Shouldn't happen
-                    throw new IllegalArgumentException(e);
-                }
+                return getZipFileURL();
             }
 
             @Override
@@ -478,28 +471,23 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
-    /** @return the URL of the zipfile, including any package root. */
+    /** @return the path of the zipfile, including any package root. */
     public String getZipFilePath() {
         return packageRootPrefix.isEmpty() ? zipFilePath
                 : zipFilePath + "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
     }
 
-    /** @return the URL for a jarfile, with "!/" separating any nested jars, or an optional package root. */
-    public String getNestedZipFileURLStr() {
-        String nestedZipFileURLStr = getZipFilePath();
-        if (!nestedZipFileURLStr.startsWith("jrt:/") && !nestedZipFileURLStr.startsWith("http://")
-                && !nestedZipFileURLStr.startsWith("https://")) {
-            // Any URL with the "jar:" prefix must have "/" after any "!"
-            nestedZipFileURLStr = nestedZipFileURLStr.replace("!/", "!").replace("!", "!/");
-            // Prepend "jar:file:"
-            if (!nestedZipFileURLStr.startsWith("file:") && !nestedZipFileURLStr.startsWith("jar:")) {
-                nestedZipFileURLStr = "file:" + nestedZipFileURLStr;
-            }
-            if (nestedZipFileURLStr.contains("!") && !nestedZipFileURLStr.startsWith("jar:")) {
-                nestedZipFileURLStr = "jar:" + nestedZipFileURLStr;
-            }
+    /**
+     * @return the URL for a jarfile, with "!/" separating any nested jars, optionally followed by "!/" and then a
+     *         package root.
+     */
+    public URL getZipFileURL() {
+        try {
+            return URLPathEncoder.urlPathToURL(getZipFilePath());
+        } catch (final MalformedURLException e) {
+            // Shouldn't happen
+            throw new IllegalArgumentException("Could not form URL for classpath element: " + e);
         }
-        return nestedZipFileURLStr;
     }
 
     /** Return the classpath element's path. */

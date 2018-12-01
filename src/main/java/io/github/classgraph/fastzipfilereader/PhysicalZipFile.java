@@ -38,25 +38,30 @@ import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.utils.FastPathResolver;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.SingletonMap;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
 public class PhysicalZipFile implements Closeable {
-    final File file;
+    private final File file;
+    private final String path;
     private RandomAccessFile raf;
     final long fileLen;
     private FileChannel fc;
     final int numMappedByteBuffers;
-    private MappedByteBuffer[] mappedByteBuffersCached;
-    private SingletonMap<Integer, MappedByteBuffer> chunkIdxToByteBuffer;
-    final NestedJarHandler nestedJarHandler;
+    private ByteBuffer[] mappedByteBuffersCached;
+    private SingletonMap<Integer, ByteBuffer> chunkIdxToByteBuffer;
+    NestedJarHandler nestedJarHandler;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
+    /** Construct a {@link PhysicalZipFile} from a file on disk. */
     PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler) throws IOException {
         this.file = file;
         this.nestedJarHandler = nestedJarHandler;
+
+        path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
 
         if (!file.exists()) {
             throw new IOException("File does not exist: " + file);
@@ -79,15 +84,34 @@ public class PhysicalZipFile implements Closeable {
         // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
         numMappedByteBuffers = (int) ((fileLen + 0xffffffffL) >> 32);
         mappedByteBuffersCached = new MappedByteBuffer[numMappedByteBuffers];
-        chunkIdxToByteBuffer = new SingletonMap<Integer, MappedByteBuffer>() {
+        chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer>() {
             @Override
-            public MappedByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws Exception {
+            public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws Exception {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer
                 final long pos = chunkIdxI.longValue() << 32;
                 final long chunkSize = Math.min(Integer.MAX_VALUE, fileLen - pos);
                 return fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
             }
         };
+    }
+
+    /** Construct a {@link PhysicalZipFile} from a ByteBuffer in memory. */
+    PhysicalZipFile(final ByteBuffer byteBuffer, final File outermostFile, final String path,
+            final NestedJarHandler nestedJarHandler) throws IOException {
+        this.file = outermostFile;
+        this.path = path;
+        this.nestedJarHandler = nestedJarHandler;
+
+        fileLen = byteBuffer.remaining();
+        if (fileLen == 0L) {
+            throw new IOException("Zipfile is empty: " + path);
+        }
+
+        // Implement an array of MappedByteBuffers to support jarfiles >2GB in size:
+        // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
+        numMappedByteBuffers = 1;
+        mappedByteBuffersCached = new ByteBuffer[numMappedByteBuffers];
+        mappedByteBuffersCached[0] = byteBuffer;
     }
 
     /**
@@ -123,9 +147,17 @@ public class PhysicalZipFile implements Closeable {
         return mappedByteBuffersCached[chunkIdx];
     }
 
-    /** The {@link File} for this zipfile. */
+    /** Get the {@link File} for the outermost jar file of this {@link PhysicalZipFile}. */
     public File getFile() {
         return file;
+    }
+
+    /**
+     * Get the path for this {@link PhysicalZipFile}, which is the file path, if it is file-backed, or a compound
+     * nested jar path, if it is memory-backed.
+     */
+    public String getPath() {
+        return path;
     }
 
     @Override
@@ -135,6 +167,9 @@ public class PhysicalZipFile implements Closeable {
 
     @Override
     public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof PhysicalZipFile)) {
             return false;
         }
@@ -146,8 +181,10 @@ public class PhysicalZipFile implements Closeable {
         if (!closed.getAndSet(true)) {
             Arrays.fill(mappedByteBuffersCached, null);
             mappedByteBuffersCached = null;
-            chunkIdxToByteBuffer.clear();
-            chunkIdxToByteBuffer = null;
+            if (chunkIdxToByteBuffer != null) {
+                chunkIdxToByteBuffer.clear();
+                chunkIdxToByteBuffer = null;
+            }
             if (fc != null) {
                 try {
                     fc.close();
@@ -164,6 +201,7 @@ public class PhysicalZipFile implements Closeable {
                     // Ignore
                 }
             }
+            nestedJarHandler = null;
         }
     }
 }

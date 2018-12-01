@@ -30,7 +30,6 @@ package io.github.classgraph.fastzipfilereader;
 
 import java.io.IOException;
 
-import io.github.classgraph.utils.FastPathResolver;
 import io.github.classgraph.utils.WhiteBlackList.WhiteBlackListLeafname;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
@@ -52,7 +51,16 @@ public class ZipFileSlice {
         this.physicalZipFile = physicalZipFile;
         this.startOffsetWithinPhysicalZipFile = 0;
         this.len = physicalZipFile.fileLen;
-        this.name = FastPathResolver.resolve(physicalZipFile.file.getPath());
+        this.name = physicalZipFile.getPath();
+    }
+
+    /** Create a ZipFileSlice that wraps a {@link PhysicalZipFile} extracted to a ByteBuffer in memory. */
+    ZipFileSlice(final PhysicalZipFile physicalZipFileInRam, final FastZipEntry zipEntry) {
+        this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
+        this.physicalZipFile = physicalZipFileInRam;
+        this.startOffsetWithinPhysicalZipFile = 0;
+        this.len = physicalZipFile.fileLen;
+        this.name = zipEntry.entryName;
     }
 
     /** Create a ZipFileSlice that wraps a single {@link FastZipEntry}. */
@@ -107,11 +115,14 @@ public class ZipFileSlice {
 
     @Override
     public int hashCode() {
-        return physicalZipFile.file.hashCode() ^ (int) startOffsetWithinPhysicalZipFile ^ (int) len;
+        return physicalZipFile.getPath().hashCode() ^ (int) startOffsetWithinPhysicalZipFile ^ (int) len;
     }
 
     @Override
     public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ZipFileSlice)) {
             return false;
         }
