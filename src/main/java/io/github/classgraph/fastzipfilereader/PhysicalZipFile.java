@@ -89,7 +89,7 @@ public class PhysicalZipFile implements Closeable {
             public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws Exception {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer
                 final long pos = chunkIdxI.longValue() << 32;
-                final long chunkSize = Math.min(Integer.MAX_VALUE, fileLen - pos);
+                final long chunkSize = Math.min(FileUtils.MAX_BUFFER_SIZE, fileLen - pos);
                 return fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
             }
         };

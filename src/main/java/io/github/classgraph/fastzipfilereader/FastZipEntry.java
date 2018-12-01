@@ -214,8 +214,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
                 // Calculate end pos for the first chunk, and truncate it if it overflows 2GB
                 final long endPos = chunkPos + compressedSize;
-                currChunkByteBuf.limit((int) Math.min(Integer.MAX_VALUE, endPos));
-                isLastChunk = endPos <= Integer.MAX_VALUE;
+                currChunkByteBuf.limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, endPos));
+                isLastChunk = endPos <= FileUtils.MAX_BUFFER_SIZE;
             }
 
             private boolean getNextChunk() throws IOException {
@@ -241,8 +241,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 currChunkByteBuf.position(0);
 
                 // Calculate end pos for the next chunk, and truncate it if it overflows 2GB
-                currChunkByteBuf.limit((int) Math.min(Integer.MAX_VALUE, remainingBytes));
-                isLastChunk = remainingBytes <= Integer.MAX_VALUE;
+                currChunkByteBuf.limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, remainingBytes));
+                isLastChunk = remainingBytes <= FileUtils.MAX_BUFFER_SIZE;
                 return true;
             }
 

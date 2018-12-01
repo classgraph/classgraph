@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ScanSpec;
 
@@ -349,7 +350,8 @@ public class LogicalZipFile extends ZipFileSlice {
 
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory
         // is larger than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
-        final byte[] entryBytes = entriesTotSizeL > Integer.MAX_VALUE ? null : new byte[(int) entriesTotSizeL];
+        final byte[] entryBytes = entriesTotSizeL > FileUtils.MAX_BUFFER_SIZE ? null
+                : new byte[(int) entriesTotSizeL];
         if (entryBytes != null) {
             zipFileSliceReader.read(cenPos, entryBytes, 0, (int) entriesTotSizeL);
         }
@@ -375,10 +377,10 @@ public class LogicalZipFile extends ZipFileSlice {
             }
         }
 
-        //  Can't have more than Integer.MAX_VALUE entries, since they are stored in an ArrayList
-        if (numEnt > Integer.MAX_VALUE) {
+        //  Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored in an ArrayList
+        if (numEnt > FileUtils.MAX_BUFFER_SIZE) {
             // One alternative in this (impossibly rare) situation would be to return only the first 2B entries
-            throw new IOException("Too many zipfile entries: " + numEnt + " > 2B");
+            throw new IOException("Too many zipfile entries: " + numEnt);
         }
 
         // Make sure there's no DoS attack vector by using a fake number of entries

@@ -141,7 +141,7 @@ public class ModuleReaderProxy implements Closeable {
      * @throws SecurityException
      *             If the module cannot be accessed.
      * @throws OutOfMemoryError
-     *             if the resource is larger than Integer.MAX_VALUE, the maximum capacity of a byte buffer.
+     *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
         final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils.invokeMethod(moduleReader,

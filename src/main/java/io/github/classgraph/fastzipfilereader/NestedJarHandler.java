@@ -236,7 +236,7 @@ public class NestedJarHandler {
                     if (childZipEntrySlice == null) {
                         // If the uncompressed size unknown or small, or inflating to temp file failed,
                         // inflate to a ByteBuffer in memory instead
-                        if (childZipEntry.uncompressedSize > Integer.MAX_VALUE) {
+                        if (childZipEntry.uncompressedSize > FileUtils.MAX_BUFFER_SIZE) {
                             // Impose 2GB limit (i.e. a max of one ByteBuffer chunk) on inflation to memory
                             throw new IOException(
                                     "Uncompressed size of zip entry (" + childZipEntry.uncompressedSize
