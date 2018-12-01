@@ -287,22 +287,33 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                                 // Copy from the ByteBuffer into a temporary byte[] array (needed for JDK<11). 
                                 try {
                                     final int remaining = currChunkByteBuf.remaining();
-                                    final int maxBytesToRead = remaining == inflateBuf.length && isLastChunk
-                                            ? remaining - 1
-                                            : remaining;
-                                    final int bytesToRead = Math.min(inflateBuf.length, maxBytesToRead);
-                                    currChunkByteBuf.get(inflateBuf, 0, bytesToRead);
-                                    if (bytesToRead == remaining && isLastChunk) {
+                                    if (isLastChunk && remaining < inflateBuf.length) {
                                         // An extra dummy byte is needed at the end of the input stream when
                                         // using the "nowrap" Inflater option.
                                         // See: ZipFile.ZipFileInputStream.fill()
-                                        inflateBuf[bytesToRead] = (byte) 0;
+                                        currChunkByteBuf.get(inflateBuf, 0, remaining);
+                                        inflateBuf[remaining] = (byte) 0;
+                                        inflater.setInput(inflateBuf, 0, remaining + 1);
+                                    } else if (isLastChunk && remaining == inflateBuf.length) {
+                                        // If this is the last chunk to read, and the number of remaining
+                                        // bytes is exactly the size of the buffer, read one byte fewer than
+                                        // the number of remaining bytes, to cause the last byte to be read
+                                        // in an extra pass.
+                                        currChunkByteBuf.get(inflateBuf, 0, remaining - 1);
+                                        inflater.setInput(inflateBuf, 0, remaining - 1);
+                                    } else {
+                                        // There are more than inflateBuf.length bytes remaining to be read,
+                                        // or this is not the last chunk (i.e. read all remaining bytes in
+                                        // this chunk, which will trigger the next chunk to be read on the
+                                        // next loop iteration)
+                                        final int bytesToRead = Math.min(inflateBuf.length, remaining);
+                                        currChunkByteBuf.get(inflateBuf, 0, bytesToRead);
+                                        inflater.setInput(inflateBuf, 0, bytesToRead);
                                     }
                                 } catch (final BufferUnderflowException e) {
                                     // Should not happen
                                     throw new IOException("Unexpected EOF in deflated data");
                                 }
-                                inflater.setInput(inflateBuf);
                             }
                         }
                         return numInflatedBytes;
