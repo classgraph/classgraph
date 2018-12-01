@@ -228,7 +228,7 @@ public class LogicalZipFile extends ZipFileSlice {
             }
 
             // Override entries with version-masked entries
-            this.entries = unversionedZipEntriesMasked;
+            entries = unversionedZipEntriesMasked;
         }
     }
 
