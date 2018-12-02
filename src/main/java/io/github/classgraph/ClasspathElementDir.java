@@ -315,6 +315,10 @@ class ClasspathElementDir extends ClasspathElement {
             }
             return;
         }
+        if (parentMatchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH) {
+            // Reached a non-whitelisted and non-blacklisted path -- stop the recursive scan
+            return;
+        }
 
         final File[] filesInDir = dir.listFiles();
         Arrays.sort(filesInDir);
@@ -342,17 +346,18 @@ class ClasspathElementDir extends ClasspathElement {
                     if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
                         if (scanSpec.classpathElementResourcePathWhiteBlackList
                                 .isBlacklisted(fileInDirRelativePath)) {
-                            if (log != null) {
-                                log.log("Reached blacklisted classpath element resource path, stopping scanning: "
-                                        + fileInDirRelativePath);
+                            if (subLog != null) {
+                                subLog.log(
+                                        "Reached blacklisted classpath element resource path, stopping scanning: "
+                                                + fileInDirRelativePath);
                             }
                             skipClasspathElement = true;
                             return;
                         }
                         if (scanSpec.classpathElementResourcePathWhiteBlackList
                                 .isSpecificallyWhitelisted(fileInDirRelativePath)) {
-                            if (log != null) {
-                                log.log("Reached specifically whitelisted classpath element resource path: "
+                            if (subLog != null) {
+                                subLog.log("Reached specifically whitelisted classpath element resource path: "
                                         + fileInDirRelativePath);
                             }
                             containsSpecificallyWhitelistedClasspathElementResourcePath = true;
@@ -371,8 +376,8 @@ class ClasspathElementDir extends ClasspathElement {
                         // Save last modified time  
                         fileToLastModified.put(fileInDir, fileInDir.lastModified());
                     } else {
-                        if (log != null) {
-                            log.log("Skipping non-whitelisted file: " + fileInDirRelativePath);
+                        if (subLog != null) {
+                            subLog.log("Skipping non-whitelisted file: " + fileInDirRelativePath);
                         }
                     }
                 }
@@ -409,9 +414,9 @@ class ClasspathElementDir extends ClasspathElement {
 
         final LogNode subLog = log == null ? null
                 : log.log(classpathEltDir.getPath(), "Scanning directory classpath element " + classpathEltDir);
-        
+
         scanDirRecursively(classpathEltDir, subLog);
-        
+
         if (subLog != null) {
             subLog.addElapsedTime();
         }
