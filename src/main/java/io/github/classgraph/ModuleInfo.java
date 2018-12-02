@@ -42,7 +42,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     private URI location;
 
     /** The {@link ModuleRef}. */
-    private ModuleRef moduleRef;
+    private transient ModuleRef moduleRef;
 
     /** {@link AnnotationInfo} objects for any annotations on the package-info.class file, if present, else null. */
     private AnnotationInfoList annotationInfo;
