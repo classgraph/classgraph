@@ -30,11 +30,13 @@ package io.github.classgraph.fastzipfilereader;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -102,133 +104,185 @@ public class LogicalZipFile extends ZipFileSlice {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Extract a value from the manifest, if the given key is found in the manifest, otherwise return null. */
-    private String extractManifestField(final String keyLower, final String manifestLower, final String manifest) {
-        final int keyIdx = manifestLower.indexOf(keyLower);
-        if (keyIdx < 0) {
-            return null;
-        }
-
+    /**
+     * Extract a value from the manifest, and return the value as a string, along with the index after the
+     * terminating newline.
+     */
+    private static Entry<String, Integer> getManifestValue(final byte[] manifest, final int startIdx) {
         // Manifest files support three different line terminator types, and entries can be split across
         // lines with a line terminator followed by a space.
-        final int len = manifest.length();
+        final int len = manifest.length;
         final StringBuilder buf = new StringBuilder();
-        int curr = keyIdx + keyLower.length();
-        if (curr < len && manifest.charAt(curr) == ' ') {
+        int curr = startIdx;
+        if (curr < len && manifest[curr] == (byte) ' ') {
+            // Skip initial spaces
             curr++;
         }
         for (; curr < len; curr++) {
-            final char c = manifest.charAt(curr);
-            if (c == '\r' && (curr < len - 1 ? manifest.charAt(curr + 1) : '\n') == '\n') {
-                if ((curr < len - 2 ? manifest.charAt(curr + 2) : '\n') == ' ') {
-                    curr += 2;
-                } else {
+            final byte b = manifest[curr];
+            if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
+                // CRLF
+                curr += 2;
+                if (curr >= len - 2 || manifest[curr + 2] != (byte) ' ') {
+                    // Value only ends if line break is not followed by a space
                     break;
                 }
-            } else if (c == '\r') {
-                if ((curr < len - 1 ? manifest.charAt(curr + 1) : '\n') == ' ') {
-                    curr += 1;
-                } else {
+            } else if (b == '\r') {
+                // CR
+                curr += 1;
+                if (curr >= len - 1 || manifest[curr + 1] != (byte) ' ') {
+                    // Value only ends if line break is not followed by a space
                     break;
                 }
-            } else if (c == '\n') {
-                if ((curr < len - 1 ? manifest.charAt(curr + 1) : '\n') == ' ') {
-                    curr += 1;
-                } else {
+            } else if (b == '\n') {
+                // LF
+                curr += 1;
+                if (curr >= len - 1 || manifest[curr + 1] != (byte) ' ') {
+                    // Value only ends if line break is not followed by a space
                     break;
                 }
             } else {
-                buf.append(c);
+                buf.append((char) b);
             }
         }
-        return buf.toString().trim();
+        final String val = buf.toString();
+        return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);
+    }
+
+    private static byte[] manifestKeyToBytes(final String key) {
+        final byte[] bytes = new byte[key.length()];
+        for (int i = 0; i < key.length(); i++) {
+            bytes[i] = (byte) Character.toLowerCase(key.charAt(i));
+        }
+        return bytes;
+    }
+
+    private static final byte[] IMPLEMENTATION_TITLE_KEY = manifestKeyToBytes("Implementation-Title");
+    private static final byte[] SPECIFICATION_TITLE_KEY = manifestKeyToBytes("Specification-Title");
+    private static final byte[] CLASS_PATH_KEY = manifestKeyToBytes("Class-Path");
+    private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
+    private static final byte[] SPRING_BOOT_LIB_KEY = manifestKeyToBytes("Spring-Boot-Lib");
+    private static final byte[] MULTI_RELEASE_KEY = manifestKeyToBytes("Multi-Release");
+
+    private static byte[] toLowerCase = new byte[256];
+    static {
+        for (int i = 32; i < 127; i++) {
+            toLowerCase[i] = (byte) Character.toLowerCase((char) i);
+        }
+    }
+
+    private static boolean keyMatchesAtPosition(final byte[] manifest, final byte[] key, final int pos) {
+        if (pos + key.length + 1 > manifest.length || manifest[pos + key.length] != ':') {
+            return false;
+        }
+        for (int i = 0; i < key.length; i++) {
+            // Manifest keys are case insensitive
+            if (toLowerCase[manifest[i + pos]] != key[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Parse the manifest entry of a zipfile. */
     private void parseManifest(final FastZipEntry manifestZipEntry, final LogNode log) throws IOException {
-        // Load contents of manifest entry
-        final String manifest = manifestZipEntry.loadAsString(log);
+        // Load contents of manifest entry as a byte array
+        final byte[] manifest = manifestZipEntry.load(log);
 
-        // Attribute names are case insensitive in manifest files, so convert to lowercase
-        final String manifestLower = manifest.toLowerCase();
+        // Find field keys (separated by newlines)
+        for (int i = 0; i < manifest.length;) {
+            // There cannot be any space after a newline before the manifest key, so key starts immediately
+            boolean skip = false;
+            if (manifest[i] == (byte) '\n' || manifest[i] == (byte) '\r') {
+                // Skip blank lines
+                skip = true;
 
-        // Check if this is a JRE jar
-        isJREJar = manifestLower.contains("\nimplementation-title: java runtime environment")
-                || manifestLower.contains("\nspecification-title: java platform api specification")
-                || manifestLower.contains("\rimplementation-title: java runtime environment")
-                || manifestLower.contains("\rspecification-title: java platform api specification");
+            } else if (keyMatchesAtPosition(manifest, IMPLEMENTATION_TITLE_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + IMPLEMENTATION_TITLE_KEY.length + 1);
+                if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("Java Runtime Environment")) {
+                    isJREJar = true;
+                }
+                i = manifestValueAndEndIdx.getValue();
 
-        // Check for "Class-Path:" manifest line
-        String classPathField = extractManifestField("\nclass-path:", manifestLower, manifest);
-        if (classPathField == null) {
-            classPathField = extractManifestField("\rclass-path:", manifestLower, manifest);
-        }
-        if (classPathField != null) {
-            // Add Class-Path manifest entry values to classpath
-            if (log != null) {
-                log.log("Found Class-Path entry in manifest file: " + classPathField);
+            } else if (keyMatchesAtPosition(manifest, SPECIFICATION_TITLE_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + SPECIFICATION_TITLE_KEY.length + 1);
+                if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("Java Platform API Specification")) {
+                    isJREJar = true;
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, CLASS_PATH_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + CLASS_PATH_KEY.length + 1);
+                // Add Class-Path manifest entry values to classpath
+                final String classPathFieldVal = manifestValueAndEndIdx.getKey();
+                if (log != null) {
+                    log.log("Found Class-Path entry in manifest file: " + classPathFieldVal);
+                }
+                for (final String classpathEntry : classPathFieldVal.split(" ")) {
+                    if (!classpathEntry.isEmpty()) {
+                        addAdditionalClassPathEntryToScan(classpathEntry);
+                    }
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY,
+                    i + SPRING_BOOT_CLASSES_KEY.length + 1)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest, i);
+                final String springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
+                if (!springBootClassesFieldVal.equals("BOOT-INF/classes")
+                        && !springBootClassesFieldVal.equals("BOOT-INF/classes/")) {
+                    throw new IOException("Spring boot classes are at \"" + springBootClassesFieldVal
+                            + "\" rather than the standard location \"BOOT-INF/classes/\" -- please report this at "
+                            + "https://github.com/classgraph/classgraph/issues");
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_LIB_KEY, i + SPRING_BOOT_LIB_KEY.length + 1)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest, i);
+                final String springBootLibFieldVal = manifestValueAndEndIdx.getKey();
+                if (!springBootLibFieldVal.equals("BOOT-INF/lib")
+                        && !springBootLibFieldVal.equals("BOOT-INF/lib/")) {
+                    throw new IOException("Spring boot lib jars are at \"" + springBootLibFieldVal
+                            + "\" rather than the standard location \"BOOT-INF/lib/\" -- please report this at "
+                            + "https://github.com/classgraph/classgraph/issues");
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, MULTI_RELEASE_KEY, i + MULTI_RELEASE_KEY.length + 1)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest, i);
+                if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("true")) {
+                    isMultiReleaseJar = true;
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else {
+                // Key name was unrecognized -- skip to next key
+                skip = true;
             }
-            for (final String classpathEntry : classPathField.split(" ")) {
-                if (!classpathEntry.isEmpty()) {
-                    addAdditionalClassPathEntryToScan(classpathEntry);
+
+            if (skip) {
+                // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
+                for (; i < manifest.length - 2;) {
+                    if (manifest[i] == '\r' && manifest[i + 1] != '\n' && manifest[i + 2] != ' ') {
+                        i += 2;
+                        break;
+                    } else if (manifest[i] == '\r' && manifest[i + 1] != ' ') {
+                        i += 1;
+                        break;
+                    } else if (manifest[i] == '\n' && manifest[i + 1] != ' ') {
+                        i += 1;
+                        break;
+                    } else {
+                        i++;
+                    }
+                }
+                if (i == manifest.length - 2) {
+                    break;
                 }
             }
-        }
-
-        // Check for Spring-Boot manifest lines, in case the default prefixes of "BOOT-INF/classes/"
-        // and "BOOT-INF/lib/" are overridden, which is unlikely but possible
-        String springBootClassesField = extractManifestField("\nspring-boot-classes:", manifestLower, manifest);
-        if (springBootClassesField == null) {
-            springBootClassesField = extractManifestField("\rspring-boot-classes:", manifestLower, manifest);
-        }
-        if (springBootClassesField != null && !springBootClassesField.equals("BOOT-INF/classes")
-                && !springBootClassesField.equals("BOOT-INF/classes/")) {
-            throw new IOException("Spring boot classes are at \"" + springBootClassesField
-                    + "\" rather than the standard location \"BOOT-INF/classes/\" -- please report this at "
-                    + "https://github.com/classgraph/classgraph/issues");
-        }
-        String springBootLibField = extractManifestField("\nspring-boot-lib:", manifestLower, manifest);
-        if (springBootLibField == null) {
-            springBootLibField = extractManifestField("\rspring-boot-lib:", manifestLower, manifest);
-        }
-        if (springBootLibField != null && !springBootLibField.equals("BOOT-INF/lib")
-                && !springBootLibField.equals("BOOT-INF/lib/")) {
-            throw new IOException("Spring boot classes are at \"" + springBootLibField
-                    + "\" rather than the standard location \"BOOT-INF/lib/\" -- please report this at "
-                    + "https://github.com/classgraph/classgraph/issues");
-        }
-
-        // "If the JAR file does not contain "Multi-Release" attribute in its main manifest then 
-        // it is not a multi-release JAR.":
-        // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013952.html
-        isMultiReleaseJar = manifestLower.contains("\nmulti-release: true")
-                || manifestLower.contains("\rmulti-release: true");
-        if (isMultiReleaseJar) {
-            if (log != null) {
-                log.log("This is a multi-release jar");
-            }
-
-            // Sort in decreasing order of version in preparation for version masking
-            Collections.sort(entries);
-
-            // Mask files that appear in multiple version sections, so that there is only one entry
-            // for each unversioned path, i.e. the versioned path with the highest version number
-            final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
-            final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
-            for (final FastZipEntry versionedZipEntry : entries) {
-                if (!unversionedPathToVersionedPath.containsKey(versionedZipEntry.entryNameUnversioned)) {
-                    // This is the first FastZipEntry for this entry's unversioned path
-                    unversionedPathToVersionedPath.put(versionedZipEntry.entryNameUnversioned,
-                            versionedZipEntry.entryName);
-                    unversionedZipEntriesMasked.add(versionedZipEntry);
-                } else if (log != null) {
-                    log.log(unversionedPathToVersionedPath.get(versionedZipEntry.entryNameUnversioned) + " masks "
-                            + versionedZipEntry.entryName);
-                }
-            }
-
-            // Override entries with version-masked entries
-            entries = unversionedZipEntriesMasked;
         }
     }
 
@@ -533,5 +587,40 @@ public class LogicalZipFile extends ZipFileSlice {
         if (manifestZipEntry != null) {
             parseManifest(manifestZipEntry, log);
         }
+
+        // For multi-release jars, drop any older or non-versioned entries that are masked by the most recent
+        // version-specific entry
+        if (isMultiReleaseJar) {
+            if (log != null) {
+                log.log("This is a multi-release jar");
+            }
+
+            // Sort in decreasing order of version in preparation for version masking
+            Collections.sort(entries);
+
+            // Mask files that appear in multiple version sections, so that there is only one entry
+            // for each unversioned path, i.e. the versioned path with the highest version number
+            final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
+            final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
+            for (final FastZipEntry versionedZipEntry : entries) {
+                if (!unversionedPathToVersionedPath.containsKey(versionedZipEntry.entryNameUnversioned)) {
+                    // This is the first FastZipEntry for this entry's unversioned path
+                    unversionedPathToVersionedPath.put(versionedZipEntry.entryNameUnversioned,
+                            versionedZipEntry.entryName);
+                    unversionedZipEntriesMasked.add(versionedZipEntry);
+                } else if (log != null) {
+                    log.log(unversionedPathToVersionedPath.get(versionedZipEntry.entryNameUnversioned) + " masks "
+                            + versionedZipEntry.entryName);
+                }
+            }
+
+            // Override entries with version-masked entries
+            entries = unversionedZipEntriesMasked;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return getPath();
     }
 }

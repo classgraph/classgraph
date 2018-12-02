@@ -33,9 +33,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.fastzipfilereader.NestedJarHandler;
@@ -71,7 +74,7 @@ abstract class ClasspathElement {
      * The child classpath element paths. These are the entries obtained from Class-Path entries in the manifest
      * file, if this classpath element is a jarfile.
      */
-    List<String> childClasspathEltPaths;
+    Set<String> childClasspathEltPaths = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
     /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
     protected List<Resource> resourceMatches;

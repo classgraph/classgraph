@@ -219,7 +219,7 @@ public class WorkQueue<T> implements AutoCloseable {
     /**
      * Add a unit of work. May be called by workers to add more work units to the tail of the queue.
      */
-    private void addWorkUnit(final T workUnit) {
+    public void addWorkUnit(final T workUnit) {
         numWorkUnitsRemaining.incrementAndGet();
         workQueue.add(workUnit);
     }

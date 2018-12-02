@@ -172,27 +172,21 @@ class ClasspathElementZip extends ClasspathElement {
                 final String pathOfContainingDir = FastPathResolver
                         .resolve(logicalZipFile.physicalZipFile.getFile().getParent());
 
-                // Create child classpath elements from Class-Path entry
-                if (childClasspathEltPaths == null) {
-                    childClasspathEltPaths = new ArrayList<>(
-                            logicalZipFile.additionalClassPathEntriesToScan.size());
-                }
+                // Create child classpath elements from values obtained from Class-Path entry in manifest
                 for (final String childClassPathEltPath : logicalZipFile.additionalClassPathEntriesToScan) {
-                    final String resolvedPath = FastPathResolver.resolve(pathOfContainingDir,
+                    final String childClassPathEltPathResolved = FastPathResolver.resolve(pathOfContainingDir,
                             childClassPathEltPath);
-                    childClasspathEltPaths.add(resolvedPath);
-                }
-                if (!childClasspathEltPaths.isEmpty()) {
                     // Schedule child classpath elements for scanning
                     if (workQueue != null) {
-                        workQueue.addWorkUnits(childClasspathEltPaths);
+                        workQueue.addWorkUnit(childClassPathEltPathResolved);
                     } else {
                         // When adding rt.jar, workQueue will be null. But rt.jar should not include Class-Path
                         // references (so this block should not be reached).
                         if (log != null) {
-                            log.log("Ignoring Class-Path entries in rt.jar: " + childClasspathEltPaths);
+                            log.log("Ignoring Class-Path entry in rt.jar: " + childClassPathEltPathResolved);
                         }
                     }
+                    childClasspathEltPaths.add(childClassPathEltPathResolved);
                 }
             }
         }
