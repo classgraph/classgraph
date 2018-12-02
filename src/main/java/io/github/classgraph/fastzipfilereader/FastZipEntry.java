@@ -115,7 +115,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         // Get multi-release jar version number, and strip any version prefix
         int version = 8;
         String entryNameUnversioned = entryName;
-        if (entryName.length() > LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length() + 1) {
+        if (entryName.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)
+                && entryName.length() > LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length() + 1) {
             // This is a multi-release jar path
             final int nextSlashIdx = entryName.indexOf('/', LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length());
             if (nextSlashIdx > 0) {
@@ -131,7 +132,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                         throw new NumberFormatException();
                     }
                     for (int i = 0; i < versionStr.length(); i++) {
-                        char c = versionStr.charAt(i);
+                        final char c = versionStr.charAt(i);
                         if (c < '0' || c > '9') {
                             throw new NumberFormatException();
                         }
