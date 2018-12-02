@@ -47,7 +47,6 @@ import io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import io.github.classgraph.utils.FastPathResolver;
 import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
-import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ScanSpec;
 import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
@@ -149,9 +148,9 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
 
-        if (scanSpec.blacklistSystemJarsOrModules && ((logicalZipFile != null && logicalZipFile.isJREJar)
-                || JarUtils.isJREJar(zipFilePath, scanSpec, jarLog))) {
-            // Don't scan system jars if they are blacklisted
+        if (scanSpec.blacklistSystemJarsOrModules && logicalZipFile != null && logicalZipFile.isJREJar) {
+            // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
+            // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
             if (jarLog != null) {
                 jarLog.log("Ignoring JRE jar");
             }

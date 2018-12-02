@@ -214,14 +214,30 @@ public class ClasspathFinder {
                         + "context classloader");
             }
         } else {
-            // If system jars are not blacklisted, add JRE jars to the beginning of the classpath
+            // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
             if (!scanSpec.blacklistSystemJarsOrModules) {
-                final List<String> jreJarPaths = JarUtils.getJreJarPaths();
-                if (log != null) {
-                    log.log("Adding JRE/JDK jars to classpath:").log(jreJarPaths);
+                final String jreRtJar = JarUtils.getJreRtJarPath();
+                if (jreRtJar != null) {
+                    if (log != null) {
+                        log.log("Found rt.jar: " + jreRtJar);
+                    }
+                    classpathOrder.addClasspathElement(jreRtJar, classLoaders, scanSpec, classpathFinderLog);
                 }
-                for (final String jreJarPath : jreJarPaths) {
-                    classpathOrder.addClasspathElement(jreJarPath, classLoaders, scanSpec, classpathFinderLog);
+            }
+
+            // If the lib/ext jar whitelist is non-empty, then zero or more lib/ext jars were whitelisted
+            // (calling ClassGraph#whitelistLibOrExtJars() with no parameters manually whitelists all
+            // jars found in lib/ext dirs, by iterating through all jarfiles in lib/ext dirs and adding
+            // them to the whitelist).
+            if (!scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
+                for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                    if (scanSpec.libOrExtJarWhiteBlackList.isWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
+                        if (log != null) {
+                            log.log("Found whitelisted lib or ext jar: " + libOrExtJarPath);
+                        }
+                        classpathOrder.addClasspathElement(libOrExtJarPath, classLoaders, scanSpec,
+                                classpathFinderLog);
+                    }
                 }
             }
 

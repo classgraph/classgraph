@@ -155,13 +155,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             }
             try {
                 inputStream.close();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 // Ignore
             }
             inputStream = null;
             try {
                 parentResource.close();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 // Ignore
             }
             parentResource = null;

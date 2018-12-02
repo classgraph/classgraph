@@ -777,8 +777,8 @@ public class ClassGraph {
      *
      * @param jarLeafNames
      *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
-     *            a wildcard glob ({@code '*'}). If you call this method with no parameters, all JRE/JDK "lib/" or
-     *            "ext/" jars will be whitelisted.
+     *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
+     *            "lib/" or "ext/" jars will be whitelisted.
      * @return this (for method chaining).
      */
     public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
