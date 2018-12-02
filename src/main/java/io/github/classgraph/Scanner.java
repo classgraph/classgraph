@@ -455,10 +455,11 @@ class Scanner implements Callable<ScanResult> {
             // Get order of elements in traditional classpath
             final LinkedHashSet<String> rawClasspathEltOrder = classpathFinder.getClasspathOrder().getOrder();
 
-            // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement singleton
-            // for each unique canonical path. Also check jars against jar whitelist/blacklist.
+            // In parallel, create a ClasspathElement singleton for each classpath element, then call isValid()
+            // on each ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances
+            // to be created for each (possibly nested) jarfile, then will read the manifest file and zip entries.
             final LogNode preScanLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Reading jarfile metadata");
+                    : classpathFinderLog.log("Reading jarfile entries and manifest");
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<String>() {
                         @Override

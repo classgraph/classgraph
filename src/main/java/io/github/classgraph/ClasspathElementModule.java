@@ -368,10 +368,6 @@ class ClasspathElementModule extends ClasspathElement {
                     // Add whitelisted resource
                     final Resource resource = newResource(relativePath);
                     addWhitelistedResource(resource, parentMatchStatus, subLog);
-                } else {
-                    if (subLog != null) {
-                        subLog.log("Skipping non-whitelisted path: " + relativePath);
-                    }
                 }
             }
 

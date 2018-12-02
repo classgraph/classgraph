@@ -97,7 +97,7 @@ public class LogicalZipFile extends ZipFileSlice {
     LogicalZipFile(final ZipFileSlice zipFileSlice, final ScanSpec scanSpec, final LogNode log) throws IOException {
         super(zipFileSlice);
         zipFileSliceReader = new ZipFileSliceReader(this);
-        readCentralDirectory(scanSpec, log);
+        readCentralDirectory(scanSpec, log == null ? null : log.log("Opening jarfile " + zipFileSlice.getPath()));
     }
 
     // -------------------------------------------------------------------------------------------------------------

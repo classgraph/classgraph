@@ -90,14 +90,12 @@ class ClasspathElementZip extends ClasspathElement {
             skipClasspathElement = true;
             return;
         }
-        final LogNode jarLog = log == null ? null : log.log("Opening jarfile " + rawPath);
-
         final int plingIdx = rawPath.indexOf('!');
         final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                 plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
         if (!scanSpec.jarWhiteBlackList.isWhitelistedAndNotBlacklisted(outermostZipFilePathResolved)) {
-            if (jarLog != null) {
-                jarLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+            if (log != null) {
+                log.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
             }
             skipClasspathElement = true;
             return;
@@ -108,7 +106,7 @@ class ClasspathElementZip extends ClasspathElement {
                 // Get LogicalZipFile for innermost nested jarfile
                 final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = //
                         nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.getOrCreateSingleton(rawPath,
-                                jarLog);
+                                log);
                 logicalZipFile = logicalZipFileAndPackageRoot.getKey();
 
                 // Get the normalized path of the logical zipfile
@@ -120,14 +118,14 @@ class ClasspathElementZip extends ClasspathElement {
                     packageRootPrefix = packageRoot + "/";
                 }
             } catch (final IOException e) {
-                if (jarLog != null) {
-                    jarLog.log("Could not open jarfile: " + e);
+                if (log != null) {
+                    log.log("Could not open jarfile: " + e);
                 }
                 skipClasspathElement = true;
                 return;
             } catch (final Exception e) {
-                if (jarLog != null) {
-                    jarLog.log("Exception while opening jarfile", e);
+                if (log != null) {
+                    log.log("Exception while opening jarfile", e);
                 }
                 skipClasspathElement = true;
                 return;
@@ -140,8 +138,8 @@ class ClasspathElementZip extends ClasspathElement {
                 // Resolve the raw path for use in generating the classpath URL for this classpath element
                 zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, rawPath);
             } else {
-                if (jarLog != null) {
-                    jarLog.log("Jarfile not readable: " + rawPath);
+                if (log != null) {
+                    log.log("Jarfile not readable: " + rawPath);
                 }
                 skipClasspathElement = true;
                 return;
@@ -151,8 +149,8 @@ class ClasspathElementZip extends ClasspathElement {
         if (!scanSpec.enableSystemJarsAndModules && logicalZipFile != null && logicalZipFile.isJREJar) {
             // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
             // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
-            if (jarLog != null) {
-                jarLog.log("Ignoring JRE jar");
+            if (log != null) {
+                log.log("Ignoring JRE jar");
             }
             skipClasspathElement = true;
             return;
@@ -160,8 +158,8 @@ class ClasspathElementZip extends ClasspathElement {
 
         if (logicalZipFile != null) {
             if (!logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
-                if (jarLog != null) {
-                    jarLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+                if (log != null) {
+                    log.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
                 }
                 skipClasspathElement = true;
                 return;
@@ -440,10 +438,6 @@ class ClasspathElementZip extends ClasspathElement {
                             && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
                 // Resource is whitelisted
                 addWhitelistedResource(resource, parentMatchStatus, subLog);
-            } else {
-                if (subLog != null) {
-                    subLog.log("Skipping non-whitelisted path: " + relativePath);
-                }
             }
         }
 
