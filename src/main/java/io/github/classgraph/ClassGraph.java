@@ -956,9 +956,7 @@ public class ClassGraph {
 
     /**
      * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"}, {@code "javafx.*"},
-     * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed. Calls
-     * {#whitelistLibOrExtJars()} with no parameters, to enable scanning of jars in JRE/JDK {@code "lib/"} and
-     * {@code "ext/"} directories.
+     * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed.
      * 
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
@@ -967,8 +965,6 @@ public class ClassGraph {
      */
     public ClassGraph enableSystemPackages() {
         enableClassInfo();
-        // Scan JRE lib and ext dirs
-        whitelistLibOrExtJars();
         scanSpec.blacklistSystemJarsOrModules = false;
         return this;
     }
