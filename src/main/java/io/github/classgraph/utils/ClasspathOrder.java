@@ -64,6 +64,11 @@ public class ClasspathOrder {
     }
 
     private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
+        if (JarUtils.getJreLibOrExtJars().contains(pathElement) || pathElement.equals(JarUtils.getJreRtJarPath())) {
+            // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
+            // returned by a system classloader
+            return false;
+        }
         if (classpathOrder.add(pathElement)) {
             classpathEltPathToClassLoaders.put(pathElement, classLoaders);
             return true;
@@ -139,7 +144,8 @@ public class ClasspathOrder {
                     if (!name.equals(".") && !name.equals("..")) {
                         // Add each directory entry as a classpath element
                         final String fileInDirPath = fileInDir.getPath();
-                        final String fileInDirPathResolved = FastPathResolver.resolve(fileInDirPath);
+                        final String fileInDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                                fileInDirPath);
                         if (addClasspathElement(fileInDirPathResolved, classLoaders)) {
                             if (dirLog != null) {
                                 dirLog.log("Found classpath element: " + fileInDirPath
