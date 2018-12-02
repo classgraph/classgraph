@@ -34,8 +34,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.utils.Parser;
-import io.github.classgraph.utils.Parser.ParseException;
+import nonapi.io.github.classgraph.utils.Parser;
+import nonapi.io.github.classgraph.utils.Parser.ParseException;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {

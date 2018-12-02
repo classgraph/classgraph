@@ -41,15 +41,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import io.github.classgraph.utils.FileUtils;
-import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
-import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.Recycler;
-import io.github.classgraph.utils.ScanSpec;
-import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
-import io.github.classgraph.utils.URLPathEncoder;
-import io.github.classgraph.utils.WorkQueue;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
+import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.Recycler;
+import nonapi.io.github.classgraph.utils.ScanSpec;
+import nonapi.io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.utils.URLPathEncoder;
+import nonapi.io.github.classgraph.utils.WorkQueue;
 
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {

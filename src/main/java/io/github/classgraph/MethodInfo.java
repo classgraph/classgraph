@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.utils.Parser.ParseException;
+import nonapi.io.github.classgraph.utils.Parser.ParseException;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the

@@ -34,7 +34,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import io.github.classgraph.utils.ReflectionUtils;
+import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleReaderProxy implements Closeable {

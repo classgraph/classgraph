@@ -41,14 +41,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import io.github.classgraph.utils.FastPathResolver;
-import io.github.classgraph.utils.FileUtils;
-import io.github.classgraph.utils.JarUtils;
-import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.ScanSpec;
-import io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
-import io.github.classgraph.utils.WorkQueue;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.utils.FastPathResolver;
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ScanSpec;
+import nonapi.io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.utils.WorkQueue;
 
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract class ClasspathElement {

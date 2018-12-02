@@ -28,8 +28,8 @@
  */
 package io.github.classgraph;
 
-import io.github.classgraph.utils.Parser;
-import io.github.classgraph.utils.Parser.ParseException;
+import nonapi.io.github.classgraph.utils.Parser;
+import nonapi.io.github.classgraph.utils.Parser.ParseException;
 
 /**
  * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own

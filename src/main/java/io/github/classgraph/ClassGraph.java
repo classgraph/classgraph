@@ -38,12 +38,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
-import io.github.classgraph.utils.AutoCloseableExecutorService;
-import io.github.classgraph.utils.JarUtils;
-import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.ScanSpec;
-import io.github.classgraph.utils.VersionFinder;
-import io.github.classgraph.utils.WhiteBlackList;
+import nonapi.io.github.classgraph.utils.AutoCloseableExecutorService;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ScanSpec;
+import nonapi.io.github.classgraph.utils.VersionFinder;
+import nonapi.io.github.classgraph.utils.WhiteBlackList;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans classfiles in the classpath and/or

@@ -47,11 +47,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import io.github.classgraph.json.Id;
-import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.Parser.ParseException;
-import io.github.classgraph.utils.ScanSpec;
-import io.github.classgraph.utils.URLPathEncoder;
+import nonapi.io.github.classgraph.json.Id;
+import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.Parser.ParseException;
+import nonapi.io.github.classgraph.utils.ScanSpec;
+import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {

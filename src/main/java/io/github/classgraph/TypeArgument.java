@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.utils.Parser;
-import io.github.classgraph.utils.Parser.ParseException;
+import nonapi.io.github.classgraph.utils.Parser;
+import nonapi.io.github.classgraph.utils.Parser.ParseException;
 
 /** A type argument. */
 public class TypeArgument extends HierarchicalTypeSignature {

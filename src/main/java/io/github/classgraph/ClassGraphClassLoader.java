@@ -34,7 +34,7 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.Enumeration;
 
-import io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
 class ClassGraphClassLoader extends ClassLoader {

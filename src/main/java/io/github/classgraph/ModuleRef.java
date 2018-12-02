@@ -36,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.utils.ReflectionUtils;
+import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A ModuleReference proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleRef implements Comparable<ModuleRef> {

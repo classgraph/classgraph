@@ -48,14 +48,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import io.github.classgraph.json.JSONDeserializer;
-import io.github.classgraph.json.JSONSerializer;
-import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
-import io.github.classgraph.utils.FileUtils;
-import io.github.classgraph.utils.JarUtils;
-import io.github.classgraph.utils.LogNode;
-import io.github.classgraph.utils.ScanSpec;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.json.JSONDeserializer;
+import nonapi.io.github.classgraph.json.JSONSerializer;
+import nonapi.io.github.classgraph.utils.ClassLoaderAndModuleFinder;
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /** The result of a scan. */
 public final class ScanResult implements Closeable, AutoCloseable {

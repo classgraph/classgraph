@@ -37,8 +37,8 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.zip.ZipEntry;
 
-import io.github.classgraph.utils.FileUtils;
-import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a

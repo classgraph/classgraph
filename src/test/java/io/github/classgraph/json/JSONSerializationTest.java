@@ -11,6 +11,8 @@ import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
+import nonapi.io.github.classgraph.json.JSONDeserializer;
+import nonapi.io.github.classgraph.json.JSONSerializer;
 
 @SuppressWarnings("unused")
 public class JSONSerializationTest {

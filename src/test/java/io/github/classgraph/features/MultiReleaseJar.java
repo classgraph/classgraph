@@ -15,7 +15,7 @@ import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList;
 import io.github.classgraph.ResourceList.ByteArrayConsumer;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.utils.VersionFinder;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 public class MultiReleaseJar {
     @Test
