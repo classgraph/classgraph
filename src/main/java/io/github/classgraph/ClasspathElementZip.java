@@ -443,6 +443,10 @@ class ClasspathElementZip extends ClasspathElement {
 
         // Save the last modified time for the zipfile
         fileToLastModified.put(getZipFile(), getZipFile().lastModified());
+
+        if (subLog != null) {
+            subLog.addElapsedTime();
+        }
     }
 
     @Override

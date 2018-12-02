@@ -315,13 +315,6 @@ class ClasspathElementDir extends ClasspathElement {
             }
             return;
         }
-        if (parentMatchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH) {
-            // Reached a non-whitelisted and non-blacklisted path -- stop the recursive scan
-            if (log != null) {
-                log.log("Reached non-whitelisted directory, stopping recursive scan: " + dirRelativePath);
-            }
-            return;
-        }
 
         final File[] filesInDir = dir.listFiles();
         Arrays.sort(filesInDir);
@@ -414,9 +407,14 @@ class ClasspathElementDir extends ClasspathElement {
             throw new IllegalArgumentException("Already scanned classpath element " + toString());
         }
 
-        final LogNode logNode = log == null ? null
+        final LogNode subLog = log == null ? null
                 : log.log(classpathEltDir.getPath(), "Scanning directory classpath element " + classpathEltDir);
-        scanDirRecursively(classpathEltDir, logNode);
+        
+        scanDirRecursively(classpathEltDir, subLog);
+        
+        if (subLog != null) {
+            subLog.addElapsedTime();
+        }
     }
 
     /** @return The classpath element directory as a {@link File}. */

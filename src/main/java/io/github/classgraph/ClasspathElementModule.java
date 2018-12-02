@@ -383,6 +383,9 @@ class ClasspathElementModule extends ClasspathElement {
             }
             skipClasspathElement = true;
         }
+        if (subLog != null) {
+            subLog.addElapsedTime();
+        }
     }
 
     /** Get the ModuleRef for this classpath element. */
