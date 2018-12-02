@@ -148,7 +148,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
 
-        if (!scanSpec.enableSystemPackagesAndModules && logicalZipFile != null && logicalZipFile.isJREJar) {
+        if (!scanSpec.enableSystemJarsAndModules && logicalZipFile != null && logicalZipFile.isJREJar) {
             // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
             // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
             if (jarLog != null) {

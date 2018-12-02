@@ -414,21 +414,21 @@ class Scanner implements Callable<ScanResult> {
                 if (systemModuleRefs != null) {
                     for (final ModuleRef systemModuleRef : systemModuleRefs) {
                         final String moduleName = systemModuleRef.getName();
-                        if (scanSpec.enableSystemPackagesAndModules) {
-                            if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
-                                final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
-                                        systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
-                                classpathElementModule.checkValid(/* unused */ null, classpathFinderLog);
-                                moduleClasspathEltOrder.add(classpathElementModule);
-                            } else {
-                                if (classpathFinderLog != null) {
-                                    classpathFinderLog.log(
-                                            "Skipping non-whitelisted or blacklisted system module: " + moduleName);
-                                }
-                            }
+                        if (
+                        // If scanning system packages and modules is enabled and white/blacklist is empty,
+                        // then scan all system modules
+                        (scanSpec.enableSystemJarsAndModules
+                                && scanSpec.moduleWhiteBlackList.whitelistAndBlacklistAreEmpty())
+                                // Otherwise scan only specifically whitelisted system modules
+                                || scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
+                            final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
+                                    systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
+                            classpathElementModule.checkValid(/* unused */ null, classpathFinderLog);
+                            moduleClasspathEltOrder.add(classpathElementModule);
                         } else {
                             if (classpathFinderLog != null) {
-                                classpathFinderLog.log("Skipping system module: " + moduleName);
+                                classpathFinderLog.log(
+                                        "Skipping non-whitelisted or blacklisted system module: " + moduleName);
                             }
                         }
                     }

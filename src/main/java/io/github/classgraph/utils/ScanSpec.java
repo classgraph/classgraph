@@ -152,7 +152,7 @@ public class ScanSpec {
     /**
      * If true, system jarfiles (rt.jar) and system packages and modules (java.*, jre.*, etc.) should be scanned .
      */
-    public boolean enableSystemPackagesAndModules = false;
+    public boolean enableSystemJarsAndModules = false;
 
     /**
      * If true, ignore class visibility. If false, classes must be public to be scanned.

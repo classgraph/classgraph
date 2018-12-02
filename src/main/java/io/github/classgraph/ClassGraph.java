@@ -963,19 +963,19 @@ public class ClassGraph {
      *
      * @return this (for method chaining).
      */
-    public ClassGraph enableSystemPackagesAndModules() {
+    public ClassGraph enableSystemJarsAndModules() {
         enableClassInfo();
-        scanSpec.enableSystemPackagesAndModules = true;
+        scanSpec.enableSystemJarsAndModules = true;
         return this;
     }
 
     /**
-     * @deprecated Use {@link #enableSystemPackagesAndModules()} instead.
+     * @deprecated Use {@link #enableSystemJarsAndModules()} instead.
      * @return this (for method chaining).
      */
     @Deprecated
     public ClassGraph enableSystemPackages() {
-        return enableSystemPackagesAndModules();
+        return enableSystemJarsAndModules();
     }
 
     // -------------------------------------------------------------------------------------------------------------

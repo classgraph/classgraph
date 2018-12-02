@@ -10,7 +10,7 @@ import io.github.classgraph.ScanResult;
 public class Issue80Test {
     @Test
     public void issue80() {
-        try (ScanResult scanResult = new ClassGraph().enableSystemPackagesAndModules().enableClassInfo().scan()) {
+        try (ScanResult scanResult = new ClassGraph().enableSystemJarsAndModules().enableClassInfo().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).contains("java.util.ArrayList");
         }
     }
