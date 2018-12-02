@@ -153,9 +153,17 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             if (inputStream == null) {
                 throw new IOException("InputStream is not open");
             }
-            inputStream.close();
+            try {
+                inputStream.close();
+            } catch (Exception e) {
+                // Ignore
+            }
             inputStream = null;
-            parentResource.close();
+            try {
+                parentResource.close();
+            } catch (Exception e) {
+                // Ignore
+            }
             parentResource = null;
         }
     }
