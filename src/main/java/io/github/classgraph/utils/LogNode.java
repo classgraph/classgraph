@@ -33,7 +33,7 @@ import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -324,7 +324,7 @@ public class LogNode {
      *            The messages.
      * @return the last log node created, which can be used to add sub-entries.
      */
-    public LogNode log(final List<String> msgs) {
+    public LogNode log(final Collection<String> msgs) {
         LogNode last = null;
         for (final String msg : msgs) {
             last = log(msg);
