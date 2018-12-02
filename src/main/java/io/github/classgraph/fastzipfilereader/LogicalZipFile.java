@@ -474,6 +474,10 @@ public class LogicalZipFile extends ZipFileSlice {
             final String entryName = FileUtils.sanitizeEntryPath( //
                     entryBytes != null ? getString(entryBytes, filenameStartOff, filenameLen)
                             : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen));
+            if (entryName.isEmpty() || entryName.endsWith("/")) {
+                // Skip directory entries
+                continue;
+            }
 
             // Check entry flag bits
             final int flags = entryBytes != null ? getShort(entryBytes, entOff + 8)
