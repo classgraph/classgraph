@@ -122,9 +122,26 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 // Get path after version number, i.e. strip "META-INF/versions/{versionInt}/" prefix
                 final String versionStr = entryName.substring(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length(),
                         nextSlashIdx);
+                // For multi-release jars, the version number has to be an int >= 9
                 try {
-                    // For multi-release jars, the version number has to be an int >= 9
-                    version = Integer.parseInt(versionStr);
+                    // Integer.parseInt() is slow, so this is a custom implementation (this is called many times
+                    // for large classpaths, and Integer.parseInt() was a bit of a bottleneck, surprisingly)
+                    int versionInt = 0;
+                    if (versionStr.length() > 5) {
+                        throw new NumberFormatException();
+                    }
+                    for (int i = 0; i < versionStr.length(); i++) {
+                        char c = versionStr.charAt(i);
+                        if (c < '0' || c > '9') {
+                            throw new NumberFormatException();
+                        }
+                        if (versionInt == 0) {
+                            versionInt = c - '0';
+                        } else {
+                            versionInt = versionInt * 10 + c - '0';
+                        }
+                    }
+                    version = versionInt;
                 } catch (final NumberFormatException e) {
                     // Ignore
                 }
