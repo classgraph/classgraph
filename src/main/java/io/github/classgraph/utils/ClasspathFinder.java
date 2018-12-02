@@ -215,13 +215,17 @@ public class ClasspathFinder {
             }
         } else {
             // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
-            if (scanSpec.enableSystemJarsAndModules) {
-                final String jreRtJar = JarUtils.getJreRtJarPath();
-                if (jreRtJar != null) {
+            final String jreRtJar = JarUtils.getJreRtJarPath();
+            if (jreRtJar != null) {
+                if (scanSpec.enableSystemJarsAndModules) {
                     if (log != null) {
                         log.log("Found rt.jar: " + jreRtJar);
                     }
                     classpathOrder.addClasspathElement(jreRtJar, classLoaders, scanSpec, classpathFinderLog);
+                } else {
+                    if (log != null) {
+                        log.log("Scanning disabled for rt.jar: " + jreRtJar);
+                    }
                 }
             }
 
@@ -229,14 +233,19 @@ public class ClasspathFinder {
             // (calling ClassGraph#whitelistLibOrExtJars() with no parameters manually whitelists all
             // jars found in lib/ext dirs, by iterating through all jarfiles in lib/ext dirs and adding
             // them to the whitelist).
-            if (!scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-                for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
-                    if (scanSpec.libOrExtJarWhiteBlackList.isWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
+            final boolean scanLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
+            for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                if (scanSpec.libOrExtJarWhiteBlackList.isWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
+                    if (scanLibOrExtJars) {
                         if (log != null) {
                             log.log("Found whitelisted lib or ext jar: " + libOrExtJarPath);
                         }
                         classpathOrder.addClasspathElement(libOrExtJarPath, classLoaders, scanSpec,
                                 classpathFinderLog);
+                    } else {
+                        if (log != null) {
+                            log.log("Scanning disabled for lib or ext jar: " + libOrExtJarPath);
+                        }
                     }
                 }
             }

@@ -458,7 +458,7 @@ class Scanner implements Callable<ScanResult> {
             // on each ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances
             // to be created for each (possibly nested) jarfile, then will read the manifest file and zip entries.
             final LogNode preScanLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Reading jarfile entries and manifest");
+                    : classpathFinderLog.log("Reading jarfile directories and manifest files");
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<String>() {
                         @Override

@@ -294,7 +294,10 @@ public class JarUtils {
             addJREPath(javaHomeFile);
             if (javaHomeFile.getName().equals("jre")) {
                 // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path
-                addJREPath(javaHomeFile.getParentFile());
+                final File jreParent = javaHomeFile.getParentFile();
+                addJREPath(jreParent);
+                addJREPath(new File(jreParent, "lib"));
+                addJREPath(new File(jreParent, "lib/ext"));
             } else {
                 // Try adding "{java.home}/jre" as a JRE root when java.home is not a JRE path
                 addJREPath(new File(javaHomeFile, "jre"));
@@ -388,6 +391,7 @@ public class JarUtils {
                     + getProperty("os.arch"));
             log.log("Java version: " + getProperty("java.version") + " / " + getProperty("java.runtime.version")
                     + " (" + getProperty("java.vendor") + ")");
+            log.log("Java home: " + System.getProperty("java.home"));
             log.log("JRE jars:").log(RT_JARS);
         }
     }
