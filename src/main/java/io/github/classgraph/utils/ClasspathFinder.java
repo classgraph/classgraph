@@ -188,14 +188,36 @@ public class ClasspathFinder {
      */
     public ClasspathFinder(final ScanSpec scanSpec, final Map<String, ClassLoader[]> classpathEltPathToClassLoaders,
             final NestedJarHandler nestedJarHandler, final LogNode log) {
-        final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders and modules");
+        final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
+
+        // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
+        final String jreRtJar = JarUtils.getJreRtJarPath();
+        final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
+        final Set<String> libOrExtJars = JarUtils.getJreLibOrExtJars();
+        if (classpathFinderLog != null && (jreRtJar != null || !libOrExtJars.isEmpty())) {
+            final LogNode systemJarsLog = classpathFinderLog.log("System jars:");
+            if (jreRtJar != null) {
+                systemJarsLog.log(
+                        (scanSpec.enableSystemJarsAndModules ? "" : "Scanning disabled for rt.jar: ") + jreRtJar);
+            }
+            // If the lib/ext jar whitelist is non-empty, then zero or more lib/ext jars were whitelisted
+            // (calling ClassGraph#whitelistLibOrExtJars() with no parameters manually whitelists all
+            // jars found in lib/ext dirs, by iterating through all jarfiles in lib/ext dirs and adding
+            // them to the whitelist).
+            for (final String libOrExtJarPath : libOrExtJars) {
+                systemJarsLog.log((scanAllLibOrExtJars || scanSpec.libOrExtJarWhiteBlackList
+                        .isSpecificallyWhitelistedAndNotBlacklisted(libOrExtJarPath) ? ""
+                                : "Scanning disabled for lib or ext jar: ")
+                        + libOrExtJarPath);
+            }
+        }
 
         classLoaderAndModuleFinder = new ClassLoaderAndModuleFinder(scanSpec, classpathFinderLog);
 
         classpathOrder = new ClasspathOrder(classpathEltPathToClassLoaders, scanSpec);
         final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(classpathEltPathToClassLoaders, scanSpec);
 
-        final ClassLoader[] classLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
+        final ClassLoader[] contextClassLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             if (scanSpec.overrideClassLoaders != null) {
@@ -207,46 +229,21 @@ public class ClasspathFinder {
             }
             final LogNode overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
-            classpathOrder.addClasspathElements(scanSpec.overrideClasspath, classLoaders, overrideLog);
+            classpathOrder.addClasspathElements(scanSpec.overrideClasspath, contextClassLoaders, overrideLog);
             if (overrideLog != null) {
                 overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                         + "found by classpath scanning will be the same as the classes loaded by the "
                         + "context classloader");
             }
         } else {
-            // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
-            final String jreRtJar = JarUtils.getJreRtJarPath();
-            if (jreRtJar != null) {
-                if (scanSpec.enableSystemJarsAndModules) {
-                    if (log != null) {
-                        log.log("Found rt.jar: " + jreRtJar);
-                    }
-                    classpathOrder.addClasspathElement(jreRtJar, classLoaders, scanSpec, classpathFinderLog);
-                } else {
-                    if (log != null) {
-                        log.log("Scanning disabled for rt.jar: " + jreRtJar);
-                    }
-                }
+            // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
+            if (jreRtJar != null && scanSpec.enableSystemJarsAndModules) {
+                classpathOrder.addSystemClasspathElement(jreRtJar, contextClassLoaders);
             }
-
-            // If the lib/ext jar whitelist is non-empty, then zero or more lib/ext jars were whitelisted
-            // (calling ClassGraph#whitelistLibOrExtJars() with no parameters manually whitelists all
-            // jars found in lib/ext dirs, by iterating through all jarfiles in lib/ext dirs and adding
-            // them to the whitelist).
-            final boolean scanLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
             for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
-                if (scanSpec.libOrExtJarWhiteBlackList.isWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
-                    if (scanLibOrExtJars) {
-                        if (log != null) {
-                            log.log("Found whitelisted lib or ext jar: " + libOrExtJarPath);
-                        }
-                        classpathOrder.addClasspathElement(libOrExtJarPath, classLoaders, scanSpec,
-                                classpathFinderLog);
-                    } else {
-                        if (log != null) {
-                            log.log("Scanning disabled for lib or ext jar: " + libOrExtJarPath);
-                        }
-                    }
+                if (scanAllLibOrExtJars || scanSpec.libOrExtJarWhiteBlackList
+                        .isSpecificallyWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
+                    classpathOrder.addSystemClasspathElement(libOrExtJarPath, contextClassLoaders);
                 }
             }
 
@@ -264,7 +261,7 @@ public class ClasspathFinder {
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
                     new ArrayList<>();
-            for (final ClassLoader envClassLoader : classLoaders) {
+            for (final ClassLoader envClassLoader : contextClassLoaders) {
                 findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
                         /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
                         ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS, classLoaderAndHandlerOrder,
@@ -318,7 +315,8 @@ public class ClasspathFinder {
                                 pathElement);
                         if (!ignoredClasspathOrder.getOrder().contains(pathElementResolved)) {
                             // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathElement(pathElement, classLoaders, scanSpec, sysPropLog);
+                            classpathOrder.addClasspathElement(pathElement, contextClassLoaders, scanSpec,
+                                    sysPropLog);
                         } else {
                             // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {

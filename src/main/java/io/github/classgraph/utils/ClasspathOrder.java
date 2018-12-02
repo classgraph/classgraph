@@ -63,6 +63,14 @@ public class ClasspathOrder {
         return true;
     }
 
+    boolean addSystemClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
+        if (classpathOrder.add(pathElement)) {
+            classpathEltPathToClassLoaders.put(pathElement, classLoaders);
+            return true;
+        }
+        return false;
+    }
+
     private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
         if (JarUtils.getJreLibOrExtJars().contains(pathElement) || pathElement.equals(JarUtils.getJreRtJarPath())) {
             // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
