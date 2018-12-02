@@ -319,8 +319,8 @@ class ClasspathElementModule extends ClasspathElement {
                 // Whitelist/blacklist classpath elements based on file resource paths
                 if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
                     if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(relativePath)) {
-                        if (log != null) {
-                            log.log("Reached blacklisted classpath element resource path, stopping scanning: "
+                        if (subLog != null) {
+                            subLog.log("Reached blacklisted classpath element resource path, stopping scanning: "
                                     + relativePath);
                         }
                         skipClasspathElement = true;
@@ -328,8 +328,8 @@ class ClasspathElementModule extends ClasspathElement {
                     }
                     if (scanSpec.classpathElementResourcePathWhiteBlackList
                             .isSpecificallyWhitelisted(relativePath)) {
-                        if (log != null) {
-                            log.log("Reached specifically whitelisted classpath element resource path: "
+                        if (subLog != null) {
+                            subLog.log("Reached specifically whitelisted classpath element resource path: "
                                     + relativePath);
                         }
                         containsSpecificallyWhitelistedClasspathElementResourcePath = true;
@@ -369,8 +369,8 @@ class ClasspathElementModule extends ClasspathElement {
                     final Resource resource = newResource(relativePath);
                     addWhitelistedResource(resource, parentMatchStatus, subLog);
                 } else {
-                    if (log != null) {
-                        log.log("Skipping non-whitelisted path: " + relativePath);
+                    if (subLog != null) {
+                        subLog.log("Skipping non-whitelisted path: " + relativePath);
                     }
                 }
             }
