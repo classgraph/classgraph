@@ -150,7 +150,7 @@ class ClasspathElementZip extends ClasspathElement {
             // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
             // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
             if (log != null) {
-                log.log("Ignoring JRE jar");
+                log.log("Ignoring JRE jar: " + rawPath);
             }
             skipClasspathElement = true;
             return;
