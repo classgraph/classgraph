@@ -53,6 +53,9 @@ public class ClassLoaderHandlerRegistry {
                 new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
                 new ClassLoaderHandlerRegistryEntry(SpringBootRestartClassLoaderHandler.class),
 
+                // For unit testing of PARENT_LAST delegation order
+                new ClassLoaderHandlerRegistryEntry(ParentLastDelegationOrderTestClassLoaderHandler.class),
+
                 // JPMS support
                 new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
 

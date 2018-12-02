@@ -291,6 +291,16 @@ public class ClassLoaderAndModuleFinder {
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
         }
 
+        // Define a fallback classloader when classpath is overridden
+        if (scanSpec.overrideClasspath != null) {
+            final ClassLoader fallbackURLClassLoader = JarUtils
+                    .createURLClassLoaderFromPathString(scanSpec.overrideClasspath);
+            classLoadersUnique.add(fallbackURLClassLoader);
+            if (log != null) {
+                log.log("Adding fallback URLClassLoader for overriden classpath: " + fallbackURLClassLoader);
+            }
+        }
+
         // Remove all ancestral classloaders (they are called automatically during class load)
         final Set<ClassLoader> ancestralClassLoaders = new HashSet<>(classLoadersUnique.size());
         for (final ClassLoader classLoader : classLoadersUnique) {
@@ -303,16 +313,6 @@ public class ClassLoaderAndModuleFinder {
             // Build final ClassLoader order, with ancestral classloaders removed
             if (!ancestralClassLoaders.contains(classLoader)) {
                 classLoaderFinalOrder.add(classLoader);
-            }
-        }
-
-        // Define a fallback classloader when classpath is overridden
-        if (scanSpec.overrideClasspath != null) {
-            final ClassLoader fallbackURLClassLoader = JarUtils
-                    .createURLClassLoaderFromPathString(scanSpec.overrideClasspath);
-            classLoaderFinalOrder.add(fallbackURLClassLoader);
-            if (log != null) {
-                log.log("Adding fallback URLClassLoader for overriden classpath: " + fallbackURLClassLoader);
             }
         }
 

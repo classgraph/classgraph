@@ -32,8 +32,11 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URL;
 
 import org.junit.Test;
+
+import com.xyz.meta.A;
 
 public class ClassLoadingWorksWithParentLastLoadersStub {
 
@@ -65,7 +68,7 @@ class TestLauncher extends Thread {
     public void run() {
         try {
             final Class<?> mainClass = getContextClassLoader()
-                    .loadClass("io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders");
+                    .loadClass(ClassLoadingWorksWithParentLastLoaders.class.getName());
             final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class,
                     String.class);
             mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(), parentClassLoader,
@@ -88,8 +91,8 @@ class FakeRestartClassLoader extends ClassLoader {
 
     @Override
     public Class loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
-        if (name.startsWith("com.xyz.meta.A")
-                || name.startsWith("io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoaders")) {
+        if (name.startsWith(A.class.getName())
+                || name.startsWith(ClassLoadingWorksWithParentLastLoaders.class.getName())) {
             final Class clazz = getClass(name);
             if (resolve) {
                 resolveClass(clazz);
@@ -106,5 +109,16 @@ class FakeRestartClassLoader extends ClassLoader {
             in.readFully(buff);
             return buff;
         }
+    }
+
+    private String getClasspath() {
+        String classfileName = A.class.getName().replace('.', '/') + ".class";
+        URL classfileResource = getClass().getClassLoader().getResource(classfileName);
+        if (classfileResource == null) {
+            throw new IllegalArgumentException("Could not find classfile " + classfileName);
+        }
+        String classfilePath = classfileResource.getFile();
+        String packageRoot = classfilePath.substring(0, classfilePath.length() - classfileName.length() - 1);
+        return packageRoot;
     }
 }
