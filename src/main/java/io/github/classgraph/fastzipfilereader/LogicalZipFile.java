@@ -417,20 +417,9 @@ public class LogicalZipFile extends ZipFileSlice {
                 }
                 break;
             }
-            String entryName = entryBytes != null ? getString(entryBytes, filenameStartOff, filenameLen)
-                    : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen);
-            while (entryName.startsWith("/")) {
-                entryName = entryName.substring(1);
-            }
-            while (entryName.startsWith("./") || entryName.startsWith("../")) {
-                entryName = entryName.startsWith("./") ? entryName.substring(2) : entryName.substring(3);
-            }
-            entryName = entryName.replace("/./", "/");
-            entryName = entryName.replace("/../", "/");
-            if (entryName.endsWith("/")) {
-                // Skip directory entries
-                continue;
-            }
+            final String entryName = FileUtils.sanitizeEntryPath( //
+                    entryBytes != null ? getString(entryBytes, filenameStartOff, filenameLen)
+                            : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen));
 
             // Check entry flag bits
             final int flags = entryBytes != null ? getShort(entryBytes, entOff + 8)

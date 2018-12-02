@@ -316,10 +316,7 @@ class ClasspathElementZip extends ClasspathElement {
      */
     @Override
     Resource getResource(final String relativePath) {
-        String path = relativePath;
-        while (path.startsWith("/")) {
-            path = path.substring(1);
-        }
+        final String path = FileUtils.sanitizeEntryPath(relativePath);
         if (path.isEmpty() || path.endsWith("/")) {
             return null;
         }

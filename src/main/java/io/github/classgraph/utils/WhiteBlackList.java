@@ -306,10 +306,7 @@ public abstract class WhiteBlackList {
      * @return The normalized path.
      */
     public static String normalizePath(final String path) {
-        String normalized = path;
-        while (normalized.startsWith("/")) {
-            normalized = normalized.substring(1);
-        }
+        final String normalized = FileUtils.sanitizeEntryPath(path);
         return normalized.endsWith("/") ? normalized : normalized + "/";
     }
 

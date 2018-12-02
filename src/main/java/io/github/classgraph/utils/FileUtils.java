@@ -248,6 +248,71 @@ public class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Sanitize relative paths against "zip slip" vulnerability. */
+    public static String sanitizeEntryPath(final String entryPath) {
+        String path = entryPath;
+        // Remove path segments if "/../" is found
+        int idx2 = path.indexOf("/../");
+        if (idx2 >= 0) {
+            final StringBuilder buf = new StringBuilder();
+            for (int src = 0;;) {
+                buf.append(path, src, idx2);
+                final int lastSlash = buf.lastIndexOf("/");
+                if (lastSlash >= 0 && lastSlash < buf.length() - 1) {
+                    buf.setLength(lastSlash);
+                }
+                src = idx2 + 3;
+                idx2 = path.indexOf("/../", src);
+                if (idx2 < 0) {
+                    buf.append(path, src, path.length());
+                    break;
+                }
+            }
+            path = buf.toString();
+        }
+        // Replace "/./" with "/"
+        int idx1 = path.indexOf("/./");
+        if (idx1 >= 0) {
+            final StringBuilder buf = new StringBuilder();
+            for (int src = 0;;) {
+                buf.append(path, src, idx1);
+                src = idx1 + 2;
+                idx1 = path.indexOf("/./", src);
+                if (idx1 < 0) {
+                    buf.append(path, src, path.length());
+                    break;
+                }
+            }
+            path = buf.toString();
+        }
+        // Replace "//" with "/"
+        int idx3 = path.indexOf("//");
+        if (idx3 >= 0) {
+            final StringBuilder buf = new StringBuilder();
+            for (int src = 0;;) {
+                buf.append(path, src, idx3);
+                src = idx3 + 1;
+                idx3 = path.indexOf("//", src);
+                if (idx3 < 0) {
+                    buf.append(path, src, path.length());
+                    break;
+                }
+            }
+            path = buf.toString();
+        }
+        // Strip off leading "./" or "../", if present
+        while (path.startsWith("./") || path.startsWith("../")) {
+            path = path.startsWith("./") ? path.substring(2) : path.substring(3);
+        }
+        // Strip off leading '/', if present
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        return path;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * @param path
      *            A file path.

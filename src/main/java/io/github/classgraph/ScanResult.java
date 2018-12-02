@@ -52,6 +52,7 @@ import io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import io.github.classgraph.json.JSONDeserializer;
 import io.github.classgraph.json.JSONSerializer;
 import io.github.classgraph.utils.ClassLoaderAndModuleFinder;
+import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.ScanSpec;
@@ -285,10 +286,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
-            String path = resourcePath;
-            while (path.startsWith("/")) {
-                path = path.substring(1);
-            }
+            final String path = FileUtils.sanitizeEntryPath(resourcePath);
             final ResourceList resourceList = pathToResourceList.get(path);
             return (resourceList == null ? new ResourceList(1) : resourceList);
         }

@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import io.github.classgraph.utils.FileUtils;
 import io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.Recycler;
@@ -260,10 +261,7 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     Resource getResource(final String relativePath) {
-        String path = relativePath;
-        while (path.startsWith("/")) {
-            path = path.substring(1);
-        }
+        final String path = FileUtils.sanitizeEntryPath(relativePath);
         if (path.isEmpty() || path.endsWith("/")) {
             return null;
         }

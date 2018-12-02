@@ -336,10 +336,9 @@ public class NestedJarHandler {
                     // This path has one or more '!' sections.
                     final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
                     String childPath = nestedJarPath.substring(lastPlingIdx + 1);
-                    while (childPath.startsWith("/")) {
-                        // "file.jar!/path" -> "file.jar!path"
-                        childPath = childPath.substring(1);
-                    }
+                    // "file.jar!/path" -> "file.jar!path"
+                    childPath = FileUtils.sanitizeEntryPath(childPath);
+
                     // Recursively remove one '!' section at a time, back towards the beginning of the URL or
                     // file path. At the last frame of recursion, the toplevel jarfile will be reached and
                     // returned. The recursion is guaranteed to terminate because parentPath gets one
