@@ -269,11 +269,13 @@ public class ClasspathFinder {
             }
 
             // Call each ClassLoaderHandler on its corresponding ClassLoader to get the classpath URLs or paths
+            final LogNode classLoaderClasspathLoopLog = classpathFinderLog == null ? null
+                    : classpathFinderLog.log("Finding classpath elements in ClassLoaders");
             for (final SimpleEntry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : //
             classLoaderAndHandlerOrder) {
                 final ClassLoader classLoader = classLoaderAndHandler.getKey();
                 final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
-                final LogNode classLoaderClasspathLog = classpathFinderLog == null ? null
+                final LogNode classLoaderClasspathLog = classLoaderClasspathLoopLog == null ? null
                         : classpathFinderLog.log("Finding classpath elements in ClassLoader " + classLoader);
                 try {
                     classLoaderHandler.handle(scanSpec, classLoader, classpathOrder, classLoaderClasspathLog);
