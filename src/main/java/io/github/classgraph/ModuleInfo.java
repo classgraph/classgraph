@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.net.URI;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /** Holds metadata about a package encountered during a scan. */
@@ -48,7 +49,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     private AnnotationInfoList annotationInfo;
 
     /** {@link PackageInfo} objects for packages found within the class, if any, else null. */
-    private Set<PackageInfo> packageInfoSet;
+    private LinkedHashSet<PackageInfo> packageInfoSet;
 
     /** Set of classes in the module. */
     private final Set<ClassInfo> classInfoSet = new HashSet<>();
@@ -115,7 +116,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** Add a {@link PackageInfo} object to this {@link ModuleInfo}. */
     void addPackageInfo(final PackageInfo packageInfo) {
         if (packageInfoSet == null) {
-            packageInfoSet = new HashSet<>();
+            packageInfoSet = new LinkedHashSet<>();
         }
         packageInfoSet.add(packageInfo);
     }
