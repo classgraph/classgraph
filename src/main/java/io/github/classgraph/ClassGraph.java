@@ -963,10 +963,19 @@ public class ClassGraph {
      *
      * @return this (for method chaining).
      */
-    public ClassGraph enableSystemPackages() {
+    public ClassGraph enableSystemPackagesAndModules() {
         enableClassInfo();
-        scanSpec.blacklistSystemJarsOrModules = false;
+        scanSpec.enableSystemPackagesAndModules = true;
         return this;
+    }
+
+    /**
+     * @deprecated Use {@link #enableSystemPackagesAndModules()} instead.
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph enableSystemPackages() {
+        return enableSystemPackagesAndModules();
     }
 
     // -------------------------------------------------------------------------------------------------------------

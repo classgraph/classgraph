@@ -150,9 +150,9 @@ public class ScanSpec {
     public boolean enableExternalClasses = false;
 
     /**
-     * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned.
+     * If true, system jarfiles (rt.jar) and system packages and modules (java.*, jre.*, etc.) should be scanned .
      */
-    public boolean blacklistSystemJarsOrModules = true;
+    public boolean enableSystemPackagesAndModules = false;
 
     /**
      * If true, ignore class visibility. If false, classes must be public to be scanned.

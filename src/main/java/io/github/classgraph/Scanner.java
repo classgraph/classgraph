@@ -414,9 +414,7 @@ class Scanner implements Callable<ScanResult> {
                 if (systemModuleRefs != null) {
                     for (final ModuleRef systemModuleRef : systemModuleRefs) {
                         final String moduleName = systemModuleRef.getName();
-                        if ((!scanSpec.blacklistSystemJarsOrModules
-                                || !JarUtils.isInSystemPackageOrModule(moduleName))
-                                && scanSpec.overrideModuleLayers == null) {
+                        if (scanSpec.enableSystemPackagesAndModules) {
                             if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
                                 final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                         systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);

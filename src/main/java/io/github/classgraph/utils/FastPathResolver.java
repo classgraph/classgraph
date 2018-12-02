@@ -136,7 +136,7 @@ public class FastPathResolver {
                 }
                 translateSeparator(path, prevEndMatchIdx, len, /* stripFinalSeparator = */ true, buf);
             } else {
-                // Fast path -- no '%', or "http(s)://" or "jrt:/" URL, or non-"file:" or non-"jar:" URL
+                // Fast path -- no '%', or "http(s)://" or "jrt:" URL, or non-"file:" or non-"jar:" URL
                 translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
                 return buf.toString();
             }
@@ -186,10 +186,10 @@ public class FastPathResolver {
             startIdx += 8;
             prefix = "https://";
             isAbsolutePath = true;
-        } else if (relativePathStr.regionMatches(true, startIdx, "jrt:/", 0, 5)) {
-            // Detect jrt:/
-            startIdx += 5;
-            prefix = "jrt:/";
+        } else if (relativePathStr.regionMatches(true, startIdx, "jrt:", 0, 5)) {
+            // Detect jrt:
+            startIdx += 4;
+            prefix = "jrt:";
             isAbsolutePath = true;
         } else if (relativePathStr.regionMatches(true, startIdx, "file:", 0, 5)) {
             // Strip off any "file:" prefix from relative path

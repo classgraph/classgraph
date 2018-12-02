@@ -108,7 +108,7 @@ class ClasspathElementModule extends ClasspathElement {
                         // Use module location string as URL base, if present
                         return URLPathEncoder.urlPathToURL(moduleRef.getLocationStr() + "!/" + moduleResourcePath);
                     } else {
-                        // If there is no known module location, just make up a "jrt:/" path based on the module
+                        // If there is no known module location, just make up a "jrt:" path based on the module
                         // name, so that the user can see something reasonable in the result
                         return URLPathEncoder
                                 .urlPathToURL("jrt:/" + moduleRef.getName() + "/" + moduleResourcePath);
@@ -123,7 +123,7 @@ class ClasspathElementModule extends ClasspathElement {
             public URL getClasspathElementURL() {
                 try {
                     if (moduleRef.getLocation() == null) {
-                        // If there is no known module location, just guess a "jrt:/" path based on the module
+                        // If there is no known module location, just guess a "jrt:" path based on the module
                         // name, so that the user can see something reasonable in the result
                         return new URL(new URL("jrt:/" + moduleRef.getName()).toString());
                     } else {

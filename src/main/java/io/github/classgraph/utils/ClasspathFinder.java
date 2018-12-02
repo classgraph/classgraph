@@ -215,7 +215,7 @@ public class ClasspathFinder {
             }
         } else {
             // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
-            if (!scanSpec.blacklistSystemJarsOrModules) {
+            if (scanSpec.enableSystemPackagesAndModules) {
                 final String jreRtJar = JarUtils.getJreRtJarPath();
                 if (jreRtJar != null) {
                     if (log != null) {

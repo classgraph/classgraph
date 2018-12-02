@@ -62,7 +62,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /** The location URI for the module, as a cached string (may be null). */
     private String locationStr;
 
-    /** A file formed from the location URI. The file will not exist if the location URI is a jrt:/ URI. */
+    /** A file formed from the location URI. The file will not exist if the location URI is a "jrt:" URI. */
     private File locationFile;
 
     /** The raw module version, or null if none. */
@@ -188,7 +188,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     /**
      * @return The module location as a File, i.e. {@code new File(getReference().location())}. Returns null for
-     *         modules that do not have a location, or for system ("jrt:/") modules.
+     *         modules that do not have a location, or for system ("jrt:") modules.
      */
     public File getLocationFile() {
         if (locationFile == null && location != null) {
@@ -215,9 +215,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * @return true if this module's location is a non-"file:/" ("jrt:/") URI, or if it has no location URI, or if
-     *         it uses the (null) bootstrap ClassLoader, or if the module name starts with a system prefix ("java.",
-     *         "jre.", etc.).
+     * @return true if this module's location is a non-"file:" (i.e. "jrt:") URI, or if it has no location URI, or
+     *         if it uses the (null) bootstrap ClassLoader, or if the module name starts with a system prefix
+     *         ("java.", "jre.", etc.).
      */
     public boolean isSystemModule() {
         if (location == null) {

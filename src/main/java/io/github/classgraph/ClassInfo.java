@@ -48,7 +48,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.json.Id;
-import io.github.classgraph.utils.JarUtils;
 import io.github.classgraph.utils.LogNode;
 import io.github.classgraph.utils.Parser.ParseException;
 import io.github.classgraph.utils.ScanSpec;
@@ -570,16 +569,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     || includeAnnotations && classInfo.isAnnotation()) {
                 if (
                 // Always check blacklist 
-                !scanSpec.classOrPackageIsBlacklisted(classInfo.name)
-                        // If not blacklisted, and strictWhitelist is false, add class
-                        && (!strictWhitelist || (
-                        // Don't include external (non-scanned) classes unless enableExternalClasses is true
-                        (!classInfo.isExternalClass || scanSpec.enableExternalClasses)
-                                // If this is a system class, ignore blacklist unless the blanket blacklisting
-                                // of all system jars or modules has been disabled, and this system class was
-                                // specifically blacklisted by name
-                                && (!scanSpec.blacklistSystemJarsOrModules
-                                        || !JarUtils.isInSystemPackageOrModule(classInfo.name))))) {
+                !scanSpec.classOrPackageIsBlacklisted(classInfo.name) //
+                        && (
+                        // Always return whitelisted classes, or external classes if enableExternalClasses is true
+                        !classInfo.isExternalClass || scanSpec.enableExternalClasses
+                        // Return external (non-whitelisted) classes if viewing class hierarchy "upwards" 
+                                || !strictWhitelist)) {
                     // Class passed strict whitelist criteria
                     classInfoSetFiltered.add(classInfo);
                 }
