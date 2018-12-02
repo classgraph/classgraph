@@ -176,17 +176,19 @@ class ClasspathElementZip extends ClasspathElement {
                 for (final String childClassPathEltPath : logicalZipFile.additionalClassPathEntriesToScan) {
                     final String childClassPathEltPathResolved = FastPathResolver.resolve(pathOfContainingDir,
                             childClassPathEltPath);
-                    // Schedule child classpath elements for scanning
-                    if (workQueue != null) {
-                        workQueue.addWorkUnit(childClassPathEltPathResolved);
-                    } else {
-                        // When adding rt.jar, workQueue will be null. But rt.jar should not include Class-Path
-                        // references (so this block should not be reached).
-                        if (log != null) {
-                            log.log("Ignoring Class-Path entry in rt.jar: " + childClassPathEltPathResolved);
+                    if (!childClassPathEltPathResolved.equals(rawPath)
+                            && childClasspathEltPaths.add(childClassPathEltPathResolved)) {
+                        // Schedule child classpath elements for scanning
+                        if (workQueue != null) {
+                            workQueue.addWorkUnit(childClassPathEltPathResolved);
+                        } else {
+                            // When adding rt.jar, workQueue will be null. But rt.jar should not include Class-Path
+                            // references (so this block should not be reached).
+                            if (log != null) {
+                                log.log("Ignoring Class-Path entry in rt.jar: " + childClassPathEltPathResolved);
+                            }
                         }
                     }
-                    childClasspathEltPaths.add(childClassPathEltPathResolved);
                 }
             }
         }
