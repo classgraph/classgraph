@@ -419,8 +419,9 @@ class Scanner implements Callable<ScanResult> {
                         // then scan all system modules
                         (scanSpec.enableSystemJarsAndModules
                                 && scanSpec.moduleWhiteBlackList.whitelistAndBlacklistAreEmpty())
-                                // Otherwise scan only specifically whitelisted system modules
-                                || scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
+                                // Otherwise only scan specifically whitelisted system modules
+                                || scanSpec.moduleWhiteBlackList
+                                        .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
                             classpathElementModule.checkValid(/* unused */ null, classpathFinderLog);
@@ -513,8 +514,7 @@ class Scanner implements Callable<ScanResult> {
                 finalClasspathEltOrderStrs.add(classpathElt.toString());
                 if (classpathOrderLog != null) {
                     final ModuleRef moduleRef = classpathElt.getModuleRef();
-                    classpathOrderLog
-                            .log("module " + moduleRef.getName() + " ; location: " + moduleRef.getLocationStr());
+                    classpathOrderLog.log(moduleRef.toString());
                 }
             }
             for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
