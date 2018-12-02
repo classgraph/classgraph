@@ -353,34 +353,6 @@ public class JarUtils {
         return JRE_LIB_OR_EXT_JARS;
     }
 
-    /** Prefixes of system (JRE) packages. */
-    public static final String[] SYSTEM_PACKAGE_PREFIXES = { //
-            "java.", "javax.", "javafx.", "jdk.", "oracle.", "sun." };
-
-    /** Prefixes of system (JRE) packages, turned into path form (with slashes instead of dots). */
-    public static final String[] SYSTEM_PACKAGE_PATH_PREFIXES = new String[SYSTEM_PACKAGE_PREFIXES.length];
-    static {
-        for (int i = 0; i < SYSTEM_PACKAGE_PREFIXES.length; i++) {
-            SYSTEM_PACKAGE_PATH_PREFIXES[i] = SYSTEM_PACKAGE_PREFIXES[i].replace('.', '/');
-        }
-    }
-
-    /**
-     * Return true if the given class name, package name or module name has a system package or module prefix
-     * 
-     * @param packageOrModuleName
-     *            The class, package or module name.
-     * @return Whether this is a system class, package or module.
-     */
-    public static boolean isInSystemPackageOrModule(final String packageOrModuleName) {
-        for (final String prefix : SYSTEM_PACKAGE_PREFIXES) {
-            if (packageOrModuleName.startsWith(prefix)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** Convert a classfile path to the corresponding class name. */
