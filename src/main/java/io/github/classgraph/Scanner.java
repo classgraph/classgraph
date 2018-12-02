@@ -575,6 +575,9 @@ class Scanner implements Callable<ScanResult> {
                             }
                         }
                     }, interruptionChecker, pathScanLog);
+            if (preScanLog != null) {
+                preScanLog.addElapsedTime();
+            }
 
             // Filter out classpath elements that do not contain required whitelisted paths.
             List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
