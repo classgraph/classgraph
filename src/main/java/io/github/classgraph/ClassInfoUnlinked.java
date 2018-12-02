@@ -136,7 +136,8 @@ class ClassInfoUnlinked {
             if (moduleRef == null) {
                 if (log != null) {
                     log.log("Found module descriptor " + className + " but module was included in traditional "
-                            + "classpath -- will not create ModuleInfo for this classpath element");
+                            + "classpath -- will not create ModuleInfo for this classpath element: "
+                            + classfileResource);
                 }
             } else {
                 String moduleName = moduleRef.getName();
