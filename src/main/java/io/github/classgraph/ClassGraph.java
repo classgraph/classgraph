@@ -970,6 +970,8 @@ public class ClassGraph {
     }
 
     /**
+     * Use {@link #enableSystemJarsAndModules()} instead.
+     * 
      * @deprecated Use {@link #enableSystemJarsAndModules()} instead.
      * @return this (for method chaining).
      */
