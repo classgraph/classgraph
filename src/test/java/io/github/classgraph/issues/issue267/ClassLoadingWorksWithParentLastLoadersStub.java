@@ -112,13 +112,13 @@ class FakeRestartClassLoader extends ClassLoader {
     }
 
     private String getClasspath() {
-        String classfileName = A.class.getName().replace('.', '/') + ".class";
-        URL classfileResource = getClass().getClassLoader().getResource(classfileName);
+        final String classfileName = A.class.getName().replace('.', '/') + ".class";
+        final URL classfileResource = getClass().getClassLoader().getResource(classfileName);
         if (classfileResource == null) {
             throw new IllegalArgumentException("Could not find classfile " + classfileName);
         }
-        String classfilePath = classfileResource.getFile();
-        String packageRoot = classfilePath.substring(0, classfilePath.length() - classfileName.length() - 1);
+        final String classfilePath = classfileResource.getFile();
+        final String packageRoot = classfilePath.substring(0, classfilePath.length() - classfileName.length() - 1);
         return packageRoot;
     }
 }
