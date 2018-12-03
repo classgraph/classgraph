@@ -76,6 +76,9 @@ class ClasspathElementModule extends ClasspathElement {
         try {
             moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap
                     .getOrCreateSingleton(moduleRef, log);
+            if (moduleReaderProxyRecycler == null) {
+                throw new RuntimeException("Proxy recycler returned null");
+            }
         } catch (final Exception e) {
             if (log != null) {
                 log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName() + " : "

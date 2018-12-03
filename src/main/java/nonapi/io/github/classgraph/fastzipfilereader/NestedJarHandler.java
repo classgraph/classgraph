@@ -216,6 +216,10 @@ public class NestedJarHandler {
                             // Get or create a PhysicalZipFile instance for the new temp file
                             final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap
                                     .getOrCreateSingleton(tempFile, log);
+                            if (physicalZipFile == null) {
+                                throw new IOException("Could not open nested jarfile " + childZipEntry.entryName
+                                        + " from temporary file " + tempFile);
+                            }
                             additionalAllocatedPhysicalZipFiles.add(physicalZipFile);
 
                             // Create a new logical slice of the whole physical zipfile
@@ -323,6 +327,9 @@ public class NestedJarHandler {
                     // Get or create a PhysicalZipFile instance for the canonical file
                     final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap
                             .getOrCreateSingleton(canonicalFile, log);
+                    if (physicalZipFile == null) {
+                        throw new IOException("Could not open jarfile: " + canonicalFile);
+                    }
 
                     // Create a new logical slice of the whole physical zipfile
                     final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);

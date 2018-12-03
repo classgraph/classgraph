@@ -177,7 +177,10 @@ public abstract class SingletonMap<K, V> {
     public List<V> values() throws InterruptedException {
         final List<V> entries = new ArrayList<>(map.size());
         for (final Entry<K, SingletonHolder<V>> ent : map.entrySet()) {
-            entries.add(ent.getValue().get());
+            final V entryValue = ent.getValue().get();
+            if (entryValue != null) {
+                entries.add(entryValue);
+            }
         }
         return entries;
     }
