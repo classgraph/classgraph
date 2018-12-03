@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -226,13 +227,16 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 // Get the MappedByteBuffer for the 2GB chunk, and duplicate it
                 currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).duplicate();
 
-                // Calculate the start position within the first chunk, and set the position of the slice
+                // Calculate the start position within the first chunk, and set the position of the slice.
+                // N.B. the cast to Buffer is necessary, see:
+                // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
+                // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
                 final int chunkPos = (int) (dataStartOffsetWithinPhysicalZipFile - (((long) currChunkIdx) << 32));
-                currChunkByteBuf.position(chunkPos);
+                ((Buffer) currChunkByteBuf).position(chunkPos);
 
                 // Calculate end pos for the first chunk, and truncate it if it overflows 2GB
                 final long endPos = chunkPos + compressedSize;
-                currChunkByteBuf.limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, endPos));
+                ((Buffer) currChunkByteBuf).limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, endPos));
                 isLastChunk = endPos <= FileUtils.MAX_BUFFER_SIZE;
             }
 
@@ -255,11 +259,14 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 // Get the MappedByteBuffer for the next 2GB chunk, and duplicate it
                 currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).duplicate();
 
-                // The start position for 2nd and subsequent chunks is 0
-                currChunkByteBuf.position(0);
+                // The start position for 2nd and subsequent chunks is 0.
+                // N.B. the cast to Buffer is necessary, see:
+                // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
+                // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
+                ((Buffer) currChunkByteBuf).position(0);
 
                 // Calculate end pos for the next chunk, and truncate it if it overflows 2GB
-                currChunkByteBuf.limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, remainingBytes));
+                ((Buffer) currChunkByteBuf).limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, remainingBytes));
                 isLastChunk = remainingBytes <= FileUtils.MAX_BUFFER_SIZE;
                 return true;
             }

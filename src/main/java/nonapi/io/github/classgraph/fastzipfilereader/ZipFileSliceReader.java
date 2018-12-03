@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -72,9 +73,13 @@ class ZipFileSliceReader {
             final long chunkStartAbsolute = ((long) chunkIdx) << 32;
             final int startReadPos = (int) (currOffAbsolute - chunkStartAbsolute);
 
-            // Read from current chunk
-            chunk.mark();
-            chunk.position(startReadPos);
+            // Read from current chunk.
+            // N.B. the cast to Buffer is necessary, see:
+            // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
+            // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
+            // Otherwise compiling in JDK<9 compatibility mode using JDK9+ causes runtime breakage. 
+            ((Buffer) chunk).mark();
+            ((Buffer) chunk).position(startReadPos);
             final int numBytesRead = Math.min(chunk.remaining(), remainingBytesToRead);
             try {
                 chunk.get(buf, currBufStart, numBytesRead);
@@ -82,7 +87,7 @@ class ZipFileSliceReader {
                 // Should not happen
                 throw new EOFException("Unexpected EOF");
             }
-            chunk.reset();
+            ((Buffer) chunk).reset();
 
             currOff += numBytesRead;
             currBufStart += numBytesRead;
