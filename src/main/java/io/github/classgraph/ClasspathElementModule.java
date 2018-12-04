@@ -45,6 +45,7 @@ import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
@@ -283,11 +284,12 @@ class ClasspathElementModule extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log.log(moduleLocationStr, "Scanning module " + moduleRef.getName());
 
-        try (ModuleReaderProxy moduleReaderProxy = moduleReaderProxyRecycler.acquire()) {
+        try (final RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
+                = moduleReaderProxyRecycler.acquireRecycleOnClose()) {
             // Look for whitelisted files in the module.
             List<String> resourceRelativePaths;
             try {
-                resourceRelativePaths = moduleReaderProxy.list();
+                resourceRelativePaths = moduleReaderProxyRecycleOnClose.get().list();
             } catch (final Exception e) {
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName(), e);
