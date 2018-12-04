@@ -28,6 +28,7 @@
  */
 package nonapi.io.github.classgraph.recycler;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Queue;
 import java.util.Set;
@@ -147,8 +148,12 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * instances and discard all instances.
      */
     public void forceClose() {
-        unusedInstances.addAll(usedInstances);
-        usedInstances.clear();
+        // Move all elements from usedInstances to unusedInstances in a threadsafe way
+        for (final T usedInstance : new ArrayList<>(usedInstances)) {
+            if (usedInstances.remove(usedInstance)) {
+                unusedInstances.add(usedInstance);
+            }
+        }
         close();
     }
 }
