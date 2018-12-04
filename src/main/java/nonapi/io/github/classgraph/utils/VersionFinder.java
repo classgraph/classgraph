@@ -51,7 +51,7 @@ public class VersionFinder {
     /** Get a system property (returning null if a SecurityException was thrown). */
     public static String getProperty(final String propName) {
         try {
-            return getProperty(propName);
+            return System.getProperty(propName);
         } catch (final SecurityException e) {
             return null;
         }
@@ -60,7 +60,7 @@ public class VersionFinder {
     /** Get a system property (returning null if a SecurityException was thrown). */
     public static String getProperty(final String propName, final String defaultVal) {
         try {
-            return getProperty(propName, defaultVal);
+            return System.getProperty(propName, defaultVal);
         } catch (final SecurityException e) {
             return null;
         }
