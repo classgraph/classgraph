@@ -100,13 +100,13 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     /**
      * Recycle an object for reuse by a subsequent call to {@link #acquire()}. If the object is an instance of
      * {@link Resettable}, then {@link Resettable#reset()} will be called on the instance before recycling it.
+     * 
+     * @throws IllegalArgumentException
+     *             if the object instance was not originally obtained from this {@link Recycler}.
      */
     public final void recycle(final T instance) {
         if (instance != null) {
-            if (!usedInstances.remove(instance)) {
-                throw new IllegalArgumentException(
-                        "Object instance was not originally obtained from this Recycler");
-            }
+            usedInstances.remove(instance);
             if (instance instanceof Resettable) {
                 try {
                     ((Resettable) instance).reset();
@@ -123,8 +123,9 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * {@link AutoCloseable}.
      * 
      * <p>
-     * The {@link Recycler} may continue to be used to acquire new instances after calling this method, i.e. the
-     * effect of this method is to clear out the recycler of unused instances.
+     * The {@link Recycler} may continue to be used to acquire new instances after calling this method, and then
+     * this method may be called again in future, i.e. the effect of calling this method is to simply clear out the
+     * recycler of unused instances, closing the instances if needed.
      */
     @Override
     public void close() {
@@ -140,9 +141,9 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Force-close this {@link Recycler}, by moving all used instances into the unused instances list, then calling
-     * {@link #close()}, which will call {@link AutoCloseable#close()} on any instances that implement
-     * {@link AutoCloseable}.
+     * Force-close this {@link Recycler}, by forcibly moving any instances that have been acquired but not yet
+     * recycled into the unused instances list, then calling {@link #close()} to close any {@link AutoCloseable}
+     * instances and discard all instances.
      */
     public void forceClose() {
         unusedInstances.addAll(usedInstances);
