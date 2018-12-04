@@ -83,7 +83,7 @@ public abstract class SingletonMap<K, V> {
      * @throws IllegalArgumentException
      *             if newInstance(key) returns null.
      */
-    public boolean createSingleton(final K key, final LogNode log) throws Exception {
+    private boolean createSingleton(final K key, final LogNode log) throws Exception {
         SingletonHolder<V> newSingletonHolder = singletonHolderRecycler.poll();
         if (newSingletonHolder == null) {
             newSingletonHolder = new SingletonHolder<>();
@@ -105,36 +105,9 @@ public abstract class SingletonMap<K, V> {
             }
             return true;
         } else {
-            // There was already a singleton in the map for this key
+            // There was already a singleton in the map for this key -- recycle newSingletonHolder
             singletonHolderRecycler.add(newSingletonHolder);
             return false;
-        }
-    }
-
-    /**
-     * Check if the given key is in the map, and if so, return it. If not, create a singleton value for that key,
-     * and return the created value.
-     * 
-     * @param key
-     *            The key for the singleton.
-     * @param log
-     *            The log.
-     * @return The singleton instance.
-     * @throws Exception
-     *             if newInstance(key) throws an exception.
-     * @throws IllegalArgumentException
-     *             if newInstance(key) returns null.
-     */
-    public V getOrCreateSingleton(final K key, final LogNode log) throws Exception {
-        final V existingSingleton = get(key);
-        if (existingSingleton != null) {
-            return existingSingleton;
-        } else {
-            // Create singleton (in case of race condition, only one thread will cause a new singleton to be created
-            // for this key)
-            createSingleton(key, log);
-            // Look up newly-created singleton, and get the created value
-            return get(key);
         }
     }
 
@@ -152,7 +125,43 @@ public abstract class SingletonMap<K, V> {
     public abstract V newInstance(K key, LogNode log) throws Exception;
 
     /**
-     * Get the singleton for a given key.
+     * Check if the given key is in the map, and if so, return it. If not, create a singleton value for that key,
+     * and return the created value. Stores null in the map if creating a new singleton instance failed due to
+     * throwing an exception, so that the failed operation is not repeated twice, however throws
+     * {@link IllegalArgumentException} if during this call or a previous call for the same key,
+     * {@link #newInstance(Object, LogNode)} returned null.
+     * 
+     * @param key
+     *            The key for the singleton.
+     * @param log
+     *            The log.
+     * @return The singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null instance on this
+     *         call or a previous call.
+     * @throws Exception
+     *             if newInstance(key) throws an exception.
+     * @throws IllegalArgumentException
+     *             if newInstance(key) returns null.
+     */
+    public V get(final K key, final LogNode log) throws Exception {
+        final V existingSingleton = getIfPresent(key);
+        if (existingSingleton != null) {
+            return existingSingleton;
+        } else {
+            // Create singleton (in case of race condition, only one thread will cause a new singleton to be
+            // created for this key, due to the getIfPresent call)
+            createSingleton(key, log);
+            // Look up newly-created singleton, and get the created value
+            final V value = getIfPresent(key);
+            if (value == null) {
+                throw new IllegalArgumentException("Previous call to newInstance(key) returned null");
+            }
+            return value;
+        }
+    }
+
+    /**
+     * Get the singleton for a given key, if it is present in the map, otherwise return null. (Note that this will
+     * also return null if creating a singleton value for a given key failed due to throwing an exception.)
      * 
      * @param key
      *            The key for the singleton.
@@ -162,7 +171,7 @@ public abstract class SingletonMap<K, V> {
      * @throws InterruptedException
      *             If getting the singleton was interrupted.
      */
-    public V get(final K key) throws InterruptedException {
+    public V getIfPresent(final K key) throws InterruptedException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         return singletonHolder == null ? null : singletonHolder.get();
     }

@@ -105,11 +105,7 @@ class ClasspathElementZip extends ClasspathElement {
             try {
                 // Get LogicalZipFile for innermost nested jarfile
                 final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = //
-                        nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.getOrCreateSingleton(rawPath,
-                                log);
-                if (logicalZipFileAndPackageRoot == null) {
-                    throw new IOException("Could not open nested logical jarfile: " + rawPath);
-                }
+                        nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.get(rawPath, log);
                 logicalZipFile = logicalZipFileAndPackageRoot.getKey();
 
                 // Get the normalized path of the logical zipfile
@@ -120,7 +116,7 @@ class ClasspathElementZip extends ClasspathElement {
                 if (!packageRoot.isEmpty()) {
                     packageRootPrefix = packageRoot + "/";
                 }
-            } catch (final IOException e) {
+            } catch (final IOException | IllegalArgumentException e) {
                 if (log != null) {
                     log.log("Could not open jarfile: " + e);
                 }

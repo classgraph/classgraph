@@ -104,7 +104,8 @@ class Scanner implements Callable<ScanResult> {
             // Whether or not a classpath element should be skipped, add any child classpath elements that are
             // not marked to be skipped (i.e. keep recursing)
             for (final String childClasspathEltStr : currClasspathElement.childClasspathEltPaths) {
-                final ClasspathElement childSingleton = classpathElementSingletonMap.get(childClasspathEltStr);
+                final ClasspathElement childSingleton = classpathElementSingletonMap
+                        .getIfPresent(childClasspathEltStr);
                 if (childSingleton != null) {
                     findClasspathOrderRec(childSingleton, classpathElementSingletonMap, visitedClasspathElts,
                             order);
@@ -125,7 +126,8 @@ class Scanner implements Callable<ScanResult> {
         final HashSet<ClasspathElement> visitedClasspathElts = new HashSet<>();
         final ArrayList<ClasspathElement> order = new ArrayList<>();
         for (final String toplevelClasspathEltStr : rawClasspathElementOrder) {
-            final ClasspathElement toplevelSingleton = classpathElementSingletonMap.get(toplevelClasspathEltStr);
+            final ClasspathElement toplevelSingleton = classpathElementSingletonMap
+                    .getIfPresent(toplevelClasspathEltStr);
             if (toplevelSingleton != null) {
                 findClasspathOrderRec(toplevelSingleton, classpathElementSingletonMap, visitedClasspathElts, order);
             }
@@ -464,34 +466,25 @@ class Scanner implements Callable<ScanResult> {
                         @Override
                         public void processWorkUnit(final String classpathEltPath,
                                 final WorkQueue<String> workQueue) throws Exception {
+                            ClasspathElement classpathElt = null;
                             try {
-                                ClasspathElement classpathElt = null;
-                                try {
-                                    // Create a ClasspathElementZip or ClasspathElementDir from the elt path
-                                    classpathElt = classpathElementSingletonMap
-                                            .getOrCreateSingleton(classpathEltPath, classpathFinderLog);
-                                    if (classpathElt == null && classpathFinderLog != null) {
-                                        classpathFinderLog
-                                                .log("Skipping invalid classpath element " + classpathEltPath);
-                                    }
-                                } catch (final IOException e) {
-                                    if (classpathFinderLog != null) {
-                                        classpathFinderLog
-                                                .log("Skipping classpath element " + classpathEltPath + " : " + e);
-                                    }
-                                }
-                                if (classpathElt != null) {
-                                    // Check if the classpath element is valid (classpathElt.skipClasspathElement
-                                    // will be set if not). Finds innermost jar, in case of ClasspathElementZip,
-                                    // and this may trigger the extraction of nested jarfiles to temporary files,
-                                    // if they are deflated rather than stored. Also causes the manifest of
-                                    // jarfiles to be read, and any "Class-Path" manifest entries to be added to
-                                    // the work queue.
-                                    classpathElt.checkValid(workQueue, preScanLog);
-                                }
+                                // Create a ClasspathElementZip or ClasspathElementDir from the elt path
+                                classpathElt = classpathElementSingletonMap.get(classpathEltPath,
+                                        classpathFinderLog);
 
-                            } catch (final IllegalArgumentException e) {
-                                // Thrown if classpath element is invalid (already logged)
+                                // Check if the classpath element is valid (classpathElt.skipClasspathElement
+                                // will be set if not). Finds innermost jar, in case of ClasspathElementZip,
+                                // and this may trigger the extraction of nested jarfiles to temporary files,
+                                // if they are deflated rather than stored. Also causes the manifest of
+                                // jarfiles to be read, and any "Class-Path" manifest entries to be added to
+                                // the work queue.
+                                classpathElt.checkValid(workQueue, preScanLog);
+
+                            } catch (final IOException | IllegalArgumentException e) {
+                                if (classpathFinderLog != null) {
+                                    classpathFinderLog.log(
+                                            "Skipping invalid classpath element " + classpathEltPath + " : " + e);
+                                }
                             }
                         }
                     }, interruptionChecker, preScanLog);

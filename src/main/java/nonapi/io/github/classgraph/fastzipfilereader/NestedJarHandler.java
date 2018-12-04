@@ -214,12 +214,8 @@ public class NestedJarHandler {
                             }
 
                             // Get or create a PhysicalZipFile instance for the new temp file
-                            final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap
-                                    .getOrCreateSingleton(tempFile, log);
-                            if (physicalZipFile == null) {
-                                throw new IOException("Could not open nested jarfile " + childZipEntry.entryName
-                                        + " from temporary file " + tempFile);
-                            }
+                            final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap.get(tempFile,
+                                    log);
                             additionalAllocatedPhysicalZipFiles.add(physicalZipFile);
 
                             // Create a new logical slice of the whole physical zipfile
@@ -325,16 +321,12 @@ public class NestedJarHandler {
                     }
 
                     // Get or create a PhysicalZipFile instance for the canonical file
-                    final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap
-                            .getOrCreateSingleton(canonicalFile, log);
-                    if (physicalZipFile == null) {
-                        throw new IOException("Could not open jarfile: " + canonicalFile);
-                    }
+                    final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile,
+                            log);
 
                     // Create a new logical slice of the whole physical zipfile
                     final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
-                    final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap
-                            .getOrCreateSingleton(topLevelSlice, log);
+                    final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
 
                     // Return new logical zipfile with an empty package root
                     return new SimpleEntry<>(logicalZipFile, "");
@@ -351,7 +343,7 @@ public class NestedJarHandler {
                     // returned. The recursion is guaranteed to terminate because parentPath gets one
                     // '!'-section shorter with each recursion frame.
                     final Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot = //
-                            nestedPathToLogicalZipFileAndPackageRootMap.getOrCreateSingleton(parentPath, log);
+                            nestedPathToLogicalZipFileAndPackageRootMap.get(parentPath, log);
                     if (parentLogicalZipFileAndPackageRoot == null) {
                         // Failed to get topmost jarfile, e.g. file not found
                         throw new IOException("Could not find parent jarfile " + parentPath);
@@ -429,8 +421,8 @@ public class NestedJarHandler {
                     // it is deflated, then create a new ZipFileSlice over the temporary file or ByteBuffer.
                     try {
                         // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
-                        final ZipFileSlice childZipEntrySlice = fastZipEntryToZipFileSliceMap
-                                .getOrCreateSingleton(childZipEntry, log);
+                        final ZipFileSlice childZipEntrySlice = fastZipEntryToZipFileSliceMap.get(childZipEntry,
+                                log);
                         if (childZipEntrySlice == null) {
                             throw new IOException(
                                     "Could not open nested jarfile entry: " + childZipEntry.getPath());
@@ -438,7 +430,7 @@ public class NestedJarHandler {
 
                         // Get or create a new LogicalZipFile for the child zipfile
                         final LogicalZipFile childLogicalZipFile = zipFileSliceToLogicalZipFileMap
-                                .getOrCreateSingleton(childZipEntrySlice, log);
+                                .get(childZipEntrySlice, log);
 
                         // Return new logical zipfile with an empty package root
                         return new SimpleEntry<>(childLogicalZipFile, "");

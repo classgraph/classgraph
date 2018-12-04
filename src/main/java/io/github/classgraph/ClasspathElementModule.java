@@ -74,15 +74,18 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     void checkValid(final WorkQueue<String> workQueue, final LogNode log) {
         try {
-            moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap
-                    .getOrCreateSingleton(moduleRef, log);
-            if (moduleReaderProxyRecycler == null) {
-                throw new RuntimeException("Proxy recycler returned null");
-            }
-        } catch (final Exception e) {
+            moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
+                    log);
+        } catch (final IOException | IllegalArgumentException e) {
             if (log != null) {
                 log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName() + " : "
                         + e);
+            }
+            skipClasspathElement = true;
+            return;
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName(), e);
             }
             skipClasspathElement = true;
             return;

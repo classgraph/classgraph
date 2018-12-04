@@ -136,10 +136,8 @@ public class PhysicalZipFile implements Closeable {
             try {
                 // This 2GB chunk has not yet been read -- mmap it (use a singleton map so that the mmap
                 // doesn't happen more than once, in case of race condition)
-                mappedByteBuffersCached[chunkIdx] = chunkIdxToByteBuffer.getOrCreateSingleton(chunkIdx, null);
-                if (mappedByteBuffersCached[chunkIdx] == null) {
-                    throw new IOException("Could not allocate chunk " + chunkIdx);
-                }
+                mappedByteBuffersCached[chunkIdx] = chunkIdxToByteBuffer.get(chunkIdx, /* log = */ null);
+
             } catch (final Exception e) {
                 throw new IOException(e);
             }
