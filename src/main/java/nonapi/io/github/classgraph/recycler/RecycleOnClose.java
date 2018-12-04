@@ -29,9 +29,9 @@
 package nonapi.io.github.classgraph.recycler;
 
 /**
- * An AutoCloseable wrapper for a recyclable object instance. Use in try-with-resources: when
- * {@link RecycleOnClose#close()} is called, recycles the instance, also calling {@link Resettable#reset()} if the
- * instance implements {@link Resettable}.
+ * An AutoCloseable wrapper for a recyclable object instance. Obtained by calling
+ * {@link Recycler#acquireRecycleOnClose()} in a try-with-resources statement, so that when the try block exits, the
+ * acquired instance is recycled.
  */
 public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
     private final Recycler<T, E> recycler;

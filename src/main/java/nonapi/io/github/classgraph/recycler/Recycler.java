@@ -35,12 +35,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Recycler for instances of type T.
+ * Recycler for instances of type T, where instantiating this type may throw checked exception E.
  * 
  * @param <T>
  *            The type to recycle.
  * @param <E>
- *            An exception type that can be thrown while acquiring an instance of the type to recycle.
+ *            An exception that can be thrown while acquiring an instance of the type to recycle, or use an
+ *            unchecked exception type such as {@link RuntimeException} if none.
  */
 public abstract class Recycler<T, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */
@@ -123,9 +124,9 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * {@link AutoCloseable}.
      * 
      * <p>
-     * The {@link Recycler} may continue to be used to acquire new instances after calling this method, and then
-     * this method may be called again in future, i.e. the effect of calling this method is to simply clear out the
-     * recycler of unused instances, closing the instances if needed.
+     * The {@link Recycler} may continue to be used to acquire new instances after calling this close method, and
+     * then this close method may be called again in future, i.e. the effect of calling this method is to simply
+     * clear out the recycler of unused instances, closing any {@link AutoCloseable} instances.
      */
     @Override
     public void close() {

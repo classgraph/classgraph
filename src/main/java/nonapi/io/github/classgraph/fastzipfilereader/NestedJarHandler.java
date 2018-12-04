@@ -49,6 +49,7 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.recycler.Recycler;
+import nonapi.io.github.classgraph.recycler.RecyclerExceptionless;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -83,7 +84,7 @@ public class NestedJarHandler {
     moduleRefToModuleReaderProxyRecyclerMap;
 
     /** A recycler for {@link Inflater} instances. */
-    public Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
+    public RecyclerExceptionless<RecyclableInflater> inflaterRecycler;
 
     /** Any temporary files created while scanning. */
     private ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
@@ -112,7 +113,7 @@ public class NestedJarHandler {
      */
     public NestedJarHandler(final ScanSpec scanSpec, final LogNode log) {
         // Set up a recycler for Inflater instances.
-        this.inflaterRecycler = new Recycler<RecyclableInflater, RuntimeException>() {
+        this.inflaterRecycler = new RecyclerExceptionless<RecyclableInflater>() {
             @Override
             public RecyclableInflater newInstance() throws RuntimeException {
                 if (closed.get()) {

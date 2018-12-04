@@ -39,7 +39,7 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
-import nonapi.io.github.classgraph.recycler.Recycler;
+import nonapi.io.github.classgraph.recycler.RecyclerExceptionless;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -78,7 +78,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public final String entryNameUnversioned;
 
     /** The {@link Inflater} recycler. */
-    private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
+    private final RecyclerExceptionless<RecyclableInflater> inflaterRecycler;
 
     /** The {@link RecyclableInflater} instance wrapping recyclable {@link Inflater} instances. */
     private RecyclableInflater recyclableInflaterInstance;
