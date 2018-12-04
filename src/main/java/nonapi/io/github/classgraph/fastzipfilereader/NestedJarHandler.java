@@ -405,7 +405,6 @@ public class NestedJarHandler {
         // Set up a singleton map from ModuleRef object to ModuleReaderProxy recycler
         this.moduleRefToModuleReaderProxyRecyclerMap = //
                 new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>>() {
-
                     @Override
                     public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
                             final LogNode log) {
