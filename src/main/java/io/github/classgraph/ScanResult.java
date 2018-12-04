@@ -790,7 +790,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
+    public Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
             throws IllegalArgumentException {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
@@ -834,7 +834,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    <T> Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
+    public <T> Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
             final boolean returnNullIfClassNotFound) throws IllegalArgumentException {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
