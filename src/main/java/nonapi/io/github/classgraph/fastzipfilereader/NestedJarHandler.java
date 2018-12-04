@@ -53,24 +53,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/**
- * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs
- * to temp files.
- *
- * <p>
- * Somewhat paradoxically, the fastest way to support scanning zipfiles-within-zipfiles is to unzip the inner
- * zipfile to a temporary file on disk, because the inner zipfile can only be read using ZipInputStream, not ZipFile
- * (the ZipFile constructors only take a File argument). ZipInputStream doesn't have methods for reading the zip
- * directory at the beginning of the stream, so using ZipInputStream rather than ZipFile, you have to decompress the
- * entire zipfile to read all the directory entries. However, there may be many non-whitelisted entries in the
- * zipfile, so this could be a lot of wasted work.
- *
- * <p>
- * ClassGraph makes two passes, one to read the zipfile directory, which whitelist and blacklist criteria are
- * applied to (this is a fast operation when using ZipFile), and then an additional pass to read only whitelisted
- * (non-blacklisted) entries. Therefore, in the general case, the ZipFile API is always going to be faster than
- * ZipInputStream. Therefore, decompressing the inner zipfile to disk is the only efficient option.
- */
+/** Open and read jarfiles, which may be nested within other jarfiles. */
 public class NestedJarHandler {
     /** A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file. */
     private SingletonMap<File, PhysicalZipFile> canonicalFileToPhysicalZipFileMap;
@@ -114,6 +97,7 @@ public class NestedJarHandler {
      */
     private static final int INFLATE_TO_DISK_THRESHOLD = 32 * 1024 * 1024;
 
+    /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     // -------------------------------------------------------------------------------------------------------------
