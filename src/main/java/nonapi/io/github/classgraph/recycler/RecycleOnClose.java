@@ -1,7 +1,7 @@
 /*
  * This file is part of ClassGraph.
  *
- * Author: Luke Hutchison (luke.hutch@gmail.com)
+ * Author: Luke Hutchison
  *
  * Hosted at: https://github.com/classgraph/classgraph
  *
@@ -26,34 +26,44 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
-
-import java.util.ArrayList;
-import java.util.concurrent.Future;
+package nonapi.io.github.classgraph.recycler;
 
 /**
- * An AutoCloseable list of {@code Future<Void>} items that can be used in a try-with-resources block. When close()
- * is called on this list, all items' {@code get()} methods are called, implementing a completion barrier.
+ * An AutoCloseable wrapper for a recyclable object instance. Use in try-with-resources: when
+ * {@link RecycleOnClose#close()} is called, recycles the instance, also calling {@link Resettable#reset()} if the
+ * instance implements {@link Resettable}.
  */
-class AutoCloseableFutureListWithCompletionBarrier extends ArrayList<Future<Void>> implements AutoCloseable {
-    private final LogNode log;
+public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
+    private final Recycler<T, E> recycler;
+    private final T instance;
 
-    AutoCloseableFutureListWithCompletionBarrier(final int size, final LogNode log) {
-        super(size);
-        this.log = log;
+    /**
+     * Acquire or allocate an instance.
+     * 
+     * @param recycler
+     *            The {@link Recycler}.
+     * @param instance
+     *            The instance.
+     * @throws E
+     *             If an exception of type E was thrown during instantiation.
+     * @throws IllegalArgumentException
+     *             If {@link Recycler#newInstance()} returned null.
+     */
+    RecycleOnClose(final Recycler<T, E> recycler, final T instance) throws E {
+        this.recycler = recycler;
+        this.instance = instance;
     }
 
-    /** Completion barrier. */
+    /**
+     * @return The new or recycled object instance.
+     */
+    public T get() {
+        return instance;
+    }
+
+    /** Recycle an instance. Calls {@link Resettable#reset()} if the instance implements {@link Resettable}. */
     @Override
     public void close() {
-        for (final Future<Void> future : this) {
-            try {
-                future.get();
-            } catch (final Exception e) {
-                if (log != null) {
-                    log.log("Exception while waiting for future result", e);
-                }
-            }
-        }
+        recycler.recycle(instance);
     }
 }

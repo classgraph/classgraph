@@ -46,13 +46,12 @@ import java.util.zip.Inflater;
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
+import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.Recycler;
-import nonapi.io.github.classgraph.utils.Recycler.Resettable;
 import nonapi.io.github.classgraph.utils.ScanSpec;
-import nonapi.io.github.classgraph.utils.SingletonMap;
 
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs
@@ -116,31 +115,6 @@ public class NestedJarHandler {
     private static final int INFLATE_TO_DISK_THRESHOLD = 32 * 1024 * 1024;
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Wrapper class that allows an {@link Inflater} instance to be reused. */
-    public static class RecyclableInflater implements Resettable, AutoCloseable {
-        /** Create a new {@link Inflater} instance. */
-        private final Inflater inflater = new Inflater(/* nowrap = */ true);
-
-        /** Get the {@link Inflater} instance. */
-        public Inflater getInflater() {
-            return inflater;
-        }
-
-        /** Called when an {@link Inflater} instance is recycled. */
-        @Override
-        public void reset() {
-            inflater.reset();
-        }
-
-        /** Called when the {@link Recycler} instance is closed, to destroy unused {@link Inflater} instances. */
-        @Override
-        public void close() {
-            inflater.end();
-        }
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 

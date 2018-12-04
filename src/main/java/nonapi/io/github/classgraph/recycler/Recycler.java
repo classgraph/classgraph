@@ -26,9 +26,10 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph.recycler;
 
 import java.util.Collections;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -46,10 +47,11 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     private final Set<T> usedInstances = Collections.newSetFromMap(new ConcurrentHashMap<T, Boolean>());
 
     /** Instances that have been allocated but are unused. */
-    private final ConcurrentLinkedQueue<T> unusedInstances = new ConcurrentLinkedQueue<>();
+    private final Queue<T> unusedInstances = new ConcurrentLinkedQueue<>();
 
     /**
-     * Create a new instance.
+     * Create a new instance. This should either return a non-null instance of type T, or throw an exception of type
+     * E.
      * 
      * @return The new instance.
      * @throws E
@@ -58,73 +60,62 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     public abstract T newInstance() throws E;
 
     /**
-     * Acquire a Recyclable wrapper around an object instance. Use in try-with-resources.
+     * Acquire on object instance of type T, either by reusing a previously recycled instance, or by allocating a
+     * new instance.
      * 
      * @return Either a new or a recycled object instance.
      * @throws E
      *             If anything goes wrong when trying to allocate a new object instance.
      */
-    public Recyclable acquire() throws E {
-        return new Recyclable();
-    }
-
-    /** An AutoCloseable wrapper for a recyclable object instance. Use in try-with-resources. */
-    public class Recyclable implements AutoCloseable {
-        private final T instance;
-
-        /**
-         * Acquire or allocate an instance.
-         * 
-         * @throws E
-         *             If an exception of type E was thrown during instantiation.
-         */
-        public Recyclable() throws E {
-            final T recycledInstance = unusedInstances.poll();
-            if (recycledInstance == null) {
-                // Allocate a new instance
-                final T newInstance = newInstance(); // May throw exception E
-                if (newInstance == null) {
-                    throw new RuntimeException("Failed to allocate a new recyclable instance");
-                }
-                instance = newInstance;
-            } else {
-                // Reuse an unused instance
-                instance = recycledInstance;
+    public T acquire() throws E {
+        final T instance;
+        final T recycledInstance = unusedInstances.poll();
+        if (recycledInstance == null) {
+            // Allocate a new instance
+            final T newInstance = newInstance(); // May throw exception of type E
+            if (newInstance == null) {
+                throw new IllegalArgumentException("Failed to allocate a new recyclable instance");
             }
-            usedInstances.add(instance);
+            instance = newInstance;
+        } else {
+            // Reuse an unused instance
+            instance = recycledInstance;
         }
-
-        /**
-         * @return The new or recycled object instance.
-         */
-        public T get() {
-            return instance;
-        }
-
-        /** Recycle an instance. Calls {@link Resettable#reset()} if the instance implements {@link Resettable}. */
-        @Override
-        public void close() {
-            if (instance != null) {
-                if (instance instanceof Resettable) {
-                    try {
-                        ((Resettable) instance).reset();
-                    } catch (final Throwable e) {
-                        // Ignore
-                    }
-                }
-                usedInstances.remove(instance);
-                unusedInstances.add(instance);
-            }
-        }
+        usedInstances.add(instance);
+        return instance;
     }
 
     /**
-     * An interface for recycleable objects that need to be reset when {@link Recycler.Recyclable#close()} is called
-     * to recycle the object.
+     * Acquire a Recyclable wrapper around an object instance, which can be used to recycle object instances at the
+     * end of a try-with-resources block.
+     * 
+     * @return Either a new or a recycled object instance.
+     * @throws E
+     *             If anything goes wrong when trying to allocate a new object instance.
      */
-    public static interface Resettable {
-        /** Reset a recycleable object (called when the object is recycled). */
-        public void reset();
+    public RecycleOnClose<T, E> acquireRecycleOnClose() throws E {
+        return new RecycleOnClose<T, E>(this, acquire());
+    }
+
+    /**
+     * Recycle an object for reuse by a subsequent call to {@link #acquire()}. If the object is an instance of
+     * {@link Resettable}, then {@link Resettable#reset()} will be called on the instance before recycling it.
+     */
+    public final void recycle(final T instance) {
+        if (instance != null) {
+            if (!usedInstances.remove(instance)) {
+                throw new IllegalArgumentException(
+                        "Object instance was not originally obtained from this Recycler");
+            }
+            if (instance instanceof Resettable) {
+                try {
+                    ((Resettable) instance).reset();
+                } catch (final Throwable e) {
+                    // Ignore
+                }
+            }
+            unusedInstances.add(instance);
+        }
     }
 
     /**
@@ -132,8 +123,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * {@link AutoCloseable}.
      * 
      * <p>
-     * The {@link Recycler} may continue to be used to acquire new instances after calling close(), and close() may
-     * be called as often as needed.
+     * The {@link Recycler} may continue to be used to acquire new instances after calling this method, i.e. the
+     * effect of this method is to clear out the recycler of unused instances.
      */
     @Override
     public void close() {
@@ -150,7 +141,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
 
     /**
      * Force-close this {@link Recycler}, by moving all used instances into the unused instances list, then calling
-     * {@link #close()}.
+     * {@link #close()}, which will call {@link AutoCloseable#close()} on any instances that implement
+     * {@link AutoCloseable}.
      */
     public void forceClose() {
         unusedInstances.addAll(usedInstances);

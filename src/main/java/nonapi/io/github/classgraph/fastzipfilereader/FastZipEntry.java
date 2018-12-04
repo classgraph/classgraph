@@ -39,10 +39,9 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler.RecyclableInflater;
+import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.Recycler;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip entry within a {@link LogicalZipFile}. */
@@ -81,8 +80,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The {@link Inflater} recycler. */
     private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
 
-    /** The {@link Recycler.Recyclable} instance wrapping recyclable {@link Inflater} instances. */
-    private Recycler<RecyclableInflater, RuntimeException>.Recyclable inflaterRecyclable;
+    /** The {@link RecyclableInflater} instance wrapping recyclable {@link Inflater} instances. */
+    private RecyclableInflater recyclableInflaterInstance;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -197,12 +196,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /** Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated. */
     public InputStream open() throws IOException {
-        if (inflaterRecyclable != null) {
+        if (recyclableInflaterInstance != null) {
             throw new IOException("Zip entry already open");
         }
         if (isDeflated) {
-            inflaterRecyclable = inflaterRecycler.acquire();
-            if (inflaterRecyclable == null) {
+            recyclableInflaterInstance = inflaterRecycler.acquire();
+            if (recyclableInflaterInstance == null) {
                 // Should not happen
                 throw new RuntimeException("Could not get Inflater instance");
             }
@@ -215,7 +214,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private boolean isLastChunk;
             private int currChunkIdx;
             private boolean eof = false;
-            private final Inflater inflater = isDeflated ? inflaterRecyclable.get().getInflater() : null;
+            private final Inflater inflater = isDeflated ? recyclableInflaterInstance.getInflater() : null;
             private final AtomicBoolean closed = new AtomicBoolean(false);
 
             private static final int INFLATE_BUF_SIZE = 1024;
@@ -304,8 +303,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                                 }
                                 // Set inflater input for the current chunk
 
-                                // TODO (JDK11+): simply use the following instead of all the lines below:
-                                // inflater.setInput(currChunkByteBuf);
+                                // In JDK11+: simply use the following instead of all the lines below:
+                                //     inflater.setInput(currChunkByteBuf);
                                 // N.B. the ByteBuffer version of setInput doesn't seem to need the extra
                                 // padding byte at the end when using the "nowrap" Inflater option.
 
@@ -428,10 +427,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             public void close() throws IOException {
                 if (!closed.getAndSet(true)) {
                     currChunkByteBuf = null;
-                    if (inflaterRecyclable != null) {
+                    if (recyclableInflaterInstance != null) {
                         // Reset and recycle the Inflater
-                        inflaterRecyclable.close();
-                        inflaterRecyclable = null;
+                        inflaterRecycler.recycle(recyclableInflaterInstance);
+                        recyclableInflaterInstance = null;
                     }
                 }
             }

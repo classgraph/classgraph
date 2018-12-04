@@ -38,7 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
-import nonapi.io.github.classgraph.utils.AutoCloseableExecutorService;
+import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ScanSpec;

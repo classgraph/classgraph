@@ -38,10 +38,10 @@ import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.SingletonMap;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
 public class PhysicalZipFile implements Closeable {

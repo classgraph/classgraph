@@ -26,22 +26,35 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph.concurrency;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.ArrayList;
+import java.util.concurrent.Future;
 
-/** A list of AutoCloseable items that can be used in a try-with-resources block. */
-class AutoCloseableConcurrentQueue<T extends AutoCloseable> extends ConcurrentLinkedQueue<T>
-        implements AutoCloseable {
-    /** Empty the queue, calling close() on each item. */
+import nonapi.io.github.classgraph.utils.LogNode;
+
+/**
+ * An AutoCloseable list of {@code Future<Void>} items that can be used in a try-with-resources block. When close()
+ * is called on this list, all items' {@code get()} methods are called, implementing a completion barrier.
+ */
+class AutoCloseableFutureListWithCompletionBarrier extends ArrayList<Future<Void>> implements AutoCloseable {
+    private final LogNode log;
+
+    AutoCloseableFutureListWithCompletionBarrier(final int size, final LogNode log) {
+        super(size);
+        this.log = log;
+    }
+
+    /** Completion barrier. */
     @Override
     public void close() {
-        while (!isEmpty()) {
-            final T item = remove();
+        for (final Future<Void> future : this) {
             try {
-                item.close();
+                future.get();
             } catch (final Exception e) {
-                // Ignore
+                if (log != null) {
+                    log.log("Exception while waiting for future result", e);
+                }
             }
         }
     }

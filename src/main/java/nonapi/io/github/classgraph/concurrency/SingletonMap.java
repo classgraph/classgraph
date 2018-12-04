@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph.concurrency;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * A map from keys to singleton instances.

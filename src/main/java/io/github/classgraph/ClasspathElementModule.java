@@ -42,10 +42,10 @@ import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.Recycler;
 import nonapi.io.github.classgraph.utils.ScanSpec;
 import nonapi.io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
@@ -95,7 +95,6 @@ class ClasspathElementModule extends ClasspathElement {
     /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
     private Resource newResource(final String moduleResourcePath) {
         return new Resource() {
-            private Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable;
             private ModuleReaderProxy moduleReaderProxy;
 
             @Override
@@ -163,8 +162,7 @@ class ClasspathElementModule extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 } else {
                     try {
-                        moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
-                        moduleReaderProxy = moduleReaderProxyRecyclable.get();
+                        moduleReaderProxy = moduleReaderProxyRecycler.acquire();
                         // ModuleReader#read(String name) internally calls:
                         // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
                         byteBuffer = moduleReaderProxy.read(moduleResourcePath);
@@ -194,8 +192,7 @@ class ClasspathElementModule extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 } else {
                     try {
-                        moduleReaderProxyRecyclable = moduleReaderProxyRecycler.acquire();
-                        moduleReaderProxy = moduleReaderProxyRecyclable.get();
+                        moduleReaderProxy = moduleReaderProxyRecycler.acquire();
                         inputStream = new InputStreamResourceCloser(this,
                                 moduleReaderProxy.open(moduleResourcePath));
                         // Length cannot be obtained from ModuleReader
@@ -236,6 +233,7 @@ class ClasspathElementModule extends ClasspathElement {
                 if (byteBuffer != null) {
                     if (moduleReaderProxy != null) {
                         try {
+                            // Release any open ByteBuffer
                             moduleReaderProxy.release(byteBuffer);
                         } catch (final Exception e) {
                             // Ignore
@@ -244,16 +242,12 @@ class ClasspathElementModule extends ClasspathElement {
                     byteBuffer = null;
                 }
                 if (moduleReaderProxy != null) {
-                    // Release any open ByteBuffer
+                    // Recycle the (open) ModuleReaderProxy instance.
+                    moduleReaderProxyRecycler.recycle(moduleReaderProxy);
                     // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
                     // Just set the ref to null here. The ModuleReaderProxy will be closed by
                     // ClasspathElementModule#close().
                     moduleReaderProxy = null;
-                }
-                if (moduleReaderProxyRecyclable != null) {
-                    // Recycle the (open) ModuleReaderProxy instance.
-                    moduleReaderProxyRecyclable.close();
-                    moduleReaderProxyRecyclable = null;
                 }
             }
         };
@@ -289,10 +283,7 @@ class ClasspathElementModule extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log.log(moduleLocationStr, "Scanning module " + moduleRef.getName());
 
-        try (Recycler<ModuleReaderProxy, IOException>.Recyclable moduleReaderProxyRecyclable = //
-                moduleReaderProxyRecycler.acquire()) {
-            final ModuleReaderProxy moduleReaderProxy = moduleReaderProxyRecyclable.get();
-
+        try (ModuleReaderProxy moduleReaderProxy = moduleReaderProxyRecycler.acquire()) {
             // Look for whitelisted files in the module.
             List<String> resourceRelativePaths;
             try {
