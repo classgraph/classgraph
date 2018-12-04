@@ -201,10 +201,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         }
         if (isDeflated) {
             recyclableInflaterInstance = inflaterRecycler.acquire();
-            if (recyclableInflaterInstance == null) {
-                // Should not happen
-                throw new RuntimeException("Could not get Inflater instance");
-            }
         }
         return new InputStream() {
             private final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
