@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +34,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** A class storing whitelist or blacklist criteria. */
 public abstract class WhiteBlackList {

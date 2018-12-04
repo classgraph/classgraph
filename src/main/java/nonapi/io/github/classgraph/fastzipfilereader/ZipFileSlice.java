@@ -30,7 +30,7 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.IOException;
 
-import nonapi.io.github.classgraph.utils.WhiteBlackList.WhiteBlackListLeafname;
+import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
 public class ZipFileSlice {

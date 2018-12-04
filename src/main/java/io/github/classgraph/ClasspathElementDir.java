@@ -44,12 +44,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ScanSpec;
-import nonapi.io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
-import nonapi.io.github.classgraph.utils.WorkQueue;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {

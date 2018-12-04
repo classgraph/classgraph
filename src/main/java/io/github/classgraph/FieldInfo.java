@@ -32,7 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.Parser.ParseException;
+import nonapi.io.github.classgraph.types.Parser.ParseException;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the

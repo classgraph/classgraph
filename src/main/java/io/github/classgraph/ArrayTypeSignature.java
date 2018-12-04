@@ -30,8 +30,8 @@ package io.github.classgraph;
 
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.Parser;
-import nonapi.io.github.classgraph.utils.Parser.ParseException;
+import nonapi.io.github.classgraph.types.Parser;
+import nonapi.io.github.classgraph.types.Parser.ParseException;
 
 /** An array type signature. */
 public class ArrayTypeSignature extends ReferenceTypeSignature {

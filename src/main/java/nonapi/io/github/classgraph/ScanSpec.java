@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -36,9 +36,10 @@ import java.util.List;
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
-import nonapi.io.github.classgraph.utils.WhiteBlackList.WhiteBlackListLeafname;
-import nonapi.io.github.classgraph.utils.WhiteBlackList.WhiteBlackListPrefix;
-import nonapi.io.github.classgraph.utils.WhiteBlackList.WhiteBlackListWholeString;
+import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
+import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListPrefix;
+import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListWholeString;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * Parses the scanning specification that was passed to the ClassGraph constructor, and finds all ClassLoaders. Also

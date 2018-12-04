@@ -46,12 +46,12 @@ import java.util.zip.Inflater;
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
+import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs

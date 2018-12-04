@@ -29,16 +29,15 @@
 package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 
 /**
@@ -244,126 +243,6 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static final Set<String> RT_JARS = new LinkedHashSet<>();
-    private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
-
-    private static String getProperty(final String propName) {
-        try {
-            return System.getProperty(propName);
-        } catch (final SecurityException e) {
-            return null;
-        }
-    }
-
-    private static boolean addJREPath(final File dir) {
-        if (dir != null && !dir.getPath().isEmpty() && FileUtils.canRead(dir) && dir.isDirectory()) {
-            for (final File file : dir.listFiles()) {
-                final String filePath = file.getPath();
-                if (filePath.endsWith(".jar")) {
-                    final String jarPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, filePath);
-                    if (filePath.endsWith("/rt.jar")) {
-                        RT_JARS.add(jarPathResolved);
-                    } else {
-                        JRE_LIB_OR_EXT_JARS.add(jarPathResolved);
-                    }
-                    try {
-                        final File canonicalFile = file.getCanonicalFile();
-                        final String canonicalFilePath = canonicalFile.getPath();
-                        if (!canonicalFilePath.equals(filePath)) {
-                            final String canonicalJarPathResolved = FastPathResolver
-                                    .resolve(FileUtils.CURR_DIR_PATH, filePath);
-                            JRE_LIB_OR_EXT_JARS.add(canonicalJarPathResolved);
-                        }
-                    } catch (IOException | SecurityException e) {
-                    }
-                }
-            }
-            return true;
-        }
-        return false;
-    }
-
-    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
-    static {
-        String javaHome = getProperty("java.home");
-        if (javaHome == null || javaHome.isEmpty()) {
-            javaHome = System.getenv("JAVA_HOME");
-        }
-        if (javaHome != null && !javaHome.isEmpty()) {
-            final File javaHomeFile = new File(javaHome);
-            addJREPath(javaHomeFile);
-            if (javaHomeFile.getName().equals("jre")) {
-                // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path
-                final File jreParent = javaHomeFile.getParentFile();
-                addJREPath(jreParent);
-                addJREPath(new File(jreParent, "lib"));
-                addJREPath(new File(jreParent, "lib/ext"));
-            } else {
-                // Try adding "{java.home}/jre" as a JRE root when java.home is not a JRE path
-                addJREPath(new File(javaHomeFile, "jre"));
-            }
-            addJREPath(new File(javaHomeFile, "lib"));
-            addJREPath(new File(javaHomeFile, "lib/ext"));
-            addJREPath(new File(javaHomeFile, "jre/lib"));
-            addJREPath(new File(javaHomeFile, "jre/lib/ext"));
-            addJREPath(new File(javaHomeFile, "packages"));
-            addJREPath(new File(javaHomeFile, "packages/lib"));
-            addJREPath(new File(javaHomeFile, "packages/lib/ext"));
-        }
-        final String javaExtDirs = getProperty("java.ext.dirs");
-        if (javaExtDirs != null && !javaExtDirs.isEmpty()) {
-            for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
-                if (!javaExtDir.isEmpty()) {
-                    addJREPath(new File(javaExtDir));
-                }
-            }
-        }
-
-        // System extension paths -- see: https://docs.oracle.com/javase/tutorial/ext/basics/install.html
-        switch (VersionFinder.OS) {
-        case Linux:
-            addJREPath(new File("/usr/java/packages"));
-            addJREPath(new File("/usr/java/packages/lib"));
-            addJREPath(new File("/usr/java/packages/lib/ext"));
-            break;
-        case MacOSX:
-            addJREPath(new File("/System/Library/Java"));
-            addJREPath(new File("/System/Library/Java/Libraries"));
-            addJREPath(new File("/System/Library/Java/Extensions"));
-            break;
-        case Windows:
-            final String systemRoot = File.separatorChar == '\\' ? System.getenv("SystemRoot") : null;
-            if (systemRoot != null) {
-                addJREPath(new File(systemRoot, "Sun\\Java"));
-                addJREPath(new File(systemRoot, "Sun\\Java\\lib"));
-                addJREPath(new File(systemRoot, "Sun\\Java\\lib\\ext"));
-                addJREPath(new File(systemRoot, "Oracle\\Java"));
-                addJREPath(new File(systemRoot, "Oracle\\Java\\lib"));
-                addJREPath(new File(systemRoot, "Oracle\\Java\\lib\\ext"));
-            }
-            break;
-        case Unknown:
-            // Solaris paths:
-            addJREPath(new File("/usr/jdk/packages"));
-            addJREPath(new File("/usr/jdk/packages/lib"));
-            addJREPath(new File("/usr/jdk/packages/lib/ext"));
-            break;
-        }
-    }
-
-    /** @return The path of rt.jar (in JDK 7 or 8), or null if it wasn't found (e.g. in JDK 9+). */
-    public static String getJreRtJarPath() {
-        // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
-        return RT_JARS.size() > 0 ? FastPathResolver.resolve(RT_JARS.iterator().next()) : null;
-    }
-
-    /** @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/" directories. */
-    public static Set<String> getJreLibOrExtJars() {
-        return JRE_LIB_OR_EXT_JARS;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** Convert a classfile path to the corresponding class name. */
     public static String classfilePathToClassName(final String classfilePath) {
         if (!classfilePath.endsWith(".class")) {
@@ -387,12 +266,16 @@ public class JarUtils {
      */
     public static void logJavaInfo(final LogNode log) {
         if (log != null) {
-            log.log("Operating system: " + getProperty("os.name") + " " + getProperty("os.version") + " "
-                    + getProperty("os.arch"));
-            log.log("Java version: " + getProperty("java.version") + " / " + getProperty("java.runtime.version")
-                    + " (" + getProperty("java.vendor") + ")");
-            log.log("Java home: " + System.getProperty("java.home"));
-            log.log("JRE jars:").log(RT_JARS);
+            log.log("Operating system: " + VersionFinder.getProperty("os.name") + " "
+                    + VersionFinder.getProperty("os.version") + " " + VersionFinder.getProperty("os.arch"));
+            log.log("Java version: " + VersionFinder.getProperty("java.version") + " / "
+                    + VersionFinder.getProperty("java.runtime.version") + " ("
+                    + VersionFinder.getProperty("java.vendor") + ")");
+            log.log("Java home: " + VersionFinder.getProperty("java.home"));
+            final String jreRtJarPath = SystemJarFinder.getJreRtJarPath();
+            if (jreRtJarPath != null) {
+                log.log("JRE rt.jar:").log(jreRtJarPath);
+            }
         }
     }
 }

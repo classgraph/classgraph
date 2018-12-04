@@ -28,10 +28,10 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import nonapi.io.github.classgraph.utils.ClasspathOrder;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
 public class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {

@@ -30,10 +30,10 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.io.File;
 
-import nonapi.io.github.classgraph.utils.ClasspathOrder;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /**
  * Handle the OSGi DefaultClassLoader.

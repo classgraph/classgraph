@@ -48,8 +48,26 @@ import io.github.classgraph.ClassGraph;
 /** Finds the version number of ClassGraph, and the version of the JDK. */
 public class VersionFinder {
 
+    /** Get a system property (returning null if a SecurityException was thrown). */
+    public static String getProperty(final String propName) {
+        try {
+            return getProperty(propName);
+        } catch (final SecurityException e) {
+            return null;
+        }
+    }
+
+    /** Get a system property (returning null if a SecurityException was thrown). */
+    public static String getProperty(final String propName, final String defaultVal) {
+        try {
+            return getProperty(propName, defaultVal);
+        } catch (final SecurityException e) {
+            return null;
+        }
+    }
+
     /** Java version string */
-    public static final String JAVA_VERSION = System.getProperty("java.version");
+    public static final String JAVA_VERSION = getProperty("java.version");
 
     /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
     public static final int JAVA_MAJOR_VERSION;
@@ -85,8 +103,10 @@ public class VersionFinder {
     public static final OperatingSystem OS;
 
     static {
-        final String osName = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
-        if ((osName.contains("mac")) || (osName.contains("darwin"))) {
+        final String osName = getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
+        if (osName == null) {
+            OS = OperatingSystem.Unknown;
+        } else if (osName.contains("mac") || osName.contains("darwin")) {
             OS = OperatingSystem.MacOSX;
         } else if (osName.contains("win")) {
             OS = OperatingSystem.Windows;

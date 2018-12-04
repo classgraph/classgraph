@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.ScanSpec;
+import nonapi.io.github.classgraph.ScanSpec;
 
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {

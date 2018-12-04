@@ -30,7 +30,7 @@ package io.github.classgraph;
 
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.Parser;
+import nonapi.io.github.classgraph.types.Parser;
 
 /** A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void). */
 public class BaseTypeSignature extends TypeSignature {

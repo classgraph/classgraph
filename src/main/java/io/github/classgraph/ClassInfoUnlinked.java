@@ -33,10 +33,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.types.Parser.ParseException;
 import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.Parser.ParseException;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other

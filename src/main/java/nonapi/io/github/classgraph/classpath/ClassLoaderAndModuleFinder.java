@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph.classpath;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -38,6 +38,10 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ModuleRef;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderAndModuleFinder {

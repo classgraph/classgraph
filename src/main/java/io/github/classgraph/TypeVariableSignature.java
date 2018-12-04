@@ -32,9 +32,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.Parser;
-import nonapi.io.github.classgraph.utils.Parser.ParseException;
-import nonapi.io.github.classgraph.utils.TypeUtils;
+import nonapi.io.github.classgraph.types.Parser;
+import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.types.TypeUtils;
 
 /** A type variable signature. */
 public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {

@@ -47,10 +47,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.json.Id;
+import nonapi.io.github.classgraph.types.Parser.ParseException;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.Parser.ParseException;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */

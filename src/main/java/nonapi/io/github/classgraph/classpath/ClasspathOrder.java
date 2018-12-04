@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
 import java.lang.reflect.Array;
@@ -34,6 +34,11 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.utils.FastPathResolver;
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
@@ -72,7 +77,8 @@ public class ClasspathOrder {
     }
 
     private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
-        if (JarUtils.getJreLibOrExtJars().contains(pathElement) || pathElement.equals(JarUtils.getJreRtJarPath())) {
+        if (SystemJarFinder.getJreLibOrExtJars().contains(pathElement)
+                || pathElement.equals(SystemJarFinder.getJreRtJarPath())) {
             // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
             // returned by a system classloader
             return false;

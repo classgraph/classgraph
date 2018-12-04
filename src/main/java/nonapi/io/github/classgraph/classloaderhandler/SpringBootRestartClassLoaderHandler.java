@@ -28,9 +28,9 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import nonapi.io.github.classgraph.utils.ClasspathOrder;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /**
  * This handler uses

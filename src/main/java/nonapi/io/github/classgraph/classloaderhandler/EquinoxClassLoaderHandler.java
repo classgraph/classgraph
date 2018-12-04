@@ -31,10 +31,10 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.lang.reflect.Array;
 import java.util.HashSet;
 
-import nonapi.io.github.classgraph.utils.ClasspathOrder;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /** Extract classpath entries from the Eclipse Equinox ClassLoader. */
 public class EquinoxClassLoaderHandler implements ClassLoaderHandler {

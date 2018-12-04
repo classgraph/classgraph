@@ -48,16 +48,16 @@ import java.util.concurrent.ExecutorService;
 
 import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderAndModuleFinder;
+import nonapi.io.github.classgraph.classpath.ClasspathFinder;
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.utils.ClassLoaderAndModuleFinder;
-import nonapi.io.github.classgraph.utils.ClasspathFinder;
-import nonapi.io.github.classgraph.utils.InterruptionChecker;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ScanSpec;
-import nonapi.io.github.classgraph.utils.WorkQueue;
-import nonapi.io.github.classgraph.utils.WorkQueue.WorkUnitProcessor;
 
 /** The classpath scanner. */
 class Scanner implements Callable<ScanResult> {

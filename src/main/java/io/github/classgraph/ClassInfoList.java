@@ -41,7 +41,7 @@ import java.util.Set;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
 import io.github.classgraph.InfoList.MappableInfoList;
-import nonapi.io.github.classgraph.utils.ScanSpec;
+import nonapi.io.github.classgraph.ScanSpec;
 
 /**
  * A list of {@link ClassInfo} objects, which stores both reachable classes (obtained through a given class

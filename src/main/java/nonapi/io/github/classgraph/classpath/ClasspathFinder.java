@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.utils;
+package nonapi.io.github.classgraph.classpath;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -36,11 +36,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.utils.FastPathResolver;
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
@@ -191,9 +196,9 @@ public class ClasspathFinder {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
         // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
-        final String jreRtJar = JarUtils.getJreRtJarPath();
+        final String jreRtJar = SystemJarFinder.getJreRtJarPath();
         final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
-        final Set<String> libOrExtJars = JarUtils.getJreLibOrExtJars();
+        final Set<String> libOrExtJars = SystemJarFinder.getJreLibOrExtJars();
         if (classpathFinderLog != null && (jreRtJar != null || !libOrExtJars.isEmpty())) {
             final LogNode systemJarsLog = classpathFinderLog.log("System jars:");
             if (jreRtJar != null) {
@@ -240,7 +245,7 @@ public class ClasspathFinder {
             if (jreRtJar != null && scanSpec.enableSystemJarsAndModules) {
                 classpathOrder.addSystemClasspathElement(jreRtJar, contextClassLoaders);
             }
-            for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+            for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                 if (scanAllLibOrExtJars || scanSpec.libOrExtJarWhiteBlackList
                         .isSpecificallyWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
                     classpathOrder.addSystemClasspathElement(libOrExtJarPath, contextClassLoaders);

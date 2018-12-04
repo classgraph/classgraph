@@ -38,12 +38,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.WhiteBlackList;
+import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 import nonapi.io.github.classgraph.utils.VersionFinder;
-import nonapi.io.github.classgraph.utils.WhiteBlackList;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans classfiles in the classpath and/or
@@ -784,7 +785,7 @@ public class ClassGraph {
     public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
         if (jarLeafNames.length == 0) {
             // whitelist all lib or ext jars
-            for (final String libOrExtJar : JarUtils.getJreLibOrExtJars()) {
+            for (final String libOrExtJar : SystemJarFinder.getJreLibOrExtJars()) {
                 whitelistLibOrExtJars(JarUtils.leafName(libOrExtJar));
             }
         } else {
@@ -797,7 +798,7 @@ public class ClassGraph {
                     // Compare wildcarded pattern against all jars in lib and ext dirs 
                     final Pattern pattern = WhiteBlackList.globToPattern(jarLeafName);
                     boolean found = false;
-                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (pattern.matcher(libOrExtJarLeafName).matches()) {
                             // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
@@ -813,7 +814,7 @@ public class ClassGraph {
                 } else {
                     // No wildcards, just whitelist the named jar, if present
                     boolean found = false;
-                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (jarLeafName.equals(libOrExtJarLeafName)) {
                             scanSpec.libOrExtJarWhiteBlackList.addToWhitelist(jarLeafName);
@@ -845,7 +846,7 @@ public class ClassGraph {
     public ClassGraph blacklistLibOrExtJars(final String... jarLeafNames) {
         if (jarLeafNames.length == 0) {
             // Blacklist all lib or ext jars
-            for (final String libOrExtJar : JarUtils.getJreLibOrExtJars()) {
+            for (final String libOrExtJar : SystemJarFinder.getJreLibOrExtJars()) {
                 blacklistLibOrExtJars(JarUtils.leafName(libOrExtJar));
             }
         } else {
@@ -858,7 +859,7 @@ public class ClassGraph {
                     // Compare wildcarded pattern against all jars in lib and ext dirs 
                     final Pattern pattern = WhiteBlackList.globToPattern(jarLeafName);
                     boolean found = false;
-                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (pattern.matcher(libOrExtJarLeafName).matches()) {
                             // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
@@ -874,7 +875,7 @@ public class ClassGraph {
                 } else {
                     // No wildcards, just blacklist the named jar, if present
                     boolean found = false;
-                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (jarLeafName.equals(libOrExtJarLeafName)) {
                             scanSpec.libOrExtJarWhiteBlackList.addToBlacklist(jarLeafName);

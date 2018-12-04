@@ -40,9 +40,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /**
  * A logical zipfile, which represents a zipfile contained within a {@link ZipFileSlice} of a

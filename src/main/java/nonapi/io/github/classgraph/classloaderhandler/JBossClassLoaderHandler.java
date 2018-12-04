@@ -33,11 +33,11 @@ import java.lang.reflect.Array;
 import java.nio.file.Path;
 import java.util.Map;
 
-import nonapi.io.github.classgraph.utils.ClasspathOrder;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.ScanSpec;
 
 /**
  * Extract classpath entries from the JBoss ClassLoader. See:

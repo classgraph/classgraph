@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 
-import nonapi.io.github.classgraph.utils.Parser;
+import nonapi.io.github.classgraph.types.Parser;
 
 /**
  * A JSON parser, based on the PEG grammar found at:

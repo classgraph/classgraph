@@ -41,6 +41,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
@@ -48,10 +51,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ScanSpec;
-import nonapi.io.github.classgraph.utils.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
-import nonapi.io.github.classgraph.utils.WorkQueue;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
