@@ -279,7 +279,7 @@ public class LogicalZipFile extends ZipFileSlice {
                         i++;
                     }
                 }
-                if (i == manifest.length - 2) {
+                if (i >= manifest.length - 2) {
                     break;
                 }
             }
