@@ -239,8 +239,8 @@ public abstract class InputStreamOrByteBufferAdapter {
         }
         return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
                 | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
-                | ((buf[offset + 4] & 0xff) << 24) | ((buf[offset + 5] & 0xff) << 16)
-                | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff);
+                | (long) (((buf[offset + 4] & 0xff) << 24) | ((buf[offset + 5] & 0xff) << 16)
+                        | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff));
     }
 
     /**

@@ -310,10 +310,10 @@ public class LogicalZipFile extends ZipFileSlice {
         if (ioff < 0 || ioff > buf.length - 8) {
             throw new IndexOutOfBoundsException();
         }
-        return ((buf[ioff + 7] & 0xffL) << 56) | ((buf[ioff + 6] & 0xffL) << 48)
-                | ((buf[ioff + 5] & 0xffL) << 40) + ((buf[ioff + 4] & 0xffL) << 32)
-                | ((buf[ioff + 3] & 0xffL) << 24) | ((buf[ioff + 2] & 0xffL) << 16) + ((buf[ioff + 1] & 0xffL) << 8)
-                | (buf[ioff + 0] & 0xffL);
+        return (((long) (((buf[ioff + 7] & 0xff) << 24) | ((buf[ioff + 6] & 0xff) << 16)
+                | ((buf[ioff + 5] & 0xff) << 8) + (buf[ioff + 4] & 0xff))) << 32)
+                | (long) (((buf[ioff + 3] & 0xff) << 24)
+                        | ((buf[ioff + 2] & 0xff) << 16) + ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff + 0] & 0xff));
     }
 
     private static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
