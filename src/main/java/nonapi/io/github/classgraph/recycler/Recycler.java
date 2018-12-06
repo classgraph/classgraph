@@ -112,11 +112,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
         if (instance != null) {
             usedInstances.remove(instance);
             if (instance instanceof Resettable) {
-                try {
-                    ((Resettable) instance).reset();
-                } catch (final Throwable e) {
-                    // Ignore
-                }
+                ((Resettable) instance).reset();
             }
             unusedInstances.add(instance);
         }
