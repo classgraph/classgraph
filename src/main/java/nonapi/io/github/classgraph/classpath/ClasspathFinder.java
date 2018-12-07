@@ -281,7 +281,8 @@ public class ClasspathFinder {
                 final ClassLoader classLoader = classLoaderAndHandler.getKey();
                 final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
                 final LogNode classLoaderClasspathLog = classLoaderClasspathLoopLog == null ? null
-                        : classpathFinderLog.log("Finding classpath elements in ClassLoader " + classLoader);
+                        : classLoaderClasspathLoopLog
+                                .log("Finding classpath elements in ClassLoader " + classLoader);
                 try {
                     classLoaderHandler.handle(scanSpec, classLoader, classpathOrder, classLoaderClasspathLog);
                 } catch (final Throwable e) {
