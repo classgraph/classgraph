@@ -53,6 +53,8 @@ import nonapi.io.github.classgraph.recycler.RecyclerExceptionless;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
+import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /** Open and read jarfiles, which may be nested within other jarfiles. */
 public class NestedJarHandler {
@@ -546,9 +548,11 @@ public class NestedJarHandler {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            // Need to perform a GC before removing temporary files, since mmap'd files cannot be deleted
-            // on Windows, and GC is the only way to un-mmap a MappedByteBuffer (see #288)
-            System.gc();
+            if (VersionFinder.OS == OperatingSystem.Windows || VersionFinder.OS == OperatingSystem.Unknown) {
+                // Need to perform a GC before removing temporary files, since mmap'd files cannot be deleted
+                // on Windows, and GC is the only way to un-mmap a MappedByteBuffer (see #288)
+                System.gc();
+            }
             if (tempFiles != null) {
                 final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
                         : log.log("Removing temporary files");
