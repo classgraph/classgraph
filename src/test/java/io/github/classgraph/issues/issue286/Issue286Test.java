@@ -40,7 +40,7 @@ import io.github.classgraph.ScanResult;
 public class Issue286Test {
     @Test(timeout = 1000)
     public void issue286Test() {
-        URL jarURL = getClass().getClassLoader().getResource("issue286.jar");
+        final URL jarURL = getClass().getClassLoader().getResource("issue286.jar");
         assertThat(jarURL).isNotNull();
         boolean gotResult = false;
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
