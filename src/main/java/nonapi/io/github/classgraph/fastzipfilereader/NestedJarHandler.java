@@ -535,6 +535,9 @@ public class NestedJarHandler {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
+            // Need to perform a GC before removing temporary files, since mmap'd files cannot be deleted
+            // on Windows, and GC is the only way to un-mmap a MappedByteBuffer (see #288)
+            System.gc();
             if (tempFiles != null) {
                 final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
                         : log.log("Removing temporary files");
