@@ -3,7 +3,7 @@
 
 	<groupId>io.github.classgraph</groupId>
 	<artifactId>classgraph</artifactId>
-	<version>4.6.4-SNAPSHOT</version>
+	<version>4.6.4</version>
 	<name>ClassGraph</name>
 
 	<description>
@@ -357,7 +357,7 @@
 		<connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
 		<developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
 		<url>https://github.com/classgraph/classgraph</url>
-		<tag>classgraph-4.1.4</tag>
+		<tag>classgraph-4.6.4</tag>
 	</scm>
 	<url>https://github.com/classgraph/classgraph</url>
 
