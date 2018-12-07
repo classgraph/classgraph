@@ -72,6 +72,9 @@ public class NestedJarHandler {
     /** A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. */
     private SingletonMap<ZipFileSlice, LogicalZipFile> zipFileSliceToLogicalZipFileMap;
 
+    /** All allocated LogicalZipFile instances. */
+    private Queue<LogicalZipFile> allocatedLogicalZipFiles;
+
     /**
      * A singleton map from nested jarfile path to a tuple of the logical zipfile for the path, and the package root
      * within the logical zipfile.
@@ -134,6 +137,9 @@ public class NestedJarHandler {
                 return new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
             }
         };
+
+        // Allocate a queue of all allocated LogicalZipFile instances
+        this.allocatedLogicalZipFiles = new ConcurrentLinkedQueue<>();
 
         // Allocate a queue of additional allocated PhysicalZipFile instances
         this.additionalAllocatedPhysicalZipFiles = new ConcurrentLinkedQueue<>();
@@ -234,7 +240,9 @@ public class NestedJarHandler {
                     throw new IOException(getClass().getSimpleName() + " already closed");
                 }
                 // Read the central directory for the logical zipfile slice
-                return new LogicalZipFile(zipFileSlice, scanSpec, log);
+                final LogicalZipFile logicalZipFile = new LogicalZipFile(zipFileSlice, scanSpec, log);
+                allocatedLogicalZipFiles.add(logicalZipFile);
+                return logicalZipFile;
             }
         };
 
@@ -513,6 +521,9 @@ public class NestedJarHandler {
                 nestedPathToLogicalZipFileAndPackageRootMap.clear();
                 nestedPathToLogicalZipFileAndPackageRootMap = null;
             }
+            for (LogicalZipFile logicalZipFile; (logicalZipFile = allocatedLogicalZipFiles.poll()) != null;) {
+                logicalZipFile.close();
+            }
             if (canonicalFileToPhysicalZipFileMap != null) {
                 try {
                     for (final PhysicalZipFile physicalZipFile : canonicalFileToPhysicalZipFileMap.values()) {
@@ -531,7 +542,6 @@ public class NestedJarHandler {
                 additionalAllocatedPhysicalZipFiles.clear();
                 additionalAllocatedPhysicalZipFiles = null;
             }
-            LogicalZipFile.closeAllAllocatedInstances();
             if (fastZipEntryToZipFileSliceMap != null) {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;

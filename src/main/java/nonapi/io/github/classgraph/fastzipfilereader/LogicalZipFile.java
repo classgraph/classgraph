@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.IOException;
-import java.nio.MappedByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -38,10 +37,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -71,9 +68,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     /** A set of classpath roots found in the classpath for this zipfile. */
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-
-    /** All allocated LogicalZipFile instances. */
-    private static Queue<LogicalZipFile> allocatedLogicalZipFiles = new ConcurrentLinkedQueue<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -642,13 +636,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         if (entries != null) {
             entries.clear();
             entries = null;
-        }
-    }
-
-    /** Close all allocated {@link LogicalZipFile} instances to free up {@link MappedByteBuffer} instances. */
-    public static void closeAllAllocatedInstances() {
-        for (LogicalZipFile logicalZipFile; (logicalZipFile = allocatedLogicalZipFiles.poll()) != null;) {
-            logicalZipFile.close();
         }
     }
 }
