@@ -95,6 +95,12 @@ public class VersionFinder {
         MacOSX,
         /** Linux */
         Linux,
+        /** Solaris */
+        Solaris,
+        /** BSD */
+        BSD,
+        /** Unix or AIX */
+        Unix,
         /** Unknown */
         Unknown
     }
@@ -112,6 +118,12 @@ public class VersionFinder {
             OS = OperatingSystem.Windows;
         } else if (osName.contains("nux")) {
             OS = OperatingSystem.Linux;
+        } else if (osName.contains("sunos") || osName.contains("solaris")) {
+            OS = OperatingSystem.Solaris;
+        } else if (osName.contains("bsd")) {
+            OS = OperatingSystem.Unix;
+        } else if (osName.contains("nix") || osName.contains("aix")) {
+            OS = OperatingSystem.Unix;
         } else {
             OS = OperatingSystem.Unknown;
         }

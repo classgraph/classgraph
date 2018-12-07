@@ -86,12 +86,6 @@ public class FileUtils {
             // and the speedup increases superlinearly, reaching 1.5-3x for a filesize of 1MB
             // (and the performance increase does not level off at 1MB either -- that is as
             // far as this was benchmarked).
-            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
-            break;
-        case Windows:
-            // Windows is always 10-20% faster with FileChannel than with InputStream, even for small files
-            FILECHANNEL_FILE_SIZE_THRESHOLD = -1;
-            break;
         case MacOSX:
             // On older/slower Mac OS X machines, FileChannel is always 10-20% slower than InputStream,
             // except for very large files (>1MB), and only for single-threaded reading.
@@ -99,10 +93,21 @@ public class FileUtils {
             // then a much larger speedup for files larger than 128kb (topping out at about 2.5x speedup).
             // It's probably worth setting the threshold to 16kB to get the 10-20% speedup for files
             // larger than 16kB in size on modern machines.
+        case Solaris:
+        case BSD:
+        case Unix:
+            // No testing has been performed yet on the other unices, so just pick the same val as MacOSX and Linux
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
             break;
-        default:
+
+        case Windows:
+            // Windows is always 10-20% faster with FileChannel than with InputStream, even for small files
+            FILECHANNEL_FILE_SIZE_THRESHOLD = -1;
+            break;
+
+        case Unknown:
             // For any other operating system
+        default:
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
         }
     }
