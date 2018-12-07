@@ -556,6 +556,7 @@ public class NestedJarHandler {
                                 + (e == null ? "" : " : " + e));
                     }
                 }
+                tempFiles.clear();
                 tempFiles = null;
             }
         }
