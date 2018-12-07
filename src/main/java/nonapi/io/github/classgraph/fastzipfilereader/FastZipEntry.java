@@ -176,6 +176,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     long getEntryDataStartOffsetWithinPhysicalZipFile() throws IOException {
         if (entryDataStartOffsetWithinPhysicalZipFile == -1L) {
             // Create zipfile slice reader for zip entry
+            @SuppressWarnings("resource")
             final ZipFileSliceReader headerReader = new ZipFileSliceReader(parentLogicalZipFile);
             // Check header magic
             if (headerReader.getInt(locHeaderPos) != 0x04034b50) {

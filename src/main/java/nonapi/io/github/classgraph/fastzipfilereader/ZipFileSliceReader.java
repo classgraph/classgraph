@@ -34,8 +34,9 @@ import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
-class ZipFileSliceReader {
+class ZipFileSliceReader implements AutoCloseable {
     private final ZipFileSlice zipFileSlice;
     private final ByteBuffer[] chunkCache;
     private final byte[] buf = new byte[8];
@@ -125,9 +126,8 @@ class ZipFileSliceReader {
             throw new EOFException("Unexpected EOF");
         }
         return (((long) (((buf[7] & 0xff) << 24) | ((buf[6] & 0xff) << 16) | ((buf[5] & 0xff) << 8)
-                | (buf[4] & 0xff))) << 32)
-                | (long) (((buf[3] & 0xff) << 24) | ((buf[2] & 0xff) << 16) | ((buf[1] & 0xff) << 8)
-                        | (buf[0] & 0xff));
+                | (buf[4] & 0xff))) << 32) | ((buf[3] & 0xff) << 24) | ((buf[2] & 0xff) << 16)
+                | ((buf[1] & 0xff) << 8) | (buf[0] & 0xff);
     }
 
     String getString(final long off, final int numBytes) throws IOException {
@@ -141,5 +141,10 @@ class ZipFileSliceReader {
         // Assume the entry names are encoded in UTF-8 (should be the case for all jars; the only other
         // valid zipfile charset is CP437, which is the same as ASCII for printable high-bit-clear chars)
         return new String(strBytes, StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public void close() {
+        Arrays.fill(chunkCache, null);
     }
 }

@@ -531,6 +531,7 @@ public class NestedJarHandler {
                 additionalAllocatedPhysicalZipFiles.clear();
                 additionalAllocatedPhysicalZipFiles = null;
             }
+            LogicalZipFile.closeAllAllocatedInstances();
             if (fastZipEntryToZipFileSliceMap != null) {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;

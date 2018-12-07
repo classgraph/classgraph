@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.IOException;
+import java.nio.MappedByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -37,8 +38,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -48,8 +51,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * A logical zipfile, which represents a zipfile contained within a {@link ZipFileSlice} of a
  * {@link PhysicalZipFile}.
  */
-public class LogicalZipFile extends ZipFileSlice {
-    private final ZipFileSliceReader zipFileSliceReader;
+public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
+    private ZipFileSliceReader zipFileSliceReader;
     private List<FastZipEntry> entries;
 
     /** If true, this is a JRE jar. */
@@ -68,6 +71,9 @@ public class LogicalZipFile extends ZipFileSlice {
 
     /** A set of classpath roots found in the classpath for this zipfile. */
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+
+    /** All allocated LogicalZipFile instances. */
+    private static Queue<LogicalZipFile> allocatedLogicalZipFiles = new ConcurrentLinkedQueue<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -311,9 +317,8 @@ public class LogicalZipFile extends ZipFileSlice {
             throw new IndexOutOfBoundsException();
         }
         return (((long) (((buf[ioff + 7] & 0xff) << 24) | ((buf[ioff + 6] & 0xff) << 16)
-                | ((buf[ioff + 5] & 0xff) << 8) + (buf[ioff + 4] & 0xff))) << 32)
-                | (long) (((buf[ioff + 3] & 0xff) << 24)
-                        | ((buf[ioff + 2] & 0xff) << 16) + ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff + 0] & 0xff));
+                | ((buf[ioff + 5] & 0xff) << 8) + (buf[ioff + 4] & 0xff))) << 32) | ((buf[ioff + 3] & 0xff) << 24)
+                | ((buf[ioff + 2] & 0xff) << 16) + ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff + 0] & 0xff);
     }
 
     private static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
@@ -626,5 +631,24 @@ public class LogicalZipFile extends ZipFileSlice {
     @Override
     public String toString() {
         return getPath();
+    }
+
+    @Override
+    public void close() {
+        if (zipFileSliceReader != null) {
+            zipFileSliceReader.close();
+            zipFileSliceReader = null;
+        }
+        if (entries != null) {
+            entries.clear();
+            entries = null;
+        }
+    }
+
+    /** Close all allocated {@link LogicalZipFile} instances to free up {@link MappedByteBuffer} instances. */
+    public static void closeAllAllocatedInstances() {
+        for (LogicalZipFile logicalZipFile; (logicalZipFile = allocatedLogicalZipFiles.poll()) != null;) {
+            logicalZipFile.close();
+        }
     }
 }
