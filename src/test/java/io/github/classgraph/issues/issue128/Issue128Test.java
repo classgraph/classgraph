@@ -55,7 +55,8 @@ public class Issue128Test {
         // Test a nested jar inside a jar fetched over HTTP
         final URL jarURL = new URL(NESTED_JAR_URL);
         try (ScanResult scanResult = new ClassGraph()
-                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).scan()) {
+                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).enableRemoteJarScanning()
+                .scan()) {
             final List<String> filesInsideLevel3 = scanResult.getAllResources().getPaths();
             if (filesInsideLevel3.isEmpty()) {
                 // If there were no files inside jar, it is possible that remote jar could not be downloaded
