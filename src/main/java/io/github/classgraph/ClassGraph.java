@@ -956,6 +956,18 @@ public class ClassGraph {
     }
 
     /**
+     * Enable classpath elements to be fetched from remote http/https URLs to local temporary files and scanned.
+     * This option is disabled by default, as this may present a security vulnerability, since classes from
+     * downloaded jars can be subsequently loaded using {@link ClassInfo#loadClass}.
+     * 
+     * @return this (for method chaining).
+     */
+    public ClassGraph enableRemoteJarScanning() {
+        scanSpec.enableRemoteJarScanning = true;
+        return this;
+    }
+
+    /**
      * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"}, {@code "javafx.*"},
      * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed.
      * 

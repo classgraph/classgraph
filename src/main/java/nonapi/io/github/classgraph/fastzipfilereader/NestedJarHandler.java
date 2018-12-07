@@ -269,11 +269,19 @@ public class NestedJarHandler {
                             || nestedJarPath.startsWith("https://");
                     File canonicalFile;
                     if (isRemote) {
-                        canonicalFile = downloadTempFile(nestedJarPath, log);
-                        if (canonicalFile == null) {
-                            throw new IOException("Could not download jarfile " + nestedJarPath);
+                        // Jarfile is at http(s) URL
+                        if (scanSpec.enableRemoteJarScanning) {
+                            canonicalFile = downloadTempFile(nestedJarPath, log);
+                            if (canonicalFile == null) {
+                                throw new IOException("Could not download jarfile " + nestedJarPath);
+                            }
+                        } else {
+                            throw new IOException(
+                                    "Remote jar scanning has not been enabled, cannot scan classpath element URL: "
+                                            + nestedJarPath);
                         }
                     } else {
+                        // Jarfile should be local
                         try {
                             canonicalFile = new File(nestedJarPath).getCanonicalFile();
                         } catch (final SecurityException e) {

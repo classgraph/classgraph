@@ -182,6 +182,13 @@ public class ScanSpec {
      */
     public boolean extendScanningUpwardsToExternalClasses = true;
 
+    /**
+     * If true, enable http(s) classpath elements to be fetched to local temporary files and scanned. Disabled by
+     * default as this may present a security vulnerability, since classes from downloaded jars can be subsequently
+     * loaded using {@link ClassInfo#loadClass}.
+     */
+    public boolean enableRemoteJarScanning = false;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
