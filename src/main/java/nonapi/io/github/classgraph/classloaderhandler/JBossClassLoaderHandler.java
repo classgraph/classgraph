@@ -121,9 +121,15 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(moduleLoader, "getResourceLoaders", false);
         if (vfsResourceLoaders != null) {
             for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
-                // type VFSResourceLoader
+                // type JarFileResourceLoader for jars, VFSResourceLoader for exploded jars, PathResourceLoader
+                // for resource directories, or NativeLibraryResourceLoader for (usually non-existent) native
+                // library "lib/" dirs adjacent to the jarfiles that they were presumably extracted from.
                 final Object resourceLoader = Array.get(vfsResourceLoaders, i);
+                // Could skip NativeLibraryResourceLoader instances altogether, but testing for their existence
+                // only seems to add about 3% to the total scan time.
+                // if (!resourceLoader.getClass().getSimpleName().equals("NativeLibraryResourceLoader")) {
                 handleResourceLoader(resourceLoader, moduleLoader, classpathOrderOut, log);
+                //}
             }
         }
     }
