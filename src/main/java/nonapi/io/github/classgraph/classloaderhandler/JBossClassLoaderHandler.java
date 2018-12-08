@@ -101,7 +101,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         if (path == null) {
             final File file = (File) ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar", false);
             if (file != null) {
-                path = physicalFile.getAbsolutePath();
+                path = file.getAbsolutePath();
             }
         }
         if (path != null) {
