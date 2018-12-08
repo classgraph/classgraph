@@ -65,45 +65,51 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
 
     private void handleResourceLoader(final Object resourceLoader, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
+        if (resourceLoader == null) {
+            return;
+        }
+        // PathResourceLoader has root field, which is a Path object
+        final Object root = ReflectionUtils.getFieldVal(resourceLoader, "root", false);
+        // type VirtualFile
+        final File physicalFile = (File) ReflectionUtils.invokeMethod(root, "getPhysicalFile", false);
         String path = null;
-        if (resourceLoader != null) {
-            // PathResourceLoader has root field, which is a Path object
-            final Object root = ReflectionUtils.getFieldVal(resourceLoader, "root", false);
-            // type VirtualFile
-            final File physicalFile = (File) ReflectionUtils.invokeMethod(root, "getPhysicalFile", false);
-            if (physicalFile != null) {
-                final String name = (String) ReflectionUtils.invokeMethod(root, "getName", false);
-                if (name != null) {
-                    final File file = new java.io.File(physicalFile.getParentFile(), name);
-                    if (FileUtils.canRead(file)) {
-                        path = file.getAbsolutePath();
-                    } else {
-                        path = physicalFile.getAbsolutePath();
-                    }
+        if (physicalFile != null) {
+            final String name = (String) ReflectionUtils.invokeMethod(root, "getName", false);
+            if (name != null) {
+                // getParentFile() removes "contents" directory
+                final File file = new java.io.File(physicalFile.getParentFile(), name);
+                if (FileUtils.canRead(file)) {
+                    path = file.getAbsolutePath();
                 } else {
+                    // This is an exploded jar or classpath directory
                     path = physicalFile.getAbsolutePath();
                 }
             } else {
-                // Fallback
-                path = (String) ReflectionUtils.invokeMethod(root, "getPathName", false);
-                if (path == null) {
-                    // Try Path or File:
-                    Object file;
-                    if (root instanceof Path) {
-                        file = ((Path) root).toFile();
-                    } else {
-                        file = root;
-                    }
-                    if (file == null) {
-                        // Try JarFileResource:
-                        file = ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar", false);
-                    }
-                    path = (String) ReflectionUtils.invokeMethod(file, "getAbsolutePath", false);
+                path = physicalFile.getAbsolutePath();
+            }
+        } else {
+            path = (String) ReflectionUtils.invokeMethod(root, "getPathName", false);
+            if (path == null) {
+                // Try Path or File
+                final File file = root instanceof Path ? ((Path) root).toFile()
+                        : root instanceof File ? (File) root : null;
+                if (file != null) {
+                    path = file.getAbsolutePath();
                 }
+            }
+        }
+        if (path == null) {
+            final File file = (File) ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar", false);
+            if (file != null) {
+                path = physicalFile.getAbsolutePath();
             }
         }
         if (path != null) {
             classpathOrderOut.addClasspathElement(path, classLoader, log);
+        } else {
+            if (log != null) {
+                log.log("Could not determine classpath for ResourceLoader: " + resourceLoader);
+            }
         }
     }
 
@@ -131,7 +137,8 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(callerModuleLoader,
                 "moduleMap", false);
         for (final Entry<Object, Object> ent : moduleMap.entrySet()) {
-            final Object val = ent.getValue(); // type FutureModule
+            // type FutureModule
+            final Object val = ent.getValue();
             // type Module
             final Object realModule = ReflectionUtils.invokeMethod(val, "getModule", false);
             handleRealModule(realModule, classLoader, classpathOrderOut, log);
