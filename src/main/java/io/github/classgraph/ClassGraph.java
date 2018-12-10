@@ -993,6 +993,20 @@ public class ClassGraph {
         return enableSystemJarsAndModules();
     }
 
+    /**
+     * Enables logging by calling {@link #verbose()}, and then sets the logger to "realtime logging mode", where log
+     * entries are written out immediately to stderr, rather than only after the scan has completed. Can help to
+     * identify problems where scanning is stuck in a loop, or where one scanning step is taking much longer than it
+     * should, etc.
+     *
+     * @return this (for method chaining).
+     */
+    public ClassGraph enableRealtimeLogging() {
+        verbose();
+        LogNode.LOG_IN_REALTIME = true;
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A callback used to process the result of a successful asynchronous scan. */
