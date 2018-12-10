@@ -179,7 +179,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             InputStreamOrByteBufferAdapter openOrRead() throws IOException {
-                return InputStreamOrByteBufferAdapter.create(open());
+                return new InputStreamOrByteBufferAdapter(open());
             }
 
             @Override

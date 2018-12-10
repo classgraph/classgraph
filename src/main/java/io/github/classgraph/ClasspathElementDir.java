@@ -161,9 +161,9 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             InputStreamOrByteBufferAdapter openOrRead() throws IOException {
                 if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
-                    return InputStreamOrByteBufferAdapter.create(read());
+                    return new InputStreamOrByteBufferAdapter(read());
                 } else {
-                    return InputStreamOrByteBufferAdapter.create(inputStream = new InputStreamResourceCloser(this,
+                    return new InputStreamOrByteBufferAdapter(inputStream = new InputStreamResourceCloser(this,
                             new FileInputStream(classpathResourceFile)));
                 }
             }

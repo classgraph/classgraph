@@ -35,7 +35,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /** Buffer class that can wrap either an InputStream or a ByteBuffer, depending on which is available. */
-public abstract class InputStreamOrByteBufferAdapter {
+public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /**
      * Buffer size for initial read. We can save some time by reading most of the classfile header in a single read
      * at the beginning of the scan.
@@ -50,24 +50,41 @@ public abstract class InputStreamOrByteBufferAdapter {
     /** Buffer size for classfile reader. */
     private static final int SUBSEQUENT_BUFFER_CHUNK_SIZE = 4096;
 
-    /** Bytes read from the beginning of the classfile. This array is reused across calls. */
+    /** The InputStream, if applicable. */
+    private InputStream inputStream;
+
+    /** The ByteBuffer, if applicable. */
+    private ByteBuffer byteBuffer;
+
+    /**
+     * Bytes read from the beginning of the classfile, for a memory-backed ByteBuffer. This array is reused across
+     * calls.
+     */
     public byte[] buf;
 
-    /** The current position in the buffer. */
+    /**
+     * 
+     * /** The current position in the buffer.
+     */
     public int curr = 0;
 
     /** Bytes used in the buffer. */
     public int used = 0;
 
-    /**
-     * Create an buffer backed by the given byte array, or if the array is null, create an empty byte array of the
-     * initial buffer chunk size.
-     */
-    private InputStreamOrByteBufferAdapter(final byte[] buf) {
-        if (buf == null) {
-            this.buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
+    /** Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}. */
+    public InputStreamOrByteBufferAdapter(final InputStream inputStream) {
+        this.inputStream = inputStream;
+        this.buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
+    }
+
+    /** Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}. */
+    public InputStreamOrByteBufferAdapter(final ByteBuffer byteBuffer) {
+        if (byteBuffer.hasArray()) {
+            // Just use the array behind the buffer as the input buffer
+            this.buf = byteBuffer.array();
         } else {
-            this.buf = buf;
+            this.byteBuffer = byteBuffer;
+            this.buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
         }
     }
 
@@ -356,68 +373,46 @@ public abstract class InputStreamOrByteBufferAdapter {
      * @throws IOException
      *             If the file content could not be read.
      */
-    public abstract int read(byte[] array, int off, int len) throws IOException;
-
-    /**
-     * Create a new InputStream adapter.
-     * 
-     * @param inputStream
-     *            The {@link InputStream} to use.
-     * @return The {@link InputStreamOrByteBufferAdapter}.
-     */
-    public static InputStreamOrByteBufferAdapter create(final InputStream inputStream) {
-        return new InputStreamOrByteBufferAdapter(/* buf = */ null) {
-            @Override
-            public int read(final byte[] array, final int off, final int len) throws IOException {
-                return inputStream.read(array, off, len);
+    public int read(byte[] array, int off, int len) throws IOException {
+        if (len == 0) {
+            return 0;
+        }
+        if (inputStream != null) {
+            return inputStream.read(array, off, len);
+        }
+        int bytesRemainingInBuf = buf != null ? buf.length - off : byteBuffer.remaining();
+        final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
+        if (bytesRead == 0) {
+            // Return -1, as per InputStream#read() contract
+            return -1;
+        }
+        if (buf != null) {
+            // Nothing to read, since ByteBuffer is backed with an array
+            return bytesRead;
+        } else {
+            // Copy from the ByteBuffer into the byte array
+            final int byteBufPositionBefore = byteBuffer.position();
+            try {
+                byteBuffer.get(array, off, bytesRead);
+            } catch (final BufferUnderflowException e) {
+                // Should not happen
+                throw new IOException("Buffer underflow", e);
             }
-        };
+            return byteBuffer.position() - byteBufPositionBefore;
+        }
     }
 
-    /**
-     * Create a new ByteBuffer adapter.
-     * 
-     * @param byteBuffer
-     *            The {@link ByteBuffer} to use.
-     * @return The {@link InputStreamOrByteBufferAdapter}.
-     */
-    public static InputStreamOrByteBufferAdapter create(final ByteBuffer byteBuffer) {
-        return new InputStreamOrByteBufferAdapter(/* buf = */ byteBuffer.hasArray() ? byteBuffer.array() : null) {
-            private final boolean hasArray = byteBuffer.hasArray();
-            private int bytesRemaining = hasArray ? this.buf.length : -1;
-
-            @Override
-            public int read(final byte[] array, final int off, final int len) throws IOException {
-                if (len == 0) {
-                    return 0;
-                }
-                if (hasArray) {
-                    // Nothing to read, since ByteBuffer is backed with an array, but update the number of
-                    // bytes remaining that have not yet been "read".
-                    final int bytesToRead = Math.min(len, bytesRemaining);
-                    if (bytesToRead == 0) {
-                        // Return -1, as per InputStream#read() contract
-                        return -1;
-                    }
-                    bytesRemaining -= bytesToRead;
-                    return bytesToRead;
-                } else {
-                    // Copy from the ByteBuffer into the byte array
-                    final int bytesToRead = Math.min(len, byteBuffer.remaining());
-                    if (bytesToRead == 0) {
-                        // Return -1, as per InputStream#read() contract
-                        return -1;
-                    }
-                    final int byteBufPositionBefore = byteBuffer.position();
-                    try {
-                        byteBuffer.get(array, off, bytesToRead);
-                    } catch (final BufferUnderflowException e) {
-                        // Should not happen
-                        throw new IOException("Buffer underflow", e);
-                    }
-                    return byteBuffer.position() - byteBufPositionBefore;
-                }
+    @Override
+    public void close() {
+        if (this.inputStream != null) {
+            try {
+                this.inputStream.close();
+            } catch (Exception e) {
+                // Ignore
             }
-        };
+            this.inputStream = null;
+        }
+        this.byteBuffer = null;
+        this.buf = null;
     }
 }

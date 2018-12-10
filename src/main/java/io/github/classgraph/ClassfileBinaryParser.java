@@ -707,9 +707,9 @@ class ClassfileBinaryParser {
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
             final String relativePath, final Resource classfileResource, final boolean isExternalClass,
             final ScanSpec scanSpec, final LogNode log) throws IOException {
-        try {
-            // Open classfile as a ByteBuffer or InputStream
-            this.inputStreamOrByteBuffer = classfileResource.openOrRead();
+        // Open classfile as a ByteBuffer or InputStream
+        try (Resource res = classfileResource; InputStreamOrByteBufferAdapter input = res.openOrRead()) {
+            this.inputStreamOrByteBuffer = input;
 
             // Read the initial chunk of data into the buffer
             inputStreamOrByteBuffer.readInitialChunk();
@@ -720,12 +720,8 @@ class ClassfileBinaryParser {
                         "Classfile " + relativePath + " does not have correct classfile magic number");
             }
 
+            // Read and parse classfile
             return readClassfile(classpathElement, relativePath, isExternalClass, classfileResource, scanSpec, log);
-
-        } finally {
-            // Close classfile InputStream (and any associated ZipEntry);
-            // recycle ZipFile or ModuleReaderProxy if applicable
-            classfileResource.close();
         }
     }
 }
