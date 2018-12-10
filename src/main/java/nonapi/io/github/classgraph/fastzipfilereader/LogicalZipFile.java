@@ -228,9 +228,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 }
                 i = manifestValueAndEndIdx.getValue();
 
-            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY,
-                    i + SPRING_BOOT_CLASSES_KEY.length + 1)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest, i);
+            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + SPRING_BOOT_CLASSES_KEY.length + 1);
                 final String springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
                 if (!springBootClassesFieldVal.equals("BOOT-INF/classes")
                         && !springBootClassesFieldVal.equals("BOOT-INF/classes/")) {
@@ -240,8 +240,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 }
                 i = manifestValueAndEndIdx.getValue();
 
-            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_LIB_KEY, i + SPRING_BOOT_LIB_KEY.length + 1)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest, i);
+            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_LIB_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + SPRING_BOOT_LIB_KEY.length + 1);
                 final String springBootLibFieldVal = manifestValueAndEndIdx.getKey();
                 if (!springBootLibFieldVal.equals("BOOT-INF/lib")
                         && !springBootLibFieldVal.equals("BOOT-INF/lib/")) {
@@ -251,8 +252,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 }
                 i = manifestValueAndEndIdx.getValue();
 
-            } else if (keyMatchesAtPosition(manifest, MULTI_RELEASE_KEY, i + MULTI_RELEASE_KEY.length + 1)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest, i);
+            } else if (keyMatchesAtPosition(manifest, MULTI_RELEASE_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + MULTI_RELEASE_KEY.length + 1);
                 if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("true")) {
                     isMultiReleaseJar = true;
                 }
@@ -266,7 +268,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             if (skip) {
                 // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
                 for (; i < manifest.length - 2;) {
-                    if (manifest[i] == '\r' && manifest[i + 1] != '\n' && manifest[i + 2] != ' ') {
+                    if (manifest[i] == '\r' && manifest[i + 1] == '\n' && manifest[i + 2] != ' ') {
                         i += 2;
                         break;
                     } else if (manifest[i] == '\r' && manifest[i + 1] != ' ') {
