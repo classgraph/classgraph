@@ -373,23 +373,20 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * @throws IOException
      *             If the file content could not be read.
      */
-    public int read(byte[] array, int off, int len) throws IOException {
+    public int read(final byte[] array, final int off, final int len) throws IOException {
         if (len == 0) {
             return 0;
         }
         if (inputStream != null) {
             return inputStream.read(array, off, len);
         }
-        int bytesRemainingInBuf = buf != null ? buf.length - off : byteBuffer.remaining();
+        final int bytesRemainingInBuf = byteBuffer != null ? byteBuffer.remaining() : buf.length - off;
         final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
         if (bytesRead == 0) {
             // Return -1, as per InputStream#read() contract
             return -1;
         }
-        if (buf != null) {
-            // Nothing to read, since ByteBuffer is backed with an array
-            return bytesRead;
-        } else {
+        if (byteBuffer != null) {
             // Copy from the ByteBuffer into the byte array
             final int byteBufPositionBefore = byteBuffer.position();
             try {
@@ -399,6 +396,9 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
                 throw new IOException("Buffer underflow", e);
             }
             return byteBuffer.position() - byteBufPositionBefore;
+        } else {
+            // Nothing to read, since ByteBuffer is backed with an array
+            return bytesRead;
         }
     }
 
@@ -407,7 +407,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         if (this.inputStream != null) {
             try {
                 this.inputStream.close();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 // Ignore
             }
             this.inputStream = null;
