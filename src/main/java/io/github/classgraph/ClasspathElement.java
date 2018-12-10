@@ -225,18 +225,19 @@ abstract class ClasspathElement {
     protected void addWhitelistedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final LogNode log) {
         final String path = resource.getPath();
-        if (path.isEmpty()) {
-            System.out.println("here");
-        }
-        if (log != null) {
-            log.log(path,
-                    "Found whitelisted " + (path.endsWith(".class") ? "classfile" : "resource") + ": " + path);
-        }
-
-        if (scanSpec.enableClassInfo && FileUtils.isClassfile(path)
-                && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path)) {
-            // ClassInfo is enabled, and found a whitelisted classfile
-            whitelistedClassfileResources.add(resource);
+        final boolean isClassFile = FileUtils.isClassfile(path);
+        if (isClassFile) {
+            if (scanSpec.enableClassInfo && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path)) {
+                // ClassInfo is enabled, and found a whitelisted classfile
+                whitelistedClassfileResources.add(resource);
+                if (log != null) {
+                    log.log(path, "Found whitelisted classfile: " + path);
+                }
+            }
+        } else {
+            if (log != null) {
+                log.log(path, "Found whitelisted resource: " + path);
+            }
         }
         resourceMatches.add(resource);
     }
