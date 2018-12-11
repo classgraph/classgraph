@@ -48,6 +48,7 @@ import java.util.HashSet;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -56,15 +57,23 @@ import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
+    /** The directory at the root of the classpath element. */
     private final File classpathEltDir;
+
+    /** The number of characters to ignore to strip the classpath element path and relativize the path. */
     private int ignorePrefixLen;
+
+    /** The {@link NestedJarHandler}. */
+    private final NestedJarHandler nestedJarHandler;
 
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final HashSet<String> scannedCanonicalPaths = new HashSet<>();
 
     /** A directory classpath element. */
-    ClasspathElementDir(final File classpathEltDir, final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
+    ClasspathElementDir(final File classpathEltDir, final ClassLoader[] classLoaders,
+            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoaders, scanSpec);
+        this.nestedJarHandler = nestedJarHandler;
         this.classpathEltDir = classpathEltDir;
         if (scanSpec.performScan) {
             ignorePrefixLen = classpathEltDir.getPath().length() + 1;
@@ -232,7 +241,11 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                 }
                 if (byteBuffer != null) {
+                    final boolean isMmapd = byteBuffer instanceof MappedByteBuffer;
                     byteBuffer = null;
+                    if (isMmapd) {
+                        nestedJarHandler.freedMmapRef();
+                    }
                 }
                 if (fileChannel != null) {
                     try {

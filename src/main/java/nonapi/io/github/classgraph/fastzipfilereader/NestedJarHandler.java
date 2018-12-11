@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap.SimpleEntry;
@@ -41,10 +42,12 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Inflater;
 
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
+import io.github.classgraph.Resource;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -91,6 +94,12 @@ public class NestedJarHandler {
     /** A recycler for {@link Inflater} instances. */
     public RecyclerExceptionless<RecyclableInflater> inflaterRecycler;
 
+    /**
+     * The number of {@link MappedByteBuffer} instances whose references have been dropped, to allow them to be
+     * garbage collected (causing them to be un-mmap'd / released during GC).
+     */
+    private final AtomicInteger numMmapedRefsFreed;
+
     /** Any temporary files created while scanning. */
     private ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
 
@@ -117,6 +126,8 @@ public class NestedJarHandler {
      *            The log.
      */
     public NestedJarHandler(final ScanSpec scanSpec, final LogNode log) {
+        this.numMmapedRefsFreed = new AtomicInteger(0);
+
         // Set up a recycler for Inflater instances.
         this.inflaterRecycler = new RecyclerExceptionless<RecyclableInflater>() {
             @Override
@@ -496,6 +507,47 @@ public class NestedJarHandler {
                     + "separately downloaded by the ClassLoader *****");
         }
         return tempFile;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * This method is called when a {@link MappedByteBuffer} reference is dropped, to enable it to be garbage
+     * collected. If you run out of mmap'd buffers, it can cause a wide range of problems, including even causing
+     * the VM to crash, according to: <a href=<http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/">this MapDB
+     * developer</a>. Therefore, to try to prevent hitting this limit, call <code>System.gc()</code> every 20,000
+     * mmap references dropped.
+     * 
+     * <p>
+     * (After each classfile is parsed, if the classfile was read using mmap, then the {@link MappedByteBuffer}
+     * reference is dropped, but the reference sticks around until the next GC. If the reference is still in memory,
+     * and the limit on the number of concurrent mmaps is hit, then an {@link IOException} or
+     * {@link OutOfMemoryError} is thrown, and the VM will potentially get into a broken state.)
+     * 
+     * <p>
+     * There is only one mmap call per toplevel jarfile, for jarfile classpath elements. For directory classpath
+     * elements, mmap is now disabled for Windows (see #290), and for other operating systems, mmap is only called
+     * during scanning for classfiles larger than 16kb (since this is the point at which mmap starts to be faster
+     * than {@link InputStream}). mmap is also only used for file (non-jar/non-module) classpath entries, so unless
+     * there is an enormous tree of large classfiles on disk, this function is unlikely to call
+     * <code>System.gc()</code>. Nevetheless, it is worth triggering a potential GC pause if we can avoid killing
+     * the JVM.
+     * 
+     * <p>
+     * The user could also trigger a large number of concurrent mmap allocations, if they try opening a large number
+     * of directory-based {@link Resource} objects using {@link Resource#read()}. They would have to open tens of
+     * thousands of resources to risk running into issues, in all likelihood.
+     * 
+     * <p>
+     * (Note that <code>System.gc()</code> doesn't even guarantee that it will trigger a GC, but this is the best we
+     * can do to free {@link MappedByteBuffer} references.)
+     */
+    public void freedMmapRef() {
+        // TODO: Find the mmap limit on Windows and Mac OS X.
+        // Linux' mmap limit is 64k allocations, and we should leave headroom for other allocations.
+        if (numMmapedRefsFreed.incrementAndGet() % 20_000 == 0) {
+            System.gc();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

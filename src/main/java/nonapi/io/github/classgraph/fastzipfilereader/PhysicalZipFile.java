@@ -36,7 +36,6 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -191,11 +190,18 @@ public class PhysicalZipFile implements Closeable {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
-            Arrays.fill(mappedByteBuffersCached, null);
-            mappedByteBuffersCached = null;
             if (chunkIdxToByteBuffer != null) {
                 chunkIdxToByteBuffer.clear();
                 chunkIdxToByteBuffer = null;
+            }
+            if (mappedByteBuffersCached != null) {
+                for (int i = 0; i < mappedByteBuffersCached.length; i++) {
+                    if (mappedByteBuffersCached[i] != null) {
+                        mappedByteBuffersCached[i] = null;
+                        nestedJarHandler.freedMmapRef();
+                    }
+                }
+                mappedByteBuffersCached = null;
             }
             if (fc != null) {
                 try {

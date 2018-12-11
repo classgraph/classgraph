@@ -150,7 +150,7 @@ abstract class ClasspathElement {
                 throw new IOException("Not a file or directory");
             }
         }
-        return dir != null ? new ClasspathElementDir(dir, classLoaders, scanSpec)
+        return dir != null ? new ClasspathElementDir(dir, classLoaders, nestedJarHandler, scanSpec)
                 : new ClasspathElementZip(rawPath, classLoaders, nestedJarHandler, scanSpec);
     }
 
