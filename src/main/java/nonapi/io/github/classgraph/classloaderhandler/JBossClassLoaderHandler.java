@@ -115,8 +115,8 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    private void handleRealModule(final Object module, Set<Object> visitedModules, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+    private void handleRealModule(final Object module, final Set<Object> visitedModules,
+            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final LogNode log) {
         if (!visitedModules.add(module)) {
             // Avoid extracting paths from the same module more than once
             return;

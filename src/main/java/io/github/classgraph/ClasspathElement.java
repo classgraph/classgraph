@@ -77,7 +77,7 @@ abstract class ClasspathElement {
     Set<String> childClasspathEltPaths = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
     /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
-    protected List<Resource> resourceMatches;
+    protected List<Resource> whitelistedResources;
 
     /** The list of all classfiles found within this classpath element that were whitelisted and not blacklisted. */
     protected List<Resource> whitelistedClassfileResources;
@@ -245,7 +245,7 @@ abstract class ClasspathElement {
                                         : " ; full path: " + resource.getPathRelativeToClasspathElement()));
             }
         }
-        resourceMatches.add(resource);
+        whitelistedResources.add(resource);
     }
 
     // -------------------------------------------------------------------------------------------------------------

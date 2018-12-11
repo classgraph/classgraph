@@ -75,7 +75,7 @@ class ClasspathElementZip extends ClasspathElement {
         this.zipFilePath = rawPath;
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.performScan) {
-            resourceMatches = new ArrayList<>();
+            whitelistedResources = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }

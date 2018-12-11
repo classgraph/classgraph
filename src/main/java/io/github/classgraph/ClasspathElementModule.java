@@ -66,7 +66,7 @@ class ClasspathElementModule extends ClasspathElement {
         this.moduleRef = moduleRef;
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.performScan) {
-            resourceMatches = new ArrayList<>();
+            whitelistedResources = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }

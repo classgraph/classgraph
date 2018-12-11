@@ -68,7 +68,7 @@ class ClasspathElementDir extends ClasspathElement {
         this.classpathEltDir = classpathEltDir;
         if (scanSpec.performScan) {
             ignorePrefixLen = classpathEltDir.getPath().length() + 1;
-            resourceMatches = new ArrayList<>();
+            whitelistedResources = new ArrayList<>();
             whitelistedClassfileResources = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }
