@@ -613,6 +613,7 @@ public class NestedJarHandler {
                 // on Windows, and GC is the only way to un-mmap a MappedByteBuffer (see #288)
                 System.gc();
             }
+            // Temp files have to be deleted last, after all possible refs to MappedByteBuffers are dropped
             if (tempFiles != null) {
                 final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
                         : log.log("Removing temporary files");

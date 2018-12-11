@@ -1049,10 +1049,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 pathToResourceList.clear();
                 pathToResourceList = null;
             }
-            if (nestedJarHandler != null) {
-                nestedJarHandler.close(log);
-                nestedJarHandler = null;
-            }
             classGraphClassLoader = null;
             if (classNameToClassInfo != null) {
                 classNameToClassInfo.clear();
@@ -1072,6 +1068,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
             classGraphClassLoader = null;
             envClassLoaderOrder = null;
+            // nestedJarHandler should be closed last, since it needs to have all MappedByteBuffer refs
+            // dropped before it tries to delete any temporary files that were written to disk
+            if (nestedJarHandler != null) {
+                nestedJarHandler.close(log);
+                nestedJarHandler = null;
+            }
             nonClosedWeakReferences.remove(weakReference);
             if (log != null) {
                 log.flush();
