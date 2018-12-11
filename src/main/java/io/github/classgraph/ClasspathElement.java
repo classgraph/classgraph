@@ -231,12 +231,18 @@ abstract class ClasspathElement {
                 // ClassInfo is enabled, and found a whitelisted classfile
                 whitelistedClassfileResources.add(resource);
                 if (log != null) {
-                    log.log(path, "Found whitelisted classfile: " + path);
+                    log.log(path,
+                            "Found whitelisted classfile: " + path
+                                    + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
                 }
             }
         } else {
             if (log != null) {
-                log.log(path, "Found whitelisted resource: " + path);
+                log.log(path,
+                        "Found whitelisted resource: " + path
+                                + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                                        : " ; full path: " + resource.getPathRelativeToClasspathElement()));
             }
         }
         resourceMatches.add(resource);
