@@ -31,9 +31,11 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.lang.reflect.Array;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
@@ -113,8 +115,12 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    private void handleRealModule(final Object module, final ClassLoader classLoader,
+    private void handleRealModule(final Object module, Set<Object> visitedModules, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
+        if (!visitedModules.add(module)) {
+            // Avoid extracting paths from the same module more than once
+            return;
+        }
         final ClassLoader moduleLoader = (ClassLoader) ReflectionUtils.invokeMethod(module, "getClassLoader",
                 false);
         // type VFSResourceLoader[]
@@ -139,6 +145,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         final Object module = ReflectionUtils.invokeMethod(classLoader, "getModule", false);
         final Object callerModuleLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader", false);
+        final Set<Object> visitedModules = new HashSet<>();
         @SuppressWarnings("unchecked")
         final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(callerModuleLoader,
                 "moduleMap", false);
@@ -147,7 +154,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
             final Object val = ent.getValue();
             // type Module
             final Object realModule = ReflectionUtils.invokeMethod(val, "getModule", false);
-            handleRealModule(realModule, classLoader, classpathOrderOut, log);
+            handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, log);
         }
         // type Map<String, List<LocalLoader>>
         @SuppressWarnings("unchecked")
@@ -159,7 +166,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                 final Object moduleClassLoader = ReflectionUtils.getFieldVal(localLoader, "this$0", false);
                 // type Module
                 final Object realModule = ReflectionUtils.getFieldVal(moduleClassLoader, "module", false);
-                handleRealModule(realModule, classLoader, classpathOrderOut, log);
+                handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, log);
             }
         }
     }
