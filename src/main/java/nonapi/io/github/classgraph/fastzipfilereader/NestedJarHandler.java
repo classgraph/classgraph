@@ -515,41 +515,40 @@ public class NestedJarHandler {
      * This method is called when a {@link MappedByteBuffer} reference is dropped, to enable it to be garbage
      * collected. If you run out of mmap'd buffers, it can cause a wide range of problems, including possibly
      * causing a VM crash, according to: <a href=<http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/">this
-     * MapDB developer</a>. The limit on the number of concurrent mmap allocations is 64k on Linux. Therefore, to
-     * try to prevent hitting this limit, call <code>System.gc()</code> every 20,000 mmap references dropped.
+     * MapDB developer</a>. The limit on the number of concurrent mmap allocations is 64k on Linux. Therefore, to do
+     * everything possible to prevent hitting this limit, call <code>System.gc()</code> every 20,000 mmap references
+     * dropped.
      * 
      * <p>
-     * (Windows does not seem to have an mmap limit, but mmap has major issues on Windows due to holding a file
-     * lock.)
+     * (We have no way to know how many MappedByteBuffers are actually mmap'd at any given point in time, only how
+     * many have been allocated, and how many references have been dropped for garbage collection -- so just call
+     * System.gc() when it is possible there are a lot of mmap'd byte buffers that need to be unmapped.)
      * 
      * <p>
-     * After each classfile is parsed, if the classfile was read using mmap, then the {@link MappedByteBuffer}
-     * reference is dropped, but the reference sticks around until the next GC. If the reference is still in memory,
-     * and the limit on the number of concurrent mmaps is hit, then an {@link IOException} or
-     * {@link OutOfMemoryError} is thrown, and the VM will potentially get into a broken state.
+     * Most of the time, there only needs to be one MappedByteBuffer held mapped per jarfile, and up to one
+     * MappedByteBuffer per worker thread (for the classfiles that are currently being read and parsed). Worker
+     * threads only mmap classfiles if they are reading from a dir-based classpath entry, and if the classfile is
+     * larger than 16kb. It would be quite rare to find a dir-based classpath entry containing over 20,000
+     * classfiles larger than 16kb, so this <code>System.gc()</code> call should not be triggered very often.
      * 
      * <p>
-     * During scanning, and until {@link ScanResult#close()} is called, there is only one mmap call per toplevel
-     * jarfile, for jarfile classpath elements. For directory classpath elements, mmap is now disabled for Windows
-     * (see #290), and for other operating systems, mmap is only called during scanning for classfiles larger than
-     * 16kb (since this is the point at which mmap starts to be faster than {@link InputStream}). mmap is also only
-     * used for file (non-jar/non-module) classpath entries, so unless there is an enormous tree of large classfiles
-     * on disk, this function is unlikely to call <code>System.gc()</code>. Nevetheless, it is worth triggering a
-     * potential GC pause if we can avoid killing the JVM.
+     * Windows and Mac OS X do not seem to have an mmap limit (tested to 1M concurrent allocations in both cases).
+     * However, mmap has major issues on Windows due to holding a file lock per mmap allocation, preventing files
+     * from being deleted, etc., so mmap has been disabled for reading classfiles and resources from dir-based
+     * classpath entries on Windows (Windows will only hold one mmap per jarfile).
      * 
      * <p>
-     * The user could also trigger a large number of concurrent mmap allocations, if they try opening a large number
-     * of directory-based {@link Resource} objects using {@link Resource#read()}. They would have to open tens of
-     * thousands of resources to risk running into issues, in all likelihood.
+     * The user could potentially trigger a large number of concurrent mmap allocations on Linux if they try opening
+     * a large number of directory-based {@link Resource} objects using {@link Resource#read()}, whether or not the
+     * resources are closed (since GC may not kick in). Users would probably have to open tens of thousands of
+     * resources to risk running into issues though.
      * 
      * <p>
-     * (Note that <code>System.gc()</code> doesn't even guarantee that it will trigger a GC, but this is the best we
-     * can do to free {@link MappedByteBuffer} references.)
+     * (Note that <code>System.gc()</code> doesn't even guarantee that a GC will be triggered, but this is the best
+     * we can do to un-mmap a {@link MappedByteBuffer} after its reference has been dropped.)
      */
     public void freedMmapRef() {
-        // TODO: Find the mmap limit on Mac OS X.
-        // Linux' mmap limit is 64k allocations, and we should leave headroom for other allocations.
-        if (numMmapedRefsFreed.incrementAndGet() % 20_000 == 0) {
+        if (VersionFinder.OS == OperatingSystem.Linux && numMmapedRefsFreed.incrementAndGet() % 20_000 == 0) {
             System.gc();
         }
     }
