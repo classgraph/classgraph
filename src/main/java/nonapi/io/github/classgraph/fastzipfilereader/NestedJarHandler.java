@@ -513,25 +513,29 @@ public class NestedJarHandler {
 
     /**
      * This method is called when a {@link MappedByteBuffer} reference is dropped, to enable it to be garbage
-     * collected. If you run out of mmap'd buffers, it can cause a wide range of problems, including even causing
-     * the VM to crash, according to: <a href=<http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/">this MapDB
-     * developer</a>. Therefore, to try to prevent hitting this limit, call <code>System.gc()</code> every 20,000
-     * mmap references dropped.
+     * collected. If you run out of mmap'd buffers, it can cause a wide range of problems, including possibly
+     * causing a VM crash, according to: <a href=<http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/">this
+     * MapDB developer</a>. The limit on the number of concurrent mmap allocations is 64k on Linux. Therefore, to
+     * try to prevent hitting this limit, call <code>System.gc()</code> every 20,000 mmap references dropped.
      * 
      * <p>
-     * (After each classfile is parsed, if the classfile was read using mmap, then the {@link MappedByteBuffer}
+     * (Windows does not seem to have an mmap limit, but mmap has major issues on Windows due to holding a file
+     * lock.)
+     * 
+     * <p>
+     * After each classfile is parsed, if the classfile was read using mmap, then the {@link MappedByteBuffer}
      * reference is dropped, but the reference sticks around until the next GC. If the reference is still in memory,
      * and the limit on the number of concurrent mmaps is hit, then an {@link IOException} or
-     * {@link OutOfMemoryError} is thrown, and the VM will potentially get into a broken state.)
+     * {@link OutOfMemoryError} is thrown, and the VM will potentially get into a broken state.
      * 
      * <p>
-     * There is only one mmap call per toplevel jarfile, for jarfile classpath elements. For directory classpath
-     * elements, mmap is now disabled for Windows (see #290), and for other operating systems, mmap is only called
-     * during scanning for classfiles larger than 16kb (since this is the point at which mmap starts to be faster
-     * than {@link InputStream}). mmap is also only used for file (non-jar/non-module) classpath entries, so unless
-     * there is an enormous tree of large classfiles on disk, this function is unlikely to call
-     * <code>System.gc()</code>. Nevetheless, it is worth triggering a potential GC pause if we can avoid killing
-     * the JVM.
+     * During scanning, and until {@link ScanResult#close()} is called, there is only one mmap call per toplevel
+     * jarfile, for jarfile classpath elements. For directory classpath elements, mmap is now disabled for Windows
+     * (see #290), and for other operating systems, mmap is only called during scanning for classfiles larger than
+     * 16kb (since this is the point at which mmap starts to be faster than {@link InputStream}). mmap is also only
+     * used for file (non-jar/non-module) classpath entries, so unless there is an enormous tree of large classfiles
+     * on disk, this function is unlikely to call <code>System.gc()</code>. Nevetheless, it is worth triggering a
+     * potential GC pause if we can avoid killing the JVM.
      * 
      * <p>
      * The user could also trigger a large number of concurrent mmap allocations, if they try opening a large number
@@ -543,7 +547,7 @@ public class NestedJarHandler {
      * can do to free {@link MappedByteBuffer} references.)
      */
     public void freedMmapRef() {
-        // TODO: Find the mmap limit on Windows and Mac OS X.
+        // TODO: Find the mmap limit on Mac OS X.
         // Linux' mmap limit is 64k allocations, and we should leave headroom for other allocations.
         if (numMmapedRefsFreed.incrementAndGet() % 20_000 == 0) {
             System.gc();
