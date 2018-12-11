@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -145,9 +146,19 @@ class ClasspathElementDir extends ClasspathElement {
                     try {
                         randomAccessFile = new RandomAccessFile(classpathResourceFile, "r");
                         fileChannel = randomAccessFile.getChannel();
-                        final MappedByteBuffer buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0,
-                                fileChannel.size());
-                        buffer.load();
+                        MappedByteBuffer buffer = null;
+                        try {
+                            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+                        } catch (final FileNotFoundException e) {
+                            throw e;
+                        } catch (IOException | OutOfMemoryError e) {
+                            // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
+                            // (there is a limit to the number of mapped files -- 64k on Linux)
+                            // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
+                            System.gc();
+                            // Then try calling map again
+                            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+                        }
                         byteBuffer = buffer;
                         length = byteBuffer.remaining();
                         return byteBuffer;

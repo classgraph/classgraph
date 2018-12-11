@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -86,11 +87,24 @@ public class PhysicalZipFile implements Closeable {
         mappedByteBuffersCached = new MappedByteBuffer[numMappedByteBuffers];
         chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer>() {
             @Override
-            public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws Exception {
+            public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws IOException {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer
                 final long pos = chunkIdxI.longValue() << 32;
                 final long chunkSize = Math.min(FileUtils.MAX_BUFFER_SIZE, fileLen - pos);
-                return fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
+                MappedByteBuffer buffer = null;
+                try {
+                    buffer = fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
+                } catch (final FileNotFoundException e) {
+                    throw e;
+                } catch (IOException | OutOfMemoryError e) {
+                    // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
+                    // (there is a limit to the number of mapped files -- 64k on Linux)
+                    // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
+                    System.gc();
+                    // Then try calling map again
+                    buffer = fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
+                }
+                return buffer;
             }
         };
     }
