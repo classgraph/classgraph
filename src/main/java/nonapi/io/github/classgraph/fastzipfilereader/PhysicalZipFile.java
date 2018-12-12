@@ -73,12 +73,24 @@ public class PhysicalZipFile implements Closeable {
             throw new IOException("Is not a file: " + file);
         }
 
-        raf = new RandomAccessFile(file, "r");
-        fileLen = raf.length();
-        if (fileLen == 0L) {
-            throw new IOException("Zipfile is empty: " + file);
+        try {
+            raf = new RandomAccessFile(file, "r");
+            fileLen = raf.length();
+            if (fileLen == 0L) {
+                throw new IOException("Zipfile is empty: " + file);
+            }
+            fc = raf.getChannel();
+        } catch (IOException e) {
+            if (raf != null) {
+                raf.close();
+                raf = null;
+            }
+            if (fc != null) {
+                fc.close();
+                fc = null;
+            }
+            throw e;
         }
-        fc = raf.getChannel();
 
         // Implement an array of MappedByteBuffers to support jarfiles >2GB in size:
         // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
