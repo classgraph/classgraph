@@ -244,8 +244,8 @@ public class NestedJarHandler {
             }
         };
 
-        // Set up a singleton map from canonical File to PhysicalZipFile instance, so that the RandomAccessFile
-        // and FileChannel for any given zipfile is opened only once
+        // Set up a singleton map from ZipFileSlice to LogicalZipFile instance, so that LogicalZipFile instances
+        // are reused rather than duplicated
         this.zipFileSliceToLogicalZipFileMap = new SingletonMap<ZipFileSlice, LogicalZipFile>() {
             @Override
             public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log) throws Exception {
