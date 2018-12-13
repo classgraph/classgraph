@@ -294,7 +294,6 @@ class Scanner implements Callable<ScanResult> {
                         if (additionalWorkUnits != null) {
                             workQueue.addWorkUnits(additionalWorkUnits);
                         }
-
                     }
                 }
                 if (subLog != null) {
@@ -303,7 +302,11 @@ class Scanner implements Callable<ScanResult> {
             } catch (final IOException e) {
                 if (subLog != null) {
                     subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
-                            + " -- skipping", e);
+                            + " : " + e);
+                }
+            } catch (final IllegalArgumentException e) {
+                if (subLog != null) {
+                    subLog.log("Corrupt or unsupported classfile " + workUnit.classfileResource + " : " + e);
                 }
             } catch (final Throwable e) {
                 if (subLog != null) {

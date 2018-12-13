@@ -72,10 +72,11 @@ class ClassfileBinaryParser {
      *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
      *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
      */
-    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx) throws IOException {
+    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx)
+            throws IllegalArgumentException {
         final int t = tag[cpIdx];
         if ((t != 12 && subFieldIdx != 0) || (t == 12 && subFieldIdx != 0 && subFieldIdx != 1)) {
-            throw new IOException(
+            throw new IllegalArgumentException(
                     "Bad subfield index " + subFieldIdx + " for tag " + t + ", cannot continue reading class. "
                             + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
@@ -91,7 +92,7 @@ class ClassfileBinaryParser {
             final int indirIdx = indirectStringRefs[cpIdx];
             if (indirIdx == -1) {
                 // Should not happen
-                throw new IOException("Bad string indirection index, cannot continue reading class. "
+                throw new IllegalArgumentException("Bad string indirection index, cannot continue reading class. "
                         + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
             if (indirIdx == 0) {
@@ -105,12 +106,12 @@ class ClassfileBinaryParser {
             final int indirIdx = (subFieldIdx == 0 ? (compoundIndirIdx >> 16) : compoundIndirIdx) & 0xffff;
             if (indirIdx == 0) {
                 // Should not happen
-                throw new IOException("Bad string indirection index, cannot continue reading class. "
+                throw new IllegalArgumentException("Bad string indirection index, cannot continue reading class. "
                         + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
             cpIdxToUse = indirIdx;
         } else {
-            throw new IOException("Wrong tag number " + t + " at constant pool index " + cpIdx + ", "
+            throw new IllegalArgumentException("Wrong tag number " + t + " at constant pool index " + cpIdx + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
         }
@@ -121,7 +122,7 @@ class ClassfileBinaryParser {
      * Get a string from the constant pool, optionally replacing '/' with '.'.
      */
     private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IOException {
+            final boolean stripLSemicolon) throws IllegalArgumentException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         return constantPoolStringOffset == 0 ? null
                 : inputStreamOrByteBuffer.readString(constantPoolStringOffset, replaceSlashWithDot,
@@ -137,7 +138,7 @@ class ClassfileBinaryParser {
      *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
      *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
      */
-    private String getConstantPoolString(final int cpIdx, final int subFieldIdx) throws IOException {
+    private String getConstantPoolString(final int cpIdx, final int subFieldIdx) throws IllegalArgumentException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
         return constantPoolStringOffset == 0 ? null
                 : inputStreamOrByteBuffer.readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false,
@@ -145,14 +146,14 @@ class ClassfileBinaryParser {
     }
 
     /** Get a string from the constant pool. */
-    private String getConstantPoolString(final int cpIdx) throws IOException {
+    private String getConstantPoolString(final int cpIdx) throws IllegalArgumentException {
         return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
     }
 
     /**
      * Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty.
      */
-    private byte getConstantPoolStringFirstByte(final int cpIdx) throws IOException {
+    private byte getConstantPoolStringFirstByte(final int cpIdx) throws IllegalArgumentException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (constantPoolStringOffset == 0) {
             return '\0';
@@ -167,7 +168,7 @@ class ClassfileBinaryParser {
     /**
      * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
      */
-    private String getConstantPoolClassName(final int CpIdx) throws IOException {
+    private String getConstantPoolClassName(final int CpIdx) throws IllegalArgumentException {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
     }
 
@@ -176,14 +177,15 @@ class ClassfileBinaryParser {
      * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
      * "L" and the trailing ";".
      */
-    private String getConstantPoolClassDescriptor(final int CpIdx) throws IOException {
+    private String getConstantPoolClassDescriptor(final int CpIdx) throws IllegalArgumentException {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
     /**
      * Compare a string in the constant pool with a given constant, without constructing the String object.
      */
-    private boolean constantPoolStringEquals(final int cpIdx, final String otherString) throws IOException {
+    private boolean constantPoolStringEquals(final int cpIdx, final String otherString)
+            throws IllegalArgumentException {
         final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (strOffset == 0) {
             return otherString == null;
@@ -206,7 +208,7 @@ class ClassfileBinaryParser {
 
     /** Get a field constant from the constant pool. */
     private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
-            final int cpIdx) throws IOException {
+            final int cpIdx) throws IllegalArgumentException {
         switch (tag) {
         case 1: // Modified UTF8
         case 7: // Class -- N.B. Unused? Class references do not seem to actually be stored as constant initalizers
@@ -228,8 +230,8 @@ class ClassfileBinaryParser {
             case 'Z':
                 return intVal != 0;
             default:
-                throw new IOException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar + ", "
-                        + "cannot continue reading class. Please report this at "
+                throw new IllegalArgumentException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar
+                        + ", " + "cannot continue reading class. Please report this at "
                         + "https://github.com/classgraph/classgraph/issues");
             }
         }
@@ -242,7 +244,7 @@ class ClassfileBinaryParser {
         default:
             // ClassGraph doesn't expect other types
             // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)  
-            throw new IOException("Unknown constant pool tag " + tag + ", "
+            throw new IllegalArgumentException("Unknown constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
         }
@@ -251,7 +253,7 @@ class ClassfileBinaryParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Read annotation entry from classfile. */
-    private AnnotationInfo readAnnotation() throws IOException {
+    private AnnotationInfo readAnnotation() throws IOException, IllegalArgumentException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
         final String annotationClassName = getConstantPoolClassDescriptor(
                 inputStreamOrByteBuffer.readUnsignedShort());
@@ -269,7 +271,7 @@ class ClassfileBinaryParser {
     }
 
     /** Read annotation element value from classfile. */
-    private Object readAnnotationElementValue() throws IOException {
+    private Object readAnnotationElementValue() throws IOException, IllegalArgumentException {
         final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -316,8 +318,8 @@ class ClassfileBinaryParser {
             }
             return arr;
         default:
-            throw new IOException("Class " + className + " has unknown annotation element type tag '" + ((char) tag)
-                    + "': element size unknown, cannot continue reading class. "
+            throw new IllegalArgumentException("Class " + className + " has unknown annotation element type tag '"
+                    + ((char) tag) + "': element size unknown, cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
     }
@@ -331,7 +333,7 @@ class ClassfileBinaryParser {
      */
     private ClassInfoUnlinked readClassfile(final ClasspathElement classpathElement, final String relativePath,
             final boolean isExternalClass, final Resource classfileResource, final ScanSpec scanSpec,
-            final LogNode log) throws IOException {
+            final LogNode log) throws IOException, IllegalArgumentException {
         // Minor version
         inputStreamOrByteBuffer.readUnsignedShort();
         // Major version
@@ -400,9 +402,10 @@ class ClassfileBinaryParser {
                 inputStreamOrByteBuffer.skip(2);
                 break;
             default:
-                throw new IOException("Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
-                        + " (element size unknown, cannot continue reading class). Please report this at "
-                        + "https://github.com/classgraph/classgraph/issues");
+                throw new IllegalArgumentException(
+                        "Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
+                                + " (element size unknown, cannot continue reading class). Please report this at "
+                                + "https://github.com/classgraph/classgraph/issues");
             }
         }
 
@@ -706,7 +709,7 @@ class ClassfileBinaryParser {
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
             final String relativePath, final Resource classfileResource, final boolean isExternalClass,
-            final ScanSpec scanSpec, final LogNode log) throws IOException {
+            final ScanSpec scanSpec, final LogNode log) throws IOException, IllegalArgumentException {
         // Open classfile as a ByteBuffer or InputStream
         try (Resource res = classfileResource; InputStreamOrByteBufferAdapter input = res.openOrRead()) {
             this.inputStreamOrByteBuffer = input;
@@ -716,7 +719,7 @@ class ClassfileBinaryParser {
 
             // Check magic number
             if (inputStreamOrByteBuffer.readInt() != 0xCAFEBABE) {
-                throw new IOException(
+                throw new IllegalArgumentException(
                         "Classfile " + relativePath + " does not have correct classfile magic number");
             }
 
