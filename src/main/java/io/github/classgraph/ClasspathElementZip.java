@@ -375,13 +375,27 @@ class ClasspathElementZip extends ClasspathElement {
             if (packageRootPrefix.length() > 0) {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
-                // Strip any Spring-Boot prefix from relative path
+                // Strip common package root prefixes from relative path
                 if (relativePath.startsWith("BOOT-INF/classes/")) {
+                    // Spring-Boot prefix
                     relativePath = relativePath.substring("BOOT-INF/classes/".length());
                 } else if (relativePath.startsWith("WEB-INF/classes/")) {
+                    // Tomcat prefix
                     relativePath = relativePath.substring("WEB-INF/classes/".length());
+                } else if (relativePath.startsWith("classes/")) {
+                    // Ant prefix
+                    relativePath = relativePath.substring("classes/".length());
                 }
             }
+            
+            // Ignore test classes
+            if (relativePath.startsWith("test-classes/")) {
+                // Ant test-classes have been left in produced jarfile -- skip these entries
+                if (subLog != null) {
+                    subLog.log("Skipping test-classes jar entry: " + relativePath);
+                }
+                continue;
+            }            
 
             // Whitelist/blacklist classpath elements based on file resource paths
             if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
