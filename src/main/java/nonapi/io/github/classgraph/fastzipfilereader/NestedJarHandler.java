@@ -385,14 +385,14 @@ public class NestedJarHandler {
 
                     // If path component is a directory, it is a package root
                     if (isDirectory) {
-                        if (log != null) {
-                            log.log("Path " + childPath + " in jarfile " + parentLogicalZipFile
-                                    + " is a directory, not a file -- using as package root");
-                        }
                         if (!childPath.isEmpty()) {
                             // Add directory path to parent jarfile root relative paths set
                             // (this has the side effect of adding this parent jarfile root
                             // to the set of roots for all references to the parent path)
+                            if (log != null) {
+                                log.log("Path " + childPath + " in jarfile " + parentLogicalZipFile
+                                        + " is a directory, not a file -- using as package root");
+                            }
                             parentLogicalZipFile.classpathRoots.add(childPath);
                         }
                         // Return parent logical zipfile, and child path as the package root
@@ -402,8 +402,7 @@ public class NestedJarHandler {
                     // Do not extract nested jar, if nested jar scanning is disabled
                     if (!scanSpec.scanNestedJars) {
                         throw new IOException(
-                                "Nested jar scanning is disabled -- skipping extraction of nested jar "
-                                        + nestedJarPath);
+                                "Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
                     }
 
                     // The child path corresponds to a non-directory zip entry, so it must be a nested jar
