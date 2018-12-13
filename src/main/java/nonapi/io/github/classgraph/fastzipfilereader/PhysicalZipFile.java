@@ -80,7 +80,7 @@ public class PhysicalZipFile implements Closeable {
                 throw new IOException("Zipfile is empty: " + file);
             }
             fc = raf.getChannel();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             if (raf != null) {
                 raf.close();
                 raf = null;

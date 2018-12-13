@@ -308,13 +308,16 @@ public class NestedJarHandler {
                                 "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
                     }
 
+                    final LogNode zipFileLog = log == null ? null : log.log("Opening jarfile " + canonicalFile);
+
                     // Get or create a PhysicalZipFile instance for the canonical file
                     final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile,
-                            log);
+                            zipFileLog);
 
                     // Create a new logical slice of the whole physical zipfile
                     final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
-                    final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
+                    final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice,
+                            zipFileLog);
 
                     // Return new logical zipfile with an empty package root
                     return new SimpleEntry<>(logicalZipFile, "");
@@ -416,9 +419,12 @@ public class NestedJarHandler {
                                     "Could not open nested jarfile entry: " + childZipEntry.getPath());
                         }
 
+                        final LogNode zipSliceLog = log == null ? null
+                                : log.log("Getting zipfile slice " + childZipEntrySlice);
+
                         // Get or create a new LogicalZipFile for the child zipfile
                         final LogicalZipFile childLogicalZipFile = zipFileSliceToLogicalZipFileMap
-                                .get(childZipEntrySlice, log);
+                                .get(childZipEntrySlice, zipSliceLog);
 
                         // Return new logical zipfile with an empty package root
                         return new SimpleEntry<>(childLogicalZipFile, "");

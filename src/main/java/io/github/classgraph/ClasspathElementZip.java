@@ -118,13 +118,13 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             } catch (final IOException | IllegalArgumentException e) {
                 if (log != null) {
-                    log.log("Could not open jarfile: " + e);
+                    log.log("Could not open jarfile " + rawPath + " : " + e);
                 }
                 skipClasspathElement = true;
                 return;
             } catch (final Exception e) {
                 if (log != null) {
-                    log.log("Exception while opening jarfile", e);
+                    log.log("Exception while opening jarfile " + rawPath, e);
                 }
                 skipClasspathElement = true;
                 return;
@@ -387,7 +387,7 @@ class ClasspathElementZip extends ClasspathElement {
                     relativePath = relativePath.substring("classes/".length());
                 }
             }
-            
+
             // Ignore test classes
             if (relativePath.startsWith("test-classes/")) {
                 // Ant test-classes have been left in produced jarfile -- skip these entries
@@ -395,7 +395,7 @@ class ClasspathElementZip extends ClasspathElement {
                     subLog.log("Skipping test-classes jar entry: " + relativePath);
                 }
                 continue;
-            }            
+            }
 
             // Whitelist/blacklist classpath elements based on file resource paths
             if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {

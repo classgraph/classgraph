@@ -99,7 +99,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     LogicalZipFile(final ZipFileSlice zipFileSlice, final ScanSpec scanSpec, final LogNode log) throws IOException {
         super(zipFileSlice);
         zipFileSliceReader = new ZipFileSliceReader(this);
-        readCentralDirectory(scanSpec, log == null ? null : log.log("Opening jarfile " + zipFileSlice.getPath()));
+        readCentralDirectory(scanSpec, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
