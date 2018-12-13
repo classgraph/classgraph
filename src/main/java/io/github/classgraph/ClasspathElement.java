@@ -193,7 +193,7 @@ abstract class ClasspathElement {
                         log.log(String.format("%06d-1", classpathIdx),
                                 "Ignoring duplicate (masked) class "
                                         + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot)
-                                        + " for classpath element " + res);
+                                        + " : resource =  " + res);
                     }
                 }
             }
