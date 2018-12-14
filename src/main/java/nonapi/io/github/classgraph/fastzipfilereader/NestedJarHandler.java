@@ -175,7 +175,9 @@ public class NestedJarHandler {
                     // the contents of the entry before its central directory can be read (most of
                     // the time nested zipfiles are stored, not deflated, so this should be rare)
                     if ((childZipEntry.uncompressedSize < 0L
-                            || childZipEntry.uncompressedSize >= INFLATE_TO_DISK_THRESHOLD)) {
+                            || childZipEntry.uncompressedSize >= INFLATE_TO_DISK_THRESHOLD
+                    // Also check compressed size for safety, in case uncompressed size is wrong
+                            || childZipEntry.compressedSize >= INFLATE_TO_DISK_THRESHOLD)) {
                         // If child entry's size is unknown or the file is large, inflate to disk
                         File tempFile = null;
                         try {
