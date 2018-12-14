@@ -150,29 +150,36 @@ public class FastPathResolver {
      * 
      * @param resolveBasePath
      *            The base path.
-     * @param relativePathStr
+     * @param relativePath
      *            The path to resolve relative to the base path.
      * @return The resolved path.
      */
-    public static String resolve(final String resolveBasePath, final String relativePathStr) {
+    public static String resolve(final String resolveBasePath, final String relativePath) {
         // See: http://stackoverflow.com/a/17870390/3950982
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
-        if (relativePathStr == null || relativePathStr.isEmpty()) {
+        if (relativePath == null || relativePath.isEmpty()) {
             return resolveBasePath == null ? "" : resolveBasePath;
         }
 
+        String path = relativePath;
         String prefix = "";
         boolean isAbsolutePath = false;
         boolean isFileOrJarURL = false;
 
-        // Ignore "jar:", we look for ".jar" on the end of filenames instead
         int startIdx = 0;
-        if (relativePathStr.regionMatches(true, startIdx, "jar:", 0, 4)) {
+        if (path.regionMatches(true, startIdx, "iar:", 0, 4)) {
+            startIdx += 4;
+            isFileOrJarURL = true;
+            // Ivy "iar:" URLs don't include a "!" as required for "jar:" URLs
+            path = path.replace(".iar/", ".iar!/");
+        }
+        if (path.regionMatches(true, startIdx, "jar:", 0, 4)) {
+            // "jar:" prefix can be stripped
             startIdx += 4;
             isFileOrJarURL = true;
         }
-        if (relativePathStr.regionMatches(true, startIdx, "http://", 0, 7)) {
+        if (path.regionMatches(true, startIdx, "http://", 0, 7)) {
             // Detect http://
             startIdx += 7;
             // Force protocol name to lowercase
@@ -181,37 +188,36 @@ public class FastPathResolver {
             // relative to the current directory.
             isAbsolutePath = true;
             // Don't un-escape percent encoding etc.
-        } else if (relativePathStr.regionMatches(true, startIdx, "https://", 0, 8)) {
+        } else if (path.regionMatches(true, startIdx, "https://", 0, 8)) {
             // Detect https://
             startIdx += 8;
             prefix = "https://";
             isAbsolutePath = true;
-        } else if (relativePathStr.regionMatches(true, startIdx, "jrt:", 0, 5)) {
+        } else if (path.regionMatches(true, startIdx, "jrt:", 0, 5)) {
             // Detect jrt:
             startIdx += 4;
             prefix = "jrt:";
             isAbsolutePath = true;
-        } else if (relativePathStr.regionMatches(true, startIdx, "file:", 0, 5)) {
+        } else if (path.regionMatches(true, startIdx, "file:", 0, 5)) {
             // Strip off any "file:" prefix from relative path
             startIdx += 5;
             if (WINDOWS) {
-                if (relativePathStr.startsWith("\\\\\\\\", startIdx)
-                        || relativePathStr.startsWith("////", startIdx)) {
+                if (path.startsWith("\\\\\\\\", startIdx) || path.startsWith("////", startIdx)) {
                     // Windows UNC URL
                     startIdx += 4;
                     prefix = "//";
                     isAbsolutePath = true;
                 } else {
-                    if (relativePathStr.startsWith("\\\\", startIdx)) {
+                    if (path.startsWith("\\\\", startIdx)) {
                         startIdx += 2;
                     }
                 }
             }
-            if (relativePathStr.startsWith("//", startIdx)) {
+            if (path.startsWith("//", startIdx)) {
                 startIdx += 2;
             }
             isFileOrJarURL = true;
-        } else if (WINDOWS && (relativePathStr.startsWith("//") || relativePathStr.startsWith("\\\\"))) {
+        } else if (WINDOWS && (path.startsWith("//") || path.startsWith("\\\\"))) {
             // Windows UNC path
             startIdx += 2;
             prefix = "//";
@@ -219,26 +225,23 @@ public class FastPathResolver {
         }
         // Handle Windows paths starting with a drive designation as an absolute path
         if (WINDOWS) {
-            if (relativePathStr.length() - startIdx > 2 && Character.isLetter(relativePathStr.charAt(startIdx))
-                    && relativePathStr.charAt(startIdx + 1) == ':') {
+            if (path.length() - startIdx > 2 && Character.isLetter(path.charAt(startIdx))
+                    && path.charAt(startIdx + 1) == ':') {
                 isAbsolutePath = true;
-            } else if (relativePathStr.length() - startIdx > 3
-                    && (relativePathStr.charAt(startIdx) == '/' || relativePathStr.charAt(startIdx) == '\\')
-                    && Character.isLetter(relativePathStr.charAt(startIdx + 1))
-                    && relativePathStr.charAt(startIdx + 2) == ':') {
+            } else if (path.length() - startIdx > 3
+                    && (path.charAt(startIdx) == '/' || path.charAt(startIdx) == '\\')
+                    && Character.isLetter(path.charAt(startIdx + 1)) && path.charAt(startIdx + 2) == ':') {
                 isAbsolutePath = true;
                 startIdx++;
             }
         }
         // Catch-all for paths starting with separator
-        if (relativePathStr.length() - startIdx > 1
-                && (relativePathStr.charAt(startIdx) == '/' || relativePathStr.charAt(startIdx) == '\\')) {
+        if (path.length() - startIdx > 1 && (path.charAt(startIdx) == '/' || path.charAt(startIdx) == '\\')) {
             isAbsolutePath = true;
         }
 
         // Normalize the path, then add any UNC prefix
-        String pathStr = normalizePath(startIdx == 0 ? relativePathStr : relativePathStr.substring(startIdx),
-                isFileOrJarURL);
+        String pathStr = normalizePath(startIdx == 0 ? path : path.substring(startIdx), isFileOrJarURL);
         if (!prefix.isEmpty()) {
             pathStr = prefix + pathStr;
         }
