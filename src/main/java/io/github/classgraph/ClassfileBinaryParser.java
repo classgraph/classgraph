@@ -356,6 +356,10 @@ class ClassfileBinaryParser {
             tag[i] = inputStreamOrByteBuffer.readUnsignedByte();
             offset[i] = inputStreamOrByteBuffer.curr;
             switch (tag[i]) {
+            case 0: // Impossible, probably buffer underflow
+                throw new IllegalArgumentException("Unknown constant pool tag " + tag[i] + " in classfile "
+                        + relativePath + " (possible buffer underflow issue). Please report this at "
+                        + "https://github.com/classgraph/classgraph/issues");
             case 1: // Modified UTF8
                 final int strLen = inputStreamOrByteBuffer.readUnsignedShort();
                 inputStreamOrByteBuffer.skip(strLen);
