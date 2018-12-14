@@ -122,7 +122,7 @@ class ClassfileBinaryParser {
      * Get a string from the constant pool, optionally replacing '/' with '.'.
      */
     private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IllegalArgumentException {
+            final boolean stripLSemicolon) throws IllegalArgumentException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         return constantPoolStringOffset == 0 ? null
                 : inputStreamOrByteBuffer.readString(constantPoolStringOffset, replaceSlashWithDot,
@@ -138,7 +138,8 @@ class ClassfileBinaryParser {
      *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
      *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
      */
-    private String getConstantPoolString(final int cpIdx, final int subFieldIdx) throws IllegalArgumentException {
+    private String getConstantPoolString(final int cpIdx, final int subFieldIdx)
+            throws IllegalArgumentException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
         return constantPoolStringOffset == 0 ? null
                 : inputStreamOrByteBuffer.readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false,
@@ -146,7 +147,7 @@ class ClassfileBinaryParser {
     }
 
     /** Get a string from the constant pool. */
-    private String getConstantPoolString(final int cpIdx) throws IllegalArgumentException {
+    private String getConstantPoolString(final int cpIdx) throws IllegalArgumentException, IOException {
         return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
     }
 
@@ -168,7 +169,7 @@ class ClassfileBinaryParser {
     /**
      * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
      */
-    private String getConstantPoolClassName(final int CpIdx) throws IllegalArgumentException {
+    private String getConstantPoolClassName(final int CpIdx) throws IllegalArgumentException, IOException {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
     }
 
@@ -177,7 +178,7 @@ class ClassfileBinaryParser {
      * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
      * "L" and the trailing ";".
      */
-    private String getConstantPoolClassDescriptor(final int CpIdx) throws IllegalArgumentException {
+    private String getConstantPoolClassDescriptor(final int CpIdx) throws IllegalArgumentException, IOException {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
@@ -208,7 +209,7 @@ class ClassfileBinaryParser {
 
     /** Get a field constant from the constant pool. */
     private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
-            final int cpIdx) throws IllegalArgumentException {
+            final int cpIdx) throws IllegalArgumentException, IOException {
         switch (tag) {
         case 1: // Modified UTF8
         case 7: // Class -- N.B. Unused? Class references do not seem to actually be stored as constant initalizers

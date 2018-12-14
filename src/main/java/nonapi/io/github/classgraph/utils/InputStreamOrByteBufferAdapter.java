@@ -105,7 +105,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /** Read another chunk of from the InputStream or ByteBuffer. */
     private void readMore(final int bytesRequired) throws IOException {
         final int extraBytesNeeded = bytesRequired - (used - curr);
-        int bytesToRequest = extraBytesNeeded + SUBSEQUENT_BUFFER_CHUNK_SIZE;
+        int bytesToRequest = Math.max(extraBytesNeeded, SUBSEQUENT_BUFFER_CHUNK_SIZE);
         final int maxNewUsed = used + bytesToRequest;
         if (maxNewUsed > buf.length) {
             // Ran out of space, need to increase the size of the buffer
@@ -287,9 +287,14 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *            If true, string final ';' character.
      * @return The string.
      */
-    public String readString(final int strStart, final boolean replaceSlashWithDot, final boolean stripLSemicolon) {
+    public String readString(final int strStart, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
+            throws IOException {
         final int utfLen = readUnsignedShort(strStart);
         final int utfStart = strStart + 2;
+        final int bufferUnderrunBytes = Math.max(0, utfStart + utfLen - used);
+        if (bufferUnderrunBytes > 0) {
+            readMore(bufferUnderrunBytes);
+        }
         final char[] chars = new char[utfLen];
         int c, c2, c3, c4;
         int byteIdx = 0;

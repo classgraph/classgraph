@@ -355,7 +355,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                         final int remainingInBuf = currChunkByteBuf.remaining();
                         final int numBytesRead = Math.min(remainingToRead, remainingInBuf);
                         try {
-                            currChunkByteBuf.get(buf, read, numBytesRead);
+                            currChunkByteBuf.get(buf, off + read, numBytesRead);
                         } catch (final BufferUnderflowException e) {
                             // Should not happen
                             throw new EOFException("Unexpected EOF in stored (non-deflated) zip entry data");
