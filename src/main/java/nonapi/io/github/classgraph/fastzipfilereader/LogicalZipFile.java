@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -290,41 +289,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static int getShort(final byte[] buf, final long off) throws IOException {
-        final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - 2) {
-            throw new IndexOutOfBoundsException();
-        }
-        return ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff + 0] & 0xff);
-    }
-
-    private static int getInt(final byte[] buf, final long off) throws IOException {
-        final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - 4) {
-            throw new IndexOutOfBoundsException();
-        }
-        return ((buf[ioff + 3] & 0xff) << 24) | ((buf[ioff + 2] & 0xff) << 16) | ((buf[ioff + 1] & 0xff) << 8)
-                | (buf[ioff + 0] & 0xff);
-    }
-
-    private static long getLong(final byte[] buf, final long off) throws IOException {
-        final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - 8) {
-            throw new IndexOutOfBoundsException();
-        }
-        return (((long) (((buf[ioff + 7] & 0xff) << 24) | ((buf[ioff + 6] & 0xff) << 16)
-                | ((buf[ioff + 5] & 0xff) << 8) + (buf[ioff + 4] & 0xff))) << 32) | ((buf[ioff + 3] & 0xff) << 24)
-                | ((buf[ioff + 2] & 0xff) << 16) + ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff + 0] & 0xff);
-    }
-
-    private static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
-        final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - numBytes) {
-            throw new IndexOutOfBoundsException();
-        }
-        return new String(buf, ioff, numBytes, StandardCharsets.UTF_8);
-    }
-
     /** Read the central directory of the zipfile. */
     private void readCentralDirectory(final ScanSpec scanSpec, final LogNode log) throws IOException {
         // Scan for End Of Central Directory (EOCD) signature
@@ -415,17 +379,17 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             // numEnt and numEnt64 were inconsistent -- manually count entries
             numEnt = 0;
             for (long entOff = 0; entOff + 46 <= entriesTotSizeL;) {
-                final int sig = entryBytes != null ? getInt(entryBytes, entOff)
+                final int sig = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff)
                         : zipFileSliceReader.getInt(cenPos + entOff);
                 if (sig != 0x02014b50) {
                     throw new IOException("Invalid central directory signature: 0x" + Integer.toString(sig, 16)
                             + ": " + getPath());
                 }
-                final int filenameLen = entryBytes != null ? getShort(entryBytes, entOff + 28)
+                final int filenameLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 28)
                         : zipFileSliceReader.getShort(cenPos + entOff + 28);
-                final int extraFieldLen = entryBytes != null ? getShort(entryBytes, entOff + 30)
+                final int extraFieldLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 30)
                         : zipFileSliceReader.getShort(cenPos + entOff + 30);
-                final int commentLen = entryBytes != null ? getShort(entryBytes, entOff + 32)
+                final int commentLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 32)
                         : zipFileSliceReader.getShort(cenPos + entOff + 32);
                 entOff += 46 + filenameLen + extraFieldLen + commentLen;
                 numEnt++;
@@ -449,17 +413,17 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         entries = new ArrayList<>((int) numEnt);
         FastZipEntry manifestZipEntry = null;
         for (long entOff = 0, entSize; entOff + 46 <= entriesTotSizeL; entOff += entSize) {
-            final int sig = entryBytes != null ? getInt(entryBytes, entOff)
+            final int sig = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff)
                     : zipFileSliceReader.getInt(cenPos + entOff);
             if (sig != 0x02014b50) {
                 throw new IOException(
                         "Invalid central directory signature: 0x" + Integer.toString(sig, 16) + ": " + getPath());
             }
-            final int filenameLen = entryBytes != null ? getShort(entryBytes, entOff + 28)
+            final int filenameLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 28)
                     : zipFileSliceReader.getShort(cenPos + entOff + 28);
-            final int extraFieldLen = entryBytes != null ? getShort(entryBytes, entOff + 30)
+            final int extraFieldLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 30)
                     : zipFileSliceReader.getShort(cenPos + entOff + 30);
-            final int commentLen = entryBytes != null ? getShort(entryBytes, entOff + 32)
+            final int commentLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 32)
                     : zipFileSliceReader.getShort(cenPos + entOff + 32);
             entSize = 46 + filenameLen + extraFieldLen + commentLen;
 
@@ -473,7 +437,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 break;
             }
             final String entryName = FileUtils.sanitizeEntryPath( //
-                    entryBytes != null ? getString(entryBytes, filenameStartOff, filenameLen)
+                    entryBytes != null ? ZipFileSliceReader.getString(entryBytes, filenameStartOff, filenameLen)
                             : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen));
             if (entryName.isEmpty() || entryName.endsWith("/")) {
                 // Skip directory entries
@@ -481,7 +445,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             }
 
             // Check entry flag bits
-            final int flags = entryBytes != null ? getShort(entryBytes, entOff + 8)
+            final int flags = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 8)
                     : zipFileSliceReader.getShort(cenPos + entOff + 8);
             if ((flags & 1) != 0) {
                 if (log != null) {
@@ -491,7 +455,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             }
 
             // Check compression method
-            final int compressionMethod = entryBytes != null ? getShort(entryBytes, entOff + 10)
+            final int compressionMethod = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 10)
                     : zipFileSliceReader.getShort(cenPos + entOff + 10);
             if (compressionMethod != /* stored */ 0 && compressionMethod != /* deflated */ 8) {
                 if (log != null) {
@@ -503,37 +467,40 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             final boolean isDeflated = compressionMethod == /* deflated */ 8;
 
             // Get compressed and uncompressed size
-            long compressedSize = entryBytes != null ? getInt(entryBytes, entOff + 20)
+            long compressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 20)
                     : zipFileSliceReader.getInt(cenPos + entOff + 20);
-            long uncompressedSize = entryBytes != null ? getInt(entryBytes, entOff + 24)
+            long uncompressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 24)
                     : zipFileSliceReader.getInt(cenPos + entOff + 24);
-            long pos = entryBytes != null ? getInt(entryBytes, entOff + 42)
+            long pos = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 42)
                     : zipFileSliceReader.getInt(cenPos + entOff + 42);
 
             // Check for Zip64 header in extra fields
             if (extraFieldLen > 0) {
                 for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
                     final long tagOff = filenameEndOff + extraFieldOff;
-                    final int tag = entryBytes != null ? getShort(entryBytes, tagOff)
+                    final int tag = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff)
                             : zipFileSliceReader.getShort(cenPos + tagOff);
-                    final int size = entryBytes != null ? getShort(entryBytes, tagOff + 2)
+                    final int size = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff + 2)
                             : zipFileSliceReader.getShort(cenPos + tagOff + 2);
                     if (extraFieldOff + 4 + size > extraFieldLen) {
                         // Invalid size
                         break;
                     }
                     if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
-                        final long uncompressedSizeL = entryBytes != null ? getLong(entryBytes, tagOff + 4 + 0)
+                        final long uncompressedSizeL = entryBytes != null
+                                ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
                                 : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
                         if (uncompressedSize == 0xffffffff) {
                             uncompressedSize = uncompressedSizeL;
                         }
-                        final long compressedSizeL = entryBytes != null ? getLong(entryBytes, tagOff + 4 + 8)
+                        final long compressedSizeL = entryBytes != null
+                                ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
                                 : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
                         if (compressedSize == 0xffffffff) {
                             compressedSize = compressedSizeL;
                         }
-                        final long posL = entryBytes != null ? getLong(entryBytes, tagOff + 4 + 16)
+                        final long posL = entryBytes != null
+                                ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
                                 : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
                         if (pos == 0xffffffff) {
                             pos = posL;
@@ -623,6 +590,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             entries = unversionedZipEntriesMasked;
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public String toString() {
