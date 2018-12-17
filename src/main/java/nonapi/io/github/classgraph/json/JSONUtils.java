@@ -281,9 +281,12 @@ public class JSONUtils {
     }
 
     /** Return true if the field is accessible, or can be made accessible (and make it accessible if so). */
+    @SuppressWarnings("deprecation")
     static boolean isAccessibleOrMakeAccessible(final AccessibleObject fieldOrConstructor) {
         // Make field accessible if needed
-        final AtomicBoolean isAccessible = new AtomicBoolean(fieldOrConstructor.isAccessible());
+        final AtomicBoolean isAccessible = new AtomicBoolean(
+                // Replace with (in JDK 9+): fieldOrConstructor.canAccess(instance);
+                fieldOrConstructor.isAccessible());
         if (!isAccessible.get()) {
             try {
                 fieldOrConstructor.setAccessible(true);
