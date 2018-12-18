@@ -29,18 +29,27 @@
 package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Collections;
+import java.util.List;
 
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
-/** Extract classpath entries from the Eclipse Equinox ClassLoader. */
+/**
+ * Extract classpath entries from the Eclipse Equinox ClassLoader.
+ */
 public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
+
+    private static final List<String> FIELD_NAMES = Collections.unmodifiableList(Arrays.asList("cp", "bundleDirName"));
+    private boolean readSystemBundles = false;
+
     @Override
     public String[] handledClassLoaders() {
-        return new String[] { "org.eclipse.osgi.internal.loader.EquinoxClassLoader" };
+        return new String[]{"org.eclipse.osgi.internal.loader.EquinoxClassLoader"};
     }
 
     @Override
@@ -53,26 +62,30 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         return DelegationOrder.PARENT_FIRST;
     }
 
-    private boolean readSystemBundles = false;
-
     private void addBundleFile(final Object bundlefile, final HashSet<Object> path, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+                               final ClasspathOrder classpathOrderOut, final LogNode log) {
         if (bundlefile != null) {
             // Don't get stuck in infinite loop
             if (path.add(bundlefile)) {
                 // type File
                 final Object basefile = ReflectionUtils.getFieldVal(bundlefile, "basefile", false);
                 if (basefile != null) {
-                    // type String
-                    final Object cp = ReflectionUtils.getFieldVal(bundlefile, "cp", false);
-                    if (cp != null) {
-                        // We found the base file and a classpath element, e.g. "bin/"
-                        classpathOrderOut.addClasspathElement(basefile.toString() + "/" + cp.toString(),
-                                classLoader, log);
-                    } else {
+                    boolean foundClassPathElement = false;
+                    for (String fieldName : FIELD_NAMES) {
+                        final Object fieldVal = ReflectionUtils.getFieldVal(bundlefile, fieldName, false);
+                        foundClassPathElement = fieldVal != null;
+                        if (foundClassPathElement) {
+                            // We found the base file and a classpath element, e.g. "bin/"
+                            classpathOrderOut.addClasspathElement(basefile.toString() + "/" + fieldVal.toString(), classLoader, log);
+                            break;
+                        }
+                    }
+
+                    if (!foundClassPathElement) {
                         // No classpath element found, just use basefile
                         classpathOrderOut.addClasspathElement(basefile.toString(), classLoader, log);
                     }
+
                 }
                 addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "wrapped", false), path, classLoader,
                         classpathOrderOut, log);
@@ -84,7 +97,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+                       final ClasspathOrder classpathOrderOut, final LogNode log) {
         // type ClasspathManager
         final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager", false);
         // type ClasspathEntry[]
