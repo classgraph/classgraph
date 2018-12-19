@@ -45,7 +45,7 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     private static final List<String> FIELD_NAMES = Collections
-            .unmodifiableList(Arrays.asList("cp", "bundleDirName"));
+            .unmodifiableList(Arrays.asList("cp", "nestedDirName"));
     private boolean readSystemBundles = false;
 
     @Override
