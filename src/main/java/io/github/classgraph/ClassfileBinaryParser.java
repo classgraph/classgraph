@@ -103,6 +103,11 @@ class ClassfileBinaryParser {
         } else if (t == 12) {
             // CONSTANT_NameAndType_info
             final int compoundIndirIdx = indirectStringRefs[cpIdx];
+            if (compoundIndirIdx == -1) {
+                // Should not happen
+                throw new IllegalArgumentException("Bad string indirection index, cannot continue reading class. "
+                        + "Please report this at https://github.com/classgraph/classgraph/issues");
+            }
             final int indirIdx = (subFieldIdx == 0 ? (compoundIndirIdx >> 16) : compoundIndirIdx) & 0xffff;
             if (indirIdx == 0) {
                 // Should not happen
