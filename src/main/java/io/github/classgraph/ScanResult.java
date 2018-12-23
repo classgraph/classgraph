@@ -174,7 +174,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                             refdClassInfo.setScanResult(this);
                         }
                     }
-                    ci.setRefdClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
+                    ci.setReferencedClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
                 }
             }
         }

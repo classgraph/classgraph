@@ -200,7 +200,7 @@ class ClassInfoUnlinked {
                 classInfo.addTypeSignature(typeSignature);
             }
             if (refdClassNames != null) {
-                classInfo.addRefdClassNames(refdClassNames);
+                classInfo.addReferencedClassNames(refdClassNames);
             }
 
             final int lastDotIdx = className.lastIndexOf('.');

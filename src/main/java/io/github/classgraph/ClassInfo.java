@@ -139,10 +139,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     AnnotationParameterValueList annotationDefaultParamValues;
 
     /** Names of classes referenced by this class. */
-    Set<String> refdClassNames;
+    private Set<String> referencedClassNames;
 
     /** A list of ClassInfo objects for classes referenced by this class. */
-    ClassInfoList refdClasses;
+    private ClassInfoList referencedClasses;
 
     /**
      * Set to true once any Object[] arrays of boxed types in annotationDefaultParamValues have been lazily
@@ -423,18 +423,36 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get the names of all classes refernenced by this class. */
+    Set<String> getReferencedClassNames() {
+        // refdClassNames came from class refs and type signatures in the constant pool of the classfile,
+        // but there are other sources of class refs and type signatures that are coded as CONSTANT_Utf8_info
+        // (such as enum classes and class references in annotation parameter values), so these need to be
+        // added to the set of referenced classes.
+        if (referencedClassNames == null) {
+            referencedClassNames = new HashSet<>();
+        }
+        getAnnotationInfo().getReferencedClassNames(referencedClassNames);
+        getMethodInfo().getReferencedClassNames(referencedClassNames);
+        getFieldInfo().getReferencedClassNames(referencedClassNames);
+        // Get rid of self-references and references to java.lang.Object
+        referencedClassNames.remove(name);
+        referencedClassNames.remove("java.lang.Object");
+        return referencedClassNames;
+    }
+
     /** Add names of classes referenced by this class. */
-    void addRefdClassNames(final Set<String> refdClassNames) {
-        if (this.refdClassNames == null) {
-            this.refdClassNames = refdClassNames;
+    void addReferencedClassNames(final Set<String> refdClassNames) {
+        if (this.referencedClassNames == null) {
+            this.referencedClassNames = refdClassNames;
         } else {
-            this.refdClassNames.addAll(refdClassNames);
+            this.referencedClassNames.addAll(refdClassNames);
         }
     }
 
     /** Set the list of ClassInfo objects for classes referenced by this class. */
-    void setRefdClasses(final ClassInfoList refdClasses) {
-        this.refdClasses = refdClasses;
+    void setReferencedClasses(final ClassInfoList refdClasses) {
+        this.referencedClasses = refdClasses;
     }
 
     /**
@@ -447,7 +465,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException(
                     "Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
-        return refdClasses;
+        return referencedClasses;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1119,26 +1137,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             overrideOrder = getOverrideOrder(new HashSet<ClassInfo>(), new ArrayList<ClassInfo>());
         }
         return overrideOrder;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Get the names of all classes refernenced by this class. */
-    Set<String> getReferencedClassNames() {
-        // refdClassNames came from class refs and type signatures in the constant pool of the classfile,
-        // but there are other sources of class refs and type signatures that are coded as CONSTANT_Utf8_info
-        // (such as enum classes and class references in annotation parameter values), so these need to be
-        // added to the set of referenced classes.
-        if (refdClassNames == null) {
-            refdClassNames = new HashSet<>();
-        }
-        getAnnotationInfo().getReferencedClassNames(refdClassNames);
-        getMethodInfo().getReferencedClassNames(refdClassNames);
-        getFieldInfo().getReferencedClassNames(refdClassNames);
-        // Get rid of self-references and references to java.lang.Object
-        refdClassNames.remove(name);
-        refdClassNames.remove("java.lang.Object");
-        return refdClassNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
