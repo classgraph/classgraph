@@ -143,6 +143,9 @@ public class ScanSpec {
     /** Enable the storing of constant initializer values for static final fields in ClassInfo objects. */
     public boolean enableStaticFinalFieldConstantInitializerValues = false;
 
+    /** If true, enables the determination of inter-class dependencies. */
+    public boolean enableInterClassDependencies = false;
+
     /**
      * If true, allow external classes (classes outside of whitelisted packages) to be returned in the ScanResult,
      * if they are directly referred to by a whitelisted class, as a superclass, implemented interface or

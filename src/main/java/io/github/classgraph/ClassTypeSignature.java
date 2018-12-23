@@ -170,15 +170,15 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
-            typeParameter.getClassNamesFromTypeDescriptors(classNameListOut);
+            typeParameter.getReferencedClassNames(classNameListOut);
         }
         if (superclassSignature != null) {
-            superclassSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+            superclassSignature.getReferencedClassNames(classNameListOut);
         }
         for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
-            typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+            typeSignature.getReferencedClassNames(classNameListOut);
         }
     }
 

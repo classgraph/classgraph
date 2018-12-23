@@ -234,6 +234,26 @@ public class ClassGraph {
         return this;
     }
 
+    /**
+     * Enables the determination of inter-class dependencies, which may be read by calling
+     * {@link ClassInfo#getClassDependencies()}, {@link ScanResult#getClassDependencyMap()} or
+     * {@link ScanResult#getReverseClassDependencyMap()}. (Automatically calls {@link #enableClassInfo()},
+     * {@link #enableFieldInfo()}, {@link #enableMethodInfo()}, {@link #enableAnnotationInfo()},
+     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()} and {@link #ignoreMethodVisibility()}.)
+     * 
+     */
+    public ClassGraph enableInterClassDependencies() {
+        enableClassInfo();
+        enableFieldInfo();
+        enableMethodInfo();
+        enableAnnotationInfo();
+        ignoreClassVisibility();
+        ignoreFieldVisibility();
+        ignoreMethodVisibility();
+        scanSpec.enableInterClassDependencies = true;
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

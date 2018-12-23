@@ -138,6 +138,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** For annotations, the default values of parameters. */
     AnnotationParameterValueList annotationDefaultParamValues;
 
+    /** Names of classes referenced by this class. */
+    Set<String> refdClassNames;
+
+    /** A list of ClassInfo objects for classes referenced by this class. */
+    ClassInfoList refdClasses;
+
     /**
      * Set to true once any Object[] arrays of boxed types in annotationDefaultParamValues have been lazily
      * converted to primitive arrays.
@@ -258,7 +264,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
      * only ever be constructed by a single thread.
      */
-    private static ClassInfo getOrCreateClassInfo(final String className, final int classModifiers,
+    static ClassInfo getOrCreateClassInfo(final String className, final int classModifiers,
             final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
@@ -414,6 +420,37 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             this.annotationDefaultParamValues.addAll(paramNamesAndValues);
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Add names of classes referenced by this class. */
+    void addRefdClassNames(final Set<String> refdClassNames) {
+        if (this.refdClassNames == null) {
+            this.refdClassNames = refdClassNames;
+        } else {
+            this.refdClassNames.addAll(refdClassNames);
+        }
+    }
+
+    /** Set the list of ClassInfo objects for classes referenced by this class. */
+    void setRefdClasses(final ClassInfoList refdClasses) {
+        this.refdClasses = refdClasses;
+    }
+
+    /**
+     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for all classes referenced by this class. You
+     *         need to call {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for
+     *         this method to work.
+     */
+    public ClassInfoList getClassDependencies() {
+        if (!scanResult.scanSpec.enableInterClassDependencies) {
+            throw new IllegalArgumentException(
+                    "Please call ClassGraph#enableInterClassDependencies() before #scan()");
+        }
+        return refdClasses;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Add a class that has just been scanned (as opposed to just referenced by a scanned class). Not threadsafe,
@@ -1082,6 +1119,26 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             overrideOrder = getOverrideOrder(new HashSet<ClassInfo>(), new ArrayList<ClassInfo>());
         }
         return overrideOrder;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Get the names of all classes refernenced by this class. */
+    Set<String> getReferencedClassNames() {
+        // refdClassNames came from class refs and type signatures in the constant pool of the classfile,
+        // but there are other sources of class refs and type signatures that are coded as CONSTANT_Utf8_info
+        // (such as enum classes and class references in annotation parameter values), so these need to be
+        // added to the set of referenced classes.
+        if (refdClassNames == null) {
+            refdClassNames = new HashSet<>();
+        }
+        getAnnotationInfo().getReferencedClassNames(refdClassNames);
+        getMethodInfo().getReferencedClassNames(refdClassNames);
+        getFieldInfo().getReferencedClassNames(refdClassNames);
+        // Get rid of self-references and references to java.lang.Object
+        refdClassNames.remove(name);
+        refdClassNames.remove("java.lang.Object");
+        return refdClassNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2231,31 +2288,31 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * methods or annotations.
      */
     @Override
-    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+    protected void getReferencedClassNames(final Set<String> classNames) {
         final Set<String> referencedClassNames = new LinkedHashSet<>();
         if (methodInfo != null) {
             for (final MethodInfo mi : methodInfo) {
-                mi.getClassNamesFromTypeDescriptors(classNames);
+                mi.getReferencedClassNames(classNames);
             }
         }
         if (fieldInfo != null) {
             for (final FieldInfo fi : fieldInfo) {
-                fi.getClassNamesFromTypeDescriptors(classNames);
+                fi.getReferencedClassNames(classNames);
             }
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
-                ai.getClassNamesFromTypeDescriptors(referencedClassNames);
+                ai.getReferencedClassNames(referencedClassNames);
             }
         }
         if (annotationDefaultParamValues != null) {
             for (final AnnotationParameterValue paramValue : annotationDefaultParamValues) {
-                paramValue.getClassNamesFromTypeDescriptors(referencedClassNames);
+                paramValue.getReferencedClassNames(referencedClassNames);
             }
         }
         final ClassTypeSignature classSig = getTypeSignature();
         if (classSig != null) {
-            classSig.getClassNamesFromTypeDescriptors(referencedClassNames);
+            classSig.getReferencedClassNames(referencedClassNames);
         }
     }
 

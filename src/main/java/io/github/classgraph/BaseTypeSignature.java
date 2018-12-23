@@ -43,7 +43,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @param baseType
      *            the base type
      */
-    private BaseTypeSignature(final String baseType) {
+    BaseTypeSignature(final String baseType) {
         this.baseType = baseType;
     }
 
@@ -152,7 +152,7 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getReferencedClassNames(final Set<String> classNameListOut) {
     }
 
     // -------------------------------------------------------------------------------------------------------------

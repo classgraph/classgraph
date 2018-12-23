@@ -476,16 +476,16 @@ class ObjectTypedValueWrapper extends ScanResultObject {
 
     /** Get the names of any classes referenced in the annotation parameters. */
     @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
         if (enumValue != null) {
-            enumValue.getClassNamesFromTypeDescriptors(referencedClassNames);
+            enumValue.getReferencedClassNames(referencedClassNames);
         } else if (classRef != null) {
             referencedClassNames.add(classRef.getClassName());
         } else if (annotationInfo != null) {
-            annotationInfo.getClassNamesFromTypeDescriptors(referencedClassNames);
+            annotationInfo.getReferencedClassNames(referencedClassNames);
         } else if (objectArrayValue != null) {
             for (final ObjectTypedValueWrapper item : objectArrayValue) {
-                item.getClassNamesFromTypeDescriptors(referencedClassNames);
+                item.getReferencedClassNames(referencedClassNames);
             }
         }
     }

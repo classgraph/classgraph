@@ -109,9 +109,9 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
 
     /** Get the names of any classes referenced in the annotation parameters. */
     @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
         if (value != null) {
-            value.getClassNamesFromTypeDescriptors(referencedClassNames);
+            value.getReferencedClassNames(referencedClassNames);
         }
     }
 

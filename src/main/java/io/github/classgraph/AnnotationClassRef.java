@@ -147,7 +147,7 @@ public class AnnotationClassRef extends ScanResultObject {
     }
 
     @Override
-    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+    protected void getReferencedClassNames(final Set<String> classNames) {
         classNames.add(getClassName());
     }
 

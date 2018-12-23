@@ -212,11 +212,11 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getReferencedClassNames(final Set<String> classNameListOut) {
         classNameListOut.add(className);
         classNameListOut.add(getFullyQualifiedClassName());
         for (final TypeArgument typeArgument : typeArguments) {
-            typeArgument.getClassNamesFromTypeDescriptors(classNameListOut);
+            typeArgument.getReferencedClassNames(classNameListOut);
         }
     }
 

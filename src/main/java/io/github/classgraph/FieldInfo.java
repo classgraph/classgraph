@@ -370,18 +370,18 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
 
     /** Get the names of any classes in the type descriptor or type signature. */
     @Override
-    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+    protected void getReferencedClassNames(final Set<String> classNames) {
         final TypeSignature methodSig = getTypeSignature();
         if (methodSig != null) {
-            methodSig.getClassNamesFromTypeDescriptors(classNames);
+            methodSig.getReferencedClassNames(classNames);
         }
         final TypeSignature methodDesc = getTypeDescriptor();
         if (methodDesc != null) {
-            methodDesc.getClassNamesFromTypeDescriptors(classNames);
+            methodDesc.getReferencedClassNames(classNames);
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo annotationInfo : annotationInfo) {
-                annotationInfo.getClassNamesFromTypeDescriptors(classNames);
+                annotationInfo.getReferencedClassNames(classNames);
             }
         }
     }

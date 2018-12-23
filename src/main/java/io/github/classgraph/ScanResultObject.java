@@ -43,7 +43,7 @@ abstract class ScanResultObject {
     }
 
     /** Get any class names referenced in type descriptors of this object. */
-    abstract void getClassNamesFromTypeDescriptors(Set<String> classNames);
+    abstract void getReferencedClassNames(Set<String> classNames);
 
     /**
      * The name of the class (used by {@link #getClassInfo()} to fetch the {@link ClassInfo} object for the class).

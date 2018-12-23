@@ -480,7 +480,7 @@ class GraphvizDotfileGenerator {
                     for (final FieldInfo fi : fieldInfo) {
                         final TypeSignature fieldSig = fi.getTypeSignatureOrTypeDescriptor();
                         if (fieldSig != null) {
-                            fieldSig.getClassNamesFromTypeDescriptors(referencedFieldTypeNames);
+                            fieldSig.getReferencedClassNames(referencedFieldTypeNames);
                         }
                     }
                 }
@@ -500,7 +500,7 @@ class GraphvizDotfileGenerator {
                     for (final MethodInfo mi : methodInfo) {
                         final MethodTypeSignature methodSig = mi.getTypeSignatureOrTypeDescriptor();
                         if (methodSig != null) {
-                            methodSig.getClassNamesFromTypeDescriptors(referencedMethodTypeNames);
+                            methodSig.getReferencedClassNames(referencedMethodTypeNames);
                         }
                     }
                 }

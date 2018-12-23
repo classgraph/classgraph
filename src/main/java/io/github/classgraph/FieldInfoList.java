@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.util.Collection;
+import java.util.Set;
 
 import io.github.classgraph.InfoList.MappableInfoList;
 
@@ -98,6 +99,15 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Return the names of any classes referenced in the fields in this list. */
+    void getReferencedClassNames(final Set<String> refdClassNames) {
+        for (final FieldInfo fi : this) {
+            fi.getReferencedClassNames(refdClassNames);
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

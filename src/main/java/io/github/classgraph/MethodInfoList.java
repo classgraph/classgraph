@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
@@ -99,6 +100,15 @@ public class MethodInfoList extends InfoList<MethodInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Return the names of any classes referenced in the methods in this list. */
+    void getReferencedClassNames(final Set<String> refdClassNames) {
+        for (final MethodInfo mi : this) {
+            mi.getReferencedClassNames(refdClassNames);
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

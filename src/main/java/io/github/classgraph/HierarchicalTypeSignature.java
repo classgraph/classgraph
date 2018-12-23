@@ -41,5 +41,5 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      *            The set to store class names in.
      */
     @Override
-    abstract void getClassNamesFromTypeDescriptors(final Set<String> classNames);
+    abstract void getReferencedClassNames(final Set<String> classNames);
 }

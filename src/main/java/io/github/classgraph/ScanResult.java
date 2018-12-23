@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -156,6 +157,25 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // Add backrefs from info objects back to this ScanResult
             for (final ClassInfo classInfo : allClassInfo) {
                 classInfo.setScanResult(this);
+            }
+
+            // If inter-class dependencies are enabled, create placeholder ClassInfo objects for any referenced
+            // classes that were not scanned
+            if (scanSpec.enableInterClassDependencies) {
+                for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
+                    final Set<ClassInfo> refdClasses = new HashSet<>();
+                    for (final String refdClassName : ci.getReferencedClassNames()) {
+                        // Don't add circular dependencies
+                        if (!ci.getName().equals(refdClassName)) {
+                            // Get ClassInfo object for the named class, or create one if it doesn't exist
+                            final ClassInfo refdClassInfo = ClassInfo.getOrCreateClassInfo(refdClassName,
+                                    /* classModifiers are unknown */ 0, classNameToClassInfo);
+                            refdClasses.add(refdClassInfo);
+                            refdClassInfo.setScanResult(this);
+                        }
+                    }
+                    ci.setRefdClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
+                }
             }
         }
 
@@ -441,6 +461,46 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
         return new PackageInfoList(packageNameToPackageInfo.values());
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Class dependencies
+
+    /**
+     * @return A map from a {@link ClassInfo} object for each whitelisted class to a list of the classes referenced
+     *         by that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
+     *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key. See also
+     *         {@link #getReverseClassDependencyMap()}, which inverts the map.
+     */
+    public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
+        final Map<ClassInfo, ClassInfoList> map = new HashMap<>();
+        for (final ClassInfo ci : getAllClasses()) {
+            map.put(ci, ci.getClassDependencies());
+        }
+        return map;
+    }
+
+    /**
+     * @return A mapping from a {@link ClassInfo} object for each dependency class (whitelisted or not) to a list of
+     *         the whitelisted classes that referenced that class as a dependency (i.e. returns a map from
+     *         dependencies to dependents). See also {@link #getClassDependencyMap}.
+     */
+    public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
+        final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();
+        for (final ClassInfo ci : getAllClasses()) {
+            for (final ClassInfo dep : ci.getClassDependencies()) {
+                Set<ClassInfo> set = revMapSet.get(dep);
+                if (set == null) {
+                    revMapSet.put(dep, set = new HashSet<ClassInfo>());
+                }
+                set.add(ci);
+            }
+        }
+        final Map<ClassInfo, ClassInfoList> revMapList = new HashMap<>();
+        for (final Entry<ClassInfo, Set<ClassInfo>> ent : revMapSet.entrySet()) {
+            revMapList.put(ent.getKey(), new ClassInfoList(ent.getValue(), /* sortByName = */ true));
+        }
+        return revMapList;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -127,6 +127,13 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     static MethodTypeSignature parse(final String typeDescriptor, final String definingClassName)
             throws ParseException {
+        if (typeDescriptor.equals("<init>")) {
+            // Special case for instance initialization method signatures in a CONSTANT_NameAndType_info structure:
+            // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
+            return new MethodTypeSignature(Collections.<TypeParameter> emptyList(),
+                    Collections.<TypeSignature> emptyList(), new BaseTypeSignature("void"),
+                    Collections.<ClassRefOrTypeVariableSignature> emptyList());
+        }
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser, definingClassName);
         parser.expect('(');
@@ -222,21 +229,21 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
             if (typeParameter != null) {
-                typeParameter.getClassNamesFromTypeDescriptors(classNameListOut);
+                typeParameter.getReferencedClassNames(classNameListOut);
             }
         }
         for (final TypeSignature typeSignature : parameterTypeSignatures) {
             if (typeSignature != null) {
-                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+                typeSignature.getReferencedClassNames(classNameListOut);
             }
         }
-        resultType.getClassNamesFromTypeDescriptors(classNameListOut);
+        resultType.getReferencedClassNames(classNameListOut);
         for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
             if (typeSignature != null) {
-                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+                typeSignature.getReferencedClassNames(classNameListOut);
             }
         }
     }

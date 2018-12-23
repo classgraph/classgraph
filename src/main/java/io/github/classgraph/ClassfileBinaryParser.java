@@ -30,9 +30,14 @@ package io.github.classgraph;
 
 import java.io.IOException;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.types.Parser.ParseException;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -220,7 +225,7 @@ class ClassfileBinaryParser {
         case 7: // Class -- N.B. Unused? Class references do not seem to actually be stored as constant initalizers
         case 8: // String
             // Forward or backward indirect reference to a modified UTF8 entry
-            return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
+            return getConstantPoolString(cpIdx);
         case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
         {
             final int intVal = inputStreamOrByteBuffer.readInt(offset[cpIdx]);
@@ -301,7 +306,7 @@ class ClassfileBinaryParser {
         case 's':
             return getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
         case 'e': {
-            // Return type is AnnotatinEnumVal.
+            // Return type is AnnotationEnumVal.
             final String className = getConstantPoolClassDescriptor(inputStreamOrByteBuffer.readUnsignedShort());
             final String constName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
             return new AnnotationEnumValue(className, constName);
@@ -332,6 +337,8 @@ class ClassfileBinaryParser {
 
     private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
@@ -341,9 +348,16 @@ class ClassfileBinaryParser {
             final boolean isExternalClass, final Resource classfileResource, final ScanSpec scanSpec,
             final LogNode log) throws IOException, IllegalArgumentException {
         // Minor version
+
         inputStreamOrByteBuffer.readUnsignedShort();
         // Major version
         inputStreamOrByteBuffer.readUnsignedShort();
+
+        // Only record class dependency info if inter-class dependencies are enabled
+        final List<Integer> constClassInfoCpIdxs = scanSpec.enableInterClassDependencies ? new ArrayList<Integer>()
+                : null;
+        final List<Integer> typeSignatureIdxs = scanSpec.enableInterClassDependencies ? new ArrayList<Integer>()
+                : null;
 
         // Read size of constant pool
         final int cpCount = inputStreamOrByteBuffer.readUnsignedShort();
@@ -362,8 +376,8 @@ class ClassfileBinaryParser {
             offset[i] = inputStreamOrByteBuffer.curr;
             switch (tag[i]) {
             case 0: // Impossible, probably buffer underflow
-                throw new IllegalArgumentException("Unknown constant pool tag " + tag[i] + " in classfile "
-                        + relativePath + " (possible buffer underflow issue). Please report this at "
+                throw new IllegalArgumentException("Unknown constant pool tag 0 in classfile " + relativePath
+                        + " (possible buffer underflow issue). Please report this at "
                         + "https://github.com/classgraph/classgraph/issues");
             case 1: // Modified UTF8
                 final int strLen = inputStreamOrByteBuffer.readUnsignedShort();
@@ -378,20 +392,36 @@ class ClassfileBinaryParser {
                 inputStreamOrByteBuffer.skip(8);
                 i++; // double slot
                 break;
-            case 7: // Class
+            case 7: // Class reference (format is e.g. "java/lang/String")
+                // Forward or backward indirect reference to a modified UTF8 entry
+                indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
+                if (scanSpec.enableInterClassDependencies && tag[i] == 7) {
+                    // If this is a class ref, and inter-class dependencies are enabled, record the dependency
+                    constClassInfoCpIdxs.add(indirectStringRefs[i]);
+                }
+                break;
             case 8: // String
                 // Forward or backward indirect reference to a modified UTF8 entry
                 indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
-                // (no need to copy bytes over, we use indirectStringRef instead for these fields)
                 break;
             case 9: // field ref
+                // Refers to a class ref (case 7) and then a name and type (case 12)
+                inputStreamOrByteBuffer.skip(4);
+                break;
             case 10: // method ref
-            case 11: // interface ref
+                // Refers to a class ref (case 7) and then a name and type (case 12)
+                inputStreamOrByteBuffer.skip(4);
+                break;
+            case 11: // interface method ref
+                // Refers to a class ref (case 7) and then a name and type (case 12)
                 inputStreamOrByteBuffer.skip(4);
                 break;
             case 12: // name and type
                 final int nameRef = inputStreamOrByteBuffer.readUnsignedShort();
                 final int typeRef = inputStreamOrByteBuffer.readUnsignedShort();
+                if (scanSpec.enableInterClassDependencies) {
+                    typeSignatureIdxs.add(typeRef);
+                }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
                 break;
             case 15: // method handle
@@ -413,17 +443,61 @@ class ClassfileBinaryParser {
                 break;
             default:
                 throw new IllegalArgumentException(
+
                         "Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
                                 + " (element size unknown, cannot continue reading class). Please report this at "
                                 + "https://github.com/classgraph/classgraph/issues");
             }
         }
 
+        // Find classes referenced in the constant pool (note that there are some class refs that will not be
+        // found this way, e.g. enum classes and class refs in annotation parameter values, since they are
+        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12).
+        final Set<String> refdClassNames;
+        if (scanSpec.enableInterClassDependencies) {
+            refdClassNames = new HashSet<>();
+            // Get class names from direct class references in constant pool
+            for (final int cpIdx : constClassInfoCpIdxs) {
+                final String className = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
+                        /* stripLSemicolon = */ false);
+                if (className != null) {
+                    refdClassNames.add(className);
+                }
+            }
+            // Get class names from type signatures in "name and type" entries in constant pool
+            for (final int cpIdx : typeSignatureIdxs) {
+                final String typeSigStr = getConstantPoolString(cpIdx);
+                if (typeSigStr != null) {
+                    try {
+                        if (typeSigStr.indexOf('(') >= 0 || typeSigStr.equals("<init>")) {
+                            // Parse the type signature
+                            final MethodTypeSignature typeSig = MethodTypeSignature.parse(typeSigStr,
+                                    /* definingClassName = */ null);
+                            // Extract class names from type signature
+                            typeSig.getReferencedClassNames(refdClassNames);
+                        } else {
+                            // Parse the type signature
+                            final TypeSignature typeSig = TypeSignature.parse(typeSigStr,
+                                    /* definingClassName = */ null);
+                            // Extract class names from type signature
+                            typeSig.getReferencedClassNames(refdClassNames);
+                        }
+                    } catch (final ParseException e) {
+                        if (log != null) {
+                            log.log("Could not parse type signature: " + typeSigStr + " : " + e);
+                        }
+                    }
+                }
+            }
+        } else {
+            refdClassNames = null;
+        }
+
         // Modifier flags
         final int classModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
         final boolean isInterface = (classModifierFlags & 0x0200) != 0;
         final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
-        final boolean isModule = (classModifierFlags & 0x8000) != 0;
+        final boolean isModule = (classModifierFlags & 0x8000) != 0; // Equivalently filename is "module-info.class"
         final boolean isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1,
                 "package-info.class", 0, 18);
 
@@ -471,7 +545,7 @@ class ClassfileBinaryParser {
         // Create holder object for the class information. This is "unlinked", in the sense that it is
         // not linked other class info references at this point.
         final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, superclassName,
-                classModifierFlags, isInterface, isAnnotation, isExternalClass, classpathElement,
+                classModifierFlags, isInterface, isAnnotation, isExternalClass, refdClassNames, classpathElement,
                 classfileResource);
 
         // Interfaces
@@ -698,7 +772,7 @@ class ClassfileBinaryParser {
                     definingMethodName = "<clinit>";
                 } else {
                     definingMethodName = getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0);
-                    // Could also fetch field type signature with subFieldIdx = 1, if needed
+                    // Could also fetch method type signature using subFieldIdx = 1, if needed
                 }
                 // Link anonymous inner classes into the class with their containing method
                 classInfoUnlinked.addClassContainment(className, innermostEnclosingClassName);

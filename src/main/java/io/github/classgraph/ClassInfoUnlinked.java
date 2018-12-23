@@ -32,6 +32,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.types.Parser.ParseException;
@@ -55,6 +56,7 @@ class ClassInfoUnlinked {
     private String fullyQualifiedDefiningMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
     private AnnotationParameterValueList annotationParamDefaultValues;
+    private final Set<String> refdClassNames;
     final ClasspathElement classpathElement;
     final Resource classfileResource;
     FieldInfoList fieldInfoList;
@@ -63,13 +65,15 @@ class ClassInfoUnlinked {
 
     ClassInfoUnlinked(final String className, final String superclassName, final int classModifiers,
             final boolean isInterface, final boolean isAnnotation, final boolean isExternalClass,
-            final ClasspathElement classpathElement, final Resource classfileResource) {
+            final Set<String> refdClassNames, final ClasspathElement classpathElement,
+            final Resource classfileResource) {
         this.className = (className);
         this.superclassName = superclassName;
         this.classModifiers = classModifiers;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
         this.isExternalClass = isExternalClass;
+        this.refdClassNames = refdClassNames;
         this.classpathElement = classpathElement;
         this.classfileResource = classfileResource;
     }
@@ -194,6 +198,9 @@ class ClassInfoUnlinked {
             }
             if (typeSignature != null) {
                 classInfo.addTypeSignature(typeSignature);
+            }
+            if (refdClassNames != null) {
+                classInfo.addRefdClassNames(refdClassNames);
             }
 
             final int lastDotIdx = className.lastIndexOf('.');

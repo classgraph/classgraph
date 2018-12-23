@@ -157,6 +157,15 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Return the names of any classes referenced in the annotations in this list or their parameters. */
+    void getReferencedClassNames(final Set<String> refdClassNames) {
+        for (final AnnotationInfo ai : this) {
+            ai.getReferencedClassNames(refdClassNames);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Find the transitive closure of meta-annotations. */
     private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
             final Set<ClassInfo> visited) {

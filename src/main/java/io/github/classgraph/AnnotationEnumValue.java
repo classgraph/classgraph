@@ -126,7 +126,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
         referencedClassNames.add(className);
     }
 

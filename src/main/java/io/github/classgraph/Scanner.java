@@ -665,7 +665,7 @@ class Scanner implements Callable<ScanResult> {
 
                 //    final Set<String> referencedClassNames = new HashSet<>();
                 //    for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                //        classInfo.getClassNamesFromTypeDescriptors(referencedClassNames);
+                //        classInfo.getReferencedClassNames(referencedClassNames);
                 //    }
                 //    for (final String referencedClass : referencedClassNames) {
                 //        ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0, scanSpec,
