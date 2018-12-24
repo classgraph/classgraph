@@ -170,8 +170,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
                             // Get ClassInfo object for the named class, or create one if it doesn't exist
                             final ClassInfo refdClassInfo = ClassInfo.getOrCreateClassInfo(refdClassName,
                                     /* classModifiers are unknown */ 0, classNameToClassInfo);
-                            refdClasses.add(refdClassInfo);
                             refdClassInfo.setScanResult(this);
+                            if (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses) {
+                                // Only add class to result if it is whitelisted, or external classes are enabled
+                                refdClasses.add(refdClassInfo);
+                            }
                         }
                     }
                     ci.setReferencedClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
@@ -469,7 +472,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * @return A map from a {@link ClassInfo} object for each whitelisted class to a list of the classes referenced
      *         by that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
-     *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key. See also
+     *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key. Note that you need to call
+     *         {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to
+     *         work. You should also call {@link ClassGraph#enableExternalClasses()} before
+     *         {@link ClassGraph#scan()} if you want non-whitelisted classes to appear in the result. See also
      *         {@link #getReverseClassDependencyMap()}, which inverts the map.
      */
     public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
@@ -483,7 +489,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * @return A mapping from a {@link ClassInfo} object for each dependency class (whitelisted or not) to a list of
      *         the whitelisted classes that referenced that class as a dependency (i.e. returns a map from
-     *         dependencies to dependents). See also {@link #getClassDependencyMap}.
+     *         dependencies to dependents). Note that you need to call
+     *         {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to
+     *         work. You should also call {@link ClassGraph#enableExternalClasses()} before
+     *         {@link ClassGraph#scan()} if you want non-whitelisted classes to appear in the result. See also
+     *         {@link #getClassDependencyMap}.
      */
     public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
         final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();

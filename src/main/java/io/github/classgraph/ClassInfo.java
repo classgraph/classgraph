@@ -456,9 +456,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for all classes referenced by this class. You
-     *         need to call {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for
-     *         this method to work.
+     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for all classes referenced by this class. Note
+     *         that you need to call {@link ClassGraph#enableInterClassDependencies()} before
+     *         {@link ClassGraph#scan()} for this method to work. You should also call
+     *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
+     *         non-whitelisted classes to appear in the result.
      */
     public ClassInfoList getClassDependencies() {
         if (!scanResult.scanSpec.enableInterClassDependencies) {
