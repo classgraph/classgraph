@@ -467,7 +467,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException(
                     "Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
-        return referencedClasses;
+        return referencedClasses == null ? ClassInfoList.EMPTY_LIST : referencedClasses;
     }
 
     // -------------------------------------------------------------------------------------------------------------

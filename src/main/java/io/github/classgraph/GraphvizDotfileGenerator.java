@@ -38,6 +38,12 @@ import nonapi.io.github.classgraph.ScanSpec;
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {
 
+    private static final String STANDARD_CLASS_COLOR = "fff2b6";
+
+    private static final String INTERFACE_COLOR = "b6e7ff";
+
+    private static final String ANNOTATION_COLOR = "f3c9ff";
+
     private static final int PARAM_WRAP_WIDTH = 40;
 
     private static final char NBSP_CHAR = (char) 0x00A0;
@@ -190,23 +196,20 @@ class GraphvizDotfileGenerator {
         buf.append("<table border='0' cellborder='0' cellspacing='1'>");
 
         // Class modifiers
-        buf.append("<tr><td>").append(ci.getModifiersStr()).append(" ")
+        buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(" ")
                 .append(ci.isEnum() ? "enum"
                         : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
-                .append("</td></tr>");
+                .append("</font></td></tr>");
 
-        // Package name
-        final String className = ci.getName();
-        final int dotIdx = className.lastIndexOf('.');
-        if (dotIdx > 0) {
-            buf.append("<tr><td><b>");
-            htmlEncode(className.substring(0, dotIdx + 1), buf);
-            buf.append("</b></td></tr>");
+        if (ci.getName().contains(".")) {
+            buf.append("<tr><td><font point-size='14'><b>");
+            htmlEncode(ci.getPackageName(), buf);
+            buf.append("</b></font>/td></tr>");
         }
 
         // Class name
-        buf.append("<tr><td><font point-size='24'><b>");
-        htmlEncode(className.substring(dotIdx + 1), buf);
+        buf.append("<tr><td><font point-size='20'><b>");
+        htmlEncode(ci.getSimpleName(), buf);
         buf.append("</b></font></td></tr>");
 
         // Create a color that matches the box background color, but is darker
@@ -338,7 +341,7 @@ class GraphvizDotfileGenerator {
                     buf.append("<b>");
                     if (mi.getName().equals("<init>")) {
                         // Show class name for constructors
-                        htmlEncode(className.substring(className.lastIndexOf('.') + 1), buf);
+                        htmlEncode(ci.getName().substring(ci.getName().lastIndexOf('.') + 1), buf);
                     } else {
                         htmlEncode(mi.getName(), buf);
                     }
@@ -411,7 +414,7 @@ class GraphvizDotfileGenerator {
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      */
-    static String generateClassGraphDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
+    static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
             final boolean showMethodTypeDependencyEdges, final boolean showAnnotations, final ScanSpec scanSpec) {
         final StringBuilder buf = new StringBuilder();
@@ -432,19 +435,19 @@ class GraphvizDotfileGenerator {
 
         for (final ClassInfo node : standardClassNodes) {
             buf.append("\"").append(node.getName()).append("\"");
-            labelClassNodeHTML(node, "box", "fff2b6", showFields, showMethods, scanSpec, buf);
+            labelClassNodeHTML(node, "box", STANDARD_CLASS_COLOR, showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
             buf.append("\"").append(node.getName()).append("\"");
-            labelClassNodeHTML(node, "diamond", "b6e7ff", showFields, showMethods, scanSpec, buf);
+            labelClassNodeHTML(node, "diamond", INTERFACE_COLOR, showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
             buf.append("\"").append(node.getName()).append("\"");
-            labelClassNodeHTML(node, "oval", "f3c9ff", showFields, showMethods, scanSpec, buf);
+            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
@@ -549,6 +552,91 @@ class GraphvizDotfileGenerator {
                 }
             }
         }
+        buf.append("}");
+        return buf.toString();
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * returned graph shows inter-class dependencies only. The sizeX and sizeY parameters are the image output size
+     * to use (in inches) when GraphViz is asked to render the .dot file. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
+     *
+     * @param classInfoList
+     *            The list of nodes whose dependencies should be plotted in the graph.
+     * @param sizeX
+     *            The GraphViz layout width in inches.
+     * @param sizeY
+     *            The GraphViz layout width in inches.
+     * @param includeExternalClasses
+     *            If true, include any dependency nodes in the graph that are not themselves in classInfoList.
+     * @throws IllegalArgumentException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
+     *             not called before scanning (since there would be nothing to graph).
+     * @return the GraphViz file contents.
+     */
+    static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
+            final float sizeX, final float sizeY, final boolean includeExternalClasses) {
+
+        final StringBuilder buf = new StringBuilder();
+        buf.append("digraph {\n");
+        buf.append("size=\"").append(sizeX).append(",").append(sizeY).append("\";\n");
+        buf.append("layout=dot;\n");
+        buf.append("rankdir=\"BT\";\n");
+        buf.append("overlap=false;\n");
+        buf.append("splines=true;\n");
+        buf.append("pack=true;\n");
+        buf.append("graph [fontname = \"Courier, Regular\"]\n");
+        buf.append("node [fontname = \"Courier, Regular\"]\n");
+        buf.append("edge [fontname = \"Courier, Regular\"]\n");
+
+        final Set<ClassInfo> allVisibleNodes = new HashSet<>(classInfoList);
+        if (includeExternalClasses) {
+            for (final ClassInfo ci : classInfoList) {
+                allVisibleNodes.addAll(ci.getClassDependencies());
+            }
+        }
+
+        for (final ClassInfo ci : allVisibleNodes) {
+            buf.append("\"").append(ci.getName()).append("\"");
+            buf.append("[shape=").append(ci.isAnnotation() ? "oval" : ci.isInterface() ? "diamond" : "box")
+                    .append(",style=filled,fillcolor=\"#").append(ci.isAnnotation() ? ANNOTATION_COLOR
+                            : ci.isInterface() ? INTERFACE_COLOR : STANDARD_CLASS_COLOR)
+                    .append("\",label=");
+            buf.append("<");
+            buf.append("<table border='0' cellborder='0' cellspacing='1'>");
+
+            // Class modifiers
+            buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(" ")
+                    .append(ci.isEnum() ? "enum"
+                            : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
+                    .append("</font></td></tr>");
+
+            if (ci.getName().contains(".")) {
+                buf.append("<tr><td><font point-size='14'><b>");
+                htmlEncode(ci.getPackageName(), buf);
+                buf.append("</b></font></td></tr>");
+            }
+
+            // Class name
+            buf.append("<tr><td><font point-size='20'><b>");
+            htmlEncode(ci.getSimpleName(), buf);
+            buf.append("</b></font></td></tr>");
+            buf.append("</table>");
+            buf.append(">];\n");
+        }
+
+        buf.append("\n");
+        for (final ClassInfo ci : classInfoList) {
+            for (final ClassInfo dep : ci.getClassDependencies()) {
+                if (includeExternalClasses || allVisibleNodes.contains(dep)) {
+                    // class --> dep
+                    buf.append("  \"").append(ci.getName()).append("\" -> \"").append(dep.getName())
+                            .append("\" [arrowsize=2.5]\n");
+                }
+            }
+        }
+
         buf.append("}");
         return buf.toString();
     }

@@ -461,7 +461,20 @@ class ClassfileBinaryParser {
                 final String className = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
                         /* stripLSemicolon = */ false);
                 if (className != null) {
-                    refdClassNames.add(className);
+                    if (className.startsWith("[")) {
+                        // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather than '/'
+                        try {
+                            final TypeSignature typeSig = TypeSignature.parse(className.replace('.', '/'),
+                                    /* definingClass = */ null);
+                            typeSig.getReferencedClassNames(refdClassNames);
+                        } catch (final ParseException e) {
+                            if (log != null) {
+                                log.log("Could not parse type signature: " + className + " : " + e);
+                            }
+                        }
+                    } else {
+                        refdClassNames.add(className);
+                    }
                 }
             }
             // Get class names from type signatures in "name and type" entries in constant pool
