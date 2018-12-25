@@ -1,4 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.github.classgraph</groupId>
@@ -70,7 +72,8 @@
 						</goals>
 						<configuration>
 							<rules>
-								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+								<checkSignatureRule
+									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
 										<artifactId>java17</artifactId>
@@ -88,7 +91,7 @@
 					could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>
-				<version>1.0.0.Beta1</version>
+				<version>1.0.0.Beta2</version>
 				<executions>
 					<execution>
 						<id>add-module-infos</id>
@@ -97,6 +100,9 @@
 							<goal>add-module-info</goal>
 						</goals>
 						<configuration>
+							<!-- Put module-info.class in META-INF/versions/9 to maximize backwards 
+								compatibility with JDK 7 and 8. See: https://github.com/moditect/moditect/issues/67 -->
+							<jvmVersion>9</jvmVersion>
 							<overwriteExistingFiles>true</overwriteExistingFiles>
 							<module>
 								<!-- VersionFinder requires java.xml -->
