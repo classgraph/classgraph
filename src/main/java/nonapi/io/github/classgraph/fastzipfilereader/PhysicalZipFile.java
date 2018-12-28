@@ -54,6 +54,7 @@ public class PhysicalZipFile implements Closeable {
     private ByteBuffer[] mappedByteBuffersCached;
     private SingletonMap<Integer, ByteBuffer> chunkIdxToByteBuffer;
     NestedJarHandler nestedJarHandler;
+    boolean isDeflatedToRam;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /** Construct a {@link PhysicalZipFile} from a file on disk. */
@@ -126,6 +127,7 @@ public class PhysicalZipFile implements Closeable {
         this.file = outermostFile;
         this.path = path;
         this.nestedJarHandler = nestedJarHandler;
+        this.isDeflatedToRam = true;
 
         fileLen = byteBuffer.remaining();
         if (fileLen == 0L) {
@@ -233,5 +235,10 @@ public class PhysicalZipFile implements Closeable {
             }
             nestedJarHandler = null;
         }
+    }
+
+    @Override
+    public String toString() {
+        return path;
     }
 }

@@ -130,4 +130,11 @@ public class ZipFileSlice {
         return startOffsetWithinPhysicalZipFile == o.startOffsetWithinPhysicalZipFile && len == o.len
                 && this.physicalZipFile.equals(o.physicalZipFile);
     }
+
+    @Override
+    public String toString() {
+        return (physicalZipFile.isDeflatedToRam ? "[ByteBuffer deflated to RAM]" : physicalZipFile.getFile()) + "@["
+                + startOffsetWithinPhysicalZipFile + ".." + (startOffsetWithinPhysicalZipFile + len) + "/"
+                + physicalZipFile.fileLen + "]";
+    }
 }

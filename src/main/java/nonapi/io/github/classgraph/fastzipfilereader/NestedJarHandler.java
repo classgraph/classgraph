@@ -183,12 +183,13 @@ public class NestedJarHandler {
                         try {
                             // Create temp file
                             tempFile = makeTempFile(childZipEntry.entryName, /* onlyUseLeafname = */ true);
-                            if (log != null) {
-                                log.log("Extracting deflated nested jarfile " + childZipEntry.entryName
-                                        + " to temporary file " + tempFile);
-                            }
 
                             // Inflate zip entry to temp file
+                            if (log != null) {
+                                log.log("Deflating zip entry to temporary file: " + childZipEntry
+                                        + " ; uncompressed size: " + childZipEntry.uncompressedSize
+                                        + " ; temp file: " + tempFile);
+                            }
                             try (InputStream inputStream = childZipEntry.open()) {
                                 Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                             }
@@ -225,6 +226,10 @@ public class NestedJarHandler {
 
                         // Open the zip entry to fetch inflated data, and read the whole contents of the
                         // InputStream to a byte[] array, then wrap it in a ByteBuffer
+                        if (log != null) {
+                            log.log("Deflating zip entry to RAM: " + childZipEntry + " ; uncompressed size: "
+                                    + childZipEntry.uncompressedSize);
+                        }
                         ByteBuffer byteBuffer;
                         try (InputStream inputStream = childZipEntry.open()) {
                             byteBuffer = ByteBuffer.wrap(
