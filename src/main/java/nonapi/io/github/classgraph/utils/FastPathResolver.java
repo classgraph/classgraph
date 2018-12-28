@@ -234,9 +234,24 @@ public class FastPathResolver {
             isAbsolutePath = true;
         }
 
-        // Normalize the path, then add any UNC prefix
+        // Normalize the path, then add any UNC or URL prefix
         String pathStr = normalizePath(startIdx == 0 ? relativePath : relativePath.substring(startIdx),
                 isFileOrJarURL);
+        if (!pathStr.equals("/")) {
+            // Remove any "!/" on end of URL
+            if (pathStr.endsWith("/")) {
+                pathStr = pathStr.substring(0, pathStr.length() - 1);
+            }
+            if (pathStr.endsWith("!")) {
+                pathStr = pathStr.substring(0, pathStr.length() - 1);
+            }
+            if (pathStr.endsWith("/")) {
+                pathStr = pathStr.substring(0, pathStr.length() - 1);
+            }
+            if (pathStr.isEmpty()) {
+                pathStr = "/";
+            }
+        }
         if (!prefix.isEmpty()) {
             pathStr = prefix + pathStr;
         }
