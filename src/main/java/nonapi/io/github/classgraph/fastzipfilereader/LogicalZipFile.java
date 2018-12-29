@@ -232,10 +232,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                         i + SPRING_BOOT_CLASSES_KEY.length + 1);
                 final String springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
                 if (!springBootClassesFieldVal.equals("BOOT-INF/classes")
-                        && !springBootClassesFieldVal.equals("BOOT-INF/classes/")) {
+                        && !springBootClassesFieldVal.equals("BOOT-INF/classes/")
+                        && !springBootClassesFieldVal.equals("WEB-INF/classes")
+                        && !springBootClassesFieldVal.equals("WEB-INF/classes/")) {
                     throw new IOException("Spring boot classes are at \"" + springBootClassesFieldVal
-                            + "\" rather than the standard location \"BOOT-INF/classes/\" -- please report this at "
-                            + "https://github.com/classgraph/classgraph/issues");
+                            + "\" rather than the standard location \"BOOT-INF/classes/\" or \"WEB-INF/classes/\" "
+                            + "-- please report this at https://github.com/classgraph/classgraph/issues");
                 }
                 i = manifestValueAndEndIdx.getValue();
 
@@ -243,11 +245,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
                         i + SPRING_BOOT_LIB_KEY.length + 1);
                 final String springBootLibFieldVal = manifestValueAndEndIdx.getKey();
-                if (!springBootLibFieldVal.equals("BOOT-INF/lib")
-                        && !springBootLibFieldVal.equals("BOOT-INF/lib/")) {
+                if (!springBootLibFieldVal.equals("BOOT-INF/lib") && !springBootLibFieldVal.equals("BOOT-INF/lib/")
+                        && !springBootLibFieldVal.equals("WEB-INF/lib")
+                        && !springBootLibFieldVal.equals("WEB-INF/lib/")) {
                     throw new IOException("Spring boot lib jars are at \"" + springBootLibFieldVal
-                            + "\" rather than the standard location \"BOOT-INF/lib/\" -- please report this at "
-                            + "https://github.com/classgraph/classgraph/issues");
+                            + "\" rather than the standard location \"BOOT-INF/lib/\" or \"WEB-INF/lib/\" "
+                            + "-- please report this at https://github.com/classgraph/classgraph/issues");
                 }
                 i = manifestValueAndEndIdx.getValue();
 
