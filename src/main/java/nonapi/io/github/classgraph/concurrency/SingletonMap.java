@@ -28,6 +28,7 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -153,7 +154,19 @@ public abstract class SingletonMap<K, V> {
         } else {
             // Create singleton (in case of race condition, only one thread will cause a new singleton to be
             // created for this key, due to the getIfPresent call)
-            createSingleton(key, log);
+            try {
+                createSingleton(key, log);
+            } catch (IOException | IllegalArgumentException e) {
+                if (log != null) {
+                    log.log("Exception while attempting to create singleton " + key + " : " + e);
+                }
+                throw e;
+            } catch (Throwable e) {
+                if (log != null) {
+                    log.log("Exception while attempting to create singleton " + key, e);
+                }
+                throw e;
+            }
             // Look up newly-created singleton, and get the created value
             final V value = getIfPresent(key);
             if (value == null) {
