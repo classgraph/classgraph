@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 import io.github.classgraph.ClassGraph;
 
@@ -46,6 +47,9 @@ import io.github.classgraph.ClassGraph;
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
 public class LogNode {
+
+    private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
+
     /**
      * The timestamp at which the log node was created (relative to some arbitrary system timepoint).
      */
@@ -105,7 +109,7 @@ public class LogNode {
             stackTrace = null;
         }
         if (LOG_IN_REALTIME) {
-            System.err.println(toString());
+            log.info(toString());
         }
     }
 
@@ -354,8 +358,6 @@ public class LogNode {
         }
         final String logOutput = this.toString();
         this.children.clear();
-        System.out.flush();
-        System.err.print(logOutput);
-        System.err.flush();
+        log.info(logOutput);
     }
 }
