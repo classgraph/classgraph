@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -204,19 +205,6 @@ public class PhysicalZipFile implements Closeable {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
-            if (chunkIdxToByteBuffer != null) {
-                chunkIdxToByteBuffer.clear();
-                chunkIdxToByteBuffer = null;
-            }
-            if (mappedByteBuffersCached != null) {
-                for (int i = 0; i < mappedByteBuffersCached.length; i++) {
-                    if (mappedByteBuffersCached[i] != null) {
-                        mappedByteBuffersCached[i] = null;
-                        nestedJarHandler.freedMmapRef();
-                    }
-                }
-                mappedByteBuffersCached = null;
-            }
             if (fc != null) {
                 try {
                     fc.close();
@@ -232,6 +220,29 @@ public class PhysicalZipFile implements Closeable {
                 } catch (final IOException e) {
                     // Ignore
                 }
+            }
+            if (chunkIdxToByteBuffer != null) {
+                chunkIdxToByteBuffer.clear();
+                chunkIdxToByteBuffer = null;
+            }
+            if (mappedByteBuffersCached != null) {
+                for (int i = 0; i < mappedByteBuffersCached.length; i++) {
+                    if (mappedByteBuffersCached[i] != null) {
+                        // Try closing the MappedByteBuffer
+                        // See: https://stackoverflow.com/a/19447758/3950982
+                        try {
+                            final Method cleaner = mappedByteBuffersCached[i].getClass().getMethod("cleaner");
+                            cleaner.setAccessible(true);
+                            final Method clean = Class.forName("sun.misc.Cleaner").getMethod("clean");
+                            clean.setAccessible(true);
+                            clean.invoke(cleaner.invoke(mappedByteBuffersCached[i]));
+                        } catch (final Exception ex) {
+                        }
+                        mappedByteBuffersCached[i] = null;
+                        nestedJarHandler.freedMmapRef();
+                    }
+                }
+                mappedByteBuffersCached = null;
             }
             nestedJarHandler = null;
         }

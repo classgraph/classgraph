@@ -240,13 +240,6 @@ class ClasspathElementDir extends ClasspathElement {
                         // Ignore
                     }
                 }
-                if (byteBuffer != null) {
-                    final boolean isMmapd = byteBuffer instanceof MappedByteBuffer;
-                    byteBuffer = null;
-                    if (isMmapd) {
-                        nestedJarHandler.freedMmapRef();
-                    }
-                }
                 if (fileChannel != null) {
                     try {
                         fileChannel.close();
@@ -262,6 +255,11 @@ class ClasspathElementDir extends ClasspathElement {
                         // Ignore
                     }
                     randomAccessFile = null;
+                }
+                final boolean isMmapd = byteBuffer instanceof MappedByteBuffer;
+                closeByteBuffer();
+                if (isMmapd) {
+                    nestedJarHandler.freedMmapRef();
                 }
             }
         };

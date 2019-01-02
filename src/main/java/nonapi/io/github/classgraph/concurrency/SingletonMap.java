@@ -161,7 +161,7 @@ public abstract class SingletonMap<K, V> {
                     log.log("Exception while attempting to create singleton " + key + " : " + e);
                 }
                 throw e;
-            } catch (Throwable e) {
+            } catch (final Throwable e) {
                 if (log != null) {
                     log.log("Exception while attempting to create singleton " + key, e);
                 }
