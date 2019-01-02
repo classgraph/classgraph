@@ -33,7 +33,7 @@ public class LogNodeTest {
             assertTrue(systemErrMessages.contains("-- child message"));
             assertTrue(systemErrMessages.contains("---- sub child message"));
             assertTrue(systemErrMessages.contains("another root"));
-            System.out.println(systemErrMessages);
+            // System.out.println(systemErrMessages);
         } // else logging will not take place
     }
 
