@@ -420,7 +420,7 @@ public class FileUtils {
      *            The {@link ByteBuffer} to close/unmap.
      * @param log
      *            The log.
-     * @return True if the byteBuffer was closed/unmapped.
+     * @return True if the byteBuffer was closed/unmapped (or if the ByteBuffer was null or non-direct).
      */
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {

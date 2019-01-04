@@ -229,7 +229,6 @@ public class PhysicalZipFile implements Closeable {
                     if (mappedByteBuffersCached[i] != null) {
                         FileUtils.closeDirectByteBuffer(mappedByteBuffersCached[i], /* log = */ null);
                         mappedByteBuffersCached[i] = null;
-                        nestedJarHandler.freedMmapRef();
                     }
                 }
                 mappedByteBuffersCached = null;
