@@ -107,10 +107,7 @@ public class FileUtils {
 
         case Windows:
             // Windows is always 10-20% faster with FileChannel than with InputStream, even for small files.
-            // However, there are common problems on Windows with files being held as locked while they are
-            // mmap'd (see #239, #288, #290), so it is recommended not to use mmap on Windows.
-            // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-            FILECHANNEL_FILE_SIZE_THRESHOLD = Integer.MAX_VALUE;
+            FILECHANNEL_FILE_SIZE_THRESHOLD = -1;
             break;
 
         case Unknown:

@@ -52,8 +52,6 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.VersionFinder;
-import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
@@ -182,10 +180,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             InputStreamOrByteBufferAdapter openOrRead() throws IOException {
-                // Don't use mmap on Windows (see #239, #288, #290), and also:
-                // http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                if (VersionFinder.OS != OperatingSystem.Windows
-                        && length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                     return new InputStreamOrByteBufferAdapter(read());
                 } else {
                     return new InputStreamOrByteBufferAdapter(inputStream = new InputStreamResourceCloser(this,
@@ -195,10 +190,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public InputStream open() throws IOException {
-                // Don't use mmap on Windows (see #239, #288, #290), and also:
-                // http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                if (VersionFinder.OS != OperatingSystem.Windows
-                        && length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                     read();
                     return inputStream = new InputStreamResourceCloser(this, byteBufferToInputStream());
                 } else {
@@ -211,10 +203,7 @@ class ClasspathElementDir extends ClasspathElement {
             public byte[] load() throws IOException {
                 try {
                     final byte[] byteArray;
-                    // Don't use mmap on Windows (see #239, #288, #290), and also:
-                    // http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                    if (VersionFinder.OS != OperatingSystem.Windows
-                            && length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                    if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                         read();
                         byteArray = byteBufferToByteArray();
                     } else {
