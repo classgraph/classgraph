@@ -257,7 +257,8 @@ class ClasspathElementDir extends ClasspathElement {
                     randomAccessFile = null;
                 }
                 final boolean isMmapd = byteBuffer instanceof MappedByteBuffer;
-                closeByteBuffer();
+                FileUtils.closeDirectByteBuffer(byteBuffer, /* log = */ null);
+                byteBuffer = null;
                 if (isMmapd) {
                     nestedJarHandler.freedMmapRef();
                 }

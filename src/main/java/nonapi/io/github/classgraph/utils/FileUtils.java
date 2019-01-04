@@ -31,11 +31,16 @@ package nonapi.io.github.classgraph.utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 
@@ -343,6 +348,101 @@ public class FileUtils {
             return file.canRead();
         } catch (final SecurityException e) {
             return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static Method cleanMethod;
+    static Object theUnsafe;
+
+    static void getCleanMethodPrivileged() {
+        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+            try {
+                // See: https://stackoverflow.com/a/19447758/3950982
+                cleanMethod = Class.forName("sun.misc.Cleaner").getMethod("clean");
+                cleanMethod.setAccessible(true);
+            } catch (final Exception ex) {
+            }
+        } else {
+            try {
+                // See: https://raw.githubusercontent.com/atomix/atomix/master/utils/src/main/java/io/atomix/utils/memory/BufferCleaner.java
+                final Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+                cleanMethod = unsafeClass.getMethod("invokeCleaner");
+                cleanMethod.setAccessible(true);
+                final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
+                theUnsafeField.setAccessible(true);
+                theUnsafe = theUnsafeField.get(null);
+            } catch (final Exception ex) {
+            }
+        }
+    }
+
+    static {
+        AccessController.doPrivileged(new PrivilegedAction<Object>() {
+            @Override
+            public Object run() {
+                getCleanMethodPrivileged();
+                return null;
+            }
+        });
+    }
+
+    private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final LogNode log) {
+        try {
+            if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                // Invoke ((DirectBuffer) byteBuffer).cleaner().clean()
+                final Method cleaner = byteBuffer.getClass().getMethod("cleaner");
+                cleaner.setAccessible(true);
+                cleanMethod.invoke(cleaner.invoke(byteBuffer));
+                return true;
+            } else {
+                // In JDK9+, calling the above code gives a reflection warning on stderr,
+                // need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) , which makes
+                // the same call, but does not print the reflection warning.
+                try {
+                    cleanMethod.invoke(theUnsafe, byteBuffer);
+                    return true;
+                } catch (final IllegalArgumentException e) {
+                    // Buffer is a duplicate or slice
+                    return false;
+                }
+            }
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Could not unmap ByteBuffer: " + e);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Close a {@code DirectByteBuffer} -- in particular, will unmap a {@link MappedByteBuffer}.
+     * 
+     * @param byteBuffer
+     *            The {@link ByteBuffer} to close/unmap.
+     * @param log
+     *            The log.
+     * @return True if the byteBuffer was closed/unmapped.
+     */
+    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
+        if (byteBuffer != null && byteBuffer.isDirect()) {
+            if (cleanMethod != null) {
+                return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+                    @Override
+                    public Boolean run() {
+                        return closeDirectByteBufferPrivileged(byteBuffer, log);
+                    }
+                });
+            } else {
+                if (log != null) {
+                    log.log("Could not unmap ByteBuffer, because the cleaner method could not be found");
+                }
+                return false;
+            }
+        } else {
+            // Nothing to unmap
+            return true;
         }
     }
 }

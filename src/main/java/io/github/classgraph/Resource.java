@@ -32,16 +32,13 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.util.zip.ZipEntry;
 
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
-import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
@@ -296,25 +293,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Try to free a {@link DirectByteBuffer} (including unmapping a {@link MappedByteBuffer}) if possible.
-     * 
-     * See: https://stackoverflow.com/a/19447758/3950982
-     */
-    protected void closeByteBuffer() {
-        if (byteBuffer != null && byteBuffer.isDirect() && VersionFinder.JAVA_MAJOR_VERSION < 9) {
-            try {
-                final Method cleaner = byteBuffer.getClass().getMethod("cleaner");
-                cleaner.setAccessible(true);
-                final Method clean = Class.forName("sun.misc.Cleaner").getMethod("clean");
-                clean.setAccessible(true);
-                clean.invoke(cleaner.invoke(byteBuffer));
-            } catch (final Exception ex) {
-            }
-        }
-        byteBuffer = null;
-    }
 
     /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */
     @Override
