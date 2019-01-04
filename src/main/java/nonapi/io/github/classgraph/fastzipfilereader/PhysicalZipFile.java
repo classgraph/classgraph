@@ -43,6 +43,7 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
 public class PhysicalZipFile implements Closeable {
@@ -228,15 +229,17 @@ public class PhysicalZipFile implements Closeable {
             if (mappedByteBuffersCached != null) {
                 for (int i = 0; i < mappedByteBuffersCached.length; i++) {
                     if (mappedByteBuffersCached[i] != null) {
-                        // Try closing the MappedByteBuffer
-                        // See: https://stackoverflow.com/a/19447758/3950982
-                        try {
-                            final Method cleaner = mappedByteBuffersCached[i].getClass().getMethod("cleaner");
-                            cleaner.setAccessible(true);
-                            final Method clean = Class.forName("sun.misc.Cleaner").getMethod("clean");
-                            clean.setAccessible(true);
-                            clean.invoke(cleaner.invoke(mappedByteBuffersCached[i]));
-                        } catch (final Exception ex) {
+                        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                            // Try closing the MappedByteBuffer
+                            // See: https://stackoverflow.com/a/19447758/3950982
+                            try {
+                                final Method cleaner = mappedByteBuffersCached[i].getClass().getMethod("cleaner");
+                                cleaner.setAccessible(true);
+                                final Method clean = Class.forName("sun.misc.Cleaner").getMethod("clean");
+                                clean.setAccessible(true);
+                                clean.invoke(cleaner.invoke(mappedByteBuffersCached[i]));
+                            } catch (final Exception ex) {
+                            }
                         }
                         mappedByteBuffersCached[i] = null;
                         nestedJarHandler.freedMmapRef();

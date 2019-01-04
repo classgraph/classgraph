@@ -41,6 +41,7 @@ import java.util.zip.ZipEntry;
 
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
@@ -302,7 +303,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * See: https://stackoverflow.com/a/19447758/3950982
      */
     protected void closeByteBuffer() {
-        if (byteBuffer != null && byteBuffer.isDirect()) {
+        if (byteBuffer != null && byteBuffer.isDirect() && VersionFinder.JAVA_MAJOR_VERSION < 9) {
             try {
                 final Method cleaner = byteBuffer.getClass().getMethod("cleaner");
                 cleaner.setAccessible(true);
@@ -311,8 +312,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
                 clean.invoke(cleaner.invoke(byteBuffer));
             } catch (final Exception ex) {
             }
-            byteBuffer = null;
         }
+        byteBuffer = null;
     }
 
     /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */
