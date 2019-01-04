@@ -352,7 +352,7 @@ public class FileUtils {
 
     private static Method cleanMethod;
     private static Method attachmentMethod;
-    static Object theUnsafe;
+    private static Object theUnsafe;
 
     static void getCleanMethodPrivileged() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
@@ -367,9 +367,15 @@ public class FileUtils {
             }
         } else {
             try {
-                // See: https://raw.githubusercontent.com/atomix/atomix/master/utils/src/main/java/io/atomix/utils/memory/BufferCleaner.java
-                final Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-                cleanMethod = unsafeClass.getMethod("invokeCleaner");
+                Class<?> unsafeClass;
+                try {
+                    unsafeClass = Class.forName("sun.misc.Unsafe");
+                } catch (final Exception e) {
+                    // jdk.internal.misc.Unsafe doesn't yet have an invokeCleaner() method,
+                    // but that method should be added if sun.misc.Unsafe is removed.
+                    unsafeClass = Class.forName("jdk.internal.misc.Unsafe");
+                }
+                cleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
                 cleanMethod.setAccessible(true);
                 final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
                 theUnsafeField.setAccessible(true);
@@ -391,7 +397,19 @@ public class FileUtils {
 
     private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final LogNode log) {
         try {
+            if (cleanMethod == null) {
+                if (log != null) {
+                    log.log("Could not unmap ByteBuffer, cleanMethod == null");
+                }
+                return false;
+            }
             if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                if (attachmentMethod == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, attachmentMethod == null");
+                    }
+                    return false;
+                }
                 // Make sure duplicates and slices are not cleaned, since this can result in duplicate
                 // attempts to clean the same buffer, which trigger a crash with:
                 // "A fatal error has been detected by the Java Runtime Environment: EXCEPTION_ACCESS_VIOLATION"
@@ -406,6 +424,12 @@ public class FileUtils {
                 cleanMethod.invoke(cleaner.invoke(byteBuffer));
                 return true;
             } else {
+                if (theUnsafe == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, theUnsafe == null");
+                    }
+                    return false;
+                }
                 // In JDK9+, calling the above code gives a reflection warning on stderr,
                 // need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) , which makes
                 // the same call, but does not print the reflection warning.
@@ -436,19 +460,12 @@ public class FileUtils {
      */
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
-            if (cleanMethod != null) {
-                return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-                    @Override
-                    public Boolean run() {
-                        return closeDirectByteBufferPrivileged(byteBuffer, log);
-                    }
-                });
-            } else {
-                if (log != null) {
-                    log.log("Could not unmap ByteBuffer, because the cleaner method could not be found");
+            return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+                @Override
+                public Boolean run() {
+                    return closeDirectByteBufferPrivileged(byteBuffer, log);
                 }
-                return false;
-            }
+            });
         } else {
             // Nothing to unmap
             return false;
