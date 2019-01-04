@@ -103,11 +103,13 @@
 							<overwriteExistingFiles>true</overwriteExistingFiles>
 							<module>
 								<!-- VersionFinder requires java.xml -->
+								<!-- sun.misc.Unsafe usage requires jdk.unsupported -->
 								<moduleInfoSource>
 									module io.github.classgraph {
 									exports
 									io.github.classgraph;
 									requires java.xml;
+									requires jdk.unsupported;
 									}
 								</moduleInfoSource>
 							</module>
