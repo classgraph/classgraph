@@ -351,6 +351,7 @@ public class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     private static Method cleanMethod;
+    private static Method attachmentMethod;
     static Object theUnsafe;
 
     static void getCleanMethodPrivileged() {
@@ -359,6 +360,9 @@ public class FileUtils {
                 // See: https://stackoverflow.com/a/19447758/3950982
                 cleanMethod = Class.forName("sun.misc.Cleaner").getMethod("clean");
                 cleanMethod.setAccessible(true);
+                final Class<?> directByteBufferClass = Class.forName("sun.nio.ch.DirectBuffer");
+                attachmentMethod = directByteBufferClass.getMethod("attachment");
+                attachmentMethod.setAccessible(true);
             } catch (final Exception ex) {
             }
         } else {
@@ -388,6 +392,14 @@ public class FileUtils {
     private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final LogNode log) {
         try {
             if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                // Make sure duplicates and slices are not cleaned, since this can result in duplicate
+                // attempts to clean the same buffer, which trigger a crash with:
+                // "A fatal error has been detected by the Java Runtime Environment: EXCEPTION_ACCESS_VIOLATION"
+                // See: https://stackoverflow.com/a/31592947/3950982
+                if (attachmentMethod.invoke(byteBuffer) != null) {
+                    // Buffer is a duplicate or slice
+                    return false;
+                }
                 // Invoke ((DirectBuffer) byteBuffer).cleaner().clean()
                 final Method cleaner = byteBuffer.getClass().getMethod("cleaner");
                 cleaner.setAccessible(true);
@@ -439,7 +451,7 @@ public class FileUtils {
             }
         } else {
             // Nothing to unmap
-            return true;
+            return false;
         }
     }
 }
