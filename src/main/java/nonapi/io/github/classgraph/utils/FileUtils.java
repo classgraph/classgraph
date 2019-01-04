@@ -363,6 +363,10 @@ public class FileUtils {
                 final Class<?> directByteBufferClass = Class.forName("sun.nio.ch.DirectBuffer");
                 attachmentMethod = directByteBufferClass.getMethod("attachment");
                 attachmentMethod.setAccessible(true);
+            } catch (final SecurityException e) {
+                throw new RuntimeException(
+                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
+                                + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final Exception ex) {
             }
         } else {
@@ -380,6 +384,11 @@ public class FileUtils {
                 final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
                 theUnsafeField.setAccessible(true);
                 theUnsafe = theUnsafeField.get(null);
+            } catch (final SecurityException e) {
+                throw new RuntimeException(
+                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
+                                + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
+                                + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final Exception ex) {
             }
         }
