@@ -373,7 +373,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
                 }
             }
-            //    // Currently it is not possible to find methods by annotation parameter annotation
+            //    // Currently it is not possible to find methods by method parameter annotation
             //    final AnnotationInfo[][] methodParamAnnotationInfoList = methodInfo.parameterAnnotationInfo;
             //    if (methodParamAnnotationInfoList != null) {
             //        for (int i = 0; i < methodParamAnnotationInfoList.length; i++) {
