@@ -130,19 +130,8 @@ class ClasspathElementZip extends ClasspathElement {
                 return;
             }
         } else {
-            // If only getting classpath elements, only check if the path up to the first "!" corresponds to
-            // a readable file
-            final File outermostZipFile = new File(outermostZipFilePathResolved);
-            if (FileUtils.canRead(outermostZipFile) && outermostZipFile.isFile()) {
-                // Resolve the raw path for use in generating the classpath URL for this classpath element
-                zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, rawPath);
-            } else {
-                if (log != null) {
-                    log.log("Jarfile not readable: " + rawPath);
-                }
-                skipClasspathElement = true;
-                return;
-            }
+            // Only getting classpath elements
+            zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, rawPath);
         }
 
         if (!scanSpec.enableSystemJarsAndModules && logicalZipFile != null && logicalZipFile.isJREJar) {

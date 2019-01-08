@@ -29,8 +29,6 @@
 package io.github.classgraph;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -44,8 +42,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -126,32 +122,6 @@ abstract class ClasspathElement {
     /** Get the number of classfile matches. */
     int getNumClassfileMatches() {
         return whitelistedClassfileResources == null ? 0 : whitelistedClassfileResources.size();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Factory for creating a {@link ClasspathElementDir} or {@link ClasspathElementZip} from a raw path string. */
-    static ClasspathElement newClasspathElementDirOrZip(final String rawPath, final ClassLoader[] classLoaders,
-            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) throws IOException {
-        final boolean isRemote = rawPath.startsWith("http://") || rawPath.startsWith("https://");
-        boolean isJar = rawPath.startsWith("jar:") || rawPath.indexOf('!') > 0 || isRemote;
-        File dir = null;
-
-        if (!isJar) {
-            final File file = new File(FastPathResolver.resolve(rawPath));
-            if (!file.exists()) {
-                throw new FileNotFoundException("File/directory not found");
-            }
-            if (file.isFile()) {
-                isJar = true;
-            } else if (file.isDirectory()) {
-                dir = file;
-            } else {
-                throw new IOException("Not a file or directory");
-            }
-        }
-        return dir != null ? new ClasspathElementDir(dir, classLoaders, scanSpec)
-                : new ClasspathElementZip(rawPath, classLoaders, nestedJarHandler, scanSpec);
     }
 
     // -------------------------------------------------------------------------------------------------------------

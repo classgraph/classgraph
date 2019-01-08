@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -56,6 +57,8 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.utils.FastPathResolver;
+import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -390,15 +393,6 @@ class Scanner implements Callable<ScanResult> {
                 : topLevelLog.log("Finding classpath entries");
         final NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
         final Map<String, ClassLoader[]> classpathEltPathToClassLoaders = new ConcurrentHashMap<>();
-        final SingletonMap<String, ClasspathElement> classpathElementSingletonMap = //
-                new SingletonMap<String, ClasspathElement>() {
-                    @Override
-                    public ClasspathElement newInstance(final String classpathEltPath, final LogNode log)
-                            throws IOException {
-                        return ClasspathElement.newClasspathElementDirOrZip(classpathEltPath,
-                                classpathEltPathToClassLoaders.get(classpathEltPath), nestedJarHandler, scanSpec);
-                    }
-                };
         try {
             final long scanStart = System.nanoTime();
 
@@ -458,6 +452,75 @@ class Scanner implements Callable<ScanResult> {
 
             // Get order of elements in traditional classpath
             final LinkedHashSet<String> rawClasspathEltOrder = classpathFinder.getClasspathOrder().getOrder();
+
+            // For each classpath element path, canonicalize path, and create a ClasspathElement singleton
+            final SingletonMap<String, ClasspathElement> classpathElementSingletonMap = //
+                    new SingletonMap<String, ClasspathElement>() {
+                        @Override
+                        public ClasspathElement newInstance(final String classpathEltPath, final LogNode log)
+                                throws Exception {
+                            final ClassLoader[] classLoaders = classpathEltPathToClassLoaders.get(classpathEltPath);
+                            final boolean isRemote = classpathEltPath.startsWith("http://")
+                                    || classpathEltPath.startsWith("https://");
+                            boolean isJar = isRemote;
+                            if (!isRemote) {
+                                final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                                        classpathEltPath);
+                                int startIdx = 0;
+                                if (pathNormalized.startsWith("jar:")) {
+                                    isJar = true;
+                                    startIdx += 4;
+                                }
+                                if (pathNormalized.startsWith("file:", startIdx)) {
+                                    startIdx += 5;
+                                }
+                                int endIdx = pathNormalized.indexOf("!");
+                                if (endIdx < 0) {
+                                    endIdx = pathNormalized.length();
+                                } else {
+                                    isJar = true;
+                                }
+                                final boolean noUrlSegments = startIdx == 0 && endIdx == pathNormalized.length();
+                                final String pathToCanonicalize = noUrlSegments ? pathNormalized
+                                        : pathNormalized.substring(startIdx, endIdx);
+                                final File fileCanonicalized = new File(pathToCanonicalize).getCanonicalFile();
+                                if (!fileCanonicalized.exists()) {
+                                    throw new FileNotFoundException();
+                                }
+                                if (!FileUtils.canRead(fileCanonicalized)) {
+                                    throw new IOException("Cannot read file or directory");
+                                }
+                                if (fileCanonicalized.isFile()) {
+                                    isJar = true;
+                                } else if (!fileCanonicalized.isDirectory()) {
+                                    throw new IOException("Not a normal file or directory");
+                                }
+                                // Only create one ClasspathElement per canonical path -- this requires
+                                // File::getCanonicalFile and FastPathResolver::resolve to be idempotent (to prevent
+                                // getting stuck in an infinite loop)
+                                final String pathCanonicalizedNormalized = FastPathResolver
+                                        .resolve(FileUtils.CURR_DIR_PATH, fileCanonicalized.getPath());
+                                final String urlCanonicalizedNormalized = noUrlSegments
+                                        ? pathCanonicalizedNormalized
+                                        : pathNormalized.substring(0, startIdx) + pathCanonicalizedNormalized
+                                                + pathNormalized.substring(endIdx);
+                                if (!urlCanonicalizedNormalized.equals(pathNormalized)) {
+                                    // Recursively get singleton for canonical path (should only recurse once)
+                                    return this.get(urlCanonicalizedNormalized, log);
+                                } else {
+                                    // Otherwise instantiate a ClasspathElementZip or ClasspathElementDir singleton
+                                    return isJar
+                                            ? new ClasspathElementZip(classpathEltPath, classLoaders,
+                                                    nestedJarHandler, scanSpec)
+                                            : new ClasspathElementDir(fileCanonicalized, classLoaders, scanSpec);
+                                }
+                            } else {
+                                // For remote URLs, must be a jar
+                                return new ClasspathElementZip(classpathEltPath, classLoaders, nestedJarHandler,
+                                        scanSpec);
+                            }
+                        }
+                    };
 
             // In parallel, create a ClasspathElement singleton for each classpath element, then call isValid()
             // on each ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances
