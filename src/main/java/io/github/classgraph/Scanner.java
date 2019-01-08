@@ -460,64 +460,67 @@ class Scanner implements Callable<ScanResult> {
                         public ClasspathElement newInstance(final String classpathEltPath, final LogNode log)
                                 throws Exception {
                             final ClassLoader[] classLoaders = classpathEltPathToClassLoaders.get(classpathEltPath);
-                            final boolean isRemote = classpathEltPath.startsWith("http://")
-                                    || classpathEltPath.startsWith("https://");
-                            boolean isJar = isRemote;
-                            if (!isRemote) {
-                                final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-                                        classpathEltPath);
-                                int startIdx = 0;
-                                if (pathNormalized.startsWith("jar:")) {
-                                    isJar = true;
-                                    startIdx += 4;
-                                }
-                                if (pathNormalized.startsWith("file:", startIdx)) {
-                                    startIdx += 5;
-                                }
-                                int endIdx = pathNormalized.indexOf("!");
-                                if (endIdx < 0) {
-                                    endIdx = pathNormalized.length();
-                                } else {
-                                    isJar = true;
-                                }
-                                final boolean noUrlSegments = startIdx == 0 && endIdx == pathNormalized.length();
-                                final String pathToCanonicalize = noUrlSegments ? pathNormalized
-                                        : pathNormalized.substring(startIdx, endIdx);
-                                final File fileCanonicalized = new File(pathToCanonicalize).getCanonicalFile();
-                                if (!fileCanonicalized.exists()) {
-                                    throw new FileNotFoundException();
-                                }
-                                if (!FileUtils.canRead(fileCanonicalized)) {
-                                    throw new IOException("Cannot read file or directory");
-                                }
-                                if (fileCanonicalized.isFile()) {
-                                    isJar = true;
-                                } else if (!fileCanonicalized.isDirectory()) {
-                                    throw new IOException("Not a normal file or directory");
-                                }
-                                final String pathCanonicalizedNormalized = FastPathResolver
-                                        .resolve(FileUtils.CURR_DIR_PATH, fileCanonicalized.getPath());
-                                final String urlCanonicalizedNormalized = noUrlSegments
-                                        ? pathCanonicalizedNormalized
-                                        : pathNormalized.substring(0, startIdx) + pathCanonicalizedNormalized
-                                                + pathNormalized.substring(endIdx);
-                                if (!urlCanonicalizedNormalized.equals(pathNormalized)) {
-                                    // Recursively get singleton for canonical path (should only recurse once).
-                                    // This is so that only one ClasspathElement is created per canonical path. Requires
-                                    // File::getCanonicalFile and FastPathResolver::resolve to be idempotent (to prevent
-                                    // getting stuck in an infinite recursion).
-                                    return this.get(urlCanonicalizedNormalized, log);
-                                } else {
-                                    // Otherwise instantiate a ClasspathElementZip or ClasspathElementDir singleton
-                                    return isJar
-                                            ? new ClasspathElementZip(urlCanonicalizedNormalized, classLoaders,
-                                                    nestedJarHandler, scanSpec)
-                                            : new ClasspathElementDir(fileCanonicalized, classLoaders, scanSpec);
-                                }
-                            } else {
+                            if (classpathEltPath.startsWith("http://") || classpathEltPath.startsWith("https://")) {
                                 // For remote URLs, must be a jar
                                 return new ClasspathElementZip(classpathEltPath, classLoaders, nestedJarHandler,
                                         scanSpec);
+                            }
+                            final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                                    classpathEltPath);
+                            // Strip "jar:" and/or "file:" prefix, if present
+                            int startIdx = 0;
+                            boolean isJar = false;
+                            if (pathNormalized.startsWith("jar:")) {
+                                isJar = true;
+                                startIdx += 4;
+                            }
+                            if (pathNormalized.startsWith("file:", startIdx)) {
+                                startIdx += 5;
+                            }
+                            // Strip everything after first "!", to get path of base jarfile or dir
+                            int endIdx = pathNormalized.indexOf("!");
+                            if (endIdx < 0) {
+                                endIdx = pathNormalized.length();
+                            } else {
+                                isJar = true;
+                            }
+                            // Canonicalize base jarfile or dir (may throw IOException)
+                            final boolean noUrlSegments = startIdx == 0 && endIdx == pathNormalized.length();
+                            final String pathToCanonicalize = noUrlSegments ? pathNormalized
+                                    : pathNormalized.substring(startIdx, endIdx);
+                            final File fileCanonicalized = new File(pathToCanonicalize).getCanonicalFile();
+                            // Test if base file or dir exists (and is a standard file or dir)
+                            if (!fileCanonicalized.exists()) {
+                                throw new FileNotFoundException();
+                            }
+                            if (!FileUtils.canRead(fileCanonicalized)) {
+                                throw new IOException("Cannot read file or directory");
+                            }
+                            if (fileCanonicalized.isFile()) {
+                                // If a file, must be a jar
+                                isJar = true;
+                            } else if (!fileCanonicalized.isDirectory()) {
+                                throw new IOException("Not a normal file or directory");
+                            }
+                            // Check if canonicalized path is the same as pre-canonicalized path
+                            final String pathCanonicalizedNormalized = FastPathResolver
+                                    .resolve(FileUtils.CURR_DIR_PATH, fileCanonicalized.getPath());
+                            final String urlCanonicalizedNormalized = noUrlSegments ? pathCanonicalizedNormalized
+                                    : pathNormalized.substring(0, startIdx) + pathCanonicalizedNormalized
+                                            + pathNormalized.substring(endIdx);
+                            if (!urlCanonicalizedNormalized.equals(pathNormalized)) {
+                                // If canonicalized path is not the same as pre-canonicalized path, need to recurse
+                                // to map non-canonicalized path to singleton for canonicalized path (this should
+                                // only recurse once, since File::getCanonicalFile and FastPathResolver::resolve are
+                                // idempotent)
+                                return this.get(urlCanonicalizedNormalized, log);
+                            } else {
+                                // Otherwise path is already canonical, and this is the first time this path has been
+                                // seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton for path
+                                return isJar
+                                        ? new ClasspathElementZip(urlCanonicalizedNormalized, classLoaders,
+                                                nestedJarHandler, scanSpec)
+                                        : new ClasspathElementDir(fileCanonicalized, classLoaders, scanSpec);
                             }
                         }
                     };
