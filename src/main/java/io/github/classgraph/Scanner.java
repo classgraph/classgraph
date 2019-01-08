@@ -510,7 +510,7 @@ class Scanner implements Callable<ScanResult> {
                                 } else {
                                     // Otherwise instantiate a ClasspathElementZip or ClasspathElementDir singleton
                                     return isJar
-                                            ? new ClasspathElementZip(classpathEltPath, classLoaders,
+                                            ? new ClasspathElementZip(urlCanonicalizedNormalized, classLoaders,
                                                     nestedJarHandler, scanSpec)
                                             : new ClasspathElementDir(fileCanonicalized, classLoaders, scanSpec);
                                 }
