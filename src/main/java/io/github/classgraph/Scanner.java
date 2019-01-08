@@ -495,9 +495,6 @@ class Scanner implements Callable<ScanResult> {
                                 } else if (!fileCanonicalized.isDirectory()) {
                                     throw new IOException("Not a normal file or directory");
                                 }
-                                // Only create one ClasspathElement per canonical path -- this requires
-                                // File::getCanonicalFile and FastPathResolver::resolve to be idempotent (to prevent
-                                // getting stuck in an infinite loop)
                                 final String pathCanonicalizedNormalized = FastPathResolver
                                         .resolve(FileUtils.CURR_DIR_PATH, fileCanonicalized.getPath());
                                 final String urlCanonicalizedNormalized = noUrlSegments
@@ -505,7 +502,10 @@ class Scanner implements Callable<ScanResult> {
                                         : pathNormalized.substring(0, startIdx) + pathCanonicalizedNormalized
                                                 + pathNormalized.substring(endIdx);
                                 if (!urlCanonicalizedNormalized.equals(pathNormalized)) {
-                                    // Recursively get singleton for canonical path (should only recurse once)
+                                    // Recursively get singleton for canonical path (should only recurse once).
+                                    // This is so that only one ClasspathElement is created per canonical path. Requires
+                                    // File::getCanonicalFile and FastPathResolver::resolve to be idempotent (to prevent
+                                    // getting stuck in an infinite recursion).
                                     return this.get(urlCanonicalizedNormalized, log);
                                 } else {
                                     // Otherwise instantiate a ClasspathElementZip or ClasspathElementDir singleton
