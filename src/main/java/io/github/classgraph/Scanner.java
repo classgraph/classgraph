@@ -499,7 +499,11 @@ class Scanner implements Callable<ScanResult> {
                             if (fileCanonicalized.isFile()) {
                                 // If a file, must be a jar
                                 isJar = true;
-                            } else if (!fileCanonicalized.isDirectory()) {
+                            } else if (fileCanonicalized.isDirectory()) {
+                                if (isJar) {
+                                    throw new IOException("Expected jar, found directory");
+                                }
+                            } else {
                                 throw new IOException("Not a normal file or directory");
                             }
                             // Check if canonicalized path is the same as pre-canonicalized path
