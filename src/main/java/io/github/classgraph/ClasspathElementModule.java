@@ -73,7 +73,7 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     @Override
-    void checkValid(final WorkQueue<String> workQueue, final LogNode log) {
+    void open(final WorkQueue<String> workQueue, final LogNode log) {
         try {
             moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
                     log);

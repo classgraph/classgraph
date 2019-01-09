@@ -76,7 +76,7 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     @Override
-    void checkValid(final WorkQueue<String> workQueue, final LogNode log) {
+    void open(final WorkQueue<String> workQueue, final LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
                 log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);

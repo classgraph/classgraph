@@ -220,8 +220,13 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Determine if this classpath element is valid. If it is not valid, sets skipClasspathElement. */
-    abstract void checkValid(final WorkQueue<String> workQueue, final LogNode log);
+    /**
+     * Determine if this classpath element is valid. If it is not valid, sets skipClasspathElement. For
+     * {@link ClasspathElementZip}, may also open or extract inner jars, and also causes jarfile manifests to be
+     * read to look for Class-Path entries. If nested jars or Class-Path entries are found, they are added to the
+     * work queue.
+     */
+    abstract void open(final WorkQueue<String> workQueue, final LogNode log);
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for

@@ -421,7 +421,7 @@ class Scanner implements Callable<ScanResult> {
                                         .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
-                            classpathElementModule.checkValid(/* unused */ null, classpathFinderLog);
+                            classpathElementModule.open(/* unused */ null, classpathFinderLog);
                             moduleClasspathEltOrder.add(classpathElementModule);
                         } else {
                             if (classpathFinderLog != null) {
@@ -438,7 +438,7 @@ class Scanner implements Callable<ScanResult> {
                         if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     nonSystemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
-                            classpathElementModule.checkValid(/* unused */ null, classpathFinderLog);
+                            classpathElementModule.open(/* unused */ null, classpathFinderLog);
                             moduleClasspathEltOrder.add(classpathElementModule);
                         } else {
                             if (classpathFinderLog != null) {
@@ -535,7 +535,7 @@ class Scanner implements Callable<ScanResult> {
             // to be created for each (possibly nested) jarfile, then will read the manifest file and zip entries.
             final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Reading jarfile directories and manifest files");
-            final Set<ClasspathElement> checkValidSet = Collections
+            final Set<ClasspathElement> openedClasspathElementsSet = Collections
                     .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<String>() {
@@ -548,17 +548,16 @@ class Scanner implements Callable<ScanResult> {
                                 final ClasspathElement classpathElt = classpathElementSingletonMap
                                         .get(classpathEltPath, classpathFinderLog);
 
-                                // Only run checkValid() once per classpath element (needed in case there are
+                                // Only run open() once per ClasspathElement (it is possible for there to be
                                 // multiple classpath elements with different non-canonical paths that map to
-                                // the same canonical path)
-                                if (checkValidSet.add(classpathElt)) {
+                                // the same canonical path, i.e. to the same ClasspathElement)
+                                if (openedClasspathElementsSet.add(classpathElt)) {
                                     // Check if the classpath element is valid (classpathElt.skipClasspathElement
-                                    // will be set if not). Finds innermost jar, in case of ClasspathElementZip,
-                                    // and this may trigger the extraction of nested jarfiles to temporary files,
-                                    // if they are deflated rather than stored. Also causes the manifest of
-                                    // jarfiles to be read, and any "Class-Path" manifest entries to be added to
-                                    // the work queue.
-                                    classpathElt.checkValid(workQueue, preScanLog);
+                                    // will be set if not). In case of ClasspathElementZip, open or extract nested
+                                    // jars as LogicalZipFile instances. Read manifest files for jarfiles to look
+                                    // for Class-Path manifest entries. Adds extra classpath elements to the work
+                                    // queue if they are found.
+                                    classpathElt.open(workQueue, preScanLog);
                                 }
                             } catch (final IOException | IllegalArgumentException e) {
                                 if (classpathFinderLog != null) {

@@ -82,7 +82,7 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     @Override
-    void checkValid(final WorkQueue<String> workQueue, final LogNode log) {
+    void open(final WorkQueue<String> workQueue, final LogNode log) {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log.log("Skipping classpath element, since jar scanning is disabled: " + rawPath);
