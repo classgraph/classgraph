@@ -56,11 +56,11 @@ public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         classpathOrderOut.addClasspathElementObject( //
-                (String) ReflectionUtils.invokeMethod(classLoader, "getURLs", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getURLs", false), classLoader, log);
         // type WebResourceRoot
-        Object resources = ReflectionUtils.invokeMethod(classLoader, "getResources", false);
+        final Object resources = ReflectionUtils.invokeMethod(classLoader, "getResources", false);
         // type List<URL>
-        Object baseURLs = ReflectionUtils.invokeMethod(resources, "getBaseUrls", false);
+        final Object baseURLs = ReflectionUtils.invokeMethod(resources, "getBaseUrls", false);
         classpathOrderOut.addClasspathElementObject(baseURLs, classLoader, log);
     }
 }
