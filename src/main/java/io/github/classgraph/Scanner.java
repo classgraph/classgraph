@@ -531,25 +531,31 @@ class Scanner implements Callable<ScanResult> {
             // to be created for each (possibly nested) jarfile, then will read the manifest file and zip entries.
             final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Reading jarfile directories and manifest files");
+            final Set<ClasspathElement> checkValidSet = Collections
+                    .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<String>() {
                         @Override
                         public void processWorkUnit(final String classpathEltPath,
                                 final WorkQueue<String> workQueue) throws Exception {
-                            ClasspathElement classpathElt = null;
                             try {
-                                // Create a ClasspathElementZip or ClasspathElementDir from the elt path
-                                classpathElt = classpathElementSingletonMap.get(classpathEltPath,
-                                        classpathFinderLog);
+                                // Create a ClasspathElementZip or ClasspathElementDir for each entry in the
+                                // traditional classpath
+                                final ClasspathElement classpathElt = classpathElementSingletonMap
+                                        .get(classpathEltPath, classpathFinderLog);
 
-                                // Check if the classpath element is valid (classpathElt.skipClasspathElement
-                                // will be set if not). Finds innermost jar, in case of ClasspathElementZip,
-                                // and this may trigger the extraction of nested jarfiles to temporary files,
-                                // if they are deflated rather than stored. Also causes the manifest of
-                                // jarfiles to be read, and any "Class-Path" manifest entries to be added to
-                                // the work queue.
-                                classpathElt.checkValid(workQueue, preScanLog);
-
+                                // Only run checkValid() once per classpath element (needed in case there are
+                                // multiple classpath elements with different non-canonical paths that map to
+                                // the same canonical path)
+                                if (checkValidSet.add(classpathElt)) {
+                                    // Check if the classpath element is valid (classpathElt.skipClasspathElement
+                                    // will be set if not). Finds innermost jar, in case of ClasspathElementZip,
+                                    // and this may trigger the extraction of nested jarfiles to temporary files,
+                                    // if they are deflated rather than stored. Also causes the manifest of
+                                    // jarfiles to be read, and any "Class-Path" manifest entries to be added to
+                                    // the work queue.
+                                    classpathElt.checkValid(workQueue, preScanLog);
+                                }
                             } catch (final IOException | IllegalArgumentException e) {
                                 if (classpathFinderLog != null) {
                                     classpathFinderLog.log(
