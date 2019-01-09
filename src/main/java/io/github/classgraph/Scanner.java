@@ -503,22 +503,23 @@ class Scanner implements Callable<ScanResult> {
                                 throw new IOException("Not a normal file or directory");
                             }
                             // Check if canonicalized path is the same as pre-canonicalized path
-                            final String pathCanonicalizedNormalized = FastPathResolver
+                            final String fileCanonicalizedPathNormalized = FastPathResolver
                                     .resolve(FileUtils.CURR_DIR_PATH, fileCanonicalized.getPath());
-                            final String urlCanonicalizedNormalized = noUrlSegments ? pathCanonicalizedNormalized
-                                    : pathNormalized.substring(0, startIdx) + pathCanonicalizedNormalized
+                            final String pathCanonicalizedNormalized = noUrlSegments
+                                    ? fileCanonicalizedPathNormalized
+                                    : pathNormalized.substring(0, startIdx) + fileCanonicalizedPathNormalized
                                             + pathNormalized.substring(endIdx);
-                            if (!urlCanonicalizedNormalized.equals(pathNormalized)) {
+                            if (!pathCanonicalizedNormalized.equals(pathNormalized)) {
                                 // If canonicalized path is not the same as pre-canonicalized path, need to recurse
                                 // to map non-canonicalized path to singleton for canonicalized path (this should
                                 // only recurse once, since File::getCanonicalFile and FastPathResolver::resolve are
                                 // idempotent)
-                                return this.get(urlCanonicalizedNormalized, log);
+                                return this.get(pathCanonicalizedNormalized, log);
                             } else {
                                 // Otherwise path is already canonical, and this is the first time this path has been
                                 // seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton for path
                                 return isJar
-                                        ? new ClasspathElementZip(urlCanonicalizedNormalized, classLoaders,
+                                        ? new ClasspathElementZip(pathCanonicalizedNormalized, classLoaders,
                                                 nestedJarHandler, scanSpec)
                                         : new ClasspathElementDir(fileCanonicalized, classLoaders, scanSpec);
                             }
