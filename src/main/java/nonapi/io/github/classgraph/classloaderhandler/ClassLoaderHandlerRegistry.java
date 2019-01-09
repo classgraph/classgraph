@@ -52,6 +52,7 @@ public class ClassLoaderHandlerRegistry {
                 new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
                 new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
                 new ClassLoaderHandlerRegistryEntry(SpringBootRestartClassLoaderHandler.class),
+                new ClassLoaderHandlerRegistryEntry(TomcatWebappClassLoaderBaseHandler.class),
 
                 // For unit testing of PARENT_LAST delegation order
                 new ClassLoaderHandlerRegistryEntry(ParentLastDelegationOrderTestClassLoaderHandler.class),
