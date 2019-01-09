@@ -559,6 +559,23 @@ class Scanner implements Callable<ScanResult> {
             final List<ClasspathElement> finalTraditionalClasspathEltOrder = findClasspathOrder(
                     rawClasspathEltOrder, classpathElementSingletonMap);
 
+            // Find classpath elements that are path prefixes of other classpath elements
+            {
+                final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
+                final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
+                for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
+                    if (classpathElt instanceof ClasspathElementDir) {
+                        classpathEltDirs.add(new SimpleEntry<>(
+                                ((ClasspathElementDir) classpathElt).getDirFile().getPath(), classpathElt));
+                    } else if (classpathElt instanceof ClasspathElementZip) {
+                        classpathEltZips.add(new SimpleEntry<>(
+                                ((ClasspathElementZip) classpathElt).getZipFilePath(), classpathElt));
+                    }
+                }
+                findNestedClasspathElements(classpathEltDirs, classpathFinderLog);
+                findNestedClasspathElements(classpathEltZips, classpathFinderLog);
+            }
+
             // Order modules before classpath elements from traditional classpath 
             final LogNode classpathOrderLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Final classpath element order:");
@@ -600,21 +617,6 @@ class Scanner implements Callable<ScanResult> {
                 // Skip the actual scan
                 return scanResult;
             }
-
-            // Find classpath elements that are path prefixes of other classpath elements
-            final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
-            final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
-            for (final ClasspathElement classpathElt : finalClasspathEltOrder) {
-                if (classpathElt instanceof ClasspathElementDir) {
-                    classpathEltDirs.add(new SimpleEntry<>(
-                            ((ClasspathElementDir) classpathElt).getDirFile().getPath(), classpathElt));
-                } else if (classpathElt instanceof ClasspathElementZip) {
-                    classpathEltZips.add(
-                            new SimpleEntry<>(((ClasspathElementZip) classpathElt).getZipFilePath(), classpathElt));
-                }
-            }
-            findNestedClasspathElements(classpathEltDirs, classpathFinderLog);
-            findNestedClasspathElements(classpathEltZips, classpathFinderLog);
 
             // Scan paths within each classpath element, comparing them against whitelist/blacklist criteria
             final LogNode pathScanLog = classpathFinderLog == null ? null
