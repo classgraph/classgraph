@@ -33,7 +33,7 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
-/** Extract classpath entries from the Weblogic ClassLoaders. */
+/** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     @Override
     public String[] handledClassLoaders() {
