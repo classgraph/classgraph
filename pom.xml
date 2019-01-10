@@ -3,7 +3,7 @@
 
 	<groupId>io.github.classgraph</groupId>
 	<artifactId>classgraph</artifactId>
-	<version>4.6.13</version>
+	<version>4.6.13-SNAPSHOT</version>
 	<name>ClassGraph</name>
 
 	<description>
