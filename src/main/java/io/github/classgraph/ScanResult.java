@@ -1109,9 +1109,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 for (final Resource classpathResource : allResources) {
                     classpathResource.close();
                 }
-                allResources = null;
-            }
-            if (allResources != null) {
                 allResources.clear();
                 allResources = null;
             }
