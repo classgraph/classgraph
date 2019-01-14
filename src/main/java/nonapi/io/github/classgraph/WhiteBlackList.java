@@ -309,8 +309,7 @@ public abstract class WhiteBlackList {
      * @return The normalized path.
      */
     public static String normalizePath(final String path) {
-        final String normalized = FileUtils.sanitizeEntryPath(path);
-        return normalized.endsWith("/") ? normalized : normalized + "/";
+        return FileUtils.sanitizeEntryPath(path, /* removeInitialSlash = */ true);
     }
 
     /**

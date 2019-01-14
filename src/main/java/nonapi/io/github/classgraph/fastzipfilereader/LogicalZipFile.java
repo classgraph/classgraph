@@ -439,10 +439,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 }
                 break;
             }
-            final String entryName = FileUtils.sanitizeEntryPath( //
-                    entryBytes != null ? ZipFileSliceReader.getString(entryBytes, filenameStartOff, filenameLen)
-                            : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen));
-            if (entryName.isEmpty() || entryName.endsWith("/")) {
+            final String entryName = entryBytes != null
+                    ? ZipFileSliceReader.getString(entryBytes, filenameStartOff, filenameLen)
+                    : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen);
+            final String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName,
+                    /* removeInitialSlash = */ true);
+            if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
                 // Skip directory entries
                 continue;
             }
@@ -452,7 +454,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                     : zipFileSliceReader.getShort(cenPos + entOff + 8);
             if ((flags & 1) != 0) {
                 if (log != null) {
-                    log.log("Skipping encrypted zip entry: " + entryName);
+                    log.log("Skipping encrypted zip entry: " + entryNameSanitized);
                 }
                 continue;
             }
@@ -463,7 +465,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             if (compressionMethod != /* stored */ 0 && compressionMethod != /* deflated */ 8) {
                 if (log != null) {
                     log.log("Skipping zip entry with invalid compression method " + compressionMethod + ": "
-                            + entryName);
+                            + entryNameSanitized);
                 }
                 continue;
             }
@@ -520,20 +522,20 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             final long locHeaderPos = locPos + pos;
             if (locHeaderPos < 0) {
                 if (log != null) {
-                    log.log("Skipping zip entry with invalid loc header position: " + entryName);
+                    log.log("Skipping zip entry with invalid loc header position: " + entryNameSanitized);
                 }
                 continue;
             }
             if (locHeaderPos + 4 >= len) {
                 if (log != null) {
-                    log.log("Unexpected EOF when trying to read LOC header: " + entryName);
+                    log.log("Unexpected EOF when trying to read LOC header: " + entryNameSanitized);
                 }
                 continue;
             }
 
             // Add zip entry
-            final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryName, isDeflated, compressedSize,
-                    uncompressedSize, physicalZipFile.nestedJarHandler);
+            final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
+                    compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler);
             entries.add(entry);
 
             // Record manifest entry

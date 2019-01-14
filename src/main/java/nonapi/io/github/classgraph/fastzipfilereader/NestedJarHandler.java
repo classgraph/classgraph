@@ -321,7 +321,7 @@ public class NestedJarHandler {
                     final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
                     String childPath = nestedJarPath.substring(lastPlingIdx + 1);
                     // "file.jar!/path" -> "file.jar!path"
-                    childPath = FileUtils.sanitizeEntryPath(childPath);
+                    childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true);
 
                     // Recursively remove one '!' section at a time, back towards the beginning of the URL or
                     // file path. At the last frame of recursion, the toplevel jarfile will be reached and

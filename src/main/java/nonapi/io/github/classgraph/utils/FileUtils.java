@@ -42,7 +42,9 @@ import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * File utilities.
@@ -258,65 +260,107 @@ public class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Sanitize relative paths against "zip slip" vulnerability. */
-    public static String sanitizeEntryPath(final String entryPath) {
+    /**
+     * Sanitize relative paths against "zip slip" vulnerability, by removing path segments if ".." is found in the
+     * URL, but without allowing navigation above the path hierarchy root. Treats each "!" character as a new path
+     * hierarchy root. Also removes "." and empty path segments ("//").
+     * 
+     * @param entryPath
+     *            The path to sanitize.
+     * @param removeInitialSlash
+     *            If true, additionally removes any "/" character(s) from the beginning of the returned path.
+     * @return The sanitized path.
+     */
+    public static String sanitizeEntryPath(final String entryPath, final boolean removeInitialSlash) {
+        if (entryPath.isEmpty()) {
+            return "";
+        }
+
+        // Find all '/' and '!' character positions, which split a path into segments 
+        boolean foundSegmentToSanitize = false;
+        {
+            int lastSepIdx = -1;
+            char prevC = '\0';
+            for (int i = 0; i < entryPath.length() + 1; i++) {
+                final char c = i == entryPath.length() ? '\0' : entryPath.charAt(i);
+                if (c == '/' || c == '!' || c == '\0') {
+                    final int segmentLength = i - (lastSepIdx + 1);
+                    if (
+                    // Found empty segment "//" or "!!"
+                    (segmentLength == 0 && prevC == c)
+                            // Found segment "."
+                            || (segmentLength == 1 && entryPath.charAt(i - 1) == '.')
+                            // Found segment ".."
+                            || (segmentLength == 2 && entryPath.charAt(i - 2) == '.'
+                                    && entryPath.charAt(i - 1) == '.')) {
+                        foundSegmentToSanitize = true;
+                    }
+                    lastSepIdx = i;
+                }
+                prevC = c;
+            }
+        }
+
+        // Handle "..", "." and empty path segments, if any were found
         String path = entryPath;
-        // Remove path segments if "/../" is found
-        int idx2 = path.indexOf("/../");
-        if (idx2 >= 0) {
-            final StringBuilder buf = new StringBuilder();
-            for (int src = 0;;) {
-                buf.append(path, src, idx2);
-                final int lastSlash = buf.lastIndexOf("/");
-                if (lastSlash >= 0 && lastSlash < buf.length() - 1) {
-                    buf.setLength(lastSlash);
+        if (foundSegmentToSanitize) {
+            // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
+            final List<List<String>> allSectionSegments = new ArrayList<>();
+            List<String> currSectionSegments = new ArrayList<>();
+            allSectionSegments.add(currSectionSegments);
+            int lastSepIdx = -1;
+            for (int i = 0; i < entryPath.length() + 1; i++) {
+                final char c = i == entryPath.length() ? '\0' : entryPath.charAt(i);
+                if (c == '/' || c == '!' || c == '\0') {
+                    final String segment = entryPath.substring(lastSepIdx + 1, i);
+                    if (segment.equals(".") || segment.isEmpty()) {
+                        // Ignore "/./" or empty segment "//"
+                    } else if (segment.equals("..")) {
+                        // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
+                        if (currSectionSegments.size() > 0) {
+                            currSectionSegments.remove(currSectionSegments.size() - 1);
+                        }
+                    } else {
+                        // Encountered normal path segment
+                        currSectionSegments.add(segment);
+                    }
+                    if (c == '!') {
+                        // Begin new section
+                        if (!currSectionSegments.isEmpty()) {
+                            currSectionSegments = new ArrayList<>();
+                            allSectionSegments.add(currSectionSegments);
+                        }
+                    }
+                    lastSepIdx = i;
                 }
-                src = idx2 + 3;
-                idx2 = path.indexOf("/../", src);
-                if (idx2 < 0) {
-                    buf.append(path, src, path.length());
-                    break;
+            }
+            // Turn sections and segments back into path string
+            final StringBuilder buf = new StringBuilder();
+            for (final List<String> sectionSegments : allSectionSegments) {
+                if (!sectionSegments.isEmpty()) {
+                    // Delineate segments with "!"
+                    if (buf.length() > 0) {
+                        buf.append("!");
+                    }
+                    for (int i = 0; i < sectionSegments.size(); i++) {
+                        buf.append("/");
+                        buf.append(sectionSegments.get(i));
+                    }
                 }
             }
             path = buf.toString();
-        }
-        // Replace "/./" with "/"
-        int idx1 = path.indexOf("/./");
-        if (idx1 >= 0) {
-            final StringBuilder buf = new StringBuilder();
-            for (int src = 0;;) {
-                buf.append(path, src, idx1);
-                src = idx1 + 2;
-                idx1 = path.indexOf("/./", src);
-                if (idx1 < 0) {
-                    buf.append(path, src, path.length());
-                    break;
-                }
+            if (path.isEmpty() && entryPath.startsWith("/")) {
+                path = "/";
             }
-            path = buf.toString();
         }
-        // Replace "//" with "/"
-        int idx3 = path.indexOf("//");
-        if (idx3 >= 0) {
-            final StringBuilder buf = new StringBuilder();
-            for (int src = 0;;) {
-                buf.append(path, src, idx3);
-                src = idx3 + 1;
-                idx3 = path.indexOf("//", src);
-                if (idx3 < 0) {
-                    buf.append(path, src, path.length());
-                    break;
-                }
+
+        if (removeInitialSlash || !entryPath.startsWith("/")) {
+            // Strip off leading "/" if it needs to be removed, or if it wasn't present in the original path
+            // (the string-building code above prepends "/" to every segment). Note that "/" is always added
+            // after "!", since "jar:" URLs expect this.
+            while (path.startsWith("/")) {
+                path = path.substring(1);
             }
-            path = buf.toString();
-        }
-        // Strip off leading "./" or "../", if present
-        while (path.startsWith("./") || path.startsWith("../")) {
-            path = path.startsWith("./") ? path.substring(2) : path.substring(3);
-        }
-        // Strip off leading '/', if present
-        while (path.startsWith("/")) {
-            path = path.substring(1);
         }
         return path;
     }

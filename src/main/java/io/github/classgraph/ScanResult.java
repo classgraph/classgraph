@@ -309,7 +309,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
-            final String path = FileUtils.sanitizeEntryPath(resourcePath);
+            final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
             final ResourceList resourceList = pathToResourceList.get(path);
             return (resourceList == null ? new ResourceList(1) : resourceList);
         }
