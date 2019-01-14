@@ -68,6 +68,15 @@ class ClasspathElementZip extends ClasspathElement {
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
 
+    /** Prefixes to automaticall strip from relative path in order to find package root. */
+    private static final String[] PACKAGE_ROOT_PREFIXES_TO_STRIP = {
+            // Spring Boot
+            "BOOT-INF/classes/",
+            // Tomcat
+            "WEB-INF/classes/",
+            // Ant
+            "classes/", };
+
     ClasspathElementZip(final String rawPath, final ClassLoader[] classLoaders,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoaders, scanSpec);
@@ -374,15 +383,10 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
                 // Strip common package root prefixes from relative path
-                if (relativePath.startsWith("BOOT-INF/classes/")) {
-                    // Spring-Boot prefix
-                    relativePath = relativePath.substring("BOOT-INF/classes/".length());
-                } else if (relativePath.startsWith("WEB-INF/classes/")) {
-                    // Tomcat prefix
-                    relativePath = relativePath.substring("WEB-INF/classes/".length());
-                } else if (relativePath.startsWith("classes/")) {
-                    // Ant prefix
-                    relativePath = relativePath.substring("classes/".length());
+                for (int i = 0; i < PACKAGE_ROOT_PREFIXES_TO_STRIP.length; i++) {
+                    if (relativePath.startsWith(PACKAGE_ROOT_PREFIXES_TO_STRIP[i])) {
+                        relativePath = relativePath.substring(PACKAGE_ROOT_PREFIXES_TO_STRIP[i].length());
+                    }
                 }
             }
 
