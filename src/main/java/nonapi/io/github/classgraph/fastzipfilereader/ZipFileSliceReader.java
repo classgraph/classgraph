@@ -36,6 +36,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import nonapi.io.github.classgraph.utils.FileUtils;
+
 class ZipFileSliceReader implements AutoCloseable {
     private final ZipFileSlice zipFileSlice;
     private final ByteBuffer[] chunkCache;
@@ -69,9 +71,9 @@ class ZipFileSliceReader implements AutoCloseable {
         for (long currOff = off; remainingBytesToRead > 0;) {
             // Find the ByteBuffer chunk to read from
             final long currOffAbsolute = zipFileSlice.startOffsetWithinPhysicalZipFile + currOff;
-            final int chunkIdx = (int) (currOffAbsolute >> 32);
+            final int chunkIdx = (int) (currOffAbsolute / FileUtils.MAX_BUFFER_SIZE);
             final ByteBuffer chunk = getChunk(chunkIdx);
-            final long chunkStartAbsolute = ((long) chunkIdx) << 32;
+            final long chunkStartAbsolute = ((long) chunkIdx) * (long) FileUtils.MAX_BUFFER_SIZE;
             final int startReadPos = (int) (currOffAbsolute - chunkStartAbsolute);
 
             // Read from current chunk.

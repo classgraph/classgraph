@@ -95,13 +95,13 @@ public class PhysicalZipFile implements Closeable {
 
         // Implement an array of MappedByteBuffers to support jarfiles >2GB in size:
         // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
-        numMappedByteBuffers = (int) ((fileLen + 0xffffffffL) >> 32);
+        numMappedByteBuffers = (int) ((fileLen + FileUtils.MAX_BUFFER_SIZE) / FileUtils.MAX_BUFFER_SIZE);
         mappedByteBuffersCached = new MappedByteBuffer[numMappedByteBuffers];
         chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer>() {
             @Override
             public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws IOException {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer
-                final long pos = chunkIdxI.longValue() << 32;
+                final long pos = chunkIdxI.longValue() * FileUtils.MAX_BUFFER_SIZE;
                 final long chunkSize = Math.min(FileUtils.MAX_BUFFER_SIZE, fileLen - pos);
                 MappedByteBuffer buffer = null;
                 try {

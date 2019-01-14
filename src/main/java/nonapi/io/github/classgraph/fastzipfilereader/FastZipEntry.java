@@ -218,7 +218,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
             {
                 // Calculate the chunk index for the first chunk
-                currChunkIdx = (int) (dataStartOffsetWithinPhysicalZipFile >> 32);
+                currChunkIdx = (int) (dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE);
 
                 // Get the MappedByteBuffer for the 2GB chunk, and duplicate it
                 currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).duplicate();
@@ -227,7 +227,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 // N.B. the cast to Buffer is necessary, see:
                 // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
                 // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
-                final int chunkPos = (int) (dataStartOffsetWithinPhysicalZipFile - (((long) currChunkIdx) << 32));
+                final int chunkPos = (int) (dataStartOffsetWithinPhysicalZipFile
+                        - (((long) currChunkIdx) * (long) FileUtils.MAX_BUFFER_SIZE));
                 ((Buffer) currChunkByteBuf).position(chunkPos);
 
                 // Calculate end pos for the first chunk, and truncate it if it overflows 2GB
@@ -245,7 +246,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 }
 
                 // Calculate how many bytes were consumed in previous chunks
-                final long chunkStartOff = ((long) currChunkIdx) << 32;
+                final long chunkStartOff = ((long) currChunkIdx) * (long) FileUtils.MAX_BUFFER_SIZE;
                 final long priorBytes = chunkStartOff - dataStartOffsetWithinPhysicalZipFile;
                 final long remainingBytes = compressedSize - priorBytes;
                 if (remainingBytes <= 0) {
