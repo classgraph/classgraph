@@ -195,6 +195,40 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * @return true if the zip entry can be opened as a ByteBuffer slice -- the entry must be STORED, and span only
+     *         one 2GB buffer chunk.
+     */
+    public boolean canGetAsSlice() throws IOException {
+        final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
+        return !isDeflated //
+                && dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE //
+                == (dataStartOffsetWithinPhysicalZipFile + uncompressedSize) / FileUtils.MAX_BUFFER_SIZE;
+    }
+
+    /**
+     * Open the ZipEntry as a ByteBuffer slice. Only call this method if {@link #canGetAsSlice()} returned true.
+     * 
+     * @return the ZipEntry as a ByteBuffer.
+     */
+    public ByteBuffer getAsSlice() throws IOException {
+        // Check the file is STORED and resides in only one chunk
+        if (!canGetAsSlice()) {
+            throw new IllegalArgumentException("Cannot open zip entry as a slice");
+        }
+        // Fetch the ByteBuffer for the applicable chunk
+        final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
+        final int chunkIdx = (int) (dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE);
+        final long chunkStart = chunkIdx * (long) FileUtils.MAX_BUFFER_SIZE;
+        final ByteBuffer dupdBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(chunkIdx).duplicate();
+        // Create and return a slice on the chunk ByteBuffer that contains only this zip entry
+        dupdBuf.position((int) (dataStartOffsetWithinPhysicalZipFile - chunkStart));
+        dupdBuf.limit((int) (dataStartOffsetWithinPhysicalZipFile + uncompressedSize - chunkStart));
+        return dupdBuf.slice();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated. */
     public InputStream open() throws IOException {
         if (recyclableInflaterInstance != null) {

@@ -253,8 +253,18 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public synchronized ByteBuffer read() throws IOException {
-                open();
-                return inputStreamToByteBuffer();
+                if (zipEntry.canGetAsSlice()) {
+                    // For STORED entries that do not span multiple 2GB chunks, can create a
+                    // ByteBuffer slice directly from the entry
+                    markAsOpen();
+                    length = zipEntry.uncompressedSize;
+                    return zipEntry.getAsSlice();
+                } else {
+                    // Otherwise, decompress or extract the entry into a byte[] array,
+                    // then wrap in a ByteBuffer
+                    open();
+                    return inputStreamToByteBuffer();
+                }
             }
 
             @Override
@@ -272,10 +282,10 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public synchronized void close() {
                 if (inputStream != null) {
+                    // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
+                    final InputStream inputStreamWrapper = inputStream;
+                    inputStream = null;
                     try {
-                        // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
-                        final InputStream inputStreamWrapper = inputStream;
-                        inputStream = null;
                         inputStreamWrapper.close();
                     } catch (final IOException e) {
                         // Ignore
