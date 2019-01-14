@@ -256,7 +256,7 @@ public class FastPathResolver {
             pathStr = prefix + pathStr;
         }
 
-        if (resolveBasePath == null || isAbsolutePath) {
+        if (resolveBasePath == null || resolveBasePath.isEmpty() || isAbsolutePath) {
             // There is no base path to resolve against, or path is an absolute path or http(s):// URL (ignore the
             // base path)
             return pathStr;
