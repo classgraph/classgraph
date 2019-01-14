@@ -230,39 +230,35 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public InputStream open() throws IOException {
+            public synchronized InputStream open() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Jarfile could not be opened");
                 }
-                if (inputStream != null) {
-                    throw new IllegalArgumentException(
-                            "Resource is already open -- cannot open it again without first calling close()");
-                } else {
-                    try {
-                        inputStream = new InputStreamResourceCloser(this, zipEntry.open());
-                        length = zipEntry.uncompressedSize;
-                        return inputStream;
-                    } catch (final Exception e) {
-                        close();
-                        throw new IOException("Could not open " + this, e);
-                    }
+                markAsOpen();
+                try {
+                    inputStream = new InputStreamResourceCloser(this, zipEntry.open());
+                    length = zipEntry.uncompressedSize;
+                    return inputStream;
+                } catch (final Exception e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
                 }
             }
 
             @Override
-            InputStreamOrByteBufferAdapter openOrRead() throws IOException {
+            synchronized InputStreamOrByteBufferAdapter openOrRead() throws IOException {
                 return new InputStreamOrByteBufferAdapter(open());
             }
 
             @Override
-            public ByteBuffer read() throws IOException {
+            public synchronized ByteBuffer read() throws IOException {
                 open();
                 return inputStreamToByteBuffer();
             }
 
             @Override
-            public byte[] load() throws IOException {
+            public synchronized byte[] load() throws IOException {
                 try {
                     open();
                     final byte[] byteArray = inputStreamToByteArray();
@@ -274,7 +270,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public void close() {
+            public synchronized void close() {
                 if (inputStream != null) {
                     try {
                         // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
@@ -288,6 +284,7 @@ class ClasspathElementZip extends ClasspathElement {
                 if (byteBuffer != null) {
                     byteBuffer = null;
                 }
+                markAsClosed();
             }
         };
     }

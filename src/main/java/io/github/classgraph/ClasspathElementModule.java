@@ -153,62 +153,53 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public ByteBuffer read() throws IOException {
+            public synchronized ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Module could not be opened");
                 }
-                if (byteBuffer != null || inputStream != null || moduleReaderProxy != null) {
-                    throw new IllegalArgumentException(
-                            "Resource is already open -- cannot open it again without first calling close()");
-                } else {
-                    try {
-                        moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                        // ModuleReader#read(String name) internally calls:
-                        // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
-                        byteBuffer = moduleReaderProxy.read(moduleResourcePath);
-                        length = byteBuffer.remaining();
-                        return byteBuffer;
+                markAsOpen();
+                try {
+                    moduleReaderProxy = moduleReaderProxyRecycler.acquire();
+                    // ModuleReader#read(String name) internally calls:
+                    // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
+                    byteBuffer = moduleReaderProxy.read(moduleResourcePath);
+                    length = byteBuffer.remaining();
+                    return byteBuffer;
 
-                    } catch (final Exception e) {
-                        close();
-                        throw new IOException("Could not open " + this, e);
-                    }
+                } catch (final Exception e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
                 }
             }
 
             @Override
-            InputStreamOrByteBufferAdapter openOrRead() throws IOException {
+            synchronized InputStreamOrByteBufferAdapter openOrRead() throws IOException {
                 return new InputStreamOrByteBufferAdapter(open());
             }
 
             @Override
-            public InputStream open() throws IOException {
+            public synchronized InputStream open() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Module could not be opened");
                 }
-                if (byteBuffer != null || inputStream != null || moduleReaderProxy != null) {
-                    throw new IllegalArgumentException(
-                            "Resource is already open -- cannot open it again without first calling close()");
-                } else {
-                    try {
-                        moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                        inputStream = new InputStreamResourceCloser(this,
-                                moduleReaderProxy.open(moduleResourcePath));
-                        // Length cannot be obtained from ModuleReader
-                        length = -1L;
-                        return inputStream;
+                markAsOpen();
+                try {
+                    moduleReaderProxy = moduleReaderProxyRecycler.acquire();
+                    inputStream = new InputStreamResourceCloser(this, moduleReaderProxy.open(moduleResourcePath));
+                    // Length cannot be obtained from ModuleReader
+                    length = -1L;
+                    return inputStream;
 
-                    } catch (final Exception e) {
-                        close();
-                        throw new IOException("Could not open " + this, e);
-                    }
+                } catch (final Exception e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
                 }
             }
 
             @Override
-            public byte[] load() throws IOException {
+            public synchronized byte[] load() throws IOException {
                 try {
                     read();
                     final byte[] byteArray = byteBufferToByteArray();
@@ -220,12 +211,12 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public void close() {
+            public synchronized void close() {
                 if (inputStream != null) {
+                    // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
+                    final InputStream inputStreamWrapper = inputStream;
+                    inputStream = null;
                     try {
-                        // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
-                        final InputStream inputStreamWrapper = inputStream;
-                        inputStream = null;
                         inputStreamWrapper.close();
                     } catch (final IOException e) {
                         // Ignore
@@ -250,6 +241,7 @@ class ClasspathElementModule extends ClasspathElement {
                     // ClasspathElementModule#close().
                     moduleReaderProxy = null;
                 }
+                markAsClosed();
             }
         };
     }

@@ -48,6 +48,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     protected InputStream inputStream;
     protected ByteBuffer byteBuffer;
     protected long length = -1L;
+    protected boolean isOpen;
     private String toString;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -166,6 +167,26 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             }
             parentResource = null;
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Mark the resource as open.
+     * 
+     * @throws IOException
+     *             If the resource is already open.
+     */
+    protected void markAsOpen() throws IOException {
+        if (isOpen) {
+            throw new IOException("Resource is already open -- cannot open it again without first calling close()");
+        }
+        isOpen = true;
+    }
+
+    /** Mark the resource as closed. */
+    protected void markAsClosed() {
+        isOpen = false;
     }
 
     // -------------------------------------------------------------------------------------------------------------

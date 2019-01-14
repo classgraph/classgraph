@@ -137,43 +137,39 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
-            public ByteBuffer read() throws IOException {
+            public synchronized ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Parent directory could not be opened");
                 }
-                if (byteBuffer != null) {
-                    throw new IllegalArgumentException(
-                            "Resource is already open -- cannot open it again without first calling close()");
-                } else {
+                markAsOpen();
+                try {
+                    randomAccessFile = new RandomAccessFile(classpathResourceFile, "r");
+                    fileChannel = randomAccessFile.getChannel();
+                    MappedByteBuffer buffer = null;
                     try {
-                        randomAccessFile = new RandomAccessFile(classpathResourceFile, "r");
-                        fileChannel = randomAccessFile.getChannel();
-                        MappedByteBuffer buffer = null;
-                        try {
-                            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                        } catch (final FileNotFoundException e) {
-                            throw e;
-                        } catch (IOException | OutOfMemoryError e) {
-                            // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
-                            // (there is a limit to the number of mapped files -- 64k on Linux)
-                            // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                            System.gc();
-                            // Then try calling map again
-                            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                        }
-                        byteBuffer = buffer;
-                        length = byteBuffer.remaining();
-                        return byteBuffer;
-                    } catch (final Exception e) {
-                        close();
-                        throw new IOException("Could not open " + this, e);
+                        buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+                    } catch (final FileNotFoundException e) {
+                        throw e;
+                    } catch (IOException | OutOfMemoryError e) {
+                        // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
+                        // (there is a limit to the number of mapped files -- 64k on Linux)
+                        // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
+                        System.gc();
+                        // Then try calling map again
+                        buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
                     }
+                    byteBuffer = buffer;
+                    length = byteBuffer.remaining();
+                    return byteBuffer;
+                } catch (final Exception e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
                 }
             }
 
             @Override
-            InputStreamOrByteBufferAdapter openOrRead() throws IOException {
+            synchronized InputStreamOrByteBufferAdapter openOrRead() throws IOException {
                 if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                     return new InputStreamOrByteBufferAdapter(read());
                 } else {
@@ -183,18 +179,19 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
-            public InputStream open() throws IOException {
+            public synchronized InputStream open() throws IOException {
                 if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                     read();
                     return inputStream = new InputStreamResourceCloser(this, byteBufferToInputStream());
                 } else {
+                    markAsOpen();
                     return inputStream = new InputStreamResourceCloser(this,
                             Files.newInputStream(classpathResourceFile.toPath()));
                 }
             }
 
             @Override
-            public byte[] load() throws IOException {
+            public synchronized byte[] load() throws IOException {
                 try {
                     final byte[] byteArray;
                     if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
@@ -212,7 +209,7 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
-            public void close() {
+            public synchronized void close() {
                 if (inputStream != null) {
                     try {
                         // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
@@ -241,6 +238,7 @@ class ClasspathElementDir extends ClasspathElement {
                 }
                 FileUtils.closeDirectByteBuffer(byteBuffer, /* log = */ null);
                 byteBuffer = null;
+                markAsClosed();
             }
         };
     }
