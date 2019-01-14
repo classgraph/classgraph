@@ -566,7 +566,7 @@ public class NestedJarHandler {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            // Temp files have to be deleted last, after all possible refs to MappedByteBuffers are dropped
+            // Temp files have to be deleted last, after all PhysicalZipFiles are closed
             if (tempFiles != null) {
                 final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
                         : log.log("Removing temporary files");
