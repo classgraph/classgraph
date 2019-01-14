@@ -257,7 +257,9 @@ class ClasspathElementZip extends ClasspathElement {
                     // For STORED entries that do not span multiple 2GB chunks, can create a
                     // ByteBuffer slice directly from the entry
                     markAsOpen();
-                    length = zipEntry.compressedSize; // Same as uncompressedSize, but more reliable
+                    // compressedSize should have the same value as uncompressedSize for STORED
+                    // entries, but compressedSize is more reliable (uncompressedSize may be -1)
+                    length = zipEntry.compressedSize;
                     return zipEntry.getAsSlice();
                 } else {
                     // Otherwise, decompress or extract the entry into a byte[] array,
