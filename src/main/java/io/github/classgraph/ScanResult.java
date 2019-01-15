@@ -316,6 +316,28 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * @param resourcePath
+     *            A complete resource path, relative to the classpath entry package root.
+     * @return A list of all resources found in any classpath element, <i>whether in whitelisted packages or not<i>,
+     *         that have the given path, relative to the package root of the classpath element. May match several
+     *         resources, up to one per classpath element.
+     */
+    public ResourceList getResourcesWithPathIgnoringWhiteBlackList(final String resourcePath) {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
+        final ResourceList matchingResources = new ResourceList();
+        for (final ClasspathElement classpathElt : classpathOrder) {
+            final Resource matchingResource = classpathElt.getResource(path);
+            if (matchingResource != null) {
+                matchingResources.add(matchingResource);
+            }
+        }
+        return matchingResources;
+    }
+
+    /**
      * @param leafName
      *            A resource leaf filename.
      * @return A list of all resources found in whitelisted packages that have the requested leafname.
