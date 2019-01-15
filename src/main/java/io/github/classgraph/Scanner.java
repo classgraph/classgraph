@@ -185,25 +185,36 @@ class Scanner implements Callable<ScanResult> {
                 // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
                 // for each class, but there shouldn't be too many cases of extending scanning upwards)
                 final String classfilePath = JarUtils.classNameToClassfilePath(className);
-                boolean foundClassfile = false;
-                for (final ClasspathElement classpathElt : classpathOrder) {
-                    final Resource classResource = classpathElt.getResource(classfilePath);
-                    if (classResource != null) {
-                        // Found class resource 
-                        if (subLog != null) {
-                            subLog.log("Scheduling external class for scanning: " + relationship + " " + className
-                                    + " -- found in classpath element " + classpathElt);
+                // First check current classpath element, to avoid iterating through other classpath elements
+                Resource classResource = currClasspathElement.getResource(classfilePath);
+                ClasspathElement foundInClasspathElt = null;
+                if (classResource != null) {
+                    // Found the classfile in the current classpath element
+                    foundInClasspathElt = currClasspathElement;
+                } else {
+                    // Didn't find the classfile in the current classpath element -- iterate through other elements
+                    for (final ClasspathElement classpathElt : classpathOrder) {
+                        if (classpathElt != currClasspathElement) {
+                            classResource = classpathElt.getResource(classfilePath);
+                            if (classResource != null) {
+                                foundInClasspathElt = classpathElt;
+                                break;
+                            }
                         }
-                        if (additionalWorkUnits == null) {
-                            additionalWorkUnits = new ArrayList<>();
-                        }
-                        additionalWorkUnits.add(new ClassfileScanWorkUnit(classpathElt, classResource,
-                                /* isExternalClass = */ true));
-                        foundClassfile = true;
-                        break;
                     }
                 }
-                if (!foundClassfile) {
+                if (classResource != null) {
+                    // Found class resource 
+                    if (subLog != null) {
+                        subLog.log("Scheduling external class for scanning: " + relationship + " " + className
+                                + " -- found in classpath element " + foundInClasspathElt);
+                    }
+                    if (additionalWorkUnits == null) {
+                        additionalWorkUnits = new ArrayList<>();
+                    }
+                    additionalWorkUnits.add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource,
+                            /* isExternalClass = */ true));
+                } else {
                     if (subLog != null && !className.equals("java.lang.Object")) {
                         subLog.log("External " + relationship + " " + className + " was not found in "
                                 + "non-blacklisted packages -- cannot extend scanning to this class");
