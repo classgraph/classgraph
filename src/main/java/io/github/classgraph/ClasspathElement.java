@@ -236,7 +236,9 @@ abstract class ClasspathElement {
 
     /**
      * @param relativePath
-     *            The relative path of the {@link Resource} to return.
+     *            The relative path of the {@link Resource} to return. Path should have already be sanitized by
+     *            calling {@link FileUtils#sanitizeEntryPath(String, boolean)}, or by providing a path that is
+     *            already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or "/./", etc.).
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
      *         classpath element.
      */

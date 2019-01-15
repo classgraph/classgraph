@@ -251,12 +251,9 @@ class ClasspathElementDir extends ClasspathElement {
      */
     @Override
     Resource getResource(final String relativePath) {
-        final String path = FileUtils.sanitizeEntryPath(relativePath, /* removeInitialSlash = */ true);
-        if (path.isEmpty() || relativePath.endsWith("/")) {
-            return null;
-        }
         final File resourceFile = new File(classpathEltDir, relativePath);
-        return resourceFile.canRead() && resourceFile.isFile() ? newResource(classpathEltDir, path, resourceFile)
+        return resourceFile.canRead() && resourceFile.isFile()
+                ? newResource(classpathEltDir, relativePath, resourceFile)
                 : null;
     }
 

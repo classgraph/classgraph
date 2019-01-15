@@ -63,7 +63,7 @@ class ClasspathElementZip extends ClasspathElement {
     private String packageRootPrefix = "";
     /** The normalized path of the jarfile, "!/"-separated if nested, excluding any package root. */
     private String zipFilePath;
-    /** A map from relative path to {@link Resource} for all non-blacklisted zip entries. */
+    /** A map from relative path to {@link Resource} for non-blacklisted zip entries. */
     private final Map<String, Resource> relativePathToResource = new HashMap<>();
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
@@ -193,8 +193,7 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
-    private Resource newResource(final FastZipEntry zipEntry, final String packageRootPrefix,
-            final String pathRelativeToPackageRoot) {
+    private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
         return new Resource() {
             {
                 // ZipEntry size may be unknown (-1L), or even completely wrong
@@ -319,42 +318,7 @@ class ClasspathElementZip extends ClasspathElement {
      */
     @Override
     Resource getResource(final String relativePath) {
-        final String path = FileUtils.sanitizeEntryPath(relativePath, /* removeInitialSlash = */ true);
-        if (path.isEmpty() || relativePath.endsWith("/")) {
-            return null;
-        }
-        final int[] versionsFound = logicalZipFile.getMultiReleaseVersionsFound();
-        // Always look at version 8 (unversioned section of jar -- pre-JDK9)
-        final int maxIdx = versionsFound.length == 0 || versionsFound[versionsFound.length - 1] != 8
-                ? versionsFound.length + 1
-                : versionsFound.length;
-        // Look through versioned sections in reverse order, then base section of jar
-        for (int versionIdx = 0; versionIdx < maxIdx; versionIdx++) {
-            final int version = versionIdx == versionsFound.length ? 8 : versionsFound[versionIdx];
-            // Get multi-release path prefix, if version >= 9
-            final String versionPrefix = version == 8 ? ""
-                    : LogicalZipFile.MULTI_RELEASE_PATH_PREFIX + version + "/" + "";
-            // Add package root prefix, if provided, otherwise try default prefixes
-            // N.B. these semantics should mirror those in scanPaths()
-            if (!packageRootPrefix.isEmpty()) {
-                // Try "META-INF/versions/9/package_root/path"
-                final Resource resource = relativePathToResource.get(versionPrefix + packageRootPrefix + path);
-                if (resource != null) {
-                    return resource;
-                }
-            } else {
-                // Try "META-INF/versions/9/BOOT-INF/classes/path", etc.
-                for (int i = 0; i < AUTOMATIC_PACKAGE_ROOT_PREFIXES.length; i++) {
-                    final Resource resource = relativePathToResource
-                            .get(versionPrefix + AUTOMATIC_PACKAGE_ROOT_PREFIXES[i] + path);
-                    if (resource != null) {
-                        return resource;
-                    }
-                }
-            }
-        }
-        // Resource not found
-        return null;
+        return relativePathToResource.get(relativePath);
     }
 
     /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
@@ -471,8 +435,10 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Add the ZipEntry path as a Resource
-            final Resource resource = newResource(zipEntry, packageRootPrefix, relativePath);
-            relativePathToResource.put(relativePath, resource);
+            final Resource resource = newResource(zipEntry, relativePath);
+            if (!relativePathToResource.containsKey(relativePath)) {
+                relativePathToResource.put(relativePath, resource);
+            }
             if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
                     || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
                     || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE

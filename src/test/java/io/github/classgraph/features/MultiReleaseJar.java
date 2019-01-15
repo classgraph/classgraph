@@ -18,16 +18,16 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 public class MultiReleaseJar {
+    private static final URL jarURL = MultiReleaseJar.class.getClassLoader().getResource("multi-release-jar.jar");
+
     @Test
     public void multiReleaseJar() {
-        final URL jarURL = MultiReleaseJar.class.getClassLoader().getResource("multi-release-jar.jar");
-
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                .enableAllInfo().scan()) {
-            if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
-                // Multi-release jar sections are ignored by ClassGraph if JDK<9 
-                System.out.println("Skipping test, as JDK version is less than 9");
-            } else {
+        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+            // Multi-release jar sections are ignored by ClassGraph if JDK<9 
+            System.out.println("Skipping test, as JDK version is less than 9");
+        } else {
+            try (ScanResult scanResult = new ClassGraph()
+                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).enableAllInfo().scan()) {
                 try {
                     final ClassInfo classInfo = scanResult.getClassInfo("mrj.Cls");
                     assertThat(classInfo).isNotNull();
@@ -52,6 +52,25 @@ public class MultiReleaseJar {
                             assertThat(new String(byteArray).trim()).isEqualTo("9");
                         }
                     });
+                } catch (final Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void multiReleaseVersioningOfResources() {
+        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+            // Multi-release jar sections are ignored by ClassGraph if JDK<9 
+            System.out.println("Skipping test, as JDK version is less than 9");
+        } else {
+            try (ScanResult scanResult = new ClassGraph()
+                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
+                    .whitelistPaths("nonexistent_path").scan()) {
+                try {
+                    assertThat(scanResult.getResourcesWithPath("mrj/Cls.class")).isEmpty();
+                    assertThat(scanResult.getResourcesWithPathIgnoringWhitelist("mrj/Cls.class")).isNotEmpty();
                 } catch (final Exception e) {
                     throw new RuntimeException(e);
                 }

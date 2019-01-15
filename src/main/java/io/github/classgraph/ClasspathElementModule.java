@@ -47,7 +47,6 @@ import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
-import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
@@ -254,11 +253,7 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     Resource getResource(final String relativePath) {
-        final String path = FileUtils.sanitizeEntryPath(relativePath, /* removeInitialSlash = */ true);
-        if (path.isEmpty() || relativePath.endsWith("/")) {
-            return null;
-        }
-        return allResourcePaths.contains(path) ? newResource(path) : null;
+        return allResourcePaths.contains(relativePath) ? newResource(relativePath) : null;
     }
 
     /** Scan for package matches within module */
