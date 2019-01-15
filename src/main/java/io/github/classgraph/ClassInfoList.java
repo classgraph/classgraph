@@ -498,36 +498,40 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only classes that are assignable from the requested class.
+     * Filter this {@link ClassInfoList} to include only classes that are assignable to the requested class,
+     * assignableToClass (i.e. where assignableToClass is a superclass or implemented interface of the list
+     * element).
      * 
-     * @param assignableFromClass
+     * @param assignableToClass
      *            the superclass or interface to filter for.
-     * @return The filtered list, containing only classes for which {@link Class#isAssignableFrom(Class)} is true
-     *         for the named class. Returns the empty list, if the named class could not be found, or no classes
-     *         were assignable to that class.
+     * @return The filtered list, containing only classes for which
+     *         {@code assignableToClassRef.isAssignableFrom(listItemClassRef)} is true for the corresponding
+     *         {@code Class<?>} references for assignableToClass and the list items. Returns the empty list if no
+     *         classes were assignable to the requested class.
      * @throws IllegalArgumentException
      *             if classInfo is null.
      */
-    public ClassInfoList getAssignableFrom(final ClassInfo assignableFromClass) {
-        if (assignableFromClass == null) {
-            throw new IllegalArgumentException("assignableFromClass parameter cannot be null");
+    public ClassInfoList getAssignableTo(final ClassInfo assignableToClass) {
+        if (assignableToClass == null) {
+            throw new IllegalArgumentException("assignableToClass parameter cannot be null");
         }
         // Get subclasses and implementing classes for assignableFromClass
-        final Set<ClassInfo> allAssignableClasses = new HashSet<>(assignableFromClass.getSubclasses());
-        allAssignableClasses.addAll(assignableFromClass.getClassesImplementing());
-        allAssignableClasses.add(assignableFromClass);
-        final Set<ClassInfo> assignableClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedAssignableClassesFiltered = new LinkedHashSet<>(
+        final Set<ClassInfo> allAssignableFromClasses = new HashSet<>(assignableToClass.getSubclasses());
+        allAssignableFromClasses.addAll(assignableToClass.getClassesImplementing());
+        allAssignableFromClasses.add(assignableToClass);
+        final Set<ClassInfo> assignableFromClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedAssignableFromClassesFiltered = new LinkedHashSet<>(
                 directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
-            if (allAssignableClasses.contains(ci)) {
-                assignableClassesFiltered.add(ci);
+            if (allAssignableFromClasses.contains(ci)) {
+                assignableFromClassesFiltered.add(ci);
                 if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedAssignableClassesFiltered.add(ci);
+                    directlyRelatedAssignableFromClassesFiltered.add(ci);
                 }
             }
         }
-        return new ClassInfoList(assignableClassesFiltered, directlyRelatedAssignableClassesFiltered, sortByName);
+        return new ClassInfoList(assignableFromClassesFiltered, directlyRelatedAssignableFromClassesFiltered,
+                sortByName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
