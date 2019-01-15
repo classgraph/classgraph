@@ -349,7 +349,7 @@ public abstract class WhiteBlackList {
      * @return The path.
      */
     public static String packageNameToPath(final String packageName) {
-        return normalizePackageOrClassName(packageName).replace('.', '/') + "/";
+        return normalizePackageOrClassName(packageName).replace('.', '/');
     }
 
     /**

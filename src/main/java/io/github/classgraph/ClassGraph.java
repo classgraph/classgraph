@@ -557,13 +557,14 @@ public class ClassGraph {
             }
             // Whitelist package
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
-            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
             // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!packageName.contains("*")) {
                 // Whitelist sub-packages
                 scanSpec.packagePrefixWhiteBlackList
                         .addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName) + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+                scanSpec.pathPrefixWhiteBlackList
+                        .addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
             }
         }
         return this;
@@ -581,12 +582,12 @@ public class ClassGraph {
         for (final String path : paths) {
             // Whitelist path
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path));
-            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path) + "/");
             // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!path.contains("*")) {
                 // Whitelist sub-directories / nested paths
                 scanSpec.packagePrefixWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path) + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path));
+                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path) + "/");
             }
         }
         return this;
@@ -618,7 +619,7 @@ public class ClassGraph {
             }
             // Whitelist package, but not sub-packages
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
-            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
         }
         return this;
     }
@@ -643,7 +644,7 @@ public class ClassGraph {
             }
             // Whitelist path, but not sub-directories / nested paths
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path));
-            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path) + "/");
         }
         return this;
     }
@@ -665,12 +666,13 @@ public class ClassGraph {
         for (final String packageName : packageNames) {
             // Blacklisting always prevents further recursion, no need to blacklist sub-packages
             scanSpec.packageWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePackageOrClassName(packageName));
-            scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.packageNameToPath(packageName));
+            scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.packageNameToPath(packageName) + "/");
             if (!packageName.contains("*")) {
                 // Blacklist sub-packages (zipfile entries can occur in any order)
                 scanSpec.packagePrefixWhiteBlackList
                         .addToBlacklist(WhiteBlackList.normalizePackageOrClassName(packageName) + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(WhiteBlackList.packageNameToPath(packageName));
+                scanSpec.pathPrefixWhiteBlackList
+                        .addToBlacklist(WhiteBlackList.packageNameToPath(packageName) + "/");
             }
         }
         return this;
@@ -687,11 +689,11 @@ public class ClassGraph {
         for (final String path : paths) {
             // Blacklisting always prevents further recursion, no need to blacklist sub-directories / nested paths
             scanSpec.packageWhiteBlackList.addToBlacklist(WhiteBlackList.pathToPackageName(path));
-            scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path));
+            scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path) + "/");
             if (!path.contains("*")) {
                 // Blacklist sub-directories / nested paths
                 scanSpec.packagePrefixWhiteBlackList.addToBlacklist(WhiteBlackList.pathToPackageName(path) + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path));
+                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path) + "/");
             }
         }
         return this;
@@ -725,7 +727,8 @@ public class ClassGraph {
             // is not itself whitelisted
             scanSpec.classPackageWhiteBlackList
                     .addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
-            scanSpec.classPackagePathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+            scanSpec.classPackagePathWhiteBlackList
+                    .addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
         }
         return this;
     }
