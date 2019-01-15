@@ -222,8 +222,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         final long chunkStart = chunkIdx * (long) FileUtils.MAX_BUFFER_SIZE;
         final ByteBuffer dupdBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(chunkIdx).duplicate();
         // Create and return a slice on the chunk ByteBuffer that contains only this zip entry
-        dupdBuf.position((int) (dataStartOffsetWithinPhysicalZipFile - chunkStart));
-        dupdBuf.limit((int) (dataStartOffsetWithinPhysicalZipFile + uncompressedSize - chunkStart));
+        // N.B. the cast to Buffer is necessary, see:
+        // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
+        // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
+        ((Buffer) dupdBuf).position((int) (dataStartOffsetWithinPhysicalZipFile - chunkStart));
+        ((Buffer) dupdBuf).limit((int) (dataStartOffsetWithinPhysicalZipFile + uncompressedSize - chunkStart));
         return dupdBuf.slice();
     }
 
