@@ -16,18 +16,20 @@ import nonapi.io.github.classgraph.utils.LogNode;
 public class LogNodeTest {
 
   @Test
-  public void testLogNodeLogging() {
+  public void testLogNodeLoggingToSystemErr() {
 
-    // set the System.err
-    final ByteArrayOutputStream err = new ByteArrayOutputStream();
-    System.setErr(new PrintStream(err));
-
-    Logger rootLogger = Logger.getLogger(""); 
-    ConsoleHandler errPrintStreamHandler = new ConsoleHandler();
-    errPrintStreamHandler.setLevel(Level.INFO);
-    rootLogger.addHandler(errPrintStreamHandler);
-
+    ConsoleHandler errPrintStreamHandler = null;
+    Logger rootLogger = Logger.getLogger("");
     try {
+
+      // set the System.err
+      final ByteArrayOutputStream err = new ByteArrayOutputStream();
+      System.setErr(new PrintStream(err));
+
+      errPrintStreamHandler = new ConsoleHandler();
+      errPrintStreamHandler.setLevel(Level.INFO);
+      rootLogger.addHandler(errPrintStreamHandler);
+
       final LogNode node = new LogNode();
       node.log("any logging message").log("child message").log("sub child message");
       node.log("another root");
@@ -45,6 +47,8 @@ public class LogNodeTest {
 
     } finally {
       rootLogger.removeHandler(errPrintStreamHandler);
+      // reset to System.err
+      System.setErr(System.err);
     }
   }
 
