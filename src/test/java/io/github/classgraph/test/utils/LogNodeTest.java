@@ -14,42 +14,39 @@ import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 public class LogNodeTest {
+    @Test
+    public void testLogNodeLoggingToSystemErr() {
+        ConsoleHandler errPrintStreamHandler = null;
+        final Logger rootLogger = Logger.getLogger("");
+        try {
 
-  @Test
-  public void testLogNodeLoggingToSystemErr() {
+            // Set the System.err
+            final ByteArrayOutputStream err = new ByteArrayOutputStream();
+            System.setErr(new PrintStream(err));
 
-    ConsoleHandler errPrintStreamHandler = null;
-    Logger rootLogger = Logger.getLogger("");
-    try {
+            errPrintStreamHandler = new ConsoleHandler();
+            errPrintStreamHandler.setLevel(Level.INFO);
+            rootLogger.addHandler(errPrintStreamHandler);
 
-      // set the System.err
-      final ByteArrayOutputStream err = new ByteArrayOutputStream();
-      System.setErr(new PrintStream(err));
+            final LogNode node = new LogNode();
+            node.log("any logging message").log("child message").log("sub child message");
+            node.log("another root");
+            node.flush();
 
-      errPrintStreamHandler = new ConsoleHandler();
-      errPrintStreamHandler.setLevel(Level.INFO);
-      rootLogger.addHandler(errPrintStreamHandler);
+            final Logger log = Logger.getLogger(ClassGraph.class.getName());
+            if (log.isLoggable(Level.INFO)) {
+                final String systemErrMessages = new String(err.toByteArray());
+                assertTrue(systemErrMessages.contains("any logging message"));
+                assertTrue(systemErrMessages.contains("-- child message"));
+                assertTrue(systemErrMessages.contains("---- sub child message"));
+                assertTrue(systemErrMessages.contains("another root"));
+                // System.out.println(systemErrMessages);
+            } // else logging will not take place
 
-      final LogNode node = new LogNode();
-      node.log("any logging message").log("child message").log("sub child message");
-      node.log("another root");
-      node.flush();
-
-      final Logger log = Logger.getLogger(ClassGraph.class.getName());
-      if (log.isLoggable(Level.INFO)) {
-        final String systemErrMessages = new String(err.toByteArray());
-        assertTrue(systemErrMessages.contains("any logging message"));
-        assertTrue(systemErrMessages.contains("-- child message"));
-        assertTrue(systemErrMessages.contains("---- sub child message"));
-        assertTrue(systemErrMessages.contains("another root"));
-        // System.out.println(systemErrMessages);
-      } // else logging will not take place
-
-    } finally {
-      rootLogger.removeHandler(errPrintStreamHandler);
-      // reset to System.err
-      System.setErr(System.err);
+        } finally {
+            rootLogger.removeHandler(errPrintStreamHandler);
+            // Set to System.err
+            System.setErr(System.err);
+        }
     }
-  }
-
 }
