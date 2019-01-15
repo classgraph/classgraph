@@ -32,7 +32,9 @@ import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -50,6 +52,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     private ZipFileSliceReader zipFileSliceReader;
     private List<FastZipEntry> entries;
+    int[] multiReleaseVersionsFound;
 
     /** If true, this is a JRE jar. */
     public boolean isJREJar;
@@ -74,7 +77,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     static final String MANIFEST_PATH = META_INF_PATH_PREFIX + "MANIFEST.MF";
 
-    static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
+    /** "META-INF/versions/" */
+    public static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -90,6 +94,13 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** Get the zipfile entries. */
     public List<FastZipEntry> getEntries() {
         return entries;
+    }
+
+    /**
+     * Return the multi-release versions for which this jar contained at least one resource, in decreasing order.
+     */
+    public int[] getMultiReleaseVersionsFound() {
+        return multiReleaseVersionsFound;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -593,6 +604,24 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
             // Override entries with version-masked entries
             entries = unversionedZipEntriesMasked;
+        }
+
+        // Find all the unique multirelease versions within the jar
+        final Set<Integer> versionsFound = new HashSet<>();
+        for (final FastZipEntry entry : entries) {
+            final int version = !isMultiReleaseJar ? 8 : entry.version;
+            versionsFound.add(version);
+        }
+        final List<Integer> sortedVersionsFound = new ArrayList<>(versionsFound);
+        Collections.sort(sortedVersionsFound, new Comparator<Integer>() {
+            @Override
+            public int compare(final Integer o1, final Integer o2) {
+                return o2 - o1;
+            }
+        });
+        multiReleaseVersionsFound = new int[sortedVersionsFound.size()];
+        for (int i = 0; i < sortedVersionsFound.size(); i++) {
+            multiReleaseVersionsFound[i] = sortedVersionsFound.get(i);
         }
     }
 

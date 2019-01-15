@@ -68,14 +68,15 @@ class ClasspathElementZip extends ClasspathElement {
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
 
-    /** Prefixes to automaticall strip from relative path in order to find package root. */
-    private static final String[] PACKAGE_ROOT_PREFIXES_TO_STRIP = {
+    /** Prefixes to automatically strip from relative path in order to find the package root. */
+    private static final String[] AUTOMATIC_PACKAGE_ROOT_PREFIXES = {
             // Spring Boot
             "BOOT-INF/classes/",
             // Tomcat
             "WEB-INF/classes/",
             // Ant
-            "classes/", };
+            "classes/" //
+    };
 
     ClasspathElementZip(final String rawPath, final ClassLoader[] classLoaders,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
@@ -322,7 +323,38 @@ class ClasspathElementZip extends ClasspathElement {
         if (path.isEmpty() || relativePath.endsWith("/")) {
             return null;
         }
-        return relativePathToResource.get(path);
+        final int[] versionsFound = logicalZipFile.getMultiReleaseVersionsFound();
+        // Always look at version 8 (unversioned section of jar -- pre-JDK9)
+        final int maxIdx = versionsFound.length == 0 || versionsFound[versionsFound.length - 1] != 8
+                ? versionsFound.length + 1
+                : versionsFound.length;
+        // Look through versioned sections in reverse order, then base section of jar
+        for (int versionIdx = 0; versionIdx < maxIdx; versionIdx++) {
+            final int version = versionIdx == versionsFound.length ? 8 : versionsFound[versionIdx];
+            // Get multi-release path prefix, if version >= 9
+            final String versionPrefix = version == 8 ? ""
+                    : LogicalZipFile.MULTI_RELEASE_PATH_PREFIX + version + "/" + "";
+            // Add package root prefix, if provided, otherwise try default prefixes
+            // N.B. these semantics should mirror those in scanPaths()
+            if (!packageRootPrefix.isEmpty()) {
+                // Try "META-INF/versions/9/package_root/path"
+                final Resource resource = relativePathToResource.get(versionPrefix + packageRootPrefix + path);
+                if (resource != null) {
+                    return resource;
+                }
+            } else {
+                // Try "META-INF/versions/9/BOOT-INF/classes/path", etc.
+                for (int i = 0; i < AUTOMATIC_PACKAGE_ROOT_PREFIXES.length; i++) {
+                    final Resource resource = relativePathToResource
+                            .get(versionPrefix + AUTOMATIC_PACKAGE_ROOT_PREFIXES[i] + path);
+                    if (resource != null) {
+                        return resource;
+                    }
+                }
+            }
+        }
+        // Resource not found
+        return null;
     }
 
     /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
@@ -374,18 +406,19 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Ignore entries without the correct classpath root prefix
-            if (!(packageRootPrefix.length() == 0 || relativePath.startsWith(packageRootPrefix))) {
+            if (!packageRootPrefix.isEmpty() && !relativePath.startsWith(packageRootPrefix)) {
                 continue;
             }
 
             // Strip the package root prefix from the relative path
-            if (packageRootPrefix.length() > 0) {
+            // N.B. these semantics should mirror those in getResource()
+            if (!packageRootPrefix.isEmpty()) {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
-                // Strip common package root prefixes from relative path
-                for (int i = 0; i < PACKAGE_ROOT_PREFIXES_TO_STRIP.length; i++) {
-                    if (relativePath.startsWith(PACKAGE_ROOT_PREFIXES_TO_STRIP[i])) {
-                        relativePath = relativePath.substring(PACKAGE_ROOT_PREFIXES_TO_STRIP[i].length());
+                // Strip any package root prefix from the relative path
+                for (int i = 0; i < AUTOMATIC_PACKAGE_ROOT_PREFIXES.length; i++) {
+                    if (relativePath.startsWith(AUTOMATIC_PACKAGE_ROOT_PREFIXES[i])) {
+                        relativePath = relativePath.substring(AUTOMATIC_PACKAGE_ROOT_PREFIXES[i].length());
                     }
                 }
             }
