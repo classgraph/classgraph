@@ -35,6 +35,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -494,6 +495,39 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
+    }
+
+    /**
+     * Filter this {@link ClassInfoList} to include only classes that are assignable from the requested class.
+     * 
+     * @param assignableFromClass
+     *            the superclass or interface to filter for.
+     * @return The filtered list, containing only classes for which {@link Class#isAssignableFrom(Class)} is true
+     *         for the named class. Returns the empty list, if the named class could not be found, or no classes
+     *         were assignable to that class.
+     * @throws IllegalArgumentException
+     *             if classInfo is null.
+     */
+    public ClassInfoList getAssignableFrom(final ClassInfo assignableFromClass) {
+        if (assignableFromClass == null) {
+            throw new IllegalArgumentException("assignableFromClass parameter cannot be null");
+        }
+        // Get subclasses and implementing classes for assignableFromClass
+        final Set<ClassInfo> allAssignableClasses = new HashSet<>(assignableFromClass.getSubclasses());
+        allAssignableClasses.addAll(assignableFromClass.getClassesImplementing());
+        allAssignableClasses.add(assignableFromClass);
+        final Set<ClassInfo> assignableClassesFiltered = new LinkedHashSet<>(size());
+        final Set<ClassInfo> directlyRelatedAssignableClassesFiltered = new LinkedHashSet<>(
+                directlyRelatedClasses.size());
+        for (final ClassInfo ci : this) {
+            if (allAssignableClasses.contains(ci)) {
+                assignableClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedAssignableClassesFiltered.add(ci);
+                }
+            }
+        }
+        return new ClassInfoList(assignableClassesFiltered, directlyRelatedAssignableClassesFiltered, sortByName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
