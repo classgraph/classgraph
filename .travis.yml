@@ -5,7 +5,6 @@ jdk:
   - openjdk11     # LTS
 #  - oraclejdk11
   - openjdk-ea    # Early access
-#  - oraclejdk-ea
 
 sudo: true  # https://github.com/travis-ci/travis-ci/issues/6593
 
