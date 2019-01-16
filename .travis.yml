@@ -1,9 +1,9 @@
 language: java
 jdk:
   - openjdk8
-  - oraclejdk8
+#  - oraclejdk8
   - openjdk11     # LTS
-  - oraclejdk11
+#  - oraclejdk11
   - openjdk-ea    # Early access
 #  - oraclejdk-ea
 
