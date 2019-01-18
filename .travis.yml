@@ -1,9 +1,7 @@
 language: java
 jdk:
   - openjdk8
-#  - oraclejdk8
   - openjdk11     # LTS
-#  - oraclejdk11
   - openjdk-ea    # Early access
 
 sudo: true  # https://github.com/travis-ci/travis-ci/issues/6593
