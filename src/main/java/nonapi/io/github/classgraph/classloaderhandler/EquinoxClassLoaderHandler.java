@@ -103,7 +103,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         // type ClasspathManager
         final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager", false);
         addClasspathEntries(manager, classLoader, classpathOrderOut, log);
-        
+
         // type FragmentClasspath[]
         final Object fragments = ReflectionUtils.getFieldVal(manager, "fragments", false);
         if (fragments != null) {
@@ -156,7 +156,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             readSystemBundles = true;
         }
     }
-    
+
     private void addClasspathEntries(final Object owner, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         // type ClasspathEntry[]
@@ -170,5 +170,5 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
             }
         }
-    }    
+    }
 }
