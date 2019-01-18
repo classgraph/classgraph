@@ -102,15 +102,15 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         // type ClasspathManager
         final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager", false);
-        // type ClasspathEntry[]
-        final Object entries = ReflectionUtils.getFieldVal(manager, "entries", false);
-        if (entries != null) {
-            for (int i = 0, n = Array.getLength(entries); i < n; i++) {
-                // type ClasspathEntry
-                final Object entry = Array.get(entries, i);
-                // type BundleFile
-                final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile", false);
-                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
+        addClasspathEntries(manager, classLoader, classpathOrderOut, log);
+        
+        // type FragmentClasspath[]
+        final Object fragments = ReflectionUtils.getFieldVal(manager, "fragments", false);
+        if (fragments != null) {
+            for (int f = 0, fragLength = Array.getLength(fragments); f < fragLength; f++) {
+                // type FragmentClasspath
+                final Object fragment = Array.get(fragments, f);
+                addClasspathEntries(fragment, classLoader, classpathOrderOut, log);
             }
         }
         // Only read system bundles once (all bundles should give the same results for this). We assume there is
@@ -156,4 +156,19 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             readSystemBundles = true;
         }
     }
+    
+    private void addClasspathEntries(final Object owner, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
+        // type ClasspathEntry[]
+        final Object entries = ReflectionUtils.getFieldVal(owner, "entries", false);
+        if (entries != null) {
+            for (int i = 0, n = Array.getLength(entries); i < n; i++) {
+                // type ClasspathEntry
+                final Object entry = Array.get(entries, i);
+                // type BundleFile
+                final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile", false);
+                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
+            }
+        }
+    }    
 }
