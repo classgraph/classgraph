@@ -97,6 +97,21 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    private void addClasspathEntries(final Object owner, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
+        // type ClasspathEntry[]
+        final Object entries = ReflectionUtils.getFieldVal(owner, "entries", false);
+        if (entries != null) {
+            for (int i = 0, n = Array.getLength(entries); i < n; i++) {
+                // type ClasspathEntry
+                final Object entry = Array.get(entries, i);
+                // type BundleFile
+                final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile", false);
+                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
+            }
+        }
+    }
+
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
@@ -154,21 +169,6 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 }
             }
             readSystemBundles = true;
-        }
-    }
-
-    private void addClasspathEntries(final Object owner, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
-        // type ClasspathEntry[]
-        final Object entries = ReflectionUtils.getFieldVal(owner, "entries", false);
-        if (entries != null) {
-            for (int i = 0, n = Array.getLength(entries); i < n; i++) {
-                // type ClasspathEntry
-                final Object entry = Array.get(entries, i);
-                // type BundleFile
-                final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile", false);
-                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
-            }
         }
     }
 }
