@@ -139,7 +139,7 @@
 				<version>3.8.0</version>
 				<configuration>
 					<source>1.8</source>
-					<target>1.8</target>
+					<target>1.7</target>
 					<encoding>UTF-8</encoding>
 				</configuration>
 			</plugin>
@@ -253,7 +253,7 @@
 					<version>3.8.0</version>
 					<configuration>
 						<source>1.8</source>
-						<target>1.8</target>
+						<target>1.7</target>
 						<encoding>UTF-8</encoding>
 					</configuration>
 				</plugin>
@@ -422,7 +422,7 @@
 							<artifactId>maven-compiler-plugin</artifactId>
 							<configuration>
 								<source>1.8</source>
-								<target>1.8</target>
+								<target>1.7</target>
 								<encoding>UTF-8</encoding>
 							</configuration>
 							<executions>
@@ -438,7 +438,7 @@
 										<fork>true</fork>
 										<executable>${testCompileJdkPath}/bin/javac</executable>
 										<source>1.8</source>
-										<target>1.8</target>
+										<target>1.7</target>
 										<encoding>UTF-8</encoding>
 									</configuration>
 								</execution>
