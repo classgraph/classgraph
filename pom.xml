@@ -1,4 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.github.classgraph</groupId>
@@ -70,7 +72,8 @@
 						</goals>
 						<configuration>
 							<rules>
-								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+								<checkSignatureRule
+									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
 										<artifactId>java17</artifactId>
@@ -82,7 +85,6 @@
 					</execution>
 				</executions>
 			</plugin>
-
 			<plugin>
 				<!-- In the future, rather than using ModiTect to compile module-info.java, 
 					could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
@@ -109,7 +111,8 @@
 									exports
 									io.github.classgraph;
 									requires java.xml;
-									requires jdk.unsupported;
+									requires
+									jdk.unsupported;
 									}
 								</moduleInfoSource>
 							</module>
@@ -117,7 +120,6 @@
 					</execution>
 				</executions>
 			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
@@ -131,7 +133,16 @@
 					</execution>
 				</executions>
 			</plugin>
-
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.8.0</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+					<encoding>UTF-8</encoding>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
@@ -149,7 +160,6 @@
 					</execution>
 				</executions>
 			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -242,8 +252,8 @@
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.8.0</version>
 					<configuration>
-						<source>1.7</source>
-						<target>1.7</target>
+						<source>1.8</source>
+						<target>1.8</target>
 						<encoding>UTF-8</encoding>
 					</configuration>
 				</plugin>
@@ -411,8 +421,8 @@
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-compiler-plugin</artifactId>
 							<configuration>
-								<source>1.7</source>
-								<target>1.7</target>
+								<source>1.8</source>
+								<target>1.8</target>
 								<encoding>UTF-8</encoding>
 							</configuration>
 							<executions>
@@ -427,8 +437,8 @@
 											test, see: https://goo.gl/l0qZKb -->
 										<fork>true</fork>
 										<executable>${testCompileJdkPath}/bin/javac</executable>
-										<source>1.7</source>
-										<target>1.7</target>
+										<source>1.8</source>
+										<target>1.8</target>
 										<encoding>UTF-8</encoding>
 									</configuration>
 								</execution>
