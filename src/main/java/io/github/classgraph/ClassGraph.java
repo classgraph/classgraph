@@ -1026,7 +1026,7 @@ public class ClassGraph {
      */
     public ClassGraph enableRealtimeLogging() {
         verbose();
-        LogNode.LOG_IN_REALTIME = true;
+        LogNode.logInRealtime(true);
         return this;
     }
 

@@ -85,12 +85,17 @@ public class LogNode {
     /** The elapsed time formatter. */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
+    /** If true, log entries are output in realtime, as well as added to the LogNode tree. */
+    private static boolean LOG_IN_REALTIME = false;
+
     /**
-     * If this is set to true, log entries are output in realtime, as well as added to the LogNode tree. This can
+     * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can
      * help debug situations where log info is never shown, e.g. deadlocks, or where you need to show the log info
      * right up to the point where you hit a breakpoint.
      */
-    public static boolean LOG_IN_REALTIME = false;
+    public static void logInRealtime(final boolean logInRealtime) {
+        LOG_IN_REALTIME = logInRealtime;
+    }
 
     /**
      * Create a non-toplevel log node. The order may also be made deterministic by specifying a sort key for log

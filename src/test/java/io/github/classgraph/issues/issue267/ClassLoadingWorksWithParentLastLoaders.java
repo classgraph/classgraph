@@ -76,7 +76,7 @@ public class ClassLoadingWorksWithParentLastLoaders {
             assertThat(aClassLoadedThroughClassGraph.getClassLoader().getClass().getSimpleName())
                     .isEqualTo(expectedClassLoader);
             // and thus assignable
-            assertThat(a.getClass().isAssignableFrom(aClassLoadedThroughClassGraph));
+            assertThat(a.getClass().isAssignableFrom(aClassLoadedThroughClassGraph)).isTrue();
         }
     }
 }

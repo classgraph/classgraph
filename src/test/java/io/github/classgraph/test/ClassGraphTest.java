@@ -260,7 +260,8 @@ public class ClassGraphTest {
                     .isEmpty();
             assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
                     .isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getNames());
+            assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getNames())
+                    .isEmpty();
         }
     }
 

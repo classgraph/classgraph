@@ -193,8 +193,11 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
             return -1;
         } else if (p0 != null && p1 == null) {
             return 1;
+        } else if (p0 != null && p1 != null) {
+            return p0.toString().compareTo(p1.toString());
         }
-        return p0.toString().compareTo(p1.toString());
+        // Never reached (fixes FindBugs warning)
+        return 0;
     }
 
     @Override
