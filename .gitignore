@@ -12,7 +12,6 @@ lib/
 *~
 hs_err_pid*
 
-*.iml
 .metadata
 .settings/
 .loadpath
