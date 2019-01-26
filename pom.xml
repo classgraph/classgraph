@@ -15,7 +15,7 @@
 	<properties>
 		<javadocHtmlVersion /> <!-- Overridden in JDK9+ -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<!-- Compile main for JDK release 7, tests for JDK release 8-->
+		<!-- Compile main for JDK release 7, tests for JDK release 8 -->
 		<maven.compiler.release>7</maven.compiler.release>
 	</properties>
 
@@ -62,7 +62,6 @@
 					<dependency>
 						<groupId>org.codehaus.mojo</groupId>
 						<artifactId>animal-sniffer-enforcer-rule</artifactId>
-						<!-- Test main for compatibility with JDK 7 -->
 						<version>1.17</version>
 					</dependency>
 				</dependencies>
@@ -79,6 +78,7 @@
 									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
+										<!-- Test main for compatibility with JDK 7 -->
 										<artifactId>java17</artifactId>
 										<version>1.0</version>
 									</signature>
