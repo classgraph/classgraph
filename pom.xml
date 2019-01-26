@@ -62,6 +62,7 @@
 					<dependency>
 						<groupId>org.codehaus.mojo</groupId>
 						<artifactId>animal-sniffer-enforcer-rule</artifactId>
+						<!-- Test main for compatibility with JDK 7 -->
 						<version>1.17</version>
 					</dependency>
 				</dependencies>
