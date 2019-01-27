@@ -143,6 +143,12 @@
 					<version>3.8.0</version>
 					<configuration>
 						<encoding>UTF-8</encoding>
+						<!-- Can't use "release" option, because (1) ClassGraph needs to build 
+							on JDK 8, which doesn't support the release switch, and (2) some of the source 
+							includes @FunctionalInterface annotations, which were not available on JDK 
+							7, causing JDK 9+ with the "release" switch to complain that this annotation 
+							is not found. If building with "source" and "target" switches, unknown annotations 
+							are simply ignored.) -->
 						<source>7</source>
 						<target>7</target>
 					</configuration>
