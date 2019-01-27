@@ -433,8 +433,7 @@
 	</dependencies>
 
 	<profiles>
-		<!-- Compile use "release" switch to ensure API compatibility, and compile 
-			Javadoc to HTML5, if building with JDK 9+ -->
+		<!-- Compile Javadoc to HTML5 if building with JDK 9+ -->
 		<profile>
 			<id>jdk9plus</id>
 			<properties>
