@@ -52,19 +52,6 @@
 		</repository>
 	</distributionManagement>
 
-	<properties>
-		<!-- Specify Java source encoding to be UTF-8 -->
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<!-- Can't use maven.compiler.release property, because (1) ClassGraph 
-			needs to build on JDK 8, which doesn't support this switch, and (2) some 
-			of the source includes @FunctionalInterface annotations, which were not available 
-			on JDK 7 (if building on JDK 9+ with the "release" switch, the compiler complains 
-			that this annotation is not found, but if building with "source" and "target" 
-			switches, unknown annotations are simply ignored.) -->
-		<maven.compiler.source>1.7</maven.compiler.source>
-		<maven.compiler.target>1.7</maven.compiler.target>
-	</properties>
-
 	<build>
 		<plugins>
 			<!-- Plugins are listed here, but configured in pluginManagement, for 
@@ -156,6 +143,8 @@
 					<version>3.8.0</version>
 					<configuration>
 						<encoding>UTF-8</encoding>
+						<source>7</source>
+						<target>7</target>
 					</configuration>
 					<executions>
 						<execution>
@@ -166,7 +155,8 @@
 							</goals>
 							<configuration>
 								<encoding>UTF-8</encoding>
-								<release>8</release>
+								<source>8</source>
+								<target>8</target>
 							</configuration>
 						</execution>
 					</executions>
