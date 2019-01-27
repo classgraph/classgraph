@@ -81,10 +81,6 @@
 				<artifactId>build-helper-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<groupId>org.eclipse.m2e</groupId>
-				<artifactId>lifecycle-mapping</artifactId>
-			</plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 			</plugin>
@@ -107,35 +103,8 @@
 		</plugins>
 
 		<pluginManagement>
+			<!-- Plugins. Find updates with: mvn versions:display-plugin-updates -->
 			<plugins>
-				<!-- Lifecycle mapping for Eclipse m2e compatibility -->
-				<plugin>
-					<groupId>org.eclipse.m2e</groupId>
-					<artifactId>lifecycle-mapping</artifactId>
-					<version>1.0.0</version>
-					<configuration>
-						<!-- Cause m2e to ignore maven-enforcer-plugin, which does not have 
-							a corresponding m2e connector, so triggers a warning. https://stackoverflow.com/a/13043842/3950982 -->
-						<lifecycleMappingMetadata>
-							<pluginExecutions>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>org.apache.maven.plugins</groupId>
-										<artifactId>maven-enforcer-plugin</artifactId>
-										<versionRange>[1.0.0,)</versionRange>
-										<goals>
-											<goal>enforce</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
-							</pluginExecutions>
-						</lifecycleMappingMetadata>
-					</configuration>
-				</plugin>
-
 				<!-- Compile sources (main for JDK 7, test for JDK 8) -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -374,30 +343,31 @@
 		</pluginManagement>
 	</build>
 
-	<!-- Test dependencies (main has no dependencies) -->
+	<!-- Test dependencies (main has no dependencies). Find dependency updates 
+		with: mvn versions:display-dependency-updates -->
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.12</version>
+			<version>4.13-beta-1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-core</artifactId>
-			<version>1.19</version>
+			<version>1.21</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-generator-annprocess</artifactId>
-			<version>1.19</version>
+			<version>1.21</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.assertj</groupId>
 			<artifactId>assertj-core</artifactId>
-			<version>3.10.0</version>
+			<version>3.11.1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -409,7 +379,7 @@
 		<dependency>
 			<groupId>org.ops4j.pax.url</groupId>
 			<artifactId>pax-url-aether</artifactId>
-			<version>2.5.4</version>
+			<version>2.6.1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -470,6 +440,46 @@
 								</goals>
 							</execution>
 						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- Lifecycle mapping for eclipse m2e compatibility. See: https://stackoverflow.com/a/23707050/3950982 -->
+		<profile>
+			<id>only-eclipse</id>
+			<activation>
+				<property>
+					<name>m2e.version</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.eclipse.m2e</groupId>
+						<artifactId>lifecycle-mapping</artifactId>
+						<version>1.0.0</version>
+						<configuration>
+							<!-- Cause m2e to ignore maven-enforcer-plugin, which does not have 
+								a corresponding m2e connector, so triggers a warning. https://stackoverflow.com/a/13043842/3950982 -->
+							<lifecycleMappingMetadata>
+								<pluginExecutions>
+									<pluginExecution>
+										<pluginExecutionFilter>
+											<groupId>org.apache.maven.plugins</groupId>
+											<artifactId>maven-enforcer-plugin</artifactId>
+											<versionRange>[1.0.0,)</versionRange>
+											<goals>
+												<goal>enforce</goal>
+											</goals>
+										</pluginExecutionFilter>
+										<action>
+											<ignore />
+										</action>
+									</pluginExecution>
+								</pluginExecutions>
+							</lifecycleMappingMetadata>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>
