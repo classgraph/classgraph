@@ -477,11 +477,14 @@
 			<id>only-eclipse</id>
 			<activation>
 				<property>
-					<!-- Only activate lifecycle-mapping plugin in m2e -->
+					<!-- Only activate in m2e -->
 					<name>m2e.version</name>
 				</property>
 			</activation>
 			<build>
+				<!-- Putting this in pluginManagement causes Maven and IDEA to ignore 
+					this "plugin" (the lifecycle-mapping plugin doesn't actually exist, it is 
+					a special artifactId recognized only by m2e). -->
 				<pluginManagement>
 					<plugins>
 						<plugin>
