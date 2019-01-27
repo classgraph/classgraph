@@ -142,7 +142,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>1.4.1</version>
+					<version>3.0.0-M2</version>
 					<dependencies>
 						<dependency>
 							<groupId>org.codehaus.mojo</groupId>
@@ -191,14 +191,14 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.22.0</version>
+					<version>3.0.0-M3</version>
 				</plugin>
 
 				<!-- Create and bundle manifest file -->
 				<plugin>
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
-					<version>3.5.1</version>
+					<version>4.1.0</version>
 					<extensions>true</extensions>
 					<configuration>
 						<instructions>
@@ -281,7 +281,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-jar-plugin</artifactId>
-					<version>3.1.0</version>
+					<version>3.1.1</version>
 					<configuration>
 						<archive>
 							<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
@@ -444,7 +444,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.5</version>
+						<version>1.6</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
@@ -464,6 +464,7 @@
 			<id>only-eclipse</id>
 			<activation>
 				<property>
+					<!-- Only activate lifecycle-mapping plugin in m2e -->
 					<name>m2e.version</name>
 				</property>
 			</activation>
