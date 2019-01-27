@@ -12,16 +12,7 @@
 	Uber-fast, ultra-lightweight Java classpath and module path scanner. https://github.com/classgraph/classgraph
 	</description>
 
-	<properties>
-		<javadocHtmlVersion /> <!-- Overridden in JDK9+ -->
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<!-- Compile main for JDK release 7, tests for JDK release 8 -->
-		<maven.compiler.release>7</maven.compiler.release>
-	</properties>
-
-	<issueManagement>
-		<url>https://github.com/classgraph/classgraph/issues</url>
-	</issueManagement>
+	<url>https://github.com/classgraph/classgraph</url>
 
 	<licenses>
 		<license>
@@ -44,28 +35,34 @@
 		<connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
 		<developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
 		<url>https://github.com/classgraph/classgraph</url>
-		<tag>classgraph-4.6.13</tag>
 	</scm>
 
-	<url>https://github.com/classgraph/classgraph</url>
+	<issueManagement>
+		<url>https://github.com/classgraph/classgraph/issues</url>
+	</issueManagement>
 
 	<distributionManagement>
 		<snapshotRepository>
 			<id>ossrh</id>
 			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
 		</snapshotRepository>
-
 		<repository>
 			<id>ossrh</id>
 			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 		</repository>
 	</distributionManagement>
 
-	<!-- See http://java.dzone.com/articles/deploy-maven-central and http://central.sonatype.org/pages/apache-maven.html -->
+	<properties>
+		<javadocHtmlVersion /> <!-- Overridden in JDK9+ -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Compile main for JDK release 7, tests for JDK release 8 -->
+		<maven.compiler.release>7</maven.compiler.release>
+	</properties>
+
 	<build>
 		<plugins>
-			<!-- Plugins should be listed here, but configured in pluginManagement, 
-				for compatibility with Eclipse. https://stackoverflow.com/a/10483284/3950982 -->
+			<!-- Plugins are listed here, but configured in pluginManagement, for 
+				compatibility with Eclipse. https://stackoverflow.com/a/10483284/3950982 -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
@@ -115,8 +112,10 @@
 				<artifactId>maven-release-plugin</artifactId>
 			</plugin>
 		</plugins>
+
 		<pluginManagement>
 			<plugins>
+				<!-- Lifecycle mapping for Eclipse m2e compatibility -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -143,19 +142,8 @@
 						</lifecycleMappingMetadata>
 					</configuration>
 				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-source-plugin</artifactId>
-					<version>3.0.1</version>
-					<executions>
-						<execution>
-							<id>attach-sources</id>
-							<goals>
-								<goal>jar-no-fork</goal>
-							</goals>
-						</execution>
-					</executions>
-				</plugin>
+
+				<!-- Compile sources (main for JDK 7, test for JDK 8) -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
@@ -177,6 +165,8 @@
 						</execution>
 					</executions>
 				</plugin>
+
+				<!-- Check main for compatibility with JDK 7 API -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-enforcer-plugin</artifactId>
@@ -201,7 +191,6 @@
 										implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 										<signature>
 											<groupId>org.codehaus.mojo.signature</groupId>
-											<!-- Test main for compatibility with JDK 7 -->
 											<artifactId>java17</artifactId>
 											<version>1.0</version>
 										</signature>
@@ -211,11 +200,15 @@
 						</execution>
 					</executions>
 				</plugin>
+
+				<!-- Execute unit tests -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<version>2.22.0</version>
 				</plugin>
+
+				<!-- Create and bundle manifest file -->
 				<plugin>
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
@@ -239,8 +232,9 @@
 						</execution>
 					</executions>
 				</plugin>
+
+				<!-- Compile module-info.class using ModiTect, and place it in META-INF/versions/9 -->
 				<plugin>
-					<!-- Compile module-info.class using ModiTect -->
 					<!-- In the future, rather than using ModiTect to compile module-info.java, 
 						could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
 					<groupId>org.moditect</groupId>
@@ -275,6 +269,8 @@
 						</execution>
 					</executions>
 				</plugin>
+
+				<!-- Add src/test/perf to test sources -->
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>build-helper-maven-plugin</artifactId>
@@ -294,6 +290,8 @@
 						</execution>
 					</executions>
 				</plugin>
+
+				<!-- Create binary jar -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-jar-plugin</artifactId>
@@ -308,6 +306,23 @@
 						</archive>
 					</configuration>
 				</plugin>
+
+				<!-- Create source jar -->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-source-plugin</artifactId>
+					<version>3.0.1</version>
+					<executions>
+						<execution>
+							<id>attach-sources</id>
+							<goals>
+								<goal>jar-no-fork</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+
+				<!-- Create Javadoc jar -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
@@ -325,6 +340,9 @@
 						</execution>
 					</executions>
 				</plugin>
+
+				<!-- Stage jars on Sonatype Nexus -->
+				<!-- See http://java.dzone.com/articles/deploy-maven-central and http://central.sonatype.org/pages/apache-maven.html -->
 				<plugin>
 					<groupId>org.sonatype.plugins</groupId>
 					<artifactId>nexus-staging-maven-plugin</artifactId>
@@ -336,6 +354,8 @@
 						<autoReleaseAfterClose>true</autoReleaseAfterClose>
 					</configuration>
 				</plugin>
+
+				<!-- Deploy jars to Maven Central -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-release-plugin</artifactId>
