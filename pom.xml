@@ -53,9 +53,12 @@
 	</distributionManagement>
 
 	<properties>
-		<javadocHtmlVersion /> <!-- Overridden in JDK9+ -->
+		<!-- JDK 7/8 does not support compiling Javadoc to HTML5 -->
+		<javadocHtmlVersion />
+		<!-- Specify Java source encoding to be UTF-8 -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<!-- Compile main for JDK release 7, tests for JDK release 8 -->
+		<!-- Compile main for JDK 7 (this is overridden for test, which is compiled 
+			for JDK 8) -->
 		<maven.compiler.release>7</maven.compiler.release>
 	</properties>
 
@@ -430,7 +433,7 @@
 	</dependencies>
 
 	<profiles>
-		<!-- JDK9+ -->
+		<!-- Compile Javadoc to HTML5 if building with JDK 9+ -->
 		<profile>
 			<id>java9</id>
 			<properties>
@@ -442,6 +445,8 @@
 				<jdk>[9,)</jdk>
 			</activation>
 		</profile>
+
+		<!-- Sign jars for release (mvn release:prepare && mvn release:perform) -->
 		<profile>
 			<id>release</id>
 			<activation>
@@ -467,31 +472,6 @@
 						</executions>
 					</plugin>
 				</plugins>
-				<pluginManagement>
-					<plugins>
-						<plugin>
-							<!-- This plugin must be inside pluginManagement -->
-							<groupId>org.apache.maven.plugins</groupId>
-							<artifactId>maven-compiler-plugin</artifactId>
-							<configuration>
-								<encoding>UTF-8</encoding>
-							</configuration>
-							<executions>
-								<execution>
-									<id>default-testCompile</id>
-									<phase>test-compile</phase>
-									<goals>
-										<goal>testCompile</goal>
-									</goals>
-									<configuration>
-										<encoding>UTF-8</encoding>
-										<release>8</release>
-									</configuration>
-								</execution>
-							</executions>
-						</plugin>
-					</plugins>
-				</pluginManagement>
 			</build>
 		</profile>
 	</profiles>
