@@ -431,7 +431,7 @@
 		<!-- Compile use "release" switch to ensure API compatibility, and compile 
 			Javadoc to HTML5, if building with JDK 9+ -->
 		<profile>
-			<id>java9</id>
+			<id>jdk9plus</id>
 			<properties>
 				<javadocHtmlVersion>-html5</javadocHtmlVersion>
 				<!-- coverall version 4.3.0 does not work with java 9, see https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
@@ -444,17 +444,18 @@
 			</activation>
 		</profile>
 
-		<!-- Compilation options for build compatibility on JDK 8 (actually ClassGraph 
+		<!-- Compilation options for build compatibility on JDK 8. (ClassGraph 
 			won't compile on JDK 7, because of the use of @FunctionalInterface, but it 
-			can be compiled on JDK 8 with JDK 7 as the target). -->
+			is compiled on JDK 8 with JDK 7 as the target.) -->
 		<profile>
-			<id>java8</id>
+			<id>jdk8</id>
 			<properties>
 				<!-- JDK 8 does not support compiling Javadoc to HTML5 -->
 				<javadocHtmlVersion></javadocHtmlVersion>
-				<!-- Use separate source and target settings on JDK 8, "release" is not supported -->
-				<maven.compiler.source>7</maven.compiler.source>
-				<maven.compiler.target>7</maven.compiler.target>
+				<!-- Use separate source and target settings on JDK 8, "release" is not 
+					supported -->
+				<maven.compiler.source>1.7</maven.compiler.source>
+				<maven.compiler.target>1.7</maven.compiler.target>
 			</properties>
 			<activation>
 				<jdk>[7,8]</jdk>
