@@ -170,6 +170,20 @@
 								</rules>
 							</configuration>
 						</execution>
+						<execution>
+							<!-- Maven requires its minimum version to be enforced. See: https://maven.apache.org/enforcer/enforcer-rules/requireMavenVersion.html -->
+							<id>enforce-maven</id>
+							<goals>
+								<goal>enforce</goal>
+							</goals>
+							<configuration>
+								<rules>
+									<requireMavenVersion>
+										<version>3.5.4</version>
+									</requireMavenVersion>
+								</rules>
+							</configuration>
+						</execution>
 					</executions>
 				</plugin>
 
