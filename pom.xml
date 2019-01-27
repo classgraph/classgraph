@@ -161,6 +161,7 @@
 							</goals>
 							<configuration>
 								<encoding>UTF-8</encoding>
+								<!-- Tests use some JDK 8 features, such as lambdas -->
 								<source>8</source>
 								<target>8</target>
 							</configuration>
