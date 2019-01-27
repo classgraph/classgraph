@@ -9,7 +9,7 @@
 	<name>ClassGraph</name>
 
 	<description>
-	Uber-fast, ultra-lightweight Java classpath and module path scanner (formerly named FastClasspathScanner). https://github.com/classgraph/classgraph
+	Uber-fast, ultra-lightweight Java classpath and module path scanner. https://github.com/classgraph/classgraph
 	</description>
 
 	<properties>
@@ -40,6 +40,15 @@
 		</developer>
 	</developers>
 
+	<scm>
+		<connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
+		<developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
+		<url>https://github.com/classgraph/classgraph</url>
+		<tag>classgraph-4.6.13</tag>
+	</scm>
+
+	<url>https://github.com/classgraph/classgraph</url>
+
 	<distributionManagement>
 		<snapshotRepository>
 			<id>ossrh</id>
@@ -55,169 +64,66 @@
 	<!-- See http://java.dzone.com/articles/deploy-maven-central and http://central.sonatype.org/pages/apache-maven.html -->
 	<build>
 		<plugins>
+			<!-- Plugins should be listed here, but configured in pluginManagement, 
+				for compatibility with Eclipse. https://stackoverflow.com/a/10483284/3950982 -->
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>1.0-beta-1</version>
-				<dependencies>
-					<dependency>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>animal-sniffer-enforcer-rule</artifactId>
-						<version>1.17</version>
-					</dependency>
-				</dependencies>
-				<executions>
-					<execution>
-						<id>check-signatures</id>
-						<phase>test</phase>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<configuration>
-							<rules>
-								<checkSignatureRule
-									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
-									<signature>
-										<groupId>org.codehaus.mojo.signature</groupId>
-										<!-- Test main for compatibility with JDK 7 -->
-										<artifactId>java17</artifactId>
-										<version>1.0</version>
-									</signature>
-								</checkSignatureRule>
-							</rules>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
-				<!-- In the future, rather than using ModiTect to compile module-info.java, 
-					could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>
-				<version>1.0.0.Beta2</version>
-				<executions>
-					<execution>
-						<id>add-module-infos</id>
-						<phase>package</phase>
-						<goals>
-							<goal>add-module-info</goal>
-						</goals>
-						<configuration>
-							<!-- Put module-info.class in META-INF/versions/9 to maximize backwards 
-								compatibility with JDK 7 and 8. See: https://github.com/moditect/moditect/issues/67 -->
-							<jvmVersion>9</jvmVersion>
-							<overwriteExistingFiles>true</overwriteExistingFiles>
-							<module>
-								<!-- VersionFinder requires java.xml -->
-								<!-- sun.misc.Unsafe usage requires jdk.unsupported -->
-								<moduleInfoSource>
-									module io.github.classgraph {
-									exports
-									io.github.classgraph;
-									requires java.xml;
-									requires
-									jdk.unsupported;
-									}
-								</moduleInfoSource>
-							</module>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>3.0.1</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar-no-fork</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>3.0.1</version>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<doclint>none</doclint>
-							<additionalOptions>${javadocHtmlVersion}</additionalOptions>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.1.0</version>
-				<configuration>
-					<archive>
-						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
-						<manifest>
-							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
-						</manifest>
-					</archive>
-				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.m2e</groupId>
+				<artifactId>lifecycle-mapping</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>bundle-manifest</id>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>manifest</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.sonatype.plugins</groupId>
 				<artifactId>nexus-staging-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-release-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
 		<pluginManagement>
 			<plugins>
 				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>build-helper-maven-plugin</artifactId>
-					<version>3.0.0</version>
-					<executions>
-						<execution>
-							<id>add-test-source</id>
-							<phase>generate-test-sources</phase>
-							<goals>
-								<goal>add-test-source</goal>
-							</goals>
-							<configuration>
-								<sources>
-									<source>src/test/perf</source>
-								</sources>
-							</configuration>
-						</execution>
-					</executions>
-				</plugin>
-				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
 					<version>1.0.0</version>
 					<configuration>
+						<!-- Cause m2e to ignore maven-enforcer-plugin, which does not have 
+							a corresponding m2e connector, so triggers a warning. https://stackoverflow.com/a/13043842/3950982 -->
 						<lifecycleMappingMetadata>
 							<pluginExecutions>
 								<pluginExecution>
@@ -230,9 +136,7 @@
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<execute>
-											<runOnIncremental>false</runOnIncremental>
-										</execute>
+										<ignore />
 									</action>
 								</pluginExecution>
 							</pluginExecutions>
@@ -240,7 +144,19 @@
 					</configuration>
 				</plugin>
 				<plugin>
-					<!-- This plugin must be inside pluginManagement -->
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-source-plugin</artifactId>
+					<version>3.0.1</version>
+					<executions>
+						<execution>
+							<id>attach-sources</id>
+							<goals>
+								<goal>jar-no-fork</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.8.0</version>
@@ -263,6 +179,40 @@
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-enforcer-plugin</artifactId>
+					<version>1.4.1</version>
+					<dependencies>
+						<dependency>
+							<groupId>org.codehaus.mojo</groupId>
+							<artifactId>animal-sniffer-enforcer-rule</artifactId>
+							<version>1.17</version>
+						</dependency>
+					</dependencies>
+					<executions>
+						<execution>
+							<id>check-signatures</id>
+							<phase>test</phase>
+							<goals>
+								<goal>enforce</goal>
+							</goals>
+							<configuration>
+								<rules>
+									<checkSignatureRule
+										implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+										<signature>
+											<groupId>org.codehaus.mojo.signature</groupId>
+											<!-- Test main for compatibility with JDK 7 -->
+											<artifactId>java17</artifactId>
+											<version>1.0</version>
+										</signature>
+									</checkSignatureRule>
+								</rules>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<version>2.22.0</version>
 				</plugin>
@@ -279,9 +229,103 @@
 							<Bundle-Vendor>Luke Hutchison</Bundle-Vendor>
 						</instructions>
 					</configuration>
+					<executions>
+						<execution>
+							<id>bundle-manifest</id>
+							<phase>process-classes</phase>
+							<goals>
+								<goal>manifest</goal>
+							</goals>
+						</execution>
+					</executions>
 				</plugin>
 				<plugin>
-					<!-- This plugin doesn't work inside pluginManagement, for some reason -->
+					<!-- Compile module-info.class using ModiTect -->
+					<!-- In the future, rather than using ModiTect to compile module-info.java, 
+						could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
+					<groupId>org.moditect</groupId>
+					<artifactId>moditect-maven-plugin</artifactId>
+					<version>1.0.0.Beta2</version>
+					<executions>
+						<execution>
+							<id>add-module-infos</id>
+							<phase>package</phase>
+							<goals>
+								<goal>add-module-info</goal>
+							</goals>
+							<configuration>
+								<!-- Put module-info.class in META-INF/versions/9 to maximize backwards 
+									compatibility with JDK 7 and 8. See: https://github.com/moditect/moditect/issues/67 -->
+								<jvmVersion>9</jvmVersion>
+								<overwriteExistingFiles>true</overwriteExistingFiles>
+								<module>
+									<!-- VersionFinder requires java.xml -->
+									<!-- sun.misc.Unsafe usage requires jdk.unsupported -->
+									<moduleInfoSource>
+										module io.github.classgraph {
+										exports
+										io.github.classgraph;
+										requires java.xml;
+										requires
+										jdk.unsupported;
+										}
+									</moduleInfoSource>
+								</module>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>build-helper-maven-plugin</artifactId>
+					<version>3.0.0</version>
+					<executions>
+						<execution>
+							<id>add-test-source</id>
+							<phase>generate-test-sources</phase>
+							<goals>
+								<goal>add-test-source</goal>
+							</goals>
+							<configuration>
+								<sources>
+									<source>src/test/perf</source>
+								</sources>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>3.1.0</version>
+					<configuration>
+						<archive>
+							<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+							<manifest>
+								<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+								<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+							</manifest>
+						</archive>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-javadoc-plugin</artifactId>
+					<version>3.0.1</version>
+					<executions>
+						<execution>
+							<id>attach-javadocs</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+							<configuration>
+								<doclint>none</doclint>
+								<additionalOptions>${javadocHtmlVersion}</additionalOptions>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
 					<groupId>org.sonatype.plugins</groupId>
 					<artifactId>nexus-staging-maven-plugin</artifactId>
 					<version>1.6.8</version>
@@ -307,6 +351,7 @@
 		</pluginManagement>
 	</build>
 
+	<!-- Test dependencies (main has no dependencies) -->
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -314,56 +359,48 @@
 			<version>4.12</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-core</artifactId>
 			<version>1.19</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-generator-annprocess</artifactId>
 			<version>1.19</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.assertj</groupId>
 			<artifactId>assertj-core</artifactId>
 			<version>3.10.0</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>javax.enterprise</groupId>
 			<artifactId>cdi-api</artifactId>
 			<version>1.0-SP4</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.ops4j.pax.url</groupId>
 			<artifactId>pax-url-aether</artifactId>
 			<version>2.5.4</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
 			<version>1.8.0-beta2</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-jdk14</artifactId>
 			<version>1.8.0-beta2</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.hibernate.javax.persistence</groupId>
 			<artifactId>hibernate-jpa-2.1-api</artifactId>
@@ -371,14 +408,6 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<scm>
-		<connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
-		<developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
-		<url>https://github.com/classgraph/classgraph</url>
-		<tag>classgraph-4.6.13</tag>
-	</scm>
-	<url>https://github.com/classgraph/classgraph</url>
 
 	<profiles>
 		<!-- JDK9+ -->
