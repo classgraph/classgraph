@@ -55,6 +55,14 @@
 	<properties>
 		<!-- Specify Java source encoding to be UTF-8 -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Can't use maven.compiler.release property, because (1) ClassGraph 
+			needs to build on JDK 8, which doesn't support this switch, and (2) some 
+			of the source includes @FunctionalInterface annotations, which were not available 
+			on JDK 7 (if building on JDK 9+ with the "release" switch, the compiler complains 
+			that this annotation is not found, but if building with "source" and "target" 
+			switches, unknown annotations are simply ignored.) -->
+		<maven.compiler.source>1.7</maven.compiler.source>
+		<maven.compiler.target>1.7</maven.compiler.target>
 	</properties>
 
 	<build>
@@ -436,29 +444,9 @@
 				<javadocHtmlVersion>-html5</javadocHtmlVersion>
 				<!-- coverall version 4.3.0 does not work with java 9, see https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
 				<coveralls.skip>true</coveralls.skip>
-				<!-- Use "release" switch on JDK 9+, which ensures JDK 7 compatibility -->
-				<maven.compiler.release>7</maven.compiler.release>
 			</properties>
 			<activation>
 				<jdk>[9,)</jdk>
-			</activation>
-		</profile>
-
-		<!-- Compilation options for build compatibility on JDK 8. (ClassGraph 
-			won't compile on JDK 7, because of the use of @FunctionalInterface, but it 
-			is compiled on JDK 8 with JDK 7 as the target.) -->
-		<profile>
-			<id>jdk8</id>
-			<properties>
-				<!-- JDK 8 does not support compiling Javadoc to HTML5 -->
-				<javadocHtmlVersion></javadocHtmlVersion>
-				<!-- Use separate source and target settings on JDK 8, "release" is not 
-					supported -->
-				<maven.compiler.source>1.7</maven.compiler.source>
-				<maven.compiler.target>1.7</maven.compiler.target>
-			</properties>
-			<activation>
-				<jdk>[7,8]</jdk>
 			</activation>
 		</profile>
 
