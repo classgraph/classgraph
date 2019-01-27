@@ -480,34 +480,36 @@
 				</property>
 			</activation>
 			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.eclipse.m2e</groupId>
-						<artifactId>lifecycle-mapping</artifactId>
-						<version>1.0.0</version>
-						<configuration>
-							<!-- Cause m2e to ignore maven-enforcer-plugin, which does not have 
-								a corresponding m2e connector, so triggers a warning. https://stackoverflow.com/a/13043842/3950982 -->
-							<lifecycleMappingMetadata>
-								<pluginExecutions>
-									<pluginExecution>
-										<pluginExecutionFilter>
-											<groupId>org.apache.maven.plugins</groupId>
-											<artifactId>maven-enforcer-plugin</artifactId>
-											<versionRange>[1.0.0,)</versionRange>
-											<goals>
-												<goal>enforce</goal>
-											</goals>
-										</pluginExecutionFilter>
-										<action>
-											<ignore />
-										</action>
-									</pluginExecution>
-								</pluginExecutions>
-							</lifecycleMappingMetadata>
-						</configuration>
-					</plugin>
-				</plugins>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.eclipse.m2e</groupId>
+							<artifactId>lifecycle-mapping</artifactId>
+							<version>1.0.0</version>
+							<configuration>
+								<!-- Cause m2e to ignore maven-enforcer-plugin, which does not have 
+									a corresponding m2e connector, so triggers a warning. https://stackoverflow.com/a/13043842/3950982 -->
+								<lifecycleMappingMetadata>
+									<pluginExecutions>
+										<pluginExecution>
+											<pluginExecutionFilter>
+												<groupId>org.apache.maven.plugins</groupId>
+												<artifactId>maven-enforcer-plugin</artifactId>
+												<versionRange>[1.0.0,)</versionRange>
+												<goals>
+													<goal>enforce</goal>
+												</goals>
+											</pluginExecutionFilter>
+											<action>
+												<ignore />
+											</action>
+										</pluginExecution>
+									</pluginExecutions>
+								</lifecycleMappingMetadata>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
 			</build>
 		</profile>
 	</profiles>
