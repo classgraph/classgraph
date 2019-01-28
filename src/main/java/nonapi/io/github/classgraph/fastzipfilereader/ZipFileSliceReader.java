@@ -175,7 +175,7 @@ class ZipFileSliceReader implements AutoCloseable {
         }
         // Assume the entry names are encoded in UTF-8 (should be the case for all jars; the only other
         // valid zipfile charset is CP437, which is the same as ASCII for printable high-bit-clear chars)
-        return new String(bufToUse, 0, numBytes, StandardCharsets.UTF_8);
+        return getString(bufToUse, 0L, numBytes);
     }
 
     @Override
