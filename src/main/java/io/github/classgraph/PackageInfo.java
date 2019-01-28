@@ -28,11 +28,9 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -128,11 +126,11 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /** The child packages of this package, or the empty list if none. */
-    public List<PackageInfo> getChildren() {
+    public PackageInfoList getChildren() {
         if (children == null) {
-            return Collections.emptyList();
+            return PackageInfoList.EMPTY_LIST;
         }
-        final List<PackageInfo> childrenSorted = new ArrayList<>(children);
+        final PackageInfoList childrenSorted = new PackageInfoList(children);
         // Ensure children are sorted
         Collections.sort(childrenSorted, new Comparator<PackageInfo>() {
             @Override

@@ -47,6 +47,58 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
         super(packageInfoCollection);
     }
 
+    static final PackageInfoList EMPTY_LIST = new PackageInfoList() {
+        @Override
+        public boolean add(final PackageInfo e) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public void add(final int index, final PackageInfo element) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean remove(final Object o) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public PackageInfo remove(final int index) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean addAll(final Collection<? extends PackageInfo> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean addAll(final int index, final Collection<? extends PackageInfo> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean removeAll(final Collection<?> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean retainAll(final Collection<?> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public void clear() {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public PackageInfo set(final int index, final PackageInfo element) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+    };
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
