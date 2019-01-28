@@ -52,15 +52,12 @@ public class MethodInfoTest {
         return null;
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException.class)
     public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .scan()) {
             scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo();
-            throw new RuntimeException("Fail");
-        } catch (final Exception e) {
-            // Pass
         }
     }
 
