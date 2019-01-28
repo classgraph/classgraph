@@ -236,8 +236,10 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                     randomAccessFile = null;
                 }
-                FileUtils.closeDirectByteBuffer(byteBuffer, /* log = */ null);
-                byteBuffer = null;
+                if (byteBuffer != null) {
+                    FileUtils.closeDirectByteBuffer(byteBuffer, /* log = */ null);
+                    byteBuffer = null;
+                }
                 markAsClosed();
             }
         };
