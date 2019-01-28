@@ -807,9 +807,9 @@ class ClassfileBinaryParser {
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
             final String relativePath, final Resource classfileResource, final boolean isExternalClass,
             final ScanSpec scanSpec, final LogNode log) throws IOException, IllegalArgumentException {
-        // Open classfile as a ByteBuffer or InputStream
-        try (Resource res = classfileResource; InputStreamOrByteBufferAdapter input = res.openOrRead()) {
-            this.inputStreamOrByteBuffer = input;
+        try {
+            // Open classfile as a ByteBuffer or InputStream
+            inputStreamOrByteBuffer = classfileResource.openOrRead();
 
             // Read the initial chunk of data into the buffer
             inputStreamOrByteBuffer.readInitialChunk();
@@ -822,6 +822,11 @@ class ClassfileBinaryParser {
 
             // Read and parse classfile
             return readClassfile(classpathElement, relativePath, isExternalClass, classfileResource, scanSpec, log);
+
+        } finally {
+            // Close ByteBuffer or InputStream
+            classfileResource.close();
+            inputStreamOrByteBuffer = null;
         }
     }
 }
