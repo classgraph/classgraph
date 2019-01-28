@@ -77,7 +77,8 @@ public class MethodInfoTest {
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
                                     + "java.util.List<java.lang.Float>, int[]...)",
-                            "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
+                            "@" + Test.class.getName()
+                                    + "(expected = java.lang.IllegalArgumentException) public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void getMethodInfo()",
                             "@" + Test.class.getName() + " public void getConstructorInfo()",
                             "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
