@@ -82,7 +82,7 @@ public class JSONSerializer {
             // See if the JSON object has an @Id field
             // (for serialization, typeResolutions can be null)
             final Field annotatedField = classFieldCache.get(refdObj.getClass()).idField;
-            String idStr = null;
+            CharSequence idStr = null;
             if (annotatedField != null) {
                 // Get id value from field annotated with @Id
                 try {
@@ -102,6 +102,8 @@ public class JSONSerializer {
                     // Ref'd JSON object doesn't have an id yet -- generate unique integer id
                     idStr = JSONUtils.ID_PREFIX + objId.getAndIncrement() + JSONUtils.ID_SUFFIX;
                     refdJsonVal.objectId = idStr;
+                } else {
+                    idStr = refdJsonVal.objectId;
                 }
             }
             // Link both the JSON representation ob the object to the id
