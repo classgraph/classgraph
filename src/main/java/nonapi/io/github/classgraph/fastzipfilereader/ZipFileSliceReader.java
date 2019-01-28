@@ -41,7 +41,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 class ZipFileSliceReader implements AutoCloseable {
     private final ZipFileSlice zipFileSlice;
     private final ByteBuffer[] chunkCache;
-    private final byte[] buf = new byte[256];
+    private final byte[] scratch = new byte[256];
 
     public ZipFileSliceReader(final ZipFileSlice zipFileSlice) {
         this.zipFileSlice = zipFileSlice;
@@ -112,10 +112,10 @@ class ZipFileSliceReader implements AutoCloseable {
         if (off < 0 || off > zipFileSlice.len - 2) {
             throw new IndexOutOfBoundsException();
         }
-        if (read(off, buf, 0, 2) < 2) {
+        if (read(off, scratch, 0, 2) < 2) {
             throw new EOFException("Unexpected EOF");
         }
-        return getShort(buf, 0L);
+        return getShort(scratch, 0L);
     }
 
     static int getInt(final byte[] buf, final long off) throws IOException {
@@ -131,10 +131,10 @@ class ZipFileSliceReader implements AutoCloseable {
         if (off < 0 || off > zipFileSlice.len - 4) {
             throw new IndexOutOfBoundsException();
         }
-        if (read(off, buf, 0, 4) < 4) {
+        if (read(off, scratch, 0, 4) < 4) {
             throw new EOFException("Unexpected EOF");
         }
-        return getInt(buf, 0L);
+        return getInt(scratch, 0L);
     }
 
     static long getLong(final byte[] buf, final long off) throws IOException {
@@ -151,10 +151,10 @@ class ZipFileSliceReader implements AutoCloseable {
         if (off < 0 || off > zipFileSlice.len - 8) {
             throw new IndexOutOfBoundsException();
         }
-        if (read(off, buf, 0, 8) < 8) {
+        if (read(off, scratch, 0, 8) < 8) {
             throw new EOFException("Unexpected EOF");
         }
-        return getLong(buf, 0L);
+        return getLong(scratch, 0L);
     }
 
     static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
@@ -169,7 +169,7 @@ class ZipFileSliceReader implements AutoCloseable {
         if (off < 0 || off > zipFileSlice.len - numBytes) {
             throw new IndexOutOfBoundsException();
         }
-        final byte[] bufToUse = numBytes <= buf.length ? buf : new byte[numBytes];
+        final byte[] bufToUse = numBytes <= scratch.length ? scratch : new byte[numBytes];
         if (read(off, bufToUse, 0, numBytes) < numBytes) {
             throw new EOFException("Unexpected EOF");
         }
