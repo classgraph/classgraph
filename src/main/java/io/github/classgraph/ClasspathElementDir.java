@@ -211,6 +211,10 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public synchronized void close() {
                 super.close(); // Close inputStream
+                if (byteBuffer != null) {
+                    FileUtils.closeDirectByteBuffer(byteBuffer, /* log = */ null);
+                    byteBuffer = null;
+                }
                 if (fileChannel != null) {
                     try {
                         fileChannel.close();
@@ -226,10 +230,6 @@ class ClasspathElementDir extends ClasspathElement {
                         // Ignore
                     }
                     randomAccessFile = null;
-                }
-                if (byteBuffer != null) {
-                    FileUtils.closeDirectByteBuffer(byteBuffer, /* log = */ null);
-                    byteBuffer = null;
                 }
                 markAsClosed();
             }
