@@ -323,5 +323,19 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */
     @Override
-    public abstract void close();
+    public void close() {
+        // Override in subclasses, and call super.close()
+        if (inputStream != null) {
+            try {
+                if (inputStream instanceof InputStreamResourceCloser) {
+                    ((InputStreamResourceCloser) inputStream).closeInputStream();
+                } else {
+                    inputStream.close();
+                }
+            } catch (final IOException e) {
+                // Ignore
+            }
+            inputStream = null;
+        }
+    }
 }

@@ -211,18 +211,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public synchronized void close() {
-                if (inputStream != null) {
-                    try {
-                        if (inputStream instanceof InputStreamResourceCloser) {
-                            ((InputStreamResourceCloser) inputStream).closeInputStream();
-                        } else {
-                            inputStream.close();
-                        }
-                    } catch (final IOException e) {
-                        // Ignore
-                    }
-                    inputStream = null;
-                }
+                super.close(); // Close inputStream
                 if (byteBuffer != null) {
                     if (moduleReaderProxy != null) {
                         try {
