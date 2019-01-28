@@ -147,23 +147,6 @@
                                 </rules>
                             </configuration>
                         </execution>
-                        <!-- Maven requires its minimum version to be enforced. -->
-                        <!-- See: https://maven.apache.org/enforcer/enforcer-rules/requireMavenVersion.html -->
-                        <execution>
-                            <id>enforce-maven</id>
-                            <goals>
-                                <goal>enforce</goal>
-                            </goals>
-                            <configuration>
-                                <rules>
-                                    <requireMavenVersion>
-                                        <!-- Set this to the version of Maven available on Travis, -->
-                                        <!-- otherwise Travis builds will fail -->
-                                        <version>3.5.2</version>
-                                    </requireMavenVersion>
-                                </rules>
-                            </configuration>
-                        </execution>
                     </executions>
                 </plugin>
 
