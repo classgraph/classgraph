@@ -41,7 +41,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 class ZipFileSliceReader implements AutoCloseable {
     private final ZipFileSlice zipFileSlice;
     private final ByteBuffer[] chunkCache;
-    private final byte[] buf = new byte[8];
+    private final byte[] buf = new byte[256];
 
     public ZipFileSliceReader(final ZipFileSlice zipFileSlice) {
         this.zipFileSlice = zipFileSlice;
@@ -169,13 +169,13 @@ class ZipFileSliceReader implements AutoCloseable {
         if (off < 0 || off > zipFileSlice.len - numBytes) {
             throw new IndexOutOfBoundsException();
         }
-        final byte[] strBytes = new byte[numBytes];
-        if (read(off, strBytes, 0, numBytes) < numBytes) {
+        final byte[] bufToUse = numBytes <= buf.length ? buf : new byte[numBytes];
+        if (read(off, bufToUse, 0, numBytes) < numBytes) {
             throw new EOFException("Unexpected EOF");
         }
         // Assume the entry names are encoded in UTF-8 (should be the case for all jars; the only other
         // valid zipfile charset is CP437, which is the same as ASCII for printable high-bit-clear chars)
-        return new String(strBytes, StandardCharsets.UTF_8);
+        return new String(bufToUse, 0, numBytes, StandardCharsets.UTF_8);
     }
 
     @Override
