@@ -35,14 +35,13 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
 public class Issue303Test {
     private static final String PACKAGE_NAME = "io.github.classgraph";
 
     @Test
-    public void testPackageInfoClassesRecursive() {
+    public void testPackageInfoClasses() {
         final List<String> allClassNamesRecursive;
         final List<String> allClassNamesNonRecursive;
         final List<String> packageClassNamesRecursive;
@@ -66,16 +65,5 @@ public class Issue303Test {
         assertThat(packageClassNamesNonRecursive0).isEqualTo(packageClassNamesNonRecursive2);
         assertThat(packageClassNamesRecursive).isEqualTo(allClassNamesRecursive);
         assertThat(packageClassNamesNonRecursive0).isEqualTo(allClassNamesNonRecursive);
-    }
-
-    @Test
-    public void testPackageInfoClassesNonRecursive() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(PACKAGE_NAME).enableAllInfo()
-                .scan()) {
-            final List<ClassInfo> packageClassesRecursive = scanResult.getPackageInfo(PACKAGE_NAME)
-                    .getClassInfoRecursive();
-            final List<ClassInfo> allClasses = scanResult.getAllClasses();
-            assertThat(packageClassesRecursive).isEqualTo(allClasses);
-        }
     }
 }
