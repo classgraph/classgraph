@@ -100,12 +100,12 @@ class ZipFileSliceReader implements AutoCloseable {
         return totBytesRead == 0 && numBytesToRead > 0 ? -1 : totBytesRead;
     }
 
-    static int getShort(final byte[] buf, final long off) throws IOException {
+    static int getShort(final byte[] buf, final long off) throws IndexOutOfBoundsException {
         final int ioff = (int) off;
         if (ioff < 0 || ioff > buf.length - 2) {
             throw new IndexOutOfBoundsException();
         }
-        return ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff + 0] & 0xff);
+        return ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff] & 0xff);
     }
 
     int getShort(final long off) throws IOException {
@@ -115,7 +115,7 @@ class ZipFileSliceReader implements AutoCloseable {
         if (read(off, scratch, 0, 2) < 2) {
             throw new EOFException("Unexpected EOF");
         }
-        return getShort(scratch, 0L);
+        return ((scratch[1] & 0xff) << 8) | (scratch[0] & 0xff);
     }
 
     static int getInt(final byte[] buf, final long off) throws IOException {
@@ -123,8 +123,10 @@ class ZipFileSliceReader implements AutoCloseable {
         if (ioff < 0 || ioff > buf.length - 4) {
             throw new IndexOutOfBoundsException();
         }
-        return ((buf[ioff + 3] & 0xff) << 24) | ((buf[ioff + 2] & 0xff) << 16) | ((buf[ioff + 1] & 0xff) << 8)
-                | (buf[ioff + 0] & 0xff);
+        return ((buf[ioff + 3] & 0xff) << 24) //
+                | ((buf[ioff + 2] & 0xff) << 16) //
+                | ((buf[ioff + 1] & 0xff) << 8) //
+                | (buf[ioff] & 0xff);
     }
 
     int getInt(final long off) throws IOException {
@@ -134,7 +136,10 @@ class ZipFileSliceReader implements AutoCloseable {
         if (read(off, scratch, 0, 4) < 4) {
             throw new EOFException("Unexpected EOF");
         }
-        return getInt(scratch, 0L);
+        return ((scratch[3] & 0xff) << 24) //
+                | ((scratch[2] & 0xff) << 16) //
+                | ((scratch[1] & 0xff) << 8) //
+                | (scratch[0] & 0xff);
     }
 
     static long getLong(final byte[] buf, final long off) throws IOException {
@@ -142,9 +147,16 @@ class ZipFileSliceReader implements AutoCloseable {
         if (ioff < 0 || ioff > buf.length - 8) {
             throw new IndexOutOfBoundsException();
         }
-        return (((long) (((buf[ioff + 7] & 0xff) << 24) | ((buf[ioff + 6] & 0xff) << 16)
-                | ((buf[ioff + 5] & 0xff) << 8) + (buf[ioff + 4] & 0xff))) << 32) | ((buf[ioff + 3] & 0xff) << 24)
-                | ((buf[ioff + 2] & 0xff) << 16) + ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff + 0] & 0xff);
+        return //
+        (((long) (((buf[ioff + 7] & 0xff) << 24) //
+                | ((buf[ioff + 6] & 0xff) << 16) //
+                | ((buf[ioff + 5] & 0xff) << 8) //
+                | (buf[ioff + 4] & 0xff))) //
+        << 32) //
+                | (((buf[ioff + 3] & 0xff) << 24) //
+                        | ((buf[ioff + 2] & 0xff) << 16) //
+                        | ((buf[ioff + 1] & 0xff) << 8) //
+                        | (buf[ioff] & 0xff));
     }
 
     long getLong(final long off) throws IOException {
@@ -154,7 +166,16 @@ class ZipFileSliceReader implements AutoCloseable {
         if (read(off, scratch, 0, 8) < 8) {
             throw new EOFException("Unexpected EOF");
         }
-        return getLong(scratch, 0L);
+        return //
+        (((long) (((scratch[7] & 0xff) << 24) //
+                | ((scratch[6] & 0xff) << 16) //
+                | ((scratch[5] & 0xff) << 8) //
+                | (scratch[4] & 0xff))) //
+        << 32) //
+                | (((scratch[3] & 0xff) << 24) //
+                        | ((scratch[2] & 0xff) << 16) //
+                        | ((scratch[1] & 0xff) << 8) //
+                        | (scratch[0] & 0xff));
     }
 
     static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
@@ -169,13 +190,13 @@ class ZipFileSliceReader implements AutoCloseable {
         if (off < 0 || off > zipFileSlice.len - numBytes) {
             throw new IndexOutOfBoundsException();
         }
-        final byte[] bufToUse = numBytes <= scratch.length ? scratch : new byte[numBytes];
-        if (read(off, bufToUse, 0, numBytes) < numBytes) {
+        final byte[] scratchToUse = numBytes <= scratch.length ? scratch : new byte[numBytes];
+        if (read(off, scratchToUse, 0, numBytes) < numBytes) {
             throw new EOFException("Unexpected EOF");
         }
         // Assume the entry names are encoded in UTF-8 (should be the case for all jars; the only other
         // valid zipfile charset is CP437, which is the same as ASCII for printable high-bit-clear chars)
-        return getString(bufToUse, 0L, numBytes);
+        return new String(scratchToUse, 0, numBytes, StandardCharsets.UTF_8);
     }
 
     @Override
