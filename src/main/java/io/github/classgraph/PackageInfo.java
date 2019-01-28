@@ -184,7 +184,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * Get the {@link PackageInfo} object for the named package, also creating {@link PackageInfo} objects for any
      * needed parent packages.
      */
-    public static PackageInfo getPackage(final String packageName,
+    static PackageInfo getPackage(final String packageName,
             final Map<String, PackageInfo> packageNameToPackageInfo) {
         // Get or create PackageInfo object for this package
         PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
