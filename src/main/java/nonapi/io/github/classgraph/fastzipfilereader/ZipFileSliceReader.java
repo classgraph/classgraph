@@ -115,7 +115,7 @@ class ZipFileSliceReader implements AutoCloseable {
         if (read(off, buf, 0, 2) < 2) {
             throw new EOFException("Unexpected EOF");
         }
-        return ((buf[1] & 0xff) << 8) | (buf[0] & 0xff);
+        return getShort(buf, 0L);
     }
 
     static int getInt(final byte[] buf, final long off) throws IOException {
@@ -134,7 +134,7 @@ class ZipFileSliceReader implements AutoCloseable {
         if (read(off, buf, 0, 4) < 4) {
             throw new EOFException("Unexpected EOF");
         }
-        return ((buf[3] & 0xff) << 24) | ((buf[2] & 0xff) << 16) | ((buf[1] & 0xff) << 8) | (buf[0] & 0xff);
+        return getInt(buf, 0L);
     }
 
     static long getLong(final byte[] buf, final long off) throws IOException {
@@ -154,9 +154,7 @@ class ZipFileSliceReader implements AutoCloseable {
         if (read(off, buf, 0, 8) < 8) {
             throw new EOFException("Unexpected EOF");
         }
-        return (((long) (((buf[7] & 0xff) << 24) | ((buf[6] & 0xff) << 16) | ((buf[5] & 0xff) << 8)
-                | (buf[4] & 0xff))) << 32) | ((buf[3] & 0xff) << 24) | ((buf[2] & 0xff) << 16)
-                | ((buf[1] & 0xff) << 8) | (buf[0] & 0xff);
+        return getLong(buf, 0L);
     }
 
     static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
