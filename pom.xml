@@ -256,9 +256,10 @@
                                     <!-- FileUtils requires jdk.unsupported (for usage of Unsafe) -->
                                     <moduleInfoSource>
                                         /**
-                                        <a href="https://github.com/classgraph/classgraph">ClassGraph</a>
-                                        -- the uber-fast, ultra-lightweight, parallelized Java classpath scanner,
-                                        module scanner, and annotation processor for JVM languages. */
+                                        ClassGraph, the uber-fast, ultra-lightweight, parallelized
+                                        Java classpath scanner,
+                                        module scanner, and annotation processor for JVM
+                                        languages. https://github.com/classgraph/classgraph */
                                         module
                                         io.github.classgraph {
                                         exports io.github.classgraph;
