@@ -50,7 +50,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     private Set<PackageInfo> children;
 
     /** Set of classes in the package. */
-    private final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+    private final Map<String, ClassInfo> memberClassNameToClassInfo = new HashMap<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -87,8 +87,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * Merge a {@link ClassInfo} object for a package-info.class file into this PackageInfo. (The same
      * package-info.class file may be present in multiple definitions of the package in different modules.)
      */
-    void addClassInfo(final ClassInfo classInfo, final Map<String, ClassInfo> classNameToClassInfo) {
-        classNameToClassInfo.put(classInfo.getName(), classInfo);
+    void addClassInfo(final ClassInfo classInfo) {
+        memberClassNameToClassInfo.put(classInfo.getName(), classInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -149,16 +149,16 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * this module.
      */
     public ClassInfo getClassInfo(final String className) {
-        return classNameToClassInfo.get(className);
+        return memberClassNameToClassInfo.get(className);
     }
 
     /** Get the {@link ClassInfo} objects for all classes that are members of this package. */
     public ClassInfoList getClassInfo() {
-        return new ClassInfoList(new HashSet<>(classNameToClassInfo.values()), /* sortByName = */ true);
+        return new ClassInfoList(new HashSet<>(memberClassNameToClassInfo.values()), /* sortByName = */ true);
     }
 
     private void getClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
-        reachableClassInfo.addAll(classNameToClassInfo.values());
+        reachableClassInfo.addAll(memberClassNameToClassInfo.values());
         for (final PackageInfo subPackageInfo : getChildren()) {
             subPackageInfo.getClassInfoRecursive(reachableClassInfo);
         }

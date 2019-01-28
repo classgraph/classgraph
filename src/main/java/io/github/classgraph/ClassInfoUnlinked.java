@@ -203,7 +203,7 @@ class ClassInfoUnlinked {
             final int lastDotIdx = className.lastIndexOf('.');
             final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
             final PackageInfo packageInfo = PackageInfo.getPackage(packageName, packageNameToPackageInfo);
-            packageInfo.addClassInfo(classInfo, classNameToClassInfo);
+            packageInfo.addClassInfo(classInfo);
 
             final ModuleRef moduleRef = classInfo.getModuleRef();
             if (moduleRef != null) {
