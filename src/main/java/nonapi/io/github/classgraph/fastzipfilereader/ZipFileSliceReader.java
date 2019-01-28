@@ -128,7 +128,7 @@ class ZipFileSliceReader implements AutoCloseable {
     }
 
     int getInt(final long off) throws IOException {
-        if (off < 0 || off > zipFileSlice.len - 2) {
+        if (off < 0 || off > zipFileSlice.len - 4) {
             throw new IndexOutOfBoundsException();
         }
         if (read(off, buf, 0, 4) < 4) {
@@ -148,7 +148,7 @@ class ZipFileSliceReader implements AutoCloseable {
     }
 
     long getLong(final long off) throws IOException {
-        if (off < 0 || off > zipFileSlice.len - 2) {
+        if (off < 0 || off > zipFileSlice.len - 8) {
             throw new IndexOutOfBoundsException();
         }
         if (read(off, buf, 0, 8) < 8) {
