@@ -516,8 +516,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
             throw new IllegalArgumentException("assignableToClass parameter cannot be null");
         }
         // Get subclasses and implementing classes for assignableFromClass
-        final Set<ClassInfo> allAssignableFromClasses = new HashSet<>(assignableToClass.getSubclasses());
-        allAssignableFromClasses.addAll(assignableToClass.getClassesImplementing());
+        final Set<ClassInfo> allAssignableFromClasses = new HashSet<>();
+        if (assignableToClass.isStandardClass()) {
+            allAssignableFromClasses.addAll(assignableToClass.getSubclasses());
+        } else if (assignableToClass.isInterfaceOrAnnotation()) {
+            allAssignableFromClasses.addAll(assignableToClass.getClassesImplementing());
+        }
         allAssignableFromClasses.add(assignableToClass);
         final Set<ClassInfo> assignableFromClassesFiltered = new LinkedHashSet<>(size());
         final Set<ClassInfo> directlyRelatedAssignableFromClassesFiltered = new LinkedHashSet<>(
