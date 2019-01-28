@@ -47,14 +47,11 @@ public class FieldInfoTest {
 
     public int fieldWithoutAnnotation;
 
-    @Test
+    @Test(expected = IllegalArgumentException.class)
     public void fieldInfoNotEnabled() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .scan()) {
             scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo();
-            throw new RuntimeException("Fail");
-        } catch (final Exception e) {
-            // Pass
         }
     }
 
