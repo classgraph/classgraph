@@ -89,6 +89,48 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
+     * Copy up to len bytes into the byte array, starting at the given offset.
+     * 
+     * @param array
+     *            The array to copy into
+     * @param off
+     *            The start index for the copy.
+     * @param len
+     *            The maximum number of bytes to copy.
+     * @return The number of bytes actually copied.
+     * @throws IOException
+     *             If the file content could not be read.
+     */
+    private int read(final byte[] array, final int off, final int len) throws IOException {
+        if (len == 0) {
+            return 0;
+        }
+        if (inputStream != null) {
+            return inputStream.read(array, off, len);
+        }
+        final int bytesRemainingInBuf = byteBuffer != null ? byteBuffer.remaining() : buf.length - off;
+        final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
+        if (bytesRead == 0) {
+            // Return -1, as per InputStream#read() contract
+            return -1;
+        }
+        if (byteBuffer != null) {
+            // Copy from the ByteBuffer into the byte array
+            final int byteBufPositionBefore = byteBuffer.position();
+            try {
+                byteBuffer.get(array, off, bytesRead);
+            } catch (final BufferUnderflowException e) {
+                // Should not happen
+                throw new IOException("Buffer underflow", e);
+            }
+            return byteBuffer.position() - byteBufPositionBefore;
+        } else {
+            // Nothing to read, since ByteBuffer is backed with an array
+            return bytesRead;
+        }
+    }
+
+    /**
      * Read an initial chunk of the file into the buffer.
      * 
      * @throws IOException
@@ -362,48 +404,6 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             } else {
                 return new String(chars, 0, charIdx);
             }
-        }
-    }
-
-    /**
-     * Copy up to len bytes into the byte array, starting at the given offset.
-     * 
-     * @param array
-     *            The array to copy into
-     * @param off
-     *            The start index for the copy.
-     * @param len
-     *            The maximum number of bytes to copy.
-     * @return The number of bytes actually copied.
-     * @throws IOException
-     *             If the file content could not be read.
-     */
-    public int read(final byte[] array, final int off, final int len) throws IOException {
-        if (len == 0) {
-            return 0;
-        }
-        if (inputStream != null) {
-            return inputStream.read(array, off, len);
-        }
-        final int bytesRemainingInBuf = byteBuffer != null ? byteBuffer.remaining() : buf.length - off;
-        final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
-        if (bytesRead == 0) {
-            // Return -1, as per InputStream#read() contract
-            return -1;
-        }
-        if (byteBuffer != null) {
-            // Copy from the ByteBuffer into the byte array
-            final int byteBufPositionBefore = byteBuffer.position();
-            try {
-                byteBuffer.get(array, off, bytesRead);
-            } catch (final BufferUnderflowException e) {
-                // Should not happen
-                throw new IOException("Buffer underflow", e);
-            }
-            return byteBuffer.position() - byteBufPositionBefore;
-        } else {
-            // Nothing to read, since ByteBuffer is backed with an array
-            return bytesRead;
         }
     }
 
