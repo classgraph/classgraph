@@ -91,8 +91,6 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /**
      * Copy up to len bytes into the byte array, starting at the given offset.
      * 
-     * @param array
-     *            The array to copy into
      * @param off
      *            The start index for the copy.
      * @param len
@@ -101,12 +99,12 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * @throws IOException
      *             If the file content could not be read.
      */
-    private int read(final byte[] array, final int off, final int len) throws IOException {
+    private int read(final int off, final int len) throws IOException {
         if (len == 0) {
             return 0;
         }
         if (inputStream != null) {
-            return inputStream.read(array, off, len);
+            return inputStream.read(buf, off, len);
         }
         final int bytesRemainingInBuf = byteBuffer != null ? byteBuffer.remaining() : buf.length - off;
         final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
@@ -118,7 +116,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             // Copy from the ByteBuffer into the byte array
             final int byteBufPositionBefore = byteBuffer.position();
             try {
-                byteBuffer.get(array, off, bytesRead);
+                byteBuffer.get(buf, off, bytesRead);
             } catch (final BufferUnderflowException e) {
                 // Should not happen
                 throw new IOException("Buffer underflow", e);
@@ -139,7 +137,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     public void readInitialChunk() throws IOException {
         // Read first bufferful
         for (int bytesRead; used < INITIAL_BUFFER_CHUNK_SIZE
-                && (bytesRead = read(buf, used, INITIAL_BUFFER_CHUNK_SIZE - used)) != -1;) {
+                && (bytesRead = read(used, INITIAL_BUFFER_CHUNK_SIZE - used)) != -1;) {
             used += bytesRead;
         }
     }
@@ -163,7 +161,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         }
         int extraBytesStillNotRead = extraBytesNeeded;
         while (extraBytesStillNotRead > 0) {
-            final int bytesRead = read(buf, used, bytesToRequest);
+            final int bytesRead = read(used, bytesToRequest);
             if (bytesRead > 0) {
                 used += bytesRead;
                 bytesToRequest -= bytesRead;
