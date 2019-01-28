@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
@@ -51,7 +50,6 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 public abstract class SingletonMap<K, V> {
     private final ConcurrentMap<K, SingletonHolder<V>> map = new ConcurrentHashMap<>();
-    private final ConcurrentLinkedQueue<SingletonHolder<V>> singletonHolderRecycler = new ConcurrentLinkedQueue<>();
 
     /**
      * Wrapper to allow an object instance to be put into a ConcurrentHashMap using putIfAbsent() without requiring
@@ -71,48 +69,6 @@ public abstract class SingletonMap<K, V> {
         public V get() throws InterruptedException {
             initialized.await();
             return singleton;
-        }
-    }
-
-    /**
-     * Initialize a value object for this key and return true, if this is the first time this key has been seen,
-     * otherwise return false.
-     * 
-     * @param key
-     *            The key for the singleton.
-     * @param log
-     *            The log.
-     * @return The singleton instance.
-     * @throws Exception
-     *             if newInstance(key) throws an exception.
-     * @throws IllegalArgumentException
-     *             if newInstance(key) returns null.
-     */
-    private boolean createSingleton(final K key, final LogNode log) throws Exception {
-        SingletonHolder<V> newSingletonHolder = singletonHolderRecycler.poll();
-        if (newSingletonHolder == null) {
-            newSingletonHolder = new SingletonHolder<>();
-        }
-        final SingletonHolder<V> oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
-        if (oldSingletonHolder == null) {
-            // Initialize newSingletonHolder with new instance of value.
-            V newInstance = null;
-            try {
-                newInstance = newInstance(key, log);
-                if (newInstance == null) {
-                    throw new IllegalArgumentException("newInstance(key) returned null");
-                }
-            } finally {
-                // Have to call .set() even if an exception is thrown by newInstance(), or if newInstance is null,
-                // since .set() calls initialized.countDown(). Otherwise threads that call .get() can end up waiting
-                // forever.
-                newSingletonHolder.set(newInstance);
-            }
-            return true;
-        } else {
-            // There was already a singleton in the map for this key -- recycle newSingletonHolder
-            singletonHolderRecycler.add(newSingletonHolder);
-            return false;
         }
     }
 
@@ -148,31 +104,50 @@ public abstract class SingletonMap<K, V> {
      *             if newInstance(key) returns null.
      */
     public V get(final K key, final LogNode log) throws Exception {
-        final V existingSingleton = getIfPresent(key);
-        if (existingSingleton != null) {
-            return existingSingleton;
+        final SingletonHolder<V> singletonHolder = map.get(key);
+        if (singletonHolder != null) {
+            // There is already a SingletonHolder in the map for this key -- get the value
+            return singletonHolder.get();
         } else {
-            // Create singleton (in case of race condition, only one thread will cause a new singleton to be
-            // created for this key, due to the getIfPresent call)
-            try {
-                createSingleton(key, log);
-            } catch (IOException | IllegalArgumentException e) {
-                if (log != null) {
-                    log.log("Exception while attempting to create singleton " + key + " : " + e);
+            // There is no SingletonHolder in the map for this key, need to create one
+            // (need to handle race condition, hence the putIfAbsent call)
+            final SingletonHolder<V> newSingletonHolder = new SingletonHolder<>();
+            final SingletonHolder<V> oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
+            if (oldSingletonHolder != null) {
+                // There was already a singleton in the map for this key, due to a race condition --
+                // return the existing singleton
+                return oldSingletonHolder.get();
+            } else {
+                // Initialize newSingletonHolder with new instance of value.
+                V newInstance = null;
+                try {
+                    try {
+                        newInstance = newInstance(key, log);
+                    } catch (IOException | IllegalArgumentException e) {
+                        if (log != null) {
+                            log.log("Exception while attempting to create singleton " + key + " : " + e);
+                        }
+                        throw e;
+                    } catch (final Throwable e) {
+                        if (log != null) {
+                            log.log("Exception while attempting to create singleton " + key, e);
+                        }
+                        throw e;
+                    }
+                    if (newInstance == null) {
+                        if (log != null) {
+                            log.log("newInstance returned null for key " + key);
+                        }
+                        throw new IllegalArgumentException("newInstance returned null for key " + key);
+                    }
+                } finally {
+                    // Have to call .set() even if an exception is thrown by newInstance(), or if newInstance
+                    // is null, since .set() calls initialized.countDown(). Otherwise threads that call .get()
+                    // can end up waiting forever.
+                    newSingletonHolder.set(newInstance);
                 }
-                throw e;
-            } catch (final Throwable e) {
-                if (log != null) {
-                    log.log("Exception while attempting to create singleton " + key, e);
-                }
-                throw e;
+                return newInstance;
             }
-            // Look up newly-created singleton, and get the created value
-            final V value = getIfPresent(key);
-            if (value == null) {
-                throw new IllegalArgumentException("Previous call to newInstance(key) returned null");
-            }
-            return value;
         }
     }
 
