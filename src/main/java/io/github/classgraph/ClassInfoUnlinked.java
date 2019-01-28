@@ -158,10 +158,7 @@ class ClassInfoUnlinked {
             // Handle package descriptor classfile
             final int lastDotIdx = className.lastIndexOf('.');
             final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
-            PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
-            if (packageInfo == null) {
-                packageNameToPackageInfo.put(packageName, packageInfo = new PackageInfo(packageName));
-            }
+            final PackageInfo packageInfo = PackageInfo.getPackage(packageName, packageNameToPackageInfo);
             packageInfo.addAnnotations(classAnnotations);
         } else {
             // Handle regular classfile
@@ -205,10 +202,7 @@ class ClassInfoUnlinked {
 
             final int lastDotIdx = className.lastIndexOf('.');
             final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
-            PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
-            if (packageInfo == null) {
-                packageNameToPackageInfo.put(packageName, packageInfo = new PackageInfo(packageName));
-            }
+            final PackageInfo packageInfo = PackageInfo.getPackage(packageName, packageNameToPackageInfo);
             packageInfo.addClassInfo(classInfo, classNameToClassInfo);
 
             final ModuleRef moduleRef = classInfo.getModuleRef();

@@ -194,29 +194,16 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         }
         packageNameToPackageInfo.put(packageName, packageInfo = new PackageInfo(packageName));
 
-        // Create PackageInfo objects for parent packages, and connect parents to children and vice versa
-        for (PackageInfo parentPackageInfo, currPackageInfo = packageInfo;
-                // Stop after root package is reached
-                !currPackageInfo.name.isEmpty(); currPackageInfo = parentPackageInfo) {
-            final int lastDotIdx = currPackageInfo.name.lastIndexOf('.');
-            final String parentPackageName = lastDotIdx < 0 ? "" : currPackageInfo.name.substring(0, lastDotIdx);
-            parentPackageInfo = packageNameToPackageInfo.get(parentPackageName);
-            final boolean parentPackageAlreadyExisted = parentPackageInfo != null;
-            if (!parentPackageAlreadyExisted) {
-                packageNameToPackageInfo.put(parentPackageName,
-                        parentPackageInfo = new PackageInfo(parentPackageName));
-                if (currPackageInfo != null) {
-                    parentPackageInfo.children = new HashSet<>();
-                }
+        // Recursively create PackageInfo objects for parent packages, and connect package to parents
+        if (!packageInfo.name.isEmpty()) {
+            final int lastDotIdx = packageInfo.name.lastIndexOf('.');
+            final String parentPackageName = lastDotIdx < 0 ? "" : packageInfo.name.substring(0, lastDotIdx);
+            final PackageInfo parentPackageInfo = getPackage(parentPackageName, packageNameToPackageInfo);
+            if (parentPackageInfo.children == null) {
+                parentPackageInfo.children = new HashSet<>();
             }
-            if (currPackageInfo != null) {
-                currPackageInfo.parent = parentPackageInfo;
-                parentPackageInfo.children.add(parentPackageInfo);
-            }
-            if (parentPackageAlreadyExisted) {
-                // Stop once an already-existant parent package is reached
-                break;
-            }
+            parentPackageInfo.children.add(packageInfo);
+            packageInfo.parent = parentPackageInfo;
         }
 
         // Return the newly-created PackageInfo object
