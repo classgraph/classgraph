@@ -293,14 +293,16 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public synchronized void close() {
                 if (inputStream != null) {
-                    // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
-                    final InputStream inputStreamWrapper = inputStream;
-                    inputStream = null;
                     try {
-                        inputStreamWrapper.close();
+                        if (inputStream instanceof InputStreamResourceCloser) {
+                            ((InputStreamResourceCloser) inputStream).closeInputStream();
+                        } else {
+                            inputStream.close();
+                        }
                     } catch (final IOException e) {
                         // Ignore
                     }
+                    inputStream = null;
                 }
                 if (byteBuffer != null) {
                     byteBuffer = null;

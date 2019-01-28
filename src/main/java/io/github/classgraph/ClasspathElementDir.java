@@ -212,13 +212,15 @@ class ClasspathElementDir extends ClasspathElement {
             public synchronized void close() {
                 if (inputStream != null) {
                     try {
-                        // Avoid infinite loop with InputStreamResourceCloser trying to close its parent resource
-                        final InputStream inputStreamWrapper = inputStream;
-                        inputStream = null;
-                        inputStreamWrapper.close();
+                        if (inputStream instanceof InputStreamResourceCloser) {
+                            ((InputStreamResourceCloser) inputStream).closeInputStream();
+                        } else {
+                            inputStream.close();
+                        }
                     } catch (final IOException e) {
                         // Ignore
                     }
+                    inputStream = null;
                 }
                 if (fileChannel != null) {
                     try {
