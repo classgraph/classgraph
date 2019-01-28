@@ -30,6 +30,8 @@ package io.github.classgraph.issues.issue107;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
+
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
@@ -45,8 +47,8 @@ public class Issue107Test {
                 .ignoreClassVisibility() //
                 .scan()) {
             assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getPackageInfo().getNames())
-                    .containsExactlyInAnyOrder(Issue107Test.class.getPackage().getName());
+            assertThat(scanResult.getPackageInfo().getNames()).containsAll(Arrays.asList("", "io", "io.github",
+                    "io.github.classgraph", Issue107Test.class.getPackage().getName()));
             assertThat(scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo()
                     .getNames()).containsExactlyInAnyOrder(PackageAnnotation.class.getName());
         }
