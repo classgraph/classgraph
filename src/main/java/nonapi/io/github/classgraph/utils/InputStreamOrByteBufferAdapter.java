@@ -89,7 +89,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Copy up to len bytes into the byte array, starting at the given offset.
+     * Copy up to len bytes into buf, starting at the given offset.
      * 
      * @param off
      *            The start index for the copy.
@@ -104,27 +104,30 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             return 0;
         }
         if (inputStream != null) {
+            // Wrapped InputStream
             return inputStream.read(buf, off, len);
-        }
-        final int bytesRemainingInBuf = byteBuffer != null ? byteBuffer.remaining() : buf.length - off;
-        final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
-        if (bytesRead == 0) {
-            // Return -1, as per InputStream#read() contract
-            return -1;
-        }
-        if (byteBuffer != null) {
-            // Copy from the ByteBuffer into the byte array
-            final int byteBufPositionBefore = byteBuffer.position();
-            try {
-                byteBuffer.get(buf, off, bytesRead);
-            } catch (final BufferUnderflowException e) {
-                // Should not happen
-                throw new IOException("Buffer underflow", e);
-            }
-            return byteBuffer.position() - byteBufPositionBefore;
         } else {
-            // Nothing to read, since ByteBuffer is backed with an array
-            return bytesRead;
+            // Wrapped ByteBuffer
+            final int bytesRemainingInBuf = byteBuffer != null ? byteBuffer.remaining() : buf.length - off;
+            final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
+            if (bytesRead == 0) {
+                // Return -1, as per InputStream#read() contract
+                return -1;
+            }
+            if (byteBuffer != null) {
+                // Copy from the ByteBuffer into the byte array
+                final int byteBufPositionBefore = byteBuffer.position();
+                try {
+                    byteBuffer.get(buf, off, bytesRead);
+                } catch (final BufferUnderflowException e) {
+                    // Should not happen
+                    throw new IOException("Buffer underflow", e);
+                }
+                return byteBuffer.position() - byteBufPositionBefore;
+            } else {
+                // Nothing to read, since ByteBuffer is backed with an array
+                return bytesRead;
+            }
         }
     }
 
