@@ -502,7 +502,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * assignableToClass (i.e. where assignableToClass is a superclass or implemented interface of the list
      * element).
      * 
-     * @param assignableToClass
+     * @param superclassOrInterface
      *            the superclass or interface to filter for.
      * @return The filtered list, containing only classes for which
      *         {@code assignableToClassRef.isAssignableFrom(listItemClassRef)} is true for the corresponding
@@ -511,18 +511,18 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @throws IllegalArgumentException
      *             if classInfo is null.
      */
-    public ClassInfoList getAssignableTo(final ClassInfo assignableToClass) {
-        if (assignableToClass == null) {
+    public ClassInfoList getAssignableTo(final ClassInfo superclassOrInterface) {
+        if (superclassOrInterface == null) {
             throw new IllegalArgumentException("assignableToClass parameter cannot be null");
         }
         // Get subclasses and implementing classes for assignableFromClass
         final Set<ClassInfo> allAssignableFromClasses = new HashSet<>();
-        if (assignableToClass.isStandardClass()) {
-            allAssignableFromClasses.addAll(assignableToClass.getSubclasses());
-        } else if (assignableToClass.isInterfaceOrAnnotation()) {
-            allAssignableFromClasses.addAll(assignableToClass.getClassesImplementing());
+        if (superclassOrInterface.isStandardClass()) {
+            allAssignableFromClasses.addAll(superclassOrInterface.getSubclasses());
+        } else if (superclassOrInterface.isInterfaceOrAnnotation()) {
+            allAssignableFromClasses.addAll(superclassOrInterface.getClassesImplementing());
         }
-        allAssignableFromClasses.add(assignableToClass);
+        allAssignableFromClasses.add(superclassOrInterface);
         final Set<ClassInfo> assignableFromClassesFiltered = new LinkedHashSet<>(size());
         final Set<ClassInfo> directlyRelatedAssignableFromClassesFiltered = new LinkedHashSet<>(
                 directlyRelatedClasses.size());
