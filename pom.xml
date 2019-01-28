@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
@@ -8,9 +9,7 @@
     <version>4.6.21-SNAPSHOT</version>
     <name>ClassGraph</name>
 
-    <description>
-	Uber-fast, ultra-lightweight Java classpath and module path scanner. https://github.com/classgraph/classgraph
-	</description>
+    <description>The uber-fast, ultra-lightweight classpath and module path scanner for JVM languages.</description>
 
     <url>https://github.com/classgraph/classgraph</url>
 
@@ -54,16 +53,18 @@
     </distributionManagement>
 
     <properties>
+        <!-- Set UTF-8 encoding for Maven plugins and output -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
         <!-- Default to generating Javadoc in HTML 4.01 format -->
-        <javadocHtmlVersion />
+        <javadoc.html.version />
     </properties>
 
     <build>
         <plugins>
-            <!-- Plugins are listed here, but configured in pluginManagement, 
-                for compatibility with Eclipse. https://stackoverflow.com/a/10483284/3950982 -->
+            <!-- Plugins are listed here, but configured in pluginManagement, for compatibility with Eclipse. -->
+            <!-- See: https://stackoverflow.com/a/10483284/3950982 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -125,8 +126,7 @@
                         </dependency>
                     </dependencies>
                     <executions>
-                        <!-- Check main project for compatibility with JDK 
-                            7 API -->
+                        <!-- Check main project for compatibility with JDK 7 API -->
                         <execution>
                             <id>check-signatures</id>
                             <phase>test</phase>
@@ -139,6 +139,7 @@
                                         implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
+                                            <!-- Check against JDK 7 API -->
                                             <artifactId>java17</artifactId>
                                             <version>1.0</version>
                                         </signature>
@@ -146,8 +147,8 @@
                                 </rules>
                             </configuration>
                         </execution>
-                        <!-- Maven requires its minimum version to be enforced. 
-                            See: https://maven.apache.org/enforcer/enforcer-rules/requireMavenVersion.html -->
+                        <!-- Maven requires its minimum version to be enforced. -->
+                        <!-- See: https://maven.apache.org/enforcer/enforcer-rules/requireMavenVersion.html -->
                         <execution>
                             <id>enforce-maven</id>
                             <goals>
@@ -156,8 +157,8 @@
                             <configuration>
                                 <rules>
                                     <requireMavenVersion>
-                                        <!-- Set this to the version of Maven 
-                                            available on Travis, otherwise Travis builds will fail -->
+                                        <!-- Set this to the version of Maven available on Travis, -->
+                                        <!-- otherwise Travis builds will fail -->
                                         <version>3.5.2</version>
                                     </requireMavenVersion>
                                 </rules>
@@ -173,15 +174,12 @@
                     <version>3.8.0</version>
                     <configuration>
                         <encoding>UTF-8</encoding>
-                        <!-- Can't use "release" option, because (1) ClassGraph 
-                            needs to build on JDK 8, which doesn't support the release switch, and (2) 
-                            some of the source includes @FunctionalInterface annotations, which were 
-                            not available on JDK 7, which makes compilation on JDK 9+ with the release 
-                            switch to complain that this annotation is not found (since the release switch 
-                            does a full API compatibility check). If building with "source" and "target" 
-                            switches, unknown annotations compile fine as long as they exist in the compiling 
-                            JDK, and they don't trigger a linkage error or ClassNotFoundException unless 
-                            the annotation is read. -->
+                        <!-- Can't use "release" option, because ClassGraph needs to be built in JDK 7 -->
+                        <!-- compatibility mode, and the @FunctionalInterface annotation was not available -->
+                        <!-- in JDK 7. If building with "source" and "target" switches, unknown annotations -->
+                        <!-- compile fine as long as they exist in the compiling JDK (in this case, JDK 8+). -->
+                        <!-- Missing annotations don't trigger a linkage error or ClassNotFoundException -->
+                        <!-- unless the annotation is actually read. -->
                         <source>7</source>
                         <target>7</target>
                     </configuration>
@@ -194,8 +192,7 @@
                             </goals>
                             <configuration>
                                 <encoding>UTF-8</encoding>
-                                <!-- Tests use some JDK 8 features, such 
-                                    as lambdas -->
+                                <!-- Tests use some JDK 8 features, such as lambdas -->
                                 <source>8</source>
                                 <target>8</target>
                             </configuration>
@@ -235,11 +232,10 @@
                     </executions>
                 </plugin>
 
-                <!-- Compile module-info.class using ModiTect, and place 
-                    it in META-INF/versions/9 -->
+                <!-- Compile module-info.class using ModiTect, and place it in META-INF/versions/9 -->
                 <plugin>
-                    <!-- In the future, rather than using ModiTect to compile 
-                        module-info.java, could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
+                    <!-- In the future, rather than using ModiTect, could use two execute rules. -->
+                    <!-- See: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
                     <groupId>org.moditect</groupId>
                     <artifactId>moditect-maven-plugin</artifactId>
                     <version>1.0.0.Beta2</version>
@@ -251,20 +247,23 @@
                                 <goal>add-module-info</goal>
                             </goals>
                             <configuration>
-                                <!-- Put module-info.class in META-INF/versions/9 
-                                    to maximize backwards compatibility with JDK 7 and 8. See: https://github.com/moditect/moditect/issues/67 -->
+                                <!-- Put module-info.class in META-INF/versions/9 to maximize backwards compat -->
+                                <!-- See: https://github.com/moditect/moditect/issues/67 -->
                                 <jvmVersion>9</jvmVersion>
                                 <overwriteExistingFiles>true</overwriteExistingFiles>
                                 <module>
                                     <!-- VersionFinder requires java.xml -->
-                                    <!-- sun.misc.Unsafe usage requires jdk.unsupported -->
+                                    <!-- FileUtils requires jdk.unsupported (for usage of Unsafe) -->
                                     <moduleInfoSource>
-                                        module io.github.classgraph {
-                                        exports
-                                        io.github.classgraph;
+                                        /**
+                                        <a href="https://github.com/classgraph/classgraph">ClassGraph</a>
+                                        -- the uber-fast, ultra-lightweight, parallelized Java classpath scanner,
+                                        module scanner, and annotation processor for JVM languages. */
+                                        module
+                                        io.github.classgraph {
+                                        exports io.github.classgraph;
                                         requires java.xml;
-                                        requires
-                                        jdk.unsupported;
+                                        requires jdk.unsupported;
                                         }
                                     </moduleInfoSource>
                                 </module>
@@ -338,15 +337,15 @@
                             </goals>
                             <configuration>
                                 <doclint>none</doclint>
-                                <additionalOptions>${javadocHtmlVersion}</additionalOptions>
+                                <additionalOptions>${javadoc.html.version}</additionalOptions>
                             </configuration>
                         </execution>
                     </executions>
                 </plugin>
 
                 <!-- Stage jars on Sonatype Nexus -->
-                <!-- See http://java.dzone.com/articles/deploy-maven-central 
-                    and http://central.sonatype.org/pages/apache-maven.html -->
+                <!-- See: http://java.dzone.com/articles/deploy-maven-central -->
+                <!-- and: http://central.sonatype.org/pages/apache-maven.html -->
                 <plugin>
                     <groupId>org.sonatype.plugins</groupId>
                     <artifactId>nexus-staging-maven-plugin</artifactId>
@@ -375,8 +374,8 @@
         </pluginManagement>
     </build>
 
-    <!-- Test dependencies (main has no dependencies). Find dependency updates 
-        with: mvn versions:display-dependency-updates -->
+    <!-- Test dependencies (main has no dependencies). -->
+    <!-- Find dependency updates with: mvn versions:display-dependency-updates -->
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -439,9 +438,9 @@
         <profile>
             <id>jdk9plus</id>
             <properties>
-                <javadocHtmlVersion>-html5</javadocHtmlVersion>
-                <!-- coverall version 4.3.0 does not work with java 9, see 
-                    https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
+                <javadoc.html.version>-html5</javadoc.html.version>
+                <!-- coverall version 4.3.0 does not work with java 9. -->
+                <!-- See: https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
                 <coveralls.skip>true</coveralls.skip>
             </properties>
             <activation>
@@ -478,7 +477,8 @@
             </build>
         </profile>
 
-        <!-- Lifecycle mapping for eclipse m2e compatibility. See: https://stackoverflow.com/a/23707050/3950982 -->
+        <!-- Lifecycle mapping for eclipse m2e compatibility. -->
+        <!-- See: https://stackoverflow.com/a/23707050/3950982 -->
         <profile>
             <id>only-eclipse</id>
             <activation>
@@ -488,9 +488,9 @@
                 </property>
             </activation>
             <build>
-                <!-- Putting this in pluginManagement causes Maven and IDEA 
-                    to ignore this "plugin" (the lifecycle-mapping plugin doesn't actually exist, 
-                    it is a special artifactId recognized only by m2e). -->
+                <!-- Putting this in pluginManagement causes Maven and IDEA to ignore this "plugin" -->
+                <!-- (the lifecycle-mapping plugin doesn't actually exist, it is a special artifactId -->
+                <!-- recognized only by m2e). -->
                 <pluginManagement>
                     <plugins>
                         <plugin>
@@ -498,9 +498,9 @@
                             <artifactId>lifecycle-mapping</artifactId>
                             <version>1.0.0</version>
                             <configuration>
-                                <!-- Cause m2e to ignore maven-enforcer-plugin, 
-                                    which does not have a corresponding m2e connector, so triggers a warning. 
-                                    https://stackoverflow.com/a/13043842/3950982 -->
+                                <!-- Cause m2e to ignore maven-enforcer-plugin (which does not have a -->
+                                <!-- corresponding m2e connector, so otherwise triggers a warning). -->
+                                <!-- See: https://stackoverflow.com/a/13043842/3950982 -->
                                 <lifecycleMappingMetadata>
                                     <pluginExecutions>
                                         <pluginExecution>
