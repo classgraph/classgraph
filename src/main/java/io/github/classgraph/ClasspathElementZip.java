@@ -249,6 +249,7 @@ class ClasspathElementZip extends ClasspathElement {
                     inputStream = new InputStreamResourceCloser(this, zipEntry.open());
                     length = zipEntry.uncompressedSize;
                     return inputStream;
+
                 } catch (final Exception e) {
                     close();
                     throw new IOException("Could not open " + this, e);
@@ -266,10 +267,16 @@ class ClasspathElementZip extends ClasspathElement {
                     // For STORED entries that do not span multiple 2GB chunks, can create a
                     // ByteBuffer slice directly from the entry
                     markAsOpen();
-                    // compressedSize should have the same value as uncompressedSize for STORED
-                    // entries, but compressedSize is more reliable (uncompressedSize may be -1)
-                    length = zipEntry.compressedSize;
-                    return zipEntry.getAsSlice();
+                    try {
+                        // compressedSize should have the same value as uncompressedSize for STORED
+                        // entries, but compressedSize is more reliable (uncompressedSize may be -1)
+                        length = zipEntry.compressedSize;
+                        return zipEntry.getAsSlice();
+
+                    } catch (final Exception e) {
+                        close();
+                        throw new IOException("Could not open " + this, e);
+                    }
                 } else {
                     // Otherwise, decompress or extract the entry into a byte[] array,
                     // then wrap in a ByteBuffer

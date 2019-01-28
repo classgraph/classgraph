@@ -185,8 +185,13 @@ class ClasspathElementDir extends ClasspathElement {
                     return inputStream = new InputStreamResourceCloser(this, byteBufferToInputStream());
                 } else {
                     markAsOpen();
-                    return inputStream = new InputStreamResourceCloser(this,
-                            Files.newInputStream(classpathResourceFile.toPath()));
+                    try {
+                        return inputStream = new InputStreamResourceCloser(this,
+                                Files.newInputStream(classpathResourceFile.toPath()));
+                    } catch (final Exception e) {
+                        close();
+                        throw new IOException("Could not open " + this, e);
+                    }
                 }
             }
 
