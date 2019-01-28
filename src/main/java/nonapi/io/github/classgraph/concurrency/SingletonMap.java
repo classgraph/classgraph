@@ -61,12 +61,12 @@ public abstract class SingletonMap<K, V> {
         private V singleton;
         private final CountDownLatch initialized = new CountDownLatch(1);
 
-        public void set(final V singleton) {
+        void set(final V singleton) {
             this.singleton = singleton;
             initialized.countDown();
         }
 
-        public V get() throws InterruptedException {
+        V get() throws InterruptedException {
             initialized.await();
             return singleton;
         }
