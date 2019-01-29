@@ -169,7 +169,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                     buf.write(b);
                     isLineEnd = false;
                 }
-                if (isLineEnd && curr < len && b != (byte) ' ') {
+                if (isLineEnd && curr < len && manifest[curr] != (byte) ' ') {
                     // Value ends if line break is not followed by a space
                     break;
                 }
