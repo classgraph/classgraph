@@ -130,29 +130,26 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         }
         for (; curr < len; curr++) {
             final byte b = manifest[curr];
+            boolean isLineEnd;
             if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
                 // CRLF
                 curr += 2;
-                if (curr >= len - 2 || manifest[curr + 2] != (byte) ' ') {
-                    // Value only ends if line break is not followed by a space
-                    break;
-                }
+                isLineEnd = true;
             } else if (b == '\r') {
                 // CR
                 curr += 1;
-                if (curr >= len - 1 || manifest[curr + 1] != (byte) ' ') {
-                    // Value only ends if line break is not followed by a space
-                    break;
-                }
+                isLineEnd = true;
             } else if (b == '\n') {
                 // LF
                 curr += 1;
-                if (curr >= len - 1 || manifest[curr + 1] != (byte) ' ') {
-                    // Value only ends if line break is not followed by a space
-                    break;
-                }
+                isLineEnd = true;
             } else {
                 buf.append((char) b);
+                isLineEnd = false;
+            }
+            if (isLineEnd && curr < len && manifest[curr] != (byte) ' ') {
+                // Value ends if line break is not followed by a space
+                break;
             }
         }
         final String val = buf.toString();
