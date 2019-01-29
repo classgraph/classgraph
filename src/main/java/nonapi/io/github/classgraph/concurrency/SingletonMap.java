@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -121,19 +120,7 @@ public abstract class SingletonMap<K, V> {
                 // Initialize newSingletonHolder with new instance of value.
                 V newInstance = null;
                 try {
-                    try {
-                        newInstance = newInstance(key, log);
-                    } catch (IOException | IllegalArgumentException e) {
-                        if (log != null) {
-                            log.log("Exception while attempting to create singleton " + key + " : " + e);
-                        }
-                        throw e;
-                    } catch (final Throwable e) {
-                        if (log != null) {
-                            log.log("Exception while attempting to create singleton " + key, e);
-                        }
-                        throw e;
-                    }
+                    newInstance = newInstance(key, log);
                     if (newInstance == null) {
                         if (log != null) {
                             log.log("newInstance returned null for key " + key);
