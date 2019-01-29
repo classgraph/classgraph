@@ -312,7 +312,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         }
         long cenOff = zipFileSliceReader.getInt(eocdPos + 16);
         long cenSize = zipFileSliceReader.getInt(eocdPos + 12);
-        final long cenPos = eocdPos - cenSize;
+        long cenPos = eocdPos - cenSize;
         if (cenSize > eocdPos) {
             throw new IOException(
                     "Central directory size out of range: " + cenSize + " vs. " + eocdPos + ": " + getPath());
@@ -356,6 +356,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                         "Mismatch in central directory offset: " + cenOff + " vs. " + cenOff64 + ": " + getPath());
             }
             cenOff = cenOff64;
+
+            // Recalculate the central directory position
+            cenPos = eocdPos64 - cenSize;
 
             // Don't include Zip64 end of central directory header in central directory entries to read
             entriesTotSizeL = cenSize - 20;
