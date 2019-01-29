@@ -135,12 +135,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // CRLF
                 curr += 2;
                 isLineEnd = true;
-            } else if (b == '\r') {
-                // CR
-                curr += 1;
-                isLineEnd = true;
-            } else if (b == '\n') {
-                // LF
+            } else if (b == '\r' || b == '\n') {
+                // CR or LF
                 curr += 1;
                 isLineEnd = true;
             } else {
@@ -151,6 +147,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // Value ends if line break is not followed by a space
                 break;
             }
+            // If line break was followed by a space, then the curr++ in the for loop header will skip it
         }
         final String val = buf.toString();
         return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);
@@ -277,18 +274,13 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
             if (skip) {
                 // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
-                for (; i < manifest.length - 2;) {
+                for (; i < manifest.length - 2; i++) {
                     if (manifest[i] == '\r' && manifest[i + 1] == '\n' && manifest[i + 2] != ' ') {
                         i += 2;
                         break;
-                    } else if (manifest[i] == '\r' && manifest[i + 1] != ' ') {
-                        i += 1;
-                        break;
-                    } else if (manifest[i] == '\n' && manifest[i + 1] != ' ') {
-                        i += 1;
-                        break;
-                    } else {
+                    } else if ((manifest[i] == '\r' || manifest[i] == '\n') && manifest[i + 1] != ' ') {
                         i++;
+                        break;
                     }
                 }
                 if (i >= manifest.length - 2) {
