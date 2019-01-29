@@ -384,15 +384,15 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             }
             cenSize = cenSize64;
 
+            // Recalculate the central directory position
+            cenPos = eocdPos64 - cenSize;
+
             final long cenOff64 = zipFileSliceReader.getLong(eocdPos64 + 48);
             if (cenOff != cenOff64 && cenOff != 0xffffffff) {
                 throw new IOException(
                         "Mismatch in central directory offset: " + cenOff + " vs. " + cenOff64 + ": " + getPath());
             }
             cenOff = cenOff64;
-
-            // Recalculate the central directory position
-            cenPos = eocdPos64 - cenSize;
         }
 
         // Get offset of first local file header
