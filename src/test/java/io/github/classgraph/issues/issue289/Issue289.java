@@ -15,14 +15,13 @@ public class Issue289 {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClassLoaders(
                         new URLClassLoader(new URL[] { Issue289.class.getClassLoader().getResource("zip64.zip") }))
-                .verbose().scan()) {
+                .scan()) {
             try {
                 for (int i = 1; i < 90000; i++) {
                     final ResourceList resources = scanResult.getResourcesWithPath(i + "");
                     if (resources.isEmpty()) {
                         throw new RuntimeException("Couldn't find resource " + i);
                     }
-                    System.out.println(resources.get(0));
                 }
             } catch (final Exception e) {
                 throw new RuntimeException(e);
