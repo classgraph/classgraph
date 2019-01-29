@@ -355,7 +355,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
         // Check for Zip64 End Of Central Directory Locator record
         final long zip64cdLocIdx = eocdPos - 20;
-        long entriesTotSizeL;
         if (zip64cdLocIdx >= 0 && zipFileSliceReader.getInt(zip64cdLocIdx) == 0x07064b50) {
             if (zipFileSliceReader.getInt(zip64cdLocIdx + 4) > 0
                     || zipFileSliceReader.getInt(zip64cdLocIdx + 16) > 1) {
@@ -394,12 +393,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
             // Recalculate the central directory position
             cenPos = eocdPos64 - cenSize;
-
-            // Don't include Zip64 end of central directory header in central directory entries to read
-            entriesTotSizeL = cenSize - 20;
-        } else {
-            // There was no Zip64 end of central directory header
-            entriesTotSizeL = cenSize;
         }
 
         // Get offset of first local file header
@@ -410,16 +403,15 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory
         // is larger than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
-        final byte[] entryBytes = entriesTotSizeL > FileUtils.MAX_BUFFER_SIZE ? null
-                : new byte[(int) entriesTotSizeL];
+        final byte[] entryBytes = cenSize > FileUtils.MAX_BUFFER_SIZE ? null : new byte[(int) cenSize];
         if (entryBytes != null) {
-            zipFileSliceReader.read(cenPos, entryBytes, 0, (int) entriesTotSizeL);
+            zipFileSliceReader.read(cenPos, entryBytes, 0, (int) cenSize);
         }
 
         if (numEnt == -1L) {
             // numEnt and numEnt64 were inconsistent -- manually count entries
             numEnt = 0;
-            for (long entOff = 0; entOff + 46 <= entriesTotSizeL;) {
+            for (long entOff = 0; entOff + 46 <= cenSize;) {
                 final int sig = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff)
                         : zipFileSliceReader.getInt(cenPos + entOff);
                 if (sig != 0x02014b50) {
@@ -454,7 +446,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         entries = new ArrayList<>((int) numEnt);
         FastZipEntry manifestZipEntry = null;
         try {
-            for (long entOff = 0, entSize; entOff + 46 <= entriesTotSizeL; entOff += entSize) {
+            for (long entOff = 0, entSize; entOff + 46 <= cenSize; entOff += entSize) {
                 final int sig = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff)
                         : zipFileSliceReader.getInt(cenPos + entOff);
                 if (sig != 0x02014b50) {
@@ -472,7 +464,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // Get and sanitize entry name
                 final long filenameStartOff = entOff + 46;
                 final long filenameEndOff = filenameStartOff + filenameLen;
-                if (filenameEndOff > entriesTotSizeL) {
+                if (filenameEndOff > cenSize) {
                     if (log != null) {
                         log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
                     }
@@ -519,51 +511,40 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 long pos = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 42)
                         : zipFileSliceReader.getInt(cenPos + entOff + 42);
 
-                try {
-                    // Check for Zip64 header in extra fields
-                    if (extraFieldLen > 0) {
-                        for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
-                            final long tagOff = filenameEndOff + extraFieldOff;
-                            final int tag = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff)
-                                    : zipFileSliceReader.getShort(cenPos + tagOff);
-                            final int size = entryBytes != null
-                                    ? ZipFileSliceReader.getShort(entryBytes, tagOff + 2)
-                                    : zipFileSliceReader.getShort(cenPos + tagOff + 2);
-                            if (extraFieldOff + 4 + size > extraFieldLen) {
-                                // Invalid size
-                                break;
-                            }
-                            if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
-                                final long uncompressedSizeL = entryBytes != null
-                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
-                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
-                                if (uncompressedSize == 0xffffffff) {
-                                    uncompressedSize = uncompressedSizeL;
-                                }
-                                final long compressedSizeL = entryBytes != null
-                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
-                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
-                                if (compressedSize == 0xffffffff) {
-                                    compressedSize = compressedSizeL;
-                                }
-                                final long posL = entryBytes != null
-                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
-                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
-                                if (pos == 0xffffffff) {
-                                    pos = posL;
-                                }
-                                break;
-                            }
-                            extraFieldOff += 4 + size;
+                // Check for Zip64 header in extra fields
+                if (extraFieldLen > 0) {
+                    for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
+                        final long tagOff = filenameEndOff + extraFieldOff;
+                        final int tag = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff)
+                                : zipFileSliceReader.getShort(cenPos + tagOff);
+                        final int size = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff + 2)
+                                : zipFileSliceReader.getShort(cenPos + tagOff + 2);
+                        if (extraFieldOff + 4 + size > extraFieldLen) {
+                            // Invalid size
+                            break;
                         }
-                    }
-                } catch (EOFException | IndexOutOfBoundsException e) {
-                    // Info-Zip can sometimes truncate the "extra field" section of the last entry in a jarfile
-                    // (ignore extra fields in this case, so that last entry is not dropped)
-                    if (log != null) {
-                        log.log("Reached premature EOF" + (entries.size() > 0
-                                ? " after reading zip entry " + entries.get(entries.size() - 1)
-                                : ""));
+                        if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
+                            final long uncompressedSizeL = entryBytes != null
+                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
+                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
+                            if (uncompressedSize == 0xffffffff) {
+                                uncompressedSize = uncompressedSizeL;
+                            }
+                            final long compressedSizeL = entryBytes != null
+                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
+                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
+                            if (compressedSize == 0xffffffff) {
+                                compressedSize = compressedSizeL;
+                            }
+                            final long posL = entryBytes != null
+                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
+                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
+                            if (pos == 0xffffffff) {
+                                pos = posL;
+                            }
+                            break;
+                        }
+                        extraFieldOff += 4 + size;
                     }
                 }
 
