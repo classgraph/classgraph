@@ -519,42 +519,54 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 long pos = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 42)
                         : zipFileSliceReader.getInt(cenPos + entOff + 42);
 
-                // Check for Zip64 header in extra fields
-                if (extraFieldLen > 0) {
-                    for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
-                        final long tagOff = filenameEndOff + extraFieldOff;
-                        final int tag = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff)
-                                : zipFileSliceReader.getShort(cenPos + tagOff);
-                        final int size = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff + 2)
-                                : zipFileSliceReader.getShort(cenPos + tagOff + 2);
-                        if (extraFieldOff + 4 + size > extraFieldLen) {
-                            // Invalid size
-                            break;
+                try {
+                    // Check for Zip64 header in extra fields
+                    if (extraFieldLen > 0) {
+                        for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
+                            final long tagOff = filenameEndOff + extraFieldOff;
+                            final int tag = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff)
+                                    : zipFileSliceReader.getShort(cenPos + tagOff);
+                            final int size = entryBytes != null
+                                    ? ZipFileSliceReader.getShort(entryBytes, tagOff + 2)
+                                    : zipFileSliceReader.getShort(cenPos + tagOff + 2);
+                            if (extraFieldOff + 4 + size > extraFieldLen) {
+                                // Invalid size
+                                break;
+                            }
+                            if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
+                                final long uncompressedSizeL = entryBytes != null
+                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
+                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
+                                if (uncompressedSize == 0xffffffff) {
+                                    uncompressedSize = uncompressedSizeL;
+                                }
+                                final long compressedSizeL = entryBytes != null
+                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
+                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
+                                if (compressedSize == 0xffffffff) {
+                                    compressedSize = compressedSizeL;
+                                }
+                                final long posL = entryBytes != null
+                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
+                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
+                                if (pos == 0xffffffff) {
+                                    pos = posL;
+                                }
+                                break;
+                            }
+                            extraFieldOff += 4 + size;
                         }
-                        if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
-                            final long uncompressedSizeL = entryBytes != null
-                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
-                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
-                            if (uncompressedSize == 0xffffffff) {
-                                uncompressedSize = uncompressedSizeL;
-                            }
-                            final long compressedSizeL = entryBytes != null
-                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
-                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
-                            if (compressedSize == 0xffffffff) {
-                                compressedSize = compressedSizeL;
-                            }
-                            final long posL = entryBytes != null
-                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
-                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
-                            if (pos == 0xffffffff) {
-                                pos = posL;
-                            }
-                            break;
-                        }
-                        extraFieldOff += 4 + size;
+                    }
+                } catch (EOFException | IndexOutOfBoundsException e) {
+                    // Info-Zip can sometimes truncate the "extra field" section of the last entry in a jarfile
+                    // (ignore extra fields in this case, so that last entry is not dropped)
+                    if (log != null) {
+                        log.log("Reached premature EOF" + (entries.size() > 0
+                                ? " after reading zip entry " + entries.get(entries.size() - 1)
+                                : ""));
                     }
                 }
+
                 if (compressedSize < 0 || pos < 0) {
                     continue;
                 }
@@ -600,6 +612,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 }
             }
         } catch (EOFException | IndexOutOfBoundsException e) {
+            // Stop reading entries if any entry is not within file
             if (log != null) {
                 log.log("Reached premature EOF"
                         + (entries.size() > 0 ? " after reading zip entry " + entries.get(entries.size() - 1)
