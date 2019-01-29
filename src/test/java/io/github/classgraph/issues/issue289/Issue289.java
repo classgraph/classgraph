@@ -17,7 +17,7 @@ public class Issue289 {
                         new URLClassLoader(new URL[] { Issue289.class.getClassLoader().getResource("zip64.zip") }))
                 .scan()) {
             try {
-                for (int i = 1; i < 90000; i++) {
+                for (int i = 0; i < 90000; i++) {
                     final ResourceList resources = scanResult.getResourcesWithPath(i + "");
                     if (resources.isEmpty()) {
                         throw new RuntimeException("Couldn't find resource " + i);
