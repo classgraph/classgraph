@@ -28,7 +28,10 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -116,40 +119,69 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     /**
      * Extract a value from the manifest, and return the value as a string, along with the index after the
-     * terminating newline.
+     * terminating newline. Manifest files support three different line terminator types, and entries can be split
+     * across lines with a line terminator followed by a space.
      */
     private static Entry<String, Integer> getManifestValue(final byte[] manifest, final int startIdx) {
-        // Manifest files support three different line terminator types, and entries can be split across
-        // lines with a line terminator followed by a space.
-        final int len = manifest.length;
-        final StringBuilder buf = new StringBuilder();
+        // See if manifest entry is split across multiple lines
         int curr = startIdx;
-        if (curr < len && manifest[curr] == (byte) ' ') {
+        final int len = manifest.length;
+        while (curr < len && manifest[curr] == (byte) ' ') {
             // Skip initial spaces
             curr++;
         }
-        for (; curr < len; curr++) {
+        final int firstNonSpaceIdx = curr;
+        boolean isMultiLine = false;
+        for (; curr < len && !isMultiLine; curr++) {
             final byte b = manifest[curr];
-            boolean isLineEnd;
             if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
-                // CRLF
-                curr += 2;
-                isLineEnd = true;
-            } else if (b == '\r' || b == '\n') {
-                // CR or LF
-                curr += 1;
-                isLineEnd = true;
-            } else {
-                buf.append((char) b);
-                isLineEnd = false;
-            }
-            if (isLineEnd && curr < len && manifest[curr] != (byte) ' ') {
-                // Value ends if line break is not followed by a space
+                if (curr < len - 2 && manifest[curr + 2] == (byte) ' ') {
+                    isMultiLine = true;
+                }
+                break;
+            } else if (b == (byte) '\r' || b == (byte) '\n') {
+                if (curr < len - 1 && manifest[curr + 1] == (byte) ' ') {
+                    isMultiLine = true;
+                }
                 break;
             }
-            // If line break was followed by a space, then the curr++ in the for loop header will skip it
         }
-        final String val = buf.toString();
+        String val;
+        if (!isMultiLine) {
+            // Fast path for single-line value
+            val = new String(manifest, firstNonSpaceIdx, curr - firstNonSpaceIdx, StandardCharsets.UTF_8);
+        } else {
+            // Skip (newline + space) sequences in multi-line values
+            final ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            curr = firstNonSpaceIdx;
+            for (; curr < len; curr++) {
+                final byte b = manifest[curr];
+                boolean isLineEnd;
+                if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
+                    // CRLF
+                    curr += 2;
+                    isLineEnd = true;
+                } else if (b == '\r' || b == '\n') {
+                    // CR or LF
+                    curr += 1;
+                    isLineEnd = true;
+                } else {
+                    buf.write(b);
+                    isLineEnd = false;
+                }
+                if (isLineEnd && curr < len && b != (byte) ' ') {
+                    // Value ends if line break is not followed by a space
+                    break;
+                }
+                // If line break was followed by a space, then the curr++ in the for loop header will skip it
+            }
+            try {
+                val = buf.toString("UTF-8");
+            } catch (final UnsupportedEncodingException e) {
+                // Should not happen
+                throw new RuntimeException(e);
+            }
+        }
         return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);
     }
 
@@ -275,10 +307,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             if (skip) {
                 // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
                 for (; i < manifest.length - 2; i++) {
-                    if (manifest[i] == '\r' && manifest[i + 1] == '\n' && manifest[i + 2] != ' ') {
+                    if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n'
+                            && manifest[i + 2] != (byte) ' ') {
                         i += 2;
                         break;
-                    } else if ((manifest[i] == '\r' || manifest[i] == '\n') && manifest[i + 1] != ' ') {
+                    } else if ((manifest[i] == (byte) '\r' || manifest[i] == (byte) '\n')
+                            && manifest[i + 1] != (byte) ' ') {
                         i++;
                         break;
                     }
