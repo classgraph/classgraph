@@ -11,7 +11,7 @@ import io.github.classgraph.ScanResult;
 
 public class Issue289 {
     @Test
-    public void multiReleaseJar() {
+    public void issue289() {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClassLoaders(
                         new URLClassLoader(new URL[] { Issue289.class.getClassLoader().getResource("zip64.zip") }))
