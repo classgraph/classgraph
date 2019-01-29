@@ -498,7 +498,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     @Override
     public String toString() {
-        return getPath();
+        return "jar:file:" + getPath();
     }
 
     /**
