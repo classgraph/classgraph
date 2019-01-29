@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
@@ -452,148 +453,157 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         // Enumerate entries
         entries = new ArrayList<>((int) numEnt);
         FastZipEntry manifestZipEntry = null;
-        for (long entOff = 0, entSize; entOff + 46 <= entriesTotSizeL; entOff += entSize) {
-            final int sig = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff)
-                    : zipFileSliceReader.getInt(cenPos + entOff);
-            if (sig != 0x02014b50) {
-                throw new IOException(
-                        "Invalid central directory signature: 0x" + Integer.toString(sig, 16) + ": " + getPath());
-            }
-            final int filenameLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 28)
-                    : zipFileSliceReader.getShort(cenPos + entOff + 28);
-            final int extraFieldLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 30)
-                    : zipFileSliceReader.getShort(cenPos + entOff + 30);
-            final int commentLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 32)
-                    : zipFileSliceReader.getShort(cenPos + entOff + 32);
-            entSize = 46 + filenameLen + extraFieldLen + commentLen;
-
-            // Get and sanitize entry name
-            final long filenameStartOff = entOff + 46;
-            final long filenameEndOff = filenameStartOff + filenameLen;
-            if (filenameEndOff > entriesTotSizeL) {
-                if (log != null) {
-                    log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
+        try {
+            for (long entOff = 0, entSize; entOff + 46 <= entriesTotSizeL; entOff += entSize) {
+                final int sig = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff)
+                        : zipFileSliceReader.getInt(cenPos + entOff);
+                if (sig != 0x02014b50) {
+                    throw new IOException("Invalid central directory signature: 0x" + Integer.toString(sig, 16)
+                            + ": " + getPath());
                 }
-                break;
-            }
-            final String entryName = entryBytes != null
-                    ? ZipFileSliceReader.getString(entryBytes, filenameStartOff, filenameLen)
-                    : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen);
-            final String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName,
-                    /* removeInitialSlash = */ true);
-            if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
-                // Skip directory entries
-                continue;
-            }
+                final int filenameLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 28)
+                        : zipFileSliceReader.getShort(cenPos + entOff + 28);
+                final int extraFieldLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 30)
+                        : zipFileSliceReader.getShort(cenPos + entOff + 30);
+                final int commentLen = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 32)
+                        : zipFileSliceReader.getShort(cenPos + entOff + 32);
+                entSize = 46 + filenameLen + extraFieldLen + commentLen;
 
-            // Check entry flag bits
-            final int flags = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 8)
-                    : zipFileSliceReader.getShort(cenPos + entOff + 8);
-            if ((flags & 1) != 0) {
-                if (log != null) {
-                    log.log("Skipping encrypted zip entry: " + entryNameSanitized);
-                }
-                continue;
-            }
-
-            // Check compression method
-            final int compressionMethod = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 10)
-                    : zipFileSliceReader.getShort(cenPos + entOff + 10);
-            if (compressionMethod != /* stored */ 0 && compressionMethod != /* deflated */ 8) {
-                if (log != null) {
-                    log.log("Skipping zip entry with invalid compression method " + compressionMethod + ": "
-                            + entryNameSanitized);
-                }
-                continue;
-            }
-            final boolean isDeflated = compressionMethod == /* deflated */ 8;
-
-            // Get compressed and uncompressed size
-            long compressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 20)
-                    : zipFileSliceReader.getInt(cenPos + entOff + 20);
-            long uncompressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 24)
-                    : zipFileSliceReader.getInt(cenPos + entOff + 24);
-            long pos = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 42)
-                    : zipFileSliceReader.getInt(cenPos + entOff + 42);
-
-            // Check for Zip64 header in extra fields
-            if (extraFieldLen > 0) {
-                for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
-                    final long tagOff = filenameEndOff + extraFieldOff;
-                    final int tag = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff)
-                            : zipFileSliceReader.getShort(cenPos + tagOff);
-                    final int size = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff + 2)
-                            : zipFileSliceReader.getShort(cenPos + tagOff + 2);
-                    if (extraFieldOff + 4 + size > extraFieldLen) {
-                        // Invalid size
-                        break;
-                    }
-                    if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
-                        final long uncompressedSizeL = entryBytes != null
-                                ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
-                                : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
-                        if (uncompressedSize == 0xffffffff) {
-                            uncompressedSize = uncompressedSizeL;
-                        }
-                        final long compressedSizeL = entryBytes != null
-                                ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
-                                : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
-                        if (compressedSize == 0xffffffff) {
-                            compressedSize = compressedSizeL;
-                        }
-                        final long posL = entryBytes != null
-                                ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
-                                : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
-                        if (pos == 0xffffffff) {
-                            pos = posL;
-                        }
-                        break;
-                    }
-                    extraFieldOff += 4 + size;
-                }
-            }
-            if (compressedSize < 0 || pos < 0) {
-                continue;
-            }
-
-            final long locHeaderPos = locPos + pos;
-            if (locHeaderPos < 0) {
-                if (log != null) {
-                    log.log("Skipping zip entry with invalid loc header position: " + entryNameSanitized);
-                }
-                continue;
-            }
-            if (locHeaderPos + 4 >= len) {
-                if (log != null) {
-                    log.log("Unexpected EOF when trying to read LOC header: " + entryNameSanitized);
-                }
-                continue;
-            }
-
-            // Add zip entry
-            final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
-                    compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler);
-            entries.add(entry);
-
-            // Record manifest entry
-            if (entry.entryName.equals(MANIFEST_PATH)) {
-                manifestZipEntry = entry;
-            }
-
-            if (scanSpec.scanNestedJars) {
-                // Add any lib jars to classpath
-                if ((entry.entryNameUnversioned.startsWith("BOOT-INF/lib/")
-                        || entry.entryNameUnversioned.startsWith("BOOT-INF/lib-provided/")
-                        || entry.entryNameUnversioned.startsWith("WEB-INF/lib/")
-                        || entry.entryNameUnversioned.startsWith("WEB-INF/lib-provided/")
-                        || entry.entryNameUnversioned.startsWith("lib/")) //
-                        && entry.entryNameUnversioned.endsWith(".jar")) {
-                    final String entryPath = entry.getPath();
+                // Get and sanitize entry name
+                final long filenameStartOff = entOff + 46;
+                final long filenameEndOff = filenameStartOff + filenameLen;
+                if (filenameEndOff > entriesTotSizeL) {
                     if (log != null) {
-                        log.log("Adding nested lib jar to classpath: " + entryPath);
+                        log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
                     }
-                    addAdditionalClassPathEntryToScan(entryPath);
+                    break;
                 }
+                final String entryName = entryBytes != null
+                        ? ZipFileSliceReader.getString(entryBytes, filenameStartOff, filenameLen)
+                        : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen);
+                final String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName,
+                        /* removeInitialSlash = */ true);
+                if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
+                    // Skip directory entries
+                    continue;
+                }
+
+                // Check entry flag bits
+                final int flags = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 8)
+                        : zipFileSliceReader.getShort(cenPos + entOff + 8);
+                if ((flags & 1) != 0) {
+                    if (log != null) {
+                        log.log("Skipping encrypted zip entry: " + entryNameSanitized);
+                    }
+                    continue;
+                }
+
+                // Check compression method
+                final int compressionMethod = entryBytes != null
+                        ? ZipFileSliceReader.getShort(entryBytes, entOff + 10)
+                        : zipFileSliceReader.getShort(cenPos + entOff + 10);
+                if (compressionMethod != /* stored */ 0 && compressionMethod != /* deflated */ 8) {
+                    if (log != null) {
+                        log.log("Skipping zip entry with invalid compression method " + compressionMethod + ": "
+                                + entryNameSanitized);
+                    }
+                    continue;
+                }
+                final boolean isDeflated = compressionMethod == /* deflated */ 8;
+
+                // Get compressed and uncompressed size
+                long compressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 20)
+                        : zipFileSliceReader.getInt(cenPos + entOff + 20);
+                long uncompressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 24)
+                        : zipFileSliceReader.getInt(cenPos + entOff + 24);
+                long pos = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 42)
+                        : zipFileSliceReader.getInt(cenPos + entOff + 42);
+
+                // Check for Zip64 header in extra fields
+                if (extraFieldLen > 0) {
+                    for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
+                        final long tagOff = filenameEndOff + extraFieldOff;
+                        final int tag = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff)
+                                : zipFileSliceReader.getShort(cenPos + tagOff);
+                        final int size = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, tagOff + 2)
+                                : zipFileSliceReader.getShort(cenPos + tagOff + 2);
+                        if (extraFieldOff + 4 + size > extraFieldLen) {
+                            // Invalid size
+                            break;
+                        }
+                        if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
+                            final long uncompressedSizeL = entryBytes != null
+                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
+                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
+                            if (uncompressedSize == 0xffffffff) {
+                                uncompressedSize = uncompressedSizeL;
+                            }
+                            final long compressedSizeL = entryBytes != null
+                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
+                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
+                            if (compressedSize == 0xffffffff) {
+                                compressedSize = compressedSizeL;
+                            }
+                            final long posL = entryBytes != null
+                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
+                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
+                            if (pos == 0xffffffff) {
+                                pos = posL;
+                            }
+                            break;
+                        }
+                        extraFieldOff += 4 + size;
+                    }
+                }
+                if (compressedSize < 0 || pos < 0) {
+                    continue;
+                }
+
+                final long locHeaderPos = locPos + pos;
+                if (locHeaderPos < 0) {
+                    if (log != null) {
+                        log.log("Skipping zip entry with invalid loc header position: " + entryNameSanitized);
+                    }
+                    continue;
+                }
+                if (locHeaderPos + 4 >= len) {
+                    if (log != null) {
+                        log.log("Unexpected EOF when trying to read LOC header: " + entryNameSanitized);
+                    }
+                    continue;
+                }
+
+                // Add zip entry
+                final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
+                        compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler);
+                entries.add(entry);
+
+                // Record manifest entry
+                if (entry.entryName.equals(MANIFEST_PATH)) {
+                    manifestZipEntry = entry;
+                }
+
+                if (scanSpec.scanNestedJars) {
+                    // Add any lib jars to classpath
+                    if ((entry.entryNameUnversioned.startsWith("BOOT-INF/lib/")
+                            || entry.entryNameUnversioned.startsWith("BOOT-INF/lib-provided/")
+                            || entry.entryNameUnversioned.startsWith("WEB-INF/lib/")
+                            || entry.entryNameUnversioned.startsWith("WEB-INF/lib-provided/")
+                            || entry.entryNameUnversioned.startsWith("lib/")) //
+                            && entry.entryNameUnversioned.endsWith(".jar")) {
+                        final String entryPath = entry.getPath();
+                        if (log != null) {
+                            log.log("Adding nested lib jar to classpath: " + entryPath);
+                        }
+                        addAdditionalClassPathEntryToScan(entryPath);
+                    }
+                }
+            }
+        } catch (EOFException | IndexOutOfBoundsException e) {
+            if (log != null) {
+                log.log("Reached premature EOF"
+                        + (entries.size() > 0 ? " after reading zip entry " + entries.get(entries.size() - 1)
+                                : ""));
             }
         }
 
