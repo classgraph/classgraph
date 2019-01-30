@@ -203,8 +203,8 @@ class GraphvizDotfileGenerator {
 
         if (ci.getName().contains(".")) {
             buf.append("<tr><td><font point-size='14'><b>");
-            htmlEncode(ci.getPackageName(), buf);
-            buf.append("</b></font>/td></tr>");
+            htmlEncode(ci.getPackageName() + ".", buf);
+            buf.append("</b></font></td></tr>");
         }
 
         // Class name
