@@ -322,8 +322,8 @@ public class ClassLoaderAndModuleFinder {
 
         // Log all identified ClassLoaders
         if (classLoadersFoundLog != null) {
-            for (final ClassLoader cl : classLoaderFinalOrder) {
-                classLoadersFoundLog.log("" + cl);
+            for (final ClassLoader classLoader : classLoaderFinalOrder) {
+                classLoadersFoundLog.log("" + classLoader.getClass().getName());
             }
         }
 
