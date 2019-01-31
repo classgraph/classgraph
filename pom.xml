@@ -318,6 +318,7 @@
                             <configuration>
                                 <doclint>none</doclint>
                                 <additionalOptions>${javadoc.html.version}</additionalOptions>
+                                <excludePackageNames>nonapi.*</excludePackageNames>
                             </configuration>
                         </execution>
                     </executions>
