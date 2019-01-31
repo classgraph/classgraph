@@ -33,13 +33,15 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -96,9 +98,7 @@ class Scanner implements Callable<ScanResult> {
      * the final classpath element order.
      */
     private static void findClasspathOrderRec(final ClasspathElement currClasspathElement,
-            final SingletonMap<String, ClasspathElement> classpathElementSingletonMap,
-            final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order)
-            throws InterruptedException {
+            final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order) {
         if (visitedClasspathElts.add(currClasspathElement)) {
             if (!currClasspathElement.skipClasspathElement) {
                 // Don't add a classpath element if it is marked to be skipped.
@@ -106,45 +106,77 @@ class Scanner implements Callable<ScanResult> {
             }
             // Whether or not a classpath element should be skipped, add any child classpath elements that are
             // not marked to be skipped (i.e. keep recursing)
-            for (final String childClasspathEltStr : currClasspathElement.childClasspathEltPathSet) {
-                final ClasspathElement childSingleton = classpathElementSingletonMap
-                        .getIfPresent(childClasspathEltStr);
-                if (childSingleton != null) {
-                    findClasspathOrderRec(childSingleton, classpathElementSingletonMap, visitedClasspathElts,
-                            order);
-                }
+            for (final ClasspathElement childClasspathElt : currClasspathElement.childClasspathElementsOrdered) {
+                findClasspathOrderRec(childClasspathElt, visitedClasspathElts, order);
             }
         }
     }
 
+    /** Comparator used to sort ClasspathElement values into increasing order of integer index key */
+    private static final Comparator<Entry<Integer, ClasspathElement>> INDEXED_CLASSPATH_ELEMENT_COMPARATOR = //
+            new Comparator<Map.Entry<Integer, ClasspathElement>>() {
+                @Override
+                public int compare(final Entry<Integer, ClasspathElement> o1,
+                        final Entry<Integer, ClasspathElement> o2) {
+                    return o1.getKey() - o2.getKey();
+                }
+            };
+
+    /** Sort a collection of indexed ClasspathElements into increasing order of integer index key. */
+    private static List<ClasspathElement> orderClasspathElements(
+            final Collection<Entry<Integer, ClasspathElement>> classpathEltsIndexed) {
+        final List<Entry<Integer, ClasspathElement>> classpathEltsIndexedOrdered = new ArrayList<>(
+                classpathEltsIndexed);
+        Collections.sort(classpathEltsIndexedOrdered, INDEXED_CLASSPATH_ELEMENT_COMPARATOR);
+        final List<ClasspathElement> classpathEltsOrdered = new ArrayList<>(classpathEltsIndexedOrdered.size());
+        for (final Entry<Integer, ClasspathElement> ent : classpathEltsIndexedOrdered) {
+            classpathEltsOrdered.add(ent.getValue());
+        }
+        return classpathEltsOrdered;
+    }
+
     /**
-     * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
-     * the final classpath element order.
+     * Recursively perform a depth-first traversal of child classpath elements, breaking cycles if necessary, to
+     * determine the final classpath element order. This causes child classpath elements to be inserted in-place in
+     * the classpath order, after the parent classpath element that contained them.
      */
-    private static List<ClasspathElement> findClasspathOrder(final LinkedHashSet<String> rawClasspathElementOrder,
-            final SingletonMap<String, ClasspathElement> classpathElementSingletonMap) throws InterruptedException {
-        // Recurse from toplevel classpath elements to determine a total ordering of classpath elements (jars with
-        // Class-Path entries in their manifest file should have those child resources included in-place in the
-        // classpath).
+    private List<ClasspathElement> findClasspathOrder(final Set<ClasspathElement> openedClasspathElementsSet,
+            final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltsIndexed) {
+        final List<ClasspathElement> toplevelClasspathEltsOrdered = orderClasspathElements(
+                toplevelClasspathEltsIndexed);
+        for (final ClasspathElement classpathElt : openedClasspathElementsSet) {
+            classpathElt.childClasspathElementsOrdered = orderClasspathElements(
+                    classpathElt.childClasspathElementsIndexed);
+        }
         final HashSet<ClasspathElement> visitedClasspathElts = new HashSet<>();
         final ArrayList<ClasspathElement> order = new ArrayList<>();
-        for (final String toplevelClasspathEltStr : rawClasspathElementOrder) {
-            final ClasspathElement toplevelSingleton = classpathElementSingletonMap
-                    .getIfPresent(toplevelClasspathEltStr);
-            if (toplevelSingleton != null) {
-                findClasspathOrderRec(toplevelSingleton, classpathElementSingletonMap, visitedClasspathElts, order);
-            }
+        for (final ClasspathElement toplevelClasspathElt : toplevelClasspathEltsOrdered) {
+            findClasspathOrderRec(toplevelClasspathElt, visitedClasspathElts, order);
         }
         return order;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Used to enqueue classpath elements for opening. */
+    static class RawClasspathElementWorkUnit {
+        final String rawClasspathEltPath;
+        final ClasspathElement parentClasspathElement;
+        final int orderWithinParentClasspathElement;
+
+        public RawClasspathElementWorkUnit(final String rawClasspathEltPath,
+                final ClasspathElement parentClasspathElement, final int orderWithinParentClasspathElement) {
+            this.rawClasspathEltPath = rawClasspathEltPath;
+            this.parentClasspathElement = parentClasspathElement;
+            this.orderWithinParentClasspathElement = orderWithinParentClasspathElement;
+        }
+    }
+
     /** Used to enqueue classfiles for scanning. */
     private static class ClassfileScanWorkUnit {
-        ClasspathElement classpathElement;
-        Resource classfileResource;
-        boolean isExternalClass;
+        final ClasspathElement classpathElement;
+        final Resource classfileResource;
+        final boolean isExternalClass;
 
         ClassfileScanWorkUnit(final ClasspathElement classpathElement, final Resource classfileResource,
                 final boolean isExternalClass) {
@@ -432,7 +464,7 @@ class Scanner implements Callable<ScanResult> {
                                         .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
-                            classpathElementModule.open(/* unused */ null, classpathFinderLog);
+                            classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                             moduleClasspathEltOrder.add(classpathElementModule);
                         } else {
                             if (classpathFinderLog != null) {
@@ -449,7 +481,7 @@ class Scanner implements Callable<ScanResult> {
                         if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     nonSystemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
-                            classpathElementModule.open(/* unused */ null, classpathFinderLog);
+                            classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                             moduleClasspathEltOrder.add(classpathElementModule);
                         } else {
                             if (classpathFinderLog != null) {
@@ -462,7 +494,12 @@ class Scanner implements Callable<ScanResult> {
             }
 
             // Get order of elements in traditional classpath
-            final LinkedHashSet<String> rawClasspathEltOrder = classpathFinder.getClasspathOrder().getOrder();
+            final List<RawClasspathElementWorkUnit> rawClasspathElementWorkUnits = new ArrayList<>();
+            for (final String rawClasspathEltPath : classpathFinder.getClasspathOrder().getOrder()) {
+                rawClasspathElementWorkUnits.add(
+                        new RawClasspathElementWorkUnit(rawClasspathEltPath, /* parentClasspathElement = */ null,
+                                /* orderWithinParentClasspathElement = */ rawClasspathElementWorkUnits.size()));
+            }
 
             // For each classpath element path, canonicalize path, and create a ClasspathElement singleton
             final SingletonMap<String, ClasspathElement> classpathElementSingletonMap = //
@@ -517,8 +554,9 @@ class Scanner implements Callable<ScanResult> {
                                 // idempotent)
                                 return this.get(canonicalPathNormalized, log);
                             } else {
-                                // Otherwise path is already canonical, and this is the first time this path has been
-                                // seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton for path
+                                // Otherwise path is already canonical, and this is the first time this path has
+                                // been seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton
+                                // for the classpath element path
                                 return isJar
                                         ? new ClasspathElementZip(canonicalPathNormalized, classLoaders,
                                                 nestedJarHandler, scanSpec)
@@ -534,16 +572,17 @@ class Scanner implements Callable<ScanResult> {
                     : classpathFinderLog.log("Reading jarfile directories and manifest files");
             final Set<ClasspathElement> openedClasspathElementsSet = Collections
                     .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
-            WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
-                    new WorkUnitProcessor<String>() {
+            final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder = new ConcurrentLinkedQueue<>();
+            WorkQueue.runWorkQueue(rawClasspathElementWorkUnits, executorService, numParallelTasks,
+                    new WorkUnitProcessor<RawClasspathElementWorkUnit>() {
                         @Override
-                        public void processWorkUnit(final String classpathEltPath,
-                                final WorkQueue<String> workQueue) throws Exception {
+                        public void processWorkUnit(final RawClasspathElementWorkUnit workUnit,
+                                final WorkQueue<RawClasspathElementWorkUnit> workQueue) throws Exception {
                             try {
                                 // Create a ClasspathElementZip or ClasspathElementDir for each entry in the
                                 // traditional classpath
                                 final ClasspathElement classpathElt = classpathElementSingletonMap
-                                        .get(classpathEltPath, classpathFinderLog);
+                                        .get(workUnit.rawClasspathEltPath, classpathFinderLog);
 
                                 // Only run open() once per ClasspathElement (it is possible for there to be
                                 // multiple classpath elements with different non-canonical paths that map to
@@ -555,11 +594,24 @@ class Scanner implements Callable<ScanResult> {
                                     // for Class-Path manifest entries. Adds extra classpath elements to the work
                                     // queue if they are found.
                                     classpathElt.open(workQueue, preScanLog);
+
+                                    // Create a new tuple consisting of the order of the new classpath element
+                                    // within its parent, and the new classpath element
+                                    final SimpleEntry<Integer, ClasspathElement> classpathEltEntry = new SimpleEntry<>(
+                                            workUnit.orderWithinParentClasspathElement, classpathElt);
+                                    if (workUnit.parentClasspathElement != null) {
+                                        // Link classpath element to its parent, if it is not a toplevel element
+                                        workUnit.parentClasspathElement.childClasspathElementsIndexed
+                                                .add(classpathEltEntry);
+                                    } else {
+                                        // Record toplevel elements
+                                        toplevelClasspathEltOrder.add(classpathEltEntry);
+                                    }
                                 }
                             } catch (final IOException | IllegalArgumentException e) {
                                 if (classpathFinderLog != null) {
-                                    classpathFinderLog.log(
-                                            "Skipping invalid classpath element " + classpathEltPath + " : " + e);
+                                    classpathFinderLog
+                                            .log("Skipping invalid classpath element " + workUnit + " : " + e);
                                 }
                             }
                         }
@@ -568,7 +620,7 @@ class Scanner implements Callable<ScanResult> {
             // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
             final List<ClasspathElement> finalTraditionalClasspathEltOrder = findClasspathOrder(
-                    rawClasspathEltOrder, classpathElementSingletonMap);
+                    openedClasspathElementsSet, toplevelClasspathEltOrder);
 
             // Find classpath elements that are path prefixes of other classpath elements
             {

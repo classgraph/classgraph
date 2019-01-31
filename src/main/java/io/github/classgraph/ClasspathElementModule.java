@@ -41,6 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -72,7 +73,7 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     @Override
-    void open(final WorkQueue<String> workQueue, final LogNode log) {
+    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueueIgnored, final LogNode log) {
         try {
             moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
                     log);

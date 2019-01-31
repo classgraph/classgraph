@@ -32,12 +32,14 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -66,11 +68,16 @@ abstract class ClasspathElement {
     boolean containsSpecificallyWhitelistedClasspathElementResourcePath;
 
     /**
-     * The child classpath element paths. These are the entries obtained from Class-Path entries in the manifest
-     * file, or the lib directory of the jarfile. Uses a LinkedHashSet to preserve the order of classpath entries in
-     * the Class-Path manifest entry.
+     * The child classpath elements, keyed by the order of the child classpath element within the Class-Path entry
+     * of the manifest file the child classpath element was listed in (or the position of the file within the sorted
+     * entries of a lib directory).
      */
-    Set<String> childClasspathEltPathSet = new LinkedHashSet<>();
+    Queue<Entry<Integer, ClasspathElement>> childClasspathElementsIndexed = new ConcurrentLinkedQueue<>();
+
+    /**
+     * The child classpath elements, ordered by order within the parent classpath element.
+     */
+    List<ClasspathElement> childClasspathElementsOrdered;
 
     /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
     protected List<Resource> whitelistedResources;
@@ -99,18 +106,6 @@ abstract class ClasspathElement {
     ClasspathElement(final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
         this.classLoaders = classLoaders;
         this.scanSpec = scanSpec;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Schedule a child classpath element for scanning. This method is only called from open(), which is called once
-     * per classpath element, from a single thread, so the collections don't need to be threadsafe.
-     */
-    protected void addChildClasspathElt(final WorkQueue<String> workQueue, final String childClasspathEltPath) {
-        if (childClasspathEltPathSet.add(childClasspathEltPath)) {
-            workQueue.addWorkUnit(childClasspathEltPath);
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -238,7 +233,7 @@ abstract class ClasspathElement {
      * read to look for Class-Path entries. If nested jars or Class-Path entries are found, they are added to the
      * work queue. This method is only run once per classpath element, from a single thread.
      */
-    abstract void open(final WorkQueue<String> workQueue, final LogNode log);
+    abstract void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log);
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for

@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -83,7 +84,7 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     @Override
-    void open(final WorkQueue<String> workQueue, final LogNode log) {
+    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log.log("Skipping classpath element, since jar scanning is disabled: " + rawPath);
@@ -155,9 +156,9 @@ class ClasspathElementZip extends ClasspathElement {
                 return;
             }
 
+            int childClasspathEntryIdx = 0;
             if (scanSpec.scanNestedJars) {
                 for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-                    // Add any nested lib jars to classpath
                     for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
                         if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
                                 && zipEntry.entryNameUnversioned.endsWith(".jar")) {
@@ -165,7 +166,10 @@ class ClasspathElementZip extends ClasspathElement {
                             if (subLog != null) {
                                 subLog.log("Found nested lib jar: " + entryPath);
                             }
-                            addChildClasspathElt(workQueue, entryPath);
+                            workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                                    /* rawClasspathEltPath = */ entryPath, /* parentClasspathElement = */ this,
+                                    /* orderWithinParentClasspathElement = */
+                                    childClasspathEntryIdx++));
                             break;
                         }
                     }
@@ -186,7 +190,11 @@ class ClasspathElementZip extends ClasspathElement {
                         // Only add child classpath elements once
                         if (!childClassPathEltPathResolved.equals(rawPath) && workQueue != null) {
                             // Schedule child classpath element for scanning
-                            addChildClasspathElt(workQueue, childClassPathEltPathResolved);
+                            workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                                    /* rawClasspathEltPath = */ childClassPathEltPathResolved,
+                                    /* parentClasspathElement = */ this,
+                                    /* orderWithinParentClasspathElement = */
+                                    childClasspathEntryIdx++));
                         }
                     }
                 }

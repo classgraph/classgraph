@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -77,7 +78,7 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     @Override
-    void open(final WorkQueue<String> workQueue, final LogNode log) {
+    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
                 log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
@@ -85,27 +86,35 @@ class ClasspathElementDir extends ClasspathElement {
             skipClasspathElement = true;
         }
         // Auto-add nested lib dirs
+        int childClasspathEntryIdx = 0;
         for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
             final File libDir = new File(classpathEltDir, libDirPrefix);
             if (libDir.exists() && libDir.isDirectory()) {
-                for (final File file : libDir.listFiles()) {
+                // Sort directory entries for consistency
+                final File[] listFiles = libDir.listFiles();
+                Arrays.sort(listFiles);
+                // Add all jarfiles within lib dir as child classpath entries
+                for (final File file : listFiles) {
                     if (file.isFile() && file.getName().endsWith(".jar")) {
                         if (log != null) {
                             log.log("Found lib jar: " + file);
                         }
-                        addChildClasspathElt(workQueue, file.getPath());
+                        workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                                /* rawClasspathEltPath = */ file.getPath(), /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                     }
                 }
             }
         }
-        // Auto-add nested package root prefixes
         for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
             final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
             if (packageRootDir.exists() && packageRootDir.isDirectory()) {
                 if (log != null) {
                     log.log("Found package root: " + packageRootDir);
                 }
-                addChildClasspathElt(workQueue, packageRootDir.getPath());
+                workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                        /* rawClasspathEltPath = */ packageRootDir.getPath(), /* parentClasspathElement = */ this,
+                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
             }
         }
     }
