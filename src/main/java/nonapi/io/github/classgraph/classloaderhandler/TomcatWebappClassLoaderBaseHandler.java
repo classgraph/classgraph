@@ -90,7 +90,7 @@ public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                         // For JarWarResourceSet: the path within the WAR file where the JAR file is located
                         final String archivePath = (String) ReflectionUtils.getFieldVal(webResourceSet,
                                 "archivePath", false);
-                        if (archivePath != null) {
+                        if (archivePath != null && !archivePath.isEmpty()) {
                             // If archivePath is non-null, this is a jar within a war
                             base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
                         }
