@@ -28,6 +28,9 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import java.io.File;
+import java.util.List;
+
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -55,12 +58,70 @@ public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
-        classpathOrderOut.addClasspathElementObject( //
-                ReflectionUtils.invokeMethod(classLoader, "getURLs", false), classLoader, log);
-        // type WebResourceRoot
+        // type StandardRoot (implements WebResourceRoot)
         final Object resources = ReflectionUtils.invokeMethod(classLoader, "getResources", false);
         // type List<URL>
         final Object baseURLs = ReflectionUtils.invokeMethod(resources, "getBaseUrls", false);
         classpathOrderOut.addClasspathElementObject(baseURLs, classLoader, log);
+        // type List<List<WebResourceSet>>
+        // members: preResources, mainResources, classResources, jarResources, postResources
+        @SuppressWarnings("unchecked")
+        final List<List<?>> allResources = (List<List<?>>) ReflectionUtils.getFieldVal(resources, "allResources",
+                false);
+        if (allResources != null) {
+            // type List<WebResourceSet> 
+            for (final List<?> webResourceSetList : allResources) {
+                // type WebResourceSet
+                for (final Object webResourceSet : webResourceSetList) {
+                    final String className = webResourceSet.getClass().getName();
+                    switch (className) {
+                    case "java.org.apache.catalina.webresources.DirResourceSet.java":
+                        final File file = (File) ReflectionUtils.invokeMethod(webResourceSet, "getFileBase", false);
+                        classpathOrderOut.addClasspathElementObject(file, classLoader, log);
+                        break;
+                    case "java.org.apache.catalina.webresources.JarResourceSet.java":
+                    case "java.org.apache.catalina.webresources.JarWarResourceSet.java":
+                        // The absolute path to the WAR file on the file system in which the JAR is located
+                        final String baseURLString = (String) ReflectionUtils.invokeMethod(webResourceSet,
+                                "getBaseUrlString", false);
+                        // The path within this WebResourceSet where resources will be served from,
+                        // e.g. for a resource JAR, this would be "META-INF/resources"
+                        final String internalPath = (String) ReflectionUtils.invokeMethod(webResourceSet,
+                                "getInternalPath", false);
+                        // The path within the web application at which this WebResourceSet will be mounted
+                        final String webAppMount = (String) ReflectionUtils.invokeMethod(webResourceSet,
+                                "getWebAppMount", false);
+                        // For JarWarResourceSet: the path within the WAR file where the JAR file is located
+                        final String archivePath = className
+                                .equals("java.org.apache.catalina.webresources.JarWarResourceSet.java")
+                                        ? (String) ReflectionUtils.getFieldVal(webResourceSet, "archivePath", false)
+                                        : null;
+                        if (baseURLString != null) {
+                            // If archivePath is non-null, this is a jar within a war
+                            final String jarURLString = archivePath == null ? baseURLString
+                                    : baseURLString + "!"
+                                            + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
+                            if (internalPath != null) {
+                                classpathOrderOut.addClasspathElementObject(jarURLString + "!"
+                                        + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
+                                        classLoader, log);
+                            }
+                            if (webAppMount != null) {
+                                classpathOrderOut.addClasspathElementObject(
+                                        jarURLString + "!"
+                                                + (webAppMount.startsWith("/") ? webAppMount : "/" + webAppMount),
+                                        classLoader, log);
+                            }
+                            if (internalPath == null && webAppMount == null) {
+                                classpathOrderOut.addClasspathElementObject(jarURLString, classLoader, log);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        final Object urls = ReflectionUtils.invokeMethod(classLoader, "getURLs", false);
+        classpathOrderOut.addClasspathElementObject(urls, classLoader, log);
     }
 }
