@@ -210,7 +210,7 @@ abstract class ClasspathElement {
         } else {
             if (log != null) {
                 log.log(path,
-                        "Found whitelisted resource: " + path
+                        "Found whitelisted resource:  " + path
                                 + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
                                         : " ; full path: " + resource.getPathRelativeToClasspathElement()));
             }
