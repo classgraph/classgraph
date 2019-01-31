@@ -31,12 +31,11 @@ package io.github.classgraph;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.ScanSpec;
@@ -68,9 +67,10 @@ abstract class ClasspathElement {
 
     /**
      * The child classpath element paths. These are the entries obtained from Class-Path entries in the manifest
-     * file, if this classpath element is a jarfile.
+     * file, or the lib directory of the jarfile. Uses a LinkedHashSet to preserve the order of classpath entries in
+     * the Class-Path manifest entry.
      */
-    Set<String> childClasspathEltPaths = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    Set<String> childClasspathEltPathSet = new LinkedHashSet<>();
 
     /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
     protected List<Resource> whitelistedResources;
@@ -99,6 +99,18 @@ abstract class ClasspathElement {
     ClasspathElement(final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
         this.classLoaders = classLoaders;
         this.scanSpec = scanSpec;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Schedule a child classpath element for scanning. This method is only called from open(), which is called once
+     * per classpath element, from a single thread, so the collections don't need to be threadsafe.
+     */
+    protected void addChildClasspathElt(final WorkQueue<String> workQueue, final String childClasspathEltPath) {
+        if (childClasspathEltPathSet.add(childClasspathEltPath)) {
+            workQueue.addWorkUnit(childClasspathEltPath);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -224,7 +236,7 @@ abstract class ClasspathElement {
      * Determine if this classpath element is valid. If it is not valid, sets skipClasspathElement. For
      * {@link ClasspathElementZip}, may also open or extract inner jars, and also causes jarfile manifests to be
      * read to look for Class-Path entries. If nested jars or Class-Path entries are found, they are added to the
-     * work queue.
+     * work queue. This method is only run once per classpath element, from a single thread.
      */
     abstract void open(final WorkQueue<String> workQueue, final LogNode log);
 

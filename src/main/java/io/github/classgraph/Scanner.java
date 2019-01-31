@@ -106,7 +106,7 @@ class Scanner implements Callable<ScanResult> {
             }
             // Whether or not a classpath element should be skipped, add any child classpath elements that are
             // not marked to be skipped (i.e. keep recursing)
-            for (final String childClasspathEltStr : currClasspathElement.childClasspathEltPaths) {
+            for (final String childClasspathEltStr : currClasspathElement.childClasspathEltPathSet) {
                 final ClasspathElement childSingleton = classpathElementSingletonMap
                         .getIfPresent(childClasspathEltStr);
                 if (childSingleton != null) {

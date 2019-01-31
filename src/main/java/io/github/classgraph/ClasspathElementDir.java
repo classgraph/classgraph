@@ -93,7 +93,7 @@ class ClasspathElementDir extends ClasspathElement {
                         if (log != null) {
                             log.log("Found lib jar: " + file);
                         }
-                        workQueue.addWorkUnit(file.getPath());
+                        addChildClasspathElt(workQueue, file.getPath());
                     }
                 }
             }
@@ -105,7 +105,7 @@ class ClasspathElementDir extends ClasspathElement {
                 if (log != null) {
                     log.log("Found package root: " + packageRootDir);
                 }
-                workQueue.addWorkUnit(packageRootDir.getPath());
+                addChildClasspathElt(workQueue, packageRootDir.getPath());
             }
         }
     }
@@ -444,6 +444,16 @@ class ClasspathElementDir extends ClasspathElement {
                 : log.log(classpathEltDir.getPath(), "Scanning directory classpath element " + classpathEltDir);
 
         scanDirRecursively(classpathEltDir, subLog);
+
+        if (subLog != null) {
+            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
+                subLog.log("No whitelisted classfiles or resources found");
+            } else if (whitelistedResources.isEmpty()) {
+                subLog.log("No whitelisted resources found");
+            } else if (whitelistedClassfileResources.isEmpty()) {
+                subLog.log("No whitelisted classfiles found");
+            }
+        }
 
         if (subLog != null) {
             subLog.addElapsedTime();

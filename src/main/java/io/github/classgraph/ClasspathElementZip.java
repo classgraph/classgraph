@@ -165,7 +165,7 @@ class ClasspathElementZip extends ClasspathElement {
                             if (subLog != null) {
                                 subLog.log("Found nested lib jar: " + entryPath);
                             }
-                            workQueue.addWorkUnit(entryPath);
+                            addChildClasspathElt(workQueue, entryPath);
                             break;
                         }
                     }
@@ -184,23 +184,9 @@ class ClasspathElementZip extends ClasspathElement {
                         final String childClassPathEltPathResolved = FastPathResolver.resolve(pathOfContainingDir,
                                 childClassPathEltPath);
                         // Only add child classpath elements once
-                        if (!childClassPathEltPathResolved.equals(rawPath)
-                                && childClasspathEltPaths.add(childClassPathEltPathResolved)) {
+                        if (!childClassPathEltPathResolved.equals(rawPath) && workQueue != null) {
                             // Schedule child classpath element for scanning
-                            if (workQueue != null) {
-                                if (subLog != null) {
-                                    subLog.log("Found additional classpath entry in Class-Path attribute of "
-                                            + "manifest file: " + childClassPathEltPathResolved);
-                                }
-                                workQueue.addWorkUnit(childClassPathEltPathResolved);
-                            } else {
-                                // When adding rt.jar, workQueue will be null. But rt.jar should not
-                                // include a Class-Path entry, so this block should not be reached.
-                                if (subLog != null) {
-                                    subLog.log("Ignoring Class-Path entry in rt.jar: "
-                                            + childClassPathEltPathResolved);
-                                }
-                            }
+                            addChildClasspathElt(workQueue, childClassPathEltPathResolved);
                         }
                     }
                 }
@@ -451,6 +437,16 @@ class ClasspathElementZip extends ClasspathElement {
                             && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
                 // Resource is whitelisted
                 addWhitelistedResource(resource, parentMatchStatus, subLog);
+            }
+        }
+
+        if (subLog != null) {
+            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
+                subLog.log("No whitelisted classfiles or resources found");
+            } else if (whitelistedResources.isEmpty()) {
+                subLog.log("No whitelisted resources found");
+            } else if (whitelistedClassfileResources.isEmpty()) {
+                subLog.log("No whitelisted classfiles found");
             }
         }
 
