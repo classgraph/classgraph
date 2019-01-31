@@ -94,8 +94,10 @@ public class ClassLoaderHandlerRegistry {
      * part of the classpath element URL or path).
      */
     public static final String[] AUTOMATIC_PACKAGE_ROOT_PREFIXES = {
+            // Ant, Tomcat and others
+            "classes/",
             // Ant
-            "classes/", "test-classes/",
+            "test-classes/",
             // Spring-Boot
             "BOOT-INF/classes/",
             // Tomcat
