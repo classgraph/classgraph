@@ -54,14 +54,6 @@ public class ClasspathFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static String getClassLoaderName(final ClassLoader classLoader) {
-        String name = classLoader.getName();
-        if (name == null) {
-            name = classLoader.getClass().getName();
-        }
-        return name;
-    }
-
     /** Add a ClassLoaderHandler, and recurse to parent classloader. */
     private boolean addClassLoaderHandler(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry,
@@ -74,23 +66,23 @@ public class ClasspathFinder {
         final ClassLoaderHandler classLoaderHandler = classLoaderHandlerRegistryEntry.instantiate(log);
         if (classLoaderHandler != null) {
             if (log != null) {
-                log.log("ClassLoader " + getClassLoaderName(classLoader) + " will be handled by "
+                log.log("ClassLoader " + classLoader.getClass().getName() + " will be handled by "
                         + classLoaderHandler);
             }
             final ClassLoader embeddedClassLoader = classLoaderHandler.getEmbeddedClassLoader(classLoader);
             if (embeddedClassLoader != null) {
                 if (visited.add(embeddedClassLoader)) {
                     if (log != null) {
-                        log.log("Delegating from " + getClassLoaderName(classLoader) + " to embedded ClassLoader "
-                                + getClassLoaderName(embeddedClassLoader));
+                        log.log("Delegating from " + classLoader.getClass().getName() + " to embedded ClassLoader "
+                                + embeddedClassLoader.getClass().getName());
                     }
                     return addClassLoaderHandler(scanSpec, embeddedClassLoader, classLoaderHandlerRegistryEntry,
                             foundClassLoaders, allClassLoaderHandlerRegistryEntries, classLoaderAndHandlerOrderOut,
                             ignoredClassLoaderAndHandlerOrderOut, visited, log);
                 } else {
                     if (log != null) {
-                        log.log("Hit infinite loop when delegating from " + getClassLoaderName(classLoader)
-                                + " to embedded ClassLoader " + getClassLoaderName(embeddedClassLoader));
+                        log.log("Hit infinite loop when delegating from " + classLoader.getClass().getName()
+                                + " to embedded ClassLoader " + embeddedClassLoader.getClass().getName());
                     }
                     return false;
                 }
@@ -98,7 +90,7 @@ public class ClasspathFinder {
                 final DelegationOrder delegationOrder = classLoaderHandler.getDelegationOrder(classLoader);
                 final ClassLoader parent = classLoader.getParent();
                 if (log != null && parent != null) {
-                    log.log(getClassLoaderName(classLoader) + " delegates to parent " + getClassLoaderName(parent)
+                    log.log(classLoader.getClass().getName() + " delegates to parent " + parent.getClass().getName()
                             + " with order " + delegationOrder);
                 }
                 switch (delegationOrder) {
@@ -173,8 +165,8 @@ public class ClasspathFinder {
             }
             if (!foundMatch) {
                 if (log != null) {
-                    log.log("Could not find a ClassLoaderHandler that can handle " + getClassLoaderName(classLoader)
-                            + " , trying "
+                    log.log("Could not find a ClassLoaderHandler that can handle "
+                            + classLoader.getClass().getName() + " , trying "
                             + ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER.classLoaderHandlerClass
                                     .getName()
                             + " instead. Please report this at: "
@@ -293,7 +285,7 @@ public class ClasspathFinder {
                 final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
                 final LogNode classLoaderClasspathLog = classLoaderClasspathLoopLog == null ? null
                         : classLoaderClasspathLoopLog.log(
-                                "Finding classpath elements in ClassLoader " + getClassLoaderName(classLoader));
+                                "Finding classpath elements in ClassLoader " + classLoader.getClass().getName());
                 try {
                     classLoaderHandler.handle(scanSpec, classLoader, classpathOrder, classLoaderClasspathLog);
                 } catch (final Throwable e) {
@@ -310,7 +302,7 @@ public class ClasspathFinder {
                 final LogNode classLoaderClasspathLog = classpathFinderLog == null ? null
                         : classpathFinderLog
                                 .log("Will not scan the following classpath elements from ignored ClassLoader "
-                                        + getClassLoaderName(classLoader));
+                                        + classLoader.getClass().getName());
                 try {
                     classLoaderHandler.handle(scanSpec, classLoader, ignoredClasspathOrder,
                             classLoaderClasspathLog);
