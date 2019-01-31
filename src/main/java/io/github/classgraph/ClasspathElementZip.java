@@ -135,17 +135,17 @@ class ClasspathElementZip extends ClasspathElement {
             zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, rawPath);
         }
 
-        if (!scanSpec.enableSystemJarsAndModules && logicalZipFile != null && logicalZipFile.isJREJar) {
-            // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
-            // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
-            if (log != null) {
-                log.log("Ignoring JRE jar: " + rawPath);
-            }
-            skipClasspathElement = true;
-            return;
-        }
-
         if (logicalZipFile != null) {
+            if (!scanSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
+                // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
+                // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
+                if (log != null) {
+                    log.log("Ignoring JRE jar: " + rawPath);
+                }
+                skipClasspathElement = true;
+                return;
+            }
+
             if (!logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
                 if (log != null) {
                     log.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
@@ -154,27 +154,47 @@ class ClasspathElementZip extends ClasspathElement {
                 return;
             }
 
-            // Schedule any child classpath elements for scanning
-            if (logicalZipFile.additionalClassPathEntriesToScan != null) {
+            if (scanSpec.scanNestedJars) {
+                for (final FastZipEntry zipEntry : logicalZipFile.getEntries()) {
+                    // Add any nested lib jars to classpath
+                    for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
+                        if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
+                                && zipEntry.entryNameUnversioned.endsWith(".jar")) {
+                            final String entryPath = zipEntry.getPath();
+                            if (log != null) {
+                                log.log("Found lib jar: " + entryPath);
+                            }
+                            workQueue.addWorkUnit(entryPath);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Create child classpath elements from values obtained from Class-Path entry in manifest
+            if (logicalZipFile.classPathManifestEntryValue != null) {
                 // Class-Path entries in the manifest file are resolved relative to the dir that
                 // the manifest's jarfile is contained in -- get parent dir of outermost zipfile
                 final String pathOfContainingDir = FastPathResolver
                         .resolve(logicalZipFile.physicalZipFile.getFile().getParent());
-
-                // Create child classpath elements from values obtained from Class-Path entry in manifest
-                for (final String childClassPathEltPath : logicalZipFile.additionalClassPathEntriesToScan) {
-                    final String childClassPathEltPathResolved = FastPathResolver.resolve(pathOfContainingDir,
-                            childClassPathEltPath);
-                    if (!childClassPathEltPathResolved.equals(rawPath)
-                            && childClasspathEltPaths.add(childClassPathEltPathResolved)) {
-                        // Schedule child classpath elements for scanning
-                        if (workQueue != null) {
-                            workQueue.addWorkUnit(childClassPathEltPathResolved);
-                        } else {
-                            // When adding rt.jar, workQueue will be null. But rt.jar should not include Class-Path
-                            // references (so this block should not be reached).
-                            if (log != null) {
-                                log.log("Ignoring Class-Path entry in rt.jar: " + childClassPathEltPathResolved);
+                for (final String childClassPathEltPath : logicalZipFile.classPathManifestEntryValue.split(" ")) {
+                    if (!childClassPathEltPath.isEmpty()) {
+                        // Resolve Class-Path entry relative to containing dir
+                        final String childClassPathEltPathResolved = FastPathResolver.resolve(pathOfContainingDir,
+                                childClassPathEltPath);
+                        // Only add child classpath elements once
+                        if (!childClassPathEltPathResolved.equals(rawPath)
+                                && childClasspathEltPaths.add(childClassPathEltPathResolved)) {
+                            // Schedule child classpath elements for scanning
+                            if (workQueue != null) {
+                                workQueue.addWorkUnit(childClassPathEltPathResolved);
+                            } else {
+                                // When adding rt.jar, workQueue will be null. But rt.jar should not
+                                // include a Class-Path entry, so this block should not be reached.
+                                if (log != null) {
+                                    log.log("Ignoring Class-Path entry in rt.jar: "
+                                            + childClassPathEltPathResolved);
+                                }
                             }
                         }
                     }

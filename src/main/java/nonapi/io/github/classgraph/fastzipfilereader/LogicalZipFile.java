@@ -46,7 +46,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -66,13 +65,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** If true, this is a multi-release jar. */
     public boolean isMultiReleaseJar;
 
-    /**
-     * "Class-Path" entries encountered in the manifest file. Also includes any "BOOT-INF/classes" or
-     * "WEB-INF/classes" package roots. Will also include classpath entries for any jars found in one of the lib
-     * directories of the jar ("lib/", "BOOT-INF/lib", "WEB-INF/lib", or "WEB-INF/lib-provided"), if
-     * {@code ClassGraph#addNestedLibJarsToClasspath(true)} is called before scanning.
-     */
-    public List<String> additionalClassPathEntriesToScan;
+    /** The value of the "Class-Path" manifest entry, if present in the manifest, else null. */
+    public String classPathManifestEntryValue;
 
     /** A set of classpath roots found in the classpath for this zipfile. */
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -85,15 +79,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     /** "META-INF/versions/" */
     public static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    private void addAdditionalClassPathEntryToScan(final String classPathEntryPath) {
-        if (this.additionalClassPathEntriesToScan == null) {
-            this.additionalClassPathEntriesToScan = new ArrayList<>();
-        }
-        this.additionalClassPathEntriesToScan.add(classPathEntryPath);
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -255,16 +240,11 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             } else if (keyMatchesAtPosition(manifest, CLASS_PATH_KEY, i)) {
                 final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
                         i + CLASS_PATH_KEY.length + 1);
-                // Add Class-Path manifest entry values to classpath
-                final String classPathFieldVal = manifestValueAndEndIdx.getKey();
                 if (log != null) {
-                    log.log("Found Class-Path entry in manifest file: " + classPathFieldVal);
+                    log.log("Found Class-Path entry in manifest file: " + classPathManifestEntryValue);
                 }
-                for (final String classpathEntry : classPathFieldVal.split(" ")) {
-                    if (!classpathEntry.isEmpty()) {
-                        addAdditionalClassPathEntryToScan(classpathEntry);
-                    }
-                }
+                // Add Class-Path manifest entry values to classpath
+                classPathManifestEntryValue = manifestValueAndEndIdx.getKey();
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, i)) {
@@ -576,21 +556,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // Record manifest entry
                 if (entry.entryName.equals(MANIFEST_PATH)) {
                     manifestZipEntry = entry;
-                }
-
-                if (scanSpec.scanNestedJars) {
-                    // Add any lib jars to classpath
-                    for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                        if (entry.entryNameUnversioned.startsWith(libDirPrefix)
-                                && entry.entryNameUnversioned.endsWith(".jar")) {
-                            final String entryPath = entry.getPath();
-                            if (log != null) {
-                                log.log("Found lib jar: " + entryPath);
-                            }
-                            addAdditionalClassPathEntryToScan(entryPath);
-                            break;
-                        }
-                    }
                 }
             }
         } catch (EOFException | IndexOutOfBoundsException e) {
