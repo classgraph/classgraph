@@ -585,7 +585,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                                 && entry.entryNameUnversioned.endsWith(".jar")) {
                             final String entryPath = entry.getPath();
                             if (log != null) {
-                                log.log("Adding nested lib jar to classpath: " + entryPath);
+                                log.log("Found lib jar: " + entryPath);
                             }
                             addAdditionalClassPathEntryToScan(entryPath);
                             break;

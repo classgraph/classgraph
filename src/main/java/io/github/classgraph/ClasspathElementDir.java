@@ -90,6 +90,9 @@ class ClasspathElementDir extends ClasspathElement {
             if (libDir.exists() && libDir.isDirectory()) {
                 for (final File file : libDir.listFiles()) {
                     if (file.isFile() && file.getName().endsWith(".jar")) {
+                        if (log != null) {
+                            log.log("Found lib jar: " + file);
+                        }
                         workQueue.addWorkUnit(file.getPath());
                     }
                 }
@@ -99,6 +102,9 @@ class ClasspathElementDir extends ClasspathElement {
         for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
             final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
             if (packageRootDir.exists() && packageRootDir.isDirectory()) {
+                if (log != null) {
+                    log.log("Found package root: " + packageRootDir);
+                }
                 workQueue.addWorkUnit(packageRootDir.getPath());
             }
         }
