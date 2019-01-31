@@ -37,6 +37,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
+    /**
+     * Default ClassLoaderHandlers.
+     */
+    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS;
 
     static {
         //  If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
@@ -68,14 +72,35 @@ public class ClassLoaderHandlerRegistry {
         CLASS_LOADER_HANDLERS = Collections.unmodifiableList(registeredHandlers);
     }
 
-    /**
-     * Default ClassLoaderHandlers.
-     */
-    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS;
-
     /** The fallback ClassLoaderHandler. Do not need to add FallbackClassLoaderHandler to the above list. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
             new ClassLoaderHandlerRegistryEntry(FallbackClassLoaderHandler.class);
+
+    /**
+     * Lib dirs whose jars should be added to the classpath automatically (to compensate for some classloaders not
+     * explicitly listing these jars as classpath elements).
+     */
+    public static final String[] AUTOMATIC_LIB_DIR_PREFIXES = {
+            // Spring-Boot
+            "BOOT-INF/lib/", "BOOT-INF/lib-provided/",
+            // Tomcat
+            "WEB-INF/lib/", "WEB-INF/lib-provided/",
+            // Tomcat and others
+            "lib/" //
+    };
+
+    /**
+     * Automatic classfile prefixes (to compensate for some classloaders not explicitly listing these prefixes as
+     * part of the classpath element URL or path).
+     */
+    public static final String[] AUTOMATIC_PACKAGE_ROOT_PREFIXES = {
+            // Ant
+            "classes/", "test-classes/",
+            // Spring-Boot
+            "BOOT-INF/classes/",
+            // Tomcat
+            "WEB-INF/classes/" // 
+    };
 
     /**
      * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.

@@ -47,6 +47,7 @@ import java.util.HashSet;
 
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
@@ -82,6 +83,24 @@ class ClasspathElementDir extends ClasspathElement {
                 log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
             }
             skipClasspathElement = true;
+        }
+        // Auto-add nested lib dirs
+        for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
+            final File libDir = new File(classpathEltDir, libDirPrefix);
+            if (libDir.exists() && libDir.isDirectory()) {
+                for (final File file : libDir.listFiles()) {
+                    if (file.isFile() && file.getName().endsWith(".jar")) {
+                        workQueue.addWorkUnit(file.getPath());
+                    }
+                }
+            }
+        }
+        // Auto-add nested package root prefixes
+        for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
+            final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
+            if (packageRootDir.exists() && packageRootDir.isDirectory()) {
+                workQueue.addWorkUnit(packageRootDir.getPath());
+            }
         }
     }
 

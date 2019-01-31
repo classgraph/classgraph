@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -578,17 +579,16 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
                 if (scanSpec.scanNestedJars) {
                     // Add any lib jars to classpath
-                    if ((entry.entryNameUnversioned.startsWith("BOOT-INF/lib/")
-                            || entry.entryNameUnversioned.startsWith("BOOT-INF/lib-provided/")
-                            || entry.entryNameUnversioned.startsWith("WEB-INF/lib/")
-                            || entry.entryNameUnversioned.startsWith("WEB-INF/lib-provided/")
-                            || entry.entryNameUnversioned.startsWith("lib/")) //
-                            && entry.entryNameUnversioned.endsWith(".jar")) {
-                        final String entryPath = entry.getPath();
-                        if (log != null) {
-                            log.log("Adding nested lib jar to classpath: " + entryPath);
+                    for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
+                        if (entry.entryNameUnversioned.startsWith(libDirPrefix)
+                                && entry.entryNameUnversioned.endsWith(".jar")) {
+                            final String entryPath = entry.getPath();
+                            if (log != null) {
+                                log.log("Adding nested lib jar to classpath: " + entryPath);
+                            }
+                            addAdditionalClassPathEntryToScan(entryPath);
+                            break;
                         }
-                        addAdditionalClassPathEntryToScan(entryPath);
                     }
                 }
             }

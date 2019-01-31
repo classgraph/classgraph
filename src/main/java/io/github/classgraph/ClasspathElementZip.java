@@ -43,6 +43,7 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
@@ -67,16 +68,6 @@ class ClasspathElementZip extends ClasspathElement {
     private final Map<String, Resource> relativePathToResource = new HashMap<>();
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
-
-    /** Prefixes to automatically strip from relative path in order to find the package root. */
-    private static final String[] AUTOMATIC_PACKAGE_ROOT_PREFIXES = {
-            // Spring Boot
-            "BOOT-INF/classes/",
-            // Tomcat
-            "WEB-INF/classes/",
-            // Ant
-            "classes/" //
-    };
 
     ClasspathElementZip(final String rawPath, final ClassLoader[] classLoaders,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
@@ -378,20 +369,12 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
                 // Strip any package root prefix from the relative path
-                for (int i = 0; i < AUTOMATIC_PACKAGE_ROOT_PREFIXES.length; i++) {
-                    if (relativePath.startsWith(AUTOMATIC_PACKAGE_ROOT_PREFIXES[i])) {
-                        relativePath = relativePath.substring(AUTOMATIC_PACKAGE_ROOT_PREFIXES[i].length());
+                for (int i = 0; i < ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES.length; i++) {
+                    if (relativePath.startsWith(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i])) {
+                        relativePath = relativePath
+                                .substring(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i].length());
                     }
                 }
-            }
-
-            // Ignore test classes
-            if (relativePath.startsWith("test-classes/")) {
-                // Ant test-classes have been left in produced jarfile -- skip these entries
-                if (subLog != null) {
-                    subLog.log("Skipping test-classes jar entry: " + relativePath);
-                }
-                continue;
             }
 
             // Whitelist/blacklist classpath elements based on file resource paths
