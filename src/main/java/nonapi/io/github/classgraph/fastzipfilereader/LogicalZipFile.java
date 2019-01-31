@@ -230,11 +230,11 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             } else if (keyMatchesAtPosition(manifest, CLASS_PATH_KEY, i)) {
                 final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
                         i + CLASS_PATH_KEY.length + 1);
+                // Add Class-Path manifest entry values to classpath
+                classPathManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Class-Path entry in manifest file: " + classPathManifestEntryValue);
                 }
-                // Add Class-Path manifest entry values to classpath
-                classPathManifestEntryValue = manifestValueAndEndIdx.getKey();
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, i)) {
