@@ -91,12 +91,13 @@ class ClasspathElementZip extends ClasspathElement {
             skipClasspathElement = true;
             return;
         }
+        final LogNode subLog = log == null ? null : log.log("Opening jar: " + rawPath);
         final int plingIdx = rawPath.indexOf('!');
         final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                 plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
         if (!scanSpec.jarWhiteBlackList.isWhitelistedAndNotBlacklisted(outermostZipFilePathResolved)) {
-            if (log != null) {
-                log.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+            if (subLog != null) {
+                subLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
             }
             skipClasspathElement = true;
             return;
@@ -106,7 +107,7 @@ class ClasspathElementZip extends ClasspathElement {
             try {
                 // Get LogicalZipFile for innermost nested jarfile
                 final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = //
-                        nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.get(rawPath, log);
+                        nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.get(rawPath, subLog);
                 logicalZipFile = logicalZipFileAndPackageRoot.getKey();
 
                 // Get the normalized path of the logical zipfile
@@ -118,14 +119,14 @@ class ClasspathElementZip extends ClasspathElement {
                     packageRootPrefix = packageRoot + "/";
                 }
             } catch (final IOException | IllegalArgumentException e) {
-                if (log != null) {
-                    log.log("Could not open jarfile " + rawPath + " : " + e);
+                if (subLog != null) {
+                    subLog.log("Could not open jarfile " + rawPath + " : " + e);
                 }
                 skipClasspathElement = true;
                 return;
             } catch (final Exception e) {
-                if (log != null) {
-                    log.log("Exception while opening jarfile " + rawPath, e);
+                if (subLog != null) {
+                    subLog.log("Exception while opening jarfile " + rawPath, e);
                 }
                 skipClasspathElement = true;
                 return;
@@ -139,30 +140,30 @@ class ClasspathElementZip extends ClasspathElement {
             if (!scanSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
                 // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
                 // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
-                if (log != null) {
-                    log.log("Ignoring JRE jar: " + rawPath);
+                if (subLog != null) {
+                    subLog.log("Ignoring JRE jar: " + rawPath);
                 }
                 skipClasspathElement = true;
                 return;
             }
 
             if (!logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
-                if (log != null) {
-                    log.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+                if (subLog != null) {
+                    subLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
                 }
                 skipClasspathElement = true;
                 return;
             }
 
             if (scanSpec.scanNestedJars) {
-                for (final FastZipEntry zipEntry : logicalZipFile.getEntries()) {
+                for (final FastZipEntry zipEntry : logicalZipFile.entries) {
                     // Add any nested lib jars to classpath
                     for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
                         if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
                                 && zipEntry.entryNameUnversioned.endsWith(".jar")) {
                             final String entryPath = zipEntry.getPath();
-                            if (log != null) {
-                                log.log("Found lib jar: " + entryPath);
+                            if (subLog != null) {
+                                subLog.log("Found nested lib jar: " + entryPath);
                             }
                             workQueue.addWorkUnit(entryPath);
                             break;
@@ -185,14 +186,18 @@ class ClasspathElementZip extends ClasspathElement {
                         // Only add child classpath elements once
                         if (!childClassPathEltPathResolved.equals(rawPath)
                                 && childClasspathEltPaths.add(childClassPathEltPathResolved)) {
-                            // Schedule child classpath elements for scanning
+                            // Schedule child classpath element for scanning
                             if (workQueue != null) {
+                                if (subLog != null) {
+                                    subLog.log("Found additional classpath entry in Class-Path attribute of "
+                                            + "manifest file: " + childClassPathEltPathResolved);
+                                }
                                 workQueue.addWorkUnit(childClassPathEltPathResolved);
                             } else {
                                 // When adding rt.jar, workQueue will be null. But rt.jar should not
                                 // include a Class-Path entry, so this block should not be reached.
-                                if (log != null) {
-                                    log.log("Ignoring Class-Path entry in rt.jar: "
+                                if (subLog != null) {
+                                    subLog.log("Ignoring Class-Path entry in rt.jar: "
                                             + childClassPathEltPathResolved);
                                 }
                             }
@@ -350,7 +355,7 @@ class ClasspathElementZip extends ClasspathElement {
         Set<String> loggedNestedClasspathRootPrefixes = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
-        for (final FastZipEntry zipEntry : logicalZipFile.getEntries()) {
+        for (final FastZipEntry zipEntry : logicalZipFile.entries) {
             String relativePath = zipEntry.entryNameUnversioned;
 
             // Check if the relative path is within a nested classpath root

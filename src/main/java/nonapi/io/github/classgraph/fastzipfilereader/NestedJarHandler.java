@@ -302,16 +302,13 @@ public class NestedJarHandler {
                                 "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
                     }
 
-                    final LogNode zipFileLog = log == null ? null : log.log("Opening jarfile " + canonicalFile);
-
                     // Get or create a PhysicalZipFile instance for the canonical file
                     final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile,
-                            zipFileLog);
+                            log);
 
                     // Create a new logical slice of the whole physical zipfile
                     final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
-                    final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice,
-                            zipFileLog);
+                    final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
 
                     // Return new logical zipfile with an empty package root
                     return new SimpleEntry<>(logicalZipFile, "");
@@ -353,7 +350,7 @@ public class NestedJarHandler {
                         // If child path doesn't end with a slash, see if there's a non-directory entry
                         // with a name matching the child path (LogicalZipFile discards directory entries
                         // ending with a slash when reading the central directory of a zipfile)
-                        for (final FastZipEntry entry : parentLogicalZipFile.getEntries()) {
+                        for (final FastZipEntry entry : parentLogicalZipFile.entries) {
                             if (entry.entryName.equals(childPath)) {
                                 childZipEntry = entry;
                                 break;
@@ -364,7 +361,7 @@ public class NestedJarHandler {
                         // If there is no non-directory zipfile entry with a name matching the child path, 
                         // test to see if any entries in the zipfile have the child path as a dir prefix
                         final String childPathPrefix = childPath + "/";
-                        for (final FastZipEntry entry : parentLogicalZipFile.getEntries()) {
+                        for (final FastZipEntry entry : parentLogicalZipFile.entries) {
                             if (entry.entryName.startsWith(childPathPrefix)) {
                                 isDirectory = true;
                                 break;
@@ -413,7 +410,8 @@ public class NestedJarHandler {
                         }
 
                         final LogNode zipSliceLog = log == null ? null
-                                : log.log("Getting zipfile slice " + childZipEntrySlice);
+                                : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
+                                        + childZipEntry.entryName);
 
                         // Get or create a new LogicalZipFile for the child zipfile
                         final LogicalZipFile childLogicalZipFile = zipFileSliceToLogicalZipFileMap

@@ -56,14 +56,18 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  */
 public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     private ZipFileSliceReader zipFileSliceReader;
-    private List<FastZipEntry> entries;
+
+    /** The zipfile entries. */
+    public List<FastZipEntry> entries;
+
+    /** The version numbers of versioned sections found within a multi-release jar. */
     int[] multiReleaseVersionsFound;
 
     /** If true, this is a JRE jar. */
     public boolean isJREJar;
 
     /** If true, this is a multi-release jar. */
-    public boolean isMultiReleaseJar;
+    boolean isMultiReleaseJar;
 
     /** The value of the "Class-Path" manifest entry, if present in the manifest, else null. */
     public String classPathManifestEntryValue;
@@ -79,20 +83,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     /** "META-INF/versions/" */
     public static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Get the zipfile entries. */
-    public List<FastZipEntry> getEntries() {
-        return entries;
-    }
-
-    /**
-     * Return the multi-release versions for which this jar contained at least one resource, in decreasing order.
-     */
-    public int[] getMultiReleaseVersionsFound() {
-        return multiReleaseVersionsFound;
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 
