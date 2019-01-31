@@ -49,6 +49,7 @@ import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
  * A logical zipfile, which represents a zipfile contained within a {@link ZipFileSlice} of a
@@ -609,31 +610,38 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         // For multi-release jars, drop any older or non-versioned entries that are masked by the most recent
         // version-specific entry
         if (isMultiReleaseJar) {
-            if (log != null) {
-                log.log("This is a multi-release jar");
-            }
-
-            // Sort in decreasing order of version in preparation for version masking
-            Collections.sort(entries);
-
-            // Mask files that appear in multiple version sections, so that there is only one entry
-            // for each unversioned path, i.e. the versioned path with the highest version number
-            final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
-            final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
-            for (final FastZipEntry versionedZipEntry : entries) {
-                if (!unversionedPathToVersionedPath.containsKey(versionedZipEntry.entryNameUnversioned)) {
-                    // This is the first FastZipEntry for this entry's unversioned path
-                    unversionedPathToVersionedPath.put(versionedZipEntry.entryNameUnversioned,
-                            versionedZipEntry.entryName);
-                    unversionedZipEntriesMasked.add(versionedZipEntry);
-                } else if (log != null) {
-                    log.log(unversionedPathToVersionedPath.get(versionedZipEntry.entryNameUnversioned) + " masks "
-                            + versionedZipEntry.entryName);
+            if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                if (log != null) {
+                    log.log("This is a multi-release jar, but JRE version " + VersionFinder.JAVA_MAJOR_VERSION
+                            + " does not support multi-release jars");
                 }
-            }
+            } else {
+                if (log != null) {
+                    log.log("This is a multi-release jar");
+                }
 
-            // Override entries with version-masked entries
-            entries = unversionedZipEntriesMasked;
+                // Sort in decreasing order of version in preparation for version masking
+                Collections.sort(entries);
+
+                // Mask files that appear in multiple version sections, so that there is only one entry
+                // for each unversioned path, i.e. the versioned path with the highest version number
+                final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
+                final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
+                for (final FastZipEntry versionedZipEntry : entries) {
+                    if (!unversionedPathToVersionedPath.containsKey(versionedZipEntry.entryNameUnversioned)) {
+                        // This is the first FastZipEntry for this entry's unversioned path
+                        unversionedPathToVersionedPath.put(versionedZipEntry.entryNameUnversioned,
+                                versionedZipEntry.entryName);
+                        unversionedZipEntriesMasked.add(versionedZipEntry);
+                    } else if (log != null) {
+                        log.log(unversionedPathToVersionedPath.get(versionedZipEntry.entryNameUnversioned)
+                                + " masks " + versionedZipEntry.entryName);
+                    }
+                }
+
+                // Override entries with version-masked entries
+                entries = unversionedZipEntriesMasked;
+            }
         }
 
         // Find all the unique multirelease versions within the jar
