@@ -597,8 +597,9 @@ class Scanner implements Callable<ScanResult> {
 
                                     // Create a new tuple consisting of the order of the new classpath element
                                     // within its parent, and the new classpath element
-                                    final SimpleEntry<Integer, ClasspathElement> classpathEltEntry = new SimpleEntry<>(
-                                            workUnit.orderWithinParentClasspathElement, classpathElt);
+                                    final SimpleEntry<Integer, ClasspathElement> classpathEltEntry = //
+                                            new SimpleEntry<>(workUnit.orderWithinParentClasspathElement,
+                                                    classpathElt);
                                     if (workUnit.parentClasspathElement != null) {
                                         // Link classpath element to its parent, if it is not a toplevel element
                                         workUnit.parentClasspathElement.childClasspathElementsIndexed
@@ -635,6 +636,7 @@ class Scanner implements Callable<ScanResult> {
                                 ((ClasspathElementZip) classpathElt).getZipFilePath(), classpathElt));
                     }
                 }
+                // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)
                 findNestedClasspathElements(classpathEltDirs, classpathFinderLog);
                 findNestedClasspathElements(classpathEltZips, classpathFinderLog);
             }
