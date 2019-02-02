@@ -58,7 +58,7 @@ public class ModulePathInfo {
      * The modules added to the module path on the commandline using the {@code --add-modules} switch, as an ordered
      * set of module names, in the order they were listed on the commandline. Note that valid module names include
      * {@code ALL-DEFAULT}, {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH} (see
-     * <a href="https://openjdk.java.net/jeps/261">JEP 261</a> for info.)
+     * <a href="https://openjdk.java.net/jeps/261">JEP 261</a> for info).
      */
     public final Set<String> addModules = new LinkedHashSet<>();
 
