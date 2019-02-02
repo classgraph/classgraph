@@ -64,41 +64,61 @@ public class ModulePathInfo {
 
     /**
      * The module patch directives listed on the commandline using the {@code --patch-modules} switch, as an ordered
-     * set of strings in the format {code <module>=<file>}, in the order they were listed on the commandline.
+     * set of strings in the format {@code <module>=<file>}, in the order they were listed on the commandline.
      */
     public final Set<String> patchModules = new LinkedHashSet<>();
 
     /**
      * The module {@code exports} directives added on the commandline using the {@code --add-exports} switch, as an
-     * ordered set of strings in the format {code <module>/<package>}, in the order they were listed on the
-     * commandline. Additionally, if this {@link ModulePathInfo} object was obtained from
-     * {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any additional
-     * {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to this list.
+     * ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in
+     * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
+     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
+     * additional {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to
+     * this list.
      */
     public final Set<String> addExports = new LinkedHashSet<>();
 
     /**
      * The module {@code opens} directives added on the commandline using the {@code --add-opens} switch, as an
-     * ordered set of strings in the format {code <module>/<package>}, in the order they were listed on the
-     * commandline. Additionally, if this {@link ModulePathInfo} object was obtained from
-     * {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any additional
-     * {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to this list.
+     * ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in
+     * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
+     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
+     * additional {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to
+     * this list.
      */
     public final Set<String> addOpens = new LinkedHashSet<>();
 
     /**
      * The module {@code reads} directives added on the commandline using the {@code --add-reads} switch, as an
-     * ordered set of strings in the format {code <source-module>=<target-module>}, in the order they were listed on
-     * the commandline.
+     * ordered set of strings in the format {@code <source-module>=<target-module>}, in the order they were listed
+     * on the commandline.
      */
     public final Set<String> addReads = new LinkedHashSet<>();
 
-    private final List<Set<String>> fields = Arrays.asList(modulePath, addModules, patchModules, addExports,
-            addOpens, addReads);
-    private static final List<String> argSwitches = Arrays.asList("--module-path=", "--add-modules=",
-            "--patch-module=", "--add-exports=", "--add-opens=", "--add-reads=");
-    private static final List<Character> argPartSeparatorChars = Arrays.asList(File.pathSeparatorChar, ',',
-            File.pathSeparatorChar, ',', ',', ',');
+    private final List<Set<String>> fields = Arrays.asList( //
+            modulePath, //
+            addModules, //
+            patchModules, //
+            addExports, //
+            addOpens, //
+            addReads //
+    );
+    private static final List<String> argSwitches = Arrays.asList( //
+            "--module-path=", //
+            "--add-modules=", //
+            "--patch-module=", //
+            "--add-exports=", //
+            "--add-opens=", //
+            "--add-reads=" //
+    );
+    private static final List<Character> argPartSeparatorChars = Arrays.asList( //
+            File.pathSeparatorChar, // --module-path
+            ',', // --add-modules
+            '\0', // --patch-module (only one param per switch)
+            '\0', // --add-exports (only one param per switch)
+            '\0', // --add-opens (only one param per switch)
+            '\0' // --add-reads (only one param per switch)
+    );
 
     /** Construct a {@link ModulePathInfo}. */
     public ModulePathInfo() {
@@ -107,10 +127,17 @@ public class ModulePathInfo {
             for (int i = 0; i < fields.size(); i++) {
                 final String argSwitch = argSwitches.get(i);
                 if (arg.startsWith(argSwitch)) {
+                    final String argParam = arg.substring(argSwitch.length());
                     final Set<String> argField = fields.get(i);
-                    for (final String argPart : JarUtils.smartPathSplit(arg.substring(argSwitch.length()),
-                            argPartSeparatorChars.get(i))) {
-                        argField.add(argPart);
+                    final char sepChar = argPartSeparatorChars.get(i);
+                    if (sepChar == '\0') {
+                        // Only one param per switch
+                        argField.add(argParam);
+                    } else {
+                        // Split arg param into parts
+                        for (final String argPart : JarUtils.smartPathSplit(argParam, sepChar)) {
+                            argField.add(argPart);
+                        }
                     }
                 }
             }
