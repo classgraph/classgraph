@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.Join;
 
 /**
  * Information on the module path. Note that this will only include module system parameters actually listed in
@@ -142,5 +143,45 @@ public class ModulePathInfo {
                 }
             }
         }
+    }
+
+    /** Return the module path info in commandline format. */
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        if (!modulePath.isEmpty()) {
+            buf.append("--module-path=" + Join.join(File.pathSeparator, modulePath));
+        }
+        if (!addModules.isEmpty()) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-modules=" + Join.join(",", addModules));
+        }
+        for (final String patchModulesEntry : patchModules) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--patch-modules=" + patchModulesEntry);
+        }
+        for (final String addExportsEntry : addExports) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-exports=" + addExportsEntry);
+        }
+        for (final String addOpensEntry : addOpens) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-opens=" + addOpensEntry);
+        }
+        for (final String addReadsEntry : addReads) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-reads=" + addReadsEntry);
+        }
+        return buf.toString();
     }
 }
