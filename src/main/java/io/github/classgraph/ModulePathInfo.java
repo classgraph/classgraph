@@ -66,7 +66,7 @@ public class ModulePathInfo {
      * The module patch directives listed on the commandline using the {@code --patch-modules} switch, as an ordered
      * set of strings in the format {code <module>=<file>}, in the order they were listed on the commandline.
      */
-    public final Set<String> patchModule = new LinkedHashSet<>();
+    public final Set<String> patchModules = new LinkedHashSet<>();
 
     /**
      * The module {@code exports} directives added on the commandline using the {@code --add-exports} switch, as an
@@ -93,7 +93,7 @@ public class ModulePathInfo {
      */
     public final Set<String> addReads = new LinkedHashSet<>();
 
-    private final List<Set<String>> fields = Arrays.asList(modulePath, addModules, patchModule, addExports,
+    private final List<Set<String>> fields = Arrays.asList(modulePath, addModules, patchModules, addExports,
             addOpens, addReads);
     private static final List<String> fieldSwitches = Arrays.asList("--module-path", "--add-modules",
             "--patch-module", "--add-exports", "--add-opens", "--add-reads");
