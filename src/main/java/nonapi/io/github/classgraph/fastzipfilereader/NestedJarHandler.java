@@ -189,7 +189,7 @@ public class NestedJarHandler {
                             // Create a new logical slice of the whole physical zipfile
                             childZipEntrySlice = new ZipFileSlice(physicalZipFile);
 
-                        } catch (final IOException e) {
+                        } catch (final IllegalArgumentException | IOException e) {
                             // Could not make temp file, or failed to extract entire contents of entry
                             if (tempFile != null) {
                                 // Delete temp file, in case it contains partially-extracted data
@@ -400,30 +400,23 @@ public class NestedJarHandler {
                     // (since non-jar nested files cannot be used on the classpath). Map the nested jar as
                     // a new ZipFileSlice if it is stored, or inflate it to RAM or to a temporary file if
                     // it is deflated, then create a new ZipFileSlice over the temporary file or ByteBuffer.
-                    try {
-                        // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
-                        final ZipFileSlice childZipEntrySlice = fastZipEntryToZipFileSliceMap.get(childZipEntry,
-                                log);
-                        if (childZipEntrySlice == null) {
-                            throw new IOException(
-                                    "Could not open nested jarfile entry: " + childZipEntry.getPath());
-                        }
 
-                        final LogNode zipSliceLog = log == null ? null
-                                : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
-                                        + childZipEntry.entryName);
-
-                        // Get or create a new LogicalZipFile for the child zipfile
-                        final LogicalZipFile childLogicalZipFile = zipFileSliceToLogicalZipFileMap
-                                .get(childZipEntrySlice, zipSliceLog);
-
-                        // Return new logical zipfile with an empty package root
-                        return new SimpleEntry<>(childLogicalZipFile, "");
-
-                    } catch (final IOException e) {
-                        // Thrown if the inner zipfile could nat be extracted
-                        throw new IOException("File does not appear to be a zipfile: " + childPath);
+                    // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
+                    final ZipFileSlice childZipEntrySlice = fastZipEntryToZipFileSliceMap.get(childZipEntry, log);
+                    if (childZipEntrySlice == null) {
+                        throw new IOException("Could not open nested jarfile entry: " + childZipEntry.getPath());
                     }
+
+                    final LogNode zipSliceLog = log == null ? null
+                            : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
+                                    + childZipEntry.entryName);
+
+                    // Get or create a new LogicalZipFile for the child zipfile
+                    final LogicalZipFile childLogicalZipFile = zipFileSliceToLogicalZipFileMap
+                            .get(childZipEntrySlice, zipSliceLog);
+
+                    // Return new logical zipfile with an empty package root
+                    return new SimpleEntry<>(childLogicalZipFile, "");
                 }
             }
         };
