@@ -64,7 +64,7 @@ public class ModulePathInfo {
     public final Set<String> addModules = new LinkedHashSet<>();
 
     /**
-     * The module patch directives listed on the commandline using the {@code --patch-modules} switch, as an ordered
+     * The module patch directives listed on the commandline using the {@code --patch-module} switch, as an ordered
      * set of strings in the format {@code <module>=<file>}, in the order they were listed on the commandline.
      */
     public final Set<String> patchModules = new LinkedHashSet<>();
