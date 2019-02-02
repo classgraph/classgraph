@@ -156,6 +156,8 @@ class ClasspathElementZip extends ClasspathElement {
                 return;
             }
 
+            // Automatically add any nested "lib/" dirs to classpath, since not all classloaders return them
+            // as classpath elements
             int childClasspathEntryIdx = 0;
             if (scanSpec.scanNestedJars) {
                 for (final FastZipEntry zipEntry : logicalZipFile.entries) {
@@ -188,7 +190,7 @@ class ClasspathElementZip extends ClasspathElement {
                         final String childClassPathEltPathResolved = FastPathResolver.resolve(pathOfContainingDir,
                                 childClassPathEltPath);
                         // Only add child classpath elements once
-                        if (!childClassPathEltPathResolved.equals(rawPath) && workQueue != null) {
+                        if (!childClassPathEltPathResolved.equals(rawPath)) {
                             // Schedule child classpath element for scanning
                             workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
                                     /* rawClasspathEltPath = */ childClassPathEltPathResolved,
