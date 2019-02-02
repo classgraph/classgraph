@@ -609,7 +609,12 @@ class Scanner implements Callable<ScanResult> {
                                         toplevelClasspathEltOrder.add(classpathEltEntry);
                                     }
                                 }
-                            } catch (final IOException | IllegalArgumentException e) {
+                            } catch (final IllegalArgumentException e) {
+                                if (classpathFinderLog != null) {
+                                    classpathFinderLog.log(
+                                            "Skipping invalid classpath element " + workUnit.rawClasspathEltPath);
+                                }
+                            } catch (final IOException e) {
                                 if (classpathFinderLog != null) {
                                     classpathFinderLog.log("Skipping invalid classpath element "
                                             + workUnit.rawClasspathEltPath + " : " + e);
