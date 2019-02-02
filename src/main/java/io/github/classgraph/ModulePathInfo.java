@@ -162,7 +162,7 @@ public class ModulePathInfo {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("--patch-modules=" + patchModulesEntry);
+            buf.append("--patch-module=" + patchModulesEntry);
         }
         for (final String addExportsEntry : addExports) {
             if (buf.length() > 0) {
