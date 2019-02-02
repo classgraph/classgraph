@@ -136,21 +136,10 @@ class ClassInfoUnlinked {
             final Map<String, ModuleInfo> moduleNameToModuleInfo, final LogNode log) {
         if (className.equals("module-info")) {
             // Handle module descriptor classfile
-            String moduleName = null;
-            final ModuleRef moduleRef = classfileResource.getModuleRef();
-            if (moduleRef != null) {
-                // Get module name from ModuleReference of this ClasspathElementModule, if available
-                moduleName = moduleRef.getName();
-            } else if (classpathElement.moduleName != null) {
-                // Otherwise if this is a jar and the module name was defined in a module-info.class file
-                moduleName = classpathElement.moduleName;
-            }
-            if (moduleName == null) {
-                moduleName = "";
-            }
-            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(classpathElement.moduleName);
             if (moduleInfo == null) {
-                moduleNameToModuleInfo.put(moduleName, moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+                moduleNameToModuleInfo.put(classpathElement.moduleName,
+                        moduleInfo = new ModuleInfo(classfileResource.getModuleRef(), classpathElement));
             }
             moduleInfo.addAnnotations(classAnnotations);
 
@@ -206,21 +195,10 @@ class ClassInfoUnlinked {
             final PackageInfo packageInfo = PackageInfo.getPackage(packageName, packageNameToPackageInfo);
             packageInfo.addClassInfo(classInfo);
 
-            String moduleName = null;
-            final ModuleRef moduleRef = classInfo.getModuleRef();
-            if (moduleRef != null) {
-                // Get module name from ModuleReference of this ClasspathElementModule, if available
-                moduleName = moduleRef.getName();
-            } else if (classpathElement.moduleName != null) {
-                // Otherwise if this is a jar and the module name was defined in a module-info.class file
-                moduleName = classpathElement.moduleName;
-            }
-            if (moduleName == null) {
-                moduleName = "";
-            }
-            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(classpathElement.moduleName);
             if (moduleInfo == null) {
-                moduleNameToModuleInfo.put(moduleName, moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+                moduleNameToModuleInfo.put(classpathElement.moduleName,
+                        moduleInfo = new ModuleInfo(classInfo.getModuleRef(), classpathElement));
             }
             moduleInfo.addClassInfo(classInfo);
             moduleInfo.addPackageInfo(packageInfo);

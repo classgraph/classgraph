@@ -98,8 +98,11 @@ abstract class ClasspathElement {
     /** The classloader(s) handling this classpath element. */
     protected ClassLoader[] classLoaders;
 
-    /** The module name, read from module-info.class if present. */
-    String moduleName;
+    /**
+     * The name of the module, if this is a {@link ClasspathElementModule}, or the module name from the
+     * {@code module-info.class} module descriptor, if one is present in the root of the classpath element.
+     */
+    String moduleName = "";
 
     /** The scan spec. */
     final ScanSpec scanSpec;
