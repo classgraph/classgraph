@@ -86,7 +86,9 @@ public class ClassLoaderHandlerRegistry {
             // Tomcat
             "WEB-INF/lib/", "WEB-INF/lib-provided/",
             // Tomcat and others
-            "lib/" //
+            "lib/",
+            // Extension dir
+            "lib/ext/" //
     };
 
     /**
