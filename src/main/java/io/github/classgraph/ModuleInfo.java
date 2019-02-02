@@ -61,24 +61,32 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /** Construct a ModuleInfo object. */
-    ModuleInfo(final ModuleRef moduleRef) {
+    ModuleInfo(final ModuleRef moduleRef, final ClasspathElement classpathElement) {
         this.moduleRef = moduleRef;
-        this.name = moduleRef.getName();
-        this.location = moduleRef.getLocation();
+        // Use moduleRef to get module name, or if not available, use module name from module-info.class 
+        // if available (stored in classpathElement.moduleName)
+        this.name = moduleRef != null ? moduleRef.getName() : classpathElement.moduleName;
+        if (this.name == null) {
+            this.name = "";
+        }
+        this.location = moduleRef != null ? moduleRef.getLocation() : classpathElement.getURI();
     }
 
-    /** The module name ({@code "<unnamed>"} for the unnamed module). */
+    /** The module name (or {@code ""} for the unnamed module). */
     @Override
     public String getName() {
         return name;
     }
 
-    /** The module location. */
+    /** The module location, or null for modules whose location is unknown. */
     public URI getLocation() {
         return location;
     }
 
-    /** The {@link ModuleRef} for this module. */
+    /**
+     * The {@link ModuleRef} for this module, or null if this module was obtained from a classpath element on the
+     * traditional classpath that contained a {@code module-info.class} file.
+     */
     public ModuleRef getModuleRef() {
         return moduleRef;
     }
@@ -194,14 +202,16 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         final int diff = this.name.compareTo(o.name);
         if (diff != 0) {
             return diff;
-        } else {
+        } else if (this.location != null && o.location != null) {
             return this.location.compareTo(o.location);
+        } else {
+            return (o.location == null ? 0 : 1) - (this.location == null ? 0 : 1);
         }
     }
 
     @Override
     public int hashCode() {
-        return name.hashCode() * location.hashCode();
+        return name.hashCode() * (location == null ? 1 : location.hashCode());
     }
 
     @Override
@@ -216,6 +226,6 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     @Override
     public String toString() {
-        return name + " [" + location + "]";
+        return name + " [" + (location == null ? "" : location) + "]";
     }
 }

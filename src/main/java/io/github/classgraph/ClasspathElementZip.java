@@ -32,6 +32,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -503,6 +505,16 @@ class ClasspathElementZip extends ClasspathElement {
         } catch (final MalformedURLException e) {
             // Shouldn't happen
             throw new IllegalArgumentException("Could not form URL for classpath element: " + e);
+        }
+    }
+
+    @Override
+    URI getURI() {
+        try {
+            return getZipFileURL().toURI();
+        } catch (final URISyntaxException e) {
+            // Should not happen (but if it does, just causes ModuleInfo#getLocation() to return null)
+            return null;
         }
     }
 

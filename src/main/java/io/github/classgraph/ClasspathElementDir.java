@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -472,6 +473,11 @@ class ClasspathElementDir extends ClasspathElement {
     /** @return The classpath element directory as a {@link File}. */
     public File getDirFile() {
         return classpathEltDir;
+    }
+
+    @Override
+    URI getURI() {
+        return classpathEltDir.toURI();
     }
 
     /** Return the classpath element directory. */

@@ -92,8 +92,9 @@ class ClassfileBinaryParser {
         } else if (t == 1) {
             // CONSTANT_Utf8
             cpIdxToUse = cpIdx;
-        } else if (t == 7 || t == 8) {
-            // t == 7 => CONSTANT_Class, e.g. "[[I", "[Ljava/lang/Thread;" t == 8 => CONSTANT_String
+        } else if (t == 7 || t == 8 || t == 19) {
+            // t == 7 => CONSTANT_Class, e.g. "[[I", "[Ljava/lang/Thread;"; t == 8 => CONSTANT_String;
+            // t == 19 => CONSTANT_Method_Info
             final int indirIdx = indirectStringRefs[cpIdx];
             if (indirIdx == -1) {
                 // Should not happen
@@ -435,7 +436,7 @@ class ClassfileBinaryParser {
                 break;
             case 19: // module (for module-info.class in JDK9+)
                 // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
-                inputStreamOrByteBuffer.skip(2);
+                indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
                 break;
             case 20: // package (for module-info.class in JDK9+)
                 // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
@@ -744,7 +745,7 @@ class ClassfileBinaryParser {
             }
         }
 
-        // Attributes (including class annotations, class type variables, etc.)
+        // Class attributes (including class annotations, class type variables, module info, etc.)
         final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < attributesCount; i++) {
             final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
@@ -792,6 +793,12 @@ class ClassfileBinaryParser {
                 // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
                 // class
                 classInfoUnlinked.addEnclosingMethod(innermostEnclosingClassName + "." + definingMethodName);
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
+                final int moduleNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                classpathElement.moduleName = getConstantPoolString(moduleNameCpIdx);
+                // TODO: parse the rest of the module descriptor fields, and add to ModuleInfo:
+                // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
+                inputStreamOrByteBuffer.skip(attributeLength - 2);
             } else {
                 inputStreamOrByteBuffer.skip(attributeLength);
             }

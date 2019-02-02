@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -378,6 +379,11 @@ class ClasspathElementModule extends ClasspathElement {
     /** Get the ModuleRef for this classpath element. */
     ModuleRef getModuleRef() {
         return moduleRef;
+    }
+
+    @Override
+    URI getURI() {
+        return moduleRef.getLocation();
     }
 
     /** Return the module reference. */

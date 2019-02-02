@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.File;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -96,6 +97,9 @@ abstract class ClasspathElement {
 
     /** The classloader(s) handling this classpath element. */
     protected ClassLoader[] classLoaders;
+
+    /** The module name, read from module-info.class if present. */
+    String moduleName;
 
     /** The scan spec. */
     final ScanSpec scanSpec;
@@ -250,4 +254,7 @@ abstract class ClasspathElement {
      *         classpath element.
      */
     abstract Resource getResource(final String relativePath);
+
+    /** Get the URL string for this classpath element. */
+    abstract URI getURI();
 }
