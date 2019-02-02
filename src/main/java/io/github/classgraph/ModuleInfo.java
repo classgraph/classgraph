@@ -122,7 +122,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the {@link PackageInfo} object for the named packagein this module, or null if the package was not found
+     * Get the {@link PackageInfo} object for the named package in this module, or null if the package was not found
      * in this module.
      */
     public PackageInfo getPackageInfo(final String packageName) {
