@@ -105,9 +105,10 @@ public abstract class SingletonMap<K, V> {
      */
     public V get(final K key, final LogNode log) throws Exception {
         final SingletonHolder<V> singletonHolder = map.get(key);
+        V instance = null;
         if (singletonHolder != null) {
             // There is already a SingletonHolder in the map for this key -- get the value
-            return singletonHolder.get();
+            instance = singletonHolder.get();
         } else {
             // There is no SingletonHolder in the map for this key, need to create one
             // (need to handle race condition, hence the putIfAbsent call)
@@ -116,21 +117,13 @@ public abstract class SingletonMap<K, V> {
             if (oldSingletonHolder != null) {
                 // There was already a singleton in the map for this key, due to a race condition --
                 // return the existing singleton
-                V oldInstance = oldSingletonHolder.get();
-                if (oldInstance == null) {
-                    if (log != null) {
-                        log.log("oldInstance was null for key " + key);
-                    }
-                    throw new IllegalArgumentException("oldInstance was null for key " + key);
-                }
-                return oldInstance;
+                instance = oldSingletonHolder.get();
 
             } else {
                 // Initialize newSingletonHolder with new instance of value.
-                V newInstance = null;
                 try {
-                    newInstance = newInstance(key, log);
-                    if (newInstance == null) {
+                    instance = newInstance(key, log);
+                    if (instance == null) {
                         if (log != null) {
                             log.log("newInstance returned null for key " + key);
                         }
@@ -140,10 +133,14 @@ public abstract class SingletonMap<K, V> {
                     // Have to call .set() even if an exception is thrown by newInstance(), or if newInstance
                     // is null, since .set() calls initialized.countDown(). Otherwise threads that call .get()
                     // can end up waiting forever.
-                    newSingletonHolder.set(newInstance);
+                    newSingletonHolder.set(instance);
                 }
-                return newInstance;
             }
+        }
+        if (instance == null) {
+            throw new IllegalArgumentException("instance was null for key " + key);
+        } else {
+            return instance;
         }
     }
 
