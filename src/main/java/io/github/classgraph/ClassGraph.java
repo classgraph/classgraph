@@ -1312,4 +1312,24 @@ public class ClassGraph {
             }
         }
     }
+
+    /**
+     * Get the module path info provided on the commandline with {@code --module-path}, {@code --add-modules},
+     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
+     * 
+     * <p>
+     * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
+     * classpath or system modules.
+     * 
+     * <p>
+     * Also, {@link ModulePathInfo#addExports} and {@link ModulePathInfo#addOpens} will not contain
+     * {@code Add-Exports} or {@code Add-Opens} entries from jarfile manifest files encountered during scanning,
+     * unless you obtain the {@link ModulePathInfo} by calling {@link ScanResult#getModulePathInfo()} rather than by
+     * calling {@link ClassGraph#getModulePathInfo()} before {@link ClassGraph#scan()}.
+     * 
+     * @return The {@link ModulePathInfo}.
+     */
+    public ModulePathInfo getModulePathInfo() {
+        return scanSpec.modulePathInfo;
+    }
 }

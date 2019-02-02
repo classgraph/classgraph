@@ -60,7 +60,7 @@ class ClasspathElementZip extends ClasspathElement {
     /** The raw path for this zipfile. */
     private final String rawPath;
     /** The logical zipfile for this classpath element. */
-    private LogicalZipFile logicalZipFile;
+    LogicalZipFile logicalZipFile;
     /** The package root within the jarfile. */
     private String packageRootPrefix = "";
     /** The normalized path of the jarfile, "!/"-separated if nested, excluding any package root. */

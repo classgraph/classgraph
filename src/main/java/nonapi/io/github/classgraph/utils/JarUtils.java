@@ -73,22 +73,44 @@ public class JarUtils {
 
     /**
      * Split a path on File.pathSeparator (':' on Linux, ';' on Windows), but also allow for the use of URLs with
-     * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar". This is really not even handled by
-     * the JRE, in all likelihood, but it's better to be robust.
+     * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
      * 
      * @param pathStr
      *            The path to split.
      * @return The path element substrings.
      */
     public static String[] smartPathSplit(final String pathStr) {
+        return smartPathSplit(pathStr, File.pathSeparatorChar);
+    }
+
+    /**
+     * Split a path on the given separator char. If the separator char is ':', also allow for the use of URLs with
+     * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
+     * 
+     * @param pathStr
+     *            The path to split.
+     * @param separatorChar
+     *            The separator char to use.
+     * @return The path element substrings.
+     */
+    public static String[] smartPathSplit(final String pathStr, final char separatorChar) {
         if (pathStr == null || pathStr.isEmpty()) {
             return new String[0];
         }
-        // The fast path for Windows can skips this special handling (no need to handle these cases if the path
-        // separator is ';')
-        if (File.pathSeparatorChar == ':') {
-            // For Linux, don't split on URL protocol boundaries. This will allow for HTTP(S) jars to be given in
-            // java.class.path. (The JRE may not even support them, but we may as well do so.)
+        if (separatorChar != ':') {
+            // The fast path for Windows (which uses ';' as a path separator), or for separator other than ':'
+            final List<String> partsFiltered = new ArrayList<>();
+            for (final String part : pathStr.split("" + separatorChar)) {
+                final String partFiltered = part.trim();
+                if (!partFiltered.isEmpty()) {
+                    partsFiltered.add(partFiltered);
+                }
+            }
+            return partsFiltered.toArray(new String[0]);
+        } else {
+            // If the separator char is ':', don't split on URL protocol boundaries.
+            // This will allow for HTTP(S) jars to be given in java.class.path.
+            // (The JRE may not even support them, but we may as well do so.)
             final Set<Integer> splitPoints = new HashSet<>();
             for (int i = -1;;) {
                 boolean foundNonPathSeparator = false;
@@ -131,17 +153,6 @@ public class JarUtils {
                 }
             }
             return parts.toArray(new String[0]);
-        } else {
-            // For Windows, there is no confusion between the path separator ';' and URL schemes.
-            // Trim path components, and strip out empty components.
-            final List<String> partsFiltered = new ArrayList<>();
-            for (final String part : pathStr.split(File.pathSeparator)) {
-                final String partFiltered = part.trim();
-                if (!partFiltered.isEmpty()) {
-                    partsFiltered.add(partFiltered);
-                }
-            }
-            return partsFiltered.toArray(new String[0]);
         }
     }
 

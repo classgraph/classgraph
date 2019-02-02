@@ -639,11 +639,27 @@ class Scanner implements Callable<ScanResult> {
                 final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
                 for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
                     if (classpathElt instanceof ClasspathElementDir) {
+                        // Separate out ClasspathElementDir elements from other types
                         classpathEltDirs.add(new SimpleEntry<>(
                                 ((ClasspathElementDir) classpathElt).getDirFile().getPath(), classpathElt));
                     } else if (classpathElt instanceof ClasspathElementZip) {
-                        classpathEltZips.add(new SimpleEntry<>(
-                                ((ClasspathElementZip) classpathElt).getZipFilePath(), classpathElt));
+                        // Separate out ClasspathElementZip elements from other types
+                        final ClasspathElementZip classpathEltZip = (ClasspathElementZip) classpathElt;
+                        classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
+                        // Find additional Add-Exports and Add-Opens entries in jarfile manifests,
+                        // and add to scanSpec.modulePathInfo
+                        if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
+                            for (final String addExports : JarUtils.smartPathSplit(
+                                    classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ')) {
+                                scanSpec.modulePathInfo.addExports.add(addExports);
+                            }
+                        }
+                        if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
+                            for (final String addExports : JarUtils.smartPathSplit(
+                                    classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ')) {
+                                scanSpec.modulePathInfo.addOpens.add(addExports);
+                            }
+                        }
                     }
                 }
                 // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)

@@ -60,20 +60,26 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** The zipfile entries. */
     public List<FastZipEntry> entries;
 
+    /** If true, this is a multi-release jar. */
+    boolean isMultiReleaseJar;
+
     /** The version numbers of versioned sections found within a multi-release jar. */
     int[] multiReleaseVersionsFound;
 
-    /** If true, this is a JRE jar. */
-    public boolean isJREJar;
-
-    /** If true, this is a multi-release jar. */
-    boolean isMultiReleaseJar;
+    /** A set of classpath roots found in the classpath for this zipfile. */
+    Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
     /** The value of the "Class-Path" manifest entry, if present in the manifest, else null. */
     public String classPathManifestEntryValue;
 
-    /** A set of classpath roots found in the classpath for this zipfile. */
-    Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    /** The value of the "Add-Exports" manifest entry, if present in the manifest, else null. */
+    public String addExportsManifestEntryValue;
+
+    /** The value of the "Add-Opens" manifest entry, if present in the manifest, else null. */
+    public String addOpensManifestEntryValue;
+
+    /** If true, this is a JRE jar. */
+    public boolean isJREJar;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -177,6 +183,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
     private static final byte[] SPRING_BOOT_LIB_KEY = manifestKeyToBytes("Spring-Boot-Lib");
     private static final byte[] MULTI_RELEASE_KEY = manifestKeyToBytes("Multi-Release");
+    private static final byte[] ADD_EXPORTS_KEY = manifestKeyToBytes("Add-Exports");
+    private static final byte[] ADD_OPENS_KEY = manifestKeyToBytes("Add-Opens");
 
     private static byte[] toLowerCase = new byte[256];
     static {
@@ -269,6 +277,24 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                         i + MULTI_RELEASE_KEY.length + 1);
                 if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("true")) {
                     isMultiReleaseJar = true;
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, ADD_EXPORTS_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + ADD_EXPORTS_KEY.length + 1);
+                addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
+                if (log != null) {
+                    log.log("Found Add-Exports entry in manifest file: " + addExportsManifestEntryValue);
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, ADD_OPENS_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + ADD_OPENS_KEY.length + 1);
+                addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
+                if (log != null) {
+                    log.log("Found Add-Opens entry in manifest file: " + addOpensManifestEntryValue);
                 }
                 i = manifestValueAndEndIdx.getValue();
 

@@ -35,6 +35,7 @@ import java.util.List;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ModulePathInfo;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
 import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListPrefix;
@@ -240,6 +241,9 @@ public class ScanSpec {
 
     /** If true, do not scan module layers that are the parent of other module layers. */
     public transient boolean ignoreParentModuleLayers = false;
+
+    /** Commandline module path parameters. */
+    public ModulePathInfo modulePathInfo = new ModulePathInfo();
 
     // -------------------------------------------------------------------------------------------------------------
 

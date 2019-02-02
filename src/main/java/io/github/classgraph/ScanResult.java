@@ -284,6 +284,17 @@ public final class ScanResult implements Closeable, AutoCloseable {
         return moduleRefs;
     }
 
+    /**
+     * Get the module path info provided on the commandline with {@code --module-path}, {@code --add-modules},
+     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}, and also the
+     * {@code Add-Exports} and {@code Add-Opens} entries from jarfile manifest files encountered during scanning.
+     * 
+     * @return The {@link ModulePathInfo}.
+     */
+    public ModulePathInfo getModulePathInfo() {
+        return scanSpec.modulePathInfo;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
     // Resources
 
