@@ -95,9 +95,9 @@ public class ModulePathInfo {
 
     private final List<Set<String>> fields = Arrays.asList(modulePath, addModules, patchModules, addExports,
             addOpens, addReads);
-    private static final List<String> fieldSwitches = Arrays.asList("--module-path=", "--add-modules=",
+    private static final List<String> argSwitches = Arrays.asList("--module-path=", "--add-modules=",
             "--patch-module=", "--add-exports=", "--add-opens=", "--add-reads=");
-    private static final List<Character> fieldSeparatorChars = Arrays.asList(File.pathSeparatorChar, ',',
+    private static final List<Character> argPartSeparatorChars = Arrays.asList(File.pathSeparatorChar, ',',
             File.pathSeparatorChar, ',', ',', ',');
 
     /** Construct a {@link ModulePathInfo}. */
@@ -105,11 +105,11 @@ public class ModulePathInfo {
         final List<String> commandlineArguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
         for (final String arg : commandlineArguments) {
             for (int i = 0; i < fields.size(); i++) {
-                final String fieldSwitch = fieldSwitches.get(i);
-                if (arg.startsWith(fieldSwitch)) {
+                final String argSwitch = argSwitches.get(i);
+                if (arg.startsWith(argSwitch)) {
                     final Set<String> argField = fields.get(i);
-                    for (final String argPart : JarUtils.smartPathSplit(arg.substring(fieldSwitch.length()),
-                            fieldSeparatorChars.get(i))) {
+                    for (final String argPart : JarUtils.smartPathSplit(arg.substring(argSwitch.length()),
+                            argPartSeparatorChars.get(i))) {
                         argField.add(argPart);
                     }
                 }
