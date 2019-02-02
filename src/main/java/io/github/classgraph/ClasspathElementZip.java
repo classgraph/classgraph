@@ -112,7 +112,7 @@ class ClasspathElementZip extends ClasspathElement {
                 logicalZipFile = logicalZipFileAndPackageRoot.getKey();
 
                 // Get the normalized path of the logical zipfile
-                zipFilePath = logicalZipFile.getPath();
+                zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, logicalZipFile.getPath());
 
                 // Get package root of jarfile 
                 final String packageRoot = logicalZipFileAndPackageRoot.getValue();
