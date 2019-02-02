@@ -49,7 +49,7 @@ public class ModulePathInfo {
      * set of module names, in the order they were listed on the commandline.
      * 
      * <p>
-     * Note that some modules (such as system modules) will not be in this list, as they are added to the module
+     * Note that some modules (such as system modules) will not be in this set, as they are added to the module
      * system automatically by the runtime. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()}
      * to get all modules visible at runtime.
      */
