@@ -646,19 +646,24 @@ class Scanner implements Callable<ScanResult> {
                         // Separate out ClasspathElementZip elements from other types
                         final ClasspathElementZip classpathEltZip = (ClasspathElementZip) classpathElt;
                         classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
+
                         // Find additional Add-Exports and Add-Opens entries in jarfile manifests,
-                        // and add to scanSpec.modulePathInfo
+                        // and add to scanSpec.modulePathInfo. From JEP 261:
+                        // "A <module>/<package> pair in the value of an Add-Exports attribute has the same
+                        // meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. 
+                        // A <module>/<package> pair in the value of an Add-Opens attribute has the same 
+                        // meaning as the command-line option --add-opens <module>/<package>=ALL-UNNAMED."
                         if (classpathEltZip.logicalZipFile != null) {
                             if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
                                 for (final String addExports : JarUtils.smartPathSplit(
                                         classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ')) {
-                                    scanSpec.modulePathInfo.addExports.add(addExports);
+                                    scanSpec.modulePathInfo.addExports.add(addExports + "=ALL-UNNAMED");
                                 }
                             }
                             if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
-                                for (final String addExports : JarUtils.smartPathSplit(
+                                for (final String addOpens : JarUtils.smartPathSplit(
                                         classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ')) {
-                                    scanSpec.modulePathInfo.addOpens.add(addExports);
+                                    scanSpec.modulePathInfo.addOpens.add(addOpens + "=ALL-UNNAMED");
                                 }
                             }
                         }
