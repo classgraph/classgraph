@@ -96,7 +96,8 @@ public abstract class SingletonMap<K, V> {
      * @param log
      *            The log.
      * @return The singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null instance on this
-     *         call or a previous call.
+     *         call or a previous call, otherwise throws {@link IllegalArgumentException} if this call or a previous
+     *         call to {@link #newInstance(Object, LogNode)} returned null.
      * @throws Exception
      *             if newInstance(key) throws an exception.
      * @throws IllegalArgumentException
@@ -115,7 +116,15 @@ public abstract class SingletonMap<K, V> {
             if (oldSingletonHolder != null) {
                 // There was already a singleton in the map for this key, due to a race condition --
                 // return the existing singleton
-                return oldSingletonHolder.get();
+                V oldInstance = oldSingletonHolder.get();
+                if (oldInstance == null) {
+                    if (log != null) {
+                        log.log("oldInstance was null for key " + key);
+                    }
+                    throw new IllegalArgumentException("oldInstance was null for key " + key);
+                }
+                return oldInstance;
+
             } else {
                 // Initialize newSingletonHolder with new instance of value.
                 V newInstance = null;
