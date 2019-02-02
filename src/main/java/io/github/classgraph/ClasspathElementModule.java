@@ -345,7 +345,8 @@ class ClasspathElementModule extends ClasspathElement {
                 if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
                         || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
                         || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
+                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
+                        || (scanSpec.enableClassInfo && relativePath.equals("module-info.class"))) {
                     // Add whitelisted resource
                     final Resource resource = newResource(relativePath);
                     addWhitelistedResource(resource, parentMatchStatus, subLog);

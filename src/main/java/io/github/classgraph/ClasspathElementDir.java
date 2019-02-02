@@ -420,6 +420,15 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                 }
             }
+        } else if (scanSpec.enableClassInfo && dirRelativePath.equals("/")) {
+            // Always check for module descriptor in package root, even if package root isn't in whitelist
+            for (final File fileInDir : filesInDir) {
+                if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
+                    final Resource resource = newResource(classpathEltDir, "module-info.class", fileInDir);
+                    addWhitelistedResource(resource, parentMatchStatus, subLog);
+                    fileToLastModified.put(fileInDir, fileInDir.lastModified());
+                }
+            }
         }
         // Recurse into subdirectories
         for (final File fileInDir : filesInDir) {
