@@ -112,8 +112,8 @@ public class ModulePathInfo {
             "--add-reads=" //
     );
     private static final List<Character> argPartSeparatorChars = Arrays.asList( //
-            File.pathSeparatorChar, // --module-path
-            ',', // --add-modules
+            File.pathSeparatorChar, // --module-path (delimited path format)
+            ',', // --add-modules (comma-delimited)
             '\0', // --patch-module (only one param per switch)
             '\0', // --add-exports (only one param per switch)
             '\0', // --add-opens (only one param per switch)
