@@ -611,8 +611,8 @@ class Scanner implements Callable<ScanResult> {
                                 }
                             } catch (final IOException | IllegalArgumentException e) {
                                 if (classpathFinderLog != null) {
-                                    classpathFinderLog
-                                            .log("Skipping invalid classpath element " + workUnit + " : " + e);
+                                    classpathFinderLog.log("Skipping invalid classpath element "
+                                            + workUnit.rawClasspathEltPath + " : " + e);
                                 }
                             }
                         }
