@@ -95,8 +95,8 @@ public class ModulePathInfo {
 
     private final List<Set<String>> fields = Arrays.asList(modulePath, addModules, patchModules, addExports,
             addOpens, addReads);
-    private static final List<String> fieldSwitches = Arrays.asList("--module-path", "--add-modules",
-            "--patch-module", "--add-exports", "--add-opens", "--add-reads");
+    private static final List<String> fieldSwitches = Arrays.asList("--module-path=", "--add-modules=",
+            "--patch-module=", "--add-exports=", "--add-opens=", "--add-reads=");
     private static final List<Character> fieldSeparatorChars = Arrays.asList(File.pathSeparatorChar, ',',
             File.pathSeparatorChar, ',', ',', ',');
 
@@ -108,7 +108,7 @@ public class ModulePathInfo {
                 final String fieldSwitch = fieldSwitches.get(i);
                 if (arg.startsWith(fieldSwitch)) {
                     final Set<String> argField = fields.get(i);
-                    for (final String argPart : JarUtils.smartPathSplit(arg.substring(fieldSwitch.length() + 1),
+                    for (final String argPart : JarUtils.smartPathSplit(arg.substring(fieldSwitch.length()),
                             fieldSeparatorChars.get(i))) {
                         argField.add(argPart);
                     }
