@@ -1319,7 +1319,8 @@ public class ClassGraph {
      * 
      * <p>
      * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
-     * classpath or system modules.
+     * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
+     * automatic and system modules.
      * 
      * <p>
      * Also, {@link ModulePathInfo#addExports} and {@link ModulePathInfo#addOpens} will not contain

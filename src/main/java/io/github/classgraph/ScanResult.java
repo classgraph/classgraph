@@ -289,6 +289,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}, and also the
      * {@code Add-Exports} and {@code Add-Opens} entries from jarfile manifest files encountered during scanning.
      * 
+     * <p>
+     * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
+     * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
+     * automatic and system modules.
+     * 
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
