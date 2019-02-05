@@ -219,8 +219,11 @@ abstract class ClasspathElement {
                         logStr = "Found whitelisted classfile: ";
                         break;
                     }
-                    log.log(path, logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+                    // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
+                    // ClasspathElementDir classpath elements
+                    log.log("0:file:" + path,
+                            logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                                    : " ; full path: " + resource.getPathRelativeToClasspathElement()));
                 }
             }
         } else {
@@ -241,8 +244,9 @@ abstract class ClasspathElement {
                     break;
                 }
                 // Add extra " " to align log entries, since "resource" is one char shorter than "classfile"
-                log.log(path, logStr + " " + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                        : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+                log.log("0:file:" + path,
+                        logStr + " " + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                                : " ; full path: " + resource.getPathRelativeToClasspathElement()));
             }
         }
         whitelistedResources.add(resource);

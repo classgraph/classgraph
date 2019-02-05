@@ -367,7 +367,8 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         final LogNode subLog = log == null ? null
-                : log.log(canonicalPath, "Scanning directory: " + dir
+                // Log dirs after files (addWhitelistedResources precedes log entry with "0:file:")
+                : log.log("1:dir:" + canonicalPath, "Scanning directory: " + dir
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
         // Only scan files in directory if directory is not only an ancestor of a whitelisted path
@@ -434,14 +435,18 @@ class ClasspathElementDir extends ClasspathElement {
         for (final File fileInDir : filesInDir) {
             if (fileInDir.isDirectory()) {
                 scanDirRecursively(fileInDir, subLog);
-                if (subLog != null) {
-                    subLog.addElapsedTime();
-                }
-                // If a blacklisted classpath element resource path was found, stop scanning
+                // If a blacklisted classpath element resource path was found, it will set skipClasspathElement
                 if (skipClasspathElement) {
+                    if (subLog != null) {
+                        subLog.addElapsedTime();
+                    }
                     return;
                 }
             }
+        }
+
+        if (subLog != null) {
+            subLog.addElapsedTime();
         }
 
         // Save the last modified time of the directory

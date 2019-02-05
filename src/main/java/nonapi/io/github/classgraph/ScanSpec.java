@@ -411,11 +411,13 @@ public class ScanSpec {
             return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
         }
 
-        // At whitelisted path
         if (pathWhiteBlackList.whitelistIsEmpty() && classPackagePathWhiteBlackList.whitelistIsEmpty()) {
-            // There are no whitelisted packages, so everything non-blacklisted is whitelisted
-            return ScanSpecPathMatch.AT_WHITELISTED_PATH;
+            // If there are no whitelisted packages, the root package is whitelisted
+            return relativePath.isEmpty() ? ScanSpecPathMatch.AT_WHITELISTED_PATH
+                    : ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }
+
+        // At whitelisted path
         if (pathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
             // Reached a whitelisted path
             return ScanSpecPathMatch.AT_WHITELISTED_PATH;
@@ -423,6 +425,12 @@ public class ScanSpec {
         if (classPackagePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
             // Reached a package containing a specifically-whitelisted class
             return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
+        }
+
+        // Descendant of whitelisted path
+        if (pathPrefixWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
+            // Path prefix matches one in the whitelist
+            return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }
 
         // Ancestor of whitelisted path
@@ -437,12 +445,6 @@ public class ScanSpec {
         if (classfilePathWhiteBlackList.whitelistHasPrefix(relativePath)) {
             // relativePath is an ancestor (prefix) of a whitelisted class' parent directory
             return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
-        }
-
-        // Descendant of whitelisted path
-        if (pathPrefixWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
-            // Path prefix matches one in the whitelist
-            return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }
 
         // Not in whitelisted path
