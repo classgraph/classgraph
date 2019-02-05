@@ -143,11 +143,8 @@ abstract class ClasspathElement {
     /**
      * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
      * earlier classpath element.
-     * 
-     * @return the masked classfile resources.
      */
-    static List<Resource> maskClassfiles(final ScanSpec scanSpec, final int classpathIdx,
-            final List<Resource> classfileResources, final HashSet<String> classpathRelativePathsFound,
+    void maskClassfiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound,
             final LogNode log) {
         if (!scanSpec.performScan) {
             // Should not happen
@@ -158,10 +155,10 @@ abstract class ClasspathElement {
         // but actually there is no restriction for paths within a zipfile to be unique, and in fact
         // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
         // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
-        final BitSet masked = new BitSet(classfileResources.size());
+        final BitSet masked = new BitSet(whitelistedClassfileResources.size());
         boolean foundMasked = false;
-        for (int i = 0; i < classfileResources.size(); i++) {
-            final Resource res = classfileResources.get(i);
+        for (int i = 0; i < whitelistedClassfileResources.size(); i++) {
+            final Resource res = whitelistedClassfileResources.get(i);
             final String pathRelativeToPackageRoot = res.getPath();
             // Don't mask module-info.class or package-info.class, these are read for every module/package
             if (!pathRelativeToPackageRoot.equals("module-info.class")
@@ -183,24 +180,16 @@ abstract class ClasspathElement {
             }
         }
         if (!foundMasked) {
-            return classfileResources;
+            return;
         }
         // Remove masked (duplicated) paths
         final List<Resource> maskedClassfileResources = new ArrayList<>();
-        for (int i = 0; i < classfileResources.size(); i++) {
+        for (int i = 0; i < whitelistedClassfileResources.size(); i++) {
             if (!masked.get(i)) {
-                maskedClassfileResources.add(classfileResources.get(i));
+                maskedClassfileResources.add(whitelistedClassfileResources.get(i));
             }
         }
-        return maskedClassfileResources;
-    }
-
-    /** Implement masking for classfiles defined more than once on the classpath. */
-    void maskClassfiles(final int classpathIdx, final HashSet<String> whitelistedClasspathRelativePathsFound,
-            final HashSet<String> nonBlacklistedClasspathRelativePathsFound, final LogNode maskLog) {
-        // Mask whitelisted classfile resources
-        whitelistedClassfileResources = ClasspathElement.maskClassfiles(scanSpec, classpathIdx,
-                whitelistedClassfileResources, whitelistedClasspathRelativePathsFound, maskLog);
+        whitelistedClassfileResources = maskedClassfileResources;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -215,18 +204,45 @@ abstract class ClasspathElement {
                 // ClassInfo is enabled, and found a whitelisted classfile
                 whitelistedClassfileResources.add(resource);
                 if (log != null) {
-                    log.log(path,
-                            "Found whitelisted classfile: " + path
-                                    + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+                    String logStr;
+                    switch (parentMatchStatus) {
+                    case HAS_WHITELISTED_PATH_PREFIX:
+                        logStr = "Found classfile within subpackage of whitelisted package: ";
+                        break;
+                    case AT_WHITELISTED_PATH:
+                        logStr = "Found classfile within whitelisted package: ";
+                        break;
+                    case AT_WHITELISTED_CLASS_PACKAGE:
+                        logStr = "Found specifically-whitelisted classfile: ";
+                        break;
+                    default:
+                        logStr = "Found whitelisted classfile: ";
+                        break;
+                    }
+                    log.log(path, logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
                 }
             }
         } else {
             if (log != null) {
-                log.log(path,
-                        "Found whitelisted resource:  " + path
-                                + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                                        : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+                String logStr;
+                switch (parentMatchStatus) {
+                case HAS_WHITELISTED_PATH_PREFIX:
+                    logStr = "Found resource within subpackage of whitelisted package: ";
+                    break;
+                case AT_WHITELISTED_PATH:
+                    logStr = "Found resource within whitelisted package: ";
+                    break;
+                case AT_WHITELISTED_CLASS_PACKAGE:
+                    logStr = "Found specifically-whitelisted resource: ";
+                    break;
+                default:
+                    logStr = "Found whitelisted resource: ";
+                    break;
+                }
+                // Add extra " " to align log entries, since "resource" is one char shorter than "classfile"
+                log.log(path, logStr + " " + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                        : " ; full path: " + resource.getPathRelativeToClasspathElement()));
             }
         }
         whitelistedResources.add(resource);
