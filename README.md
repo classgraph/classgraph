@@ -1,13 +1,23 @@
 # ClassGraph
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph)
-[![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
-[![Gitter](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg)](https://gitter.im/classgraph/Lobby)
-[![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-brightgreen.svg)](https://seladb.github.io/StarTrack-js/?u=classgraph&r=classgraph)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
+[![Platforms: Windows | Mac OS X | Linux](https://img.shields.io/badge/platforms-Windows_|_Mac_OS_X_|_Linux-blue.svg)](#)
+[![Languages: Java | Scala | Kotlin | etc.](https://img.shields.io/badge/languages-Java_|_Scala_|_Kotlin_|_etc.-blue.svg)](#)
+[![JDK compatibility: 7 | 8 | 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7_|_8_|_9+_(JPMS)-blue.svg)](#)
+
+[![Code Size](https://img.shields.io/github/code-size/classgraph/classgraph.svg)](#)
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
 [![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vkovic/uikit-computer-store-template/blob/master/LICENSE)
+
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
+[![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
+
+[![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-brightgreen.svg)](https://seladb.github.io/StarTrack-js/?u=classgraph&r=classgraph)
+[![GitHub downloads](https://img.shields.io/github/downloads/classgraph/classgraph/total.svg)](#)
+	
+[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg)](https://gitter.im/classgraph/Lobby)
 
 <img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png">
 
