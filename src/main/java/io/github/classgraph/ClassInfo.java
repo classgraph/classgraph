@@ -38,7 +38,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -151,7 +151,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     transient boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
     /** The set of classes related to this one. */
-    private final Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
+    private final Map<RelType, Set<ClassInfo>> relatedClasses = new EnumMap<>(RelType.class);
 
     /**
      * The override order for a class' fields or methods (base class, followed by interfaces, followed by
