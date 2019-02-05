@@ -73,6 +73,26 @@ abstract class ScanResultObject {
         return classInfo;
     }
 
+    /** Get the class name by calling getClassInfo().getName(), or as a fallback, by calling getClassName(). */
+    private String getClassInfoNameOrClassName() {
+        String className;
+        ClassInfo ci = getClassInfo();
+        if (ci == null) {
+            ci = classInfo;
+        }
+        if (ci != null) {
+            // Get class name from getClassInfo().getName() 
+            className = ci.getName();
+        } else {
+            // Get class name from getClassName() 
+            className = getClassName();
+        }
+        if (className == null) {
+            throw new IllegalArgumentException("Class name is not set");
+        }
+        return className;
+    }
+
     /**
      * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
      * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class, cast to the requested superclass
@@ -89,19 +109,8 @@ abstract class ScanResultObject {
      */
     <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
         if (classRef == null) {
-            String className;
-            final ClassInfo classInfo = getClassInfo();
-            if (classInfo != null) {
-                // Get class name from getClassInfo().getName() 
-                className = classInfo.getName();
-            } else {
-                // Get class name from getClassName() 
-                className = getClassName();
-            }
-            if (className == null) {
-                throw new IllegalArgumentException("Class name is not set");
-            }
-            classRef = scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions);
+            classRef = scanResult.loadClass(getClassInfoNameOrClassName(), superclassOrInterfaceType,
+                    ignoreExceptions);
         }
         @SuppressWarnings("unchecked")
         final Class<T> classT = (Class<T>) classRef;
@@ -137,19 +146,7 @@ abstract class ScanResultObject {
      */
     Class<?> loadClass(final boolean ignoreExceptions) {
         if (classRef == null) {
-            String className;
-            final ClassInfo classInfo = getClassInfo();
-            if (classInfo != null) {
-                // Get class name from getClassInfo().getName() 
-                className = classInfo.getName();
-            } else {
-                // Get class name from getClassName() 
-                className = getClassName();
-            }
-            if (className == null) {
-                throw new IllegalArgumentException("Class name is not set");
-            }
-            classRef = scanResult.loadClass(className, ignoreExceptions);
+            classRef = scanResult.loadClass(getClassInfoNameOrClassName(), ignoreExceptions);
         }
         return classRef;
     }
