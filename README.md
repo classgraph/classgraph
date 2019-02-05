@@ -15,11 +15,11 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 [![lgtm alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
 [![lgtm code quality](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
 <br>
-[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
-[![Dependencies: none](https://img.shields.io/badge/dependencies-none-lightgrey.svg)](#)
-<br>
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
+<br>
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-lightgrey.svg)](#)
 <br>
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-yellow.svg)](https://seladb.github.io/StarTrack-js/?u=classgraph&r=classgraph)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-yellow.svg)](https://gitter.im/classgraph/Lobby)
