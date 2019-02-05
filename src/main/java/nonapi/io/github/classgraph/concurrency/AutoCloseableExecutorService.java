@@ -51,18 +51,26 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
         try {
             // Prevent new tasks being submitted
             shutdown();
-        } catch (final Exception e) {
+        } catch (final SecurityException e) {
+            // Ignore
         }
+        boolean terminated = false;
         try {
             // Await termination of any running tasks
-            awaitTermination(2500, TimeUnit.MILLISECONDS);
+            terminated = awaitTermination(2500, TimeUnit.MILLISECONDS);
         } catch (final InterruptedException e) {
+            // Ignore
         }
-        try {
-            // Interrupt all the threads to terminate them, if awaitTermination() timed out
-            shutdownNow();
-        } catch (final Exception e) {
-            throw new RuntimeException("Exception shutting down ExecutorService: " + e);
+        if (!terminated) {
+            try {
+                // Interrupt all the threads to terminate them, if awaitTermination() timed out
+                shutdownNow();
+            } catch (final SecurityException e) {
+                throw new RuntimeException(
+                        "Could not shut down ExecutorService -- need java.lang.RuntimePermission(\"modifyThread\"), "
+                                + "or the security manager's checkAccess method denies access",
+                        e);
+            }
         }
     }
 }
