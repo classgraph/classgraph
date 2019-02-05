@@ -121,8 +121,10 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
             // Avoid extracting paths from the same module more than once
             return;
         }
-        final ClassLoader moduleLoader = (ClassLoader) ReflectionUtils.invokeMethod(module, "getClassLoader",
-                false);
+        ClassLoader moduleLoader = (ClassLoader) ReflectionUtils.invokeMethod(module, "getClassLoader", false);
+        if (moduleLoader == null) {
+            moduleLoader = classLoader;
+        }
         // type VFSResourceLoader[]
         final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(moduleLoader, "getResourceLoaders", false);
         if (vfsResourceLoaders != null) {
