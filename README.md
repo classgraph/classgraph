@@ -7,12 +7,9 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 | _ClassGraph won a Duke's Choice Award (a recognition of the most useful and/or innovative software in the Java ecosystem) at Oracle Code One 2018._ Thanks to all the users who have reported bugs, requested features, offered suggestions, and submitted pull requests to help get ClassGraph to where it is today. |
 |-----------------------------|
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
-[![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
-<br>
-[![Platforms: Windows | Mac OS X | Linux](https://img.shields.io/badge/platforms-Windows_%7C_Mac_OS_X_%7C_Linux-blue.svg)](#)
-[![Languages: Java | Scala | Kotlin | etc.](https://img.shields.io/badge/languages-Java_%7C_Scala_%7C_Kotlin_%7C_etc.-blue.svg)](#)
-[![JDK compatibility: 7 | 8 | 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7_%7C_8_%7C_9+_(JPMS)-blue.svg)](#)
+[![Platforms: Windows, Mac OS X, Linux](https://img.shields.io/badge/platforms-Windows,_Mac_OS_X,_Linux-blue.svg)](#)
+[![Languages: Java, Scala, Kotlin, etc.](https://img.shields.io/badge/languages-Java,_Scala,_Kotlin,_etc.-blue.svg)](#)
+[![JDK compatibility: 7, 8, 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7,_8,_9+_(JPMS)-blue.svg)](#)
 <br>
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
 [![Commits per year](https://img.shields.io/github/commit-activity/y/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/commits/master)
@@ -25,6 +22,9 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 <br>
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-brightgreen.svg)](https://seladb.github.io/StarTrack-js/?u=classgraph&r=classgraph)
 [![GitHub downloads](https://img.shields.io/github/downloads/classgraph/classgraph/total.svg)](#)
+<br>
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
 <br>
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg)](https://gitter.im/classgraph/Lobby)
 
