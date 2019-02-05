@@ -83,6 +83,7 @@ class ClassFieldCache {
     private static class NoConstructor {
         @SuppressWarnings("unused")
         public NoConstructor() {
+            // Empty
         }
     }
 
@@ -140,7 +141,7 @@ class ClassFieldCache {
         } else if (rawType == TransferQueue.class) {
             return LinkedTransferQueue.class;
         } else {
-            return rawType;
+            return returnNullIfNotMapOrCollection ? null : rawType;
         }
     }
 
