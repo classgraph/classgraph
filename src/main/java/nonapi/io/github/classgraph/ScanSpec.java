@@ -413,7 +413,7 @@ public class ScanSpec {
 
         if (pathWhiteBlackList.whitelistIsEmpty() && classPackagePathWhiteBlackList.whitelistIsEmpty()) {
             // If there are no whitelisted packages, the root package is whitelisted
-            return relativePath.isEmpty() ? ScanSpecPathMatch.AT_WHITELISTED_PATH
+            return relativePath.isEmpty() || relativePath.equals("/") ? ScanSpecPathMatch.AT_WHITELISTED_PATH
                     : ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }
 
