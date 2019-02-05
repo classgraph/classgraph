@@ -39,6 +39,9 @@ import java.util.regex.Pattern;
  * to the many forms of Windows path weirdness.
  */
 public class FastPathResolver {
+    private FastPathResolver() {
+        // Cannot be constructed
+    }
 
     /** Match %-encoded characters in URLs. */
     private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");

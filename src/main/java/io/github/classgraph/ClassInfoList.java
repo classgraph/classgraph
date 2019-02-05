@@ -750,4 +750,27 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         buf.append(']');
         return buf.toString();
     }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ClassInfoList)) {
+            return false;
+        }
+        final ClassInfoList other = (ClassInfoList) o;
+        if ((directlyRelatedClasses == null) != (other.directlyRelatedClasses == null)) {
+            return false;
+        }
+        if (directlyRelatedClasses == null) {
+            return super.equals(other);
+        }
+        return super.equals(other) && directlyRelatedClasses.equals(other.directlyRelatedClasses);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode() ^ (directlyRelatedClasses == null ? 0 : directlyRelatedClasses.hashCode());
+    }
 }

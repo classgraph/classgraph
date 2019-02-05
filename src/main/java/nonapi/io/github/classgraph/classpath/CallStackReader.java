@@ -41,9 +41,12 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find the unique ordered classpath elements. */
 class CallStackReader {
+    private CallStackReader() {
+        // Cannot be constructed
+    }
 
     /** Get the call stack via the StackWalker API (JRE 9+). */
-    private static Class<?>[] getCallStackViaStackWalker(final LogNode log) throws Exception {
+    private static Class<?>[] getCallStackViaStackWalker() throws Exception {
         //    // Implement the following via reflection, for JDK7 compatibility:
         //    List<Class<?>> stackFrameClasses = new ArrayList<>();
         //    StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE)
@@ -103,8 +106,9 @@ class CallStackReader {
             if (log != null) {
                 log.log("Exception while trying to obtain call stack via SecurityManager", e);
             }
+            // Caught by caller
+            throw new RuntimeException();
         }
-        return null;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -122,13 +126,15 @@ class CallStackReader {
                     @Override
                     public Class<?>[] run() {
                         try {
-                            return getCallStackViaStackWalker(log);
+                            return getCallStackViaStackWalker();
                         } catch (final Exception e) {
+                            // Need to rethrow as unchecked exception, since run() cannot throw a checked exception
                             throw new RuntimeException(e);
                         }
                     }
                 });
             } catch (final Throwable ignored) {
+                // Ignored
             }
         }
 
@@ -141,6 +147,7 @@ class CallStackReader {
                 }
             });
         } catch (final Throwable ignored) {
+            // Ignored
         }
 
         // As a fallback, use getStackTrace() to try to get the call stack
@@ -152,9 +159,10 @@ class CallStackReader {
                 try {
                     classes.add(Class.forName(elt.getClassName()));
                 } catch (final Throwable ignored) {
+                    // Ignored
                 }
             }
-            if (classes.size() > 0) {
+            if (!classes.isEmpty()) {
                 return classes.toArray(new Class<?>[0]);
             } else {
                 // Last-ditch effort -- include just this class in the call stack

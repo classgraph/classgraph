@@ -50,45 +50,47 @@ public class ScanSpec {
 
     /** Constructor for deserialization. */
     public ScanSpec() {
+        // Intentionally empty
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** Package white/blacklist (with separator '.'). */
-    public WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package prefix white/blacklist, for recursive scanning (with separator '.', ending in '.'). */
-    public WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix();
+    public final WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Path white/blacklist (with separator '/'). */
-    public WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path prefix white/blacklist, for recursive scanning (with separator '/', ending in '/'). */
-    public WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix();
+    public final WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Class white/blacklist (fully-qualified class names, with separator '.'). */
-    public WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Classfile white/blacklist (path to classfiles, with separator '/', ending in ".class"). */
-    public WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package containing white/blacklisted classes (with separator '.'). */
-    public WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path to white/blacklisted classes (with separator '/'). */
-    public WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Module white/blacklist (with separator '.'). */
-    public WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
+    public final WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
 
     /** Classpath element resource path white/blacklist. */
-    public WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = //
+            new WhiteBlackListWholeString();
 
     /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
+    public final WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
 
     /** Sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
     public void sortPrefixes() {
@@ -97,6 +99,7 @@ public class ScanSpec {
                 try {
                     ((WhiteBlackList) field.get(this)).sortPrefixes();
                 } catch (final Exception e) {
+                    throw new RuntimeException("Field is not accessible: " + field, e);
                 }
             }
         }
@@ -478,6 +481,7 @@ public class ScanSpec {
                 try {
                     scanSpecLog.log(field.getName() + ": " + field.get(this));
                 } catch (final Exception e) {
+                    // Ignore
                 }
             }
         }

@@ -45,7 +45,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -93,10 +92,10 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Construct a logical zipfile from a slice of a physical zipfile. */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final ScanSpec scanSpec, final LogNode log) throws IOException {
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException {
         super(zipFileSlice);
         zipFileSliceReader = new ZipFileSliceReader(this);
-        readCentralDirectory(scanSpec, log);
+        readCentralDirectory(log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -209,7 +208,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** Parse the manifest entry of a zipfile. */
     private void parseManifest(final FastZipEntry manifestZipEntry, final LogNode log) throws IOException {
         // Load contents of manifest entry as a byte array
-        final byte[] manifest = manifestZipEntry.load(log);
+        final byte[] manifest = manifestZipEntry.load();
 
         // Find field keys (separated by newlines)
         for (int i = 0; i < manifest.length;) {
@@ -326,7 +325,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Read the central directory of the zipfile. */
-    private void readCentralDirectory(final ScanSpec scanSpec, final LogNode log) throws IOException {
+    private void readCentralDirectory(final LogNode log) throws IOException {
         // Scan for End Of Central Directory (EOCD) signature
         long eocdPos = -1;
         for (long i = len - 22; i >= 0; --i) {
@@ -578,8 +577,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
             // Stop reading entries if any entry is not within file
             if (log != null) {
                 log.log("Reached premature EOF"
-                        + (entries.size() > 0 ? " after reading zip entry " + entries.get(entries.size() - 1)
-                                : ""));
+                        + (entries.isEmpty() ? "" : " after reading zip entry " + entries.get(entries.size() - 1)));
             }
         }
 
@@ -645,6 +643,16 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
 
     @Override
     public String toString() {

@@ -504,8 +504,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public Method loadClassAndGetMethod() throws IllegalArgumentException {
         final MethodParameterInfo[] allParameterInfo = getParameterInfo();
         final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
-        for (final MethodParameterInfo parameterInfo : allParameterInfo) {
-            final TypeSignature parameterType = parameterInfo.getTypeSignatureOrTypeDescriptor();
+        for (final MethodParameterInfo mpi : allParameterInfo) {
+            final TypeSignature parameterType = mpi.getTypeSignatureOrTypeDescriptor();
             parameterClasses.add(parameterType.loadClass());
         }
         final Class<?>[] parameterClassesArr = parameterClasses.toArray(new Class<?>[0]);
@@ -573,15 +573,15 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             methodDesc.getReferencedClassNames(classNames);
         }
         if (annotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : annotationInfo) {
-                annotationInfo.getReferencedClassNames(classNames);
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.getReferencedClassNames(classNames);
             }
         }
-        for (final MethodParameterInfo parameterInfo : getParameterInfo()) {
-            final AnnotationInfo[] paramAnnotationInfo = parameterInfo.annotationInfo;
-            if (paramAnnotationInfo != null) {
-                for (final AnnotationInfo annotationInfo : paramAnnotationInfo) {
-                    annotationInfo.getReferencedClassNames(classNames);
+        for (final MethodParameterInfo mpi : getParameterInfo()) {
+            final AnnotationInfo[] aiArr = mpi.annotationInfo;
+            if (aiArr != null) {
+                for (final AnnotationInfo ai : aiArr) {
+                    ai.getReferencedClassNames(classNames);
                 }
             }
         }
@@ -792,8 +792,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             }
 
             if (paramInfo.annotationInfo != null) {
-                for (final AnnotationInfo annotationInfo : paramInfo.annotationInfo) {
-                    annotationInfo.toString(buf);
+                for (final AnnotationInfo ai : paramInfo.annotationInfo) {
+                    ai.toString(buf);
                     buf.append(' ');
                 }
             }

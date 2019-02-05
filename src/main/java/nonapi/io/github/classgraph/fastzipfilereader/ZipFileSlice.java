@@ -119,16 +119,16 @@ public class ZipFileSlice {
     }
 
     @Override
-    public boolean equals(final Object obj) {
-        if (this == obj) {
+    public boolean equals(final Object o) {
+        if (this == o) {
             return true;
         }
-        if (!(obj instanceof ZipFileSlice)) {
+        if (!(o instanceof ZipFileSlice)) {
             return false;
         }
-        final ZipFileSlice o = (ZipFileSlice) obj;
-        return startOffsetWithinPhysicalZipFile == o.startOffsetWithinPhysicalZipFile && len == o.len
-                && this.physicalZipFile.equals(o.physicalZipFile);
+        final ZipFileSlice other = (ZipFileSlice) o;
+        return startOffsetWithinPhysicalZipFile == other.startOffsetWithinPhysicalZipFile && len == other.len
+                && this.physicalZipFile.equals(other.physicalZipFile);
     }
 
     @Override

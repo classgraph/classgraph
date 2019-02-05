@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends ArrayList<AnnotationParameterValue> {
@@ -100,6 +101,15 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
             throw new IllegalArgumentException("List is immutable");
         }
     };
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Return the names of any classes referenced in the methods in this list. */
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
+        for (final AnnotationParameterValue apv : this) {
+            apv.getReferencedClassNames(referencedClassNames);
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

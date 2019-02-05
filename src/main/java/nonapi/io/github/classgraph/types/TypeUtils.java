@@ -36,6 +36,10 @@ import nonapi.io.github.classgraph.types.Parser.ParseException;
  * @author lukehutch
  */
 public class TypeUtils {
+    private TypeUtils() {
+        // Cannot be constructed
+    }
+
     /**
      * Parse a Java identifier with the given separator ('.' or '/'). Potentially replaces the separator with a
      * different character. Appends the identifier to the token buffer in the parser.

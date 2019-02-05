@@ -47,6 +47,9 @@ import io.github.classgraph.ClassGraph;
 
 /** Finds the version number of ClassGraph, and the version of the JDK. */
 public class VersionFinder {
+    private VersionFinder() {
+        // Cannot be constructed
+    }
 
     /** Get a system property (returning null if a SecurityException was thrown). */
     public static String getProperty(final String propName) {

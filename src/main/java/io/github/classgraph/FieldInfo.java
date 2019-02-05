@@ -380,8 +380,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             methodDesc.getReferencedClassNames(classNames);
         }
         if (annotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : annotationInfo) {
-                annotationInfo.getReferencedClassNames(classNames);
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.getReferencedClassNames(classNames);
             }
         }
     }

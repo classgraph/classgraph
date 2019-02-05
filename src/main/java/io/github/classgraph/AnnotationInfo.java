@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.IncompleteAnnotationException;
 import java.lang.annotation.Inherited;
@@ -175,11 +174,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     /** Get the names of any classes referenced in the type descriptors of annotation parameters. */
     @Override
-    void getReferencedClassNames(final Set<String> classNames) {
-        classNames.add(name);
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
+        referencedClassNames.add(name);
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
-                annotationParamValue.getReferencedClassNames(classNames);
+                annotationParamValue.getReferencedClassNames(referencedClassNames);
             }
         }
     }
@@ -200,7 +199,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /** {@link InvocationHandler} for dynamically instantiating an {@link Annotation} object. */
-    private static class AnnotationInvocationHandler implements InvocationHandler, Serializable {
+    private static class AnnotationInvocationHandler implements InvocationHandler {
         private final Class<? extends Annotation> annotationClass;
         private final Map<String, Object> annotationParameterValuesInstantiated = new HashMap<>();
         private final String toString;
@@ -227,7 +226,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         public Object invoke(final Object proxy, final Method method, final Object[] args) {
             final String methodName = method.getName();
             final Class<?>[] paramTypes = method.getParameterTypes();
-
+            if ((args == null ? 0 : args.length) != paramTypes.length) {
+                throw new IllegalArgumentException("Wrong number of arguments for " + annotationClass.getName()
+                        + "." + methodName + ": got " + args.length + ", expected " + paramTypes.length);
+            }
             if (paramTypes.length == 1) {
                 if (methodName.equals("equals") && paramTypes[0] == Object.class) {
                     return args[0] != null && args[0] instanceof AnnotationInvocationHandler
@@ -247,6 +249,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     return toString.hashCode();
                 case "annotationType":
                     return annotationClass;
+                default:
+                    // Fall through (method names match annotation parameter values)
                 }
             } else {
                 // Throw exception for 2 or more params

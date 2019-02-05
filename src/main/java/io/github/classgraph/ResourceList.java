@@ -44,6 +44,7 @@ import java.util.Map.Entry;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
+
     ResourceList() {
         super();
     }

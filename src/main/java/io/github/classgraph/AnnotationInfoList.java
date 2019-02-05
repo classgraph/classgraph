@@ -158,9 +158,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Return the names of any classes referenced in the annotations in this list or their parameters. */
-    void getReferencedClassNames(final Set<String> refdClassNames) {
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
         for (final AnnotationInfo ai : this) {
-            ai.getReferencedClassNames(refdClassNames);
+            ai.getReferencedClassNames(referencedClassNames);
         }
     }
 
@@ -259,5 +259,28 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         return this.directlyRelatedAnnotations == null ? this
                 // Make .directOnly() idempotent
                 : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof AnnotationInfoList)) {
+            return false;
+        }
+        final AnnotationInfoList other = (AnnotationInfoList) o;
+        if ((directlyRelatedAnnotations == null) != (other.directlyRelatedAnnotations == null)) {
+            return false;
+        }
+        if (directlyRelatedAnnotations == null) {
+            return super.equals(other);
+        }
+        return super.equals(other) && directlyRelatedAnnotations.equals(other.directlyRelatedAnnotations);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode() ^ (directlyRelatedAnnotations == null ? 0 : directlyRelatedAnnotations.hashCode());
     }
 }

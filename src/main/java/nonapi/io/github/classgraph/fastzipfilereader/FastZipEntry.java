@@ -41,7 +41,6 @@ import java.util.zip.ZipException;
 
 import nonapi.io.github.classgraph.recycler.RecyclerExceptionless;
 import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip entry within a {@link LogicalZipFile}. */
@@ -113,8 +112,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.inflaterRecycler = nestedJarHandler.inflaterRecycler;
 
         // Get multi-release jar version number, and strip any version prefix
-        int version = 8;
-        String entryNameUnversioned = entryName;
+        int entryVersion = 8;
+        String entryNameWithoutVersionPrefix = entryName;
         if (entryName.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)
                 && entryName.length() > LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length() + 1) {
             // This is a multi-release jar path
@@ -124,17 +123,15 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 final String versionStr = entryName.substring(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length(),
                         nextSlashIdx);
                 // For multi-release jars, the version number has to be an int >= 9
-                try {
-                    // Integer.parseInt() is slow, so this is a custom implementation (this is called many times
-                    // for large classpaths, and Integer.parseInt() was a bit of a bottleneck, surprisingly)
-                    int versionInt = 0;
-                    if (versionStr.length() > 5) {
-                        throw new NumberFormatException();
-                    }
+                // Integer.parseInt() is slow, so this is a custom implementation (this is called many times
+                // for large classpaths, and Integer.parseInt() was a bit of a bottleneck, surprisingly)
+                int versionInt = 0;
+                if (versionStr.length() < 6 && !versionStr.isEmpty()) {
                     for (int i = 0; i < versionStr.length(); i++) {
                         final char c = versionStr.charAt(i);
                         if (c < '0' || c > '9') {
-                            throw new NumberFormatException();
+                            versionInt = 0;
+                            break;
                         }
                         if (versionInt == 0) {
                             versionInt = c - '0';
@@ -142,29 +139,29 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                             versionInt = versionInt * 10 + c - '0';
                         }
                     }
-                    version = versionInt;
-                } catch (final NumberFormatException e) {
-                    // Ignore
+                }
+                if (versionInt != 0) {
+                    entryVersion = versionInt;
                 }
                 // Set version to 8 for out-of-range version numbers or invalid paths
-                if (version < 9 || version > VersionFinder.JAVA_MAJOR_VERSION) {
-                    version = 8;
+                if (entryVersion < 9 || entryVersion > VersionFinder.JAVA_MAJOR_VERSION) {
+                    entryVersion = 8;
                 }
-                if (version > 8) {
+                if (entryVersion > 8) {
                     // Strip version path prefix
-                    entryNameUnversioned = entryName.substring(nextSlashIdx + 1);
+                    entryNameWithoutVersionPrefix = entryName.substring(nextSlashIdx + 1);
                     // For META-INF/versions/{versionInt}/META-INF/*, don't strip version prefix:
                     // "The intention is that the META-INF directory cannot be versioned."
                     // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013954.html
-                    if (entryNameUnversioned.startsWith(LogicalZipFile.META_INF_PATH_PREFIX)) {
-                        version = 8;
-                        entryNameUnversioned = entryName;
+                    if (entryNameWithoutVersionPrefix.startsWith(LogicalZipFile.META_INF_PATH_PREFIX)) {
+                        entryVersion = 8;
+                        entryNameWithoutVersionPrefix = entryName;
                     }
                 }
             }
         }
-        this.version = version;
-        this.entryNameUnversioned = entryNameUnversioned;
+        this.version = entryVersion;
+        this.entryNameUnversioned = entryNameWithoutVersionPrefix;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -473,14 +470,14 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /** Load the content of the zip entry, and return it as a byte array. */
-    public byte[] load(final LogNode log) throws IOException {
+    public byte[] load() throws IOException {
         try (InputStream is = open()) {
             return FileUtils.readAllBytesAsArray(is, uncompressedSize);
         }
     }
 
     /** Load the content of the zip entry, and return it as a String (converting from UTF-8 byte format). */
-    public String loadAsString(final LogNode log) throws IOException {
+    public String loadAsString() throws IOException {
         try (InputStream is = open()) {
             return FileUtils.readAllBytesAsString(is, uncompressedSize);
         }

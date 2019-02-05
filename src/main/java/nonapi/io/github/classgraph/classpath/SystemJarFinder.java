@@ -40,6 +40,10 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find rt.jar and any JRE "lib/" or "ext/" jars. */
 public class SystemJarFinder {
+    private SystemJarFinder() {
+        // Cannot be constructed
+    }
+
     private static final Set<String> RT_JARS = new LinkedHashSet<>();
     private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
 
@@ -63,6 +67,7 @@ public class SystemJarFinder {
                             JRE_LIB_OR_EXT_JARS.add(canonicalJarPathResolved);
                         }
                     } catch (IOException | SecurityException e) {
+                        // Ignored
                     }
                 }
             }
@@ -145,7 +150,7 @@ public class SystemJarFinder {
     /** @return The path of rt.jar (in JDK 7 or 8), or null if it wasn't found (e.g. in JDK 9+). */
     public static String getJreRtJarPath() {
         // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
-        return RT_JARS.size() > 0 ? FastPathResolver.resolve(RT_JARS.iterator().next()) : null;
+        return !RT_JARS.isEmpty() ? FastPathResolver.resolve(RT_JARS.iterator().next()) : null;
     }
 
     /** @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/" directories. */

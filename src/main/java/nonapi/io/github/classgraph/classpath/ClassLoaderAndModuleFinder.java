@@ -46,8 +46,8 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderAndModuleFinder {
     private final ClassLoader[] contextClassLoaders;
-    private final List<ModuleRef> systemModuleRefs;
-    private final List<ModuleRef> nonSystemModuleRefs;
+    private List<ModuleRef> systemModuleRefs;
+    private List<ModuleRef> nonSystemModuleRefs;
 
     /**
      * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
@@ -186,7 +186,8 @@ public class ClassLoaderAndModuleFinder {
         Class<?> moduleLayerClass = null;
         try {
             moduleLayerClass = Class.forName("java.lang.ModuleLayer");
-        } catch (final Throwable e) {
+        } catch (ClassNotFoundException | LinkageError e) {
+            // Ignored
         }
         if (moduleLayerClass != null) {
             final Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
@@ -211,8 +212,6 @@ public class ClassLoaderAndModuleFinder {
     public ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog;
-        List<ModuleRef> systemModuleRefs = null;
-        List<ModuleRef> nonSystemModuleRefs = null;
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
@@ -348,7 +347,5 @@ public class ClassLoaderAndModuleFinder {
         }
 
         this.contextClassLoaders = classLoaderFinalOrder.toArray(new ClassLoader[0]);
-        this.systemModuleRefs = systemModuleRefs;
-        this.nonSystemModuleRefs = nonSystemModuleRefs;
     }
 }

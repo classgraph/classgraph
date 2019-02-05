@@ -45,10 +45,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class ClassInfoUnlinked {
     final String className;
-    private final int classModifiers;
-    private final boolean isInterface;
-    private final boolean isAnnotation;
     private final boolean isExternalClass;
+    private int classModifiers;
+    private boolean isInterface;
+    private boolean isAnnotation;
     // Superclass (can be null if no superclass, or if superclass is blacklisted)
     String superclassName;
     List<String> implementedInterfaces;
@@ -63,19 +63,21 @@ class ClassInfoUnlinked {
     MethodInfoList methodInfoList;
     private String typeSignature;
 
-    ClassInfoUnlinked(final String className, final String superclassName, final int classModifiers,
-            final boolean isInterface, final boolean isAnnotation, final boolean isExternalClass,
+    ClassInfoUnlinked(final String className, final String superclassName, final boolean isExternalClass,
             final Set<String> refdClassNames, final ClasspathElement classpathElement,
             final Resource classfileResource) {
         this.className = (className);
         this.superclassName = superclassName;
-        this.classModifiers = classModifiers;
-        this.isInterface = isInterface;
-        this.isAnnotation = isAnnotation;
         this.isExternalClass = isExternalClass;
         this.refdClassNames = refdClassNames;
         this.classpathElement = classpathElement;
         this.classfileResource = classfileResource;
+    }
+
+    public void setModifiers(final int classModifiers, final boolean isInterface, final boolean isAnnotation) {
+        this.classModifiers = classModifiers;
+        this.isInterface = isInterface;
+        this.isAnnotation = isAnnotation;
     }
 
     void addTypeSignature(final String typeSignature) {
@@ -152,9 +154,11 @@ class ClassInfoUnlinked {
 
         } else {
             // Handle regular classfile
-            final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface,
-                    isAnnotation, isExternalClass, classNameToClassInfo, classpathElement, classfileResource,
-                    scanSpec, log);
+            final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
+                    classNameToClassInfo, classpathElement, classfileResource, log);
+            classInfo.setModifiers(classModifiers);
+            classInfo.setIsInterface(isInterface);
+            classInfo.setIsAnnotation(isAnnotation);
             if (superclassName != null) {
                 classInfo.addSuperclass(superclassName, classNameToClassInfo);
             }
@@ -240,6 +244,7 @@ class ClassInfoUnlinked {
                 try {
                     typeSig = ClassTypeSignature.parse(typeSignature, /* classInfo = */ null);
                 } catch (final ParseException e) {
+                    // Ignore
                 }
                 subLog.log("Class type signature: " + (typeSig == null ? typeSignature
                         : typeSig.toString(className, /* typeNameOnly = */ false, classModifiers, isAnnotation,

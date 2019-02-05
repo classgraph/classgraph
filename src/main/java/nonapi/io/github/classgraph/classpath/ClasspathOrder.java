@@ -32,6 +32,7 @@ import java.io.File;
 import java.lang.reflect.Array;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import nonapi.io.github.classgraph.ScanSpec;
@@ -43,7 +44,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
     private final ScanSpec scanSpec;
-    private final LinkedHashSet<String> classpathOrder = new LinkedHashSet<>();
+    private final LinkedHashSet<String> order = new LinkedHashSet<>();
     private final Map<String, ClassLoader[]> classpathEltPathToClassLoaders;
 
     ClasspathOrder(final Map<String, ClassLoader[]> classpathEltPathToClassLoaders, final ScanSpec scanSpec) {
@@ -51,9 +52,9 @@ public class ClasspathOrder {
         this.scanSpec = scanSpec;
     }
 
-    /** Get the order of classpath elements. */
-    public LinkedHashSet<String> getOrder() {
-        return classpathOrder;
+    /** Get the order of classpath elements, as an ordered set. */
+    public Set<String> getOrder() {
+        return order;
     }
 
     /** Test to see if a RelativePath has been filtered out by the user. */
@@ -69,7 +70,7 @@ public class ClasspathOrder {
     }
 
     boolean addSystemClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
-        if (classpathOrder.add(pathElement)) {
+        if (order.add(pathElement)) {
             classpathEltPathToClassLoaders.put(pathElement, classLoaders);
             return true;
         }
@@ -83,7 +84,7 @@ public class ClasspathOrder {
             // returned by a system classloader
             return false;
         }
-        if (classpathOrder.add(pathElement)) {
+        if (order.add(pathElement)) {
             classpathEltPathToClassLoaders.put(pathElement, classLoaders);
             return true;
         }
@@ -98,15 +99,12 @@ public class ClasspathOrder {
      *            the URL or path of the classpath element.
      * @param classLoaders
      *            the ClassLoader(s) that this classpath element was obtained from.
-     * @param scanSpec
-     *            the ScanSpec.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
-    boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders, final ScanSpec scanSpec,
-            final LogNode log) {
+    boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders, final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
         }
@@ -231,7 +229,7 @@ public class ClasspathOrder {
                 return false;
             } else {
                 for (final String pathElement : parts) {
-                    addClasspathElement(pathElement, classLoaders, scanSpec, log);
+                    addClasspathElement(pathElement, classLoaders, log);
                 }
                 return true;
             }
@@ -251,7 +249,7 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
-        return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, scanSpec, log);
+        return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, log);
     }
 
     /**

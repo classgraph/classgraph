@@ -41,7 +41,6 @@ import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -189,13 +188,11 @@ public class ClasspathFinder {
      *            The {@link ScanSpec}.
      * @param classpathEltPathToClassLoaders
      *            A map from classpath element path to classloader(s).
-     * @param nestedJarHandler
-     *            The {@link NestedJarHandler}.
      * @param log
      *            The log.
      */
     public ClasspathFinder(final ScanSpec scanSpec, final Map<String, ClassLoader[]> classpathEltPathToClassLoaders,
-            final NestedJarHandler nestedJarHandler, final LogNode log) {
+            final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
         // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
@@ -326,8 +323,7 @@ public class ClasspathFinder {
                                 pathElement);
                         if (!ignoredClasspathOrder.getOrder().contains(pathElementResolved)) {
                             // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathElement(pathElement, contextClassLoaders, scanSpec,
-                                    sysPropLog);
+                            classpathOrder.addClasspathElement(pathElement, contextClassLoaders, sysPropLog);
                         } else {
                             // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {

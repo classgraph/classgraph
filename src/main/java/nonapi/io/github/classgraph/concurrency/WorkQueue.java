@@ -50,7 +50,7 @@ public class WorkQueue<T> implements AutoCloseable {
     private final WorkUnitProcessor<T> workUnitProcessor;
 
     /** The queue of work units. */
-    private final ConcurrentLinkedQueue<T> workQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<T> workUnits = new ConcurrentLinkedQueue<>();
 
     /**
      * The number of work units remaining. This will always be at least workQueue.size(), but will be higher if work
@@ -123,7 +123,7 @@ public class WorkQueue<T> implements AutoCloseable {
         // Wrap in a try-with-resources block, so that the WorkQueue is closed on exception
         try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, interruptionChecker, log)) {
             // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
-            workQueue.startWorkers(executorService, numParallelTasks - 1, log);
+            workQueue.startWorkers(executorService, numParallelTasks - 1);
             // Use the current thread to do work too, in case there is only one thread available in the
             // ExecutorService, or in case numParallelTasks is greater than the number of available threads in the
             // ExecutorService.
@@ -149,7 +149,7 @@ public class WorkQueue<T> implements AutoCloseable {
     }
 
     /** Start worker threads with a shared log. */
-    private void startWorkers(final ExecutorService executorService, final int numWorkers, final LogNode log) {
+    private void startWorkers(final ExecutorService executorService, final int numWorkers) {
         for (int i = 0; i < numWorkers; i++) {
             workerFutures.add(executorService.submit(new Callable<Void>() {
                 @Override
@@ -178,7 +178,7 @@ public class WorkQueue<T> implements AutoCloseable {
                 }
                 // Busy-wait for work units added after the queue is empty, while work units are still being
                 // processed, since the in-process work units may generate other work units.
-                workUnit = workQueue.poll();
+                workUnit = workUnits.poll();
                 if (workUnit != null) {
                     // Got a work unit
                     break;
@@ -223,7 +223,7 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     public void addWorkUnit(final T workUnit) {
         numWorkUnitsRemaining.incrementAndGet();
-        workQueue.add(workUnit);
+        workUnits.add(workUnit);
     }
 
     /**

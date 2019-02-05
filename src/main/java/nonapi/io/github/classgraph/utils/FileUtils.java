@@ -50,6 +50,10 @@ import java.util.List;
  * File utilities.
  */
 public class FileUtils {
+    private FileUtils() {
+        // Cannot be constructed
+    }
+
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
      * will not reflect subsequent changes to the current directory).
@@ -317,7 +321,7 @@ public class FileUtils {
                         // Ignore "/./" or empty segment "//"
                     } else if (segment.equals("..")) {
                         // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
-                        if (currSectionSegments.size() > 0) {
+                        if (!currSectionSegments.isEmpty()) {
                             currSectionSegments.remove(currSectionSegments.size() - 1);
                         }
                     } else {
@@ -412,6 +416,7 @@ public class FileUtils {
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final Exception ex) {
+                // Ignore
             }
         } else {
             try {
@@ -434,6 +439,7 @@ public class FileUtils {
                                 + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final Exception ex) {
+                // Ignore
             }
         }
     }

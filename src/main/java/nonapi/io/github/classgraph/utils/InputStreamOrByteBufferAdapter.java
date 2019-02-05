@@ -383,10 +383,10 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
                 }
                 c2 = buf[utfStart + byteIdx - 2];
                 c3 = buf[utfStart + byteIdx - 1];
-                if (((c2 & 0xc0) != 0x80) || ((c3 & 0xc0) != 0x80)) {
+                if ((c2 & 0xc0) != 0x80 || (c3 & 0xc0) != 0x80) {
                     throw new RuntimeException("Bad modified UTF8");
                 }
-                c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | ((c3 & 0x3f));
+                c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
                 break;
             default:

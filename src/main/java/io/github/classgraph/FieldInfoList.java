@@ -103,9 +103,9 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Return the names of any classes referenced in the fields in this list. */
-    void getReferencedClassNames(final Set<String> refdClassNames) {
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
         for (final FieldInfo fi : this) {
-            fi.getReferencedClassNames(refdClassNames);
+            fi.getReferencedClassNames(referencedClassNames);
         }
     }
 

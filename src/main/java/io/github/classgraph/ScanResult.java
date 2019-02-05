@@ -585,7 +585,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return ClassInfo.getAllClasses(classNameToClassInfo.values(), scanSpec, this);
+        return ClassInfo.getAllClasses(classNameToClassInfo.values(), scanSpec);
     }
 
     /**
@@ -600,7 +600,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return ClassInfo.getAllStandardClasses(classNameToClassInfo.values(), scanSpec, this);
+        return ClassInfo.getAllStandardClasses(classNameToClassInfo.values(), scanSpec);
     }
 
     /**
@@ -698,7 +698,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return ClassInfo.getAllImplementedInterfaceClasses(classNameToClassInfo.values(), scanSpec, this);
+        return ClassInfo.getAllImplementedInterfaceClasses(classNameToClassInfo.values(), scanSpec);
     }
 
     /**
@@ -756,7 +756,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException(
                     "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
-        return ClassInfo.getAllAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
+        return ClassInfo.getAllAnnotationClasses(classNameToClassInfo.values(), scanSpec);
     }
 
     /**
@@ -773,7 +773,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException(
                     "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
-        return ClassInfo.getAllInterfacesOrAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
+        return ClassInfo.getAllInterfacesOrAnnotationClasses(classNameToClassInfo.values(), scanSpec);
     }
 
     /**
@@ -909,7 +909,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         try {
             return Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader);
-        } catch (final Throwable e) {
+        } catch (final ClassNotFoundException | LinkageError e) {
             if (returnNullIfClassNotFound) {
                 return null;
             } else {
@@ -954,38 +954,39 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (superclassOrInterfaceType == null) {
             throw new IllegalArgumentException("superclassOrInterfaceType parameter cannot be null");
         }
+        final Class<?> loadedClass;
         try {
-            final Class<?> loadedClass = Class.forName(className, scanSpec.initializeLoadedClasses,
-                    classGraphClassLoader);
-            if (loadedClass != null && !superclassOrInterfaceType.isAssignableFrom(loadedClass)) {
-                if (returnNullIfClassNotFound) {
-                    return null;
-                } else {
-                    throw new IllegalArgumentException("Loaded class " + loadedClass.getName()
-                            + " cannot be cast to " + superclassOrInterfaceType.getName());
-                }
-            }
-            @SuppressWarnings("unchecked")
-            final Class<T> castClass = (Class<T>) loadedClass;
-            return castClass;
-        } catch (final Throwable e) {
+            loadedClass = Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader);
+        } catch (final ClassNotFoundException | LinkageError e) {
             if (returnNullIfClassNotFound) {
                 return null;
             } else {
                 throw new IllegalArgumentException("Could not load class " + className + " : " + e);
             }
         }
+        if (loadedClass != null && !superclassOrInterfaceType.isAssignableFrom(loadedClass)) {
+            if (returnNullIfClassNotFound) {
+                return null;
+            } else {
+                throw new IllegalArgumentException("Loaded class " + loadedClass.getName() + " cannot be cast to "
+                        + superclassOrInterfaceType.getName());
+            }
+        }
+        @SuppressWarnings("unchecked")
+        final Class<T> castClass = (Class<T>) loadedClass;
+        return castClass;
+
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Serialization / deserialization
 
     /** The current serialization format. */
-    private static final String CURRENT_SERIALIZATION_FORMAT = "7";
+    private static final String CURRENT_SERIALIZATION_FORMAT = "8";
 
     /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
     private static class SerializationFormat {
-        public String serializationFormat;
+        public String format;
         public ScanSpec scanSpec;
         public List<String> classpath;
         public List<ClassInfo> classInfo;
@@ -996,10 +997,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
         public SerializationFormat() {
         }
 
-        public SerializationFormat(final String serializationFormat, final ScanSpec scanSpec,
+        public SerializationFormat(final String serializationFormatStr, final ScanSpec scanSpec,
                 final List<ClassInfo> classInfo, final List<PackageInfo> packageInfo,
                 final List<ModuleInfo> moduleInfo, final List<String> classpath) {
-            this.serializationFormat = serializationFormat;
+            this.format = serializationFormatStr;
             this.scanSpec = scanSpec;
             this.classpath = classpath;
             this.classInfo = classInfo;
@@ -1016,8 +1017,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @return The deserialized {@link ScanResult}.
      */
     public static ScanResult fromJSON(final String json) {
-        final Matcher matcher = Pattern.compile("\\{[\\n\\r ]*\"serializationFormat\"[ ]?:[ ]?\"([^\"]+)\"")
-                .matcher(json);
+        final Matcher matcher = Pattern.compile("\\{[\\n\\r ]*\"format\"[ ]?:[ ]?\"([^\"]+)\"").matcher(json);
         if (!matcher.find()) {
             throw new IllegalArgumentException("JSON is not in correct format");
         }
@@ -1031,7 +1031,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // Deserialize the JSON
         final SerializationFormat deserialized = JSONDeserializer.deserializeObject(SerializationFormat.class,
                 json);
-        if (!deserialized.serializationFormat.equals(CURRENT_SERIALIZATION_FORMAT)) {
+        if (!deserialized.format.equals(CURRENT_SERIALIZATION_FORMAT)) {
             // Probably the deserialization failed before now anyway, if fields have changed, etc.
             throw new IllegalArgumentException("JSON was serialized by newer version of ClassGraph");
         }
@@ -1120,12 +1120,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-                for (final WeakReference<ScanResult> weakReference : new ArrayList<>(nonClosedWeakReferences)) {
-                    final ScanResult scanResult = weakReference.get();
+                for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
+                        nonClosedWeakReferences)) {
+                    final ScanResult scanResult = nonClosedWeakReference.get();
                     if (scanResult != null) {
                         scanResult.close();
                     }
-                    nonClosedWeakReferences.remove(weakReference);
+                    nonClosedWeakReferences.remove(nonClosedWeakReference);
                 }
             }
         });

@@ -335,8 +335,8 @@ public class LogNode {
      */
     public LogNode log(final Collection<String> msgs) {
         LogNode last = null;
-        for (final String msg : msgs) {
-            last = log(msg);
+        for (final String m : msgs) {
+            last = log(m);
         }
         return last;
     }

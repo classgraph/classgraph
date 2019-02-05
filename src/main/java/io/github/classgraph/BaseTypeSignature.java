@@ -153,6 +153,7 @@ public class BaseTypeSignature extends TypeSignature {
 
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
+        // Don't return byte.class, int.class, etc. 
     }
 
     // -------------------------------------------------------------------------------------------------------------

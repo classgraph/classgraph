@@ -40,6 +40,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Utils for Java serialization and deserialization. */
 public class JSONUtils {
+    private JSONUtils() {
+        // Cannot be constructed
+    }
+
     /**
      * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
      * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
@@ -299,6 +303,7 @@ public class JSONUtils {
                             fieldOrConstructor.setAccessible(true);
                             isAccessible.set(true);
                         } catch (final Exception e) {
+                            // Ignore
                         }
                         return null;
                     }

@@ -191,13 +191,13 @@ class Scanner implements Callable<ScanResult> {
         private final ScanSpec scanSpec;
         private final List<ClasspathElement> classpathOrder;
         private final Set<String> scannedClassNames;
-        private final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue;
+        private final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue;
         private final LogNode log;
         private final InterruptionChecker interruptionChecker;
 
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
                 final List<ClasspathElement> classpathOrder, final Set<String> scannedClassNames,
-                final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue, final LogNode log,
+                final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue, final LogNode log,
                 final InterruptionChecker interruptionChecker) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
@@ -354,7 +354,7 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.log("Corrupt or unsupported classfile " + workUnit.classfileResource + " : " + e);
                 }
-            } catch (final Throwable e) {
+            } catch (final Exception e) {
                 if (subLog != null) {
                     subLog.log("Exception while parsing classfile " + workUnit.classfileResource, e);
                 }
@@ -434,14 +434,14 @@ class Scanner implements Callable<ScanResult> {
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = topLevelLog == null ? null
                 : topLevelLog.log("Finding classpath entries");
-        final NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec, classpathFinderLog);
+        final NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec);
         final Map<String, ClassLoader[]> classpathEltPathToClassLoaders = new ConcurrentHashMap<>();
         try {
             final long scanStart = System.nanoTime();
 
             // Get classpath finder
             final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, classpathEltPathToClassLoaders,
-                    nestedJarHandler, classpathFinderLog);
+                    classpathFinderLog);
             final ClassLoaderAndModuleFinder classLoaderAndModuleFinder = classpathFinder
                     .getClassLoaderAndModuleFinder();
             final ClassLoader[] contextClassLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
@@ -753,12 +753,10 @@ class Scanner implements Callable<ScanResult> {
             // would be loaded by standard classloading. (See bug #100.)
             {
                 final LogNode maskLog = topLevelLog == null ? null : topLevelLog.log("Masking classfiles");
-                final HashSet<String> nonBlacklistedClasspathRelativePathsFound = new HashSet<>();
                 final HashSet<String> whitelistedClasspathRelativePathsFound = new HashSet<>();
                 for (int classpathIdx = 0; classpathIdx < finalClasspathEltOrderFiltered.size(); classpathIdx++) {
                     finalClasspathEltOrderFiltered.get(classpathIdx).maskClassfiles(classpathIdx,
-                            whitelistedClasspathRelativePathsFound, nonBlacklistedClasspathRelativePathsFound,
-                            maskLog);
+                            whitelistedClasspathRelativePathsFound, maskLog);
                 }
             }
 
@@ -852,7 +850,7 @@ class Scanner implements Callable<ScanResult> {
             if (scanResultProcessor != null) {
                 try {
                     scanResultProcessor.processScanResult(scanResult);
-                } catch (final Throwable e) {
+                } catch (final Exception e) {
                     throw new ExecutionException("Exception while calling scan result processor", e);
                 }
             }
@@ -860,8 +858,8 @@ class Scanner implements Callable<ScanResult> {
             // No exceptions were thrown -- return scan result
             return scanResult;
 
-        } catch (final Throwable e) {
-            // Remove temporary files if an exception was thrown
+        } catch (final Exception e) {
+            // Call failure handler if an exception was thrown
             nestedJarHandler.close(topLevelLog);
             if (topLevelLog != null) {
                 topLevelLog.log("Exception while scanning", e);

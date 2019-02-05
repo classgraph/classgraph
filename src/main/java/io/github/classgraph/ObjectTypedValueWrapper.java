@@ -439,6 +439,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 }
                 objectArrayValue = null;
                 break;
+            default:
+                // Leave objectArrayValue as-is
+                break;
             }
         }
     }

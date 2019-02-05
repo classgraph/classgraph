@@ -37,6 +37,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
+    private ClassLoaderHandlerRegistry() {
+        // Cannot be constructed
+    }
+
     /**
      * Default ClassLoaderHandlers.
      */

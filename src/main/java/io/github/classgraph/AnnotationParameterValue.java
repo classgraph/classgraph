@@ -187,17 +187,8 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         // if the annotation has multiple parameters of the same name but different value. 
         final Object p0 = getValue();
         final Object p1 = o.getValue();
-        if (p0 == null && p1 == null) {
-            return 0;
-        } else if (p0 == null && p1 != null) {
-            return -1;
-        } else if (p0 != null && p1 == null) {
-            return 1;
-        } else if (p0 != null && p1 != null) {
-            return p0.toString().compareTo(p1.toString());
-        }
-        // Never reached (fixes FindBugs warning)
-        return 0;
+        return p0 != null && p1 != null ? p0.toString().compareTo(p1.toString())
+                : (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1);
     }
 
     @Override

@@ -48,6 +48,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * object graph by inserting reference ids.
  */
 public class JSONSerializer {
+    private JSONSerializer() {
+        // Cannot be constructed
+    }
+
     /** Create a unique id for each referenced JSON object. */
     private static void assignObjectIds(final Object jsonVal,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final ClassFieldCache classFieldCache,

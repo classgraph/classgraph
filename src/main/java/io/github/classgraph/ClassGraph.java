@@ -80,6 +80,7 @@ public class ClassGraph {
 
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
+        // Intentionally left blank
     }
 
     /**
@@ -558,7 +559,6 @@ public class ClassGraph {
             // Whitelist package
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
             scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
-            // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!packageName.contains("*")) {
                 // Whitelist sub-packages
                 scanSpec.packagePrefixWhiteBlackList
@@ -583,7 +583,6 @@ public class ClassGraph {
             // Whitelist path
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path));
             scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path) + "/");
-            // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!path.contains("*")) {
                 // Whitelist sub-directories / nested paths
                 scanSpec.packagePrefixWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path) + ".");

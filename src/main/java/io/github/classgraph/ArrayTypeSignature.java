@@ -86,8 +86,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     @Override
-    void getReferencedClassNames(final Set<String> classNameListOut) {
-        elementTypeSignature.getReferencedClassNames(classNameListOut);
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
+        elementTypeSignature.getReferencedClassNames(referencedClassNames);
     }
 
     // -------------------------------------------------------------------------------------------------------------

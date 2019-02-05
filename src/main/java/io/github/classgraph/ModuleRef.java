@@ -95,13 +95,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
                 /* throwException = */ true);
         this.name = moduleName == null ? "" : moduleName;
         @SuppressWarnings("unchecked")
-        final Set<String> packages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
+        final Set<String> modulePackages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
                 /* throwException = */ true);
-        if (packages == null) {
+        if (modulePackages == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor().packages() should not return null");
         }
-        this.packages = new ArrayList<>(packages);
+        this.packages = new ArrayList<>(modulePackages);
         Collections.sort(this.packages);
         final Object optionalRawVersion = ReflectionUtils.invokeMethod(this.descriptor, "rawVersion",
                 /* throwException = */ true);

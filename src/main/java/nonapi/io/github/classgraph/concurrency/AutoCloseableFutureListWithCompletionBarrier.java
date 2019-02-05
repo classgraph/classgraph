@@ -38,11 +38,17 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * is called on this list, all items' {@code get()} methods are called, implementing a completion barrier.
  */
 class AutoCloseableFutureListWithCompletionBarrier extends ArrayList<Future<Void>> implements AutoCloseable {
-    private final LogNode log;
+    private transient final LogNode log;
 
     AutoCloseableFutureListWithCompletionBarrier(final int size, final LogNode log) {
         super(size);
         this.log = log;
+    }
+
+    // Override needed to remove Scrutinizer warning, since log field does not need to be compared in equals()
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
     }
 
     /** Completion barrier. */

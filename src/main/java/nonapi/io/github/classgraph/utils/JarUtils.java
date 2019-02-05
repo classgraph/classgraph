@@ -44,6 +44,10 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
  * Jarfile utilities.
  */
 public class JarUtils {
+    private JarUtils() {
+        // Cannot be constructed
+    }
+
     /**
      * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
      * non-separators, when at the beginning of the string or following a ':'.

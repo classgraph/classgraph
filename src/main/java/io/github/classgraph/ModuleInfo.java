@@ -106,9 +106,6 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * this module.
      */
     public ClassInfo getClassInfo(final String className) {
-        if (classInfoSet == null) {
-            return null;
-        }
         for (final ClassInfo ci : classInfoSet) {
             if (ci.getName().equals(className)) {
                 return ci;

@@ -34,6 +34,9 @@ import java.nio.charset.StandardCharsets;
 
 /** A simple URL path encoder. */
 public class URLPathEncoder {
+    private URLPathEncoder() {
+        // Cannot be constructed
+    }
 
     private static boolean[] safe = new boolean[256];
 

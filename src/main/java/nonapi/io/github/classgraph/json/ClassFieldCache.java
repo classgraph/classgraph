@@ -167,6 +167,7 @@ class ClassFieldCache {
                 defaultConstructorForConcreteType.put(cls, defaultConstructor);
                 return defaultConstructor;
             } catch (final Exception e) {
+                // Ignore
             }
         }
         throw new IllegalArgumentException(
@@ -197,6 +198,7 @@ class ClassFieldCache {
                     constructorForConcreteTypeWithSizeHint.put(cls, constructorWithSizeHint);
                     return constructorWithSizeHint;
                 } catch (final Exception e) {
+                    // Ignore
                 }
             }
         }

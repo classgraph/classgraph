@@ -45,6 +45,10 @@ import java.util.Map.Entry;
  * object graph by inserting reference ids.
  */
 public class JSONDeserializer {
+    private JSONDeserializer() {
+        // Cannot be constructed
+    }
+
     /**
      * Deserialize a JSON basic value (String, Integer, Long, or Double), conforming it to the expected type
      * (Character, Short, etc.).
@@ -556,7 +560,7 @@ public class JSONDeserializer {
         final HashMap<CharSequence, Object> idToObjectInstance = new HashMap<>();
         if (parsedJSON instanceof JSONObject) {
             final JSONObject itemJsonObject = (JSONObject) parsedJSON;
-            if (itemJsonObject.items.size() > 0) {
+            if (!itemJsonObject.items.isEmpty()) {
                 final Entry<String, Object> firstItem = itemJsonObject.items.get(0);
                 if (firstItem.getKey().equals(JSONUtils.ID_KEY)) {
                     final Object firstItemValue = firstItem.getValue();

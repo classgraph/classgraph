@@ -37,6 +37,9 @@ import nonapi.io.github.classgraph.ScanSpec;
 
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {
+    private GraphvizDotfileGenerator() {
+        // Cannot be constructed
+    }
 
     private static final String STANDARD_CLASS_COLOR = "fff2b6";
 
@@ -46,40 +49,40 @@ class GraphvizDotfileGenerator {
 
     private static final int PARAM_WRAP_WIDTH = 40;
 
-    private static final char NBSP_CHAR = (char) 0x00A0;
-
     private static final BitSet IS_UNICODE_WHITESPACE = new BitSet(1 << 16);
 
     static {
         // Valid unicode whitespace chars, see:
         // http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java
+        // Also see (for \n and \r -- a real example of Java stupidity):
+        // https://stackoverflow.com/a/3866219/3950982
         final String wsChars = ""//
-                + (char) 0x0009 // CHARACTER TABULATION
-                + (char) 0x000A // LINE FEED (LF)
-                + (char) 0x000B // LINE TABULATION
-                + (char) 0x000C // FORM FEED (FF)
-                + (char) 0x000D // CARRIAGE RETURN (CR)
-                + (char) 0x0020 // SPACE
-                + (char) 0x0085 // NEXT LINE (NEL) 
-                + NBSP_CHAR // NO-BREAK SPACE
-                + (char) 0x1680 // OGHAM SPACE MARK
-                + (char) 0x180E // MONGOLIAN VOWEL SEPARATOR
-                + (char) 0x2000 // EN QUAD 
-                + (char) 0x2001 // EM QUAD 
-                + (char) 0x2002 // EN SPACE
-                + (char) 0x2003 // EM SPACE
-                + (char) 0x2004 // THREE-PER-EM SPACE
-                + (char) 0x2005 // FOUR-PER-EM SPACE
-                + (char) 0x2006 // SIX-PER-EM SPACE
-                + (char) 0x2007 // FIGURE SPACE
-                + (char) 0x2008 // PUNCTUATION SPACE
-                + (char) 0x2009 // THIN SPACE
-                + (char) 0x200A // HAIR SPACE
-                + (char) 0x2028 // LINE SEPARATOR
-                + (char) 0x2029 // PARAGRAPH SEPARATOR
-                + (char) 0x202F // NARROW NO-BREAK SPACE
-                + (char) 0x205F // MEDIUM MATHEMATICAL SPACE
-                + (char) 0x3000; // IDEOGRAPHIC SPACE
+                + "\u0009" // CHARACTER TABULATION
+                + "\n" // LINE FEED (LF)
+                + "\u000B" // LINE TABULATION
+                + "\u000C" // FORM FEED (FF)
+                + "/r" // CARRIAGE RETURN (CR)
+                + "\u0020" // SPACE
+                + "\u0085" // NEXT LINE (NEL) 
+                + "\u00A0" // NO-BREAK SPACE
+                + "\u1680" // OGHAM SPACE MARK
+                + "\u180E" // MONGOLIAN VOWEL SEPARATOR
+                + "\u2000" // EN QUAD 
+                + "\u2001" // EM QUAD 
+                + "\u2002" // EN SPACE
+                + "\u2003" // EM SPACE
+                + "\u2004" // THREE-PER-EM SPACE
+                + "\u2005" // FOUR-PER-EM SPACE
+                + "\u2006" // SIX-PER-EM SPACE
+                + "\u2007" // FIGURE SPACE
+                + "\u2008" // PUNCTUATION SPACE
+                + "\u2009" // THIN SPACE
+                + "\u200A" // HAIR SPACE
+                + "\u2028" // LINE SEPARATOR
+                + "\u2029" // PARAGRAPH SEPARATOR
+                + "\u202F" // NARROW NO-BREAK SPACE
+                + "\u205F" // MEDIUM MATHEMATICAL SPACE
+                + "\u3000"; // IDEOGRAPHIC SPACE
         for (int i = 0; i < wsChars.length(); i++) {
             IS_UNICODE_WHITESPACE.set(wsChars.charAt(i));
         }
@@ -157,7 +160,7 @@ class GraphvizDotfileGenerator {
             case '®':
                 buf.append("&reg;");
                 break;
-            case NBSP_CHAR:
+            case (char) 0x00A0:
                 buf.append("&nbsp;");
                 break;
             case '\n':
@@ -223,7 +226,7 @@ class GraphvizDotfileGenerator {
 
         // Class annotations
         final AnnotationInfoList annotationInfo = ci.annotationInfo;
-        if (annotationInfo != null && annotationInfo.size() > 0) {
+        if (annotationInfo != null && !annotationInfo.isEmpty()) {
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
                     .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
             final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo);
@@ -241,7 +244,7 @@ class GraphvizDotfileGenerator {
 
         // Fields
         final FieldInfoList fieldInfo = ci.fieldInfo;
-        if (showFields && fieldInfo != null && fieldInfo.size() > 0) {
+        if (showFields && fieldInfo != null && !fieldInfo.isEmpty()) {
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
                     .append(scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ").append("FIELDS</b></font></td></tr>");
             buf.append("<tr><td cellpadding='0'>");
@@ -290,7 +293,7 @@ class GraphvizDotfileGenerator {
 
         // Methods
         final MethodInfoList methodInfo = ci.methodInfo;
-        if (showMethods && methodInfo != null && methodInfo.size() > 0) {
+        if (showMethods && methodInfo != null && !methodInfo.isEmpty()) {
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")

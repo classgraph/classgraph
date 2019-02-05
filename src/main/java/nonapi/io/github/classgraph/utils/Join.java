@@ -30,6 +30,10 @@ package nonapi.io.github.classgraph.utils;
 
 /** A replacement for Java 8's String.join() that will allow compilation on Java 7. */
 public class Join {
+    private Join() {
+        // Cannot be constructed
+    }
+
     /**
      * A replacement for Java 8's String.join().
      * 
