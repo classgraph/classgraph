@@ -10,14 +10,15 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
 <br>
-[![Platforms: Windows | Mac OS X | Linux](https://img.shields.io/badge/platforms-Windows_|_Mac_OS_X_|_Linux-blue.svg)](#)
-[![Languages: Java | Scala | Kotlin | etc.](https://img.shields.io/badge/languages-Java_|_Scala_|_Kotlin_|_etc.-blue.svg)](#)
-[![JDK compatibility: 7 | 8 | 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7_|_8_|_9+_(JPMS)-blue.svg)](#)
+[![Platforms: Windows | Mac OS X | Linux](https://img.shields.io/badge/platforms-Windows_%7C_Mac_OS_X_%7C_Linux-blue.svg)](#)
+[![Languages: Java | Scala | Kotlin | etc.](https://img.shields.io/badge/languages-Java_%7C_Scala_%7C_Kotlin_%7C_etc.-blue.svg)](#)
+[![JDK compatibility: 7 | 8 | 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7_%7C_8_%7C_9+_(JPMS)-blue.svg)](#)
 <br>
-[![Code Size](https://img.shields.io/github/languages/code-size/classgraph/classgraph.svg)](#)
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
-[![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
+[![Commits per year](https://img.shields.io/github/commit-activity/y/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/commits/master)
+<br>
+[![lgtm alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
+[![lgtm code quality](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
 <br>
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
