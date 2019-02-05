@@ -2,11 +2,12 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
+
 [![Platforms: Windows | Mac OS X | Linux](https://img.shields.io/badge/platforms-Windows_|_Mac_OS_X_|_Linux-blue.svg)](#)
 [![Languages: Java | Scala | Kotlin | etc.](https://img.shields.io/badge/languages-Java_|_Scala_|_Kotlin_|_etc.-blue.svg)](#)
 [![JDK compatibility: 7 | 8 | 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7_|_8_|_9+_(JPMS)-blue.svg)](#)
 
-[![Code Size](https://img.shields.io/github/code-size/classgraph/classgraph.svg)](#)
+[![Code Size](https://img.shields.io/github/languages/code-size/classgraph/classgraph.svg)](#)
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
 [![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
