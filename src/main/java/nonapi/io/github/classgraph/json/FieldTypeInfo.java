@@ -250,12 +250,15 @@ class FieldTypeInfo {
      *            the field value
      */
     void setFieldValue(final Object containingObj, final Object value) {
-        if (value == null && primitiveType != PrimitiveType.NON_PRIMITIVE) {
-            throw new IllegalArgumentException("Tried to set primitive-typed field "
-                    + field.getDeclaringClass().getName() + "." + field.getName() + " to null value");
-        }
-
         try {
+            if (value == null) {
+                if (primitiveType != PrimitiveType.NON_PRIMITIVE) {
+                    throw new IllegalArgumentException("Tried to set primitive-typed field "
+                            + field.getDeclaringClass().getName() + "." + field.getName() + " to null value");
+                }
+                field.set(containingObj, null);
+                return;
+            }
             switch (primitiveType) {
             case NON_PRIMITIVE:
                 field.set(containingObj, value);
