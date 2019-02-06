@@ -41,11 +41,21 @@ import io.github.classgraph.FieldInfoList;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.TypeSignature;
 
+/**
+ * The Class Issue140Test.
+ */
 public class Issue140Test {
+
+    /** The int field. */
     // Order of fields is significant
     public int intField;
+
+    /** The string arr field. */
     public String[] stringArrField;
 
+    /**
+     * Issue 140 test.
+     */
     @Test
     public void issue140Test() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue140Test.class.getPackage().getName())

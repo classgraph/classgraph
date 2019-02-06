@@ -40,11 +40,21 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue223Test.
+ */
 @Entity
 public class Issue223Test {
+
+    /**
+     * The Interface InnerInterface.
+     */
     public interface InnerInterface {
     }
 
+    /**
+     * Test classload inner classes.
+     */
     @Test
     public void testClassloadInnerClasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue223Test.class.getPackage().getName())

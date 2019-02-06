@@ -7,7 +7,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue80Test.
+ */
 public class Issue80Test {
+
+    /**
+     * Issue 80.
+     */
     @Test
     public void issue80() {
         try (ScanResult scanResult = new ClassGraph().enableSystemJarsAndModules().enableClassInfo().scan()) {

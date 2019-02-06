@@ -13,7 +13,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.utils.LogNode;
 
+/**
+ * The Class LogNodeTest.
+ */
 public class LogNodeTest {
+
+    /**
+     * Test log node logging to system err.
+     */
     @Test
     public void testLogNodeLoggingToSystemErr() {
         ConsoleHandler errPrintStreamHandler = null;

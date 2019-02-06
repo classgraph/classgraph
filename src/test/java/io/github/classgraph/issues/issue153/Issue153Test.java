@@ -48,6 +48,9 @@ import io.github.classgraph.issues.issue153.Issue153Test.NestedAnnotation;
 import io.github.classgraph.issues.issue153.Issue153Test.StringAnnotation;
 import io.github.classgraph.issues.issue153.Issue153Test.TwoParamAnnotation;
 
+/**
+ * The Class Issue153Test.
+ */
 @StringAnnotation("classlabel")
 @TwoParamAnnotation(value1 = 'x', value2 = { 1, 2, 3 })
 @EnumAnnotation(FruitEnum.BANANA)
@@ -55,64 +58,154 @@ import io.github.classgraph.issues.issue153.Issue153Test.TwoParamAnnotation;
 @ClassRefAnnotation(Issue153Test.class)
 public class Issue153Test {
 
+    /**
+     * The Interface StringAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface StringAnnotation {
+
+        /**
+         * Value.
+         *
+         * @return the string
+         */
         String value();
     }
 
+    /**
+     * The Interface TwoParamAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface TwoParamAnnotation {
+
+        /**
+         * Value 1.
+         *
+         * @return the char
+         */
         char value1();
 
+        /**
+         * Value 2.
+         *
+         * @return the int[]
+         */
         int[] value2();
     }
 
+    /**
+     * The Enum FruitEnum.
+     */
     public enum FruitEnum {
-        APPLE, BANANA
+
+        /** The apple. */
+        APPLE,
+        /** The banana. */
+        BANANA
     }
 
+    /**
+     * The Interface EnumAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface EnumAnnotation {
+
+        /**
+         * Value.
+         *
+         * @return the fruit enum
+         */
         FruitEnum value();
     }
 
+    /**
+     * The Interface NestedAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface NestedAnnotation {
+
+        /**
+         * Value.
+         *
+         * @return the string annotation[]
+         */
         StringAnnotation[] value();
     }
 
+    /**
+     * The Interface ClassRefAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface ClassRefAnnotation {
+
+        /**
+         * Value.
+         *
+         * @return the class
+         */
         Class<?> value();
     }
 
+    /** The Constant testField. */
     @StringAnnotation("fieldlabel")
     public static final FruitEnum testField = FruitEnum.BANANA;
 
+    /**
+     * Test method.
+     */
     @StringAnnotation("methodlabel")
     public void testMethod() {
     }
 
+    /**
+     * The Interface AnnotationWithAndWithoutDefaultValue.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface AnnotationWithAndWithoutDefaultValue {
+
+        /**
+         * Value without default.
+         *
+         * @return the string
+         */
         String valueWithoutDefault();
 
+        /**
+         * Value with default.
+         *
+         * @return the int
+         */
         int valueWithDefault() default 5;
     }
 
+    /**
+     * The Interface AnnotationWithOnlyDefaultValue.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface AnnotationWithOnlyDefaultValue {
+
+        /**
+         * Value.
+         *
+         * @return the int
+         */
         int value() default 6;
     }
 
+    /** The test field with and witout default. */
     @AnnotationWithAndWithoutDefaultValue(valueWithoutDefault = "x")
     public static int testFieldWithAndWitoutDefault;
 
+    /** The test field with only default. */
     @AnnotationWithOnlyDefaultValue
     public static int testFieldWithOnlyDefault;
 
+    /** The Constant pkg. */
     private static final String pkg = Issue153Test.class.getPackage().getName();
 
+    /**
+     * Class annotation parameters.
+     */
     @Test
     public void classAnnotationParameters() {
         try (ScanResult scanResult = new ClassGraph() //

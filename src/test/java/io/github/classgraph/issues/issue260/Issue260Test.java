@@ -35,7 +35,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue260Test.
+ */
 public class Issue260Test {
+
+    /**
+     * Issue 260 test.
+     */
     @Test
     public void issue260Test() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue260Test.class.getPackage().getName())

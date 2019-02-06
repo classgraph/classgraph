@@ -39,7 +39,21 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class ClassLoadingWorksWithParentLastLoaders.
+ */
 public class ClassLoadingWorksWithParentLastLoaders {
+
+    /**
+     * Assert correct class loaders.
+     *
+     * @param parentClassLoader
+     *            the parent class loader
+     * @param expectedClassLoader
+     *            the expected class loader
+     * @throws Exception
+     *             the exception
+     */
     public void assertCorrectClassLoaders(final String parentClassLoader, final String expectedClassLoader)
             throws Exception {
 

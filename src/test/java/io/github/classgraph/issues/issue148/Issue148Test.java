@@ -36,13 +36,21 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue148Test.
+ */
 public class Issue148Test {
+
+    /** The anonymous inner class 1. */
     final Runnable anonymousInnerClass1 = new Runnable() {
         @Override
         public void run() {
         }
     };
 
+    /**
+     * Issue 148 test.
+     */
     @Test
     public void issue148Test() {
         final Runnable anonymousInnerClass2 = new Runnable() {

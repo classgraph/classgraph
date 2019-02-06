@@ -42,7 +42,14 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue175Test.
+ */
 public class Issue175Test {
+
+    /**
+     * Test synthetic.
+     */
     @Test
     public void testSynthetic() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -67,6 +74,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test mandated.
+     */
     @Test
     public void testMandated() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -89,6 +99,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test mismatched types.
+     */
     @Test
     public void testMismatchedTypes() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -113,6 +126,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test result types not reconciled 1.
+     */
     @Test
     public void testResultTypesNotReconciled1() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -144,6 +160,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test result types not reconciled 2.
+     */
     @Test
     public void testResultTypesNotReconciled2() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -203,6 +222,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test attribute parameter mismatch.
+     */
     @Test
     public void testAttributeParameterMismatch() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -227,6 +249,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test result type reconciliation issue.
+     */
     @Test
     public void testResultTypeReconciliationIssue() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -260,6 +285,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test parameter arity mismatch.
+     */
     @Test
     public void testParameterArityMismatch() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
@@ -281,6 +309,9 @@ public class Issue175Test {
         }
     }
 
+    /**
+     * Test bare type issue.
+     */
     @Test
     public void testBareTypeIssue() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();

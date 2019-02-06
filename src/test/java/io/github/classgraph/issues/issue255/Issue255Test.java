@@ -38,7 +38,14 @@ import io.github.classgraph.ResourceList;
 import io.github.classgraph.ResourceList.ByteArrayConsumer;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue255Test.
+ */
 public class Issue255Test {
+
+    /**
+     * Issue 255 test.
+     */
     @Test
     public void issue255Test() {
         final String dirPath = Issue255Test.class.getClassLoader().getResource("issue255").getPath()

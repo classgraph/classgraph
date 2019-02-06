@@ -39,9 +39,17 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.whitelisted.Cls;
 import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
+/**
+ * The Class DisableRecursiveScanningTest.
+ */
 public class DisableRecursiveScanningTest {
+
+    /** The Constant PKG. */
     private static final String PKG = Cls.class.getPackage().getName();
 
+    /**
+     * Non root package.
+     */
     @Test
     public void nonRootPackage() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(PKG).scan()) {
@@ -51,6 +59,9 @@ public class DisableRecursiveScanningTest {
         }
     }
 
+    /**
+     * Root package.
+     */
     @Test
     public void rootPackage() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive("").scan()) {

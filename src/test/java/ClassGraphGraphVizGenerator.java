@@ -4,7 +4,19 @@ import java.io.PrintWriter;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class ClassGraphGraphVizGenerator.
+ */
 public class ClassGraphGraphVizGenerator {
+
+    /**
+     * The main method.
+     *
+     * @param args
+     *            the arguments
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     public static void main(final String[] args) throws IOException {
         try (ScanResult scanResult = new ClassGraph() //
                 .whitelistPackagesNonRecursive("io.github.classgraph") //

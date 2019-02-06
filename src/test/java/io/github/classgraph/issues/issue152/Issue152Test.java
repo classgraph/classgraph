@@ -40,9 +40,37 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue152Test.
+ */
 public class Issue152Test {
+
+    /** The test field. */
     public Map<Integer, Map<String, Boolean>> testField;
 
+    /**
+     * Test method.
+     *
+     * @param param0
+     *            the param 0
+     * @param param2
+     *            the param 2
+     * @param param3
+     *            the param 3
+     * @param param4
+     *            the param 4
+     * @param param5
+     *            the param 5
+     * @param param6
+     *            the param 6
+     * @param param7
+     *            the param 7
+     * @param param8
+     *            the param 8
+     * @param param9
+     *            the param 9
+     * @return the sets the
+     */
     public Set<Integer> testMethod(final List<String[]> param0, final Map<String, Map<Integer, Boolean>> param2,
             final double[][][] param3, final int param4, final TestType[] param5,
             final Set<? extends TestType> param6, final List<? super TestType> param7, final Map<Integer, ?> param8,
@@ -50,9 +78,15 @@ public class Issue152Test {
         return null;
     }
 
+    /**
+     * The Class TestType.
+     */
     public static class TestType {
     }
 
+    /**
+     * Issue 152 test.
+     */
     @Test
     public void issue152Test() {
         final String pkg = Issue152Test.class.getPackage().getName();

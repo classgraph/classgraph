@@ -38,8 +38,17 @@ import org.junit.Test;
 
 import com.xyz.meta.A;
 
+/**
+ * The Class ClassLoadingWorksWithParentLastLoadersStub.
+ */
 public class ClassLoadingWorksWithParentLastLoadersStub {
 
+    /**
+     * Same class loader that found A class should load it.
+     *
+     * @throws Exception
+     *             the exception
+     */
     @Test
     public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Exception {
         final String currentClassLoadersName = Thread.currentThread().getContextClassLoader().getClass()
@@ -80,7 +89,7 @@ class TestLauncher extends Thread {
 }
 
 class FakeRestartClassLoader extends ClassLoader {
-    private Class getClass(final String name) throws ClassNotFoundException {
+    private Class<?> getClass(final String name) throws ClassNotFoundException {
         try {
             final byte[] b = loadClassFileData(name.replace('.', File.separatorChar) + ".class");
             return defineClass(name, b, 0, b.length);
@@ -90,10 +99,10 @@ class FakeRestartClassLoader extends ClassLoader {
     }
 
     @Override
-    public Class loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+    public Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
         if (name.startsWith(A.class.getName())
                 || name.startsWith(ClassLoadingWorksWithParentLastLoaders.class.getName())) {
-            final Class clazz = getClass(name);
+            final Class<?> clazz = getClass(name);
             if (resolve) {
                 resolveClass(clazz);
             }
@@ -111,7 +120,7 @@ class FakeRestartClassLoader extends ClassLoader {
         }
     }
 
-    private String getClasspath() {
+    public String getClasspath() {
         final String classfileName = A.class.getName().replace('.', '/') + ".class";
         final URL classfileResource = getClass().getClassLoader().getResource(classfileName);
         if (classfileResource == null) {

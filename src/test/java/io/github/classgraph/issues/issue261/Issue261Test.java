@@ -35,16 +35,32 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue261Test.
+ */
 public class Issue261Test {
+
+    /**
+     * The Class SuperSuperCls.
+     */
     private static class SuperSuperCls {
     }
 
+    /**
+     * The Class SuperCls.
+     */
     private static class SuperCls extends SuperSuperCls {
     }
 
+    /**
+     * The Class Cls.
+     */
     private static class Cls extends SuperCls {
     }
 
+    /**
+     * Issue 261 test.
+     */
     @Test
     public void issue261Test() {
         // Whitelist only the class Cls, so that SuperCls and SuperSuperCls are external classes

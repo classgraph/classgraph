@@ -39,9 +39,17 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.whitelisted.Cls;
 import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
+/**
+ * The Class DefaultPackageTest.
+ */
 public class DefaultPackageTest {
+
+    /** The Constant WHITELIST_PACKAGE. */
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
 
+    /**
+     * Scan.
+     */
     @Test
     public void scan() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive("").scan()) {
@@ -55,6 +63,9 @@ public class DefaultPackageTest {
         }
     }
 
+    /**
+     * Scan with whitelist.
+     */
     @Test
     public void scanWithWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {

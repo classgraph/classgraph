@@ -41,7 +41,14 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue100Test.
+ */
 public class Issue100Test {
+
+    /**
+     * Issue 100 test.
+     */
     @Test
     public void issue100Test() {
         final ClassLoader classLoader = Issue100Test.class.getClassLoader();

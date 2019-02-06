@@ -10,7 +10,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue171Test.
+ */
 public class Issue171Test {
+
+    /**
+     * Spring boot fully executable jar.
+     */
     @Test
     public void springBootFullyExecutableJar() {
         final URL jarURL = Issue171Test.class.getClassLoader().getResource("spring-boot-fully-executable-jar.jar");

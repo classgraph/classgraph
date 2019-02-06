@@ -37,7 +37,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue245Test.
+ */
 public class Issue245Test {
+
+    /**
+     * Test custom package root.
+     */
     @Test
     public void testCustomPackageRoot() {
         final ClassLoader classLoader = Issue245Test.class.getClassLoader();

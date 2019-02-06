@@ -37,7 +37,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue286Test.
+ */
 public class Issue286Test {
+
+    /**
+     * Issue 286 test.
+     */
     @Test(timeout = 1000)
     public void issue286Test() {
         final URL jarURL = getClass().getClassLoader().getResource("issue286.jar");

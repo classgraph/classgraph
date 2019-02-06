@@ -41,12 +41,21 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue37Test.
+ */
 public class Issue37Test {
 
+    /**
+     * Instantiates a new issue 37 test.
+     */
     @Issue37Annotation
     public Issue37Test() {
     }
 
+    /**
+     * Issue 37 test.
+     */
     @Issue37Annotation
     @Test
     public void issue37Test() {
@@ -65,6 +74,9 @@ public class Issue37Test {
         }
     }
 
+    /**
+     * Unannotated method.
+     */
     public void unannotatedMethod() {
     }
 }

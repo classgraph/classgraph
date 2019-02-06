@@ -41,15 +41,28 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue128Test.
+ */
 public class Issue128Test {
+
+    /** The Constant SITE. */
     private static final String SITE = "https://github.com/classgraph";
 
+    /** The Constant JAR_URL. */
     private static final String JAR_URL = SITE + //
             "/classgraph/blob/master/src/test/resources/nested-jars-level1.zip?raw=true";
 
+    /** The Constant NESTED_JAR_URL. */
     private static final String NESTED_JAR_URL = //
             JAR_URL + "!level2.jar!level3.jar!classpath1/classpath2";
 
+    /**
+     * Issue 128 test.
+     *
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Test
     public void issue128Test() throws IOException {
         // Test a nested jar inside a jar fetched over HTTP

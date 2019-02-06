@@ -3,7 +3,17 @@ package com.xyz;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class GenerateClassGraphFigDotFile.
+ */
 public class GenerateClassGraphFigDotFile {
+
+    /**
+     * The main method.
+     *
+     * @param args
+     *            the arguments
+     */
     public static void main(final String[] args) {
         try (ScanResult scanResult = new ClassGraph() //
                 .whitelistPackages("com.xyz.fig") //

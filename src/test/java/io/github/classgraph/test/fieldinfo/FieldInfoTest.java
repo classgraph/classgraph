@@ -38,15 +38,25 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
+/**
+ * The Class FieldInfoTest.
+ */
 public class FieldInfoTest {
+
+    /** The Constant publicFieldWithAnnotation. */
     @ExternalAnnotation
     public static final int publicFieldWithAnnotation = 3;
 
+    /** The Constant privateFieldWithAnnotation. */
     @ExternalAnnotation
     private static final String privateFieldWithAnnotation = "test";
 
+    /** The field without annotation. */
     public int fieldWithoutAnnotation;
 
+    /**
+     * Field info not enabled.
+     */
     @Test(expected = IllegalArgumentException.class)
     public void fieldInfoNotEnabled() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
@@ -55,6 +65,9 @@ public class FieldInfoTest {
         }
     }
 
+    /**
+     * Get field info.
+     */
     @Test
     public void getFieldInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
@@ -69,6 +82,9 @@ public class FieldInfoTest {
         }
     }
 
+    /**
+     * Get field info ignoring visibility.
+     */
     @Test
     public void getFieldInfoIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())

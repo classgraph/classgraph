@@ -44,7 +44,17 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue193Test.
+ */
 public class Issue193Test {
+
+    /**
+     * Issue 193 test.
+     *
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Test
     public void issue193Test() throws IOException {
         // Resolve and download scala-library

@@ -24,20 +24,34 @@ import io.github.classgraph.test.whitelisted.Impl2;
 import io.github.classgraph.test.whitelisted.Impl2Sub;
 import io.github.classgraph.test.whitelisted.Impl2SubSub;
 
+/**
+ * The Class ClassInfoTest.
+ */
 public class ClassInfoTest {
+
+    /** The scan result. */
     private static ScanResult scanResult;
 
+    /**
+     * Setup.
+     */
     @BeforeClass
     public static void setup() {
         scanResult = new ClassGraph().whitelistPackages(Impl1.class.getPackage().getName()).scan();
     }
 
+    /**
+     * Teardown.
+     */
     @AfterClass
     public static void teardown() {
         scanResult.close();
         scanResult = null;
     }
 
+    /**
+     * Use class name to class info.
+     */
     @Test
     public void useClassNameToClassInfo() {
         final List<String> impls = scanResult.getClassInfo(Iface.class.getName()).getClassesImplementing()
@@ -45,6 +59,9 @@ public class ClassInfoTest {
         assertThat(impls.contains(Impl1.class.getName())).isTrue();
     }
 
+    /**
+     * Filter.
+     */
     @Test
     public void filter() {
         assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
@@ -55,6 +72,9 @@ public class ClassInfoTest {
         }).getNames()).containsExactlyInAnyOrder(ClsSub.class.getName(), ClsSubSub.class.getName());
     }
 
+    /**
+     * Stream has super interface direct.
+     */
     @Test
     public void streamHasSuperInterfaceDirect() {
         assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
@@ -65,6 +85,9 @@ public class ClassInfoTest {
         }).getNames()).containsExactlyInAnyOrder(IfaceSub.class.getName(), Impl2.class.getName());
     }
 
+    /**
+     * Stream has super interface.
+     */
     @Test
     public void streamHasSuperInterface() {
         assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
@@ -77,12 +100,18 @@ public class ClassInfoTest {
                 Impl1Sub.class.getName(), Impl1SubSub.class.getName());
     }
 
+    /**
+     * Implements interface direct.
+     */
     @Test
     public void implementsInterfaceDirect() {
         assertThat(scanResult.getClassesImplementing(Iface.class.getName()).directOnly().getNames())
                 .containsExactlyInAnyOrder(IfaceSub.class.getName(), Impl2.class.getName());
     }
 
+    /**
+     * Implements interface.
+     */
     @Test
     public void implementsInterface() {
         assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames()).containsExactlyInAnyOrder(
@@ -91,6 +120,9 @@ public class ClassInfoTest {
                 IfaceSubSub.class.getName());
     }
 
+    /**
+     * Multi criteria.
+     */
     @Test
     public void multiCriteria() {
         assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {

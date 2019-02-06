@@ -46,20 +46,41 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class AnnotationClassRefTest.
+ */
 public class AnnotationClassRefTest {
 
+    /**
+     * The Interface ClassRefAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface ClassRefAnnotation {
+
+        /**
+         * Value.
+         *
+         * @return the class
+         */
         Class<?> value();
     }
 
+    /**
+     * Method without annotation.
+     */
     public void methodWithoutAnnotation() {
     }
 
+    /**
+     * Method with annotation.
+     */
     @ClassRefAnnotation(Void.class)
     public void methodWithAnnotation() {
     }
 
+    /**
+     * Test class ref annotation.
+     */
     @Test
     public void testClassRefAnnotation() {
         try (ScanResult scanResult = new ClassGraph()

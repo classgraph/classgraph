@@ -13,33 +13,85 @@ import io.github.classgraph.AnnotationParameterValueList;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class AnnotationParamWithPrimitiveTypedArray.
+ */
 public class AnnotationParamWithPrimitiveTypedArray {
 
+    /**
+     * The Interface NestedAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface NestedAnnotation {
+
+        /**
+         * Str.
+         *
+         * @return the string
+         */
         String str();
 
+        /**
+         * Int array.
+         *
+         * @return the int[]
+         */
         int[] intArray();
     }
 
+    /**
+     * The Interface AnnotationWithPrimitiveArrayParams.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface AnnotationWithPrimitiveArrayParams {
+
+        /**
+         * V 0.
+         *
+         * @return the int[]
+         */
         int[] v0() default { 1, 2 };
 
+        /**
+         * V 1.
+         *
+         * @return the char[]
+         */
         char[] v1();
 
+        /**
+         * V 2.
+         *
+         * @return the string[]
+         */
         String[] v2();
 
+        /**
+         * V 3.
+         *
+         * @return the int[]
+         */
         int[] v3();
 
+        /**
+         * V 4.
+         *
+         * @return the nested annotation[]
+         */
         NestedAnnotation[] v4();
     }
 
+    /**
+     * The Class AnnotatedClass.
+     */
     @AnnotationWithPrimitiveArrayParams(v1 = { 'a' }, v2 = { "x" }, v3 = {}, v4 = {
             @NestedAnnotation(str = "Test", intArray = { 9 }) })
     public abstract static class AnnotatedClass {
     }
 
+    /**
+     * Primitive array params.
+     */
     @Test
     public void primitiveArrayParams() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()

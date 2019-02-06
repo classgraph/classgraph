@@ -28,7 +28,11 @@
  */
 package io.github.classgraph.issues.issue141;
 
-/** @author wuetherich */
+/**
+ * The Class Issue141Test.
+ *
+ * @author wuetherich
+ */
 public class Issue141Test {
     // Disabled because ClassGraph no longer stops if an invalid classfile is found (the classfile is simply skipped)
 

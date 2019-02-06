@@ -39,8 +39,15 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue216Test.
+ */
 @Entity
 public class Issue216Test {
+
+    /**
+     * Test spring boot jar with lib jars.
+     */
     @Test
     public void testSpringBootJarWithLibJars() {
         try (ScanResult result = new ClassGraph().whitelistPackages(Issue216Test.class.getPackage().getName())

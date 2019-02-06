@@ -35,7 +35,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue246Test.
+ */
 public class Issue246Test {
+
+    /**
+     * Test method parameter annotations.
+     */
     @Test
     public void testMethodParameterAnnotations() {
         try (ScanResult scanResult = new ClassGraph() //
@@ -51,6 +58,12 @@ public class Issue246Test {
         }
     }
 
+    /**
+     * Dummy method with parameter.
+     *
+     * @param dummyParam
+     *            the dummy param
+     */
     void dummyMethodWithParameter(final int dummyParam) {
     }
 }

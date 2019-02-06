@@ -37,7 +37,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue107Test.
+ */
 public class Issue107Test {
+
+    /**
+     * Issue 107 test.
+     */
     @Test
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name

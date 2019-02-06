@@ -35,7 +35,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue101Test.
+ */
 public class Issue101Test {
+
+    /**
+     * Non inherited annotation.
+     */
     @Test
     public void nonInheritedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
@@ -45,6 +52,9 @@ public class Issue101Test {
         }
     }
 
+    /**
+     * Inherited meta annotation.
+     */
     @Test
     public void inheritedMetaAnnotation() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())
@@ -55,6 +65,9 @@ public class Issue101Test {
         }
     }
 
+    /**
+     * Inherited annotation.
+     */
     @Test
     public void inheritedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue101Test.class.getPackage().getName())

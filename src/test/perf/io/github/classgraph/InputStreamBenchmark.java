@@ -42,14 +42,25 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.infra.Blackhole;
 
+/**
+ * The Class InputStreamBenchmark.
+ */
 @State(Scope.Benchmark)
 public class InputStreamBenchmark {
 
+    /** The nb bytes. */
     @Param({ "16", "4096", "32178", "500000", "5000000" })
     public int nbBytes;
 
+    /** The file. */
     public File file;
 
+    /**
+     * Setup.
+     *
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Setup
     public void setUp() throws IOException {
         file = File.createTempFile("InputStreamBenchmark", ".bin");
@@ -67,6 +78,14 @@ public class InputStreamBenchmark {
         }
     }
 
+    /**
+     * Test files.
+     *
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Benchmark
     public void testFiles(final Blackhole blackhole) throws IOException {
         try (InputStream reader = Files.newInputStream(file.toPath())) {
@@ -74,6 +93,14 @@ public class InputStreamBenchmark {
         }
     }
 
+    /**
+     * Test file channel via random file.
+     *
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Benchmark
     public void testFileChannelViaRandomFile(final Blackhole blackhole) throws IOException {
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
@@ -85,6 +112,14 @@ public class InputStreamBenchmark {
         }
     }
 
+    /**
+     * Test file channel.
+     *
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Benchmark
     public void testFileChannel(final Blackhole blackhole) throws IOException {
         try (FileChannel open = FileChannel.open(file.toPath())) {
@@ -94,6 +129,14 @@ public class InputStreamBenchmark {
         }
     }
 
+    /**
+     * Test file input stream.
+     *
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Benchmark
     public void testFileInputStream(final Blackhole blackhole) throws IOException {
         try (FileInputStream is = new FileInputStream(file)) {
@@ -101,6 +144,16 @@ public class InputStreamBenchmark {
         }
     }
 
+    /**
+     * Consume.
+     *
+     * @param is
+     *            the is
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     private void consume(final InputStream is, final Blackhole blackhole) throws IOException {
         final byte[] buffer = new byte[4096];
 
