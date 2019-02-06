@@ -162,10 +162,8 @@ class ClassfileBinaryParser {
         return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
     }
 
-    /**
-     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty.
-     */
-    private byte getConstantPoolStringFirstByte(final int cpIdx) throws IllegalArgumentException {
+    /** Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty. */
+    private byte getConstantPoolStringFirstByte(final int cpIdx) throws IllegalArgumentException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (constantPoolStringOffset == 0) {
             return '\0';
@@ -193,11 +191,9 @@ class ClassfileBinaryParser {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
-    /**
-     * Compare a string in the constant pool with a given constant, without constructing the String object.
-     */
+    /** Compare a string in the constant pool with a given constant, without constructing the String object. */
     private boolean constantPoolStringEquals(final int cpIdx, final String otherString)
-            throws IllegalArgumentException {
+            throws IllegalArgumentException, IOException {
         final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (strOffset == 0) {
             return otherString == null;
@@ -350,7 +346,6 @@ class ClassfileBinaryParser {
             final boolean isExternalClass, final Resource classfileResource, final ScanSpec scanSpec,
             final LogNode log) throws IOException, IllegalArgumentException {
         // Minor version
-
         inputStreamOrByteBuffer.readUnsignedShort();
         // Major version
         inputStreamOrByteBuffer.readUnsignedShort();
