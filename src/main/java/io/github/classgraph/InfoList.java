@@ -52,10 +52,7 @@ class InfoList<T extends HasName> extends ArrayList<T> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * @return The names of all packages in this list, by calling {@link PackageInfo#getName()} for each item in the
-     *         list.
-     */
+    /** @return The names of all items in this list, by calling {@code getName()} on each item in the list. */
     public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.emptyList();
@@ -69,8 +66,8 @@ class InfoList<T extends HasName> extends ArrayList<T> {
     }
 
     /**
-     * @return The string representations of all items in this list, obtained by calling {@code toString()} on each
-     *         item in the list.
+     * @return The string representations of all items in this list, by calling {@code toString()} on each item in
+     *         the list.
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
