@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 abstract class ScanResultObject {
@@ -40,6 +41,15 @@ abstract class ScanResultObject {
     /** Set ScanResult backreferences in info objects after scan has completed. */
     void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
+    }
+
+    /** Get the names of all referenced classes. */
+    Set<String> getReferencedClassNames() {
+        final Set<String> allReferencedClassNames = new LinkedHashSet<>();
+        getReferencedClassNames(allReferencedClassNames);
+        // Remove references to java.lang.Object
+        allReferencedClassNames.remove("java.lang.Object");
+        return allReferencedClassNames;
     }
 
     /** Get any class names referenced in type descriptors of this object. */

@@ -51,6 +51,11 @@ class AutoCloseableFutureListWithCompletionBarrier extends ArrayList<Future<Void
         return super.equals(o);
     }
 
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
     /** Completion barrier. */
     @Override
     public void close() {

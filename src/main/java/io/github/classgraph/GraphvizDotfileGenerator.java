@@ -479,42 +479,28 @@ class GraphvizDotfileGenerator {
                 }
             }
 
-            if (showFieldTypeDependencyEdges) {
-                final Set<String> referencedFieldTypeNames = new HashSet<>();
-                final FieldInfoList fieldInfo = classNode.fieldInfo;
-                if (fieldInfo != null) {
-                    for (final FieldInfo fi : fieldInfo) {
-                        final TypeSignature fieldSig = fi.getTypeSignatureOrTypeDescriptor();
-                        if (fieldSig != null) {
-                            fieldSig.getReferencedClassNames(referencedFieldTypeNames);
+            if (showFieldTypeDependencyEdges && classNode.fieldInfo != null) {
+                for (final FieldInfo fi : classNode.fieldInfo) {
+                    for (final String referencedFieldTypeName : fi.getReferencedClassNames()) {
+                        if (allVisibleNodes.contains(referencedFieldTypeName)) {
+                            // class --[ ] field type (open box)
+                            buf.append("  \"").append(referencedFieldTypeName).append("\" -> \"")
+                                    .append(classNode.getName())
+                                    .append("\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
                         }
-                    }
-                }
-                for (final String fieldTypeName : referencedFieldTypeNames) {
-                    if (allVisibleNodes.contains(fieldTypeName) && !"java.lang.Object".equals(fieldTypeName)) {
-                        // class --[ ] field type (open box)
-                        buf.append("  \"").append(fieldTypeName).append("\" -> \"").append(classNode.getName())
-                                .append("\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
                     }
                 }
             }
 
-            if (showMethodTypeDependencyEdges) {
-                final Set<String> referencedMethodTypeNames = new HashSet<>();
-                final MethodInfoList methodInfo = classNode.methodInfo;
-                if (methodInfo != null) {
-                    for (final MethodInfo mi : methodInfo) {
-                        final MethodTypeSignature methodSig = mi.getTypeSignatureOrTypeDescriptor();
-                        if (methodSig != null) {
-                            methodSig.getReferencedClassNames(referencedMethodTypeNames);
+            if (showMethodTypeDependencyEdges && classNode.methodInfo != null) {
+                for (final MethodInfo mi : classNode.methodInfo) {
+                    for (final String referencedMethodTypeName : mi.getReferencedClassNames()) {
+                        if (allVisibleNodes.contains(referencedMethodTypeName)) {
+                            // class --[#] field type (open box)
+                            buf.append("  \"").append(referencedMethodTypeName).append("\" -> \"")
+                                    .append(classNode.getName())
+                                    .append("\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
                         }
-                    }
-                }
-                for (final String methodTypeName : referencedMethodTypeNames) {
-                    if (allVisibleNodes.contains(methodTypeName) && !"java.lang.Object".equals(methodTypeName)) {
-                        // class --[#] method type (filled box)
-                        buf.append("  \"").append(methodTypeName).append("\" -> \"").append(classNode.getName())
-                                .append("\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
                     }
                 }
             }

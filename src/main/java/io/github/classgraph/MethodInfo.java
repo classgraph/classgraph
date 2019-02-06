@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.types.TypeUtils;
+import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
@@ -167,7 +169,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public String getModifiersStr() {
         final StringBuilder buf = new StringBuilder();
-        modifiersToString(modifiers, isDefault(), buf);
+        TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         return buf.toString();
     }
 
@@ -629,80 +631,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Convert modifiers into a string representation, e.g. "public static final".
-     * 
-     * @param modifiers
-     *            The field or method modifiers.
-     * @param buf
-     *            The buffer to write the result into.
-     */
-    static void modifiersToString(final int modifiers, final boolean isDefault, final StringBuilder buf) {
-        if ((modifiers & Modifier.PUBLIC) != 0) {
-            buf.append("public");
-        } else if ((modifiers & Modifier.PRIVATE) != 0) {
-            buf.append("private");
-        } else if ((modifiers & Modifier.PROTECTED) != 0) {
-            buf.append("protected");
-        }
-        if ((modifiers & Modifier.ABSTRACT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("abstract");
-        }
-        if ((modifiers & Modifier.STATIC) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("static");
-        }
-        if ((modifiers & Modifier.FINAL) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("final");
-        }
-        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synchronized");
-        }
-        if (isDefault) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("default");
-        }
-        if ((modifiers & 0x1000) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synthetic");
-        }
-        if ((modifiers & 0x40) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("bridge");
-        }
-        if ((modifiers & Modifier.NATIVE) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("native");
-        }
-        if ((modifiers & Modifier.STRICT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("strictfp");
-        }
-        // Ignored: 
-        // "ACC_VARARGS (0x0080) Declared with variable number of arguments."
-    }
-
-    /**
      * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
      * static class initializer blocks are named {@code "<clinit>"}.
      */
@@ -725,7 +653,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            modifiersToString(modifiers, isDefault(), buf);
+            TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         }
 
         final List<TypeParameter> typeParameters = methodType.getTypeParameters();

@@ -181,56 +181,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         } else if (byteArrayValue != null) {
             return byteArrayValue;
         } else if (objectArrayValue != null) {
-            Class<?> eltClass = null;
-            if (instantiate) {
-                // Find the method in the annotation class with the same name as the annotation parameter.
-                final MethodInfoList annotationMethodList = annotationClassInfo.methodInfo == null ? null
-                        : annotationClassInfo.methodInfo.get(paramName);
-                if (annotationMethodList != null && annotationMethodList.size() > 1) {
-                    // There should only be one method with a given name in an annotation
-                    throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName
-                            + "() in annotation class " + annotationClassInfo.getName());
-                } else if (annotationMethodList != null && annotationMethodList.size() == 1) {
-                    // Get the result type of the method with the same name as the annotation parameter 
-                    final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
-                            .getTypeSignatureOrTypeDescriptor().getResultType();
-                    // The result type has to be an array type 
-                    if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
-                        throw new IllegalArgumentException("Annotation parameter " + paramName
-                                + " in annotation class " + annotationClassInfo.getName()
-                                + " holds an array, but does not have an array type signature");
-                    }
-                    final ArrayTypeSignature arrayTypeSig = (ArrayTypeSignature) annotationMethodResultTypeSig;
-                    if (arrayTypeSig.getNumDimensions() != 1) {
-                        throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
-                    }
-                    final TypeSignature elementTypeSig = arrayTypeSig.getElementTypeSignature();
-                    if (elementTypeSig instanceof ClassRefTypeSignature) {
-                        // Look up the name of the element type, for non-primitive arrays 
-                        eltClass = ((ClassRefTypeSignature) elementTypeSig).loadClass();
-                    } else if (elementTypeSig instanceof BaseTypeSignature) {
-                        // Look up the name of the primitive class, for primitive arrays
-                        eltClass = ((BaseTypeSignature) elementTypeSig).getType();
-                    }
-                } else {
-                    // Could not find a method with this name -- this is an external class.
-                    // Find first non-null object in array, and use its type as the type of the array.
-                    for (final ObjectTypedValueWrapper elt : objectArrayValue) {
-                        if (elt != null) {
-                            eltClass = elt.integerValue != null ? Integer.class
-                                    : elt.longValue != null ? Long.class
-                                            : elt.shortValue != null ? Short.class
-                                                    : elt.characterValue != null ? Character.class
-                                                            : elt.byteValue != null ? Byte.class
-                                                                    : elt.booleanValue != null ? Boolean.class
-                                                                            : elt.doubleValue != null ? Double.class
-                                                                                    : elt.floatValue != null
-                                                                                            ? Float.class
-                                                                                            : null;
-                        }
-                    }
-                }
-            }
+            // Get the element type of the array
+            final Class<?> eltClass = instantiate
+                    ? (Class<?>) getArrayValueTypeClassOrName(annotationClassInfo, paramName, /* getClass = */ true)
+                    : null;
             // Allocate array as either a generic Object[] array, if the element type could not be determined,
             // or as an array of specific element type, if the element type was determined. 
             final Object annotationValueObjectArray = eltClass == null ? new Object[objectArrayValue.length]
@@ -259,6 +213,70 @@ class ObjectTypedValueWrapper extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Get the element type of an array element.
+     * 
+     * @param getClass
+     *            If true, return a {@code Class<?>} reference, otherwise return the class name.
+     */
+    private Object getArrayValueTypeClassOrName(final ClassInfo annotationClassInfo, final String paramName,
+            final boolean getClass) {
+        // Find the method in the annotation class with the same name as the annotation parameter.
+        final MethodInfoList annotationMethodList = annotationClassInfo.methodInfo == null ? null
+                : annotationClassInfo.methodInfo.get(paramName);
+        if (annotationMethodList != null && annotationMethodList.size() > 1) {
+            // There should only be one method with a given name in an annotation
+            throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName
+                    + "() in annotation class " + annotationClassInfo.getName());
+        } else if (annotationMethodList != null && annotationMethodList.size() == 1) {
+            // Get the result type of the method with the same name as the annotation parameter 
+            final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
+                    .getTypeSignatureOrTypeDescriptor().getResultType();
+            // The result type has to be an array type 
+            if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
+                throw new IllegalArgumentException("Annotation parameter " + paramName + " in annotation class "
+                        + annotationClassInfo.getName()
+                        + " holds an array, but does not have an array type signature");
+            }
+            final ArrayTypeSignature arrayTypeSig = (ArrayTypeSignature) annotationMethodResultTypeSig;
+            if (arrayTypeSig.getNumDimensions() != 1) {
+                throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
+            }
+            final TypeSignature elementTypeSig = arrayTypeSig.getElementTypeSignature();
+            if (elementTypeSig instanceof ClassRefTypeSignature) {
+                // Look up the name of the element type, for non-primitive arrays 
+                final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSig;
+                return getClass ? classRefTypeSignature.loadClass()
+                        : classRefTypeSignature.getFullyQualifiedClassName();
+            } else if (elementTypeSig instanceof BaseTypeSignature) {
+                // Look up the name of the primitive class, for primitive arrays
+                final BaseTypeSignature baseTypeSignature = (BaseTypeSignature) elementTypeSig;
+                return getClass ? baseTypeSignature.getType() : baseTypeSignature.getTypeStr();
+            }
+        } else {
+            // Could not find a method with this name -- this is an external class.
+            // Find first non-null object in array, and use its type as the type of the array.
+            for (final ObjectTypedValueWrapper elt : objectArrayValue) {
+                if (elt != null) {
+                    return elt.integerValue != null ? (getClass ? Integer.class : "int")
+                            : elt.longValue != null ? (getClass ? Long.class : "long")
+                                    : elt.shortValue != null ? (getClass ? Short.class : "short")
+                                            : elt.characterValue != null ? (getClass ? Character.class : "char")
+                                                    : elt.byteValue != null ? (getClass ? Byte.class : "byte")
+                                                            : elt.booleanValue != null
+                                                                    ? (getClass ? Boolean.class : "boolean")
+                                                                    : elt.doubleValue != null
+                                                                            ? (getClass ? Double.class : "double")
+                                                                            : elt.floatValue != null
+                                                                                    ? (getClass ? Float.class
+                                                                                            : "float")
+                                                                                    : (getClass ? null : "");
+                }
+            }
+        }
+        return getClass ? null : "";
+    }
+
     /** Replace Object[] arrays containing boxed types with primitive arrays. */
     void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo, final String paramName) {
         if (annotationInfo != null) {
@@ -278,52 +296,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             }
 
             // Find the method in the annotation class with the same name as the annotation parameter.
-            String targetElementTypeName = "";
-            final MethodInfoList annotationMethodList = annotationClassInfo.methodInfo == null ? null
-                    : annotationClassInfo.methodInfo.get(paramName);
-            if (annotationMethodList != null && annotationMethodList.size() > 1) {
-                // There should only be one method with a given name in an annotation
-                throw new IllegalArgumentException("Duplicated annotation parameter " + paramName
-                        + " in annotation class " + annotationClassInfo.getName());
-            } else if (annotationMethodList != null && annotationMethodList.size() == 1) {
-                // Get the result type of the method with the same name as the annotation parameter 
-                final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
-                        .getTypeSignatureOrTypeDescriptor().getResultType();
-                // The result type has to be an array type 
-                if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
-                    throw new IllegalArgumentException("Annotation parameter " + paramName + " in annotation class "
-                            + annotationClassInfo.getName()
-                            + " holds an array, but does not have an array type signature");
-                }
-                final ArrayTypeSignature arrayTypeSig = (ArrayTypeSignature) annotationMethodResultTypeSig;
-                if (arrayTypeSig.getNumDimensions() != 1) {
-                    throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
-                }
-                final TypeSignature elementTypeSig = arrayTypeSig.getElementTypeSignature();
-                if (elementTypeSig instanceof ClassRefTypeSignature) {
-                    // Look up the name of the element type, for non-primitive arrays 
-                    targetElementTypeName = ((ClassRefTypeSignature) elementTypeSig).getFullyQualifiedClassName();
-                } else if (elementTypeSig instanceof BaseTypeSignature) {
-                    // Look up the name of the primitive class, for primitive arrays
-                    targetElementTypeName = ((BaseTypeSignature) elementTypeSig).getTypeStr();
-                }
-            } else {
-                // Could not find a method with this name -- this is an external class.
-                // Find first non-null object in array, and use its type as the type of the array.
-                for (final ObjectTypedValueWrapper elt : objectArrayValue) {
-                    if (elt != null) {
-                        targetElementTypeName = elt.integerValue != null ? "int"
-                                : elt.longValue != null ? "long"
-                                        : elt.shortValue != null ? "short"
-                                                : elt.characterValue != null ? "char"
-                                                        : elt.byteValue != null ? "byte"
-                                                                : elt.booleanValue != null ? "boolean"
-                                                                        : elt.doubleValue != null ? "double"
-                                                                                : elt.floatValue != null ? "float"
-                                                                                        : "";
-                    }
-                }
-            }
+            final String targetElementTypeName = (String) getArrayValueTypeClassOrName(annotationClassInfo,
+                    paramName, /* getClass = */ false);
 
             // Get array element type for 1D non-primitive arrays, and convert to a primitive array
             switch (targetElementTypeName) {

@@ -28,6 +28,8 @@
  */
 package nonapi.io.github.classgraph.types;
 
+import java.lang.reflect.Modifier;
+
 import nonapi.io.github.classgraph.types.Parser.ParseException;
 
 /**
@@ -86,4 +88,94 @@ public class TypeUtils {
         return getIdentifierToken(parser, '\0', '\0');
     }
 
+    /** The origin of the modifier bits. */
+    public static enum ModifierType {
+        /** The modifier bits apply to a class. */
+        CLASS,
+        /** The modifier bits apply to a method. */
+        METHOD,
+        /** The modifier bits apply to a field. */
+        FIELD;
+    }
+
+    /**
+     * Append a space if necessary (if not at the beginning of the buffer, and the last character is not already a
+     * space), then append a modifier keyword.
+     */
+    private static void appendModifierKeyword(final StringBuilder buf, final String modifierKeyword) {
+        if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ') {
+            buf.append(' ');
+        }
+        buf.append(modifierKeyword);
+    }
+
+    /**
+     * Convert modifiers into a string representation, e.g. "public static final".
+     * 
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param modifierType
+     *            The {@link ModifierType} these modifiers apply to.
+     * @param isDefault
+     *            for methods, true if this is a default method (else ignored).
+     * @param buf
+     *            The buffer to write the result into.
+     */
+    public static void modifiersToString(final int modifiers, final ModifierType modifierType,
+            final boolean isDefault, final StringBuilder buf) {
+        if ((modifiers & Modifier.PUBLIC) != 0) {
+            appendModifierKeyword(buf, "public");
+        } else if ((modifiers & Modifier.PRIVATE) != 0) {
+            appendModifierKeyword(buf, "private");
+        } else if ((modifiers & Modifier.PROTECTED) != 0) {
+            appendModifierKeyword(buf, "protected");
+        }
+        if (modifierType != ModifierType.FIELD && (modifiers & Modifier.ABSTRACT) != 0) {
+            appendModifierKeyword(buf, "abstract");
+        }
+        if ((modifiers & Modifier.STATIC) != 0) {
+            appendModifierKeyword(buf, "static");
+        }
+        if (modifierType == ModifierType.FIELD) {
+            // "bridge" and "volatile" overlap in bit 0x40
+            if ((modifiers & Modifier.VOLATILE) != 0) {
+                appendModifierKeyword(buf, "volatile");
+            }
+            if ((modifiers & Modifier.TRANSIENT) != 0) {
+                appendModifierKeyword(buf, "transient");
+            }
+        }
+        if ((modifiers & Modifier.FINAL) != 0) {
+            appendModifierKeyword(buf, "final");
+        }
+        if (modifierType == ModifierType.METHOD) {
+            if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
+                appendModifierKeyword(buf, "synchronized");
+            }
+            if (isDefault) {
+                appendModifierKeyword(buf, "default");
+            }
+        }
+        if ((modifiers & 0x1000) != 0) {
+            appendModifierKeyword(buf, "synthetic");
+        }
+        if (modifierType != ModifierType.FIELD) {
+            // "bridge" and "volatile" overlap in bit 0x40
+            if ((modifiers & 0x40) != 0) {
+                appendModifierKeyword(buf, "bridge");
+            }
+        }
+        if (modifierType == ModifierType.METHOD) {
+            if ((modifiers & Modifier.NATIVE) != 0) {
+                appendModifierKeyword(buf, "native");
+            }
+            // Ignored:
+            // ACC_SUPER (0x0020): Treat superclass methods specially when invoked by the invokespecial instruction
+        }
+        if (modifierType != ModifierType.FIELD) {
+            if ((modifiers & Modifier.STRICT) != 0) {
+                appendModifierKeyword(buf, "strictfp");
+            }
+        }
+    }
 }

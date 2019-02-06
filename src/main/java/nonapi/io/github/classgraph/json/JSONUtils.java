@@ -130,44 +130,8 @@ public class JSONUtils {
      * @return The escaped string.
      */
     public static String escapeJSONString(final String unsafeStr) {
-        if (unsafeStr == null) {
-            return unsafeStr;
-        }
-        // Fast path
-        boolean needsEscaping = false;
-        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
-            if (c > 0xff || JSON_CHAR_REPLACEMENTS[c] != null) {
-                needsEscaping = true;
-                break;
-            }
-        }
-        if (!needsEscaping) {
-            return unsafeStr;
-        }
-        // Slow path
         final StringBuilder buf = new StringBuilder(unsafeStr.length() * 2);
-        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
-            if (c > 0xff) {
-                buf.append("\\u");
-                final int nibble3 = ((c) & 0xf000) >> 12;
-                buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
-                final int nibble2 = ((c) & 0xf00) >> 8;
-                buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
-                final int nibble1 = ((c) & 0xf0) >> 4;
-                buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
-                final int nibble0 = ((c) & 0xf);
-                buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
-            } else {
-                final String replacement = JSON_CHAR_REPLACEMENTS[c];
-                if (replacement == null) {
-                    buf.append(c);
-                } else {
-                    buf.append(replacement);
-                }
-            }
-        }
+        escapeJSONString(unsafeStr, buf);
         return buf.toString();
     }
 

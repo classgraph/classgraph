@@ -227,10 +227,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             final String methodName = method.getName();
             final Class<?>[] paramTypes = method.getParameterTypes();
             if ((args == null ? 0 : args.length) != paramTypes.length) {
-                throw new IllegalArgumentException("Wrong number of arguments for " + annotationClass.getName()
-                        + "." + methodName + ": got " + args.length + ", expected " + paramTypes.length);
+                throw new IllegalArgumentException(
+                        "Wrong number of arguments for " + annotationClass.getName() + "." + methodName + ": got "
+                                + (args == null ? 0 : args.length) + ", expected " + paramTypes.length);
             }
-            if (paramTypes.length == 1) {
+            if (args != null && paramTypes.length == 1) {
                 if (methodName.equals("equals") && paramTypes[0] == Object.class) {
                     return args[0] != null && args[0] instanceof AnnotationInvocationHandler
                             && ((AnnotationInvocationHandler) args[0]).annotationClass == annotationClass

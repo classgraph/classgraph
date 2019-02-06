@@ -328,21 +328,9 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         // Whitelist/blacklist classpath elements based on dir resource paths
-        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-            if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(dirRelativePath)) {
-                if (log != null) {
-                    log.log("Reached blacklisted classpath element resource path, stopping scanning: "
-                            + dirRelativePath);
-                }
-                skipClasspathElement = true;
-                return;
-            }
-            if (scanSpec.classpathElementResourcePathWhiteBlackList.isSpecificallyWhitelisted(dirRelativePath)) {
-                if (log != null) {
-                    log.log("Reached specifically whitelisted classpath element resource path: " + dirRelativePath);
-                }
-                containsSpecificallyWhitelistedClasspathElementResourcePath = true;
-            }
+        checkResourcePathWhiteBlackList(dirRelativePath, log);
+        if (skipClasspathElement) {
+            return;
         }
 
         final ScanSpecPathMatch parentMatchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
@@ -382,25 +370,9 @@ class ClasspathElementDir extends ClasspathElement {
                             : dirRelativePath + fileInDir.getName();
 
                     // Whitelist/blacklist classpath elements based on file resource paths
-                    if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-                        if (scanSpec.classpathElementResourcePathWhiteBlackList
-                                .isBlacklisted(fileInDirRelativePath)) {
-                            if (subLog != null) {
-                                subLog.log(
-                                        "Reached blacklisted classpath element resource path, stopping scanning: "
-                                                + fileInDirRelativePath);
-                            }
-                            skipClasspathElement = true;
-                            return;
-                        }
-                        if (scanSpec.classpathElementResourcePathWhiteBlackList
-                                .isSpecificallyWhitelisted(fileInDirRelativePath)) {
-                            if (subLog != null) {
-                                subLog.log("Reached specifically whitelisted classpath element resource path: "
-                                        + fileInDirRelativePath);
-                            }
-                            containsSpecificallyWhitelistedClasspathElementResourcePath = true;
-                        }
+                    checkResourcePathWhiteBlackList(fileInDirRelativePath, subLog);
+                    if (skipClasspathElement) {
+                        return;
                     }
 
                     // If relative path is whitelisted

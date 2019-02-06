@@ -48,6 +48,20 @@ class JSONParser extends Parser {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get and parse a hexadecimal digit character. */
+    private int getAndParseHexChar() throws ParseException {
+        final char hexChar = getc();
+        if (hexChar >= '0' && hexChar <= '9') {
+            return hexChar - '0';
+        } else if (hexChar >= 'a' && hexChar <= 'f') {
+            return hexChar - 'a' + 10;
+        } else if (hexChar >= 'A' && hexChar <= 'F') {
+            return hexChar - 'A' + 10;
+        } else {
+            throw new ParseException(this, "Invalid character in Unicode escape sequence: " + hexChar);
+        }
+    }
+
     /**
      * Parse a quoted/escaped JSON string.
      * 
@@ -132,51 +146,10 @@ class JSONParser extends Parser {
                     break;
                 case 'u':
                     int charVal = 0;
-                    boolean charValInvalid = false;
-                    final char h3 = getc();
-                    if (h3 >= '0' && h3 <= '9') {
-                        charVal |= ((h3 - '0') << 12);
-                    } else if (h3 >= 'a' && h3 <= 'f') {
-                        charVal |= ((h3 - 'a' + 10) << 12);
-                    } else if (h3 >= 'A' && h3 <= 'F') {
-                        charVal |= ((h3 - 'A' + 10) << 12);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    final char h2 = getc();
-                    if (h2 >= '0' && h2 <= '9') {
-                        charVal |= ((h2 - '0') << 8);
-                    } else if (h2 >= 'a' && h2 <= 'f') {
-                        charVal |= ((h2 - 'a' + 10) << 8);
-                    } else if (h2 >= 'A' && h2 <= 'F') {
-                        charVal |= ((h2 - 'A' + 10) << 8);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    final char h1 = getc();
-                    if (h1 >= '0' && h1 <= '9') {
-                        charVal |= ((h1 - '0') << 4);
-                    } else if (h1 >= 'a' && h1 <= 'f') {
-                        charVal |= ((h1 - 'a' + 10) << 4);
-                    } else if (h1 >= 'A' && h1 <= 'F') {
-                        charVal |= ((h1 - 'A' + 10) << 4);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    final char h0 = getc();
-                    if (h0 >= '0' && h0 <= '9') {
-                        charVal |= (h0 - '0');
-                    } else if (h0 >= 'a' && h0 <= 'f') {
-                        charVal |= (h0 - 'a' + 10);
-                    } else if (h0 >= 'A' && h0 <= 'F') {
-                        charVal |= (h0 - 'A' + 10);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    if (charValInvalid) {
-                        throw new ParseException(this,
-                                "Invalid Unicode escape sequence: \\" + c + "" + h3 + "" + h2 + "" + h1 + "" + h0);
-                    }
+                    charVal = getAndParseHexChar() << 12;
+                    charVal |= getAndParseHexChar() << 8;
+                    charVal |= getAndParseHexChar() << 4;
+                    charVal |= getAndParseHexChar();
                     buf.append((char) charVal);
                     break;
                 default:

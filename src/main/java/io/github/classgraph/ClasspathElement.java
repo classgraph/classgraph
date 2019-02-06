@@ -140,6 +140,29 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Check relativePath against classpathElementResourcePathWhiteBlackList */
+    protected void checkResourcePathWhiteBlackList(final String relativePath, final LogNode log) {
+        // Whitelist/blacklist classpath elements based on file resource paths
+        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
+            if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(relativePath)) {
+                if (log != null) {
+                    log.log("Reached blacklisted classpath element resource path, stopping scanning: "
+                            + relativePath);
+                }
+                skipClasspathElement = true;
+                return;
+            }
+            if (scanSpec.classpathElementResourcePathWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
+                if (log != null) {
+                    log.log("Reached specifically whitelisted classpath element resource path: " + relativePath);
+                }
+                containsSpecificallyWhitelistedClasspathElementResourcePath = true;
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
      * earlier classpath element.

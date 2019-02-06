@@ -386,17 +386,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The filtered list, containing only standard classes.
      */
     public ClassInfoList getStandardClasses() {
-        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo ci : this) {
-            if (ci.isStandardClass()) {
-                reachableClassesFiltered.add(ci);
-                if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedClassesFiltered.add(ci);
-                }
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isStandardClass();
             }
-        }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
+        });
     }
 
     /**
@@ -406,17 +401,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfaces() {
-        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo ci : this) {
-            if (ci.isInterface()) {
-                reachableClassesFiltered.add(ci);
-                if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedClassesFiltered.add(ci);
-                }
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isInterface();
             }
-        }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
+        });
     }
 
     /**
@@ -426,17 +416,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfacesAndAnnotations() {
-        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo ci : this) {
-            if (ci.isInterfaceOrAnnotation()) {
-                reachableClassesFiltered.add(ci);
-                if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedClassesFiltered.add(ci);
-                }
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isInterfaceOrAnnotation();
             }
-        }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
+        });
     }
 
     /**
@@ -446,17 +431,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The filtered list, containing only implemented interfaces.
      */
     public ClassInfoList getImplementedInterfaces() {
-        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo ci : this) {
-            if (ci.isImplementedInterface()) {
-                reachableClassesFiltered.add(ci);
-                if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedClassesFiltered.add(ci);
-                }
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isImplementedInterface();
             }
-        }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
+        });
     }
 
     /**
@@ -465,17 +445,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The filtered list, containing only annotations.
      */
     public ClassInfoList getAnnotations() {
-        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo ci : this) {
-            if (ci.isAnnotation()) {
-                reachableClassesFiltered.add(ci);
-                if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedClassesFiltered.add(ci);
-                }
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isAnnotation();
             }
-        }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
+        });
     }
 
     /**
@@ -484,17 +459,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The filtered list, containing only enums.
      */
     public ClassInfoList getEnums() {
-        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo ci : this) {
-            if (ci.isEnum()) {
-                reachableClassesFiltered.add(ci);
-                if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedClassesFiltered.add(ci);
-                }
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isEnum();
             }
-        }
-        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, sortByName);
+        });
     }
 
     /**
@@ -522,20 +492,15 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         } else if (superclassOrInterface.isInterfaceOrAnnotation()) {
             allAssignableFromClasses.addAll(superclassOrInterface.getClassesImplementing());
         }
+        // A class is its own superclass or interface
         allAssignableFromClasses.add(superclassOrInterface);
-        final Set<ClassInfo> assignableFromClassesFiltered = new LinkedHashSet<>(size());
-        final Set<ClassInfo> directlyRelatedAssignableFromClassesFiltered = new LinkedHashSet<>(
-                directlyRelatedClasses.size());
-        for (final ClassInfo ci : this) {
-            if (allAssignableFromClasses.contains(ci)) {
-                assignableFromClassesFiltered.add(ci);
-                if (directlyRelatedClasses.contains(ci)) {
-                    directlyRelatedAssignableFromClassesFiltered.add(ci);
-                }
+
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return allAssignableFromClasses.contains(ci);
             }
-        }
-        return new ClassInfoList(assignableFromClassesFiltered, directlyRelatedAssignableFromClassesFiltered,
-                sortByName);
+        });
     }
 
     // -------------------------------------------------------------------------------------------------------------

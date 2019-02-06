@@ -147,32 +147,37 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
 
     /** Read another chunk of from the InputStream or ByteBuffer. */
     private void readMore(final int bytesRequired) throws IOException {
-        final int extraBytesNeeded = bytesRequired - (used - curr);
-        int bytesToRequest = Math.max(extraBytesNeeded, SUBSEQUENT_BUFFER_CHUNK_SIZE);
-        final int maxNewUsed = used + bytesToRequest;
+        final int chunkSizeToRequest = Math.max(SUBSEQUENT_BUFFER_CHUNK_SIZE, bytesRequired);
+        final int maxNewUsed = used + chunkSizeToRequest;
+        if (maxNewUsed <= 0) {
+            throw new IOException("Classfile is bigger than 2GB, cannot read it");
+        }
         if (maxNewUsed > buf.length) {
             // Ran out of space, need to increase the size of the buffer
             int newBufLen = buf.length;
             while (newBufLen < maxNewUsed) {
                 newBufLen <<= 1;
                 if (newBufLen <= 0) {
-                    // Handle overflow
                     throw new IOException("Classfile is bigger than 2GB, cannot read it");
                 }
             }
             buf = Arrays.copyOf(buf, newBufLen);
         }
-        int extraBytesStillNotRead = extraBytesNeeded;
+        int extraBytesStillNotRead = chunkSizeToRequest;
+        int totBytesRead = 0;
         while (extraBytesStillNotRead > 0) {
-            final int bytesRead = read(used, bytesToRequest);
+            final int bytesRead = read(used, extraBytesStillNotRead);
             if (bytesRead > 0) {
                 used += bytesRead;
-                bytesToRequest -= bytesRead;
+                totBytesRead += bytesRead;
                 extraBytesStillNotRead -= bytesRead;
             } else {
                 // EOF
-                throw new IOException("Premature EOF while reading classfile");
+                break;
             }
+        }
+        if (totBytesRead < bytesRequired) {
+            throw new IOException("Premature EOF while reading classfile");
         }
     }
 
@@ -184,10 +189,9 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public int readUnsignedByte() throws IOException {
-        if (curr > used - 1) {
-            readMore(1);
-        }
-        return buf[curr++] & 0xff;
+        final int val = readUnsignedByte(curr);
+        curr++;
+        return val;
     }
 
     /**
@@ -196,12 +200,13 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * @param offset
      *            The buffer offset to read from.
      * @return The unsigned byte at the buffer offset.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
-    public int readUnsignedByte(final int offset) {
+    public int readUnsignedByte(final int offset) throws IOException {
         final int bytesToRead = Math.max(0, offset + 1 - used);
         if (bytesToRead > 0) {
-            throw new IllegalArgumentException(
-                    "Can only read from absolute offsets before the current location in the file");
+            readMore(bytesToRead);
         }
         return buf[offset] & 0xff;
     }
@@ -212,10 +217,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public int readUnsignedShort() throws IOException {
-        if (curr > used - 2) {
-            readMore(2);
-        }
-        final int val = ((buf[curr] & 0xff) << 8) | (buf[curr + 1] & 0xff);
+        final int val = readUnsignedShort(curr);
         curr += 2;
         return val;
     }
@@ -226,12 +228,13 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * @param offset
      *            The buffer offset to read from.
      * @return The unsigned short at the buffer offset.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
-    public int readUnsignedShort(final int offset) {
-        final int bytesToRead = Math.max(0, offset + 1 - used);
+    public int readUnsignedShort(final int offset) throws IOException {
+        final int bytesToRead = Math.max(0, offset + 2 - used);
         if (bytesToRead > 0) {
-            throw new IllegalArgumentException(
-                    "Can only read from absolute offsets before the current location in the file");
+            readMore(bytesToRead);
         }
         return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
     }
@@ -242,11 +245,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public int readInt() throws IOException {
-        if (curr > used - 4) {
-            readMore(4);
-        }
-        final int val = ((buf[curr] & 0xff) << 24) | ((buf[curr + 1] & 0xff) << 16) | ((buf[curr + 2] & 0xff) << 8)
-                | (buf[curr + 3] & 0xff);
+        final int val = readInt(curr);
         curr += 4;
         return val;
     }
@@ -257,12 +256,13 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * @param offset
      *            The buffer offset to read from.
      * @return The int at the buffer offset.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
-    public int readInt(final int offset) {
+    public int readInt(final int offset) throws IOException {
         final int bytesToRead = Math.max(0, offset + 4 - used);
         if (bytesToRead > 0) {
-            throw new IllegalArgumentException(
-                    "Can only read from absolute offsets before the current location in the file");
+            readMore(bytesToRead);
         }
         return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
                 | (buf[offset + 3] & 0xff);
@@ -274,12 +274,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public long readLong() throws IOException {
-        if (curr > used - 8) {
-            readMore(8);
-        }
-        final long val = (((long) (((buf[curr] & 0xff) << 24) | ((buf[curr + 1] & 0xff) << 16)
-                | ((buf[curr + 2] & 0xff) << 8) | (buf[curr + 3] & 0xff))) << 32) | ((buf[curr + 4] & 0xff) << 24)
-                | ((buf[curr + 5] & 0xff) << 16) | ((buf[curr + 6] & 0xff) << 8) | (buf[curr + 7] & 0xff);
+        final long val = readLong(curr);
         curr += 8;
         return val;
     }
@@ -290,12 +285,13 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * @param offset
      *            The buffer offset to read from.
      * @return The long at the buffer offset.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
-    public long readLong(final int offset) {
+    public long readLong(final int offset) throws IOException {
         final int bytesToRead = Math.max(0, offset + 8 - used);
         if (bytesToRead > 0) {
-            throw new IllegalArgumentException(
-                    "Can only read from absolute offsets before the current location in the file");
+            readMore(bytesToRead);
         }
         return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
                 | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
@@ -312,8 +308,9 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public void skip(final int bytesToSkip) throws IOException {
-        if (curr > used - bytesToSkip) {
-            readMore(bytesToSkip);
+        final int bytesToRead = Math.max(0, curr + bytesToSkip - used);
+        if (bytesToRead > 0) {
+            readMore(bytesToRead);
         }
         curr += bytesToSkip;
     }

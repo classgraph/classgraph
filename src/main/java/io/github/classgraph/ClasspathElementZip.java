@@ -401,22 +401,9 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Whitelist/blacklist classpath elements based on file resource paths
-            if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-                if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(relativePath)) {
-                    if (subLog != null) {
-                        subLog.log("Reached blacklisted classpath element resource path, stopping scanning: "
-                                + relativePath);
-                    }
-                    skipClasspathElement = true;
-                    return;
-                }
-                if (scanSpec.classpathElementResourcePathWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
-                    if (subLog != null) {
-                        subLog.log("Reached specifically whitelisted classpath element resource path: "
-                                + relativePath);
-                    }
-                    containsSpecificallyWhitelistedClasspathElementResourcePath = true;
-                }
+            checkResourcePathWhiteBlackList(relativePath, log);
+            if (skipClasspathElement) {
+                return;
             }
 
             // Get match status of the parent directory of this ZipEntry file's relative path (or reuse the last
