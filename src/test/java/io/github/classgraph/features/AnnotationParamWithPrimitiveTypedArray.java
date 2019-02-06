@@ -47,11 +47,11 @@ public class AnnotationParamWithPrimitiveTypedArray {
             final AnnotationInfo annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName())
                     .getAnnotationInfo().get(0);
             final AnnotationParameterValueList annotationParams = annotationInfo.getParameterValues();
-            final Object v0 = annotationParams.get("v0");
-            final Object v1 = annotationParams.get("v1");
-            final Object v2 = annotationParams.get("v2");
-            final Object v3 = annotationParams.get("v3");
-            final Object v4 = annotationParams.get("v4");
+            final Object v0 = annotationParams.getValue("v0");
+            final Object v1 = annotationParams.getValue("v1");
+            final Object v2 = annotationParams.getValue("v2");
+            final Object v3 = annotationParams.getValue("v3");
+            final Object v4 = annotationParams.getValue("v4");
 
             assertThat(v0.getClass()).isEqualTo(int[].class);
             assertThat(v1.getClass()).isEqualTo(char[].class);
