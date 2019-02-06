@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
+import nonapi.io.github.classgraph.ClassGraphInternalException;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -48,6 +49,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
  *            The value type.
  */
 public abstract class SingletonMap<K, V> {
+
+    /** The map. */
     private final ConcurrentMap<K, SingletonHolder<V>> map = new ConcurrentHashMap<>();
 
     /**
@@ -55,16 +58,42 @@ public abstract class SingletonMap<K, V> {
      * the instance to be initialized first, so that putIfAbsent can be performed without wrapping it with a
      * synchronized lock, and so that initialization work is not wasted if an object is already in the map for the
      * key.
+     *
+     * @param <V>
+     *            the singleton type
      */
     private static class SingletonHolder<V> {
+
+        /** The singleton. */
         private V singleton;
+
+        /** Whether or not the singleton has been initialized (the count will have reached 0 if so). */
         private final CountDownLatch initialized = new CountDownLatch(1);
 
+        /**
+         * Set the singleton value, and decreases the countdown latch to 0.
+         *
+         * @param singleton
+         *            the singleton
+         */
         void set(final V singleton) {
+            if (initialized.getCount() < 1) {
+                throw new ClassGraphInternalException("Singleton already initialized");
+            }
             this.singleton = singleton;
             initialized.countDown();
+            if (initialized.getCount() != 0) {
+                throw new ClassGraphInternalException("Singleton initialized more than once");
+            }
         }
 
+        /**
+         * Get the singleton value.
+         *
+         * @return the singleton value.
+         * @throws InterruptedException
+         *             the interrupted exception
+         */
         V get() throws InterruptedException {
             initialized.await();
             return singleton;
