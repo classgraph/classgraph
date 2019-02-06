@@ -864,7 +864,7 @@ public class ClassGraph {
 
     /**
      * Whitelist one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
-     * {@link #enableSystemPackages()} is called, by association with the JRE/JDK).
+     * {@link #enableSystemJarsAndModules()} is called, by association with the JRE/JDK).
      *
      * @param jarLeafNames
      *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
@@ -976,17 +976,6 @@ public class ClassGraph {
         enableClassInfo();
         scanSpec.enableSystemJarsAndModules = true;
         return this;
-    }
-
-    /**
-     * Use {@link #enableSystemJarsAndModules()} instead.
-     *
-     * @return this (for method chaining).
-     * @deprecated Use {@link #enableSystemJarsAndModules()} instead.
-     */
-    @Deprecated
-    public ClassGraph enableSystemPackages() {
-        return enableSystemJarsAndModules();
     }
 
     /**
