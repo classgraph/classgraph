@@ -14,7 +14,7 @@ public class Triangle extends ShapeImpl {
     private final float rotation;
 
     /**
-     * Instantiates a new triangle.
+     * Constructor.
      *
      * @param x
      *            the x
@@ -32,7 +32,7 @@ public class Triangle extends ShapeImpl {
     }
 
     /**
-     * Gets the edge len.
+     * Get the edge len.
      *
      * @return the edge len
      */
@@ -41,7 +41,7 @@ public class Triangle extends ShapeImpl {
     }
 
     /**
-     * Gets the rotation.
+     * Get the rotation.
      *
      * @return the rotation
      */

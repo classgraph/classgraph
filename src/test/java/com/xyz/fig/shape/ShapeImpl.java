@@ -14,7 +14,7 @@ public abstract class ShapeImpl implements Shape {
     private final float y;
 
     /**
-     * Instantiates a new shape impl.
+     * Constructor.
      *
      * @param x
      *            the x
@@ -27,7 +27,7 @@ public abstract class ShapeImpl implements Shape {
     }
 
     /**
-     * Gets the x.
+     * Get the x.
      *
      * @return the x
      */
@@ -36,7 +36,7 @@ public abstract class ShapeImpl implements Shape {
     }
 
     /**
-     * Gets the y.
+     * Get the y.
      *
      * @return the y
      */

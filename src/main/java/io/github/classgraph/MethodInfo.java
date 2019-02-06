@@ -85,10 +85,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     private int[] parameterModifiers;
 
-    /** Unaligned parameter annotations */
+    /** Unaligned parameter annotations. */
     AnnotationInfo[][] parameterAnnotationInfo;
 
-    /** Aligned method parameter info */
+    /** Aligned method parameter info. */
     private transient MethodParameterInfo[] parameterInfo;
 
     /** True if this method has a body. */
@@ -101,6 +101,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Constructor.
+     *
      * @param definingClassName
      *            The name of the enclosing class.
      * @param methodName
@@ -173,7 +175,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         return buf.toString();
     }
 
-    /** @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this method). */
+    /**
+     * Get the {@link ClassInfo} object for the declaring class (i.e. the class that declares this method).
+     *
+     * @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this method).
+     */
     @Override
     public ClassInfo getClassInfo() {
         return super.getClassInfo();
@@ -472,6 +478,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Check if this method has the named annotation.
+     *
      * @param annotationName
      *            The name of an annotation.
      * @return true if this method has the named annotation.
@@ -481,6 +489,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Check if this method has a parameter with the named annotation.
+     *
      * @param annotationName
      *            The name of a method parameter annotation.
      * @return true if this method has a parameter with the named annotation.
@@ -527,12 +537,17 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /**
      * Returns the declaring class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
      * declaring class.
+     *
+     * @return the class name
      */
     @Override
     protected String getClassName() {
         return declaringClassName;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -563,7 +578,12 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         }
     }
 
-    /** Get the names of any classes in the type descriptor or type signature. */
+    /**
+     * Get the names of any classes in the type descriptor or type signature.
+     *
+     * @param classNames
+     *            the class names
+     */
     @Override
     protected void getReferencedClassNames(final Set<String> classNames) {
         final MethodTypeSignature methodSig = getTypeSignature();
@@ -591,7 +611,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Test class name, method name and type descriptor for equals(). */
+    /**
+     * Test class name, method name and type descriptor for equals().
+     *
+     * @param obj
+     *            the object to compare for equality
+     * @return true if equal
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -608,13 +634,23 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 && typeDescriptorStr.equals(other.typeDescriptorStr) && name.equals(other.name);
     }
 
-    /** Use hash code of class name, method name and type descriptor. */
+    /**
+     * Use hashcode of class name, method name and type descriptor.
+     *
+     * @return the hashcode
+     */
     @Override
     public int hashCode() {
         return name.hashCode() + typeDescriptorStr.hashCode() * 11 + declaringClassName.hashCode() * 57;
     }
 
-    /** Sort in order of class name, method name, then type descriptor. */
+    /**
+     * Sort in order of class name, method name, then type descriptor.
+     *
+     * @param other
+     *            the other {@link MethodInfo} to compare.
+     * @return the result of the comparison.
+     */
     @Override
     public int compareTo(final MethodInfo other) {
         final int diff0 = declaringClassName.compareTo(other.declaringClassName);
@@ -633,6 +669,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /**
      * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
      * static class initializer blocks are named {@code "<clinit>"}.
+     *
+     * @return the string representation of the method.
      */
     @Override
     public String toString() {

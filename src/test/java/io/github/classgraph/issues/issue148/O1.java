@@ -22,7 +22,7 @@ public class O1 {
         public class II {
 
             /**
-             * Instantiates a new ii.
+             * Constructor.
              */
             public II() {
             }

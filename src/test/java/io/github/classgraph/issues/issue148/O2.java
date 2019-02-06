@@ -12,7 +12,7 @@ public class O2 {
     };
 
     /**
-     * Instantiates a new o2.
+     * Constructor.
      */
     public O2() {
         new SI() {

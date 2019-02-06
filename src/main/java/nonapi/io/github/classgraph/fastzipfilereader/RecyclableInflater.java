@@ -41,7 +41,11 @@ public class RecyclableInflater implements Resettable, AutoCloseable {
     /** Create a new {@link Inflater} instance with the "nowrap" option (which is needed for zipfile entries). */
     private final Inflater inflater = new Inflater(/* nowrap = */ true);
 
-    /** Get the {@link Inflater} instance. */
+    /**
+     * Get the {@link Inflater} instance.
+     *
+     * @return the {@link Inflater} instance.
+     */
     public Inflater getInflater() {
         return inflater;
     }

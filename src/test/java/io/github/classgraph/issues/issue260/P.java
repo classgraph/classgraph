@@ -6,7 +6,7 @@ package io.github.classgraph.issues.issue260;
 public abstract class P {
 
     /**
-     * Instantiates a new p.
+     * Constructor.
      *
      * @param strings
      *            the strings

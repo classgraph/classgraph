@@ -30,8 +30,15 @@ package nonapi.io.github.classgraph.json;
 
 /** A class that serves as a placeholder for circular references between objects. */
 class JSONReference {
+    /** The id object. */
     Object idObject;
 
+    /**
+     * Constructor.
+     *
+     * @param idObject
+     *            the id object
+     */
     public JSONReference(final Object idObject) {
         if (idObject == null) {
             throw new IllegalArgumentException("idObject cannot be null");

@@ -36,13 +36,28 @@ import nonapi.io.github.classgraph.types.Parser.ParseException;
  * Stores the type descriptor of a {@code Class<?>}, as found in an annotation parameter value.
  */
 public class AnnotationClassRef extends ScanResultObject {
+
+    /** The type descriptor str. */
     private String typeDescriptorStr;
+
+    /** The type signature. */
     private transient TypeSignature typeSignature;
+
+    /** The class name. */
     private transient String className;
 
+    /**
+     * Constructor.
+     */
     AnnotationClassRef() {
     }
 
+    /**
+     * Constructor.
+     *
+     * @param typeDescriptorStr
+     *            the type descriptor str
+     */
     AnnotationClassRef(final String typeDescriptorStr) {
         this.typeDescriptorStr = typeDescriptorStr;
     }
@@ -50,6 +65,8 @@ public class AnnotationClassRef extends ScanResultObject {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the name.
+     *
      * @return The name of the referenced class.
      */
     public String getName() {
@@ -57,6 +74,8 @@ public class AnnotationClassRef extends ScanResultObject {
     }
 
     /**
+     * Get the type signature.
+     *
      * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature} or
      *         a {@link BaseTypeSignature}.
      */
@@ -110,6 +129,9 @@ public class AnnotationClassRef extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         if (className == null) {
@@ -127,6 +149,8 @@ public class AnnotationClassRef extends ScanResultObject {
     }
 
     /**
+     * Get the class info.
+     *
      * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
      *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
      *         N.B. even if this method returns null, {@link #loadClass()} may be able to load the referenced class
@@ -138,6 +162,9 @@ public class AnnotationClassRef extends ScanResultObject {
         return super.getClassInfo();
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -146,6 +173,9 @@ public class AnnotationClassRef extends ScanResultObject {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getReferencedClassNames(java.util.Set)
+     */
     @Override
     protected void getReferencedClassNames(final Set<String> classNames) {
         classNames.add(getClassName());
@@ -153,11 +183,17 @@ public class AnnotationClassRef extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return getTypeSignature().hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof AnnotationClassRef)) {
@@ -166,6 +202,9 @@ public class AnnotationClassRef extends ScanResultObject {
         return getTypeSignature().equals(((AnnotationClassRef) obj).getTypeSignature());
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return getTypeSignature().toString();

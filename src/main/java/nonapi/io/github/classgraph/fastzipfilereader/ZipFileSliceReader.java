@@ -38,16 +38,40 @@ import java.util.Arrays;
 
 import nonapi.io.github.classgraph.utils.FileUtils;
 
+/**
+ * A class for reading from a {@link ZipFileSlice}.
+ */
 class ZipFileSliceReader implements AutoCloseable {
+
+    /** The zipfile slice. */
     private final ZipFileSlice zipFileSlice;
+
+    /** The chunk cache. */
     private final ByteBuffer[] chunkCache;
+
+    /** A scratch buffer. */
     private final byte[] scratch = new byte[256];
 
+    /**
+     * Constructor.
+     *
+     * @param zipFileSlice
+     *            the zipfile slice
+     */
     public ZipFileSliceReader(final ZipFileSlice zipFileSlice) {
         this.zipFileSlice = zipFileSlice;
         this.chunkCache = new ByteBuffer[zipFileSlice.physicalZipFile.numMappedByteBuffers];
     }
 
+    /**
+     * Get the 2GB chunk of the zipfile with the given chunk index.
+     *
+     * @param chunkIdx
+     *            the chunk index
+     * @return the chunk
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     private ByteBuffer getChunk(final int chunkIdx) throws IOException {
         ByteBuffer chunk = chunkCache[chunkIdx];
         if (chunk == null) {
@@ -60,6 +84,18 @@ class ZipFileSliceReader implements AutoCloseable {
     /**
      * Copy from an offset within the file into a byte[] array (possibly spanning the boundary between two 2GB
      * chunks).
+     *
+     * @param off
+     *            the offset
+     * @param buf
+     *            the buffer to copy into
+     * @param bufStart
+     *            the start index within the buffer
+     * @param numBytesToRead
+     *            the number of bytes to read
+     * @return the number of bytes read
+     * @throws IOException
+     *             if an I/O exception occurs.
      */
     int read(final long off, final byte[] buf, final int bufStart, final int numBytesToRead) throws IOException {
         if (off < 0 || bufStart < 0 || bufStart + numBytesToRead > buf.length) {
@@ -100,14 +136,34 @@ class ZipFileSliceReader implements AutoCloseable {
         return totBytesRead == 0 && numBytesToRead > 0 ? -1 : totBytesRead;
     }
 
-    static int getShort(final byte[] buf, final long off) throws IndexOutOfBoundsException {
+    /**
+     * Get a short from a byte array.
+     *
+     * @param arr
+     *            the byte array
+     * @param off
+     *            the offset to start reading from
+     * @return the short
+     * @throws IndexOutOfBoundsException
+     *             the index out of bounds exception
+     */
+    static int getShort(final byte[] arr, final long off) throws IndexOutOfBoundsException {
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - 2) {
+        if (ioff < 0 || ioff > arr.length - 2) {
             throw new IndexOutOfBoundsException();
         }
-        return ((buf[ioff + 1] & 0xff) << 8) | (buf[ioff] & 0xff);
+        return ((arr[ioff + 1] & 0xff) << 8) | (arr[ioff] & 0xff);
     }
 
+    /**
+     * Get a short from the zipfile slice.
+     *
+     * @param off
+     *            the offset to start reading from
+     * @return the short
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     int getShort(final long off) throws IOException {
         if (off < 0 || off > zipFileSlice.len - 2) {
             throw new IndexOutOfBoundsException();
@@ -118,17 +174,37 @@ class ZipFileSliceReader implements AutoCloseable {
         return ((scratch[1] & 0xff) << 8) | (scratch[0] & 0xff);
     }
 
-    static int getInt(final byte[] buf, final long off) throws IOException {
+    /**
+     * Get an int from a byte array.
+     *
+     * @param arr
+     *            the byte array
+     * @param off
+     *            the offset to start reading from
+     * @return the int
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    static int getInt(final byte[] arr, final long off) throws IOException {
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - 4) {
+        if (ioff < 0 || ioff > arr.length - 4) {
             throw new IndexOutOfBoundsException();
         }
-        return ((buf[ioff + 3] & 0xff) << 24) //
-                | ((buf[ioff + 2] & 0xff) << 16) //
-                | ((buf[ioff + 1] & 0xff) << 8) //
-                | (buf[ioff] & 0xff);
+        return ((arr[ioff + 3] & 0xff) << 24) //
+                | ((arr[ioff + 2] & 0xff) << 16) //
+                | ((arr[ioff + 1] & 0xff) << 8) //
+                | (arr[ioff] & 0xff);
     }
 
+    /**
+     * Get an int from the zipfile slice.
+     *
+     * @param off
+     *            the offset to start reading from
+     * @return the int
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     int getInt(final long off) throws IOException {
         if (off < 0 || off > zipFileSlice.len - 4) {
             throw new IndexOutOfBoundsException();
@@ -142,23 +218,43 @@ class ZipFileSliceReader implements AutoCloseable {
                 | (scratch[0] & 0xff);
     }
 
-    static long getLong(final byte[] buf, final long off) throws IOException {
+    /**
+     * Get a long from a byte array.
+     *
+     * @param arr
+     *            the byte array
+     * @param off
+     *            the offset to start reading from
+     * @return the long
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    static long getLong(final byte[] arr, final long off) throws IOException {
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - 8) {
+        if (ioff < 0 || ioff > arr.length - 8) {
             throw new IndexOutOfBoundsException();
         }
         return //
-        (((long) (((buf[ioff + 7] & 0xff) << 24) //
-                | ((buf[ioff + 6] & 0xff) << 16) //
-                | ((buf[ioff + 5] & 0xff) << 8) //
-                | (buf[ioff + 4] & 0xff))) //
+        (((long) (((arr[ioff + 7] & 0xff) << 24) //
+                | ((arr[ioff + 6] & 0xff) << 16) //
+                | ((arr[ioff + 5] & 0xff) << 8) //
+                | (arr[ioff + 4] & 0xff))) //
         << 32) //
-                | (((buf[ioff + 3] & 0xff) << 24) //
-                        | ((buf[ioff + 2] & 0xff) << 16) //
-                        | ((buf[ioff + 1] & 0xff) << 8) //
-                        | (buf[ioff] & 0xff));
+                | (((arr[ioff + 3] & 0xff) << 24) //
+                        | ((arr[ioff + 2] & 0xff) << 16) //
+                        | ((arr[ioff + 1] & 0xff) << 8) //
+                        | (arr[ioff] & 0xff));
     }
 
+    /**
+     * Get a long from the zipfile slice.
+     *
+     * @param off
+     *            the offset to start reading from
+     * @return the long
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     long getLong(final long off) throws IOException {
         if (off < 0 || off > zipFileSlice.len - 8) {
             throw new IndexOutOfBoundsException();
@@ -178,27 +274,54 @@ class ZipFileSliceReader implements AutoCloseable {
                         | (scratch[0] & 0xff));
     }
 
-    static String getString(final byte[] buf, final long off, final int numBytes) throws IOException {
+    /**
+     * Get a string from a byte array.
+     *
+     * @param arr
+     *            the byte array
+     * @param off
+     *            the offset to start reading from
+     * @param lenBytes
+     *            the length of the string in bytes
+     * @return the string
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    static String getString(final byte[] arr, final long off, final int lenBytes) throws IOException {
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > buf.length - numBytes) {
+        if (ioff < 0 || ioff > arr.length - lenBytes) {
             throw new IndexOutOfBoundsException();
         }
-        return new String(buf, ioff, numBytes, StandardCharsets.UTF_8);
+        return new String(arr, ioff, lenBytes, StandardCharsets.UTF_8);
     }
 
-    String getString(final long off, final int numBytes) throws IOException {
-        if (off < 0 || off > zipFileSlice.len - numBytes) {
+    /**
+     * Get a string from the zipfile slice.
+     *
+     * @param off
+     *            the offset to start reading from
+     * @param lenBytes
+     *            the length of the string in bytes
+     * @return the string
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    String getString(final long off, final int lenBytes) throws IOException {
+        if (off < 0 || off > zipFileSlice.len - lenBytes) {
             throw new IndexOutOfBoundsException();
         }
-        final byte[] scratchToUse = numBytes <= scratch.length ? scratch : new byte[numBytes];
-        if (read(off, scratchToUse, 0, numBytes) < numBytes) {
+        final byte[] scratchToUse = lenBytes <= scratch.length ? scratch : new byte[lenBytes];
+        if (read(off, scratchToUse, 0, lenBytes) < lenBytes) {
             throw new EOFException("Unexpected EOF");
         }
         // Assume the entry names are encoded in UTF-8 (should be the case for all jars; the only other
         // valid zipfile charset is CP437, which is the same as ASCII for printable high-bit-clear chars)
-        return new String(scratchToUse, 0, numBytes, StandardCharsets.UTF_8);
+        return new String(scratchToUse, 0, lenBytes, StandardCharsets.UTF_8);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.AutoCloseable#close()
+     */
     @Override
     public void close() {
         Arrays.fill(chunkCache, null);

@@ -37,22 +37,35 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names.
  */
 public class FallbackClassLoaderHandler implements ClassLoaderHandler {
+
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+     */
     @Override
     public String[] handledClassLoaders() {
         // The actual string "*" is unimportant here, it is ignored
         return new String[] { "*" };
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+     */
     @Override
     public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
         return null;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
+     */
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {

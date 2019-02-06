@@ -44,6 +44,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param elementTypeSignature
      *            The type signature of the array elements.
      * @param numDims
@@ -54,29 +56,46 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         this.numDims = numDims;
     }
 
-    /** @return The type signature of the array elements. */
+    /**
+     * Get the element type signature.
+     *
+     * @return The type signature of the array elements.
+     */
     public TypeSignature getElementTypeSignature() {
         return elementTypeSignature;
     }
 
-    /** @return The number of dimensions of the array. */
+    /**
+     * Get the number of dimensions.
+     *
+     * @return The number of dimensions of the array.
+     */
     public int getNumDimensions() {
         return numDims;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -85,6 +104,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> referencedClassNames) {
         elementTypeSignature.getReferencedClassNames(referencedClassNames);
@@ -92,11 +114,17 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return elementTypeSignature.hashCode() + numDims * 15;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -109,6 +137,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return o.elementTypeSignature.equals(this.elementTypeSignature) && o.numDims == this.numDims;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.classgraph.TypeSignature)
+     */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
         if (this == other) {
@@ -122,6 +153,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
                 && o.numDims == this.numDims;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
@@ -132,6 +166,17 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return buf.toString();
     }
 
+    /**
+     * Parses the array type signature.
+     *
+     * @param parser
+     *            the parser
+     * @param definingClassName
+     *            the defining class name
+     * @return the array type signature
+     * @throws ParseException
+     *             if parsing fails
+     */
     static ArrayTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         int numArrayDims = 0;
         while (parser.peek() == '[') {

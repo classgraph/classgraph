@@ -35,8 +35,8 @@ import java.util.Set;
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
-     * Get the names of all classes referenced in the type signature
-     * 
+     * Get the names of all classes referenced in the type signature.
+     *
      * @param classNames
      *            The set to store class names in.
      */

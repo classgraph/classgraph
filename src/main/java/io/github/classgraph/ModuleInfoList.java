@@ -35,14 +35,29 @@ import io.github.classgraph.InfoList.MappableInfoList;
 /** A list of {@link ModuleInfo} objects. */
 public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
 
+    /**
+     * Constructor.
+     */
     ModuleInfoList() {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     ModuleInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param moduleInfoCollection
+     *            the module info collection
+     */
     ModuleInfoList(final Collection<ModuleInfo> moduleInfoCollection) {
         super(moduleInfoCollection);
     }

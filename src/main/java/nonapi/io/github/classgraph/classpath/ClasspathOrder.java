@@ -43,21 +43,45 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
+
+    /** The scan spec. */
     private final ScanSpec scanSpec;
+
+    /** The classpath order. */
     private final LinkedHashSet<String> order = new LinkedHashSet<>();
+
+    /** A map from classpath element path to classloaders. */
     private final Map<String, ClassLoader[]> classpathEltPathToClassLoaders;
 
+    /**
+     * Constructor.
+     *
+     * @param classpathEltPathToClassLoaders
+     *            the classpath elt path to class loaders
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathOrder(final Map<String, ClassLoader[]> classpathEltPathToClassLoaders, final ScanSpec scanSpec) {
         this.classpathEltPathToClassLoaders = classpathEltPathToClassLoaders;
         this.scanSpec = scanSpec;
     }
 
-    /** Get the order of classpath elements, as an ordered set. */
+    /**
+     * Get the order of classpath elements, as an ordered set.
+     *
+     * @return the classpath order
+     */
     public Set<String> getOrder() {
         return order;
     }
 
-    /** Test to see if a RelativePath has been filtered out by the user. */
+    /**
+     * Test to see if a RelativePath has been filtered out by the user.
+     *
+     * @param classpathElementPath
+     *            the classpath element path
+     * @return true, if not filtered out
+     */
     private boolean filter(final String classpathElementPath) {
         if (scanSpec.classpathElementFilters != null) {
             for (final ClasspathElementFilter filter : scanSpec.classpathElementFilters) {
@@ -69,6 +93,15 @@ public class ClasspathOrder {
         return true;
     }
 
+    /**
+     * Add a system classpath element.
+     *
+     * @param pathElement
+     *            the path element
+     * @param classLoaders
+     *            the classloaders
+     * @return true, if added and unique
+     */
     boolean addSystemClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
         if (order.add(pathElement)) {
             classpathEltPathToClassLoaders.put(pathElement, classLoaders);
@@ -77,6 +110,15 @@ public class ClasspathOrder {
         return false;
     }
 
+    /**
+     * Add a classpath element.
+     *
+     * @param pathElement
+     *            the path element
+     * @param classLoaders
+     *            the classloaders
+     * @return true, if added and unique
+     */
     private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
         if (SystemJarFinder.getJreLibOrExtJars().contains(pathElement)
                 || pathElement.equals(SystemJarFinder.getJreRtJarPath())) {

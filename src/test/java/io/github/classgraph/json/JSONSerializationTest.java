@@ -37,13 +37,13 @@ public class JSONSerializationTest {
         Y y;
 
         /**
-         * Instantiates a new a.
+         * Constructor.
          */
         public A() {
         }
 
         /**
-         * Instantiates a new a.
+         * Constructor.
          *
          * @param x
          *            the x
@@ -68,13 +68,13 @@ public class JSONSerializationTest {
         V b;
 
         /**
-         * Instantiates a new b.
+         * Constructor.
          */
         public B() {
         }
 
         /**
-         * Instantiates a new b.
+         * Constructor.
          *
          * @param q
          *            the q
@@ -99,13 +99,13 @@ public class JSONSerializationTest {
         T[] arr;
 
         /**
-         * Instantiates a new c.
+         * Constructor.
          */
         public C() {
         }
 
         /**
-         * Instantiates a new c.
+         * Constructor.
          *
          * @param t
          *            the t
@@ -146,13 +146,13 @@ public class JSONSerializationTest {
         List<T> list;
 
         /**
-         * Instantiates a new d.
+         * Constructor.
          */
         public D() {
         }
 
         /**
-         * Instantiates a new d.
+         * Constructor.
          *
          * @param obj
          *            the obj
@@ -180,13 +180,13 @@ public class JSONSerializationTest {
         int z = 42;
 
         /**
-         * Instantiates a new e.
+         * Constructor.
          */
         public E() {
         }
 
         /**
-         * Instantiates a new e.
+         * Constructor.
          *
          * @param obj
          *            the obj
@@ -205,13 +205,13 @@ public class JSONSerializationTest {
         int wxy = 123;
 
         /**
-         * Instantiates a new f.
+         * Constructor.
          */
         public F() {
         }
 
         /**
-         * Instantiates a new f.
+         * Constructor.
          *
          * @param f
          *            the f

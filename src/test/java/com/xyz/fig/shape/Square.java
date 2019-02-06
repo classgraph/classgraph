@@ -11,7 +11,7 @@ public class Square extends ShapeImpl {
     private final float size;
 
     /**
-     * Instantiates a new square.
+     * Constructor.
      *
      * @param x
      *            the x
@@ -26,7 +26,7 @@ public class Square extends ShapeImpl {
     }
 
     /**
-     * Gets the size.
+     * Get the size.
      *
      * @return the size
      */

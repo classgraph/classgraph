@@ -66,24 +66,52 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The classpath scanner. */
 class Scanner implements Callable<ScanResult> {
+
+    /** The scan spec. */
     private final ScanSpec scanSpec;
+
+    /** The executor service. */
     private final ExecutorService executorService;
+
+    /** The number of parallel tasks. */
     private final int numParallelTasks;
+
+    /** The interruption checker. */
     private final InterruptionChecker interruptionChecker = new InterruptionChecker();
+
+    /** The scan result processor. */
     private final ScanResultProcessor scanResultProcessor;
+
+    /** The failure handler. */
     private final FailureHandler failureHandler;
+
+    /** The toplevel log. */
     private final LogNode topLevelLog;
 
-    /** The classpath scanner. */
+    /**
+     * The classpath scanner.
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @param executorService
+     *            the executor service
+     * @param numParallelTasks
+     *            the num parallel tasks
+     * @param scanResultProcessor
+     *            the scan result processor
+     * @param failureHandler
+     *            the failure handler
+     * @param log
+     *            the log
+     */
     Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final ScanResultProcessor scannResultProcessor, final FailureHandler failureHandler,
-            final LogNode log) {
+            final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler, final LogNode log) {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
 
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
-        this.scanResultProcessor = scannResultProcessor;
+        this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
         this.topLevelLog = log;
 
@@ -96,6 +124,13 @@ class Scanner implements Callable<ScanResult> {
     /**
      * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
      * the final classpath element order.
+     *
+     * @param currClasspathElement
+     *            the current classpath element
+     * @param visitedClasspathElts
+     *            visited classpath elts
+     * @param order
+     *            the classpath element order
      */
     private static void findClasspathOrderRec(final ClasspathElement currClasspathElement,
             final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order) {
@@ -112,7 +147,7 @@ class Scanner implements Callable<ScanResult> {
         }
     }
 
-    /** Comparator used to sort ClasspathElement values into increasing order of integer index key */
+    /** Comparator used to sort ClasspathElement values into increasing order of integer index key. */
     private static final Comparator<Entry<Integer, ClasspathElement>> INDEXED_CLASSPATH_ELEMENT_COMPARATOR = //
             new Comparator<Map.Entry<Integer, ClasspathElement>>() {
                 @Override
@@ -122,7 +157,13 @@ class Scanner implements Callable<ScanResult> {
                 }
             };
 
-    /** Sort a collection of indexed ClasspathElements into increasing order of integer index key. */
+    /**
+     * Sort a collection of indexed ClasspathElements into increasing order of integer index key.
+     *
+     * @param classpathEltsIndexed
+     *            the indexed classpath elts
+     * @return the classpath elements, ordered by index
+     */
     private static List<ClasspathElement> orderClasspathElements(
             final Collection<Entry<Integer, ClasspathElement>> classpathEltsIndexed) {
         final List<Entry<Integer, ClasspathElement>> classpathEltsIndexedOrdered = new ArrayList<>(
@@ -139,12 +180,18 @@ class Scanner implements Callable<ScanResult> {
      * Recursively perform a depth-first traversal of child classpath elements, breaking cycles if necessary, to
      * determine the final classpath element order. This causes child classpath elements to be inserted in-place in
      * the classpath order, after the parent classpath element that contained them.
+     *
+     * @param uniqueClasspathElements
+     *            the unique classpath elements
+     * @param toplevelClasspathEltsIndexed
+     *            the toplevel classpath elts, indexed by order within the toplevel classpath
+     * @return the final classpath order, after depth-first traversal of child classpath elements
      */
-    private List<ClasspathElement> findClasspathOrder(final Set<ClasspathElement> openedClasspathElementsSet,
+    private List<ClasspathElement> findClasspathOrder(final Set<ClasspathElement> uniqueClasspathElements,
             final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltsIndexed) {
         final List<ClasspathElement> toplevelClasspathEltsOrdered = orderClasspathElements(
                 toplevelClasspathEltsIndexed);
-        for (final ClasspathElement classpathElt : openedClasspathElementsSet) {
+        for (final ClasspathElement classpathElt : uniqueClasspathElements) {
             classpathElt.childClasspathElementsOrdered = orderClasspathElements(
                     classpathElt.childClasspathElementsIndexed);
         }
@@ -160,10 +207,26 @@ class Scanner implements Callable<ScanResult> {
 
     /** Used to enqueue classpath elements for opening. */
     static class RawClasspathElementWorkUnit {
+
+        /** The raw classpath element path. */
         final String rawClasspathEltPath;
+
+        /** The parent classpath element. */
         final ClasspathElement parentClasspathElement;
+
+        /** The order within the parent classpath element. */
         final int orderWithinParentClasspathElement;
 
+        /**
+         * Constructor.
+         *
+         * @param rawClasspathEltPath
+         *            the raw classpath element path
+         * @param parentClasspathElement
+         *            the parent classpath element
+         * @param orderWithinParentClasspathElement
+         *            the order within parent classpath element
+         */
         public RawClasspathElementWorkUnit(final String rawClasspathEltPath,
                 final ClasspathElement parentClasspathElement, final int orderWithinParentClasspathElement) {
             this.rawClasspathEltPath = rawClasspathEltPath;
@@ -174,10 +237,26 @@ class Scanner implements Callable<ScanResult> {
 
     /** Used to enqueue classfiles for scanning. */
     private static class ClassfileScanWorkUnit {
+
+        /** The classpath element. */
         final ClasspathElement classpathElement;
+
+        /** The classfile resource. */
         final Resource classfileResource;
+
+        /** True if this is an external class. */
         final boolean isExternalClass;
 
+        /**
+         * Constructor.
+         *
+         * @param classpathElement
+         *            the classpath element
+         * @param classfileResource
+         *            the classfile resource
+         * @param isExternalClass
+         *            the is external class
+         */
         ClassfileScanWorkUnit(final ClasspathElement classpathElement, final Resource classfileResource,
                 final boolean isExternalClass) {
             this.classpathElement = classpathElement;
@@ -188,13 +267,41 @@ class Scanner implements Callable<ScanResult> {
 
     /** WorkUnitProcessor for scanning classfiles. */
     private static class ClassfileScannerWorkUnitProcessor implements WorkUnitProcessor<ClassfileScanWorkUnit> {
+
+        /** The scan spec. */
         private final ScanSpec scanSpec;
+
+        /** The classpath order. */
         private final List<ClasspathElement> classpathOrder;
+
+        /** The scanned class names. */
         private final Set<String> scannedClassNames;
+
+        /** The {@link ClassInfoUnlinked} objects created by scanning classfiles. */
         private final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue;
-        private final LogNode log;
+
+        /** The interruption checker. */
         private final InterruptionChecker interruptionChecker;
 
+        /** The log. */
+        private final LogNode log;
+
+        /**
+         * Constructor.
+         *
+         * @param scanSpec
+         *            the scan spec
+         * @param classpathOrder
+         *            the classpath order
+         * @param scannedClassNames
+         *            the scanned class names
+         * @param classInfoUnlinkedQueue
+         *            the {@link ClassInfoUnlinked} objects created by scanning classfiles
+         * @param interruptionChecker
+         *            the interruption checker
+         * @param log
+         *            the log
+         */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
                 final List<ClasspathElement> classpathOrder, final Set<String> scannedClassNames,
                 final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue, final LogNode log,
@@ -203,11 +310,25 @@ class Scanner implements Callable<ScanResult> {
             this.classpathOrder = classpathOrder;
             this.scannedClassNames = scannedClassNames;
             this.classInfoUnlinkedQueue = classInfoUnlinkedQueue;
-            this.log = log;
             this.interruptionChecker = interruptionChecker;
+            this.log = log;
         }
 
-        /** Extend scanning to a superclass, interface or annotation. */
+        /**
+         * Extend scanning to a superclass, interface or annotation.
+         *
+         * @param className
+         *            the class name
+         * @param relationship
+         *            the relationship type
+         * @param currClasspathElement
+         *            the current classpath element
+         * @param additionalWorkUnitsIn
+         *            additional work units (in)
+         * @param subLog
+         *            the sub log
+         * @return additional work units (out)
+         */
         private List<ClassfileScanWorkUnit> extendScanningUpwards(final String className, final String relationship,
                 final ClasspathElement currClasspathElement,
                 final List<ClassfileScanWorkUnit> additionalWorkUnitsIn, final LogNode subLog) {
@@ -256,25 +377,35 @@ class Scanner implements Callable<ScanResult> {
             return additionalWorkUnits;
         }
 
-        /** Check if scanning needs to be extended upwards to an external superclass, interface or annotation. */
+        /**
+         * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
+         *
+         * @param classpathElement
+         *            the classpath element
+         * @param classInfoUnlinked
+         *            the {@link ClassInfoUnlinked} object
+         * @param log
+         *            the log
+         * @return any additional work units that were created
+         */
         private List<ClassfileScanWorkUnit> extendScanningUpwards(final ClasspathElement classpathElement,
-                final ClassInfoUnlinked classInfoUnlinked, final LogNode subLog) {
+                final ClassInfoUnlinked classInfoUnlinked, final LogNode log) {
             // Check superclass
             List<ClassfileScanWorkUnit> additionalWorkUnits = null;
             additionalWorkUnits = extendScanningUpwards(classInfoUnlinked.superclassName, "superclass",
-                    classpathElement, additionalWorkUnits, subLog);
+                    classpathElement, additionalWorkUnits, log);
             // Check implemented interfaces
             if (classInfoUnlinked.implementedInterfaces != null) {
                 for (final String className : classInfoUnlinked.implementedInterfaces) {
                     additionalWorkUnits = extendScanningUpwards(className, "interface", classpathElement,
-                            additionalWorkUnits, subLog);
+                            additionalWorkUnits, log);
                 }
             }
             // Check class annotations
             if (classInfoUnlinked.classAnnotations != null) {
                 for (final AnnotationInfo annotationInfo : classInfoUnlinked.classAnnotations) {
                     additionalWorkUnits = extendScanningUpwards(annotationInfo.getName(), "class annotation",
-                            classpathElement, additionalWorkUnits, subLog);
+                            classpathElement, additionalWorkUnits, log);
                 }
             }
             // Check method annotations and method parameter annotations
@@ -283,7 +414,7 @@ class Scanner implements Callable<ScanResult> {
                     if (methodInfo.annotationInfo != null) {
                         for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
                             additionalWorkUnits = extendScanningUpwards(methodAnnotationInfo.getName(),
-                                    "method annotation", classpathElement, additionalWorkUnits, subLog);
+                                    "method annotation", classpathElement, additionalWorkUnits, log);
                         }
                         if (methodInfo.parameterAnnotationInfo != null
                                 && methodInfo.parameterAnnotationInfo.length > 0) {
@@ -292,7 +423,7 @@ class Scanner implements Callable<ScanResult> {
                                     for (final AnnotationInfo paramAnn : paramAnns) {
                                         additionalWorkUnits = extendScanningUpwards(paramAnn.getName(),
                                                 "method parameter annotation", classpathElement,
-                                                additionalWorkUnits, subLog);
+                                                additionalWorkUnits, log);
                                     }
                                 }
                             }
@@ -306,7 +437,7 @@ class Scanner implements Callable<ScanResult> {
                     if (fieldInfo.annotationInfo != null) {
                         for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
                             additionalWorkUnits = extendScanningUpwards(fieldAnnotationInfo.getName(),
-                                    "field annotation", classpathElement, additionalWorkUnits, subLog);
+                                    "field annotation", classpathElement, additionalWorkUnits, log);
                         }
                     }
                 }
@@ -314,6 +445,9 @@ class Scanner implements Callable<ScanResult> {
             return additionalWorkUnits;
         }
 
+        /* (non-Javadoc)
+         * @see nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor#processWorkUnit(java.lang.Object, nonapi.io.github.classgraph.concurrency.WorkQueue)
+         */
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
                 final WorkQueue<ClassfileScanWorkUnit> workQueue) throws Exception {
@@ -365,7 +499,14 @@ class Scanner implements Callable<ScanResult> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Find classpath elements whose path is a prefix of another classpath element, and record the nesting. */
+    /**
+     * Find classpath elements whose path is a prefix of another classpath element, and record the nesting.
+     *
+     * @param classpathElts
+     *            the classpath elements
+     * @param log
+     *            the log
+     */
     private void findNestedClasspathElements(final List<SimpleEntry<String, ClasspathElement>> classpathElts,
             final LogNode log) {
         // Sort classpath elements into lexicographic order
@@ -429,6 +570,12 @@ class Scanner implements Callable<ScanResult> {
     /**
      * Determine the unique ordered classpath elements, and run a scan looking for file or classfile matches if
      * necessary.
+     *
+     * @return the scan result
+     * @throws InterruptedException
+     *             if scanning was interrupted
+     * @throws ExecutionException
+     *             if a worker threw an uncaught exception
      */
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {

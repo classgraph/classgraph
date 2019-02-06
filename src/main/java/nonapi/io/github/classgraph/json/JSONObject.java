@@ -41,15 +41,40 @@ class JSONObject {
     /** Object id for cross-references, if known. */
     CharSequence objectId;
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     public JSONObject(final int sizeHint) {
         items = new ArrayList<>(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param items
+     *            the items
+     */
     public JSONObject(final List<Entry<String, Object>> items) {
         this.items = items;
     }
 
-    /** Serialize this JSONObject to a string. */
+    /**
+     * Serialize this JSONObject to a string.
+     *
+     * @param jsonReferenceToId
+     *            a map from json reference to id
+     * @param includeNullValuedFields
+     *            if true, include null valued fields
+     * @param depth
+     *            the nesting depth
+     * @param indentWidth
+     *            the indent width
+     * @param buf
+     *            the buf
+     */
     void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final boolean includeNullValuedFields, final int depth, final int indentWidth,
             final StringBuilder buf) {

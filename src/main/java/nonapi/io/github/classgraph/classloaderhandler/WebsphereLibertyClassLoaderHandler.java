@@ -45,50 +45,48 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author R. Kempees
  */
 public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
+
+    /** {@code "com.ibm.ws.classloading.internal."} */
     private static final String PKG_PREFIX = "com.ibm.ws.classloading.internal.";
+
+    /** {@code "com.ibm.ws.classloading.internal.AppClassLoader"} */
     private static final String IBM_APP_CLASS_LOADER = PKG_PREFIX + "AppClassLoader";
+
+    /** {@code "com.ibm.ws.classloading.internal.ThreadContextClassLoader"} */
     private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+     */
     @Override
     public String[] handledClassLoaders() {
         return new String[] { IBM_APP_CLASS_LOADER, IBM_THREAD_CONTEXT_CLASS_LOADER };
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+     */
     @Override
     public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
         return null;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
+     */
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         // TODO: Read correct delegation order from ClassLoader
         return DelegationOrder.PARENT_FIRST;
     }
 
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
-        Object smartClassPath;
-        final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader", false);
-        if (appLoader != null) {
-            smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath", false);
-        } else {
-            smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath", false);
-        }
-        if (smartClassPath != null) {
-            final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath, "classPath",
-                    false);
-            if (classPathElements != null) {
-                for (final Object classpath : classPathElements) {
-                    final String path = getPath(classpath);
-                    if (path != null && path.length() > 0) {
-                        classpathOrderOut.addClasspathElement(path, classLoader, log);
-                    }
-                }
-            }
-        }
-    }
-
+    /**
+     * Get the path from a classpath object.
+     *
+     * @param classpath
+     *            the classpath object
+     * @return the path object as a {@link File} or {@link String}.
+     */
     private String getPath(final Object classpath) {
         final Object container = ReflectionUtils.getFieldVal(classpath, "container", false);
         if (container == null) {
@@ -117,5 +115,32 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             return file.getAbsolutePath();
         }
         return "";
+    }
+
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     */
+    @Override
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
+        Object smartClassPath;
+        final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader", false);
+        if (appLoader != null) {
+            smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath", false);
+        } else {
+            smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath", false);
+        }
+        if (smartClassPath != null) {
+            final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath, "classPath",
+                    false);
+            if (classPathElements != null) {
+                for (final Object classpath : classPathElements) {
+                    final String path = getPath(classpath);
+                    if (path != null && path.length() > 0) {
+                        classpathOrderOut.addClasspathElement(path, classLoader, log);
+                    }
+                }
+            }
+        }
     }
 }

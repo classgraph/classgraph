@@ -40,13 +40,27 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find rt.jar and any JRE "lib/" or "ext/" jars. */
 public class SystemJarFinder {
+
+    /**
+     * Constructor.
+     */
     private SystemJarFinder() {
         // Cannot be constructed
     }
 
+    /** The paths of any "rt.jar" files found in the JRE. */
     private static final Set<String> RT_JARS = new LinkedHashSet<>();
+
+    /** The paths of any "lib/" or "ext/" jars found in the JRE. */
     private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
 
+    /**
+     * Add and search a JRE path.
+     *
+     * @param dir
+     *            the JRE directory
+     * @return true if the directory was readable.
+     */
     private static boolean addJREPath(final File dir) {
         if (dir != null && !dir.getPath().isEmpty() && FileUtils.canRead(dir) && dir.isDirectory()) {
             for (final File file : dir.listFiles()) {
@@ -147,13 +161,21 @@ public class SystemJarFinder {
         }
     }
 
-    /** @return The path of rt.jar (in JDK 7 or 8), or null if it wasn't found (e.g. in JDK 9+). */
+    /**
+     * Get the JRE "rt.jar" path.
+     *
+     * @return The path of rt.jar (in JDK 7 or 8), or null if it wasn't found (e.g. in JDK 9+).
+     */
     public static String getJreRtJarPath() {
         // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
         return !RT_JARS.isEmpty() ? FastPathResolver.resolve(RT_JARS.iterator().next()) : null;
     }
 
-    /** @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/" directories. */
+    /**
+     * Get the JRE "lib/" and "ext/" jar paths.
+     *
+     * @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/" directories.
+     */
     public static Set<String> getJreLibOrExtJars() {
         return JRE_LIB_OR_EXT_JARS;
     }

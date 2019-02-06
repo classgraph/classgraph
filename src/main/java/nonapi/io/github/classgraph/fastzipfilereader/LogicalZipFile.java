@@ -54,6 +54,8 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * {@link PhysicalZipFile}.
  */
 public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
+
+    /** The zipfile slice reader. */
     private ZipFileSliceReader zipFileSliceReader;
 
     /** The zipfile entries. */
@@ -82,16 +84,27 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** {@code "META_INF/"}. */
     static final String META_INF_PATH_PREFIX = "META-INF/";
 
+    /** {@code "META-INF/MANIFEST.MF"}. */
     static final String MANIFEST_PATH = META_INF_PATH_PREFIX + "MANIFEST.MF";
 
-    /** "META-INF/versions/" */
+    /** {@code "META-INF/versions/"}. */
     public static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Construct a logical zipfile from a slice of a physical zipfile. */
+    /**
+     * Construct a logical zipfile from a slice of a physical zipfile.
+     *
+     * @param zipFileSlice
+     *            the zipfile slice
+     * @param log
+     *            the log
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     LogicalZipFile(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException {
         super(zipFileSlice);
         zipFileSliceReader = new ZipFileSliceReader(this);
@@ -104,6 +117,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
      * Extract a value from the manifest, and return the value as a string, along with the index after the
      * terminating newline. Manifest files support three different line terminator types, and entries can be split
      * across lines with a line terminator followed by a space.
+     *
+     * @param manifest
+     *            the manifest bytes
+     * @param startIdx
+     *            the start index of the manifest value
+     * @return the manifest value
      */
     private static Entry<String, Integer> getManifestValue(final byte[] manifest, final int startIdx) {
         // See if manifest entry is split across multiple lines
@@ -168,6 +187,13 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);
     }
 
+    /**
+     * Manifest key to bytes.
+     *
+     * @param key
+     *            the manifest key
+     * @return the manifest key bytes, lowercased.
+     */
     private static byte[] manifestKeyToBytes(final String key) {
         final byte[] bytes = new byte[key.length()];
         for (int i = 0; i < key.length(); i++) {
@@ -176,15 +202,31 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         return bytes;
     }
 
+    /** The {@code "Implementation-Title"} manifest key. */
     private static final byte[] IMPLEMENTATION_TITLE_KEY = manifestKeyToBytes("Implementation-Title");
+
+    /** The {@code "Specification-Title"} manifest key. */
     private static final byte[] SPECIFICATION_TITLE_KEY = manifestKeyToBytes("Specification-Title");
+
+    /** The {@code "Class-Path"} manifest key. */
     private static final byte[] CLASS_PATH_KEY = manifestKeyToBytes("Class-Path");
+
+    /** The {@code "Spring-Boot-Classes"} manifest key. */
     private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
+
+    /** The {@code "Spring-Boot-Lib"} manifest key. */
     private static final byte[] SPRING_BOOT_LIB_KEY = manifestKeyToBytes("Spring-Boot-Lib");
+
+    /** The {@code "Multi-Release"} manifest key. */
     private static final byte[] MULTI_RELEASE_KEY = manifestKeyToBytes("Multi-Release");
+
+    /** The {@code "Add-Exports"} manifest key. */
     private static final byte[] ADD_EXPORTS_KEY = manifestKeyToBytes("Add-Exports");
+
+    /** The {@code "Add-Opens"} manifest key. */
     private static final byte[] ADD_OPENS_KEY = manifestKeyToBytes("Add-Opens");
 
+    /** For quickly converting ASCII characters to lower case. */
     private static byte[] toLowerCase = new byte[256];
     static {
         for (int i = 32; i < 127; i++) {
@@ -192,6 +234,17 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         }
     }
 
+    /**
+     * Key matches at position.
+     *
+     * @param manifest
+     *            the manifest
+     * @param key
+     *            the key
+     * @param pos
+     *            the position to try matching
+     * @return true if the key matches at this position
+     */
     private static boolean keyMatchesAtPosition(final byte[] manifest, final byte[] key, final int pos) {
         if (pos + key.length + 1 > manifest.length || manifest[pos + key.length] != ':') {
             return false;
@@ -205,7 +258,16 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         return true;
     }
 
-    /** Parse the manifest entry of a zipfile. */
+    /**
+     * Parse the manifest entry of a zipfile.
+     *
+     * @param manifestZipEntry
+     *            the manifest zip entry
+     * @param log
+     *            the log
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     private void parseManifest(final FastZipEntry manifestZipEntry, final LogNode log) throws IOException {
         // Load contents of manifest entry as a byte array
         final byte[] manifest = manifestZipEntry.load();
@@ -324,7 +386,14 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Read the central directory of the zipfile. */
+    /**
+     * Read the central directory of the zipfile.
+     *
+     * @param log
+     *            the log
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     private void readCentralDirectory(final LogNode log) throws IOException {
         // Scan for End Of Central Directory (EOCD) signature
         long eocdPos = -1;
@@ -644,21 +713,33 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object o) {
         return super.equals(o);
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#hashCode()
+     */
     @Override
     public int hashCode() {
         return super.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#toString()
+     */
     @Override
     public String toString() {
         return getPath();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.AutoCloseable#close()
+     */
     @Override
     public void close() {
         if (zipFileSliceReader != null) {

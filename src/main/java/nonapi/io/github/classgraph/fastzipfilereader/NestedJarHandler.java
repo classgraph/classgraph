@@ -420,10 +420,24 @@ public class NestedJarHandler {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private String leafname(final String path) {
+    /**
+     * Get the leafname of a path.
+     *
+     * @param path
+     *            the path
+     * @return the string
+     */
+    private static String leafname(final String path) {
         return path.substring(path.lastIndexOf('/') + 1);
     }
 
+    /**
+     * Sanitize filename.
+     *
+     * @param filename
+     *            the filename
+     * @return the sanitized filename
+     */
     private String sanitizeFilename(final String filename) {
         return filename.replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '_').replace('&', '_')
                 .replace('=', '_').replace(' ', '_');
@@ -448,7 +462,15 @@ public class NestedJarHandler {
         return tempFile;
     }
 
-    /** Download a jar from a URL to a temporary file. */
+    /**
+     * Download a jar from a URL to a temporary file.
+     *
+     * @param jarURL
+     *            the jar URL
+     * @param log
+     *            the log
+     * @return the temporary file the jar was downloaded to
+     */
     private File downloadTempFile(final String jarURL, final LogNode log) {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
         File tempFile;

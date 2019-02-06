@@ -39,6 +39,10 @@ import java.util.regex.Pattern;
  * to the many forms of Windows path weirdness.
  */
 public class FastPathResolver {
+
+    /**
+     * Constructor.
+     */
     private FastPathResolver() {
         // Cannot be constructed
     }
@@ -49,7 +53,20 @@ public class FastPathResolver {
     /** True if we're running on Windows. */
     private static final boolean WINDOWS = File.separatorChar == '\\';
 
-    /** Translate backslashes to forward slashes, optionally removing trailing separator. */
+    /**
+     * Translate backslashes to forward slashes, optionally removing trailing separator.
+     *
+     * @param path
+     *            the path
+     * @param startIdx
+     *            the start index
+     * @param endIdx
+     *            the end index
+     * @param stripFinalSeparator
+     *            if true, strip the final separator
+     * @param buf
+     *            the buf
+     */
     private static void translateSeparator(final String path, final int startIdx, final int endIdx,
             final boolean stripFinalSeparator, final StringBuilder buf) {
         for (int i = startIdx; i < endIdx; i++) {
@@ -69,7 +86,18 @@ public class FastPathResolver {
         }
     }
 
-    /** Unescape runs of percent encoding, e.g. "%20%43%20" -> " + " */
+    /**
+     * Unescape runs of percent encoding, e.g. "%20%43%20" -> " + "
+     *
+     * @param path
+     *            the path
+     * @param startIdx
+     *            the start index
+     * @param endIdx
+     *            the end index
+     * @param buf
+     *            the buf
+     */
     private static void unescapePercentEncoding(final String path, final int startIdx, final int endIdx,
             final StringBuilder buf) {
         if (endIdx - startIdx == 3 && path.charAt(startIdx + 1) == '2' && path.charAt(startIdx + 2) == '0') {

@@ -35,18 +35,35 @@ import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
+
+    /**
+     * Constructor.
+     */
     AnnotationParameterValueList() {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     AnnotationParameterValueList(final int sizeHint) {
         super(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param AnnotationParameterValueCollection
+     *            the annotation parameter value collection
+     */
     AnnotationParameterValueList(final Collection<AnnotationParameterValue> AnnotationParameterValueCollection) {
         super(AnnotationParameterValueCollection);
     }
 
+    /** An unmodifiable empty {@link AnnotationParameterValueList}. */
     static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList() {
         @Override
         public boolean add(final AnnotationParameterValue e) {
@@ -101,7 +118,12 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the names of any classes referenced in the methods in this list. */
+    /**
+     * Get the names of any classes referenced in the methods in this list.
+     *
+     * @param referencedClassNames
+     *            the referenced class names
+     */
     void getReferencedClassNames(final Set<String> referencedClassNames) {
         for (final AnnotationParameterValue apv : this) {
             apv.getReferencedClassNames(referencedClassNames);
@@ -113,6 +135,9 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     /**
      * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
      * to check the type of each method of the annotation class to determine if it is a primitive array type).
+     *
+     * @param annotationClassInfo
+     *            the annotation class info
      */
     void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
         for (final AnnotationParameterValue annotationParamValue : this) {
@@ -123,6 +148,9 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the annotation parameter value, by calling {@link AnnotationParameterValue#getValue()} on the result of
+     * {@link #get(String)}, if non-null.
+     *
      * @param parameterName
      *            The name of an annotation parameter.
      * @return The value of the {@link AnnotationParameterValue} object in the list with the given name, by calling

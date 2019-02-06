@@ -45,9 +45,8 @@ import io.github.classgraph.ScanResult;
  * The Class Issue37Test.
  */
 public class Issue37Test {
-
     /**
-     * Instantiates a new issue 37 test.
+     * Constructor.
      */
     @Issue37Annotation
     public Issue37Test() {

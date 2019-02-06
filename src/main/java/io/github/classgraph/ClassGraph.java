@@ -73,7 +73,7 @@ public class ClassGraph {
                             Runtime.getRuntime().availableProcessors() * 1.25) //
     );
 
-    /** If non-null, log while scanning */
+    /** If non-null, log while scanning. */
     private LogNode topLevelLog;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -241,7 +241,8 @@ public class ClassGraph {
      * {@link ScanResult#getReverseClassDependencyMap()}. (Automatically calls {@link #enableClassInfo()},
      * {@link #enableFieldInfo()}, {@link #enableMethodInfo()}, {@link #enableAnnotationInfo()},
      * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()} and {@link #ignoreMethodVisibility()}.)
-     * 
+     *
+     * @return this (for method chaining).
      */
     public ClassGraph enableInterClassDependencies() {
         enableClassInfo();
@@ -420,6 +421,8 @@ public class ClassGraph {
     @FunctionalInterface
     public interface ClasspathElementFilter {
         /**
+         * Whether or not to include a given classpath element in the scan.
+         *
          * @param classpathElementPathStr
          *            The path string of a classpath element, normalized so that the path separator is '/'. This
          *            will usually be a file path, but could be a URL, or it could be a path for a nested jar, where
@@ -794,7 +797,14 @@ public class ClassGraph {
         return this;
     }
 
-    /** Add lib or ext jars to whitelist or blacklist. */
+    /**
+     * Add lib or ext jars to whitelist or blacklist.
+     *
+     * @param whitelist
+     *            if true, add to whitelist, otherwise add to blacklist.
+     * @param jarLeafNames
+     *            the jar leaf names to whitelist
+     */
     private void whitelistOrBlacklistLibOrExtJars(final boolean whitelist, final String... jarLeafNames) {
         if (jarLeafNames.length == 0) {
             // If no jar leafnames are given, whitelist or blacklist all lib or ext jars
@@ -970,9 +980,9 @@ public class ClassGraph {
 
     /**
      * Use {@link #enableSystemJarsAndModules()} instead.
-     * 
-     * @deprecated Use {@link #enableSystemJarsAndModules()} instead.
+     *
      * @return this (for method chaining).
+     * @deprecated Use {@link #enableSystemJarsAndModules()} instead.
      */
     @Deprecated
     public ClassGraph enableSystemPackages() {
@@ -1079,9 +1089,9 @@ public class ClassGraph {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @return a {@link ScanResult} object representing the result of the scan.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
-     * @return a {@link ScanResult} object representing the result of the scan.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
@@ -1130,9 +1140,9 @@ public class ClassGraph {
      *
      * @param numThreads
      *            The number of worker threads to start up.
+     * @return a {@link ScanResult} object representing the result of the scan.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
-     * @return a {@link ScanResult} object representing the result of the scan.
      */
     public ScanResult scan(final int numThreads) {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(numThreads)) {
@@ -1143,9 +1153,9 @@ public class ClassGraph {
     /**
      * Scans the classpath, blocking until the scan is complete.
      *
+     * @return a {@link ScanResult} object representing the result of the scan.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
-     * @return a {@link ScanResult} object representing the result of the scan.
      */
     public ScanResult scan() {
         return scan(DEFAULT_NUM_WORKER_THREADS);
@@ -1158,10 +1168,10 @@ public class ClassGraph {
      * classloader resolution order. Classpath elements that do not exist as a file or directory are not included in
      * the returned list.
      *
-     * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
+     * @throws RuntimeException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<File> getClasspathFiles() {
         scanSpec.performScan = false;
@@ -1175,10 +1185,10 @@ public class ClassGraph {
      * classloader resolution order, in the form of a classpath path string. Classpath elements that do not exist as
      * a file or directory are not included in the returned list.
      *
-     * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
+     * @throws RuntimeException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public String getClasspath() {
         return JarUtils.pathElementsToPathStr(getClasspathFiles());
@@ -1189,10 +1199,10 @@ public class ClassGraph {
      * classpath, in classloader resolution order. Classpath elements representing jarfiles or directories that do
      * not exist are not included in the returned list.
      *
-     * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
+     * @throws RuntimeException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URL> getClasspathURLs() {
         scanSpec.performScan = false;
@@ -1203,10 +1213,10 @@ public class ClassGraph {
 
     /**
      * Returns {@link ModuleRef} references for all the visible modules.
-     * 
+     *
+     * @return a list of {@link ModuleRef} references for all the visible modules.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
-     * @return a list of {@link ModuleRef} references for all the visible modules.
      */
     public List<ModuleRef> getModules() {
         scanSpec.performScan = false;

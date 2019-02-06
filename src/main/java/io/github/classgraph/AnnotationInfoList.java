@@ -44,27 +44,51 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     private final AnnotationInfoList directlyRelatedAnnotations;
 
+    /**
+     * Constructor.
+     */
     AnnotationInfoList() {
         super();
         this.directlyRelatedAnnotations = null;
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     AnnotationInfoList(final int sizeHint) {
         super(sizeHint);
         this.directlyRelatedAnnotations = null;
     }
 
+    /**
+     * Constructor.
+     *
+     * @param reachableAnnotations
+     *            the reachable annotations
+     */
     AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
         // If only reachable annotations are given, treat all of them as direct
         this(reachableAnnotations, reachableAnnotations);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param reachableAnnotations
+     *            the reachable annotations
+     * @param directlyRelatedAnnotations
+     *            the directly related annotations
+     */
     AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
             final AnnotationInfoList directlyRelatedAnnotations) {
         super(reachableAnnotations);
         this.directlyRelatedAnnotations = directlyRelatedAnnotations;
     }
 
+    /** An unmodifiable empty {@link AnnotationInfoList}. */
     static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList() {
         @Override
         public boolean add(final AnnotationInfo e) {
@@ -157,7 +181,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the names of any classes referenced in the annotations in this list or their parameters. */
+    /**
+     * Return the names of any classes referenced in the annotations in this list or their parameters.
+     *
+     * @param referencedClassNames
+     *            the referenced class names
+     */
     void getReferencedClassNames(final Set<String> referencedClassNames) {
         for (final AnnotationInfo ai : this) {
             ai.getReferencedClassNames(referencedClassNames);
@@ -166,7 +195,16 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Find the transitive closure of meta-annotations. */
+    /**
+     * Find the transitive closure of meta-annotations.
+     *
+     * @param ai
+     *            the annotationInfo object
+     * @param allAnnotationsOut
+     *            annotations out
+     * @param visited
+     *            visited
+     */
     private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
             final Set<ClassInfo> visited) {
         final ClassInfo annotationClassInfo = ai.getClassInfo();
@@ -190,11 +228,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     /**
      * Get the indirect annotations on a class (meta-annotations and/or inherited annotations).
-     * 
+     *
      * @param directAnnotationInfo
      *            the direct annotations on the class, method, method parameter or field.
      * @param annotatedClass
      *            for class annotations, this is the annotated class, else null.
+     * @return the indirect annotations
      */
     static AnnotationInfoList getIndirectAnnotations(final AnnotationInfoList directAnnotationInfo,
             final ClassInfo annotatedClass) {
@@ -261,6 +300,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
     }
 
+    /* (non-Javadoc)
+     * @see java.util.ArrayList#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -279,6 +321,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         return super.equals(other) && directlyRelatedAnnotations.equals(other.directlyRelatedAnnotations);
     }
 
+    /* (non-Javadoc)
+     * @see java.util.ArrayList#hashCode()
+     */
     @Override
     public int hashCode() {
         return super.hashCode() ^ (directlyRelatedAnnotations == null ? 0 : directlyRelatedAnnotations.hashCode());

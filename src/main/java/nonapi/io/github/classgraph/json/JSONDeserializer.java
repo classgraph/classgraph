@@ -45,6 +45,10 @@ import java.util.Map.Entry;
  * object graph by inserting reference ids.
  */
 public class JSONDeserializer {
+
+    /**
+     * Constructor.
+     */
     private JSONDeserializer() {
         // Cannot be constructed
     }
@@ -52,6 +56,14 @@ public class JSONDeserializer {
     /**
      * Deserialize a JSON basic value (String, Integer, Long, or Double), conforming it to the expected type
      * (Character, Short, etc.).
+     *
+     * @param jsonVal
+     *            the json val
+     * @param expectedType
+     *            the expected type
+     * @param convertStringToNumber
+     *            if true, convert strings to numbers
+     * @return the object
      */
     private static Object jsonBasicValueToObject(final Object jsonVal, final Type expectedType,
             final boolean convertStringToNumber) {
@@ -202,6 +214,16 @@ public class JSONDeserializer {
         /** The resolved type of the object instance. */
         Type type;
 
+        /**
+         * Constructor.
+         *
+         * @param objectInstance
+         *            the object instance
+         * @param type
+         *            the type
+         * @param jsonVal
+         *            the json val
+         */
         public ObjectInstantiation(final Object objectInstance, final Type type, final Object jsonVal) {
             this.jsonVal = jsonVal;
             this.objectInstance = objectInstance;
@@ -209,6 +231,22 @@ public class JSONDeserializer {
         }
     }
 
+    /**
+     * Populate object from json object.
+     *
+     * @param objectInstance
+     *            the object instance
+     * @param objectResolvedType
+     *            the object resolved type
+     * @param jsonVal
+     *            the json val
+     * @param classFieldCache
+     *            the class field cache
+     * @param idToObjectInstance
+     *            a map from id to object instance
+     * @param collectionElementAdders
+     *            the collection element adders
+     */
     private static void populateObjectFromJsonObject(final Object objectInstance, final Type objectResolvedType,
             final Object jsonVal, final ClassFieldCache classFieldCache,
             final Map<CharSequence, Object> idToObjectInstance, final List<Runnable> collectionElementAdders) {
@@ -554,6 +592,12 @@ public class JSONDeserializer {
     /**
      * Set up the initial mapping from id to object, by adding the id of the toplevel object, if it has an id field
      * in JSON.
+     *
+     * @param objectInstance
+     *            the object instance
+     * @param parsedJSON
+     *            the parsed JSON
+     * @return the initial id to object map
      */
     private static HashMap<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
             final Object parsedJSON) {
@@ -579,7 +623,9 @@ public class JSONDeserializer {
      * Deserialize JSON to a new object graph, with the root object of the specified expected type, using or reusing
      * the given type cache. Does not work for generic types, since it is not possible to obtain the generic type of
      * a Class reference.
-     * 
+     *
+     * @param <T>
+     *            the expected type
      * @param expectedType
      *            The type that the JSON should conform to.
      * @param json

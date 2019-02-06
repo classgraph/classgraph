@@ -38,6 +38,10 @@ import java.util.Set;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public class ReflectionUtils {
+
+    /**
+     * Constructor.
+     */
     private ReflectionUtils() {
         // Cannot be constructed
     }
@@ -137,6 +141,10 @@ public class ReflectionUtils {
     /**
      * Iterate through implemented interfaces, top-down, then superclass to subclasses, top-down (since higher-up
      * superclasses and superinterfaces have the highest chance of being visible).
+     *
+     * @param cls
+     *            the class
+     * @return the reverse of the order in which method calls would be attempted by the JRE.
      */
     private static List<Class<?>> getReverseMethodAttemptOrder(final Class<?> cls) {
         final List<Class<?>> reverseAttemptOrder = new ArrayList<>();

@@ -14,7 +14,7 @@ public class Diamond extends ShapeImpl {
     private final float h;
 
     /**
-     * Instantiates a new diamond.
+     * Constructor.
      *
      * @param x
      *            the x
@@ -32,7 +32,7 @@ public class Diamond extends ShapeImpl {
     }
 
     /**
-     * Gets the w.
+     * Get the w.
      *
      * @return the w
      */
@@ -41,7 +41,7 @@ public class Diamond extends ShapeImpl {
     }
 
     /**
-     * Gets the h.
+     * Get the h.
      *
      * @return the h
      */

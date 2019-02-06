@@ -38,6 +38,10 @@ import nonapi.io.github.classgraph.types.Parser.ParseException;
  * @author lukehutch
  */
 public class TypeUtils {
+
+    /**
+     * Constructor.
+     */
     private TypeUtils() {
         // Cannot be constructed
     }
@@ -101,6 +105,11 @@ public class TypeUtils {
     /**
      * Append a space if necessary (if not at the beginning of the buffer, and the last character is not already a
      * space), then append a modifier keyword.
+     *
+     * @param buf
+     *            the buf
+     * @param modifierKeyword
+     *            the modifier keyword
      */
     private static void appendModifierKeyword(final StringBuilder buf, final String modifierKeyword) {
         if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ') {

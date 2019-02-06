@@ -104,7 +104,9 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     /**
      * Recycle an object for reuse by a subsequent call to {@link #acquire()}. If the object is an instance of
      * {@link Resettable}, then {@link Resettable#reset()} will be called on the instance before recycling it.
-     * 
+     *
+     * @param instance
+     *            the instance to recycle.
      * @throws IllegalArgumentException
      *             if the object instance was not originally obtained from this {@link Recycler}.
      */

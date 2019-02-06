@@ -50,21 +50,43 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
  */
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
+
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+     */
     @Override
     public String[] handledClassLoaders() {
         return new String[] { "org.jboss.modules.ModuleClassLoader" };
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+     */
     @Override
     public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
         return null;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
+     */
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
 
+    /**
+     * Handle a resource loader.
+     *
+     * @param resourceLoader
+     *            the resource loader
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrderOut
+     *            the classpath order
+     * @param log
+     *            the log
+     */
     private void handleResourceLoader(final Object resourceLoader, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         if (resourceLoader == null) {
@@ -115,6 +137,20 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /**
+     * Handle a module.
+     *
+     * @param module
+     *            the module
+     * @param visitedModules
+     *            visited modules
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrderOut
+     *            the classpath order
+     * @param log
+     *            the log
+     */
     private void handleRealModule(final Object module, final Set<Object> visitedModules,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final LogNode log) {
         if (!visitedModules.add(module)) {
@@ -142,6 +178,9 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {

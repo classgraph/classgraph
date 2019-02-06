@@ -50,8 +50,12 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param typeVariableName
      *            The type variable name.
+     * @param definingClassName
+     *            the defining class name.
      */
     private TypeVariableSignature(final String typeVariableName, final String definingClassName) {
         this.name = typeVariableName;
@@ -113,7 +117,17 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Parse a TypeVariableSignature. */
+    /**
+     * Parse a TypeVariableSignature.
+     *
+     * @param parser
+     *            the parser
+     * @param definingClassName
+     *            the defining class name
+     * @return the type variable signature
+     * @throws ParseException
+     *             if parsing fails
+     */
     static TypeVariableSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         final char peek = parser.peek();
         if (peek == 'T') {
@@ -145,12 +159,17 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /**
      * Return definingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
      * class.
+     *
+     * @return the defining class name.
      */
     @Override
     protected String getClassName() {
         return definingClassName;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNames) {
         // No class names present in type variables
@@ -158,11 +177,17 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return name.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof TypeVariableSignature)) {
@@ -172,6 +197,9 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         return o.name.equals(this.name);
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.classgraph.TypeSignature)
+     */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
         if (other instanceof ClassRefTypeSignature) {
@@ -251,6 +279,9 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return name;

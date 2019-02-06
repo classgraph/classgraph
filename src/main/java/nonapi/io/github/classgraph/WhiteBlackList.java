@@ -40,13 +40,17 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** A class storing whitelist or blacklist criteria. */
 public abstract class WhiteBlackList {
-    /** Whitelisted items (whole-string match) */
+
+    /** Whitelisted items (whole-string match). */
     protected Set<String> whitelist;
-    /** Blacklisted items (whole-string match) */
+
+    /** Blacklisted items (whole-string match). */
     protected Set<String> blacklist;
-    /** Whitelisted items (prefix match) */
+
+    /** Whitelisted items (prefix match). */
     protected List<String> whitelistPrefixes;
-    /** Blacklisted items (prefix match) */
+
+    /** Blacklisted items (prefix match). */
     protected List<String> blacklistPrefixes;
     /** Whitelist glob strings. (Serialized to JSON, for logging purposes.) */
     protected Set<String> whitelistGlobs;
@@ -63,7 +67,12 @@ public abstract class WhiteBlackList {
 
     /** Whitelist/blacklist for prefix strings. */
     public static class WhiteBlackListPrefix extends WhiteBlackList {
-        /** Add to the whitelist. */
+        /**
+         * Add to the whitelist.
+         *
+         * @param str
+         *            the string to whitelist
+         */
         @Override
         public void addToWhitelist(final String str) {
             if (str.contains("*")) {
@@ -75,7 +84,12 @@ public abstract class WhiteBlackList {
             this.whitelistPrefixes.add(str);
         }
 
-        /** Add to the blacklist. */
+        /**
+         * Add to the blacklist.
+         *
+         * @param str
+         *            the string to blacklist
+         */
         @Override
         public void addToBlacklist(final String str) {
             if (str.contains("*")) {
@@ -87,7 +101,13 @@ public abstract class WhiteBlackList {
             this.blacklistPrefixes.add(str);
         }
 
-        /** Check if the requested string has a whitelisted/non-blacklisted prefix. */
+        /**
+         * Check if the requested string has a whitelisted/non-blacklisted prefix.
+         *
+         * @param str
+         *            the string to test
+         * @return true if string is whitelisted and not blacklisted
+         */
         @Override
         public boolean isWhitelistedAndNotBlacklisted(final String str) {
             boolean isWhitelisted = whitelistPrefixes == null;
@@ -112,7 +132,13 @@ public abstract class WhiteBlackList {
             return true;
         }
 
-        /** Check if the requested string has a whitelisted prefix. */
+        /**
+         * Check if the requested string has a whitelisted prefix.
+         *
+         * @param str
+         *            the string to test
+         * @return true if string is whitelisted
+         */
         @Override
         public boolean isWhitelisted(final String str) {
             boolean isWhitelisted = whitelistPrefixes == null;
@@ -127,13 +153,27 @@ public abstract class WhiteBlackList {
             return isWhitelisted;
         }
 
-        /** Prefix-of-prefix is invalid. */
+        /**
+         * Prefix-of-prefix is invalid -- throws {@link IllegalArgumentException}.
+         *
+         * @param str
+         *            the string to test
+         * @return (does not return, throws exception)
+         * @throws IllegalArgumentException
+         *             always
+         */
         @Override
         public boolean whitelistHasPrefix(final String str) {
             throw new IllegalArgumentException("Can only find prefixes of whole strings");
         }
 
-        /** Check if the requested string has a blacklisted prefix. */
+        /**
+         * Check if the requested string has a blacklisted prefix.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string has a blacklisted prefix
+         */
         @Override
         public boolean isBlacklisted(final String str) {
             if (blacklistPrefixes != null) {
@@ -149,7 +189,12 @@ public abstract class WhiteBlackList {
 
     /** Whitelist/blacklist for whole-strings matches. */
     public static class WhiteBlackListWholeString extends WhiteBlackList {
-        /** Add to the whitelist. */
+        /**
+         * Add to the whitelist.
+         *
+         * @param str
+         *            the string to whitelist
+         */
         @Override
         public void addToWhitelist(final String str) {
             if (str.contains("*")) {
@@ -167,7 +212,12 @@ public abstract class WhiteBlackList {
             }
         }
 
-        /** Add to the blacklist. */
+        /**
+         * Add to the blacklist.
+         *
+         * @param str
+         *            the string to blacklist
+         */
         @Override
         public void addToBlacklist(final String str) {
             if (str.contains("*")) {
@@ -185,20 +235,38 @@ public abstract class WhiteBlackList {
             }
         }
 
-        /** Check if the requested string is whitelisted and not blacklisted. */
+        /**
+         * Check if the requested string is whitelisted and not blacklisted.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string is whitelisted and not blacklisted
+         */
         @Override
         public boolean isWhitelistedAndNotBlacklisted(final String str) {
             return isWhitelisted(str) && !isBlacklisted(str);
         }
 
-        /** Check if the requested string is whitelisted. */
+        /**
+         * Check if the requested string is whitelisted.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string is whitelisted
+         */
         @Override
         public boolean isWhitelisted(final String str) {
             return (whitelist == null && whitelistPatterns == null)
                     || (whitelist != null && whitelist.contains(str)) || matchesPatternList(str, whitelistPatterns);
         }
 
-        /** Check if the requested string is a prefix of a whitelisted string. */
+        /**
+         * Check if the requested string is a prefix of a whitelisted string.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string is a prefix of a whitelisted string
+         */
         @Override
         public boolean whitelistHasPrefix(final String str) {
             if (whitelist == null) {
@@ -212,7 +280,13 @@ public abstract class WhiteBlackList {
             return false;
         }
 
-        /** Check if the requested string is blacklisted. */
+        /**
+         * Check if the requested string is blacklisted.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string is blacklisted
+         */
         @Override
         public boolean isBlacklisted(final String str) {
             return (blacklist != null && blacklist.contains(str)) || matchesPatternList(str, blacklistPatterns);
@@ -221,37 +295,74 @@ public abstract class WhiteBlackList {
 
     /** Whitelist/blacklist for prefix strings. */
     public static class WhiteBlackListLeafname extends WhiteBlackListWholeString {
-        /** Add to the whitelist. */
+
+        /**
+         * Add to the whitelist.
+         *
+         * @param str
+         *            the string to whitelist
+         */
         @Override
         public void addToWhitelist(final String str) {
             super.addToWhitelist(JarUtils.leafName(str));
         }
 
-        /** Add to the blacklist. */
+        /**
+         * Add to the blacklist.
+         *
+         * @param str
+         *            the string to blacklist
+         */
         @Override
         public void addToBlacklist(final String str) {
             super.addToBlacklist(JarUtils.leafName(str));
         }
 
-        /** Check if the requested string is whitelisted and not blacklisted. */
+        /**
+         * Check if the requested string is whitelisted and not blacklisted.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string is whitelisted and not blacklisted
+         */
         @Override
         public boolean isWhitelistedAndNotBlacklisted(final String str) {
             return super.isWhitelistedAndNotBlacklisted(JarUtils.leafName(str));
         }
 
-        /** Check if the requested string is whitelisted. */
+        /**
+         * Check if the requested string is whitelisted.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string is whitelisted
+         */
         @Override
         public boolean isWhitelisted(final String str) {
             return super.isWhitelisted(JarUtils.leafName(str));
         }
 
-        /** Prefix tests are invalid for jar leafnames. */
+        /**
+         * Prefix tests are invalid for jar leafnames -- throws {@link IllegalArgumentException}.
+         *
+         * @param str
+         *            the string to test
+         * @return (does not return, throws exception)
+         * @throws IllegalArgumentException
+         *             always
+         */
         @Override
         public boolean whitelistHasPrefix(final String str) {
             throw new IllegalArgumentException("Can only find prefixes of whole strings");
         }
 
-        /** Check if the requested string is blacklisted. */
+        /**
+         * Check if the requested string is blacklisted.
+         *
+         * @param str
+         *            the string to test
+         * @return true if the string is blacklisted
+         */
         @Override
         public boolean isBlacklisted(final String str) {
             return super.isBlacklisted(JarUtils.leafName(str));
@@ -259,18 +370,24 @@ public abstract class WhiteBlackList {
     }
 
     /**
+     * Add to the whitelist.
+     *
      * @param str
      *            The string to whitelist.
      */
     public abstract void addToWhitelist(final String str);
 
     /**
+     * Add to the blacklist.
+     *
      * @param str
      *            The string to blacklist.
      */
     public abstract void addToBlacklist(final String str);
 
     /**
+     * Check if a string is whitelisted and not blacklisted.
+     *
      * @param str
      *            The string to test.
      * @return true if the string is whitelisted and not blacklisted.
@@ -278,6 +395,8 @@ public abstract class WhiteBlackList {
     public abstract boolean isWhitelistedAndNotBlacklisted(final String str);
 
     /**
+     * Check if a string is whitelisted.
+     *
      * @param str
      *            The string to test.
      * @return true if the string is whitelisted.
@@ -285,6 +404,8 @@ public abstract class WhiteBlackList {
     public abstract boolean isWhitelisted(final String str);
 
     /**
+     * Check if a string is a prefix of a whitelisted string.
+     *
      * @param str
      *            The string to test.
      * @return true if the string is a prefix of a whitelisted string.
@@ -292,6 +413,8 @@ public abstract class WhiteBlackList {
     public abstract boolean whitelistHasPrefix(final String str);
 
     /**
+     * Check if a string is blacklisted.
+     *
      * @param str
      *            The string to test.
      * @return true if the string is blacklisted.
@@ -372,6 +495,15 @@ public abstract class WhiteBlackList {
         return Pattern.compile("^" + glob.replace(".", "\\.").replace("*", ".*") + "$");
     }
 
+    /**
+     * Check if a string matches one of the patterns in the provided list.
+     *
+     * @param str
+     *            the string to test
+     * @param patterns
+     *            the patterns
+     * @return true, if successful
+     */
     private static boolean matchesPatternList(final String str, final List<Pattern> patterns) {
         if (patterns != null) {
             for (final Pattern pattern : patterns) {
@@ -384,6 +516,8 @@ public abstract class WhiteBlackList {
     }
 
     /**
+     * Check if the whitelist is empty.
+     *
      * @return true if there were no whitelist criteria added.
      */
     public boolean whitelistIsEmpty() {
@@ -391,6 +525,8 @@ public abstract class WhiteBlackList {
     }
 
     /**
+     * Check if the blacklist is empty.
+     *
      * @return true if there were no blacklist criteria added.
      */
     public boolean blacklistIsEmpty() {
@@ -398,6 +534,8 @@ public abstract class WhiteBlackList {
     }
 
     /**
+     * Check if the whitelist and blacklist are empty.
+     *
      * @return true if there were no whitelist or blacklist criteria added.
      */
     public boolean whitelistAndBlacklistAreEmpty() {
@@ -405,6 +543,8 @@ public abstract class WhiteBlackList {
     }
 
     /**
+     * Check if a string is specifically whitelisted and not blacklisted.
+     *
      * @param str
      *            The string to test.
      * @return true if the requested string is <i>specifically</i> whitelisted and not blacklisted, i.e. will not
@@ -415,6 +555,8 @@ public abstract class WhiteBlackList {
     }
 
     /**
+     * Check if a string is specifically whitelisted.
+     *
      * @param str
      *            The string to test.
      * @return true if the requested string is <i>specifically</i> whitelisted, i.e. will not return true if the
@@ -434,6 +576,9 @@ public abstract class WhiteBlackList {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();

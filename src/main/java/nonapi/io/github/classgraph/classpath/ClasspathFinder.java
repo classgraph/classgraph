@@ -48,12 +48,38 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
+
+    /** The classpath order. */
     private final ClasspathOrder classpathOrder;
+
+    /** The classloader and module finder. */
     private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add a ClassLoaderHandler, and recurse to parent classloader. */
+    /**
+     * Add a ClassLoaderHandler, and recurse to parent classloader.
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @param classLoader
+     *            the classloader
+     * @param classLoaderHandlerRegistryEntry
+     *            the classloader handler registry entry
+     * @param foundClassLoaders
+     *            the found classloaders
+     * @param allClassLoaderHandlerRegistryEntries
+     *            the all classloader handler registry entries
+     * @param classLoaderAndHandlerOrderOut
+     *            the classloader and handler order
+     * @param ignoredClassLoaderAndHandlerOrderOut
+     *            the ignored classloader and handler order
+     * @param visited
+     *            visited
+     * @param log
+     *            the log
+     * @return true, if successful
+     */
     private boolean addClassLoaderHandler(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry,
             final LinkedHashSet<ClassLoader> foundClassLoaders,
@@ -126,6 +152,21 @@ public class ClasspathFinder {
     /**
      * Recursively find the ClassLoaderHandler that can handle each ClassLoader and its parent(s), correctly
      * observing parent delegation order (PARENT_FIRST or PARENT_LAST).
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @param classLoader
+     *            the classloader
+     * @param foundClassLoaders
+     *            the found classloaders
+     * @param allClassLoaderHandlerRegistryEntries
+     *            the all classloader handler registry entries
+     * @param classLoaderAndHandlerOrderOut
+     *            the classloader and handler order out
+     * @param ignoredClassLoaderAndHandlerOrderOut
+     *            the ignored classloader and handler order out
+     * @param log
+     *            the log
      */
     private void findClassLoaderHandlerForClassLoaderAndParents(final ScanSpec scanSpec,
             final ClassLoader classLoader, final LinkedHashSet<ClassLoader> foundClassLoaders,
@@ -338,12 +379,18 @@ public class ClasspathFinder {
         }
     }
 
-    /** @return The order of raw classpath elements obtained from ClassLoaders. */
+    /**
+     * Get the classpath order.
+     *
+     * @return The order of raw classpath elements obtained from ClassLoaders.
+     */
     public ClasspathOrder getClasspathOrder() {
         return classpathOrder;
     }
 
     /**
+     * Get the classloader and module finder.
+     *
      * @return The {@link ClassLoaderAndModuleFinder}.
      */
     public ClassLoaderAndModuleFinder getClassLoaderAndModuleFinder() {

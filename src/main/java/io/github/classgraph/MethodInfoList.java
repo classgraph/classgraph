@@ -41,14 +41,27 @@ public class MethodInfoList extends InfoList<MethodInfo> {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     MethodInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param methodInfoCollection
+     *            the method info collection
+     */
     MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
         super(methodInfoCollection);
     }
 
+    /** An unmodifiable empty {@link MethodInfoList}. */
     static final MethodInfoList EMPTY_LIST = new MethodInfoList() {
         @Override
         public boolean add(final MethodInfo e) {
@@ -103,7 +116,12 @@ public class MethodInfoList extends InfoList<MethodInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the names of any classes referenced in the methods in this list. */
+    /**
+     * Return the names of any classes referenced in the methods in this list.
+     *
+     * @param referencedClassNames
+     *            the referenced class names
+     */
     void getReferencedClassNames(final Set<String> referencedClassNames) {
         for (final MethodInfo mi : this) {
             mi.getReferencedClassNames(referencedClassNames);
@@ -113,6 +131,9 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get this {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with that
+     * name.
+     *
      * @return This {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with
      *         that name.
      */
@@ -136,6 +157,8 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check whether the list contains a method with the given name.
+     *
      * @param methodName
      *            The name of a class.
      * @return true if the list contains a method with the given name.

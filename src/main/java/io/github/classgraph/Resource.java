@@ -45,26 +45,60 @@ import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
  * classpath element or module.
  */
 public abstract class Resource implements Closeable, Comparable<Resource> {
+
+    /** The input stream, or null. */
     protected InputStream inputStream;
+
+    /** The byte buffer, or null. */
     protected ByteBuffer byteBuffer;
+
+    /** The length, or -1L for unknown. */
     protected long length = -1L;
+
+    /** True if the resource is open. */
     protected boolean isOpen;
+
+    /** The cached result of toString(). */
     private String toString;
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Create an {@link InputStream} from a {@link ByteBuffer}.
+     *
+     * @return the input stream
+     */
     protected InputStream byteBufferToInputStream() {
         return inputStream == null ? inputStream = FileUtils.byteBufferToInputStream(byteBuffer) : inputStream;
     }
 
+    /**
+     * Create a {@link ByteBuffer} from an {@link InputStream}.
+     *
+     * @return the byte buffer
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     protected ByteBuffer inputStreamToByteBuffer() throws IOException {
         return byteBuffer == null ? byteBuffer = ByteBuffer.wrap(inputStreamToByteArray()) : byteBuffer;
     }
 
+    /**
+     * Read all bytes from an {@link InputStream} and return as a byte array.
+     *
+     * @return the contents of the {@link InputStream}.
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     protected byte[] inputStreamToByteArray() throws IOException {
         return FileUtils.readAllBytesAsArray(inputStream, length);
     }
 
+    /**
+     * Read/copy contents of a {@link ByteBuffer} as a byte array.
+     *
+     * @return the contents of the {@link ByteBuffer} as a byte array.
+     */
     protected byte[] byteBufferToByteArray() {
         if (byteBuffer.hasArray()) {
             return byteBuffer.array();
@@ -79,9 +113,23 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * Class for closing the parent {@link Resource} when an {@link InputStream} opened on the resource is closed.
      */
     protected class InputStreamResourceCloser extends InputStream {
+
+        /** The input stream. */
         private InputStream inputStream;
+
+        /** The parent resource. */
         private Resource parentResource;
 
+        /**
+         * Constructor.
+         *
+         * @param parentResource
+         *            the parent resource
+         * @param inputStream
+         *            the input stream
+         * @throws IOException
+         *             if an I/O exception occurs.
+         */
         protected InputStreamResourceCloser(final Resource parentResource, final InputStream inputStream)
                 throws IOException {
             if (inputStream == null) {
@@ -91,6 +139,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             this.parentResource = parentResource;
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#read()
+         */
         @Override
         public int read() throws IOException {
             if (inputStream == null) {
@@ -99,6 +150,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             return inputStream.read();
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#read(byte[], int, int)
+         */
         @Override
         public int read(final byte[] b, final int off, final int len) throws IOException {
             if (inputStream == null) {
@@ -107,6 +161,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             return inputStream.read(b, off, len);
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#read(byte[])
+         */
         @Override
         public int read(final byte[] b) throws IOException {
             if (inputStream == null) {
@@ -115,6 +172,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             return inputStream.read(b);
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#available()
+         */
         @Override
         public int available() throws IOException {
             if (inputStream == null) {
@@ -123,6 +183,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             return inputStream.available();
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#skip(long)
+         */
         @Override
         public long skip(final long n) throws IOException {
             if (inputStream == null) {
@@ -131,16 +194,25 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             return inputStream.skip(n);
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#markSupported()
+         */
         @Override
         public boolean markSupported() {
             return inputStream.markSupported();
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#mark(int)
+         */
         @Override
         public synchronized void mark(final int readlimit) {
             inputStream.mark(readlimit);
         }
 
+        /* (non-Javadoc)
+         * @see java.io.InputStream#reset()
+         */
         @Override
         public synchronized void reset() throws IOException {
             if (inputStream == null) {
@@ -149,7 +221,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             inputStream.reset();
         }
 
-        /** Close wrapped InputStream, but don't close parent resource. */
+        /**
+         * Close the wrapped InputStream, but don't close parent resource.
+         *
+         * @throws IOException
+         *             if an I/O exception occurs.
+         */
         void closeInputStream() throws IOException {
             if (inputStream != null) {
                 try {
@@ -161,7 +238,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             }
         }
 
-        /** Close parent resource, which will call {@link #closeInputStream()}. */
+        /**
+         * Close the parent resource by calling {@link Resource#close()}, which will call
+         * {@link #closeInputStream()}.
+         *
+         * @throws IOException
+         *             if an I/O exception occurs.
+         */
         @Override
         public void close() throws IOException {
             if (parentResource != null) {
@@ -198,45 +281,57 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return the path of this classpath resource relative to the package root within the classpath element. For
-     *         example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package root of
-     *         "BOOT-INF/classes/", returns "com/xyz/resource.xml". Also drops version prefixes for multi-version
-     *         jars, for example for a resource path of "META-INF/versions/11/com/xyz/resource.xml" while running on
-     *         JDK 11+, returns "com/xyz/resource.xml".
+     * Get the path of this classpath resource relative to the package root.
+     *
+     * @return the path of this classpath resource relative to the package root. For example, for a resource path of
+     *         {@code "BOOT-INF/classes/com/xyz/resource.xml"} and a package root of {@code "BOOT-INF/classes/"},
+     *         returns {@code "com/xyz/resource.xml"}. Also drops version prefixes for multi-version jars, for
+     *         example for a resource path of {@code "META-INF/versions/11/com/xyz/resource.xml"} while running on
+     *         JDK 9+, returns {@code "com/xyz/resource.xml"}.
      */
     public abstract String getPath();
 
     /**
-     * @return the full path of this classpath resource within the classpath element (see JarEntry::getRealPath).
-     *         For example, will return the full path of "BOOT-INF/classes/com/xyz/resource.xml" or
-     *         "META-INF/versions/11/com/xyz/resource.xml", not "com/xyz/resource.xml".
+     * Get the full path of this classpath resource relative to the root of the classpath element.
+     *
+     * @return the full path of this classpath resource within the classpath element. For example, will return the
+     *         full path of {@code "BOOT-INF/classes/com/xyz/resource.xml"} or
+     *         {@code "META-INF/versions/11/com/xyz/resource.xml"}, not {@code "com/xyz/resource.xml"}.
      */
     public abstract String getPathRelativeToClasspathElement();
 
     /**
-     * @return A URL representing the resource's location. May point to a temporary file that ClassGraph extracted
-     *         an inner jar or directory to, or downloaded a remote jar to. You may or may not be able to fetch
-     *         content from the URL.
+     * Get the {@link URL} representing the resource's location.
+     *
+     * @return A {@link URL} representing the resource's location. May point to a temporary file that ClassGraph
+     *         extracted an inner jar or directory to, or downloaded a remote jar to. You may or may not be able to
+     *         fetch content from the URL.
      * @throws IllegalArgumentException
      *             if a {@link MalformedURLException} occurred while trying to construct the URL.
      */
     public abstract URL getURL();
 
     /**
-     * @return The URL of the classpath element that this class was found within.
+     * Get the classpath element {@link URL}.
+     *
+     * @return The {@link URL} of the classpath element that this resource was found within.
      */
     public abstract URL getClasspathElementURL();
 
     /**
+     * Get the classpath element {@link File}.
+     *
      * @return The {@link File} for the classpath element package root dir or jar that this {@Resource} was found
      *         within, or null if this {@link Resource} was found in a module. (See also {@link #getModuleRef}.)
      */
     public abstract File getClasspathElementFile();
 
     /**
-     * @return The module in the module path that this {@link Resource} was found within, as a {@link ModuleRef}, or
-     *         null if this {@link Resource} was found in a directory or jar in the classpath. (See also
-     *         {@link #getClasspathElementFile()}.)
+     * Get the The {@link ModuleRef} for the module that this {@link Resource} was found within.
+     *
+     * @return The {@link ModuleRef} for the module that this {@link Resource} was found within, as a
+     *         {@link ModuleRef}, or null if this {@link Resource} was found in a directory or jar in the classpath.
+     *         (See also {@link #getClasspathElementFile()}.)
      */
     public abstract ModuleRef getModuleRef();
 
@@ -276,14 +371,20 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Open a {@link ByteBuffer}, if there is an efficient underlying mechanism for opening one, otherwise open an
      * {@link InputStream}.
+     *
+     * @return the {@link InputStreamOrByteBufferAdapter}
+     * @throws IOException
+     *             if an I/O exception occurs.
      */
     abstract InputStreamOrByteBufferAdapter openOrRead() throws IOException;
 
     /**
+     * Get the length of the resource.
+     *
      * @return The length of the resource. This only reliably returns a valid value after calling {@link #open()},
-     *         {@link #read()}, or {@link #load()}, and for {@link #open()}, only if the underlying jarfile has
-     *         length information for corresponding {@link ZipEntry} (some jarfiles may not have length information
-     *         in their zip entries). Returns -1L if the length is unknown.
+     *         {@link #read()}, or {@link #load()} (and for {@link #open()}, only if the underlying jarfile has
+     *         length information for corresponding {@link ZipEntry} -- some jarfiles may not have length
+     *         information in their zip entries). Returns -1L if the length is unknown.
      */
     public long getLength() {
         return length;
@@ -291,7 +392,11 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return a string representation of the resource's location (as a URL string). */
+    /**
+     * Get a string representation of the resource's location (as a URL string).
+     *
+     * @return the resource location as a URL String.
+     */
     @Override
     public String toString() {
         if (toString != null) {
@@ -301,11 +406,17 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return toString().hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof Resource)) {
@@ -314,6 +425,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         return this.toString().equals(obj.toString());
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
     @Override
     public int compareTo(final Resource o) {
         return toString().compareTo(o.toString());

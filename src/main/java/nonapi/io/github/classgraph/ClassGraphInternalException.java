@@ -35,23 +35,51 @@ public class ClassGraphInternalException extends RuntimeException {
         super();
     }
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * @param message
+     *            the message
+     * @param cause
+     *            the cause
+     * @param enableSuppression
+     *            whether to enable suppression
+     * @param writableStackTrace
+     *            the writable stack trace
+     */
     public ClassGraphInternalException(final String message, final Throwable cause, final boolean enableSuppression,
             final boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * @param message
+     *            the message
+     * @param cause
+     *            the cause
+     */
     public ClassGraphInternalException(final String message, final Throwable cause) {
         super(message, cause);
     }
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * @param message
+     *            the message
+     */
     public ClassGraphInternalException(final String message) {
         super(message);
     }
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * @param cause
+     *            the cause
+     */
     public ClassGraphInternalException(final Throwable cause) {
         super(cause);
     }

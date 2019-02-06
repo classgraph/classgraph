@@ -44,8 +44,14 @@ public class ZipFileSlice {
     final long len;
     /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name of the zipfile entry. */
     String name;
+    // N.B. if any fields are added, make sure the clone constructor below is updated
 
-    /** Create a ZipFileSlice that wraps an entire {@link PhysicalZipFile}. */
+    /**
+     * Create a ZipFileSlice that wraps an entire {@link PhysicalZipFile}.
+     *
+     * @param physicalZipFile
+     *            the physical zipfile
+     */
     ZipFileSlice(final PhysicalZipFile physicalZipFile) {
         this.parentZipFileSlice = null;
         this.physicalZipFile = physicalZipFile;
@@ -54,7 +60,14 @@ public class ZipFileSlice {
         this.name = physicalZipFile.getPath();
     }
 
-    /** Create a ZipFileSlice that wraps a {@link PhysicalZipFile} extracted to a ByteBuffer in memory. */
+    /**
+     * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} extracted to a ByteBuffer in memory.
+     *
+     * @param physicalZipFileInRam
+     *            a physical zipfile that has been extracted to RAM
+     * @param zipEntry
+     *            the zip entry
+     */
     ZipFileSlice(final PhysicalZipFile physicalZipFileInRam, final FastZipEntry zipEntry) {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
         this.physicalZipFile = physicalZipFileInRam;
@@ -63,7 +76,14 @@ public class ZipFileSlice {
         this.name = zipEntry.entryName;
     }
 
-    /** Create a ZipFileSlice that wraps a single {@link FastZipEntry}. */
+    /**
+     * Create a ZipFileSlice that wraps a single {@link FastZipEntry}.
+     *
+     * @param zipEntry
+     *            the zip entry
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     ZipFileSlice(final FastZipEntry zipEntry) throws IOException {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
         this.physicalZipFile = zipEntry.parentLogicalZipFile.physicalZipFile;
@@ -72,7 +92,12 @@ public class ZipFileSlice {
         this.name = zipEntry.entryName;
     }
 
-    /** Clone constructor. */
+    /**
+     * Clone constructor.
+     *
+     * @param other
+     *            the {@link ZipFileSlice} to clone.
+     */
     ZipFileSlice(final ZipFileSlice other) {
         this.parentZipFileSlice = other.parentZipFileSlice;
         this.physicalZipFile = other.physicalZipFile;
@@ -82,7 +107,12 @@ public class ZipFileSlice {
     }
 
     /**
-     * @return true if this zipfile slice, and all of its parent slices, are whitelisted and not blacklisted in the
+     * Check whether this zipfile slice and all of its parent slices are whitelisted and not blacklisted in the
+     * jarfile white/blacklist.
+     *
+     * @param jarWhiteBlackList
+     *            the jar white black list
+     * @return true if this zipfile slice and all of its parent slices are whitelisted and not blacklisted in the
      *         jarfile white/blacklist.
      */
     public boolean isWhitelistedAndNotBlacklisted(final WhiteBlackListLeafname jarWhiteBlackList) {
@@ -95,7 +125,12 @@ public class ZipFileSlice {
         return true;
     }
 
-    /** Recursively get path in top down ancestral order. */
+    /**
+     * Recursively get path in top down ancestral order.
+     *
+     * @param buf
+     *            the buf to write path to
+     */
     private void getPath(final StringBuilder buf) {
         if (parentZipFileSlice != null) {
             parentZipFileSlice.getPath(buf);
@@ -106,18 +141,28 @@ public class ZipFileSlice {
         buf.append(name);
     }
 
-    /** Get the path to this zipfile slice, e.g. "/path/to/jarfile.jar!/nestedjar1.jar!/nestedfile". */
+    /**
+     * Get the path of this zipfile slice, e.g. "/path/to/jarfile.jar!/nestedjar1.jar!/nestedfile".
+     *
+     * @return the path of this zipfile slice.
+     */
     public String getPath() {
         final StringBuilder buf = new StringBuilder();
         getPath(buf);
         return buf.toString();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return physicalZipFile.getPath().hashCode() ^ (int) startOffsetWithinPhysicalZipFile ^ (int) len;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -131,6 +176,9 @@ public class ZipFileSlice {
                 && this.physicalZipFile.equals(other.physicalZipFile);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return (physicalZipFile.isDeflatedToRam ? "[ByteBuffer deflated to RAM]" : physicalZipFile.getFile())

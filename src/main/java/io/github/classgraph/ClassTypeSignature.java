@@ -41,6 +41,8 @@ import nonapi.io.github.classgraph.utils.Join;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
+
+    /** The class info. */
     private final ClassInfo classInfo;
 
     /** The class type parameters. */
@@ -55,6 +57,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param classInfo
      *            the {@link ClassInfo} object of the class.
      * @param typeParameters
@@ -76,6 +80,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the type parameters for the class.
+     *
      * @return The type parameters for the class.
      */
     public List<TypeParameter> getTypeParameters() {
@@ -93,7 +99,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the type signatures of any superinterfaces
+     * Get the type signatures of any superinterfaces.
      * 
      * @return The type signatures of any superinterfaces.
      */
@@ -105,9 +111,11 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Parse a class type signature or class type descriptor.
-     * 
+     *
      * @param typeDescriptor
      *            The class type signature or class type descriptor to parse.
+     * @param classInfo
+     *            the class info
      * @return The parsed class type signature or class type descriptor.
      * @throws ParseException
      *             If the class type signature could not be parsed.
@@ -143,16 +151,25 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         return classInfo != null ? classInfo.getName() : null;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         return classInfo;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -171,6 +188,9 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
@@ -186,12 +206,18 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return typeParameters.hashCode() + superclassSignature.hashCode() * 7
                 + superinterfaceSignatures.hashCode() * 15;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -259,6 +285,9 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         return buf.toString();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return toString(classInfo.getName(), /* typeNameOnly = */ false, classInfo.getModifiers(),

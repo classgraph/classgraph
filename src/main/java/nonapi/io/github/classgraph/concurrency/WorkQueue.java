@@ -82,7 +82,10 @@ public class WorkQueue<T> implements AutoCloseable {
      *            The type of work unit to process.
      */
     public interface WorkUnitProcessor<T> {
+
         /**
+         * Process work unit.
+         *
          * @param workUnit
          *            The work unit.
          * @param workQueue
@@ -133,7 +136,16 @@ public class WorkQueue<T> implements AutoCloseable {
         // while all worker threads complete.
     }
 
-    /** A parallel work queue. */
+    /**
+     * A parallel work queue.
+     *
+     * @param workUnitProcessor
+     *            the work unit processor
+     * @param interruptionChecker
+     *            the interruption checker
+     * @param log
+     *            the log
+     */
     private WorkQueue(final WorkUnitProcessor<T> workUnitProcessor, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         this.workUnitProcessor = workUnitProcessor;
@@ -141,16 +153,34 @@ public class WorkQueue<T> implements AutoCloseable {
         this.log = log;
     }
 
-    /** A parallel work queue. */
+    /**
+     * A parallel work queue.
+     *
+     * @param initialWorkUnits
+     *            the initial work units
+     * @param workUnitProcessor
+     *            the work unit processor
+     * @param interruptionChecker
+     *            the interruption checker
+     * @param log
+     *            the log
+     */
     private WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this(workUnitProcessor, interruptionChecker, log);
         addWorkUnits(initialWorkUnits);
     }
 
-    /** Start worker threads with a shared log. */
-    private void startWorkers(final ExecutorService executorService, final int numWorkers) {
-        for (int i = 0; i < numWorkers; i++) {
+    /**
+     * Start worker threads with a shared log.
+     *
+     * @param executorService
+     *            the executor service
+     * @param numTasks
+     *            the number of worker tasks to start
+     */
+    private void startWorkers(final ExecutorService executorService, final int numTasks) {
+        for (int i = 0; i < numTasks; i++) {
             workerFutures.add(executorService.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
@@ -166,6 +196,11 @@ public class WorkQueue<T> implements AutoCloseable {
      * on that thread, to prevent deadlock in the case that the ExecutorService doesn't have as many threads
      * available as numParallelTasks. When this method returns, either all the work has been completed, or this or
      * some other thread was interrupted. If InterruptedException is thrown, this thread or another was interrupted.
+     *
+     * @throws InterruptedException
+     *             if a worker thread was interrupted
+     * @throws ExecutionException
+     *             if a worker thread throws an uncaught exception
      */
     private void runWorkLoop() throws InterruptedException, ExecutionException {
         // Get next work unit from queue
@@ -220,6 +255,9 @@ public class WorkQueue<T> implements AutoCloseable {
 
     /**
      * Add a unit of work. May be called by workers to add more work units to the tail of the queue.
+     *
+     * @param workUnit
+     *            the work unit
      */
     public void addWorkUnit(final T workUnit) {
         numWorkUnitsRemaining.incrementAndGet();

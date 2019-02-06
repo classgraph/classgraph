@@ -76,6 +76,9 @@ class ClassfileBinaryParser {
      * @param subFieldIdx
      *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
      *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
+     * @return the constant pool string offset
+     * @throws IllegalArgumentException
+     *             If a problem is detected
      */
     private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx)
             throws IllegalArgumentException {
@@ -131,6 +134,19 @@ class ClassfileBinaryParser {
 
     /**
      * Get a string from the constant pool, optionally replacing '/' with '.'.
+     *
+     * @param cpIdx
+     *            the constant pool index
+     * @param replaceSlashWithDot
+     *            if true, replace slash with dot in the result.
+     * @param stripLSemicolon
+     *            if true, strip 'L' from the beginning and ';' from the end before returning (for class reference
+     *            constants)
+     * @return the constant pool string
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IllegalArgumentException, IOException {
@@ -148,6 +164,11 @@ class ClassfileBinaryParser {
      * @param subFieldIdx
      *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
      *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
+     * @return the constant pool string
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private String getConstantPoolString(final int cpIdx, final int subFieldIdx)
             throws IllegalArgumentException, IOException {
@@ -157,12 +178,32 @@ class ClassfileBinaryParser {
                         /* stripLSemicolon = */ false);
     }
 
-    /** Get a string from the constant pool. */
+    /**
+     * Get a string from the constant pool.
+     *
+     * @param cpIdx
+     *            the constant pool index
+     * @return the constant pool string
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
+     */
     private String getConstantPoolString(final int cpIdx) throws IllegalArgumentException, IOException {
         return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
     }
 
-    /** Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty. */
+    /**
+     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty.
+     *
+     * @param cpIdx
+     *            the constant pool index
+     * @return the first byte of the constant pool string
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
+     */
     private byte getConstantPoolStringFirstByte(final int cpIdx) throws IllegalArgumentException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (constantPoolStringOffset == 0) {
@@ -177,6 +218,14 @@ class ClassfileBinaryParser {
 
     /**
      * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
+     *
+     * @param CpIdx
+     *            the constant pool index
+     * @return the constant pool class name
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private String getConstantPoolClassName(final int CpIdx) throws IllegalArgumentException, IOException {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
@@ -186,12 +235,32 @@ class ClassfileBinaryParser {
      * Get a string from the constant pool representing an internal string descriptor for a class name
      * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
      * "L" and the trailing ";".
+     *
+     * @param CpIdx
+     *            the constant pool index
+     * @return the constant pool class descriptor
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private String getConstantPoolClassDescriptor(final int CpIdx) throws IllegalArgumentException, IOException {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
-    /** Compare a string in the constant pool with a given constant, without constructing the String object. */
+    /**
+     * Compare a string in the constant pool with a given constant, without constructing the String object.
+     *
+     * @param cpIdx
+     *            the constant pool index
+     * @param otherString
+     *            the other string
+     * @return true, if successful
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
+     */
     private boolean constantPoolStringEquals(final int cpIdx, final String otherString)
             throws IllegalArgumentException, IOException {
         final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
@@ -214,7 +283,21 @@ class ClassfileBinaryParser {
         return true;
     }
 
-    /** Get a field constant from the constant pool. */
+    /**
+     * Get a field constant from the constant pool.
+     *
+     * @param tag
+     *            the tag
+     * @param fieldTypeDescriptorFirstChar
+     *            the first char of the field type descriptor
+     * @param cpIdx
+     *            the constant pool index
+     * @return the field constant pool value
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
+     */
     private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
             final int cpIdx) throws IllegalArgumentException, IOException {
         switch (tag) {
@@ -259,7 +342,15 @@ class ClassfileBinaryParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Read annotation entry from classfile. */
+    /**
+     * Read annotation entry from classfile.
+     *
+     * @return the annotation, as an {@link AnnotationInfo} object.
+     * @throws IOException
+     *             If an IO exception occurs.
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     */
     private AnnotationInfo readAnnotation() throws IOException, IllegalArgumentException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
         final String annotationClassName = getConstantPoolClassDescriptor(
@@ -277,7 +368,15 @@ class ClassfileBinaryParser {
         return new AnnotationInfo(annotationClassName, paramVals);
     }
 
-    /** Read annotation element value from classfile. */
+    /**
+     * Read annotation element value from classfile.
+     *
+     * @return the annotation element value
+     * @throws IOException
+     *             If an IO exception occurs.
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
+     */
     private Object readAnnotationElementValue() throws IOException, IllegalArgumentException {
         final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
         switch (tag) {
@@ -333,6 +432,7 @@ class ClassfileBinaryParser {
         }
     }
 
+    /** An empty array for the case where there are no annotations. */
     private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
 
     // -------------------------------------------------------------------------------------------------------------
@@ -341,6 +441,24 @@ class ClassfileBinaryParser {
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
+     *
+     * @param classpathElement
+     *            the classpath element
+     * @param relativePath
+     *            the relative path
+     * @param isExternalClass
+     *            true if this is an external class
+     * @param classfileResource
+     *            the classfile resource
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     * @return a {@link ClassInfoUnlinked} instance, or null if there was an exception.
+     * @throws IOException
+     *             If an IO exception occurs.
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
      */
     private ClassInfoUnlinked readClassfile(final ClasspathElement classpathElement, final String relativePath,
             final boolean isExternalClass, final Resource classfileResource, final ScanSpec scanSpec,
@@ -821,6 +939,24 @@ class ClassfileBinaryParser {
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
+     *
+     * @param classpathElement
+     *            the classpath element
+     * @param relativePath
+     *            the relative path
+     * @param classfileResource
+     *            the classfile resource
+     * @param isExternalClass
+     *            if this is an external class
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     * @return a {@link ClassInfoUnlinked} instance, or null if there was an exception.
+     * @throws IOException
+     *             If an IO exception occurs.
+     * @throws IllegalArgumentException
+     *             If a problem occurs.
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
             final String relativePath, final Resource classfileResource, final boolean isExternalClass,

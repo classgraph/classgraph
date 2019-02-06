@@ -72,6 +72,18 @@ class ClasspathElementZip extends ClasspathElement {
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
 
+    /**
+     * A jarfile classpath element.
+     *
+     * @param rawPath
+     *            the raw path to the jarfile, possibly including "!"-delimited nested paths.
+     * @param classLoaders
+     *            the classloaders
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathElementZip(final String rawPath, final ClassLoader[] classLoaders,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoaders, scanSpec);
@@ -85,6 +97,9 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanJars) {
@@ -206,7 +221,15 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
-    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
+    /**
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     *
+     * @param zipEntry
+     *            the zip entry
+     * @param pathRelativeToPackageRoot
+     *            the path relative to package root
+     * @return the resource
+     */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
         return new Resource() {
             {
@@ -323,6 +346,8 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
+     * Get the {@link Resource} for a given relative path.
+     *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
@@ -333,7 +358,12 @@ class ClasspathElementZip extends ClasspathElement {
         return relativePathToResource.get(relativePath);
     }
 
-    /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
+    /**
+     * Scan for path matches within jarfile, and record ZipEntry objects of matching files.
+     *
+     * @param log
+     *            the log
+     */
     @Override
     void scanPaths(final LogNode log) {
         if (logicalZipFile == null) {
@@ -445,12 +475,19 @@ class ClasspathElementZip extends ClasspathElement {
         finishScanPaths(subLog);
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#getPackageRoot()
+     */
     @Override
     String getPackageRoot() {
         return packageRootPrefix;
     }
 
-    /** @return The {@link File} for the outermost zipfile of this classpath element. */
+    /**
+     * Get the {@link File} for the outermost zipfile of this classpath element.
+     *
+     * @return The {@link File} for the outermost zipfile of this classpath element.
+     */
     public File getZipFile() {
         if (logicalZipFile != null) {
             return logicalZipFile.physicalZipFile.getFile();
@@ -464,13 +501,19 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
-    /** @return the path of the zipfile, including any package root. */
+    /**
+     * Get the zipfile path.
+     *
+     * @return the path of the zipfile, including any package root.
+     */
     public String getZipFilePath() {
         return packageRootPrefix.isEmpty() ? zipFilePath
                 : zipFilePath + "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
     }
 
     /**
+     * Get the zipfile URL.
+     *
      * @return the URL for a jarfile, with "!/" separating any nested jars, optionally followed by "!/" and then a
      *         package root.
      */
@@ -483,6 +526,9 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#getURI()
+     */
     @Override
     URI getURI() {
         try {
@@ -493,7 +539,11 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
-    /** Return the classpath element's path. */
+    /**
+     * Return the classpath element path.
+     *
+     * @return the string
+     */
     @Override
     public String toString() {
         return getZipFilePath();

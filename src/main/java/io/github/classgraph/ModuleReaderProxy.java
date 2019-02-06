@@ -38,8 +38,18 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleReaderProxy implements Closeable {
+
+    /** The module reader. */
     private final AutoCloseable moduleReader;
 
+    /**
+     * Constructor.
+     *
+     * @param moduleRef
+     *            the module ref
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         try {
             moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef.getReference(), "open",

@@ -63,6 +63,18 @@ class ClassFields {
     /** If non-null, this is the field that has an {@link Id} annotation. */
     Field idField;
 
+    /**
+     * Constructor.
+     *
+     * @param cls
+     *            the class
+     * @param resolveTypes
+     *            whether to resolve types
+     * @param onlySerializePublicFields
+     *            whether to only serialize public fields
+     * @param classFieldCache
+     *            the class field cache
+     */
     public ClassFields(final Class<?> cls, final boolean resolveTypes, final boolean onlySerializePublicFields,
             final ClassFieldCache classFieldCache) {
 

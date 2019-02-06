@@ -36,7 +36,11 @@ import java.util.Set;
  * parameter value.
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
+
+    /** The class name. */
     private String className;
+
+    /** The value name. */
     private String valueName;
 
     /** Default constructor for deserialization. */
@@ -44,6 +48,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     }
 
     /**
+     * Constructor.
+     *
      * @param className
      *            The enum class name.
      * @param constValueName
@@ -57,6 +63,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the class name.
+     *
      * @return The name of the enum class.
      */
     @Override
@@ -65,6 +73,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     }
 
     /**
+     * Get the value name.
+     *
      * @return The name of the enum const value.
      */
     public String getValueName() {
@@ -72,6 +82,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     }
 
     /**
+     * Get the name.
+     *
      * @return The fully-qualified name of the enum constant value, i.e. ({@link #getClassName()} +
      *         {#getValueName()}).
      */
@@ -125,17 +137,26 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> referencedClassNames) {
         referencedClassNames.add(className);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
     @Override
     public int compareTo(final AnnotationEnumValue o) {
         final int diff = className.compareTo(o.className);
         return diff == 0 ? valueName.compareTo(o.valueName) : diff;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object o) {
         if (!(o instanceof AnnotationEnumValue)) {
@@ -144,11 +165,17 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         return compareTo((AnnotationEnumValue) o) == 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return className.hashCode() * 11 + valueName.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return className + "." + valueName;

@@ -55,12 +55,31 @@ import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {
+
+    /** The module ref. */
     private final ModuleRef moduleRef;
+
+    /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
+
+    /** The module reader proxy recycler. */
     private Recycler<ModuleReaderProxy, IOException> moduleReaderProxyRecycler;
+
+    /** All resource paths. */
     private final Set<String> allResourcePaths = new HashSet<>();
 
-    /** A zip/jarfile classpath element. */
+    /**
+     * A zip/jarfile classpath element.
+     *
+     * @param moduleRef
+     *            the module ref
+     * @param classLoaders
+     *            the classloaders
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathElementModule(final ModuleRef moduleRef, final ClassLoader[] classLoaders,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoaders, scanSpec);
@@ -77,6 +96,9 @@ class ClasspathElementModule extends ClasspathElement {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     void open(final WorkQueue<RawClasspathElementWorkUnit> workQueueIgnored, final LogNode log) {
         try {
@@ -98,7 +120,13 @@ class ClasspathElementModule extends ClasspathElement {
         }
     }
 
-    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
+    /**
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     *
+     * @param moduleResourcePath
+     *            the module resource path
+     * @return the resource
+     */
     private Resource newResource(final String moduleResourcePath) {
         return new Resource() {
             private ModuleReaderProxy moduleReaderProxy;
@@ -243,6 +271,8 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
+     * Get the {@link Resource} for a given relative path.
+     *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
@@ -253,7 +283,12 @@ class ClasspathElementModule extends ClasspathElement {
         return allResourcePaths.contains(relativePath) ? newResource(relativePath) : null;
     }
 
-    /** Scan for package matches within module */
+    /**
+     * Scan for package matches within module.
+     *
+     * @param log
+     *            the log
+     */
     @Override
     void scanPaths(final LogNode log) {
         if (skipClasspathElement) {
@@ -355,17 +390,28 @@ class ClasspathElementModule extends ClasspathElement {
         finishScanPaths(subLog);
     }
 
-    /** Get the ModuleRef for this classpath element. */
+    /**
+     * Get the ModuleRef for this classpath element.
+     *
+     * @return the module ref
+     */
     ModuleRef getModuleRef() {
         return moduleRef;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#getURI()
+     */
     @Override
     URI getURI() {
         return moduleRef.getLocation();
     }
 
-    /** Return the module reference. */
+    /**
+     * Return the module reference as a String.
+     *
+     * @return the string
+     */
     @Override
     public String toString() {
         return moduleRef.toString();

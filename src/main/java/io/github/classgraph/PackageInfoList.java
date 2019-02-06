@@ -35,18 +35,34 @@ import io.github.classgraph.InfoList.MappableInfoList;
 /** A list of {@link PackageInfo} objects. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
 
+    /**
+     * Constructor.
+     */
     PackageInfoList() {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     PackageInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param packageInfoCollection
+     *            the package info collection
+     */
     PackageInfoList(final Collection<PackageInfo> packageInfoCollection) {
         super(packageInfoCollection);
     }
 
+    /** An unmodifiable {@link PackageInfoList}. */
     static final PackageInfoList EMPTY_LIST = new PackageInfoList() {
         @Override
         public boolean add(final PackageInfo e) {

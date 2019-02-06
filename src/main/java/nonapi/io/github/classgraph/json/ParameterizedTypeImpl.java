@@ -37,15 +37,34 @@ import java.util.Objects;
 
 /** An implementation of {@link ParameterizedType}, used to replace type variables with concrete types. */
 class ParameterizedTypeImpl implements ParameterizedType {
+
+    /** The actual type arguments. */
     private final Type[] actualTypeArguments;
+
+    /** The raw type. */
     private final Class<?> rawType;
+
+    /** The owner type. */
     private final Type ownerType;
 
+    /** The type parameters of {@link Map} instances of unknown generic type. */
     public static final Type MAP_OF_UNKNOWN_TYPE = new ParameterizedTypeImpl(Map.class,
             new Type[] { Object.class, Object.class }, null);
+
+    /** The type parameter of {@link List} instances of unknown generic type. */
     public static final Type LIST_OF_UNKNOWN_TYPE = new ParameterizedTypeImpl(List.class,
             new Type[] { Object.class }, null);
 
+    /**
+     * Constructor.
+     *
+     * @param rawType
+     *            the raw type
+     * @param actualTypeArguments
+     *            the actual type arguments
+     * @param ownerType
+     *            the owner type
+     */
     ParameterizedTypeImpl(final Class<?> rawType, final Type[] actualTypeArguments, final Type ownerType) {
         this.actualTypeArguments = actualTypeArguments;
         this.rawType = rawType;
@@ -55,21 +74,33 @@ class ParameterizedTypeImpl implements ParameterizedType {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.reflect.ParameterizedType#getActualTypeArguments()
+     */
     @Override
     public Type[] getActualTypeArguments() {
         return actualTypeArguments.clone();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.reflect.ParameterizedType#getRawType()
+     */
     @Override
     public Class<?> getRawType() {
         return rawType;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.reflect.ParameterizedType#getOwnerType()
+     */
     @Override
     public Type getOwnerType() {
         return ownerType;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -87,11 +118,17 @@ class ParameterizedTypeImpl implements ParameterizedType {
                 && Arrays.equals(actualTypeArguments, other.getActualTypeArguments());
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return Arrays.hashCode(actualTypeArguments) ^ Objects.hashCode(ownerType) ^ Objects.hashCode(rawType);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();

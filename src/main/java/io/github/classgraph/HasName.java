@@ -30,6 +30,10 @@ package io.github.classgraph;
 
 /** A named object. */
 interface HasName {
-    /** @return The name. */
+    /**
+     * Get the name.
+     *
+     * @return The name.
+     */
     String getName();
 }

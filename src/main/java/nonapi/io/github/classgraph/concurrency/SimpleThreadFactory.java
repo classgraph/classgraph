@@ -36,8 +36,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Johno Crawford (johno@sulake.com)
  */
 public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
+
+    /** The thread name prefix. */
     private final String threadNamePrefix;
+
+    /** The thread index counter, used for assigning unique thread ids. */
     private static final AtomicInteger threadIdx = new AtomicInteger();
+
+    /** Whether to set daemon mode. */
     private final boolean daemon;
 
     /**
@@ -53,6 +59,9 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
         this.daemon = daemon;
     }
 
+    /* (non-Javadoc)
+     * @see java.util.concurrent.ThreadFactory#newThread(java.lang.Runnable)
+     */
     @Override
     public Thread newThread(final Runnable r) {
         final Thread t = new Thread(r, threadNamePrefix + threadIdx.getAndIncrement());

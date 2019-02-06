@@ -117,6 +117,27 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     /**
      * The result of a scan. Make sure you call complete() after calling the constructor.
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @param classpathOrder
+     *            the classpath order
+     * @param rawClasspathEltOrderStrs
+     *            the raw classpath element order
+     * @param envClassLoaderOrder
+     *            the environment classloader order
+     * @param classNameToClassInfo
+     *            a map from class name to class info
+     * @param packageNameToPackageInfo
+     *            a map from package name to package info
+     * @param moduleNameToModuleInfo
+     *            a map from module name to module info
+     * @param fileToLastModified
+     *            a map from file to last modified time
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final List<String> rawClasspathEltOrderStrs, final ClassLoader[] envClassLoaderOrder,
@@ -269,7 +290,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * @return {@link ModuleRef} references for all the visible modules.
+     * Get {@link ModuleRef} references for all visible modules.
+     *
+     * @return {@link ModuleRef} references for all visible modules.
      */
     public List<ModuleRef> getModules() {
         if (closed.get()) {
@@ -303,7 +326,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
     // Resources
 
-    /** @return A list of all resources (including classfiles and non-classfiles) found in whitelisted packages. */
+    /**
+     * Get the list of all resources (including classfiles and non-classfiles) found in whitelisted packages.
+     *
+     * @return A list of all resources (including classfiles and non-classfiles) found in whitelisted packages.
+     */
     public ResourceList getAllResources() {
         if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
             return new ResourceList(1);
@@ -313,6 +340,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get the list of all resources found in whitelisted packages that have the given path, relative to the package
+     * root of the classpath element. May match several resources, up to one per classpath element.
+     *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root.
      * @return A list of all resources found in whitelisted packages that have the given path, relative to the
@@ -332,12 +362,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get the list of all resources found in any classpath element, <i>whether in whitelisted packages or not (as
+     * long as the resource is not blacklisted)<i>, that have the given path, relative to the package root of the
+     * classpath element. May match several resources, up to one per classpath element.
+     *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root.
-     * @return A list of all resources found in any classpath element, <i>whether in whitelisted packages or not<i>,
-     *         that have the given path, relative to the package root of the classpath element. (Resources will not
-     *         be returned if their path is blacklisted.) May match several resources, up to one per classpath
-     *         element.
+     * @return A list of all resources found in any classpath element, <i>whether in whitelisted packages or not (as
+     *         long as the resource is not blacklisted)<i>, that have the given path, relative to the package root
+     *         of the classpath element. May match several resources, up to one per classpath element.
      */
     public ResourceList getResourcesWithPathIgnoringWhitelist(final String resourcePath) {
         if (closed.get()) {
@@ -355,6 +388,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get the list of all resources found in whitelisted packages that have the requested leafname.
+     *
      * @param leafName
      *            A resource leaf filename.
      * @return A list of all resources found in whitelisted packages that have the requested leafname.
@@ -379,6 +414,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get the list of all resources found in whitelisted packages that have the requested filename extension.
+     *
      * @param extension
      *            A filename extension, e.g. "xml" to match all resources ending in ".xml".
      * @return A list of all resources found in whitelisted packages that have the requested filename extension.
@@ -410,6 +447,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get the list of all resources found in whitelisted packages that have a path matching the requested pattern.
+     *
      * @param pattern
      *            A pattern to match {@link Resource} paths with.
      * @return A list of all resources found in whitelisted packages that have a path matching the requested
@@ -509,13 +548,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // Class dependencies
 
     /**
+     * Get a map from the {@link ClassInfo} object for each whitelisted class to a list of the classes referenced by
+     * that class (i.e. returns a map from dependents to dependencies). Note that you need to call
+     * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
+     * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
+     * non-whitelisted classes to appear in the result. See also {@link #getReverseClassDependencyMap()}, which
+     * inverts the map.
+     *
      * @return A map from a {@link ClassInfo} object for each whitelisted class to a list of the classes referenced
      *         by that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
-     *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key. Note that you need to call
-     *         {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to
-     *         work. You should also call {@link ClassGraph#enableExternalClasses()} before
-     *         {@link ClassGraph#scan()} if you want non-whitelisted classes to appear in the result. See also
-     *         {@link #getReverseClassDependencyMap()}, which inverts the map.
+     *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key.
      */
     public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
         final Map<ClassInfo, ClassInfoList> map = new HashMap<>();
@@ -526,13 +568,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * @return A mapping from a {@link ClassInfo} object for each dependency class (whitelisted or not) to a list of
-     *         the whitelisted classes that referenced that class as a dependency (i.e. returns a map from
-     *         dependencies to dependents). Note that you need to call
-     *         {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to
-     *         work. You should also call {@link ClassGraph#enableExternalClasses()} before
-     *         {@link ClassGraph#scan()} if you want non-whitelisted classes to appear in the result. See also
-     *         {@link #getClassDependencyMap}.
+     * Get the reverse class dependency map, i.e. a map from the {@link ClassInfo} object for each dependency class
+     * (whitelisted or not) to a list of the whitelisted classes that referenced that class as a dependency (i.e.
+     * returns a map from dependencies to dependents). Note that you need to call
+     * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
+     * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
+     * non-whitelisted classes to appear in the result. See also {@link #getClassDependencyMap}.
+     *
+     * @return A map from a {@link ClassInfo} object for each dependency class (whitelisted or not) to a list of the
+     *         whitelisted classes that referenced that class as a dependency (i.e. returns a map from dependencies
+     *         to dependents).
      */
     public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
         final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();
@@ -881,7 +926,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
-     *
+     * 
      * <p>
      * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
      * is false.
@@ -891,13 +936,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @param returnNullIfClassNotFound
      *            If true, null is returned if there was an exception during classloading, otherwise
      *            IllegalArgumentException is thrown if a class could not be loaded.
+     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
+     *         true.
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
      *             or initializing the class. (Note that class initialization on load is disabled by default, you
      *             can enable it with {@code ClassGraph#initializeLoadedClasses(true)} .) Otherwise exceptions are
      *             suppressed, and null is returned if any of these problems occurs.
-     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
-     *         true.
      */
     public Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
             throws IllegalArgumentException {
@@ -922,11 +967,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
-     *
+     * 
      * <p>
      * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
      * is false.
      *
+     * @param <T>
+     *            the superclass or interface type.
      * @param className
      *            the class to load.
      * @param superclassOrInterfaceType
@@ -934,14 +981,14 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @param returnNullIfClassNotFound
      *            If true, null is returned if there was an exception during classloading, otherwise
      *            IllegalArgumentException is thrown if a class could not be loaded.
+     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
+     *         true.
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
      *             the class, initializing the class, or casting it to the requested type. (Note that class
      *             initialization on load is disabled by default, you can enable it with
      *             {@code ClassGraph#initializeLoadedClasses(true)} .) Otherwise exceptions are suppressed, and null
      *             is returned if any of these problems occurs.
-     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
-     *         true.
      */
     public <T> Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
             final boolean returnNullIfClassNotFound) throws IllegalArgumentException {
@@ -986,17 +1033,47 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
     private static class SerializationFormat {
+        /** The serialization format. */
         public String format;
+
+        /** The scan spec. */
         public ScanSpec scanSpec;
+
+        /** The classpath, as a list of URL strings. */
         public List<String> classpath;
+
+        /** The list of all {@link ClassInfo} objects. */
         public List<ClassInfo> classInfo;
+
+        /** The list of all {@link PackageInfo} objects. */
         public List<PackageInfo> packageInfo;
+
+        /** The list of all {@link ModuleInfo} objects. */
         public List<ModuleInfo> moduleInfo;
 
+        /**
+         * Constructor.
+         */
         @SuppressWarnings("unused")
         public SerializationFormat() {
         }
 
+        /**
+         * Constructor.
+         *
+         * @param serializationFormatStr
+         *            the serialization format string
+         * @param scanSpec
+         *            the scan spec
+         * @param classInfo
+         *            the list of all {@link ClassInfo} objects
+         * @param packageInfo
+         *            the list of all {@link PackageInfo} objects
+         * @param moduleInfo
+         *            the list of all {@link ModuleInfo} objects
+         * @param classpath
+         *            the classpath as a list of URL strings
+         */
         public SerializationFormat(final String serializationFormatStr, final ScanSpec scanSpec,
                 final List<ClassInfo> classInfo, final List<PackageInfo> packageInfo,
                 final List<ModuleInfo> moduleInfo, final List<String> classpath) {

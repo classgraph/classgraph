@@ -41,11 +41,21 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find the unique ordered classpath elements. */
 class CallStackReader {
+
+    /**
+     * Constructor.
+     */
     private CallStackReader() {
         // Cannot be constructed
     }
 
-    /** Get the call stack via the StackWalker API (JRE 9+). */
+    /**
+     * Get the call stack via the StackWalker API (JRE 9+).
+     *
+     * @return the call stack.
+     * @throws Exception
+     *             the exception
+     */
     private static Class<?>[] getCallStackViaStackWalker() throws Exception {
         //    // Implement the following via reflection, for JDK7 compatibility:
         //    List<Class<?>> stackFrameClasses = new ArrayList<>();
@@ -90,13 +100,23 @@ class CallStackReader {
      * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
      */
     private static final class CallerResolver extends SecurityManager {
+
+        /* (non-Javadoc)
+         * @see java.lang.SecurityManager#getClassContext()
+         */
         @Override
         protected Class<?>[] getClassContext() {
             return super.getClassContext();
         }
     }
 
-    /** Get the call stack via the SecurityManager API. */
+    /**
+     * Get the call stack via the SecurityManager API.
+     *
+     * @param log
+     *            the log
+     * @return the call stack.
+     */
     private static Class<?>[] getCallStackViaSecurityManager(final LogNode log) {
         try {
             return new CallerResolver().getClassContext();
@@ -114,6 +134,10 @@ class CallStackReader {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the class context.
+     *
+     * @param log
+     *            the log
      * @return The classes in the call stack.
      */
     static Class<?>[] getClassContext(final LogNode log) {

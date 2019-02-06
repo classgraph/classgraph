@@ -37,6 +37,9 @@ import java.lang.reflect.TypeVariable;
 import java.util.Collection;
 import java.util.Map;
 
+/**
+ * Information on the type of a field.
+ */
 class FieldTypeInfo {
     /** The field. */
     final Field field;
@@ -72,10 +75,37 @@ class FieldTypeInfo {
      */
     private Constructor<?> defaultConstructorForFieldType;
 
+    /**
+     * The Enum PrimitiveType.
+     */
     private static enum PrimitiveType {
-        NON_PRIMITIVE, INTEGER, LONG, SHORT, DOUBLE, FLOAT, BOOLEAN, BYTE, CHARACTER;
+        /** The non primitive. */
+        NON_PRIMITIVE,
+        /** The integer. */
+        INTEGER,
+        /** The long. */
+        LONG,
+        /** The short. */
+        SHORT,
+        /** The double. */
+        DOUBLE,
+        /** The float. */
+        FLOAT,
+        /** The boolean. */
+        BOOLEAN,
+        /** The byte. */
+        BYTE,
+        /** The character. */
+        CHARACTER;
     }
 
+    /**
+     * Check if the type has type variables.
+     *
+     * @param type
+     *            the type
+     * @return true if the type has type variables.
+     */
     private static boolean hasTypeVariables(final Type type) {
         if (type instanceof TypeVariable<?> || type instanceof GenericArrayType) {
             return true;
@@ -89,6 +119,16 @@ class FieldTypeInfo {
         return false;
     }
 
+    /**
+     * Constructor.
+     *
+     * @param field
+     *            the field
+     * @param fieldTypePartiallyResolved
+     *            the field type, partially resolved
+     * @param classFieldCache
+     *            the class field cache
+     */
     public FieldTypeInfo(final Field field, final Type fieldTypePartiallyResolved,
             final ClassFieldCache classFieldCache) {
         this.field = field;
@@ -139,6 +179,15 @@ class FieldTypeInfo {
         }
     }
 
+    /**
+     * Get the constructor with size hint for the field type.
+     *
+     * @param fieldTypeFullyResolved
+     *            the field type
+     * @param classFieldCache
+     *            the class field cache
+     * @return the constructor with size hint for the field type
+     */
     public Constructor<?> getConstructorForFieldTypeWithSizeHint(final Type fieldTypeFullyResolved,
             final ClassFieldCache classFieldCache) {
         if (!isTypeVariable) {
@@ -155,6 +204,15 @@ class FieldTypeInfo {
         }
     }
 
+    /**
+     * Get the default constructor for the field type.
+     *
+     * @param fieldTypeFullyResolved
+     *            the field type
+     * @param classFieldCache
+     *            the class field cache
+     * @return the default constructor for the field type
+     */
     public Constructor<?> getDefaultConstructorForFieldType(final Type fieldTypeFullyResolved,
             final ClassFieldCache classFieldCache) {
         if (!isTypeVariable) {
@@ -165,6 +223,13 @@ class FieldTypeInfo {
         }
     }
 
+    /**
+     * Get the fully resolved field type.
+     *
+     * @param typeResolutions
+     *            the type resolutions
+     * @return the fully resolved field type
+     */
     public Type getFullyResolvedFieldType(final TypeResolutions typeResolutions) {
         if (!hasUnresolvedTypeVariables) {
             // Fast path -- don't try to resolve type variables if there aren't any to resolve
@@ -176,7 +241,14 @@ class FieldTypeInfo {
         return typeResolutions.resolveTypeVariables(fieldTypePartiallyResolved);
     }
 
-    /** Set the field's value, appropriately handling primitive-typed fields. */
+    /**
+     * Set the field's value, appropriately handling primitive-typed fields.
+     *
+     * @param containingObj
+     *            the containing object
+     * @param value
+     *            the field value
+     */
     void setFieldValue(final Object containingObj, final Object value) {
         if (value == null && primitiveType != PrimitiveType.NON_PRIMITIVE) {
             throw new IllegalArgumentException("Tried to set primitive-typed field "
@@ -253,6 +325,9 @@ class FieldTypeInfo {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return fieldTypePartiallyResolved + " " + field.getDeclaringClass().getName() + "."

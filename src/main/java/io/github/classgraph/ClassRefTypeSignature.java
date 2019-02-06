@@ -61,6 +61,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param className
      *            The class name.
      * @param typeArguments
@@ -185,6 +187,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
+     * Get the {@link ClassInfo} object for the referenced class.
+     *
      * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
      *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
      *         N.B. even if this method returns null, {@link #loadClass()} may be able to load the referenced class
@@ -195,6 +199,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         return super.getClassInfo();
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -212,6 +219,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
         classNameListOut.add(className);
@@ -223,11 +233,17 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixes.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -241,6 +257,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
                 && o.suffixes.equals(this.suffixes);
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.classgraph.TypeSignature)
+     */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
         if (other instanceof TypeVariableSignature) {
@@ -260,11 +279,13 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
-     * Return the class type as a string.
+     * Return the class type as a String.
      * 
      * <p>
      * For comparison, {@link #getFullyQualifiedClassName()} uses '$' to separate suffixes, and does not include
      * type parameters, whereas this method uses '.' to separate suffixes, and does include type parameters.
+     *
+     * @return the class type as a String.
      */
     @Override
     public String toString() {

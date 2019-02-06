@@ -66,7 +66,16 @@ class ClasspathElementDir extends ClasspathElement {
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final HashSet<String> scannedCanonicalPaths = new HashSet<>();
 
-    /** A directory classpath element. */
+    /**
+     * A directory classpath element.
+     *
+     * @param classpathEltDir
+     *            the classpath element directory
+     * @param classLoaders
+     *            the classloaders
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathElementDir(final File classpathEltDir, final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
         super(classLoaders, scanSpec);
         this.classpathEltDir = classpathEltDir;
@@ -78,6 +87,9 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanDirs) {
@@ -120,8 +132,18 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
-    private Resource newResource(final File classpathEltFile, final String relativePath,
+    /**
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     *
+     * @param classpathEltDir
+     *            the classpath element directory
+     * @param relativePath
+     *            the relative path
+     * @param classpathResourceFile
+     *            the classpath resource file
+     * @return the resource
+     */
+    private Resource newResource(final File classpathEltDir, final String relativePath,
             final File classpathResourceFile) {
         return new Resource() {
             private RandomAccessFile randomAccessFile;
@@ -144,10 +166,10 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    return new File(classpathEltFile, relativePath).toURI().toURL();
+                    return new File(classpathEltDir, relativePath).toURI().toURL();
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException(
-                            "Could not form URL for dir: " + classpathEltFile + " ; path: " + relativePath);
+                            "Could not form URL for dir: " + classpathEltDir + " ; path: " + relativePath);
                 }
             }
 
@@ -277,6 +299,8 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
+     * Get the {@link Resource} for a given relative path.
+     *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
@@ -290,7 +314,14 @@ class ClasspathElementDir extends ClasspathElement {
                 : null;
     }
 
-    /** Recursively scan a directory for file path patterns matching the scan spec. */
+    /**
+     * Recursively scan a directory for file path patterns matching the scan spec.
+     *
+     * @param dir
+     *            the directory
+     * @param log
+     *            the log
+     */
     private void scanDirRecursively(final File dir, final LogNode log) {
         if (skipClasspathElement) {
             return;
@@ -425,7 +456,12 @@ class ClasspathElementDir extends ClasspathElement {
         fileToLastModified.put(dir, dir.lastModified());
     }
 
-    /** Hierarchically scan directory structure for classfiles and matching files. */
+    /**
+     * Hierarchically scan directory structure for classfiles and matching files.
+     *
+     * @param log
+     *            the log
+     */
     @Override
     void scanPaths(final LogNode log) {
         if (skipClasspathElement) {
@@ -444,17 +480,28 @@ class ClasspathElementDir extends ClasspathElement {
         finishScanPaths(subLog);
     }
 
-    /** @return The classpath element directory as a {@link File}. */
+    /**
+     * Get the directory {@link File}.
+     *
+     * @return The classpath element directory as a {@link File}.
+     */
     public File getDirFile() {
         return classpathEltDir;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#getURI()
+     */
     @Override
     URI getURI() {
         return classpathEltDir.toURI();
     }
 
-    /** Return the classpath element directory. */
+    /**
+     * Return the classpath element directory as a String.
+     *
+     * @return the string
+     */
     @Override
     public String toString() {
         return classpathEltDir.toString();

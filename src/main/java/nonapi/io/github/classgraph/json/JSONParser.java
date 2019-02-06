@@ -42,13 +42,28 @@ import nonapi.io.github.classgraph.types.Parser;
  * https://github.com/azatoth/PanPG/blob/master/grammars/JSON.peg
  */
 class JSONParser extends Parser {
+
+    /**
+     * Constructor.
+     *
+     * @param string
+     *            the string
+     * @throws ParseException
+     *             if parsing fails
+     */
     private JSONParser(final String string) throws ParseException {
         super(string);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get and parse a hexadecimal digit character. */
+    /**
+     * Get and parse a hexadecimal digit character.
+     *
+     * @return the hex char
+     * @throws ParseException
+     *             if the character was not hexadecimal
+     */
     private int getAndParseHexChar() throws ParseException {
         final char hexChar = getc();
         if (hexChar >= '0' && hexChar <= '9') {
@@ -74,6 +89,10 @@ class JSONParser extends Parser {
      *     UnicodeEscape ← "u" [0-9A-Fa-f]{4}
      * 
      * </pre>
+     *
+     * @return the char sequence
+     * @throws ParseException
+     *             if the escape sequence was invalid
      */
     private CharSequence parseString() throws ParseException {
         skipWhitespace();
@@ -183,8 +202,12 @@ class JSONParser extends Parser {
      *     ExponentPart ← ( "e" / "E" ) ( "+" / "-" )? [0-9]+
      * 
      * </pre>
+     *
+     * @return the number
+     * @throws ParseException
+     *             if parsing fails
      */
-    private Object parseNumber() throws ParseException {
+    private Number parseNumber() throws ParseException {
         final int startIdx = getPosition();
         if (peek() == '-') {
             next();
@@ -259,6 +282,12 @@ class JSONParser extends Parser {
      *     Array ← "[" ( JSON ( "," JSON )* / S? ) "]"
      * 
      * </pre>
+     * 
+     * .
+     *
+     * @return the JSON array
+     * @throws ParseException
+     *             if parsing fails
      */
     private JSONArray parseJSONArray() throws ParseException {
         expect('[');
@@ -293,6 +322,10 @@ class JSONParser extends Parser {
      *     Object ← "{" ( String ":" JSON ( "," String ":" JSON )* / S? ) "}"
      * 
      * </pre>
+     *
+     * @return the JSON object
+     * @throws ParseException
+     *             if parsing fails
      */
 
     private JSONObject parseJSONObject() throws ParseException {
@@ -345,12 +378,16 @@ class JSONParser extends Parser {
      * <p>
      * String values will have CharSequence type. Numerical values will have Integer, Long or Double type. Can
      * return null for JSON null value.
-     *
+     * 
      * <pre>
      * 
      *     JSON ← S? ( Object / Array / String / True / False / Null / Number ) S?
-     *
+     * 
      * </pre>
+     *
+     * @return the parsed JSON object
+     * @throws ParseException
+     *             if parsing fails
      */
     private Object parseJSON() throws ParseException {
         skipWhitespace();
@@ -396,7 +433,15 @@ class JSONParser extends Parser {
         }
     }
 
-    /** Parse a JSON object, array, string, value or object reference. */
+    /**
+     * Parse a JSON object, array, string, value or object reference.
+     *
+     * @param str
+     *            the str
+     * @return the parsed JSON object
+     * @throws ParseException
+     *             if parsing fails
+     */
     static Object parseJSON(final String str) throws ParseException {
         return new JSONParser(str).parseJSON();
     }

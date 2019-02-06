@@ -11,7 +11,7 @@ public class Circle extends ShapeImpl {
     private final float r;
 
     /**
-     * Instantiates a new circle.
+     * Constructor.
      *
      * @param x
      *            the x
@@ -26,7 +26,7 @@ public class Circle extends ShapeImpl {
     }
 
     /**
-     * Gets the r.
+     * Get the r.
      *
      * @return the r
      */

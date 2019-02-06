@@ -42,15 +42,17 @@ public class TypeParameter extends HierarchicalTypeSignature {
     /** The type parameter identifier. */
     final String name;
 
-    /** Class bound -- may be null */
+    /** Class bound -- may be null. */
     final ReferenceTypeSignature classBound;
 
-    /** Interface bounds -- may be empty */
+    /** Interface bounds -- may be empty. */
     final List<ReferenceTypeSignature> interfaceBounds;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param identifier
      *            The type parameter identifier.
      * @param classBound
@@ -94,7 +96,17 @@ public class TypeParameter extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Parse a list of {@link TypeParameter}s. */
+    /**
+     * Parse a list of type parameters into {@link TypeParameter} objects.
+     *
+     * @param parser
+     *            the parser
+     * @param definingClassName
+     *            the defining class name
+     * @return the list of {@link TypeParameter} objects.
+     * @throws ParseException
+     *             if parsing fails
+     */
     static List<TypeParameter> parseList(final Parser parser, final String definingClassName)
             throws ParseException {
         if (parser.peek() != '<') {
@@ -136,17 +148,26 @@ public class TypeParameter extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -160,6 +181,9 @@ public class TypeParameter extends HierarchicalTypeSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
         if (classBound != null) {
@@ -172,12 +196,18 @@ public class TypeParameter extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return name.hashCode() + (classBound == null ? 0 : classBound.hashCode() * 7)
                 + interfaceBounds.hashCode() * 15;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof TypeParameter)) {
@@ -190,6 +220,9 @@ public class TypeParameter extends HierarchicalTypeSignature {
                 && o.interfaceBounds.equals(this.interfaceBounds);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();

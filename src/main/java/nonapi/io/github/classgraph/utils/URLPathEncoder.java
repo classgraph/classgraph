@@ -34,10 +34,15 @@ import java.nio.charset.StandardCharsets;
 
 /** A simple URL path encoder. */
 public class URLPathEncoder {
+
+    /**
+     * Constructor.
+     */
     private URLPathEncoder() {
         // Cannot be constructed
     }
 
+    /** Whether an ASCII character is URL-safe. */
     private static boolean[] safe = new boolean[256];
 
     static {
@@ -58,9 +63,11 @@ public class URLPathEncoder {
         safe['/'] = true;
     }
 
+    /** Hexadecimal digits. */
     private static final char[] HEXADECIMAL = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
             'd', 'e', 'f' };
 
+    /** Valid classpath URL scheme prefixes. */
     private static final String[] SCHEME_PREFIXES = { "jrt:", "file:", "jar:file:", "jar:", "http:", "https:" };
 
     /**
@@ -95,7 +102,15 @@ public class URLPathEncoder {
         return encodedPath.toString();
     }
 
-    /** Convert a URL path to a URL. */
+    /**
+     * Convert a URL path to a URL.
+     *
+     * @param urlPath
+     *            the URL path
+     * @return the URL
+     * @throws MalformedURLException
+     *             If the URL path was malformed.
+     */
     public static URL urlPathToURL(final String urlPath) throws MalformedURLException {
         String urlPathNormalized = urlPath;
         if (!urlPathNormalized.startsWith("jrt:") && !urlPathNormalized.startsWith("http://")

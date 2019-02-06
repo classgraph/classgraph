@@ -85,6 +85,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param parentLogicalZipFile
      *            The parent logical zipfile containing this entry.
      * @param locHeaderPos
@@ -169,6 +171,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * Lazily find zip entry data start offset -- this is deferred until zip entry data needs to be read, in order
      * to avoid randomly seeking within zipfile for every entry as the central directory is read.
+     *
+     * @return the offset within the physical zip file of the entry's start offset.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     long getEntryDataStartOffsetWithinPhysicalZipFile() throws IOException {
         if (entryDataStartOffsetWithinPhysicalZipFile == -1L) {
@@ -193,8 +199,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return true if the zip entry can be opened as a ByteBuffer slice -- the entry must be STORED, and span only
-     *         one 2GB buffer chunk.
+     * True if the entire zip entry can be opened as a single ByteBuffer slice.
+     *
+     * @return true if the entire zip entry can be opened as a single ByteBuffer slice -- the entry must be STORED,
+     *         and span only one 2GB buffer chunk.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     public boolean canGetAsSlice() throws IOException {
         final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
@@ -205,8 +215,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * Open the ZipEntry as a ByteBuffer slice. Only call this method if {@link #canGetAsSlice()} returned true.
-     * 
+     *
      * @return the ZipEntry as a ByteBuffer.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     public ByteBuffer getAsSlice() throws IOException {
         // Check the file is STORED and resides in only one chunk
@@ -229,7 +241,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated. */
+    /**
+     * Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated.
+     *
+     * @return the input stream
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     public InputStream open() throws IOException {
         if (recyclableInflaterInstance != null) {
             throw new IOException("Zip entry already open");
@@ -469,14 +487,26 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         };
     }
 
-    /** Load the content of the zip entry, and return it as a byte array. */
+    /**
+     * Load the content of the zip entry, and return it as a byte array.
+     *
+     * @return the entry as a byte[] array
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     public byte[] load() throws IOException {
         try (InputStream is = open()) {
             return FileUtils.readAllBytesAsArray(is, uncompressedSize);
         }
     }
 
-    /** Load the content of the zip entry, and return it as a String (converting from UTF-8 byte format). */
+    /**
+     * Load the content of the zip entry, and return it as a String (converting from UTF-8 byte format).
+     *
+     * @return the entry as a String
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     public String loadAsString() throws IOException {
         try (InputStream is = open()) {
             return FileUtils.readAllBytesAsString(is, uncompressedSize);
@@ -488,11 +518,16 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * Get the path to this zip entry, using "!/" as a separator between the parent logical zipfile and the entry
      * name.
+     *
+     * @return the path of the entry
      */
     public String getPath() {
         return parentLogicalZipFile.getPath() + "!/" + entryName;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return "jar:file:" + getPath();
@@ -501,6 +536,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
      * path.
+     *
+     * @param o
+     *            the object to compare to
+     * @return the result of comparison
      */
     @Override
     public int compareTo(final FastZipEntry o) {
@@ -522,6 +561,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         return diff3 < 0L ? -1 : diff3 > 0L ? 1 : 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -534,6 +576,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         return this.parentLogicalZipFile.equals(other.parentLogicalZipFile) && this.compareTo(other) == 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return parentLogicalZipFile.hashCode() ^ version ^ entryName.hashCode() ^ (int) locHeaderPos;

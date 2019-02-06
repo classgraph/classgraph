@@ -37,18 +37,27 @@ import nonapi.io.github.classgraph.ScanSpec;
 
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {
+
+    /**
+     * Constructor.
+     */
     private GraphvizDotfileGenerator() {
         // Cannot be constructed
     }
 
+    /** The color for standard classes. */
     private static final String STANDARD_CLASS_COLOR = "fff2b6";
 
+    /** The color for interfaces. */
     private static final String INTERFACE_COLOR = "b6e7ff";
 
+    /** The color for annotations. */
     private static final String ANNOTATION_COLOR = "f3c9ff";
 
+    /** The wrap width for method parameters. */
     private static final int PARAM_WRAP_WIDTH = 40;
 
+    /** Which characters are Unicode whitespace. */
     private static final BitSet IS_UNICODE_WHITESPACE = new BitSet(1 << 16);
 
     static {
@@ -88,17 +97,26 @@ class GraphvizDotfileGenerator {
         }
     }
 
+    /**
+     * Checks if a character is Unicode whitespace.
+     *
+     * @param c
+     *            the character
+     * @return true if the character is Unicode whitespace
+     */
     private static boolean isUnicodeWhitespace(final char c) {
         return IS_UNICODE_WHITESPACE.get(c);
     }
 
     /**
      * Encode HTML-unsafe characters as HTML entities.
-     * 
+     *
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
      * @param turnNewlineIntoBreak
      *            If true, turn '\n' into a break element in the output.
+     * @param buf
+     *            the buf
      */
     private static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
             final StringBuilder buf) {
@@ -183,14 +201,34 @@ class GraphvizDotfileGenerator {
 
     /**
      * Encode HTML-unsafe characters as HTML entities.
-     * 
+     *
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
+     * @param buf
+     *            the buf
      */
     private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
     }
 
+    /**
+     * Produce HTML label for class node.
+     *
+     * @param ci
+     *            the class info
+     * @param shape
+     *            the shape to use
+     * @param boxBgColor
+     *            the box background color
+     * @param showFields
+     *            whether to show fields
+     * @param showMethods
+     *            whether to show methods
+     * @param scanSpec
+     *            the scan spec
+     * @param buf
+     *            the buf
+     */
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
             final boolean showFields, final boolean showMethods, final ScanSpec scanSpec, final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
@@ -416,6 +454,26 @@ class GraphvizDotfileGenerator {
      * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
+     *
+     * @param classInfoList
+     *            the class info list
+     * @param sizeX
+     *            the size X
+     * @param sizeY
+     *            the size Y
+     * @param showFields
+     *            whether to show fields
+     * @param showFieldTypeDependencyEdges
+     *            whether to show field type dependency edges
+     * @param showMethods
+     *            whether to show methods
+     * @param showMethodTypeDependencyEdges
+     *            whether to show method type dependency edges
+     * @param showAnnotations
+     *            whether to show annotations
+     * @param scanSpec
+     *            the scan spec
+     * @return the string
      */
     static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
@@ -559,10 +617,10 @@ class GraphvizDotfileGenerator {
      *            The GraphViz layout width in inches.
      * @param includeExternalClasses
      *            If true, include any dependency nodes in the graph that are not themselves in classInfoList.
+     * @return the GraphViz file contents.
      * @throws IllegalArgumentException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
      *             not called before scanning (since there would be nothing to graph).
-     * @return the GraphViz file contents.
      */
     static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
             final float sizeX, final float sizeY, final boolean includeExternalClasses) {

@@ -44,25 +44,51 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  */
 public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
+    /** Field names. */
     private static final List<String> FIELD_NAMES = Collections
             .unmodifiableList(Arrays.asList("cp", "nestedDirName"));
+
+    /** True if system bundles have been read. */
     private boolean readSystemBundles = false;
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+     */
     @Override
     public String[] handledClassLoaders() {
         return new String[] { "org.eclipse.osgi.internal.loader.EquinoxClassLoader" };
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+     */
     @Override
     public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
         return null;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
+     */
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
 
+    /**
+     * Add the bundle file.
+     *
+     * @param bundlefile
+     *            the bundle file
+     * @param path
+     *            the path
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrderOut
+     *            the classpath order
+     * @param log
+     *            the log
+     */
     private void addBundleFile(final Object bundlefile, final HashSet<Object> path, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         if (bundlefile != null) {
@@ -97,6 +123,18 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /**
+     * Adds the classpath entries.
+     *
+     * @param owner
+     *            the owner
+     * @param classLoader
+     *            the class loader
+     * @param classpathOrderOut
+     *            the classpath order out
+     * @param log
+     *            the log
+     */
     private void addClasspathEntries(final Object owner, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         // type ClasspathEntry[]
@@ -112,6 +150,9 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {

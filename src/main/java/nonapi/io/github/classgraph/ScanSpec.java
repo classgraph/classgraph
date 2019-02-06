@@ -313,7 +313,13 @@ public class ScanSpec {
         }
     }
 
-    /** Return true if the argument is a ModuleLayer or a subclass of ModuleLayer. */
+    /**
+     * Return true if the argument is a ModuleLayer or a subclass of ModuleLayer.
+     *
+     * @param moduleLayer
+     *            the module layer
+     * @return true if the argument is a ModuleLayer or a subclass of ModuleLayer.
+     */
     private static boolean isModuleLayer(final Object moduleLayer) {
         if (moduleLayer == null) {
             throw new IllegalArgumentException("ModuleLayer references must not be null");
@@ -399,6 +405,10 @@ public class ScanSpec {
     /**
      * Returns true if the given directory path is a descendant of a blacklisted path, or an ancestor or descendant
      * of a whitelisted path. The path should end in "/".
+     *
+     * @param relativePath
+     *            the relative path
+     * @return the {@link ScanSpecPathMatch}
      */
     public ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
         // In blacklisted path
@@ -454,18 +464,35 @@ public class ScanSpec {
     /**
      * Returns true if the given relative path (for a classfile name, including ".class") matches a
      * specifically-whitelisted (and non-blacklisted) classfile's relative path.
+     *
+     * @param relativePath
+     *            the relative path
+     * @return true if the given relative path (for a classfile name, including ".class") matches a
+     *         specifically-whitelisted (and non-blacklisted) classfile's relative path.
      */
     public boolean classfileIsSpecificallyWhitelisted(final String relativePath) {
         return classfilePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath);
     }
 
-    /** Returns true if the class is specifically whitelisted, or is within a whitelisted package. */
+    /**
+     * Returns true if the class is specifically whitelisted, or is within a whitelisted package.
+     *
+     * @param className
+     *            the class name
+     * @return true if the class is specifically whitelisted, or is within a whitelisted package.
+     */
     public boolean classOrPackageIsSpecificallyWhitelisted(final String className) {
         return classWhiteBlackList.isSpecificallyWhitelisted(className)
                 || packagePrefixWhiteBlackList.isSpecificallyWhitelisted(className);
     }
 
-    /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
+    /**
+     * Returns true if the class is specifically blacklisted, or is within a blacklisted package.
+     *
+     * @param className
+     *            the class name
+     * @return true if the class is specifically blacklisted, or is within a blacklisted package.
+     */
     public boolean classOrPackageIsBlacklisted(final String className) {
         return classWhiteBlackList.isBlacklisted(className) || packagePrefixWhiteBlackList.isBlacklisted(className);
     }
@@ -473,6 +500,8 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Write to log.
+     *
      * @param log
      *            The {@link LogNode} to log to.
      */

@@ -96,6 +96,7 @@ public class ModulePathInfo {
      */
     public final Set<String> addReads = new LinkedHashSet<>();
 
+    /** The fields. */
     private final List<Set<String>> fields = Arrays.asList( //
             modulePath, //
             addModules, //
@@ -104,6 +105,8 @@ public class ModulePathInfo {
             addOpens, //
             addReads //
     );
+
+    /** The module path commandline switches. */
     private static final List<String> argSwitches = Arrays.asList( //
             "--module-path=", //
             "--add-modules=", //
@@ -112,6 +115,8 @@ public class ModulePathInfo {
             "--add-opens=", //
             "--add-reads=" //
     );
+
+    /** The module path commandline switch value delimiters. */
     private static final List<Character> argPartSeparatorChars = Arrays.asList( //
             File.pathSeparatorChar, // --module-path (delimited path format)
             ',', // --add-modules (comma-delimited)
@@ -145,7 +150,11 @@ public class ModulePathInfo {
         }
     }
 
-    /** Return the module path info in commandline format. */
+    /**
+     * Return the module path info in commandline format.
+     *
+     * @return the module path commandline string.
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();

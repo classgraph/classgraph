@@ -45,19 +45,49 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
 public class PhysicalZipFile implements Closeable {
+    /** The {@link File} backing this {@link PhysicalZipFile}. */
     private final File file;
+
+    /** The path to the zipfile. */
     private final String path;
+
+    /** The {@link RandomAccessFile}. */
     private RandomAccessFile raf;
-    final long fileLen;
+
+    /** The {@link FileChannel}. */
     private FileChannel fc;
+
+    /** The file length. */
+    final long fileLen;
+
+    /** The number of mapped byte buffers. */
     final int numMappedByteBuffers;
+
+    /** The cached mapped byte buffers for each 2GB chunk. */
     private ByteBuffer[] mappedByteBuffersCached;
+
+    /** A singleton map from chunk index to byte buffer, ensuring that any given chunk is only mapped once. */
     private SingletonMap<Integer, ByteBuffer> chunkIdxToByteBuffer;
+
+    /** The nested jar handler. */
     NestedJarHandler nestedJarHandler;
+
+    /** True if the zipfile was deflated to RAM, rather than mapped from disk. */
     boolean isDeflatedToRam;
+
+    /** Set to true once this {@link PhysicalZipFile} is closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    /** Construct a {@link PhysicalZipFile} from a file on disk. */
+    /**
+     * Construct a {@link PhysicalZipFile} from a file on disk.
+     *
+     * @param file
+     *            the file
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler) throws IOException {
         this.file = file;
         this.nestedJarHandler = nestedJarHandler;
@@ -121,7 +151,20 @@ public class PhysicalZipFile implements Closeable {
         };
     }
 
-    /** Construct a {@link PhysicalZipFile} from a ByteBuffer in memory. */
+    /**
+     * Construct a {@link PhysicalZipFile} from a ByteBuffer in memory.
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     * @param outermostFile
+     *            the outermost file
+     * @param path
+     *            the path
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
     PhysicalZipFile(final ByteBuffer byteBuffer, final File outermostFile, final String path,
             final NestedJarHandler nestedJarHandler) throws IOException {
         this.file = outermostFile;
@@ -174,7 +217,11 @@ public class PhysicalZipFile implements Closeable {
         return mappedByteBuffersCached[chunkIdx];
     }
 
-    /** Get the {@link File} for the outermost jar file of this {@link PhysicalZipFile}. */
+    /**
+     * Get the {@link File} for the outermost jar file of this {@link PhysicalZipFile}.
+     *
+     * @return the {@link File} for the outermost jar file of this {@link PhysicalZipFile}.
+     */
     public File getFile() {
         return file;
     }
@@ -182,16 +229,25 @@ public class PhysicalZipFile implements Closeable {
     /**
      * Get the path for this {@link PhysicalZipFile}, which is the file path, if it is file-backed, or a compound
      * nested jar path, if it is memory-backed.
+     *
+     * @return the path for this {@link PhysicalZipFile}, which is the file path, if it is file-backed, or a
+     *         compound nested jar path, if it is memory-backed.
      */
     public String getPath() {
         return path;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return file.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -203,6 +259,9 @@ public class PhysicalZipFile implements Closeable {
         return file.equals(((PhysicalZipFile) obj).file);
     }
 
+    /* (non-Javadoc)
+     * @see java.io.Closeable#close()
+     */
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
@@ -239,6 +298,9 @@ public class PhysicalZipFile implements Closeable {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return path;

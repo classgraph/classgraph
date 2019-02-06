@@ -71,13 +71,23 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /** Bytes used in the buffer. */
     public int used = 0;
 
-    /** Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}. */
+    /**
+     * Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}.
+     *
+     * @param inputStream
+     *            the input stream
+     */
     public InputStreamOrByteBufferAdapter(final InputStream inputStream) {
         this.inputStream = inputStream;
         this.buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
     }
 
-    /** Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}. */
+    /**
+     * Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}.
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     */
     public InputStreamOrByteBufferAdapter(final ByteBuffer byteBuffer) {
         if (byteBuffer.hasArray()) {
             // Just use the array behind the buffer as the input buffer
@@ -145,7 +155,14 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         }
     }
 
-    /** Read another chunk of from the InputStream or ByteBuffer. */
+    /**
+     * Read another chunk of from the InputStream or ByteBuffer.
+     *
+     * @param bytesRequired
+     *            the number of bytes to read
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     private void readMore(final int bytesRequired) throws IOException {
         final int chunkSizeToRequest = Math.max(SUBSEQUENT_BUFFER_CHUNK_SIZE, bytesRequired);
         final int maxNewUsed = used + chunkSizeToRequest;
@@ -195,7 +212,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read an unsigned byte from the buffer at a specific absolute offset before the current read point.
+     * Read an unsigned byte at a specific offset (without changing the current read point)
      * 
      * @param offset
      *            The buffer offset to read from.
@@ -212,6 +229,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
+     * Read the next unsigned short.
+     *
      * @return The next unsigned short in the buffer.
      * @throws IOException
      *             If there was an exception while reading.
@@ -223,7 +242,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read an unsigned short from the buffer at a specific absolute offset before the current read point.
+     * Read an unsigned short at a specific offset (without changing the current read point)
      * 
      * @param offset
      *            The buffer offset to read from.
@@ -240,6 +259,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
+     * Read the next int.
+     *
      * @return The next int in the buffer.
      * @throws IOException
      *             If there was an exception while reading.
@@ -251,7 +272,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read an int from the buffer at a specific absolute offset before the current read point.
+     * Read an int at a specific offset (without changing the current read point)
      * 
      * @param offset
      *            The buffer offset to read from.
@@ -269,6 +290,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
+     * Read the next long.
+     *
      * @return The next long in the buffer.
      * @throws IOException
      *             If there was an exception while reading.
@@ -280,7 +303,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read a long from the buffer at a specific offset before the current read point.
+     * Read a long at a specific offset (without changing the current read point).
      * 
      * @param offset
      *            The buffer offset to read from.
@@ -300,7 +323,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Skip the given number of bytes in the input stream.
+     * Skip the given number of bytes.
      * 
      * @param bytesToSkip
      *            The number of bytes to skip.
@@ -318,7 +341,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /**
      * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
      * optionally removing the prefix "L" and the suffix ";".
-     * 
+     *
      * @param strStart
      *            The start index of the string.
      * @param replaceSlashWithDot
@@ -326,6 +349,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * @param stripLSemicolon
      *            If true, string final ';' character.
      * @return The string.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     public String readString(final int strStart, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
             throws IOException {
@@ -405,6 +430,9 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.AutoCloseable#close()
+     */
     @Override
     public void close() {
         if (this.inputStream != null) {

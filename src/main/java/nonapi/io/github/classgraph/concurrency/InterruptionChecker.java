@@ -36,10 +36,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * has thrown an exception.
  */
 public class InterruptionChecker {
-    private static final long MAX_CHECK_FREQUENCY_NANOS = (long) (0.1 * 1.0e9);
 
+    /** The minimum interval between calls to {@link Thread#isInterrupted()} to check for interruption. */
+    private static final long MIN_CHECK_INTERVAL_NANOS = (long) (0.1 * 1.0e9);
+
+    /** The timestamp of the last check for interruption. */
     private long lastCheckTimeNanos = 0L;
+
+    /** Set to true when a thread is interrupted. */
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
+
+    /** Non-null if an execution exception was encountered. */
     private ExecutionException executionException;
 
     /** Interrupt all threads that share this InterruptionChecker. */
@@ -48,12 +55,14 @@ public class InterruptionChecker {
     }
 
     /**
+     * Check for interruption and return interruption status.
+     *
      * @return true if this thread or any other thread that shares this InterruptionChecker instance has been
      *         interrupted or has thrown an exception.
      */
     public boolean checkAndReturn() {
         final long time = System.nanoTime();
-        if (time - lastCheckTimeNanos > MAX_CHECK_FREQUENCY_NANOS) {
+        if (time - lastCheckTimeNanos > MIN_CHECK_INTERVAL_NANOS) {
             lastCheckTimeNanos = time;
             if (Thread.currentThread().isInterrupted()) {
                 interrupt();

@@ -109,7 +109,14 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A classpath element (a directory or jarfile on the classpath). */
+    /**
+     * A classpath element (a directory or jarfile on the classpath).
+     *
+     * @param classLoaders
+     *            the classloaders
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathElement(final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
         this.classLoaders = classLoaders;
         this.scanSpec = scanSpec;
@@ -122,25 +129,42 @@ abstract class ClasspathElement {
      * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes". N.B. for non-modules, this
      * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the
      * package root (after extracting nested jars).
+     *
+     * @return the package root
      */
     String getPackageRoot() {
         // Overridden in ClasspathElementZip
         return "";
     }
 
-    /** Get the ClassLoader(s) to use when trying to load the class. */
+    /**
+     * Get the ClassLoader(s) to use when trying to load the class.
+     *
+     * @return the classloaders
+     */
     ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
 
-    /** Get the number of classfile matches. */
+    /**
+     * Get the number of classfile matches.
+     *
+     * @return the num classfile matches
+     */
     int getNumClassfileMatches() {
         return whitelistedClassfileResources == null ? 0 : whitelistedClassfileResources.size();
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Check relativePath against classpathElementResourcePathWhiteBlackList */
+    /**
+     * Check relativePath against classpathElementResourcePathWhiteBlackList.
+     *
+     * @param relativePath
+     *            the relative path
+     * @param log
+     *            the log
+     */
     protected void checkResourcePathWhiteBlackList(final String relativePath, final LogNode log) {
         // Whitelist/blacklist classpath elements based on file resource paths
         if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
@@ -166,6 +190,13 @@ abstract class ClasspathElement {
     /**
      * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
      * earlier classpath element.
+     *
+     * @param classpathIdx
+     *            the classpath index
+     * @param classpathRelativePathsFound
+     *            the classpath relative paths found
+     * @param log
+     *            the log
      */
     void maskClassfiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound,
             final LogNode log) {
@@ -217,7 +248,16 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add a resource discovered during the scan. */
+    /**
+     * Add a resource discovered during the scan.
+     *
+     * @param resource
+     *            the resource
+     * @param parentMatchStatus
+     *            the parent match status
+     * @param log
+     *            the log
+     */
     protected void addWhitelistedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final LogNode log) {
         final String path = resource.getPath();
@@ -267,19 +307,24 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Called by scanPaths() after scan completion. */
-    protected void finishScanPaths(final LogNode subLog) {
-        if (subLog != null) {
+    /**
+     * Called by scanPaths() after scan completion.
+     *
+     * @param log
+     *            the log
+     */
+    protected void finishScanPaths(final LogNode log) {
+        if (log != null) {
             if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles or resources found");
+                log.log("No whitelisted classfiles or resources found");
             } else if (whitelistedResources.isEmpty()) {
-                subLog.log("No whitelisted resources found");
+                log.log("No whitelisted resources found");
             } else if (whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles found");
+                log.log("No whitelisted classfiles found");
             }
         }
-        if (subLog != null) {
-            subLog.addElapsedTime();
+        if (log != null) {
+            log.addElapsedTime();
         }
     }
 
@@ -290,16 +335,26 @@ abstract class ClasspathElement {
      * {@link ClasspathElementZip}, may also open or extract inner jars, and also causes jarfile manifests to be
      * read to look for Class-Path entries. If nested jars or Class-Path entries are found, they are added to the
      * work queue. This method is only run once per classpath element, from a single thread.
+     *
+     * @param workQueue
+     *            the work queue
+     * @param log
+     *            the log
      */
     abstract void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log);
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for
      * whitelisted and non-blacklisted resources and classfiles.
+     *
+     * @param log
+     *            the log
      */
     abstract void scanPaths(final LogNode log);
 
     /**
+     * Get the {@link Resource} for a given relative path.
+     *
      * @param relativePath
      *            The relative path of the {@link Resource} to return. Path should have already be sanitized by
      *            calling {@link FileUtils#sanitizeEntryPath(String, boolean)}, or by providing a path that is
@@ -309,6 +364,10 @@ abstract class ClasspathElement {
      */
     abstract Resource getResource(final String relativePath);
 
-    /** Get the URL string for this classpath element. */
+    /**
+     * Get the URI for this classpath element.
+     *
+     * @return the URI for the classpath element.
+     */
     abstract URI getURI();
 }

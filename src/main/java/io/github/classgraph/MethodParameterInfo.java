@@ -37,17 +37,33 @@ import java.util.Collections;
  * @author lukehutch
  */
 public class MethodParameterInfo {
+
+    /** The containing method. */
     private final MethodInfo methodInfo;
+
+    /** The annotation info. */
     final AnnotationInfo[] annotationInfo;
+
+    /** The modifiers. */
     private final int modifiers;
+
+    /** The type descriptor. */
     private final TypeSignature typeDescriptor;
+
+    /** The type signature. */
     private final TypeSignature typeSignature;
+
+    /** The parameter name. */
     private final String name;
+
+    /** The scan result. */
     private ScanResult scanResult;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param methodInfo
      *            The {@link MethodInfo} for the defining method.
      * @param annotationInfo
@@ -74,6 +90,8 @@ public class MethodParameterInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the {@link MethodInfo} for the defining method.
+     *
      * @return The {@link MethodInfo} for the defining method.
      */
     public MethodInfo getMethodInfo() {
@@ -172,6 +190,8 @@ public class MethodParameterInfo {
     }
 
     /**
+     * Check whether this method parameter has the named annotation.
+     *
      * @param annotationName
      *            The name of an annotation.
      * @return true if this method parameter has the named annotation.
@@ -182,6 +202,12 @@ public class MethodParameterInfo {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Sets the scan result.
+     *
+     * @param scanResult
+     *            the new scan result
+     */
     protected void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
         if (this.annotationInfo != null) {
@@ -219,6 +245,9 @@ public class MethodParameterInfo {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
