@@ -1456,6 +1456,75 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
     // Methods
 
+    /** Get the declared methods, constructors, and/or static initializer methods of the class. */
+    private MethodInfoList getDeclaredMethodInfo(final String methodName, final boolean getNormalMethods,
+            final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
+        if (!scanResult.scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+        }
+        if (methodInfo == null) {
+            return MethodInfoList.EMPTY_LIST;
+        }
+        if (methodName == null) {
+            // If no method name is provided, filter for methods with the right type (normal method / constructor /
+            // static initializer)
+            final MethodInfoList methodInfoList = new MethodInfoList();
+            for (final MethodInfo mi : methodInfo) {
+                final String miName = mi.getName();
+                final boolean isConstructor = miName.equals("<init>");
+                // (Currently static initializer methods are never returned by public methods)
+                final boolean isStaticInitializer = miName.equals("<clinit>");
+                if ((isConstructor && getConstructorMethods) || (isStaticInitializer && getStaticInitializerMethods)
+                        || (!isConstructor && !isStaticInitializer && getNormalMethods)) {
+                    methodInfoList.add(mi);
+                }
+            }
+            return methodInfoList;
+        } else {
+            // If method name is provided, filter for methods whose name matches, and ignore method type
+            boolean hasMethodWithName = false;
+            for (final MethodInfo f : methodInfo) {
+                if (f.getName().equals(methodName)) {
+                    hasMethodWithName = true;
+                    break;
+                }
+            }
+            if (!hasMethodWithName) {
+                return MethodInfoList.EMPTY_LIST;
+            }
+            final MethodInfoList methodInfoList = new MethodInfoList();
+            for (final MethodInfo mi : methodInfo) {
+                if (mi.getName().equals(methodName)) {
+                    methodInfoList.add(mi);
+                }
+            }
+            return methodInfoList;
+        }
+    }
+
+    /** Get the methods, constructors, and/or static initializer methods of the class. */
+    private MethodInfoList getMethodInfo(final String methodName, final boolean getNormalMethods,
+            final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
+        if (!scanResult.scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+        }
+        // Implement method/constructor overriding
+        final MethodInfoList methodInfoList = new MethodInfoList();
+        final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
+        for (final ClassInfo ci : getOverrideOrder()) {
+            for (final MethodInfo mi : ci.getDeclaredMethodInfo(methodName, getNormalMethods, getConstructorMethods,
+                    getStaticInitializerMethods)) {
+                // If method/constructor has not been overridden by method of same name and type descriptor 
+                if (nameAndTypeDescriptorSet
+                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
+                    // Add method/constructor to output order
+                    methodInfoList.add(mi);
+                }
+            }
+        }
+        return methodInfoList;
+    }
+
     /**
      * Returns information on visible methods declared by this class, but not by its interfaces or superclasses,
      * that are not constructors. See also:
@@ -1487,21 +1556,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo() {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        if (methodInfo == null) {
-            return MethodInfoList.EMPTY_LIST;
-        } else {
-            final MethodInfoList nonConstructorMethods = new MethodInfoList();
-            for (final MethodInfo mi : methodInfo) {
-                final String methodName = mi.getName();
-                if (!methodName.equals("<init>") && !methodName.equals("<clinit>")) {
-                    nonConstructorMethods.add(mi);
-                }
-            }
-            return nonConstructorMethods;
-        }
+        return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
+                /* getConstructorMethods = */ false, /* getStaticInitializerMethods = */ false);
     }
 
     /**
@@ -1535,23 +1591,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo() {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        // Implement method overriding
-        final MethodInfoList methodInfoList = new MethodInfoList();
-        final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
-        for (final ClassInfo ci : getOverrideOrder()) {
-            for (final MethodInfo mi : ci.getDeclaredMethodInfo()) {
-                // If method has not been overridden by method of same name and type descriptor 
-                if (nameAndTypeDescriptorSet
-                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
-                    // Add method to output order
-                    methodInfoList.add(mi);
-                }
-            }
-        }
-        return methodInfoList;
+        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
+                /* getConstructorMethods = */ false, /* getStaticInitializerMethods = */ false);
     }
 
     /**
@@ -1585,21 +1626,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredConstructorInfo() {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        if (methodInfo == null) {
-            return MethodInfoList.EMPTY_LIST;
-        } else {
-            final MethodInfoList nonConstructorMethods = new MethodInfoList();
-            for (final MethodInfo mi : methodInfo) {
-                final String methodName = mi.getName();
-                if (methodName.equals("<init>")) {
-                    nonConstructorMethods.add(mi);
-                }
-            }
-            return nonConstructorMethods;
-        }
+        return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ false,
+                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
     }
 
     /**
@@ -1633,23 +1661,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getConstructorInfo() {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        // Implement method overriding
-        final MethodInfoList methodInfoList = new MethodInfoList();
-        final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
-        for (final ClassInfo ci : getOverrideOrder()) {
-            for (final MethodInfo mi : ci.getDeclaredConstructorInfo()) {
-                // If method has not been overridden by method of same name and type descriptor 
-                if (nameAndTypeDescriptorSet
-                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
-                    // Add method to output order
-                    methodInfoList.add(mi);
-                }
-            }
-        }
-        return methodInfoList;
+        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ false,
+                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
     }
 
     /**
@@ -1687,10 +1700,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodAndConstructorInfo() {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        return methodInfo == null ? MethodInfoList.EMPTY_LIST : methodInfo;
+        return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
+                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
     }
 
     /**
@@ -1725,23 +1736,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodAndConstructorInfo() {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        // Implement method overriding
-        final MethodInfoList methodInfoList = new MethodInfoList();
-        final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
-        for (final ClassInfo ci : getOverrideOrder()) {
-            for (final MethodInfo mi : ci.getDeclaredMethodAndConstructorInfo()) {
-                // If method has not been overridden by method of same name and type descriptor 
-                if (nameAndTypeDescriptorSet
-                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
-                    // Add method to output order
-                    methodInfoList.add(mi);
-                }
-            }
-        }
-        return methodInfoList;
+        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
+                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
     }
 
     /**
@@ -1777,29 +1773,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo(final String methodName) {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        if (methodInfo == null) {
-            return MethodInfoList.EMPTY_LIST;
-        }
-        boolean hasMethodWithName = false;
-        for (final MethodInfo f : methodInfo) {
-            if (f.getName().equals(methodName)) {
-                hasMethodWithName = true;
-                break;
-            }
-        }
-        if (!hasMethodWithName) {
-            return MethodInfoList.EMPTY_LIST;
-        }
-        final MethodInfoList methodInfoList = new MethodInfoList();
-        for (final MethodInfo mi : methodInfo) {
-            if (mi.getName().equals(methodName)) {
-                methodInfoList.add(mi);
-            }
-        }
-        return methodInfoList;
+        return getDeclaredMethodInfo(methodName, /* ignored */ false, /* ignored */ false, /* ignored */ false);
     }
 
     /**
@@ -1835,22 +1809,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo(final String methodName) {
-        if (!scanResult.scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
-        // Implement method overriding
-        final MethodInfoList methodInfoList = new MethodInfoList();
-        final Set<String> typeDescriptorSet = new HashSet<>();
-        for (final ClassInfo ci : getOverrideOrder()) {
-            for (final MethodInfo mi : ci.getDeclaredMethodInfo(methodName)) {
-                // If method has not been overridden by method of same name with same type descriptor 
-                if (typeDescriptorSet.add(mi.getTypeDescriptor().toString())) {
-                    // Add method to output order
-                    methodInfoList.add(mi);
-                }
-            }
-        }
-        return methodInfoList;
+        return getMethodInfo(methodName, /* ignored */ false, /* ignored */ false, /* ignored */ false);
     }
 
     /**
