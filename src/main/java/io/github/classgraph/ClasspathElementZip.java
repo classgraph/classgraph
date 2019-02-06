@@ -39,9 +39,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
@@ -68,7 +68,7 @@ class ClasspathElementZip extends ClasspathElement {
     /** The normalized path of the jarfile, "!/"-separated if nested, excluding any package root. */
     private String zipFilePath;
     /** A map from relative path to {@link Resource} for non-blacklisted zip entries. */
-    private final Map<String, Resource> relativePathToResource = new HashMap<>();
+    private final ConcurrentHashMap<String, Resource> relativePathToResource = new ConcurrentHashMap<>();
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
 
@@ -427,35 +427,22 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Add the ZipEntry path as a Resource
             final Resource resource = newResource(zipEntry, relativePath);
-            if (!relativePathToResource.containsKey(relativePath)) {
-                relativePathToResource.put(relativePath, resource);
-            }
-            if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                    || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                    || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                            && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
-                    || (scanSpec.enableClassInfo && relativePath.equals("module-info.class"))) {
-                // Resource is whitelisted
-                addWhitelistedResource(resource, parentMatchStatus, subLog);
-            }
-        }
-
-        if (subLog != null) {
-            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles or resources found");
-            } else if (whitelistedResources.isEmpty()) {
-                subLog.log("No whitelisted resources found");
-            } else if (whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles found");
+            if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
+                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
+                        || (scanSpec.enableClassInfo && relativePath.equals("module-info.class"))) {
+                    // Resource is whitelisted
+                    addWhitelistedResource(resource, parentMatchStatus, subLog);
+                }
             }
         }
 
         // Save the last modified time for the zipfile
         fileToLastModified.put(getZipFile(), getZipFile().lastModified());
 
-        if (subLog != null) {
-            subLog.addElapsedTime();
-        }
+        finishScanPaths(subLog);
     }
 
     @Override

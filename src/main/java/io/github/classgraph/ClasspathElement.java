@@ -222,57 +222,65 @@ abstract class ClasspathElement {
             final LogNode log) {
         final String path = resource.getPath();
         final boolean isClassFile = FileUtils.isClassfile(path);
+        boolean isWhitelisted = false;
         if (isClassFile) {
+            // Check classfile scanning is enabled, and classfile is not specifically blacklisted
             if (scanSpec.enableClassInfo && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path)) {
                 // ClassInfo is enabled, and found a whitelisted classfile
                 whitelistedClassfileResources.add(resource);
-                if (log != null) {
-                    String logStr;
-                    switch (parentMatchStatus) {
-                    case HAS_WHITELISTED_PATH_PREFIX:
-                        logStr = "Found classfile within subpackage of whitelisted package: ";
-                        break;
-                    case AT_WHITELISTED_PATH:
-                        logStr = "Found classfile within whitelisted package: ";
-                        break;
-                    case AT_WHITELISTED_CLASS_PACKAGE:
-                        logStr = "Found specifically-whitelisted classfile: ";
-                        break;
-                    default:
-                        logStr = "Found whitelisted classfile: ";
-                        break;
-                    }
-                    // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
-                    // ClasspathElementDir classpath elements
-                    log.log("0:file:" + path,
-                            logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                                    : " ; full path: " + resource.getPathRelativeToClasspathElement()));
-                }
+                isWhitelisted = true;
             }
         } else {
-            if (log != null) {
-                String logStr;
-                switch (parentMatchStatus) {
-                case HAS_WHITELISTED_PATH_PREFIX:
-                    logStr = "Found resource within subpackage of whitelisted package: ";
-                    break;
-                case AT_WHITELISTED_PATH:
-                    logStr = "Found resource within whitelisted package: ";
-                    break;
-                case AT_WHITELISTED_CLASS_PACKAGE:
-                    logStr = "Found specifically-whitelisted resource: ";
-                    break;
-                default:
-                    logStr = "Found whitelisted resource: ";
-                    break;
-                }
-                // Add extra " " to align log entries, since "resource" is one char shorter than "classfile"
-                log.log("0:file:" + path,
-                        logStr + " " + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                                : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+            // Resources are always whitelisted if found in whitelisted directories
+            isWhitelisted = true;
+        }
+
+        // Add resource to whitelistedResources, whether for a classfile or non-classfile resource
+        whitelistedResources.add(resource);
+
+        // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not
+        // a blacklisted classfile
+        if (log != null && isWhitelisted) {
+            final String type = isClassFile ? "classfile" : "resource";
+            String logStr;
+            switch (parentMatchStatus) {
+            case HAS_WHITELISTED_PATH_PREFIX:
+                logStr = "Found " + type + " within subpackage of whitelisted package: ";
+                break;
+            case AT_WHITELISTED_PATH:
+                logStr = "Found " + type + " within whitelisted package: ";
+                break;
+            case AT_WHITELISTED_CLASS_PACKAGE:
+                logStr = "Found specifically-whitelisted " + type + ": ";
+                break;
+            default:
+                logStr = "Found whitelisted " + type + ": ";
+                break;
+            }
+            // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
+            // ClasspathElementDir classpath elements
+            log.log("0:file:" + path,
+                    logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Called by scanPaths() after scan completion. */
+    protected void finishScanPaths(final LogNode subLog) {
+        if (subLog != null) {
+            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
+                subLog.log("No whitelisted classfiles or resources found");
+            } else if (whitelistedResources.isEmpty()) {
+                subLog.log("No whitelisted resources found");
+            } else if (whitelistedClassfileResources.isEmpty()) {
+                subLog.log("No whitelisted classfiles found");
             }
         }
-        whitelistedResources.add(resource);
+        if (subLog != null) {
+            subLog.addElapsedTime();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

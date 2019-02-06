@@ -99,6 +99,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     @Override
     public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayTypeSignature)) {
             return false;
         }
@@ -108,6 +111,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+        if (this == other) {
+            return true;
+        }
         if (!(other instanceof ArrayTypeSignature)) {
             return false;
         }

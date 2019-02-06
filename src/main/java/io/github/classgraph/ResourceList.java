@@ -394,22 +394,6 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-        buf.append('[');
-        for (int i = 0, n = size(); i < n; i++) {
-            if (i > 0) {
-                buf.append(", ");
-            }
-            buf.append(get(i));
-        }
-        buf.append(']');
-        return buf.toString();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** Close all the {@link Resource} objects in this {@link ResourceList}. */
     @Override
     public void close() {

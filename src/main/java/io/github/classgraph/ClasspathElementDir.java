@@ -441,19 +441,7 @@ class ClasspathElementDir extends ClasspathElement {
 
         scanDirRecursively(classpathEltDir, subLog);
 
-        if (subLog != null) {
-            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles or resources found");
-            } else if (whitelistedResources.isEmpty()) {
-                subLog.log("No whitelisted resources found");
-            } else if (whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles found");
-            }
-        }
-
-        if (subLog != null) {
-            subLog.addElapsedTime();
-        }
+        finishScanPaths(subLog);
     }
 
     /** @return The classpath element directory as a {@link File}. */

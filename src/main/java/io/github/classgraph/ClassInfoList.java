@@ -703,20 +703,6 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-        buf.append('[');
-        for (int i = 0, n = size(); i < n; i++) {
-            if (i > 0) {
-                buf.append(", ");
-            }
-            buf.append(get(i));
-        }
-        buf.append(']');
-        return buf.toString();
-    }
-
-    @Override
     public boolean equals(final Object o) {
         if (this == o) {
             return true;

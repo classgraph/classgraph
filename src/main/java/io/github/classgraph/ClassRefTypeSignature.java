@@ -36,6 +36,7 @@ import java.util.Set;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.Parser.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
+import nonapi.io.github.classgraph.utils.Join;
 
 /** A class reference type signature (called "ClassTypeSignature" in the classfile documentation). */
 public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
@@ -229,6 +230,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
 
     @Override
     public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ClassRefTypeSignature)) {
             return false;
         }
@@ -267,14 +271,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         final StringBuilder buf = new StringBuilder();
         buf.append(className);
         if (!typeArguments.isEmpty()) {
-            buf.append('<');
-            for (int i = 0; i < typeArguments.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                buf.append(typeArguments.get(i).toString());
-            }
-            buf.append('>');
+            Join.join(buf, "<", ", ", ">", typeArguments);
         }
         for (int i = 0; i < suffixes.size(); i++) {
             // Use '.' before each suffix in the toString() representation, since that is
@@ -283,14 +280,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             buf.append(suffixes.get(i));
             final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
             if (!suffixTypeArgs.isEmpty()) {
-                buf.append('<');
-                for (int j = 0; j < suffixTypeArgs.size(); j++) {
-                    if (j > 0) {
-                        buf.append(", ");
-                    }
-                    buf.append(suffixTypeArgs.get(j).toString());
-                }
-                buf.append('>');
+                Join.join(buf, "<", ", ", ">", suffixTypeArgs);
             }
         }
         return buf.toString();

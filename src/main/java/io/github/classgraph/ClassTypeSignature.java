@@ -37,6 +37,7 @@ import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.Parser.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
+import nonapi.io.github.classgraph.utils.Join;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
@@ -193,6 +194,9 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     @Override
     public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ClassTypeSignature)) {
             return false;
         }
@@ -237,14 +241,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             buf.append(className);
         }
         if (!typeParameters.isEmpty()) {
-            buf.append('<');
-            for (int i = 0; i < typeParameters.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                buf.append(typeParameters.get(i).toString());
-            }
-            buf.append('>');
+            Join.join(buf, "<", ", ", ">", typeParameters);
         }
         if (!typeNameOnly) {
             if (superclassSignature != null) {
@@ -256,12 +253,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             }
             if (!superinterfaceSignatures.isEmpty()) {
                 buf.append(isInterface ? " extends " : " implements ");
-                for (int i = 0; i < superinterfaceSignatures.size(); i++) {
-                    if (i > 0) {
-                        buf.append(", ");
-                    }
-                    buf.append(superinterfaceSignatures.get(i).toString());
-                }
+                Join.join(buf, "", ", ", "", superinterfaceSignatures);
             }
         }
         return buf.toString();

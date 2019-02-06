@@ -117,6 +117,9 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      *         that name.
      */
     public Map<String, MethodInfoList> asMap() {
+        // Note that MethodInfoList extends InfoList rather than MappableInfoList, because one
+        // name can be shared by multiple MethodInfo objects (so asMap() needs to be of type
+        // Map<String, MethodInfoList> rather than Map<String, MethodInfo>)
         final Map<String, MethodInfoList> methodNameToMethodInfoList = new HashMap<>();
         for (final MethodInfo methodInfo : this) {
             final String name = methodInfo.getName();

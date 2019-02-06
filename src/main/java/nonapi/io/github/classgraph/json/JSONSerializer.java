@@ -176,9 +176,7 @@ public class JSONSerializer {
             final boolean onlySerializePublicFields) {
 
         // For null and basic value types, just return value
-        if (obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
-                || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
-                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum()) {
+        if (JSONUtils.isBasicValueType(obj)) {
             return obj;
         }
 

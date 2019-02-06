@@ -58,7 +58,7 @@ class FieldTypeInfo {
     private final boolean isTypeVariable;
 
     /** The index of the type: 0 for non-primitive type; 1-8 for primitive types. */
-    private final int primitiveTypeIdx;
+    private final PrimitiveType primitiveType;
 
     /**
      * The constructor with int-valued size hint for the type of the field, or null if this is not a Collection or
@@ -71,6 +71,10 @@ class FieldTypeInfo {
      * intConstructorForFieldType is non-null.
      */
     private Constructor<?> defaultConstructorForFieldType;
+
+    private static enum PrimitiveType {
+        NON_PRIMITIVE, INTEGER, LONG, SHORT, DOUBLE, FLOAT, BOOLEAN, BYTE, CHARACTER;
+    }
 
     private static boolean hasTypeVariables(final Type type) {
         if (type instanceof TypeVariable<?> || type instanceof GenericArrayType) {
@@ -97,28 +101,28 @@ class FieldTypeInfo {
                         && ((Class<?>) fieldTypePartiallyResolved).isArray());
 
         if (isArray || isTypeVariable) {
-            this.primitiveTypeIdx = 0;
+            this.primitiveType = PrimitiveType.NON_PRIMITIVE;
         } else {
             // Get type index of field, for speed in calling setFieldValue
             final Class<?> fieldRawType = JSONUtils.getRawType(fieldTypePartiallyResolved);
             if (fieldRawType == Integer.TYPE) {
-                this.primitiveTypeIdx = 1;
+                this.primitiveType = PrimitiveType.INTEGER;
             } else if (fieldRawType == Long.TYPE) {
-                this.primitiveTypeIdx = 2;
+                this.primitiveType = PrimitiveType.LONG;
             } else if (fieldRawType == Short.TYPE) {
-                this.primitiveTypeIdx = 3;
+                this.primitiveType = PrimitiveType.SHORT;
             } else if (fieldRawType == Double.TYPE) {
-                this.primitiveTypeIdx = 4;
+                this.primitiveType = PrimitiveType.DOUBLE;
             } else if (fieldRawType == Float.TYPE) {
-                this.primitiveTypeIdx = 5;
+                this.primitiveType = PrimitiveType.FLOAT;
             } else if (fieldRawType == Boolean.TYPE) {
-                this.primitiveTypeIdx = 6;
+                this.primitiveType = PrimitiveType.BOOLEAN;
             } else if (fieldRawType == Byte.TYPE) {
-                this.primitiveTypeIdx = 7;
+                this.primitiveType = PrimitiveType.BYTE;
             } else if (fieldRawType == Character.TYPE) {
-                this.primitiveTypeIdx = 8;
+                this.primitiveType = PrimitiveType.CHARACTER;
             } else {
-                this.primitiveTypeIdx = 0;
+                this.primitiveType = PrimitiveType.NON_PRIMITIVE;
             }
             // Get default constructor for field type, if field is not of basic type, and not an array, and not
             // a type variable
@@ -174,73 +178,74 @@ class FieldTypeInfo {
 
     /** Set the field's value, appropriately handling primitive-typed fields. */
     void setFieldValue(final Object containingObj, final Object value) {
+        if (value == null && primitiveType != PrimitiveType.NON_PRIMITIVE) {
+            throw new IllegalArgumentException("Tried to set primitive-typed field "
+                    + field.getDeclaringClass().getName() + "." + field.getName() + " to null value");
+        }
+
         try {
-            if (primitiveTypeIdx == 0) {
+            switch (primitiveType) {
+            case NON_PRIMITIVE:
                 field.set(containingObj, value);
-            } else {
-                if (value == null) {
-                    throw new IllegalArgumentException("Tried to set primitive-typed field to null value");
+                break;
+            case INTEGER:
+                if (!(value instanceof Integer)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Integer; got " + value.getClass().getName());
                 }
-                switch (primitiveTypeIdx) {
-                case 1:
-                    if (!(value instanceof Integer)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Integer; got " + value.getClass().getName());
-                    }
-                    field.setInt(containingObj, (Integer) value);
-                    break;
-                case 2:
-                    if (!(value instanceof Long)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Long; got " + value.getClass().getName());
-                    }
-                    field.setLong(containingObj, (Long) value);
-                    break;
-                case 3:
-                    if (!(value instanceof Short)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Short; got " + value.getClass().getName());
-                    }
-                    field.setShort(containingObj, (Short) value);
-                    break;
-                case 4:
-                    if (!(value instanceof Double)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Double; got " + value.getClass().getName());
-                    }
-                    field.setDouble(containingObj, (Double) value);
-                    break;
-                case 5:
-                    if (!(value instanceof Float)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Float; got " + value.getClass().getName());
-                    }
-                    field.setFloat(containingObj, (Float) value);
-                    break;
-                case 6:
-                    if (!(value instanceof Boolean)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Boolean; got " + value.getClass().getName());
-                    }
-                    field.setBoolean(containingObj, (Boolean) value);
-                    break;
-                case 7:
-                    if (!(value instanceof Byte)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Byte; got " + value.getClass().getName());
-                    }
-                    field.setByte(containingObj, (Byte) value);
-                    break;
-                case 8:
-                    if (!(value instanceof Character)) {
-                        throw new IllegalArgumentException(
-                                "Expected value of type Character; got " + value.getClass().getName());
-                    }
-                    field.setChar(containingObj, (Character) value);
-                    break;
-                default:
-                    throw new IllegalArgumentException();
+                field.setInt(containingObj, (Integer) value);
+                break;
+            case LONG:
+                if (!(value instanceof Long)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Long; got " + value.getClass().getName());
                 }
+                field.setLong(containingObj, (Long) value);
+                break;
+            case SHORT:
+                if (!(value instanceof Short)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Short; got " + value.getClass().getName());
+                }
+                field.setShort(containingObj, (Short) value);
+                break;
+            case DOUBLE:
+                if (!(value instanceof Double)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Double; got " + value.getClass().getName());
+                }
+                field.setDouble(containingObj, (Double) value);
+                break;
+            case FLOAT:
+                if (!(value instanceof Float)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Float; got " + value.getClass().getName());
+                }
+                field.setFloat(containingObj, (Float) value);
+                break;
+            case BOOLEAN:
+                if (!(value instanceof Boolean)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Boolean; got " + value.getClass().getName());
+                }
+                field.setBoolean(containingObj, (Boolean) value);
+                break;
+            case BYTE:
+                if (!(value instanceof Byte)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Byte; got " + value.getClass().getName());
+                }
+                field.setByte(containingObj, (Byte) value);
+                break;
+            case CHARACTER:
+                if (!(value instanceof Character)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Character; got " + value.getClass().getName());
+                }
+                field.setChar(containingObj, (Character) value);
+                break;
+            default:
+                throw new IllegalArgumentException();
             }
         } catch (IllegalArgumentException | IllegalAccessException e) {
             throw new IllegalArgumentException(

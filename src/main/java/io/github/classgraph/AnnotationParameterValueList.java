@@ -28,16 +28,13 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
+import io.github.classgraph.InfoList.MappableInfoList;
+
 /** A list of {@link AnnotationParameterValue} objects. */
-public class AnnotationParameterValueList extends ArrayList<AnnotationParameterValue> {
+public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
     AnnotationParameterValueList() {
         super();
     }
@@ -114,52 +111,6 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return The names of all {@link AnnotationParameterValue} objects in this list, by calling
-     *         {@link AnnotationParameterValue#getName()} for each item in the list.
-     */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.emptyList();
-        } else {
-            final List<String> classNames = new ArrayList<>(this.size());
-            for (final AnnotationParameterValue apv : this) {
-                classNames.add(apv.getName());
-            }
-            return classNames;
-        }
-    }
-
-    /**
-     * @return The string representations of all annotation parameter values in this list, by calling
-     *         {@link AnnotationParameterValue#toString()} for each item in the list.
-     */
-    public List<String> getAsStrings() {
-        if (this.isEmpty()) {
-            return Collections.emptyList();
-        } else {
-            final List<String> toStringVals = new ArrayList<>(this.size());
-            for (final AnnotationParameterValue apv : this) {
-                toStringVals.add(apv.toString());
-            }
-            return toStringVals;
-        }
-    }
-
-    /**
-     * @return This {@link AnnotationParameterValueList} as a map from annotation parameter name to
-     *         {@link AnnotationParameterValue} object.
-     */
-    public Map<String, AnnotationParameterValue> asMap() {
-        final Map<String, AnnotationParameterValue> annotationNameToAnnotationParameterValue = new HashMap<>();
-        for (final AnnotationParameterValue apv : this) {
-            annotationNameToAnnotationParameterValue.put(apv.getName(), apv);
-        }
-        return annotationNameToAnnotationParameterValue;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
      * to check the type of each method of the annotation class to determine if it is a primitive array type).
      */
@@ -174,22 +125,8 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
     /**
      * @param parameterName
      *            The name of an annotation parameter.
-     * @return true if this list contains an annotation parameter with the given name.
-     */
-    public boolean containsName(final String parameterName) {
-        for (final AnnotationParameterValue apv : this) {
-            if (apv.getName().equals(parameterName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @param parameterName
-     *            The name of an annotation parameter.
-     * @return The value of the {@link AnnotationParameterValue} object in the list with the given name, or null if
-     *         not found.
+     * @return The value of the {@link AnnotationParameterValue} object in the list with the given name, by calling
+     *         {@link AnnotationParameterValue#getValue()} on that object, or null if not found.
      * 
      *         <p>
      *         The annotation parameter value may be one of the following types:
@@ -208,12 +145,8 @@ public class AnnotationParameterValueList extends ArrayList<AnnotationParameterV
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      */
-    public Object get(final String parameterName) {
-        for (final AnnotationParameterValue apv : this) {
-            if (apv.getName().equals(parameterName)) {
-                return apv.getValue();
-            }
-        }
-        return null;
+    public Object getValue(final String parameterName) {
+        final AnnotationParameterValue apv = get(parameterName);
+        return apv == null ? null : apv.getValue();
     }
 }

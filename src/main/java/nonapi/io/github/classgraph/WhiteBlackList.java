@@ -188,10 +188,7 @@ public abstract class WhiteBlackList {
         /** Check if the requested string is whitelisted and not blacklisted. */
         @Override
         public boolean isWhitelistedAndNotBlacklisted(final String str) {
-            return ((whitelist == null && whitelistPatterns == null)
-                    || (whitelist != null && whitelist.contains(str)) || matchesPatternList(str, whitelistPatterns))
-                    && (blacklist == null || !blacklist.contains(str))
-                    && !matchesPatternList(str, blacklistPatterns);
+            return isWhitelisted(str) && !isBlacklisted(str);
         }
 
         /** Check if the requested string is whitelisted. */
