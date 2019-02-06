@@ -60,7 +60,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder("static void <clinit>()", //
+            assertThat(methods).containsExactlyInAnyOrder( //
                     "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal)",
                     "public static net.corda.core.contracts.ComponentGroupEnum[] values()",
                     "public static net.corda.core.contracts.ComponentGroupEnum valueOf(java.lang.String)");
@@ -109,8 +109,7 @@ public class Issue175Test {
                     "public static final <V, W> W match(@org.jetbrains.annotations.NotNull mandated java.util.concurrent.Future<V> $receiver, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super V, ? extends W> success, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super java.lang.Throwable, ? extends W> failure)",
                     "@org.jetbrains.annotations.NotNull public static final <V, W> net.corda.core.concurrent.CordaFuture<W> firstOf(@org.jetbrains.annotations.NotNull net.corda.core.concurrent.CordaFuture<? extends V>[] futures, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.core.concurrent.CordaFuture<? extends V>, ? extends W> handler)",
                     "public static synthetic void shortCircuitedTaskFailedMessage$annotations()",
-                    "@org.jetbrains.annotations.NotNull public static final <V, W> net.corda.core.concurrent.CordaFuture<W> firstOf(@org.jetbrains.annotations.NotNull net.corda.core.concurrent.CordaFuture<? extends V>[] futures, @org.jetbrains.annotations.NotNull org.slf4j.Logger log, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.core.concurrent.CordaFuture<? extends V>, ? extends W> handler)",
-                    "static void <clinit>()");
+                    "@org.jetbrains.annotations.NotNull public static final <V, W> net.corda.core.concurrent.CordaFuture<W> firstOf(@org.jetbrains.annotations.NotNull net.corda.core.concurrent.CordaFuture<? extends V>[] futures, @org.jetbrains.annotations.NotNull org.slf4j.Logger log, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.core.concurrent.CordaFuture<? extends V>, ? extends W> handler)");
         }
     }
 
@@ -221,7 +220,6 @@ public class Issue175Test {
                 }
             }
             assertThat(methods).containsExactlyInAnyOrder( //
-                    "static void <clinit>()",
                     "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal, @org.jetbrains.annotations.NotNull java.lang.String columnName)",
                     "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute[] values()",
                     "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute valueOf(java.lang.String)",
@@ -257,7 +255,6 @@ public class Issue175Test {
                     "@kotlin.jvm.JvmOverloads public synthetic <init>(java.lang.Class, com.fasterxml.jackson.databind.ObjectMapper, int, kotlin.jvm.internal.DefaultConstructorMarker)",
                     "@kotlin.jvm.JvmOverloads public <init>(@org.jetbrains.annotations.NotNull java.lang.Class<? extends T>)",
                     "public <init>(@org.jetbrains.annotations.NotNull kotlin.reflect.KClass<? extends T> targetType)",
-                    "static void <clinit>()",
                     "@org.jetbrains.annotations.NotNull public static final synthetic java.util.List access$getIgnoredNames$cp()",
                     "@org.jetbrains.annotations.NotNull public static final synthetic org.slf4j.Logger access$getLog$cp()");
         }
