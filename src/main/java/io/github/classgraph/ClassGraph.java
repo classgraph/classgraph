@@ -43,6 +43,7 @@ import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.WhiteBlackList;
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -1059,9 +1060,10 @@ public class ClassGraph {
                     @Override
                     public void onFailure(final Throwable throwable) {
                         // If logging is enabled, log the throwable then flush log before calling FailureHandler
-                        topLevelLog.log("Scanning failed", throwable);
+                        final Throwable cause = InterruptionChecker.getCause(throwable);
+                        topLevelLog.log("Scanning failed", cause);
                         topLevelLog.flush();
-                        failureHandler.onFailure(throwable);
+                        failureHandler.onFailure(cause);
                     }
                 }, topLevelLog));
     }
@@ -1115,21 +1117,11 @@ public class ClassGraph {
             }
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            Throwable t = e.getCause();
-            while (t instanceof ExecutionException) {
-                t = t.getCause();
+            final Throwable cause = InterruptionChecker.getCause(e);
+            if (topLevelLog != null) {
+                topLevelLog.log("Uncaught exception during scan", cause);
             }
-            if (t != null) {
-                if (topLevelLog != null) {
-                    topLevelLog.log("Uncaught exception during scan", t);
-                }
-                throw new ClassGraphException("Uncaught exception during scan", t);
-            } else {
-                if (topLevelLog != null) {
-                    topLevelLog.log("Uncaught exception during scan");
-                }
-                throw new ClassGraphException("Uncaught exception during scan");
-            }
+            throw new ClassGraphException("Uncaught exception during scan", cause);
         } finally {
             if (topLevelLog != null) {
                 topLevelLog.flush();

@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,8 +40,9 @@ public class InterruptionChecker {
     /** Set to true when a thread is interrupted. */
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
 
-    /** The first {@link Throwable} that resulted in an {@link ExecutionException}. */
-    private final AtomicReference<Throwable> executionExceptionCause = new AtomicReference<Throwable>();
+    /** The first {@link ExecutionException} that was thrown. */
+    private final AtomicReference<ExecutionException> thrownExecutionException = //
+            new AtomicReference<ExecutionException>();
 
     /** Interrupt all threads that share this InterruptionChecker. */
     public void interrupt() {
@@ -51,36 +51,35 @@ public class InterruptionChecker {
     }
 
     /**
-     * Set the {@link Throwable} that resulted in an {@link ExecutionException}.
-     * 
-     * @param throwable
-     *            the {@link Throwable}, or the {@link ExecutionException} that wraps it.
+     * Set the {@link ExecutionException} that was thrown by a worker.
+     *
+     * @param executionException
+     *            the execution exception that was thrown
      */
-    public void setExecutionExceptionCause(final Throwable throwable) {
-        if (throwable != null && //
+    public void setExecutionException(final ExecutionException executionException) {
         // Only set the execution exception once
-                executionExceptionCause.get() == null && //
-                // Don't store CancellationException or InterruptedException
-                !(throwable instanceof CancellationException) && !(throwable instanceof InterruptedException)) {
-            // Get the root cause, if throwable is an ExecutionException
-            Throwable t = throwable;
-            while (t instanceof ExecutionException) {
-                t = t.getCause();
-            }
-            if (t != null) {
-                // Only set the execution exception once
-                executionExceptionCause.compareAndSet(/* expectedValue = */ null, t);
-            }
+        if (executionException != null && thrownExecutionException.get() == null) {
+            thrownExecutionException.compareAndSet(/* expectedValue = */ null, executionException);
         }
     }
 
     /**
-     * Get the {@link Throwable} that resulted in an {@link ExecutionException}.
+     * Get the {@link ExecutionException} that was thrown by a worker, or null if none.
      * 
-     * @return the {@link Throwable} that resulted in an {@link ExecutionException}.
+     * @return the {@link ExecutionException} that was thrown by a worker, or null if none.
      */
-    public Throwable getExecutionExceptionCause() {
-        return executionExceptionCause.get();
+    public ExecutionException getExecutionException() {
+        return thrownExecutionException.get();
+    }
+
+    /** Get the cause of an {@link ExecutionException}. */
+    public static Throwable getCause(final Throwable throwable) {
+        // Unwrap possibly-nested ExecutionExceptions to get to root cause
+        Throwable cause = throwable;
+        while (cause instanceof ExecutionException) {
+            cause = cause.getCause();
+        }
+        return cause != null ? cause : new ExecutionException("ExecutionException with unknown cause", null);
     }
 
     /**

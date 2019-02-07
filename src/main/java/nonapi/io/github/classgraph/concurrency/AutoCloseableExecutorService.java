@@ -59,10 +59,10 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     public void afterExecute(final Runnable runnable, final Throwable throwable) {
         super.afterExecute(runnable, throwable);
         if (throwable != null) {
+            // Wrap the throwable in an ExecutionException (execute() does not do this)
+            interruptionChecker.setExecutionException(new ExecutionException("Uncaught exception", throwable));
             // execute() was called and an uncaught exception or error was thrown
             interruptionChecker.interrupt();
-            // Record the throwable
-            interruptionChecker.setExecutionExceptionCause(throwable);
         } else if (/* throwable == null && */ runnable instanceof Future<?>) {
             // submit() was called, so throwable is not set 
             try {
@@ -72,10 +72,10 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
                 // If this thread was cancelled or interrupted, interrupt other threads
                 interruptionChecker.interrupt();
             } catch (final ExecutionException e) {
+                // Record the exception that was thrown by the thread
+                interruptionChecker.setExecutionException(e);
                 // If this thread threw an exception, interrupt other threads
                 interruptionChecker.interrupt();
-                // Record the exception that was thrown
-                interruptionChecker.setExecutionExceptionCause(e);
             }
         }
     }

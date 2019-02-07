@@ -291,7 +291,7 @@ public class WorkQueue<T> implements AutoCloseable {
                     log.log("Worker thread was interrupted");
                 }
             } catch (final ExecutionException e) {
-                interruptionChecker.setExecutionExceptionCause(e);
+                interruptionChecker.setExecutionException(e);
                 interruptionChecker.interrupt();
             }
         }
@@ -300,10 +300,10 @@ public class WorkQueue<T> implements AutoCloseable {
             // returns immediately, so we need to wait for thread shutdown here. Otherwise a finally-block of a
             // caller may be called before the worker threads have completed and cleaned up their resources.)
         }
-        // If a worker through an uncaught exception, wrap it in a ExecutionException and re-throw it.
-        final Throwable executionExceptionCause = interruptionChecker.getExecutionExceptionCause();
-        if (executionExceptionCause != null) {
-            throw new ExecutionException("Worker thread threw an uncaught exception", executionExceptionCause);
+        // If a worker threw an uncaught exception, re-throw it.
+        final ExecutionException executionException = interruptionChecker.getExecutionException();
+        if (executionException != null) {
+            throw executionException;
         }
     }
 }
