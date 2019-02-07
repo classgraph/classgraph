@@ -96,6 +96,8 @@ class Scanner implements Callable<ScanResult> {
     /** A map from raw classpath element path to classloaders for that classpath element. */
     final Map<String, ClassLoader[]> rawClasspathEltPathToClassLoaders = new ConcurrentHashMap<>();
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * The classpath scanner.
      *
@@ -128,6 +130,74 @@ class Scanner implements Callable<ScanResult> {
         this.failureHandler = failureHandler;
         this.topLevelLog = log;
 
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the module order.
+     *
+     * @param classLoaderAndModuleFinder
+     *            the class loader and module finder
+     * @param contextClassLoaders
+     *            the context classloaders
+     * @param classpathFinderLog
+     *            the classpath finder log
+     * @return the module order
+     * @throws InterruptedException
+     *             the interrupted exception
+     */
+    private List<ClasspathElementModule> getModuleOrder(final ClassLoaderAndModuleFinder classLoaderAndModuleFinder,
+            final ClassLoader[] contextClassLoaders, final LogNode classpathFinderLog) throws InterruptedException {
+        final List<ClasspathElementModule> moduleClasspathEltOrder = new ArrayList<>();
+        if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
+            // Add modules to start of classpath order, before traditional classpath
+            final List<ModuleRef> systemModuleRefs = classLoaderAndModuleFinder.getSystemModuleRefs();
+            if (systemModuleRefs != null) {
+                for (final ModuleRef systemModuleRef : systemModuleRefs) {
+                    final String moduleName = systemModuleRef.getName();
+                    if (
+                    // If scanning system packages and modules is enabled and white/blacklist is empty,
+                    // then scan all system modules
+                    (scanSpec.enableSystemJarsAndModules
+                            && scanSpec.moduleWhiteBlackList.whitelistAndBlacklistAreEmpty())
+                            // Otherwise only scan specifically whitelisted system modules
+                            || scanSpec.moduleWhiteBlackList
+                                    .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
+                        // Create a new ClasspathElementModule
+                        final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
+                                systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
+                        moduleClasspathEltOrder.add(classpathElementModule);
+                        // Open the ClasspathElementModule
+                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+                    } else {
+                        if (classpathFinderLog != null) {
+                            classpathFinderLog
+                                    .log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
+                        }
+                    }
+                }
+            }
+            final List<ModuleRef> nonSystemModuleRefs = classLoaderAndModuleFinder.getNonSystemModuleRefs();
+            if (nonSystemModuleRefs != null) {
+                for (final ModuleRef nonSystemModuleRef : nonSystemModuleRefs) {
+                    final String moduleName = nonSystemModuleRef.getName();
+                    if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
+                        // Create a new ClasspathElementModule
+                        final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
+                                nonSystemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
+                        moduleClasspathEltOrder.add(classpathElementModule);
+                        // Open the ClasspathElementModule
+                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+                    } else {
+                        if (classpathFinderLog != null) {
+                            classpathFinderLog.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
+                        }
+                    }
+                }
+            }
+        }
+        return moduleClasspathEltOrder;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -716,6 +786,76 @@ class Scanner implements Callable<ScanResult> {
         }
     }
 
+    /**
+     * Find classpath elements whose path is a prefix of another classpath element, and record the nesting.
+     *
+     * @param classpathElts
+     *            the classpath elements
+     * @param log
+     *            the log
+     */
+    private void preprocessClasspathElementsByType(final List<ClasspathElement> finalTraditionalClasspathEltOrder,
+            final LogNode classpathFinderLog) {
+        final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
+        final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
+        for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
+            if (classpathElt instanceof ClasspathElementDir) {
+                // Separate out ClasspathElementDir elements from other types
+                classpathEltDirs.add(new SimpleEntry<>(((ClasspathElementDir) classpathElt).getDirFile().getPath(),
+                        classpathElt));
+            } else if (classpathElt instanceof ClasspathElementZip) {
+                // Separate out ClasspathElementZip elements from other types
+                final ClasspathElementZip classpathEltZip = (ClasspathElementZip) classpathElt;
+                classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
+
+                // Find additional Add-Exports and Add-Opens entries in jarfile manifests,
+                // and add to scanSpec.modulePathInfo. From JEP 261:
+                // "A <module>/<package> pair in the value of an Add-Exports attribute has the same
+                // meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. 
+                // A <module>/<package> pair in the value of an Add-Opens attribute has the same 
+                // meaning as the command-line option --add-opens <module>/<package>=ALL-UNNAMED."
+                if (classpathEltZip.logicalZipFile != null) {
+                    if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
+                        for (final String addExports : JarUtils
+                                .smartPathSplit(classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ')) {
+                            scanSpec.modulePathInfo.addExports.add(addExports + "=ALL-UNNAMED");
+                        }
+                    }
+                    if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
+                        for (final String addOpens : JarUtils
+                                .smartPathSplit(classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ')) {
+                            scanSpec.modulePathInfo.addOpens.add(addOpens + "=ALL-UNNAMED");
+                        }
+                    }
+                }
+            } else {
+                // Ignore ClasspathElementModule
+            }
+        }
+        // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)
+        findNestedClasspathElements(classpathEltDirs, classpathFinderLog);
+        findNestedClasspathElements(classpathEltZips, classpathFinderLog);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Perform classpath masking of classfiles. If the same relative classfile path occurs multiple times in the
+     * classpath, causes the second and subsequent occurrences to be ignored (removed).
+     * 
+     * @param classpathElementOrder
+     *            the classpath element order
+     * @param maskLog
+     *            the mask log
+     */
+    private void maskClassfiles(final List<ClasspathElement> classpathElementOrder, final LogNode maskLog) {
+        final HashSet<String> whitelistedClasspathRelativePathsFound = new HashSet<>();
+        for (int classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
+            final ClasspathElement classpathElement = classpathElementOrder.get(classpathIdx);
+            classpathElement.maskClassfiles(classpathIdx, whitelistedClasspathRelativePathsFound, maskLog);
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -742,52 +882,9 @@ class Scanner implements Callable<ScanResult> {
                     .getClassLoaderAndModuleFinder();
             final ClassLoader[] contextClassLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
 
-            final List<ClasspathElementModule> moduleClasspathEltOrder = new ArrayList<>();
-            if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null
-                    && scanSpec.scanModules) {
-                // Add modules to start of classpath order, before traditional classpath
-                final List<ModuleRef> systemModuleRefs = classLoaderAndModuleFinder.getSystemModuleRefs();
-                if (systemModuleRefs != null) {
-                    for (final ModuleRef systemModuleRef : systemModuleRefs) {
-                        final String moduleName = systemModuleRef.getName();
-                        if (
-                        // If scanning system packages and modules is enabled and white/blacklist is empty,
-                        // then scan all system modules
-                        (scanSpec.enableSystemJarsAndModules
-                                && scanSpec.moduleWhiteBlackList.whitelistAndBlacklistAreEmpty())
-                                // Otherwise only scan specifically whitelisted system modules
-                                || scanSpec.moduleWhiteBlackList
-                                        .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
-                            final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
-                                    systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
-                            classpathElementModule.open(/* ignored */ null, classpathFinderLog);
-                            moduleClasspathEltOrder.add(classpathElementModule);
-                        } else {
-                            if (classpathFinderLog != null) {
-                                classpathFinderLog.log(
-                                        "Skipping non-whitelisted or blacklisted system module: " + moduleName);
-                            }
-                        }
-                    }
-                }
-                final List<ModuleRef> nonSystemModuleRefs = classLoaderAndModuleFinder.getNonSystemModuleRefs();
-                if (nonSystemModuleRefs != null) {
-                    for (final ModuleRef nonSystemModuleRef : nonSystemModuleRefs) {
-                        final String moduleName = nonSystemModuleRef.getName();
-                        if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
-                            final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
-                                    nonSystemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
-                            classpathElementModule.open(/* ignored */ null, classpathFinderLog);
-                            moduleClasspathEltOrder.add(classpathElementModule);
-                        } else {
-                            if (classpathFinderLog != null) {
-                                classpathFinderLog
-                                        .log("Skipping non-whitelisted or blacklisted module: " + moduleName);
-                            }
-                        }
-                    }
-                }
-            }
+            // Get the module order
+            final List<ClasspathElementModule> moduleClasspathEltOrder = getModuleOrder(classLoaderAndModuleFinder,
+                    contextClassLoaders, classpathFinderLog);
 
             // Get order of elements in traditional classpath
             final List<ClasspathElementOpenerWorkUnit> rawClasspathElementWorkUnits = new ArrayList<>();
@@ -812,46 +909,9 @@ class Scanner implements Callable<ScanResult> {
             final List<ClasspathElement> finalTraditionalClasspathEltOrder = findClasspathOrder(
                     openedClasspathElementsSet, toplevelClasspathEltOrder);
 
-            // Find classpath elements that are path prefixes of other classpath elements
-            {
-                final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
-                final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
-                for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
-                    if (classpathElt instanceof ClasspathElementDir) {
-                        // Separate out ClasspathElementDir elements from other types
-                        classpathEltDirs.add(new SimpleEntry<>(
-                                ((ClasspathElementDir) classpathElt).getDirFile().getPath(), classpathElt));
-                    } else if (classpathElt instanceof ClasspathElementZip) {
-                        // Separate out ClasspathElementZip elements from other types
-                        final ClasspathElementZip classpathEltZip = (ClasspathElementZip) classpathElt;
-                        classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
-
-                        // Find additional Add-Exports and Add-Opens entries in jarfile manifests,
-                        // and add to scanSpec.modulePathInfo. From JEP 261:
-                        // "A <module>/<package> pair in the value of an Add-Exports attribute has the same
-                        // meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. 
-                        // A <module>/<package> pair in the value of an Add-Opens attribute has the same 
-                        // meaning as the command-line option --add-opens <module>/<package>=ALL-UNNAMED."
-                        if (classpathEltZip.logicalZipFile != null) {
-                            if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
-                                for (final String addExports : JarUtils.smartPathSplit(
-                                        classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ')) {
-                                    scanSpec.modulePathInfo.addExports.add(addExports + "=ALL-UNNAMED");
-                                }
-                            }
-                            if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
-                                for (final String addOpens : JarUtils.smartPathSplit(
-                                        classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ')) {
-                                    scanSpec.modulePathInfo.addOpens.add(addOpens + "=ALL-UNNAMED");
-                                }
-                            }
-                        }
-                    }
-                }
-                // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)
-                findNestedClasspathElements(classpathEltDirs, classpathFinderLog);
-                findNestedClasspathElements(classpathEltZips, classpathFinderLog);
-            }
+            // Find classpath elements that are path prefixes of other classpath elements, and for
+            // ClasspathElementZip, extract "Add-Exports" and "Add-Opens" manifest entries
+            preprocessClasspathElementsByType(finalTraditionalClasspathEltOrder, classpathFinderLog);
 
             // Order modules before classpath elements from traditional classpath 
             final LogNode classpathOrderLog = classpathFinderLog == null ? null
@@ -880,22 +940,19 @@ class Scanner implements Callable<ScanResult> {
                 if (topLevelLog != null) {
                     topLevelLog.log("Only returning classpath elements (not performing a scan)");
                 }
-                // This is the result of a call to ClassGraph#getUniqueClasspathElements(), so just
-                // create placeholder ScanResult to contain classpathElementFilesOrdered.
+                // Return a placeholder ScanResult to hold classpath elements
                 final ScanResult scanResult = new ScanResult(scanSpec, finalClasspathEltOrder,
                         finalClasspathEltOrderStrs, contextClassLoaders, /* classNameToClassInfo = */ null,
                         /* packageNameToPackageInfo = */ null, /* moduleNameToModuleInfo = */ null,
                         /* fileToLastModified = */ null, nestedJarHandler, topLevelLog);
-
                 if (topLevelLog != null) {
                     topLevelLog.log("Completed", System.nanoTime() - scanStart);
                 }
-
                 // Skip the actual scan
                 return scanResult;
             }
 
-            // Scan paths within each classpath element, comparing them against whitelist/blacklist criteria
+            // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
             processWorkUnits(finalClasspathEltOrder, "Scanning filenames within classpath elements",
                     classpathFinderLog, new WorkUnitProcessor<ClasspathElement>() {
                         @Override
@@ -918,22 +975,11 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
 
-            // Implement classpath masking -- if the same relative classfile path occurs multiple times in the
-            // classpath, ignore (remove) the second and subsequent occurrences. Note that classpath masking is
-            // performed whether or not a jar is whitelisted, and whether or not jar or dir scanning is enabled,
-            // in order to ensure that class references passed into MatchProcessors are the same as those that
-            // would be loaded by standard classloading. (See bug #100.)
-            {
-                final LogNode maskLog = topLevelLog == null ? null : topLevelLog.log("Masking classfiles");
-                final HashSet<String> whitelistedClasspathRelativePathsFound = new HashSet<>();
-                for (int classpathIdx = 0; classpathIdx < finalClasspathEltOrderFiltered.size(); classpathIdx++) {
-                    finalClasspathEltOrderFiltered.get(classpathIdx).maskClassfiles(classpathIdx,
-                            whitelistedClasspathRelativePathsFound, maskLog);
-                }
-            }
+            // Mask classfiles
+            maskClassfiles(finalClasspathEltOrderFiltered,
+                    topLevelLog == null ? null : topLevelLog.log("Masking classfiles"));
 
-            // Merge the maps from file to timestamp across all classpath elements (there will be no overlap in
-            // keyspace, since file masking was already performed)
+            // Merge the file-to-timestamp maps across all classpath elements
             final Map<File, Long> fileToLastModified = new HashMap<>();
             for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
                 fileToLastModified.putAll(classpathElement.fileToLastModified);
@@ -963,8 +1009,7 @@ class Scanner implements Callable<ScanResult> {
                 }
 
                 // Scan classfiles in parallel
-                final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue = //
-                        new ConcurrentLinkedQueue<>();
+                final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue = new ConcurrentLinkedQueue<>();
                 processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
                         new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrderFiltered,
                                 scannedClassNames, classInfoUnlinkedQueue));
@@ -1012,9 +1057,9 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.log("Completed", System.nanoTime() - scanStart);
             }
 
-            // Run scanResultProcessor in the current thread
             if (scanResultProcessor != null) {
                 try {
+                    // Run scanResultProcessor in the current thread
                     scanResultProcessor.processScanResult(scanResult);
                 } catch (final Exception e) {
                     throw new ExecutionException("Exception while calling scan result processor", e);
