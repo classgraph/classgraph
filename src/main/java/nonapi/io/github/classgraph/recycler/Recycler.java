@@ -68,17 +68,17 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * @return Either a new or a recycled object instance.
      * @throws E
      *             if {@link #newInstance()} threw an exception of type E.
-     * @throws IllegalArgumentException
+     * @throws NullPointerException
      *             if {@link #newInstance()} returned null.
      */
     public T acquire() throws E {
         final T instance;
         final T recycledInstance = unusedInstances.poll();
         if (recycledInstance == null) {
-            // Allocate a new instance
-            final T newInstance = newInstance(); // May throw exception of type E
+            // Allocate a new instance -- may throw an exception of type E
+            final T newInstance = newInstance();
             if (newInstance == null) {
-                throw new IllegalArgumentException("Failed to allocate a new recyclable instance");
+                throw new NullPointerException("Failed to allocate a new recyclable instance");
             }
             instance = newInstance;
         } else {
