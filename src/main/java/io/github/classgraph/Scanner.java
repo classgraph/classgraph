@@ -58,6 +58,7 @@ import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
+import nonapi.io.github.classgraph.exceptions.ClassfileFormatException;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -484,7 +485,7 @@ class Scanner implements Callable<ScanResult> {
                     subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
                             + " : " + e);
                 }
-            } catch (final IllegalArgumentException e) {
+            } catch (final ClassfileFormatException e) {
                 if (subLog != null) {
                     subLog.log("Corrupt or unsupported classfile " + workUnit.classfileResource + " : " + e);
                 }
