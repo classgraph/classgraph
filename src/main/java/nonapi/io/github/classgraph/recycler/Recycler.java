@@ -41,8 +41,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <T>
  *            The type to recycle.
  * @param <E>
- *            An exception that can be thrown while acquiring an instance of the type to recycle, or use an
- *            unchecked exception type such as {@link RuntimeException} if none.
+ *            An exception that can be thrown while acquiring an instance of the type to recycle, or
+ *            {@link RuntimeException} if none.
  */
 public abstract class Recycler<T, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */

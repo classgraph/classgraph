@@ -46,9 +46,11 @@ import nonapi.io.github.classgraph.utils.LogNode;
  *            The key type.
  * @param <V>
  *            The value type.
+ * @param <E>
+ *            An exception type that may be thrown by {@link #newInstance(Object, LogNode)}, or
+ *            {@link RuntimeException} if none.
  */
-public abstract class SingletonMap<K, V> {
-
+public abstract class SingletonMap<K, V, E extends Exception> {
     /** The map. */
     private final ConcurrentMap<K, SingletonHolder<V>> map = new ConcurrentHashMap<>();
 
@@ -62,7 +64,6 @@ public abstract class SingletonMap<K, V> {
      *            the singleton type
      */
     private static class SingletonHolder<V> {
-
         /** The singleton. */
         private V singleton;
 
@@ -74,14 +75,18 @@ public abstract class SingletonMap<K, V> {
          *
          * @param singleton
          *            the singleton
+         * @throws RuntimeException
+         *             if this method is called more than once.
          */
-        void set(final V singleton) {
+        void set(final V singleton) throws RuntimeException {
             if (initialized.getCount() < 1) {
+                // Should not happen
                 throw new RuntimeException("Singleton already initialized");
             }
             this.singleton = singleton;
             initialized.countDown();
             if (initialized.getCount() != 0) {
+                // Should not happen
                 throw new RuntimeException("Singleton initialized more than once");
             }
         }
@@ -91,7 +96,7 @@ public abstract class SingletonMap<K, V> {
          *
          * @return the singleton value.
          * @throws InterruptedException
-         *             the interrupted exception
+         *             if the thread was interrupted while waiting for the value to be set.
          */
         V get() throws InterruptedException {
             initialized.await();
@@ -106,32 +111,40 @@ public abstract class SingletonMap<K, V> {
      *            The key for the singleton.
      * @param log
      *            The log.
-     * @return The singleton instance.
-     * @throws Exception
-     *             If something goes wrong.
+     * @return The singleton instance. This method must either return a non-null value, or throw an exception of
+     *         type E.
+     * @throws E
+     *             If something goes wrong while instantiating the new object instance.
+     * @throws InterruptedException
+     *             if the thread was interrupted while instantiating the singleton.
      */
-    public abstract V newInstance(K key, LogNode log) throws Exception;
+    public abstract V newInstance(K key, LogNode log) throws E, InterruptedException;
 
     /**
-     * Check if the given key is in the map, and if so, return it. If not, create a singleton value for that key,
-     * and return the created value. Stores null in the map if creating a new singleton instance failed due to
-     * throwing an exception, so that the failed operation is not repeated twice, however throws
-     * {@link IllegalArgumentException} if during this call or a previous call for the same key,
-     * {@link #newInstance(Object, LogNode)} returned null.
+     * Check if the given key is in the map, and if so, return the value of {@link #newInstance(Object, LogNode)}
+     * for that key, or block on the result of {@link #newInstance(Object, LogNode)} if another thread is currently
+     * creating the new instance.
+     * 
+     * If the given key is not currently in the map, store a placeholder in the map for this key, then run
+     * {@link #newInstance(Object, LogNode)} for the key, store the result in the placeholder (which unblocks any
+     * other threads waiting for the value), and then return the new instance.
      * 
      * @param key
      *            The key for the singleton.
      * @param log
      *            The log.
-     * @return The singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null instance on this
-     *         call or a previous call, otherwise throws {@link IllegalArgumentException} if this call or a previous
-     *         call to {@link #newInstance(Object, LogNode)} returned null.
-     * @throws Exception
-     *             if newInstance(key) throws an exception.
-     * @throws IllegalArgumentException
-     *             if newInstance(key) returns null.
+     * @return The non-null singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null
+     *         instance on this call or a previous call, otherwise throws {@link NullPointerException} if this call
+     *         or a previous call to {@link #newInstance(Object, LogNode)} returned null.
+     * @throws E
+     *             If {@link #newInstance(Object, LogNode)} throws this exception.
+     * @throws NullPointerException
+     *             if {@link #newInstance(Object, LogNode)} returned null.
+     * @throws InterruptedException
+     *             if the thread was interrupted while waiting for the singleton to be instantiated by another
+     *             thread.
      */
-    public V get(final K key, final LogNode log) throws Exception {
+    public V get(final K key, final LogNode log) throws E, InterruptedException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         V instance = null;
         if (singletonHolder != null) {
@@ -146,53 +159,30 @@ public abstract class SingletonMap<K, V> {
                 // There was already a singleton in the map for this key, due to a race condition --
                 // return the existing singleton
                 instance = oldSingletonHolder.get();
-
             } else {
                 // Initialize newSingletonHolder with new instance of value.
                 try {
                     instance = newInstance(key, log);
-                    if (instance == null) {
-                        if (log != null) {
-                            log.log("newInstance returned null for key " + key);
-                        }
-                        throw new IllegalArgumentException("newInstance returned null for key " + key);
-                    }
                 } finally {
-                    // Have to call .set() even if an exception is thrown by newInstance(), or if newInstance
-                    // is null, since .set() calls initialized.countDown(). Otherwise threads that call .get()
-                    // can end up waiting forever.
+                    // Always need to call .set() even if an exception is thrown by newInstance()
+                    // or newInstance() returns null, since .set() calls initialized.countDown().
+                    // Otherwise threads that call .get() may end up waiting forever.
                     newSingletonHolder.set(instance);
                 }
             }
         }
         if (instance == null) {
-            throw new IllegalArgumentException("instance was null for key " + key);
+            throw new NullPointerException("newInstance returned null for key " + key);
         } else {
             return instance;
         }
     }
 
     /**
-     * Get the singleton for a given key, if it is present in the map, otherwise return null. (Note that this will
-     * also return null if creating a singleton value for a given key failed due to throwing an exception.)
+     * Get all valid singleton values in the map.
      * 
-     * @param key
-     *            The key for the singleton.
-     * @return the new singleton instance, initialized by calling newInstance, or null if createSingleton() or
-     *         getOrCreateSingleton() has not yet been called. Also returns null if newInstance() threw an exception
-     *         or returned null while calling either of these methods.
-     * @throws InterruptedException
-     *             If getting the singleton was interrupted.
-     */
-    public V getIfPresent(final K key) throws InterruptedException {
-        final SingletonHolder<V> singletonHolder = map.get(key);
-        return singletonHolder == null ? null : singletonHolder.get();
-    }
-
-    /**
-     * Get all singletons in the map.
-     * 
-     * @return the singleton values in the map.
+     * @return the singleton values in the map, skipping over any value for which newInstance() threw an exception
+     *         or returned null.
      * @throws InterruptedException
      *             If getting the values was interrupted.
      */

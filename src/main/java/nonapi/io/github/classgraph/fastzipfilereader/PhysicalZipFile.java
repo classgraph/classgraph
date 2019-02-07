@@ -67,7 +67,7 @@ public class PhysicalZipFile implements Closeable {
     private ByteBuffer[] mappedByteBuffersCached;
 
     /** A singleton map from chunk index to byte buffer, ensuring that any given chunk is only mapped once. */
-    private SingletonMap<Integer, ByteBuffer> chunkIdxToByteBuffer;
+    private SingletonMap<Integer, ByteBuffer, IOException> chunkIdxToByteBuffer;
 
     /** The nested jar handler. */
     NestedJarHandler nestedJarHandler;
@@ -127,7 +127,7 @@ public class PhysicalZipFile implements Closeable {
         // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
         numMappedByteBuffers = (int) ((fileLen + FileUtils.MAX_BUFFER_SIZE) / FileUtils.MAX_BUFFER_SIZE);
         mappedByteBuffersCached = new MappedByteBuffer[numMappedByteBuffers];
-        chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer>() {
+        chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer, IOException>() {
             @Override
             public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws IOException {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer

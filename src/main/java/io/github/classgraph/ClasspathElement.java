@@ -40,7 +40,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
+import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -340,8 +340,11 @@ abstract class ClasspathElement {
      *            the work queue
      * @param log
      *            the log
+     * @throws InterruptedException
+     *             if the thread was interrupted while trying to open the classpath element.
      */
-    abstract void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log);
+    abstract void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log)
+            throws InterruptedException;
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for

@@ -26,12 +26,19 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph;
+package io.github.classgraph;
 
-/** Thrown when an unrecoverable error condition is reached by ClassGraph. */
-public class ClassGraphInternalException extends RuntimeException {
+/**
+ * An unchecked exception that is thrown when an error state occurs or an unhandled exception is caught during
+ * scanning.
+ * 
+ * <p>
+ * (Extends {@link IllegalArgumentException}, which extends {@link RuntimeException}, so that it works with legacy
+ * code that may have caught one of these two exceptions.)
+ */
+public class ClassGraphException extends IllegalArgumentException {
     /** Constructor. */
-    public ClassGraphInternalException() {
+    public ClassGraphException() {
         super();
     }
 
@@ -40,37 +47,8 @@ public class ClassGraphInternalException extends RuntimeException {
      *
      * @param message
      *            the message
-     * @param cause
-     *            the cause
-     * @param enableSuppression
-     *            whether to enable suppression
-     * @param writableStackTrace
-     *            the writable stack trace
      */
-    public ClassGraphInternalException(final String message, final Throwable cause, final boolean enableSuppression,
-            final boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param message
-     *            the message
-     * @param cause
-     *            the cause
-     */
-    public ClassGraphInternalException(final String message, final Throwable cause) {
-        super(message, cause);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param message
-     *            the message
-     */
-    public ClassGraphInternalException(final String message) {
+    public ClassGraphException(final String message) {
         super(message);
     }
 
@@ -80,7 +58,19 @@ public class ClassGraphInternalException extends RuntimeException {
      * @param cause
      *            the cause
      */
-    public ClassGraphInternalException(final Throwable cause) {
+    public ClassGraphException(final Throwable cause) {
         super(cause);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param message
+     *            the message
+     * @param cause
+     *            the cause
+     */
+    public ClassGraphException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }

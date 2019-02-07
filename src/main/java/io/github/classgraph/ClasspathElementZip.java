@@ -43,7 +43,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
+import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -101,7 +101,7 @@ class ClasspathElementZip extends ClasspathElement {
      * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log.log("Skipping classpath element, since jar scanning is disabled: " + rawPath);
@@ -185,7 +185,7 @@ class ClasspathElementZip extends ClasspathElement {
                             if (subLog != null) {
                                 subLog.log("Found nested lib jar: " + entryPath);
                             }
-                            workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                            workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
                                     /* rawClasspathEltPath = */ entryPath, /* parentClasspathElement = */ this,
                                     /* orderWithinParentClasspathElement = */
                                     childClasspathEntryIdx++));
@@ -209,7 +209,7 @@ class ClasspathElementZip extends ClasspathElement {
                         // Only add child classpath elements once
                         if (!childClassPathEltPathResolved.equals(rawPath)) {
                             // Schedule child classpath element for scanning
-                            workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                            workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
                                     /* rawClasspathEltPath = */ childClassPathEltPathResolved,
                                     /* parentClasspathElement = */ this,
                                     /* orderWithinParentClasspathElement = */

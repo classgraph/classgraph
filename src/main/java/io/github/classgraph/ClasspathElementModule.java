@@ -42,7 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
+import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -100,24 +100,10 @@ class ClasspathElementModule extends ClasspathElement {
      * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueueIgnored, final LogNode log) {
-        try {
-            moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
-                    log);
-        } catch (final IOException | IllegalArgumentException e) {
-            if (log != null) {
-                log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName() + " : "
-                        + e);
-            }
-            skipClasspathElement = true;
-            return;
-        } catch (final Exception e) {
-            if (log != null) {
-                log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName(), e);
-            }
-            skipClasspathElement = true;
-            return;
-        }
+    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueueIgnored, final LogNode log)
+            throws InterruptedException {
+        moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
+                /* ignored */ null);
     }
 
     /**

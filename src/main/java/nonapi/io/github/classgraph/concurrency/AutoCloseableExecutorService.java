@@ -28,12 +28,18 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
 public class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
+    /** The {@link InterruptionChecker}. */
+    public final InterruptionChecker interruptionChecker = new InterruptionChecker();
+
     /**
      * A ThreadPoolExecutor that can be used in a try-with-resources block.
      * 
@@ -43,6 +49,35 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                 new SimpleThreadFactory("ClassGraph-worker-", true));
+    }
+
+    /**
+     * Catch exceptions from both submit() and execute(), and call {@link InterruptionChecker#interrupt()} to
+     * interrupt all threads.
+     */
+    @Override
+    public void afterExecute(final Runnable runnable, final Throwable throwable) {
+        super.afterExecute(runnable, throwable);
+        if (throwable != null) {
+            // execute() was called and an uncaught exception or error was thrown
+            interruptionChecker.interrupt();
+            // Record the throwable
+            interruptionChecker.setExecutionExceptionCause(throwable);
+        } else if (/* throwable == null && */ runnable instanceof Future<?>) {
+            // submit() was called, so throwable is not set 
+            try {
+                // This call will not block, since execution has finished
+                ((Future<?>) runnable).get();
+            } catch (CancellationException | InterruptedException e) {
+                // If this thread was cancelled or interrupted, interrupt other threads
+                interruptionChecker.interrupt();
+            } catch (final ExecutionException e) {
+                // If this thread threw an exception, interrupt other threads
+                interruptionChecker.interrupt();
+                // Record the exception that was thrown
+                interruptionChecker.setExecutionExceptionCause(e);
+            }
+        }
     }
 
     /** Shut down thread pool on close(). */

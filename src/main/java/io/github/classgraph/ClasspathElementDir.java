@@ -46,7 +46,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
+import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -91,7 +91,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
                 log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
@@ -112,7 +112,7 @@ class ClasspathElementDir extends ClasspathElement {
                         if (log != null) {
                             log.log("Found lib jar: " + file);
                         }
-                        workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                        workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
                                 /* rawClasspathEltPath = */ file.getPath(), /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                     }
@@ -125,7 +125,7 @@ class ClasspathElementDir extends ClasspathElement {
                 if (log != null) {
                     log.log("Found package root: " + packageRootDir);
                 }
-                workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
                         /* rawClasspathEltPath = */ packageRootDir.getPath(), /* parentClasspathElement = */ this,
                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
             }

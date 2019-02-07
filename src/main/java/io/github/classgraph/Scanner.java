@@ -54,6 +54,7 @@ import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClassLoaderAndModuleFinder;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
+import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -71,14 +72,17 @@ class Scanner implements Callable<ScanResult> {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
+    /** The nested jar handler. */
+    final NestedJarHandler nestedJarHandler;
+
     /** The executor service. */
     private final ExecutorService executorService;
 
+    /** The interruption checker. */
+    private final InterruptionChecker interruptionChecker;
+
     /** The number of parallel tasks. */
     private final int numParallelTasks;
-
-    /** The interruption checker. */
-    private final InterruptionChecker interruptionChecker = new InterruptionChecker();
 
     /** The scan result processor. */
     private final ScanResultProcessor scanResultProcessor;
@@ -88,6 +92,9 @@ class Scanner implements Callable<ScanResult> {
 
     /** The toplevel log. */
     private final LogNode topLevelLog;
+
+    /** A map from raw classpath element path to classloaders for that classpath element. */
+    final Map<String, ClassLoader[]> rawClasspathEltPathToClassLoaders = new ConcurrentHashMap<>();
 
     /**
      * The classpath scanner.
@@ -109,15 +116,18 @@ class Scanner implements Callable<ScanResult> {
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler, final LogNode log) {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
+        scanSpec.log(log);
 
+        this.nestedJarHandler = new NestedJarHandler(scanSpec);
         this.executorService = executorService;
+        this.interruptionChecker = executorService instanceof AutoCloseableExecutorService
+                ? ((AutoCloseableExecutorService) executorService).interruptionChecker
+                : new InterruptionChecker();
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
         this.topLevelLog = log;
 
-        // Add ScanSpec to beginning of log
-        scanSpec.log(log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -206,8 +216,40 @@ class Scanner implements Callable<ScanResult> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Process work units.
+     *
+     * @param <W>
+     *            the work unit type
+     * @param workUnits
+     *            the work units
+     * @param logEntry
+     *            the log entry text to group work units under
+     * @param log
+     *            the log
+     * @param workUnitProcessor
+     *            the work unit processor
+     * @throws InterruptedException
+     *             if a worker was interrupted.
+     * @throws ExecutionException
+     *             If a worker threw an uncaught exception.
+     */
+    private <W> void processWorkUnits(final Collection<W> workUnits, final String logEntry, final LogNode log,
+            final WorkUnitProcessor<W> workUnitProcessor) throws InterruptedException, ExecutionException {
+        final LogNode subLog = log == null ? null : log.log(logEntry);
+        WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks, subLog,
+                workUnitProcessor);
+        if (subLog != null) {
+            subLog.addElapsedTime();
+        }
+        // Throw InterruptedException if any of the workers failed
+        interruptionChecker.check();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Used to enqueue classpath elements for opening. */
-    static class RawClasspathElementWorkUnit {
+    static class ClasspathElementOpenerWorkUnit {
 
         /** The raw classpath element path. */
         final String rawClasspathEltPath;
@@ -228,13 +270,139 @@ class Scanner implements Callable<ScanResult> {
          * @param orderWithinParentClasspathElement
          *            the order within parent classpath element
          */
-        public RawClasspathElementWorkUnit(final String rawClasspathEltPath,
+        public ClasspathElementOpenerWorkUnit(final String rawClasspathEltPath,
                 final ClasspathElement parentClasspathElement, final int orderWithinParentClasspathElement) {
             this.rawClasspathEltPath = rawClasspathEltPath;
             this.parentClasspathElement = parentClasspathElement;
             this.orderWithinParentClasspathElement = orderWithinParentClasspathElement;
         }
     }
+
+    /**
+     * The classpath element singleton map. For each classpath element path, canonicalize path, and create a
+     * ClasspathElement singleton.
+     */
+    private final SingletonMap<String, ClasspathElement, IOException> pathToClasspathElementSingletonMap = //
+            new SingletonMap<String, ClasspathElement, IOException>() {
+                @Override
+                public ClasspathElement newInstance(final String classpathEltPath, final LogNode log)
+                        throws IOException, InterruptedException {
+                    final ClassLoader[] classLoaders = rawClasspathEltPathToClassLoaders.get(classpathEltPath);
+                    if (classpathEltPath.regionMatches(true, 0, "http://", 0, 7)
+                            || classpathEltPath.regionMatches(true, 0, "https://", 0, 8)) {
+                        // For remote URLs, must be a jar
+                        return new ClasspathElementZip(classpathEltPath, classLoaders, nestedJarHandler, scanSpec);
+                    }
+                    // Normalize path -- strip off any leading "jar:" / "file:", and normalize separators
+                    final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                            classpathEltPath);
+                    // Strip "jar:" and/or "file:" prefix, if present
+                    // Strip everything after first "!", to get path of base jarfile or dir
+                    final int plingIdx = pathNormalized.indexOf("!");
+                    final String pathToCanonicalize = plingIdx < 0 ? pathNormalized
+                            : pathNormalized.substring(0, plingIdx);
+                    // Canonicalize base jarfile or dir (may throw IOException)
+                    final File fileCanonicalized = new File(pathToCanonicalize).getCanonicalFile();
+                    // Test if base file or dir exists (and is a standard file or dir)
+                    if (!fileCanonicalized.exists()) {
+                        throw new FileNotFoundException();
+                    }
+                    if (!FileUtils.canRead(fileCanonicalized)) {
+                        throw new IOException("Cannot read file or directory");
+                    }
+                    boolean isJar = classpathEltPath.regionMatches(true, 0, "jar:", 0, 4) || plingIdx > 0;
+                    if (fileCanonicalized.isFile()) {
+                        // If a file, must be a jar
+                        isJar = true;
+                    } else if (fileCanonicalized.isDirectory()) {
+                        if (isJar) {
+                            throw new IOException("Expected jar, found directory");
+                        }
+                    } else {
+                        throw new IOException("Not a normal file or directory");
+                    }
+                    // Check if canonicalized path is the same as pre-canonicalized path
+                    final String baseFileCanonicalPathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                            fileCanonicalized.getPath());
+                    final String canonicalPathNormalized = plingIdx < 0 ? baseFileCanonicalPathNormalized
+                            : baseFileCanonicalPathNormalized + pathNormalized.substring(plingIdx);
+                    if (!canonicalPathNormalized.equals(pathNormalized)) {
+                        // If canonicalized path is not the same as pre-canonicalized path, need to recurse
+                        // to map non-canonicalized path to singleton for canonicalized path (this should
+                        // only recurse once, since File::getCanonicalFile and FastPathResolver::resolve are
+                        // idempotent)
+                        return this.get(canonicalPathNormalized, log);
+                    } else {
+                        // Otherwise path is already canonical, and this is the first time this path has
+                        // been seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton
+                        // for the classpath element path
+                        return isJar
+                                ? new ClasspathElementZip(canonicalPathNormalized, classLoaders, nestedJarHandler,
+                                        scanSpec)
+                                : new ClasspathElementDir(fileCanonicalized, classLoaders, scanSpec);
+                    }
+                }
+            };
+
+    /**
+     * Create a WorkUnitProcessor for scanning classfiles.
+     *
+     * @param openedClasspathElementsSet
+     *            the opened classpath elements set
+     * @param toplevelClasspathEltOrder
+     *            the toplevel classpath elt order
+     * @param interruptionChecker
+     *            the interruption checker
+     * @return the work unit processor
+     */
+    private WorkUnitProcessor<ClasspathElementOpenerWorkUnit> newClasspathElementOpenerWorkUnitProcessor(
+            final Set<ClasspathElement> openedClasspathElementsSet,
+            final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder,
+            final InterruptionChecker interruptionChecker) {
+        return new WorkUnitProcessor<ClasspathElementOpenerWorkUnit>() {
+            @Override
+            public void processWorkUnit(final ClasspathElementOpenerWorkUnit workUnit,
+                    final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log)
+                    throws InterruptedException {
+                try {
+                    // Create a ClasspathElementZip or ClasspathElementDir for each entry in the
+                    // traditional classpath
+                    final ClasspathElement classpathElt = pathToClasspathElementSingletonMap
+                            .get(workUnit.rawClasspathEltPath, log);
+
+                    // Only run open() once per ClasspathElement (it is possible for there to be
+                    // multiple classpath elements with different non-canonical paths that map to
+                    // the same canonical path, i.e. to the same ClasspathElement)
+                    if (openedClasspathElementsSet.add(classpathElt)) {
+                        // Check if the classpath element is valid (classpathElt.skipClasspathElement
+                        // will be set if not). In case of ClasspathElementZip, open or extract nested
+                        // jars as LogicalZipFile instances. Read manifest files for jarfiles to look
+                        // for Class-Path manifest entries. Adds extra classpath elements to the work
+                        // queue if they are found.
+                        classpathElt.open(workQueue, log);
+
+                        // Create a new tuple consisting of the order of the new classpath element
+                        // within its parent, and the new classpath element
+                        final SimpleEntry<Integer, ClasspathElement> classpathEltEntry = //
+                                new SimpleEntry<>(workUnit.orderWithinParentClasspathElement, classpathElt);
+                        if (workUnit.parentClasspathElement != null) {
+                            // Link classpath element to its parent, if it is not a toplevel element
+                            workUnit.parentClasspathElement.childClasspathElementsIndexed.add(classpathEltEntry);
+                        } else {
+                            // Record toplevel elements
+                            toplevelClasspathEltOrder.add(classpathEltEntry);
+                        }
+                    }
+                } catch (final IOException e) {
+                    if (log != null) {
+                        log.log("Skipping invalid classpath element " + workUnit.rawClasspathEltPath + " : " + e);
+                    }
+                }
+            }
+        };
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Used to enqueue classfiles for scanning. */
     private static class ClassfileScanWorkUnit {
@@ -268,7 +436,6 @@ class Scanner implements Callable<ScanResult> {
 
     /** WorkUnitProcessor for scanning classfiles. */
     private static class ClassfileScannerWorkUnitProcessor implements WorkUnitProcessor<ClassfileScanWorkUnit> {
-
         /** The scan spec. */
         private final ScanSpec scanSpec;
 
@@ -281,12 +448,6 @@ class Scanner implements Callable<ScanResult> {
         /** The {@link ClassInfoUnlinked} objects created by scanning classfiles. */
         private final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue;
 
-        /** The interruption checker. */
-        private final InterruptionChecker interruptionChecker;
-
-        /** The log. */
-        private final LogNode log;
-
         /**
          * Constructor.
          *
@@ -298,21 +459,14 @@ class Scanner implements Callable<ScanResult> {
          *            the scanned class names
          * @param classInfoUnlinkedQueue
          *            the {@link ClassInfoUnlinked} objects created by scanning classfiles
-         * @param interruptionChecker
-         *            the interruption checker
-         * @param log
-         *            the log
          */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
                 final List<ClasspathElement> classpathOrder, final Set<String> scannedClassNames,
-                final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue, final LogNode log,
-                final InterruptionChecker interruptionChecker) {
+                final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
             this.scannedClassNames = scannedClassNames;
             this.classInfoUnlinkedQueue = classInfoUnlinkedQueue;
-            this.interruptionChecker = interruptionChecker;
-            this.log = log;
         }
 
         /**
@@ -447,11 +601,12 @@ class Scanner implements Callable<ScanResult> {
         }
 
         /* (non-Javadoc)
-         * @see nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor#processWorkUnit(java.lang.Object, nonapi.io.github.classgraph.concurrency.WorkQueue)
+         * @see nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor#processWorkUnit(
+         * java.lang.Object, nonapi.io.github.classgraph.concurrency.WorkQueue)
          */
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
-                final WorkQueue<ClassfileScanWorkUnit> workQueue) throws Exception {
+                final WorkQueue<ClassfileScanWorkUnit> workQueue, final LogNode log) throws InterruptedException {
             final LogNode subLog = log == null ? null
                     : log.log(workUnit.classfileResource.getPath(),
                             "Parsing classfile " + workUnit.classfileResource);
@@ -490,7 +645,6 @@ class Scanner implements Callable<ScanResult> {
                             + " : " + e);
                 }
             }
-            interruptionChecker.check();
         }
     }
 
@@ -578,13 +732,11 @@ class Scanner implements Callable<ScanResult> {
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = topLevelLog == null ? null
                 : topLevelLog.log("Finding classpath entries");
-        final NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec);
-        final Map<String, ClassLoader[]> classpathEltPathToClassLoaders = new ConcurrentHashMap<>();
         try {
             final long scanStart = System.nanoTime();
 
             // Get classpath finder
-            final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, classpathEltPathToClassLoaders,
+            final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, rawClasspathEltPathToClassLoaders,
                     classpathFinderLog);
             final ClassLoaderAndModuleFinder classLoaderAndModuleFinder = classpathFinder
                     .getClassLoaderAndModuleFinder();
@@ -638,139 +790,22 @@ class Scanner implements Callable<ScanResult> {
             }
 
             // Get order of elements in traditional classpath
-            final List<RawClasspathElementWorkUnit> rawClasspathElementWorkUnits = new ArrayList<>();
+            final List<ClasspathElementOpenerWorkUnit> rawClasspathElementWorkUnits = new ArrayList<>();
             for (final String rawClasspathEltPath : classpathFinder.getClasspathOrder().getOrder()) {
                 rawClasspathElementWorkUnits.add(
-                        new RawClasspathElementWorkUnit(rawClasspathEltPath, /* parentClasspathElement = */ null,
+                        new ClasspathElementOpenerWorkUnit(rawClasspathEltPath, /* parentClasspathElement = */ null,
                                 /* orderWithinParentClasspathElement = */ rawClasspathElementWorkUnits.size()));
             }
-
-            // For each classpath element path, canonicalize path, and create a ClasspathElement singleton
-            final SingletonMap<String, ClasspathElement> classpathElementSingletonMap = //
-                    new SingletonMap<String, ClasspathElement>() {
-                        @Override
-                        public ClasspathElement newInstance(final String classpathEltPath, final LogNode log)
-                                throws Exception {
-                            final ClassLoader[] classLoaders = classpathEltPathToClassLoaders.get(classpathEltPath);
-                            if (classpathEltPath.regionMatches(true, 0, "http://", 0, 7)
-                                    || classpathEltPath.regionMatches(true, 0, "https://", 0, 8)) {
-                                // For remote URLs, must be a jar
-                                return new ClasspathElementZip(classpathEltPath, classLoaders, nestedJarHandler,
-                                        scanSpec);
-                            }
-                            // Normalize path -- strip off any leading "jar:" / "file:", and normalize separators
-                            final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-                                    classpathEltPath);
-                            // Strip "jar:" and/or "file:" prefix, if present
-                            // Strip everything after first "!", to get path of base jarfile or dir
-                            final int plingIdx = pathNormalized.indexOf("!");
-                            final String pathToCanonicalize = plingIdx < 0 ? pathNormalized
-                                    : pathNormalized.substring(0, plingIdx);
-                            // Canonicalize base jarfile or dir (may throw IOException)
-                            final File fileCanonicalized = new File(pathToCanonicalize).getCanonicalFile();
-                            // Test if base file or dir exists (and is a standard file or dir)
-                            if (!fileCanonicalized.exists()) {
-                                throw new FileNotFoundException();
-                            }
-                            if (!FileUtils.canRead(fileCanonicalized)) {
-                                throw new IOException("Cannot read file or directory");
-                            }
-                            boolean isJar = classpathEltPath.regionMatches(true, 0, "jar:", 0, 4) || plingIdx > 0;
-                            if (fileCanonicalized.isFile()) {
-                                // If a file, must be a jar
-                                isJar = true;
-                            } else if (fileCanonicalized.isDirectory()) {
-                                if (isJar) {
-                                    throw new IOException("Expected jar, found directory");
-                                }
-                            } else {
-                                throw new IOException("Not a normal file or directory");
-                            }
-                            // Check if canonicalized path is the same as pre-canonicalized path
-                            final String baseFileCanonicalPathNormalized = FastPathResolver
-                                    .resolve(FileUtils.CURR_DIR_PATH, fileCanonicalized.getPath());
-                            final String canonicalPathNormalized = plingIdx < 0 ? baseFileCanonicalPathNormalized
-                                    : baseFileCanonicalPathNormalized + pathNormalized.substring(plingIdx);
-                            if (!canonicalPathNormalized.equals(pathNormalized)) {
-                                // If canonicalized path is not the same as pre-canonicalized path, need to recurse
-                                // to map non-canonicalized path to singleton for canonicalized path (this should
-                                // only recurse once, since File::getCanonicalFile and FastPathResolver::resolve are
-                                // idempotent)
-                                return this.get(canonicalPathNormalized, log);
-                            } else {
-                                // Otherwise path is already canonical, and this is the first time this path has
-                                // been seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton
-                                // for the classpath element path
-                                return isJar
-                                        ? new ClasspathElementZip(canonicalPathNormalized, classLoaders,
-                                                nestedJarHandler, scanSpec)
-                                        : new ClasspathElementDir(fileCanonicalized, classLoaders, scanSpec);
-                            }
-                        }
-                    };
 
             // In parallel, create a ClasspathElement singleton for each classpath element, then call isValid()
             // on each ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances
             // to be created for each (possibly nested) jarfile, then will read the manifest file and zip entries.
-            final LogNode preScanLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Reading jarfile directories and manifest files");
             final Set<ClasspathElement> openedClasspathElementsSet = Collections
                     .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
             final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder = new ConcurrentLinkedQueue<>();
-            WorkQueue.runWorkQueue(rawClasspathElementWorkUnits, executorService, numParallelTasks,
-                    new WorkUnitProcessor<RawClasspathElementWorkUnit>() {
-                        @Override
-                        public void processWorkUnit(final RawClasspathElementWorkUnit workUnit,
-                                final WorkQueue<RawClasspathElementWorkUnit> workQueue) throws Exception {
-                            try {
-                                // Create a ClasspathElementZip or ClasspathElementDir for each entry in the
-                                // traditional classpath
-                                final ClasspathElement classpathElt = classpathElementSingletonMap
-                                        .get(workUnit.rawClasspathEltPath, classpathFinderLog);
-
-                                // Only run open() once per ClasspathElement (it is possible for there to be
-                                // multiple classpath elements with different non-canonical paths that map to
-                                // the same canonical path, i.e. to the same ClasspathElement)
-                                if (openedClasspathElementsSet.add(classpathElt)) {
-                                    // Check if the classpath element is valid (classpathElt.skipClasspathElement
-                                    // will be set if not). In case of ClasspathElementZip, open or extract nested
-                                    // jars as LogicalZipFile instances. Read manifest files for jarfiles to look
-                                    // for Class-Path manifest entries. Adds extra classpath elements to the work
-                                    // queue if they are found.
-                                    classpathElt.open(workQueue, preScanLog);
-
-                                    // Create a new tuple consisting of the order of the new classpath element
-                                    // within its parent, and the new classpath element
-                                    final SimpleEntry<Integer, ClasspathElement> classpathEltEntry = //
-                                            new SimpleEntry<>(workUnit.orderWithinParentClasspathElement,
-                                                    classpathElt);
-                                    if (workUnit.parentClasspathElement != null) {
-                                        // Link classpath element to its parent, if it is not a toplevel element
-                                        workUnit.parentClasspathElement.childClasspathElementsIndexed
-                                                .add(classpathEltEntry);
-                                    } else {
-                                        // Record toplevel elements
-                                        toplevelClasspathEltOrder.add(classpathEltEntry);
-                                    }
-                                }
-                            } catch (final IllegalArgumentException e) {
-                                if (classpathFinderLog != null) {
-                                    classpathFinderLog.log(
-                                            "Skipping invalid classpath element " + workUnit.rawClasspathEltPath);
-                                }
-                            } catch (final IOException e) {
-                                if (classpathFinderLog != null) {
-                                    classpathFinderLog.log("Skipping invalid classpath element "
-                                            + workUnit.rawClasspathEltPath + " : " + e);
-                                }
-                            } catch (final Exception e) {
-                                if (classpathFinderLog != null) {
-                                    classpathFinderLog.log("Uncaught exception while processing classpath element "
-                                            + workUnit.rawClasspathEltPath + " : " + e);
-                                }
-                            }
-                        }
-                    }, interruptionChecker, preScanLog);
+            processWorkUnits(rawClasspathElementWorkUnits, "Opening classpath elements", classpathFinderLog,
+                    newClasspathElementOpenerWorkUnitProcessor(openedClasspathElementsSet,
+                            toplevelClasspathEltOrder, interruptionChecker));
 
             // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
@@ -861,23 +896,16 @@ class Scanner implements Callable<ScanResult> {
             }
 
             // Scan paths within each classpath element, comparing them against whitelist/blacklist criteria
-            final LogNode pathScanLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Scanning filenames within classpath elements");
-            WorkQueue.runWorkQueue(finalClasspathEltOrder, executorService, numParallelTasks,
-                    new WorkUnitProcessor<ClasspathElement>() {
+            processWorkUnits(finalClasspathEltOrder, "Scanning filenames within classpath elements",
+                    classpathFinderLog, new WorkUnitProcessor<ClasspathElement>() {
                         @Override
                         public void processWorkUnit(final ClasspathElement classpathElement,
-                                final WorkQueue<ClasspathElement> workQueueIgnored) {
+                                final WorkQueue<ClasspathElement> workQueueIgnored, final LogNode pathScanLog)
+                                throws InterruptedException {
                             // Scan the paths within a directory or jar
                             classpathElement.scanPaths(pathScanLog);
-                            if (preScanLog != null) {
-                                preScanLog.addElapsedTime();
-                            }
                         }
-                    }, interruptionChecker, pathScanLog);
-            if (preScanLog != null) {
-                preScanLog.addElapsedTime();
-            }
+                    });
 
             // Filter out classpath elements that do not contain required whitelisted paths.
             List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
@@ -937,15 +965,9 @@ class Scanner implements Callable<ScanResult> {
                 // Scan classfiles in parallel
                 final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinkedQueue = //
                         new ConcurrentLinkedQueue<>();
-                final LogNode classfileScanLog = topLevelLog == null ? null
-                        : topLevelLog.log("Scanning classfiles");
-                WorkQueue.runWorkQueue(classfileScanWorkItems, executorService, numParallelTasks,
+                processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
                         new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrderFiltered,
-                                scannedClassNames, classInfoUnlinkedQueue, classfileScanLog, interruptionChecker),
-                        interruptionChecker, classfileScanLog);
-                if (classfileScanLog != null) {
-                    classfileScanLog.addElapsedTime();
-                }
+                                scannedClassNames, classInfoUnlinkedQueue));
 
                 // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
                 final LogNode classGraphLog = topLevelLog == null ? null : topLevelLog.log("Building class graph");

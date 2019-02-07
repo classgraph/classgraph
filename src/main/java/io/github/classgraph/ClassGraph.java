@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1045,9 +1046,24 @@ public class ClassGraph {
             // force the addition of a FailureHandler so that exceptions are not silently swallowed.
             throw new IllegalArgumentException("failureHandler cannot be null");
         }
-        // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
-        executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor,
-                failureHandler, topLevelLog));
+        // Drop the returned Future<ScanResult> (a ScanResultProcessor is used instead)
+        executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
+                topLevelLog == null ? scanResultProcessor : new ScanResultProcessor() {
+                    @Override
+                    public void processScanResult(final ScanResult scanResult) {
+                        // If logging is enabled, flush log before calling ScanResultProcessor
+                        topLevelLog.flush();
+                        scanResultProcessor.processScanResult(scanResult);
+                    }
+                }, topLevelLog == null ? failureHandler : new FailureHandler() {
+                    @Override
+                    public void onFailure(final Throwable throwable) {
+                        // If logging is enabled, log the throwable then flush log before calling FailureHandler
+                        topLevelLog.log("Scanning failed", throwable);
+                        topLevelLog.flush();
+                        failureHandler.onFailure(throwable);
+                    }
+                }, topLevelLog));
     }
 
     /**
@@ -1079,7 +1095,7 @@ public class ClassGraph {
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @return a {@link ScanResult} object representing the result of the scan.
-     * @throws RuntimeException
+     * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
@@ -1090,32 +1106,29 @@ public class ClassGraph {
             //    final String scanResultJson = scanResult.toJSON();
             //    scanResult = ScanResult.fromJSON(scanResultJson);
 
-            // Return the scanResult
-            return executorService
-                    .submit(new Scanner(scanSpec, executorService, numParallelTasks,
-                            /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)) //
-                    .get();
+            // Return the scanResult, then block waiting for the result
+            return scanAsync(executorService, numParallelTasks).get();
 
-        } catch (final InterruptedException e) {
+        } catch (final InterruptedException | CancellationException e) {
             if (topLevelLog != null) {
                 topLevelLog.log("Scan interrupted");
             }
-            throw new RuntimeException("Scan interrupted", e);
+            throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause == null) {
-                cause = e;
+            Throwable t = e.getCause();
+            while (t instanceof ExecutionException) {
+                t = t.getCause();
             }
-            if (cause instanceof InterruptedException) {
+            if (t != null) {
                 if (topLevelLog != null) {
-                    topLevelLog.log("Scan interrupted");
+                    topLevelLog.log("Uncaught exception during scan", t);
                 }
-                throw new RuntimeException("Scan interrupted", e);
+                throw new ClassGraphException("Uncaught exception during scan", t);
             } else {
                 if (topLevelLog != null) {
-                    topLevelLog.log("Unexpected exception during scan", e);
+                    topLevelLog.log("Uncaught exception during scan");
                 }
-                throw new RuntimeException(cause);
+                throw new ClassGraphException("Uncaught exception during scan");
             }
         } finally {
             if (topLevelLog != null) {
@@ -1130,7 +1143,7 @@ public class ClassGraph {
      * @param numThreads
      *            The number of worker threads to start up.
      * @return a {@link ScanResult} object representing the result of the scan.
-     * @throws RuntimeException
+     * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final int numThreads) {
@@ -1143,7 +1156,7 @@ public class ClassGraph {
      * Scans the classpath, blocking until the scan is complete.
      *
      * @return a {@link ScanResult} object representing the result of the scan.
-     * @throws RuntimeException
+     * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan() {
@@ -1159,7 +1172,7 @@ public class ClassGraph {
      *
      * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
-     * @throws RuntimeException
+     * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<File> getClasspathFiles() {
@@ -1176,7 +1189,7 @@ public class ClassGraph {
      *
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
-     * @throws RuntimeException
+     * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public String getClasspath() {
@@ -1190,7 +1203,7 @@ public class ClassGraph {
      *
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
-     * @throws RuntimeException
+     * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URL> getClasspathURLs() {
@@ -1204,7 +1217,7 @@ public class ClassGraph {
      * Returns {@link ModuleRef} references for all the visible modules.
      *
      * @return a list of {@link ModuleRef} references for all the visible modules.
-     * @throws RuntimeException
+     * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<ModuleRef> getModules() {

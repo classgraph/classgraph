@@ -65,12 +65,12 @@ public class NestedJarHandler {
      * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
      * that the {@link RandomAccessFile} and {@link FileChannel} for any given zipfile is opened only once.
      */
-    private SingletonMap<File, PhysicalZipFile> //
-    canonicalFileToPhysicalZipFileMap = new SingletonMap<File, PhysicalZipFile>() {
+    private SingletonMap<File, PhysicalZipFile, IOException> //
+    canonicalFileToPhysicalZipFileMap = new SingletonMap<File, PhysicalZipFile, IOException>() {
         @Override
         public PhysicalZipFile newInstance(final File canonicalFile, final LogNode log) throws IOException {
             if (closed.get()) {
-                throw new IOException(getClass().getSimpleName() + " already closed");
+                throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
             return new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
         }
@@ -84,10 +84,11 @@ public class NestedJarHandler {
      * if the entry is stored, or a ByteBuffer, if the zip entry was inflated to memory, or a physical file on disk
      * if the zip entry was inflated to a temporary file.
      */
-    private SingletonMap<FastZipEntry, ZipFileSlice> //
-    fastZipEntryToZipFileSliceMap = new SingletonMap<FastZipEntry, ZipFileSlice>() {
+    private SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
+    fastZipEntryToZipFileSliceMap = new SingletonMap<FastZipEntry, ZipFileSlice, IOException>() {
         @Override
-        public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final LogNode log) throws Exception {
+        public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final LogNode log)
+                throws IOException, InterruptedException {
             ZipFileSlice childZipEntrySlice;
             if (!childZipEntry.isDeflated) {
                 // Wrap the child entry (a stored nested zipfile) in a new ZipFileSlice -- there is
@@ -176,12 +177,12 @@ public class NestedJarHandler {
     };
 
     /** A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. */
-    private SingletonMap<ZipFileSlice, LogicalZipFile> //
-    zipFileSliceToLogicalZipFileMap = new SingletonMap<ZipFileSlice, LogicalZipFile>() {
+    private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
+    zipFileSliceToLogicalZipFileMap = new SingletonMap<ZipFileSlice, LogicalZipFile, IOException>() {
         @Override
-        public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log) throws Exception {
+        public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException {
             if (closed.get()) {
-                throw new IOException(getClass().getSimpleName() + " already closed");
+                throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
             // Read the central directory for the logical zipfile slice
             final LogicalZipFile logicalZipFile = new LogicalZipFile(zipFileSlice, log);
@@ -197,187 +198,184 @@ public class NestedJarHandler {
      * A singleton map from nested jarfile path to a tuple of the logical zipfile for the path, and the package root
      * within the logical zipfile.
      */
-    public SingletonMap<String, Entry<LogicalZipFile, String>> //
-    nestedPathToLogicalZipFileAndPackageRootMap = new SingletonMap<String, Entry<LogicalZipFile, String>>() {
-        @Override
-        public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
-                throws Exception {
-            if (closed.get()) {
-                throw new IOException(getClass().getSimpleName() + " already closed");
-            }
-            final String nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
-            final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
-            if (lastPlingIdx < 0) {
-                // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
-                // This is also the last frame of recursion for the 'else' clause below.
-
-                // If the path starts with "http(s)://", download the jar to a temp file
-                final boolean isRemote = nestedJarPath.startsWith("http://")
-                        || nestedJarPath.startsWith("https://");
-                File canonicalFile;
-                if (isRemote) {
-                    // Jarfile is at http(s) URL
-                    if (scanSpec.enableRemoteJarScanning) {
-                        canonicalFile = downloadTempFile(nestedJarPath, log);
-                        if (canonicalFile == null) {
-                            throw new IOException("Could not download jarfile " + nestedJarPath);
-                        }
-                    } else {
-                        throw new IOException(
-                                "Remote jar scanning has not been enabled, cannot scan classpath element: "
-                                        + nestedJarPath);
-                    }
-                } else {
-                    // Jarfile should be local
-                    try {
-                        canonicalFile = new File(nestedJarPath).getCanonicalFile();
-                    } catch (final SecurityException e) {
-                        throw new IOException(
-                                "Path component " + nestedJarPath + " could not be canonicalized: " + e);
-                    }
-                }
-                if (!FileUtils.canRead(canonicalFile)) {
-                    throw new IOException("Path component " + nestedJarPath + " does not exist");
-                }
-                if (!canonicalFile.isFile()) {
-                    throw new IOException(
-                            "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
-                }
-
-                // Get or create a PhysicalZipFile instance for the canonical file
-                final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
-
-                // Create a new logical slice of the whole physical zipfile
-                final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
-                final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
-
-                // Return new logical zipfile with an empty package root
-                return new SimpleEntry<>(logicalZipFile, "");
-
-            } else {
-                // This path has one or more '!' sections.
-                final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
-                String childPath = nestedJarPath.substring(lastPlingIdx + 1);
-                // "file.jar!/path" -> "file.jar!path"
-                childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true);
-
-                // Recursively remove one '!' section at a time, back towards the beginning of the URL or
-                // file path. At the last frame of recursion, the toplevel jarfile will be reached and
-                // returned. The recursion is guaranteed to terminate because parentPath gets one
-                // '!'-section shorter with each recursion frame.
-                final Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot = //
-                        nestedPathToLogicalZipFileAndPackageRootMap.get(parentPath, log);
-                if (parentLogicalZipFileAndPackageRoot == null) {
-                    // Failed to get topmost jarfile, e.g. file not found
-                    throw new IOException("Could not find parent jarfile " + parentPath);
-                }
-                // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must
-                // always be a jarfile.
-                final LogicalZipFile parentLogicalZipFile = parentLogicalZipFileAndPackageRoot.getKey();
-                if (parentLogicalZipFile == null) {
-                    // Failed to get topmost jarfile, e.g. file not found
-                    throw new IOException("Could not find parent jarfile " + parentPath);
-                }
-
-                // Look up the child path within the parent zipfile
-                boolean isDirectory = false;
-                while (childPath.endsWith("/")) {
-                    // Child path is definitely a directory, it ends with a slash 
-                    isDirectory = true;
-                    childPath = childPath.substring(0, childPath.length() - 1);
-                }
-                FastZipEntry childZipEntry = null;
-                if (!isDirectory) {
-                    // If child path doesn't end with a slash, see if there's a non-directory entry
-                    // with a name matching the child path (LogicalZipFile discards directory entries
-                    // ending with a slash when reading the central directory of a zipfile)
-                    for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                        if (entry.entryName.equals(childPath)) {
-                            childZipEntry = entry;
-                            break;
-                        }
-                    }
-                }
-                if (childZipEntry == null) {
-                    // If there is no non-directory zipfile entry with a name matching the child path, 
-                    // test to see if any entries in the zipfile have the child path as a dir prefix
-                    final String childPathPrefix = childPath + "/";
-                    for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                        if (entry.entryName.startsWith(childPathPrefix)) {
-                            isDirectory = true;
-                            break;
-                        }
-                    }
-                    if (!isDirectory) {
-                        throw new IOException(
-                                "Path " + childPath + " does not exist in jarfile " + parentLogicalZipFile);
-                    }
-                }
-                // At this point, either isDirectory is true, or childZipEntry is non-null
-
-                // If path component is a directory, it is a package root
-                if (isDirectory) {
-                    if (!childPath.isEmpty()) {
-                        // Add directory path to parent jarfile root relative paths set
-                        // (this has the side effect of adding this parent jarfile root
-                        // to the set of roots for all references to the parent path)
-                        if (log != null) {
-                            log.log("Path " + childPath + " in jarfile " + parentLogicalZipFile
-                                    + " is a directory, not a file -- using as package root");
-                        }
-                        parentLogicalZipFile.classpathRoots.add(childPath);
-                    }
-                    // Return parent logical zipfile, and child path as the package root
-                    return new SimpleEntry<>(parentLogicalZipFile, childPath);
-                }
-
-                // Do not extract nested jar, if nested jar scanning is disabled
-                if (!scanSpec.scanNestedJars) {
-                    throw new IOException(
-                            "Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
-                }
-
-                // The child path corresponds to a non-directory zip entry, so it must be a nested jar
-                // (since non-jar nested files cannot be used on the classpath). Map the nested jar as
-                // a new ZipFileSlice if it is stored, or inflate it to RAM or to a temporary file if
-                // it is deflated, then create a new ZipFileSlice over the temporary file or ByteBuffer.
-
-                // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
-                final ZipFileSlice childZipEntrySlice = fastZipEntryToZipFileSliceMap.get(childZipEntry, log);
-                if (childZipEntrySlice == null) {
-                    throw new IOException("Could not open nested jarfile entry: " + childZipEntry.getPath());
-                }
-
-                final LogNode zipSliceLog = log == null ? null
-                        : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
-                                + childZipEntry.entryName);
-
-                // Get or create a new LogicalZipFile for the child zipfile
-                final LogicalZipFile childLogicalZipFile = zipFileSliceToLogicalZipFileMap.get(childZipEntrySlice,
-                        zipSliceLog);
-
-                // Return new logical zipfile with an empty package root
-                return new SimpleEntry<>(childLogicalZipFile, "");
-            }
-        }
-    };
-
-    /** A singleton map from a {@link ModuleRef} to a {@link ModuleReaderProxy} recycler for the module. */
-    public SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
-    moduleRefToModuleReaderProxyRecyclerMap = new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>>() {
-        @Override
-        public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef, final LogNode log) {
-            return new Recycler<ModuleReaderProxy, IOException>() {
+    public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> // 
+    nestedPathToLogicalZipFileAndPackageRootMap = //
+            new SingletonMap<String, Entry<LogicalZipFile, String>, IOException>() {
                 @Override
-                public ModuleReaderProxy newInstance() throws IOException {
+                public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
+                        throws IOException, InterruptedException {
                     if (closed.get()) {
-                        throw new IOException(getClass().getSimpleName() + " already closed");
+                        throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
                     }
-                    return moduleRef.open();
+                    final String nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
+                    final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
+                    if (lastPlingIdx < 0) {
+                        // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
+                        // This is also the last frame of recursion for the 'else' clause below.
+
+                        // If the path starts with "http(s)://", download the jar to a temp file
+                        final boolean isRemote = nestedJarPath.startsWith("http://")
+                                || nestedJarPath.startsWith("https://");
+                        File canonicalFile;
+                        if (isRemote) {
+                            // Jarfile is at http(s) URL
+                            if (scanSpec.enableRemoteJarScanning) {
+                                canonicalFile = downloadTempFile(nestedJarPath, log);
+                                if (canonicalFile == null) {
+                                    throw new IOException("Could not download jarfile " + nestedJarPath);
+                                }
+                            } else {
+                                throw new IOException(
+                                        "Remote jar scanning has not been enabled, cannot scan classpath element: "
+                                                + nestedJarPath);
+                            }
+                        } else {
+                            // Jarfile should be local
+                            try {
+                                canonicalFile = new File(nestedJarPath).getCanonicalFile();
+                            } catch (final SecurityException e) {
+                                throw new IOException(
+                                        "Path component " + nestedJarPath + " could not be canonicalized: " + e);
+                            }
+                        }
+                        if (!FileUtils.canRead(canonicalFile)) {
+                            throw new IOException("Path component " + nestedJarPath + " does not exist");
+                        }
+                        if (!canonicalFile.isFile()) {
+                            throw new IOException(
+                                    "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
+                        }
+
+                        // Get or create a PhysicalZipFile instance for the canonical file
+                        final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile,
+                                log);
+
+                        // Create a new logical slice of the whole physical zipfile
+                        final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
+                        final LogicalZipFile logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice,
+                                log);
+
+                        // Return new logical zipfile with an empty package root
+                        return new SimpleEntry<>(logicalZipFile, "");
+
+                    } else {
+                        // This path has one or more '!' sections.
+                        final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
+                        String childPath = nestedJarPath.substring(lastPlingIdx + 1);
+                        // "file.jar!/path" -> "file.jar!path"
+                        childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true);
+
+                        // Recursively remove one '!' section at a time, back towards the beginning of the URL or
+                        // file path. At the last frame of recursion, the toplevel jarfile will be reached and
+                        // returned. The recursion is guaranteed to terminate because parentPath gets one
+                        // '!'-section shorter with each recursion frame.
+                        final Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot = //
+                                nestedPathToLogicalZipFileAndPackageRootMap.get(parentPath, log);
+
+                        // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must
+                        // always be a jarfile.
+                        final LogicalZipFile parentLogicalZipFile = parentLogicalZipFileAndPackageRoot.getKey();
+
+                        // Look up the child path within the parent zipfile
+                        boolean isDirectory = false;
+                        while (childPath.endsWith("/")) {
+                            // Child path is definitely a directory, it ends with a slash 
+                            isDirectory = true;
+                            childPath = childPath.substring(0, childPath.length() - 1);
+                        }
+                        FastZipEntry childZipEntry = null;
+                        if (!isDirectory) {
+                            // If child path doesn't end with a slash, see if there's a non-directory entry
+                            // with a name matching the child path (LogicalZipFile discards directory entries
+                            // ending with a slash when reading the central directory of a zipfile)
+                            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
+                                if (entry.entryName.equals(childPath)) {
+                                    childZipEntry = entry;
+                                    break;
+                                }
+                            }
+                        }
+                        if (childZipEntry == null) {
+                            // If there is no non-directory zipfile entry with a name matching the child path, 
+                            // test to see if any entries in the zipfile have the child path as a dir prefix
+                            final String childPathPrefix = childPath + "/";
+                            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
+                                if (entry.entryName.startsWith(childPathPrefix)) {
+                                    isDirectory = true;
+                                    break;
+                                }
+                            }
+                            if (!isDirectory) {
+                                throw new IOException(
+                                        "Path " + childPath + " does not exist in jarfile " + parentLogicalZipFile);
+                            }
+                        }
+                        // At this point, either isDirectory is true, or childZipEntry is non-null
+
+                        // If path component is a directory, it is a package root
+                        if (isDirectory) {
+                            if (!childPath.isEmpty()) {
+                                // Add directory path to parent jarfile root relative paths set
+                                // (this has the side effect of adding this parent jarfile root
+                                // to the set of roots for all references to the parent path)
+                                if (log != null) {
+                                    log.log("Path " + childPath + " in jarfile " + parentLogicalZipFile
+                                            + " is a directory, not a file -- using as package root");
+                                }
+                                parentLogicalZipFile.classpathRoots.add(childPath);
+                            }
+                            // Return parent logical zipfile, and child path as the package root
+                            return new SimpleEntry<>(parentLogicalZipFile, childPath);
+                        }
+
+                        // Do not extract nested jar, if nested jar scanning is disabled
+                        if (!scanSpec.scanNestedJars) {
+                            throw new IOException(
+                                    "Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
+                        }
+
+                        // The child path corresponds to a non-directory zip entry, so it must be a nested jar
+                        // (since non-jar nested files cannot be used on the classpath). Map the nested jar as
+                        // a new ZipFileSlice if it is stored, or inflate it to RAM or to a temporary file if
+                        // it is deflated, then create a new ZipFileSlice over the temporary file or ByteBuffer.
+
+                        // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
+                        final ZipFileSlice childZipEntrySlice = fastZipEntryToZipFileSliceMap.get(childZipEntry,
+                                log);
+
+                        final LogNode zipSliceLog = log == null ? null
+                                : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
+                                        + childZipEntry.entryName);
+
+                        // Get or create a new LogicalZipFile for the child zipfile
+                        final LogicalZipFile childLogicalZipFile = zipFileSliceToLogicalZipFileMap
+                                .get(childZipEntrySlice, zipSliceLog);
+
+                        // Return new logical zipfile with an empty package root
+                        return new SimpleEntry<>(childLogicalZipFile, "");
+                    }
                 }
             };
-        }
-    };
+
+    /** A singleton map from a {@link ModuleRef} to a {@link ModuleReaderProxy} recycler for the module. */
+    public SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, RuntimeException> //
+    moduleRefToModuleReaderProxyRecyclerMap = //
+            new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, RuntimeException>() {
+                @Override
+                public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
+                        final LogNode ignored) {
+                    return new Recycler<ModuleReaderProxy, IOException>() {
+                        @Override
+                        public ModuleReaderProxy newInstance() throws IOException {
+                            if (closed.get()) {
+                                throw new RuntimeException(
+                                        NestedJarHandler.class.getSimpleName() + " already closed");
+                            }
+                            return moduleRef.open();
+                        }
+                    };
+                }
+            };
 
     /** A recycler for {@link Inflater} instances. */
     public RecyclerExceptionless<RecyclableInflater> //
@@ -385,7 +383,7 @@ public class NestedJarHandler {
         @Override
         public RecyclableInflater newInstance() throws RuntimeException {
             if (closed.get()) {
-                throw new RuntimeException(getClass().getSimpleName() + " already closed");
+                throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
             return new RecyclableInflater();
         }

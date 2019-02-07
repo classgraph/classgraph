@@ -28,30 +28,59 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted or
  * has thrown an exception.
  */
 public class InterruptionChecker {
-
-    /** The minimum interval between calls to {@link Thread#isInterrupted()} to check for interruption. */
-    private static final long MIN_CHECK_INTERVAL_NANOS = (long) (0.1 * 1.0e9);
-
-    /** The timestamp of the last check for interruption. */
-    private long lastCheckTimeNanos = 0L;
-
     /** Set to true when a thread is interrupted. */
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
 
-    /** Non-null if an execution exception was encountered. */
-    private ExecutionException executionException;
+    /** The first {@link Throwable} that resulted in an {@link ExecutionException}. */
+    private final AtomicReference<Throwable> executionExceptionCause = new AtomicReference<Throwable>();
 
     /** Interrupt all threads that share this InterruptionChecker. */
     public void interrupt() {
         interrupted.set(true);
+        Thread.currentThread().interrupt();
+    }
+
+    /**
+     * Set the {@link Throwable} that resulted in an {@link ExecutionException}.
+     * 
+     * @param throwable
+     *            the {@link Throwable}, or the {@link ExecutionException} that wraps it.
+     */
+    public void setExecutionExceptionCause(final Throwable throwable) {
+        if (throwable != null && //
+        // Only set the execution exception once
+                executionExceptionCause.get() == null && //
+                // Don't store CancellationException or InterruptedException
+                !(throwable instanceof CancellationException) && !(throwable instanceof InterruptedException)) {
+            // Get the root cause, if throwable is an ExecutionException
+            Throwable t = throwable;
+            while (t instanceof ExecutionException) {
+                t = t.getCause();
+            }
+            if (t != null) {
+                // Only set the execution exception once
+                executionExceptionCause.compareAndSet(/* expectedValue = */ null, t);
+            }
+        }
+    }
+
+    /**
+     * Get the {@link Throwable} that resulted in an {@link ExecutionException}.
+     * 
+     * @return the {@link Throwable} that resulted in an {@link ExecutionException}.
+     */
+    public Throwable getExecutionExceptionCause() {
+        return executionExceptionCause.get();
     }
 
     /**
@@ -61,16 +90,14 @@ public class InterruptionChecker {
      *         interrupted or has thrown an exception.
      */
     public boolean checkAndReturn() {
-        final long time = System.nanoTime();
-        if (time - lastCheckTimeNanos > MIN_CHECK_INTERVAL_NANOS) {
-            lastCheckTimeNanos = time;
-            if (Thread.currentThread().isInterrupted()) {
-                interrupt();
-            }
-            return interrupted.get() || executionException != null;
-        } else {
-            return false;
+        if (interrupted.get()) {
+            return true;
         }
+        if (Thread.currentThread().isInterrupted()) {
+            interrupted.set(true);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -80,29 +107,10 @@ public class InterruptionChecker {
      * @throws InterruptedException
      *             If this thread or any other thread that shares this InterruptionChecker instance has been
      *             interrupted.
-     * @throws ExecutionException
-     *             If this thread or any other thread that shares this InterruptionChecker instance has thrown an
-     *             exception.
      */
-    public void check() throws InterruptedException, ExecutionException {
+    public void check() throws InterruptedException {
         if (checkAndReturn()) {
-            if (executionException != null) {
-                throw executionException;
-            } else {
-                throw new InterruptedException();
-            }
+            throw new InterruptedException();
         }
-    }
-
-    /**
-     * Stop all threads that share this InterruptionChecker due to an exception being thrown in one of them.
-     * 
-     * @param e
-     *            The exception that was thrown.
-     * @return A new {@link ExecutionException}.
-     */
-    public ExecutionException executionException(final Exception e) {
-        executionException = e instanceof ExecutionException ? (ExecutionException) e : new ExecutionException(e);
-        return executionException;
     }
 }
