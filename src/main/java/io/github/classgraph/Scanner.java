@@ -480,18 +480,14 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.addElapsedTime();
                 }
-            } catch (final IOException e) {
-                if (subLog != null) {
-                    subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
-                            + " : " + e);
-                }
             } catch (final ClassfileFormatException e) {
                 if (subLog != null) {
                     subLog.log("Corrupt or unsupported classfile " + workUnit.classfileResource + " : " + e);
                 }
-            } catch (final Exception e) {
+            } catch (final IOException e) {
                 if (subLog != null) {
-                    subLog.log("Exception while parsing classfile " + workUnit.classfileResource, e);
+                    subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
+                            + " : " + e);
                 }
             }
             interruptionChecker.check();
