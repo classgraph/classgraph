@@ -35,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
-import nonapi.io.github.classgraph.ClassGraphInternalException;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -78,12 +77,12 @@ public abstract class SingletonMap<K, V> {
          */
         void set(final V singleton) {
             if (initialized.getCount() < 1) {
-                throw new ClassGraphInternalException("Singleton already initialized");
+                throw new RuntimeException("Singleton already initialized");
             }
             this.singleton = singleton;
             initialized.countDown();
             if (initialized.getCount() != 0) {
-                throw new ClassGraphInternalException("Singleton initialized more than once");
+                throw new RuntimeException("Singleton initialized more than once");
             }
         }
 

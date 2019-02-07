@@ -28,13 +28,13 @@
  */
 package nonapi.io.github.classgraph.types;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.json.JSONUtils;
 
 /**
  * A generic PEG parser.
  */
 public class Parser {
-
     /** The string being parsed. */
     private final String string;
 
@@ -46,26 +46,6 @@ public class Parser {
 
     /** Extra parsing state. */
     private Object state;
-
-    /**
-     * A parsing exception.
-     */
-    public static class ParseException extends Exception {
-        /** serialVersionUID. */
-        static final long serialVersionUID = 1L;
-
-        /**
-         * A parsing exception.
-         * 
-         * @param parser
-         *            The parser.
-         * @param msg
-         *            The exception message.
-         */
-        public ParseException(final Parser parser, final String msg) {
-            super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
-        }
-    }
 
     /**
      * Construct a parser.

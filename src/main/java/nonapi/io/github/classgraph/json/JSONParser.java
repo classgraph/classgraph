@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
 /**

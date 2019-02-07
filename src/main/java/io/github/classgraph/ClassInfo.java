@@ -48,8 +48,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.json.Id;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.LogNode;

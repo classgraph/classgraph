@@ -30,7 +30,7 @@ package nonapi.io.github.classgraph.types;
 
 import java.lang.reflect.Modifier;
 
-import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.exceptions.ParseException;
 
 /**
  * Utilities for parsing Java type descriptors and type signatures.

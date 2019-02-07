@@ -32,7 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 

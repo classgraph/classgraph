@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
 
 /** A method type signature (called "MethodSignature" in the classfile documentation). */
 public class MethodTypeSignature extends HierarchicalTypeSignature {

@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
 
