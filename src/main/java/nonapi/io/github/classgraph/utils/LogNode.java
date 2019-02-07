@@ -424,8 +424,10 @@ public class LogNode {
         if (parent != null) {
             throw new IllegalArgumentException("Only flush the toplevel LogNode");
         }
-        final String logOutput = this.toString();
-        this.children.clear();
-        log.info(logOutput);
+        if (!children.isEmpty()) {
+            final String logOutput = this.toString();
+            this.children.clear();
+            log.info(logOutput);
+        }
     }
 }

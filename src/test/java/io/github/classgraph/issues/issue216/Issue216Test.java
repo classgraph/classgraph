@@ -50,8 +50,8 @@ public class Issue216Test {
      */
     @Test
     public void testSpringBootJarWithLibJars() {
-        try (ScanResult result = new ClassGraph().whitelistPackages(Issue216Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (ScanResult result = new ClassGraph().verbose()
+                .whitelistPackages(Issue216Test.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(result.getAllClasses().filter(new ClassInfoFilter() {
                 @Override
                 public boolean accept(final ClassInfo ci) {

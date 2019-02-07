@@ -89,10 +89,15 @@ public class InterruptionChecker {
      *         interrupted or has thrown an exception.
      */
     public boolean checkAndReturn() {
+        // Check if any thread has been interrupted
         if (interrupted.get()) {
+            // If so, interrupt this thread
+            interrupt();
             return true;
         }
+        // Check if this thread has been interrupted
         if (Thread.currentThread().isInterrupted()) {
+            // If so, interrupt other threads
             interrupted.set(true);
             return true;
         }
@@ -102,12 +107,19 @@ public class InterruptionChecker {
     /**
      * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted
      * or has thrown an exception, and if so, throw InterruptedException.
-     * 
+     *
      * @throws InterruptedException
-     *             If this thread or any other thread that shares this InterruptionChecker instance has been
-     *             interrupted.
+     *             If a thread has been interrupted.
+     * @throws ExecutionException
+     *             if a thread has thrown an uncaught exception.
      */
-    public void check() throws InterruptedException {
+    public void check() throws InterruptedException, ExecutionException {
+        // If a thread threw an uncaught exception, re-throw it.
+        final ExecutionException executionException = getExecutionException();
+        if (executionException != null) {
+            throw executionException;
+        }
+        // If this thread or another thread has been interrupted, throw InterruptedException
         if (checkAndReturn()) {
             throw new InterruptedException();
         }

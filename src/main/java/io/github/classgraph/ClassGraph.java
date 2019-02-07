@@ -1047,25 +1047,14 @@ public class ClassGraph {
             // force the addition of a FailureHandler so that exceptions are not silently swallowed.
             throw new IllegalArgumentException("failureHandler cannot be null");
         }
-        // Drop the returned Future<ScanResult> (a ScanResultProcessor is used instead)
-        executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
-                topLevelLog == null ? scanResultProcessor : new ScanResultProcessor() {
-                    @Override
-                    public void processScanResult(final ScanResult scanResult) {
-                        // If logging is enabled, flush log before calling ScanResultProcessor
-                        topLevelLog.flush();
-                        scanResultProcessor.processScanResult(scanResult);
-                    }
-                }, topLevelLog == null ? failureHandler : new FailureHandler() {
-                    @Override
-                    public void onFailure(final Throwable throwable) {
-                        // If logging is enabled, log the throwable then flush log before calling FailureHandler
-                        final Throwable cause = InterruptionChecker.getCause(throwable);
-                        topLevelLog.log("Scanning failed", cause);
-                        topLevelLog.flush();
-                        failureHandler.onFailure(cause);
-                    }
-                }, topLevelLog));
+        // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
+                        topLevelLog);
+            }
+        });
     }
 
     /**
@@ -1112,20 +1101,9 @@ public class ClassGraph {
             return scanAsync(executorService, numParallelTasks).get();
 
         } catch (final InterruptedException | CancellationException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Scan interrupted");
-            }
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            final Throwable cause = InterruptionChecker.getCause(e);
-            if (topLevelLog != null) {
-                topLevelLog.log("Uncaught exception during scan", cause);
-            }
-            throw new ClassGraphException("Uncaught exception during scan", cause);
-        } finally {
-            if (topLevelLog != null) {
-                topLevelLog.flush();
-            }
+            throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
         }
     }
 
