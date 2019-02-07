@@ -358,6 +358,7 @@ class Scanner implements Callable<ScanResult> {
                 @Override
                 public ClasspathElement newInstance(final String classpathEltPath, final LogNode log)
                         throws IOException, InterruptedException {
+                    // FIXME: Replace rawClasspathEltPathToClassLoaders
                     final ClassLoader[] classLoaders = rawClasspathEltPathToClassLoaders.get(classpathEltPath);
                     if (classpathEltPath.regionMatches(true, 0, "http://", 0, 7)
                             || classpathEltPath.regionMatches(true, 0, "https://", 0, 8)) {
@@ -855,7 +856,9 @@ class Scanner implements Callable<ScanResult> {
             final ClasspathElement classpathElement = classpathElementOrder.get(classpathIdx);
             classpathElement.maskClassfiles(classpathIdx, whitelistedClasspathRelativePathsFound, maskLog);
         }
-        maskLog.addElapsedTime();
+        if (maskLog != null) {
+            maskLog.addElapsedTime();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
