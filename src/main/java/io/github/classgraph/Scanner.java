@@ -98,6 +98,18 @@ class Scanner implements Callable<ScanResult> {
     /** A map from raw classpath element path to classloaders for that classpath element. */
     final Map<String, ClassLoader[]> rawClasspathEltPathToClassLoaders = new ConcurrentHashMap<>();
 
+    /** The classpath finder. */
+    final ClasspathFinder classpathFinder;
+
+    /** The classloader and module finder. */
+    final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
+
+    /** The module order. */
+    final List<ClasspathElementModule> moduleClasspathEltOrder;
+
+    /** The context classloaders. */
+    final ClassLoader[] contextClassLoaders;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -113,14 +125,15 @@ class Scanner implements Callable<ScanResult> {
      *            the scan result processor
      * @param failureHandler
      *            the failure handler
-     * @param log
+     * @param topLevelLog
      *            the log
      */
     Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler, final LogNode log) {
+            final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler,
+            final LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
-        scanSpec.log(log);
+        scanSpec.log(topLevelLog);
 
         this.nestedJarHandler = new NestedJarHandler(scanSpec);
         this.executorService = executorService;
@@ -130,8 +143,13 @@ class Scanner implements Callable<ScanResult> {
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
-        this.topLevelLog = log;
+        this.topLevelLog = topLevelLog;
 
+        final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
+        this.classpathFinder = new ClasspathFinder(scanSpec, rawClasspathEltPathToClassLoaders, classpathFinderLog);
+        this.classLoaderAndModuleFinder = classpathFinder.getClassLoaderAndModuleFinder();
+        this.contextClassLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
+        this.moduleClasspathEltOrder = getModuleOrder(classpathFinderLog);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -139,18 +157,11 @@ class Scanner implements Callable<ScanResult> {
     /**
      * Get the module order.
      *
-     * @param classLoaderAndModuleFinder
-     *            the class loader and module finder
-     * @param contextClassLoaders
-     *            the context classloaders
-     * @param classpathFinderLog
-     *            the classpath finder log
+     * @param log
+     *            the log
      * @return the module order
-     * @throws InterruptedException
-     *             the interrupted exception
      */
-    private List<ClasspathElementModule> getModuleOrder(final ClassLoaderAndModuleFinder classLoaderAndModuleFinder,
-            final ClassLoader[] contextClassLoaders, final LogNode classpathFinderLog) throws InterruptedException {
+    private List<ClasspathElementModule> getModuleOrder(final LogNode log) {
         final List<ClasspathElementModule> moduleClasspathEltOrder = new ArrayList<>();
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
             // Add modules to start of classpath order, before traditional classpath
@@ -171,11 +182,14 @@ class Scanner implements Callable<ScanResult> {
                                 systemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
                         moduleClasspathEltOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+                        try {
+                            classpathElementModule.open(/* ignored */ null, log);
+                        } catch (final InterruptedException e) {
+                            throw new ClassGraphException(e);
+                        }
                     } else {
-                        if (classpathFinderLog != null) {
-                            classpathFinderLog
-                                    .log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
+                        if (log != null) {
+                            log.log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
                         }
                     }
                 }
@@ -190,10 +204,14 @@ class Scanner implements Callable<ScanResult> {
                                 nonSystemModuleRef, contextClassLoaders, nestedJarHandler, scanSpec);
                         moduleClasspathEltOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+                        try {
+                            classpathElementModule.open(/* ignored */ null, log);
+                        } catch (final InterruptedException e) {
+                            throw new ClassGraphException(e);
+                        }
                     } else {
-                        if (classpathFinderLog != null) {
-                            classpathFinderLog.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
+                        if (log != null) {
+                            log.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
                         }
                     }
                 }
@@ -725,219 +743,230 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Scan the classpath and/or visible modules.
+     *
+     * @param finalClasspathEltOrder
+     *            the final classpath elt order
+     * @param finalClasspathEltOrderStrs
+     *            the final classpath elt order strs
+     * @param contextClassLoaders
+     *            the context classloaders
+     * @return the scan result
+     * @throws InterruptedException
+     *             if the scan was interrupted
+     * @throws ExecutionException
+     *             if the scan threw an uncaught exception
+     */
+    private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder,
+            final List<String> finalClasspathEltOrderStrs, final ClassLoader[] contextClassLoaders)
+            throws InterruptedException, ExecutionException {
+        // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
+        processWorkUnits(finalClasspathEltOrder, "Scanning filenames within classpath elements", topLevelLog,
+                new WorkUnitProcessor<ClasspathElement>() {
+                    @Override
+                    public void processWorkUnit(final ClasspathElement classpathElement,
+                            final WorkQueue<ClasspathElement> workQueueIgnored, final LogNode pathScanLog)
+                            throws InterruptedException {
+                        // Scan the paths within a directory or jar
+                        classpathElement.scanPaths(pathScanLog);
+                    }
+                });
+
+        // Filter out classpath elements that do not contain required whitelisted paths.
+        List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
+        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistIsEmpty()) {
+            finalClasspathEltOrderFiltered = new ArrayList<>(finalClasspathEltOrder.size());
+            for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+                if (classpathElement.containsSpecificallyWhitelistedClasspathElementResourcePath) {
+                    finalClasspathEltOrderFiltered.add(classpathElement);
+                }
+            }
+        }
+
+        // Mask classfiles (remove any classfile resources that are shadowed by an earlier definition
+        // of the same class)
+        if (scanSpec.enableClassInfo) {
+            maskClassfiles(finalClasspathEltOrderFiltered,
+                    topLevelLog == null ? null : topLevelLog.log("Masking classfiles"));
+        }
+
+        // Merge the file-to-timestamp maps across all classpath elements
+        final Map<File, Long> fileToLastModified = new HashMap<>();
+        for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
+            fileToLastModified.putAll(classpathElement.fileToLastModified);
+        }
+
+        // Scan classfiles, if scanSpec.enableClassInfo is true
+        final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+        final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
+        final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
+        if (scanSpec.enableClassInfo) {
+            // Get whitelisted classfile order
+            final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
+            final Set<String> classNamesScheduledForScanning = Collections
+                    .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+            for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
+                // Get classfile scan order across all classpath elements
+                for (final Resource resource : classpathElement.whitelistedClassfileResources) {
+                    classfileScanWorkItems
+                            .add(new ClassfileScanWorkUnit(classpathElement, resource, /* isExternal = */ false));
+                    // Pre-seed scanned class names with all whitelisted classes (since these will
+                    // be scanned for sure)
+                    classNamesScheduledForScanning.add(JarUtils.classfilePathToClassName(resource.getPath()));
+                }
+            }
+
+            // Scan classfiles in parallel
+            final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
+            processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
+                    new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrderFiltered,
+                            classNamesScheduledForScanning, scannedClassfiles));
+
+            // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
+            final LogNode linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
+            for (final Classfile c : scannedClassfiles) {
+                c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, linkLog);
+            }
+
+            // Uncomment the following code to create placeholder external classes for any classes
+            // referenced in type descriptors or type signatures, so that a ClassInfo object can be
+            // obtained for those class references. This will cause all type descriptors and type
+            // signatures to be parsed, and class names extracted from them. This will add some
+            // overhead to the scanning time, and the only benefit is that
+            // ClassRefTypeSignature.getClassInfo() and AnnotationClassRef.getClassInfo() will never
+            // return null, since all external classes found in annotation class refs will have a
+            // placeholder ClassInfo object created for them. This is obscure enough that it is
+            // probably not worth slowing down scanning for all other usecases, by forcibly parsing
+            // all type descriptors and type signatures before returning the ScanResult.
+            // With this code commented out, type signatures and type descriptors are only parsed
+            // lazily, on demand.
+
+            //    final Set<String> referencedClassNames = new HashSet<>();
+            //    for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+            //        classInfo.getReferencedClassNames(referencedClassNames);
+            //    }
+            //    for (final String referencedClass : referencedClassNames) {
+            //        ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0, scanSpec,
+            //                classNameToClassInfo);
+            //    }
+
+            if (linkLog != null) {
+                linkLog.addElapsedTime();
+            }
+        } else {
+            if (topLevelLog != null) {
+                topLevelLog.log("Classfile scanning is disabled");
+            }
+        }
+
+        // Return a new ScanResult
+        return new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs, contextClassLoaders,
+                classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified,
+                nestedJarHandler, topLevelLog);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Open each of the classpath elements, looking for additional child classpath elements that need scanning (e.g.
+     * {@code Class-Path} entries in jar manifest files), then perform the scan if {@link ScanSpec#performScan} is
+     * true, or just get the classpath if {@link ScanSpec#performScan} is false.
+     *
+     * @return the scan result
+     * @throws InterruptedException
+     *             if the scan was interrupted
+     * @throws ExecutionException
+     *             if a worker threw an uncaught exception
+     */
+    private ScanResult openClasspathElementsThenScan() throws InterruptedException, ExecutionException {
+        final LogNode log = topLevelLog == null ? null : topLevelLog.log("Finding classpath entries");
+
+        // Get order of elements in traditional classpath
+        final List<ClasspathElementOpenerWorkUnit> rawClasspathElementWorkUnits = new ArrayList<>();
+        for (final String rawClasspathEltPath : classpathFinder.getClasspathOrder().getOrder()) {
+            rawClasspathElementWorkUnits.add(
+                    new ClasspathElementOpenerWorkUnit(rawClasspathEltPath, /* parentClasspathElement = */ null,
+                            /* orderWithinParentClasspathElement = */ rawClasspathElementWorkUnits.size()));
+        }
+
+        // In parallel, create a ClasspathElement singleton for each classpath element, then call open()
+        // on each ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances
+        // to be created for each (possibly nested) jarfile, then will read the manifest file and zip entries.
+        final Set<ClasspathElement> openedClasspathEltsSet = Collections
+                .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
+        final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder = new ConcurrentLinkedQueue<>();
+        processWorkUnits(rawClasspathElementWorkUnits, "Opening classpath elements", log,
+                newClasspathElementOpenerWorkUnitProcessor(openedClasspathEltsSet, toplevelClasspathEltOrder,
+                        interruptionChecker));
+
+        // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
+        // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
+        final List<ClasspathElement> classpathEltOrder = findClasspathOrder(openedClasspathEltsSet,
+                toplevelClasspathEltOrder);
+
+        // Find classpath elements that are path prefixes of other classpath elements, and for
+        // ClasspathElementZip, extract "Add-Exports" and "Add-Opens" manifest entries
+        preprocessClasspathElementsByType(classpathEltOrder, log);
+
+        // Order modules before classpath elements from traditional classpath 
+        final LogNode classpathOrderLog = log == null ? null : log.log("Final classpath element order:");
+        final int numElts = moduleClasspathEltOrder.size() + classpathEltOrder.size();
+        final List<ClasspathElement> finalClasspathEltOrder = new ArrayList<>(numElts);
+        final List<String> finalClasspathEltOrderStrs = new ArrayList<>(numElts);
+        for (final ClasspathElementModule classpathElt : moduleClasspathEltOrder) {
+            finalClasspathEltOrder.add(classpathElt);
+            finalClasspathEltOrderStrs.add(classpathElt.toString());
+            if (classpathOrderLog != null) {
+                final ModuleRef moduleRef = classpathElt.getModuleRef();
+                classpathOrderLog.log(moduleRef.toString());
+            }
+        }
+        for (final ClasspathElement classpathElt : classpathEltOrder) {
+            finalClasspathEltOrder.add(classpathElt);
+            finalClasspathEltOrderStrs.add(classpathElt.toString());
+            if (classpathOrderLog != null) {
+                classpathOrderLog.log(classpathElt.toString());
+            }
+        }
+
+        if (scanSpec.performScan) {
+            // Scan classpath / modules, producing a ScanResult.
+            return performScan(finalClasspathEltOrder, finalClasspathEltOrderStrs, contextClassLoaders);
+        } else {
+            // Only getting classpath -- return a placeholder ScanResult to hold classpath elements
+            if (topLevelLog != null) {
+                topLevelLog.log("Only returning classpath elements (not performing a scan)");
+            }
+            return new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs, contextClassLoaders,
+                    /* classNameToClassInfo = */ null, /* packageNameToPackageInfo = */ null,
+                    /* moduleNameToModuleInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
+                    topLevelLog);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Determine the unique ordered classpath elements, and run a scan looking for file or classfile matches if
      * necessary.
      *
      * @return the scan result
      * @throws InterruptedException
      *             if scanning was interrupted
+     * @throws CancellationException
+     *             if scanning was cancelled
      * @throws ExecutionException
      *             if a worker threw an uncaught exception
      */
     @Override
-    public ScanResult call() throws InterruptedException, ExecutionException {
+    public ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
+        ScanResult scanResult = null;
         boolean exceptionThrown = false;
-        final LogNode classpathFinderLog = topLevelLog == null ? null
-                : topLevelLog.log("Finding classpath entries");
+        final long scanStart = System.currentTimeMillis();
         try {
-            final long scanStart = System.nanoTime();
 
-            // Get classpath finder
-            final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, rawClasspathEltPathToClassLoaders,
-                    classpathFinderLog);
-            final ClassLoaderAndModuleFinder classLoaderAndModuleFinder = classpathFinder
-                    .getClassLoaderAndModuleFinder();
-            final ClassLoader[] contextClassLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
-
-            // Get the module order
-            final List<ClasspathElementModule> moduleClasspathEltOrder = getModuleOrder(classLoaderAndModuleFinder,
-                    contextClassLoaders, classpathFinderLog);
-
-            // Get order of elements in traditional classpath
-            final List<ClasspathElementOpenerWorkUnit> rawClasspathElementWorkUnits = new ArrayList<>();
-            for (final String rawClasspathEltPath : classpathFinder.getClasspathOrder().getOrder()) {
-                rawClasspathElementWorkUnits.add(
-                        new ClasspathElementOpenerWorkUnit(rawClasspathEltPath, /* parentClasspathElement = */ null,
-                                /* orderWithinParentClasspathElement = */ rawClasspathElementWorkUnits.size()));
-            }
-
-            // In parallel, create a ClasspathElement singleton for each classpath element, then call isValid()
-            // on each ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances
-            // to be created for each (possibly nested) jarfile, then will read the manifest file and zip entries.
-            final Set<ClasspathElement> openedClasspathElementsSet = Collections
-                    .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
-            final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder = new ConcurrentLinkedQueue<>();
-            processWorkUnits(rawClasspathElementWorkUnits, "Opening classpath elements", classpathFinderLog,
-                    newClasspathElementOpenerWorkUnitProcessor(openedClasspathElementsSet,
-                            toplevelClasspathEltOrder, interruptionChecker));
-
-            // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
-            // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
-            final List<ClasspathElement> finalTraditionalClasspathEltOrder = findClasspathOrder(
-                    openedClasspathElementsSet, toplevelClasspathEltOrder);
-
-            // Find classpath elements that are path prefixes of other classpath elements, and for
-            // ClasspathElementZip, extract "Add-Exports" and "Add-Opens" manifest entries
-            preprocessClasspathElementsByType(finalTraditionalClasspathEltOrder, classpathFinderLog);
-
-            // Order modules before classpath elements from traditional classpath 
-            final LogNode classpathOrderLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Final classpath element order:");
-            final int numElts = moduleClasspathEltOrder.size() + finalTraditionalClasspathEltOrder.size();
-            final List<ClasspathElement> finalClasspathEltOrder = new ArrayList<>(numElts);
-            final List<String> finalClasspathEltOrderStrs = new ArrayList<>(numElts);
-            for (final ClasspathElementModule classpathElt : moduleClasspathEltOrder) {
-                finalClasspathEltOrder.add(classpathElt);
-                finalClasspathEltOrderStrs.add(classpathElt.toString());
-                if (classpathOrderLog != null) {
-                    final ModuleRef moduleRef = classpathElt.getModuleRef();
-                    classpathOrderLog.log(moduleRef.toString());
-                }
-            }
-            for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
-                finalClasspathEltOrder.add(classpathElt);
-                finalClasspathEltOrderStrs.add(classpathElt.toString());
-                if (classpathOrderLog != null) {
-                    classpathOrderLog.log(classpathElt.toString());
-                }
-            }
-
-            // If only getting classpath, not performing a scan
-            if (!scanSpec.performScan) {
-                if (topLevelLog != null) {
-                    topLevelLog.log("Only returning classpath elements (not performing a scan)");
-                }
-                // Return a placeholder ScanResult to hold classpath elements
-                final ScanResult scanResult = new ScanResult(scanSpec, finalClasspathEltOrder,
-                        finalClasspathEltOrderStrs, contextClassLoaders, /* classNameToClassInfo = */ null,
-                        /* packageNameToPackageInfo = */ null, /* moduleNameToModuleInfo = */ null,
-                        /* fileToLastModified = */ null, nestedJarHandler, topLevelLog);
-                if (topLevelLog != null) {
-                    topLevelLog.log("Completed", System.nanoTime() - scanStart);
-                }
-                // Skip the actual scan
-                return scanResult;
-            }
-
-            // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
-            processWorkUnits(finalClasspathEltOrder, "Scanning filenames within classpath elements",
-                    classpathFinderLog, new WorkUnitProcessor<ClasspathElement>() {
-                        @Override
-                        public void processWorkUnit(final ClasspathElement classpathElement,
-                                final WorkQueue<ClasspathElement> workQueueIgnored, final LogNode pathScanLog)
-                                throws InterruptedException {
-                            // Scan the paths within a directory or jar
-                            classpathElement.scanPaths(pathScanLog);
-                        }
-                    });
-
-            // Filter out classpath elements that do not contain required whitelisted paths.
-            List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
-            if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistIsEmpty()) {
-                finalClasspathEltOrderFiltered = new ArrayList<>(finalClasspathEltOrder.size());
-                for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-                    if (classpathElement.containsSpecificallyWhitelistedClasspathElementResourcePath) {
-                        finalClasspathEltOrderFiltered.add(classpathElement);
-                    }
-                }
-            }
-
-            // Mask classfiles
-            maskClassfiles(finalClasspathEltOrderFiltered,
-                    topLevelLog == null ? null : topLevelLog.log("Masking classfiles"));
-
-            // Merge the file-to-timestamp maps across all classpath elements
-            final Map<File, Long> fileToLastModified = new HashMap<>();
-            for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
-                fileToLastModified.putAll(classpathElement.fileToLastModified);
-            }
-
-            final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-            final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
-            final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
-            if (!scanSpec.enableClassInfo) {
-                if (topLevelLog != null) {
-                    topLevelLog.log("Classfile scanning is disabled");
-                }
-            } else {
-                // Get whitelisted classfile order
-                final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-                final Set<String> classNamesScheduledForScanning = Collections
-                        .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-                for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
-                    // Get classfile scan order across all classpath elements
-                    for (final Resource resource : classpathElement.whitelistedClassfileResources) {
-                        classfileScanWorkItems.add(
-                                new ClassfileScanWorkUnit(classpathElement, resource, /* isExternal = */ false));
-                        // Pre-seed scanned class names with all whitelisted classes (since these will
-                        // be scanned for sure)
-                        classNamesScheduledForScanning.add(JarUtils.classfilePathToClassName(resource.getPath()));
-                    }
-                }
-
-                // Scan classfiles in parallel
-                final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
-                processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
-                        new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrderFiltered,
-                                classNamesScheduledForScanning, scannedClassfiles));
-
-                // Link the Classfile objects to produce ClassInfo objects.
-                final LogNode classGraphLog = topLevelLog == null ? null : topLevelLog.log("Building class graph");
-                for (final Classfile c : scannedClassfiles) {
-                    c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, classGraphLog);
-                }
-
-                // Uncomment the following code to create placeholder external classes for any classes
-                // referenced in type descriptors or type signatures, so that a ClassInfo object can be
-                // obtained for those class references. This will cause all type descriptors and type
-                // signatures to be parsed, and class names extracted from them. This will add some
-                // overhead to the scanning time, and the only benefit is that
-                // ClassRefTypeSignature.getClassInfo() and AnnotationClassRef.getClassInfo() will never
-                // return null, since all external classes found in annotation class refs will have a
-                // placeholder ClassInfo object created for them. This is obscure enough that it is
-                // probably not worth slowing down scanning for all other usecases, by forcibly parsing
-                // all type descriptors and type signatures before returning the ScanResult.
-                // With this code commented out, type signatures and type descriptors are only parsed
-                // lazily, on demand.
-
-                //    final Set<String> referencedClassNames = new HashSet<>();
-                //    for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                //        classInfo.getReferencedClassNames(referencedClassNames);
-                //    }
-                //    for (final String referencedClass : referencedClassNames) {
-                //        ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0, scanSpec,
-                //                classNameToClassInfo);
-                //    }
-
-                if (classGraphLog != null) {
-                    classGraphLog.addElapsedTime();
-                }
-            }
-
-            // Create ScanResult
-            final ScanResult scanResult = new ScanResult(scanSpec, finalClasspathEltOrder,
-                    finalClasspathEltOrderStrs, contextClassLoaders, classNameToClassInfo, packageNameToPackageInfo,
-                    moduleNameToModuleInfo, fileToLastModified, nestedJarHandler, topLevelLog);
-
-            if (topLevelLog != null) {
-                topLevelLog.log("Completed", System.nanoTime() - scanStart);
-            }
-
-            if (scanResultProcessor != null) {
-                try {
-                    // Flush the toplevel log before calling the scanResultProcessor
-                    if (topLevelLog != null) {
-                        topLevelLog.flush();
-                    }
-                    // Run scanResultProcessor in the current thread
-                    scanResultProcessor.processScanResult(scanResult);
-                } catch (final Exception e) {
-                    throw new ExecutionException("Exception while calling scan result processor", e);
-                }
-            }
-
-            // No exceptions were thrown -- return scan result
-            return scanResult;
+            // Perform the scan
+            scanResult = openClasspathElementsThenScan();
 
         } catch (final Exception e) {
             // Close the NestedJarHandler in the finally block
@@ -995,15 +1024,32 @@ class Scanner implements Callable<ScanResult> {
                     throw new ExecutionException("Exception while scanning", e);
                 }
             }
-
         } finally {
             if (exceptionThrown || scanSpec.removeTemporaryFilesAfterScan) {
-                // Remove temporary files and close resources, zipfiles, and modules
+                // If an exception was thrown or removeTemporaryFilesAfterScan was set, remove temporary files
+                // and close resources, zipfiles, and modules
                 nestedJarHandler.close(topLevelLog);
             }
+            // Log total time after scan completes
             if (topLevelLog != null) {
+                topLevelLog.log("Total time: " + (System.currentTimeMillis() - scanStart) * .001 + " sec");
                 topLevelLog.flush();
             }
         }
+
+        // Call the ScanResultProcessor, if one was provided
+        if (scanResultProcessor != null && scanResult != null) {
+            try {
+                // Flush the toplevel log before calling the scanResultProcessor
+                if (topLevelLog != null) {
+                    topLevelLog.flush();
+                }
+                // Run scanResultProcessor in the current thread
+                scanResultProcessor.processScanResult(scanResult);
+            } catch (final Exception e) {
+                throw new ExecutionException("Exception while calling scan result processor", e);
+            }
+        }
+        return scanResult;
     }
 }
