@@ -210,7 +210,7 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private void sendPoisonPills() {
         for (int i = 0; i < numWorkers; i++) {
-            workUnits.add(new WorkUnitWrapper<>(null));
+            workUnits.add(new WorkUnitWrapper<T>(null));
         }
     }
 
