@@ -114,6 +114,15 @@ class Classfile {
     /** The type signature. */
     private String typeSignature;
 
+    /**
+     * Class names already scheduled for scanning. If a class name is not in this list, the class is external, and
+     * has not yet been scheduled for scanning.
+     */
+    private final Set<String> classNamesScheduledForScanning;
+
+    /** Any additional work units scheduled for scanning. */
+    private List<ClassfileScanWorkUnit> additionalWorkUnits;
+
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
@@ -198,16 +207,10 @@ class Classfile {
      *            the class name
      * @param relationship
      *            the relationship type
-     * @param additionalWorkUnitsIn
-     *            additional work units (in)
      * @param classNamesScheduledForScanning
      *            class names scheduled for scanning (to avoid scheduling the same class twice)
-     * @return additional work units (out)
      */
-    private List<ClassfileScanWorkUnit> extendScanningUpwardsForClass(final String className,
-            final String relationship, final List<ClassfileScanWorkUnit> additionalWorkUnitsIn,
-            final Set<String> classNamesScheduledForScanning) {
-        List<ClassfileScanWorkUnit> additionalWorkUnits = additionalWorkUnitsIn;
+    private void scheduleScanningIfExternalClass(final String className, final String relationship) {
         // The call to classNamesScheduledForScanning.add(className) will return true only for external classes
         // that have not yet been scheduled for scanning
         if (className != null && classNamesScheduledForScanning.add(className)) {
@@ -236,11 +239,13 @@ class Classfile {
                 // Found class resource 
                 if (log != null) {
                     log.log("Scheduling external class for scanning: " + relationship + " " + className
-                            + " -- found in classpath element " + foundInClasspathElt);
+                            + (foundInClasspathElt == classpathElement ? ""
+                                    : " -- found in classpath element " + foundInClasspathElt));
                 }
                 if (additionalWorkUnits == null) {
                     additionalWorkUnits = new ArrayList<>();
                 }
+                // Schedule class resource for scanning
                 additionalWorkUnits.add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource,
                         /* isExternalClass = */ true));
             } else {
@@ -250,7 +255,6 @@ class Classfile {
                 }
             }
         }
-        return additionalWorkUnits;
     }
 
     /**
@@ -258,27 +262,22 @@ class Classfile {
      *
      * @param classNamesScheduledForScanning
      *            the class names scheduled for scanning
-     * @return any additional work units that were created
      */
-    private List<ClassfileScanWorkUnit> extendScanningUpwards(final Set<String> classNamesScheduledForScanning) {
+    private void extendScanningUpwards() {
         // Check superclass
-        List<ClassfileScanWorkUnit> additionalWorkUnits = null;
         if (superclassName != null) {
-            additionalWorkUnits = extendScanningUpwardsForClass(superclassName, "superclass", additionalWorkUnits,
-                    classNamesScheduledForScanning);
+            scheduleScanningIfExternalClass(superclassName, "superclass");
         }
         // Check implemented interfaces
         if (implementedInterfaces != null) {
             for (final String className : implementedInterfaces) {
-                additionalWorkUnits = extendScanningUpwardsForClass(className, "interface", additionalWorkUnits,
-                        classNamesScheduledForScanning);
+                scheduleScanningIfExternalClass(className, "interface");
             }
         }
         // Check class annotations
         if (classAnnotations != null) {
             for (final AnnotationInfo annotationInfo : classAnnotations) {
-                additionalWorkUnits = extendScanningUpwardsForClass(annotationInfo.getName(), "class annotation",
-                        additionalWorkUnits, classNamesScheduledForScanning);
+                scheduleScanningIfExternalClass(annotationInfo.getName(), "class annotation");
             }
         }
         // Check method annotations and method parameter annotations
@@ -286,17 +285,15 @@ class Classfile {
             for (final MethodInfo methodInfo : methodInfoList) {
                 if (methodInfo.annotationInfo != null) {
                     for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
-                        additionalWorkUnits = extendScanningUpwardsForClass(methodAnnotationInfo.getName(),
-                                "method annotation", additionalWorkUnits, classNamesScheduledForScanning);
+                        scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation");
                     }
                     if (methodInfo.parameterAnnotationInfo != null
                             && methodInfo.parameterAnnotationInfo.length > 0) {
                         for (final AnnotationInfo[] paramAnns : methodInfo.parameterAnnotationInfo) {
                             if (paramAnns != null && paramAnns.length > 0) {
                                 for (final AnnotationInfo paramAnn : paramAnns) {
-                                    additionalWorkUnits = extendScanningUpwardsForClass(paramAnn.getName(),
-                                            "method parameter annotation", additionalWorkUnits,
-                                            classNamesScheduledForScanning);
+                                    scheduleScanningIfExternalClass(paramAnn.getName(),
+                                            "method parameter annotation");
                                 }
                             }
                         }
@@ -309,13 +306,11 @@ class Classfile {
             for (final FieldInfo fieldInfo : fieldInfoList) {
                 if (fieldInfo.annotationInfo != null) {
                     for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
-                        additionalWorkUnits = extendScanningUpwardsForClass(fieldAnnotationInfo.getName(),
-                                "field annotation", additionalWorkUnits, classNamesScheduledForScanning);
+                        scheduleScanningIfExternalClass(fieldAnnotationInfo.getName(), "field annotation");
                     }
                 }
             }
         }
-        return additionalWorkUnits;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1375,6 +1370,7 @@ class Classfile {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
         this.relativePath = relativePath;
+        this.classNamesScheduledForScanning = classNamesScheduledForScanning;
         this.classfileResource = classfileResource;
         this.isExternalClass = isExternalClass;
         this.scanSpec = scanSpec;
@@ -1424,8 +1420,7 @@ class Classfile {
         // graph is scanned for any whitelisted class, even if the superclasses / interfaces / annotations
         // are not themselves whitelisted.
         if (scanSpec.extendScanningUpwardsToExternalClasses) {
-            final List<ClassfileScanWorkUnit> additionalWorkUnits = extendScanningUpwards(
-                    classNamesScheduledForScanning);
+            extendScanningUpwards();
             // If any external classes were found, schedule them for scanning
             if (additionalWorkUnits != null) {
                 workQueue.addWorkUnits(additionalWorkUnits);
