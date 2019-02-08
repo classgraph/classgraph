@@ -113,9 +113,9 @@ public class MethodInfoTest {
                                     + "java.util.List<java.lang.Float>, int[]...)",
                             "@" + Test.class.getName()
                                     + "(expected = java.lang.IllegalArgumentException) public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + " public void getMethodInfo()",
-                            "@" + Test.class.getName() + " public void getConstructorInfo()",
-                            "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+                            "@" + Test.class.getName() + " public void testGetMethodInfo()",
+                            "@" + Test.class.getName() + " public void testGetConstructorInfo()",
+                            "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()");
         }
     }
 
@@ -153,9 +153,9 @@ public class MethodInfoTest {
                             "private static java.lang.String[] privateMethod()",
                             "@" + Test.class.getName()
                                     + "(expected = java.lang.IllegalArgumentException) public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + " public void getMethodInfo()",
-                            "@" + Test.class.getName() + " public void getConstructorInfo()",
-                            "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+                            "@" + Test.class.getName() + " public void testGetMethodInfo()",
+                            "@" + Test.class.getName() + " public void testGetConstructorInfo()",
+                            "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()");
         }
     }
 }
