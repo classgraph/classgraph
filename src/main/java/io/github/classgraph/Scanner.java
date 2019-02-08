@@ -563,16 +563,15 @@ class Scanner implements Callable<ScanResult> {
 
             } catch (final SkipClassException e) {
                 if (subLog != null) {
-                    subLog.log("Skipping classfile " + workUnit.classfileResource + " : " + e);
+                    subLog.log("Skipping classfile: " + e.getMessage());
                 }
             } catch (final ClassfileFormatException e) {
                 if (subLog != null) {
-                    subLog.log("Invalid classfile " + workUnit.classfileResource + " : " + e);
+                    subLog.log("Invalid classfile: " + e.getMessage());
                 }
             } catch (final IOException e) {
                 if (subLog != null) {
-                    subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
-                            + " : " + e);
+                    subLog.log("Could not read classfile: " + e);
                 }
             } finally {
                 if (subLog != null) {

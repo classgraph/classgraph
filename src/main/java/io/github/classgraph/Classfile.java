@@ -133,9 +133,6 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Empty stack trace. */
-    private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
-
     /** Thrown when a classfile's contents are not in the correct format. */
     class ClassfileFormatException extends IOException {
         /** serialVersionUID. */
@@ -178,10 +175,10 @@ class Classfile {
             super(message, cause);
         }
 
-        /** Return null to speed up exception (stack trace is not needed for this exception). */
+        /** Speed up exception (stack trace is not needed for this exception). */
         @Override
-        public StackTraceElement[] getStackTrace() {
-            return EMPTY_STACK_TRACE;
+        public synchronized Throwable fillInStackTrace() {
+            return this;
         }
     }
 
@@ -227,10 +224,10 @@ class Classfile {
             super(message, cause);
         }
 
-        /** Return null to speed up exception (stack trace is not needed for this exception). */
+        /** Speed up exception (stack trace is not needed for this exception). */
         @Override
-        public StackTraceElement[] getStackTrace() {
-            return EMPTY_STACK_TRACE;
+        public synchronized Throwable fillInStackTrace() {
+            return this;
         }
     }
 
@@ -977,8 +974,7 @@ class Classfile {
                             typeSig.getReferencedClassNames(refdClassNames);
                         } catch (final ParseException e) {
                             // Should not happen
-                            throw new ClassfileFormatException("Could not parse class name: " + refdClassName,
-                                    e);
+                            throw new ClassfileFormatException("Could not parse class name: " + refdClassName, e);
                         }
                     } else {
                         refdClassNames.add(refdClassName);
