@@ -53,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
+import io.github.classgraph.Classfile.SkipClassException;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClassLoaderAndModuleFinder;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
@@ -560,9 +561,13 @@ class Scanner implements Callable<ScanResult> {
                 // Enqueue the classfile for linking
                 scannedClassfiles.add(classfile);
 
+            } catch (final SkipClassException e) {
+                if (subLog != null) {
+                    subLog.log("Skipping classfile " + workUnit.classfileResource + " : " + e);
+                }
             } catch (final ClassfileFormatException e) {
                 if (subLog != null) {
-                    subLog.log("Corrupt or unsupported classfile " + workUnit.classfileResource + " : " + e);
+                    subLog.log("Invalid classfile " + workUnit.classfileResource + " : " + e);
                 }
             } catch (final IOException e) {
                 if (subLog != null) {

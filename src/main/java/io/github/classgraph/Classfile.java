@@ -133,6 +133,9 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Empty stack trace. */
+    private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
+
     /** Thrown when a classfile's contents are not in the correct format. */
     class ClassfileFormatException extends IOException {
         /** serialVersionUID. */
@@ -173,6 +176,61 @@ class Classfile {
          */
         public ClassfileFormatException(final String message, final Throwable cause) {
             super(message, cause);
+        }
+
+        /** Return null to speed up exception (stack trace is not needed for this exception). */
+        @Override
+        public StackTraceElement[] getStackTrace() {
+            return EMPTY_STACK_TRACE;
+        }
+    }
+
+    /** Thrown when a classfile needs to be skipped. */
+    class SkipClassException extends IOException {
+        /** serialVersionUID. */
+        static final long serialVersionUID = 1L;
+
+        /** Constructor. */
+        public SkipClassException() {
+            super();
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param message
+         *            the message
+         */
+        public SkipClassException(final String message) {
+            super(message);
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param cause
+         *            the cause
+         */
+        public SkipClassException(final Throwable cause) {
+            super(cause);
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param message
+         *            the message
+         * @param cause
+         *            the cause
+         */
+        public SkipClassException(final String message, final Throwable cause) {
+            super(message, cause);
+        }
+
+        /** Return null to speed up exception (stack trace is not needed for this exception). */
+        @Override
+        public StackTraceElement[] getStackTrace() {
+            return EMPTY_STACK_TRACE;
         }
     }
 
@@ -962,8 +1020,11 @@ class Classfile {
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
      *             if the classfile is incorrectly formatted.
+     * @throws SkipClassException
+     *             if the classfile needs to be skipped (e.g. the class is non-public, and ignoreClassVisibility is
+     *             false)
      */
-    private void readBasicClassInfo() throws IOException, ClassfileFormatException {
+    private void readBasicClassInfo() throws IOException, ClassfileFormatException, SkipClassException {
         // Modifier flags
         classModifiers = inputStreamOrByteBuffer.readUnsignedShort();
         isInterface = (classModifiers & 0x0200) != 0;
@@ -981,24 +1042,23 @@ class Classfile {
         if ("java.lang.Object".equals(className)) {
             // Don't process java.lang.Object (it has a null superclass), though you can still search for classes
             // that are subclasses of java.lang.Object (as an external class).
-            throw new ClassfileFormatException("Skipping java.lang.Object");
+            throw new SkipClassException("No need to scan java.lang.Object");
         }
 
         // Check class visibility modifiers
         if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifiers) && !isModule && !isPackage) {
-            throw new ClassfileFormatException(
-                    "Skipping non-public class, because ignoreClassVisibility() was not called");
+            throw new SkipClassException("Class is not public, and ignoreClassVisibility() was not called");
         }
 
         // Make sure classname matches relative path
         if (!relativePath.endsWith(".class")) {
             // Should not happen
-            throw new ClassfileFormatException(
-                    "Classfile filename " + relativePath + " does not end in \".class\"");
+            throw new SkipClassException("Classfile filename " + relativePath + " does not end in \".class\"");
         }
         final int len = classNamePath.length();
         if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
-            throw new ClassfileFormatException("Incorrect relative path " + relativePath + " -- ignoring");
+            throw new SkipClassException(
+                    "Relative path " + relativePath + " does not match class name " + className);
         }
 
         // Superclass name, with slashes replaced with dots
@@ -1345,10 +1405,13 @@ class Classfile {
      *            the scan spec
      * @param log
      *            the log
-     * @throws ClassfileFormatException
-     *             If a problem occurs while parsing the classfile.
      * @throws IOException
      *             If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs while parsing the classfile.
+     * @throws SkipClassException
+     *             if the classfile needs to be skipped (e.g. the class is non-public, and ignoreClassVisibility is
+     *             false)
      */
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
             final Set<String> classNamesScheduledForScanning, final String relativePath,
