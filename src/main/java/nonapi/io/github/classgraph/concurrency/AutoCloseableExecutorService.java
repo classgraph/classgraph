@@ -87,7 +87,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
             // Prevent new tasks being submitted
             shutdown();
         } catch (final SecurityException e) {
-            // Ignore
+            // Ignore for now (caught again if shutdownNow() fails)
         }
         boolean terminated = false;
         try {
@@ -101,10 +101,9 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
                 // Interrupt all the threads to terminate them, if awaitTermination() timed out
                 shutdownNow();
             } catch (final SecurityException e) {
-                throw new RuntimeException(
-                        "Could not shut down ExecutorService -- need java.lang.RuntimePermission(\"modifyThread\"), "
-                                + "or the security manager's checkAccess method denies access",
-                        e);
+                throw new RuntimeException("Could not shut down ExecutorService -- need "
+                        + "java.lang.RuntimePermission(\"modifyThread\"), "
+                        + "or the security manager's checkAccess method denies access", e);
             }
         }
     }

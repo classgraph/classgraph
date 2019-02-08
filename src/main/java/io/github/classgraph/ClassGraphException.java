@@ -33,8 +33,8 @@ package io.github.classgraph;
  * scanning.
  * 
  * <p>
- * (Extends {@link IllegalArgumentException}, which extends {@link RuntimeException}, so that it works with legacy
- * code that may have caught one of these two exceptions.)
+ * (Extends {@link IllegalArgumentException}, which extends {@link RuntimeException}, so either of the more generic
+ * exceptions may be caught.)
  */
 public class ClassGraphException extends IllegalArgumentException {
     /** Constructor. */
