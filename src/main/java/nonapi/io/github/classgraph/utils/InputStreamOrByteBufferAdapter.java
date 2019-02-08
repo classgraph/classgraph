@@ -142,20 +142,6 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read an initial chunk of the file into the buffer.
-     * 
-     * @throws IOException
-     *             If a chunk of the file content could not be read.
-     */
-    public void readInitialChunk() throws IOException {
-        // Read first bufferful
-        for (int bytesRead; used < INITIAL_BUFFER_CHUNK_SIZE
-                && (bytesRead = read(used, INITIAL_BUFFER_CHUNK_SIZE - used)) != -1;) {
-            used += bytesRead;
-        }
-    }
-
-    /**
      * Read another chunk of from the InputStream or ByteBuffer.
      *
      * @param bytesRequired
@@ -164,7 +150,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If an I/O exception occurs.
      */
     private void readMore(final int bytesRequired) throws IOException {
-        final int chunkSizeToRequest = Math.max(SUBSEQUENT_BUFFER_CHUNK_SIZE, bytesRequired);
+        final int chunkSizeToRequest = Math
+                .max(used == 0 ? INITIAL_BUFFER_CHUNK_SIZE : SUBSEQUENT_BUFFER_CHUNK_SIZE, bytesRequired);
         final int maxNewUsed = used + chunkSizeToRequest;
         if (maxNewUsed <= 0) {
             throw new IOException("Classfile is bigger than 2GB, cannot read it");

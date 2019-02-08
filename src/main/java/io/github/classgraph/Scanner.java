@@ -52,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 
 import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
+import io.github.classgraph.Classfile.ClassfileFormatException;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClassLoaderAndModuleFinder;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
@@ -60,7 +61,6 @@ import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
-import nonapi.io.github.classgraph.exceptions.ClassfileFormatException;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -477,7 +477,7 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Used to enqueue classfiles for scanning. */
-    private static class ClassfileScanWorkUnit {
+    static class ClassfileScanWorkUnit {
 
         /** The classpath element. */
         final ClasspathElement classpathElement;
@@ -514,11 +514,11 @@ class Scanner implements Callable<ScanResult> {
         /** The classpath order. */
         private final List<ClasspathElement> classpathOrder;
 
-        /** The scanned class names. */
-        private final Set<String> scannedClassNames;
+        /** The class names scheduled for scanning. */
+        private final Set<String> classNamesScheduledForScanning;
 
-        /** The {@link ClassInfoUnlinked} objects created by scanning classfiles. */
-        private final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue;
+        /** The valid {@link Classfile} objects created by scanning classfiles. */
+        private final Queue<Classfile> scannedClassfiles;
 
         /**
          * Constructor.
@@ -527,149 +527,18 @@ class Scanner implements Callable<ScanResult> {
          *            the scan spec
          * @param classpathOrder
          *            the classpath order
-         * @param scannedClassNames
-         *            the scanned class names
-         * @param classInfoUnlinkedQueue
-         *            the {@link ClassInfoUnlinked} objects created by scanning classfiles
+         * @param classNamesScheduledForScanning
+         *            the class names scheduled for scanning
+         * @param scannedClassfiles
+         *            the {@link Classfile} objects created by scanning classfiles
          */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
-                final List<ClasspathElement> classpathOrder, final Set<String> scannedClassNames,
-                final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue) {
+                final List<ClasspathElement> classpathOrder, final Set<String> classNamesScheduledForScanning,
+                final Queue<Classfile> scannedClassfiles) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
-            this.scannedClassNames = scannedClassNames;
-            this.classInfoUnlinkedQueue = classInfoUnlinkedQueue;
-        }
-
-        /**
-         * Extend scanning to a superclass, interface or annotation.
-         *
-         * @param className
-         *            the class name
-         * @param relationship
-         *            the relationship type
-         * @param currClasspathElement
-         *            the current classpath element
-         * @param additionalWorkUnitsIn
-         *            additional work units (in)
-         * @param subLog
-         *            the sub log
-         * @return additional work units (out)
-         */
-        private List<ClassfileScanWorkUnit> extendScanningUpwards(final String className, final String relationship,
-                final ClasspathElement currClasspathElement,
-                final List<ClassfileScanWorkUnit> additionalWorkUnitsIn, final LogNode subLog) {
-            List<ClassfileScanWorkUnit> additionalWorkUnits = additionalWorkUnitsIn;
-            // Don't scan a class more than once 
-            if (className != null && scannedClassNames.add(className)) {
-                // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
-                // for each class, but there shouldn't be too many cases of extending scanning upwards)
-                final String classfilePath = JarUtils.classNameToClassfilePath(className);
-                // First check current classpath element, to avoid iterating through other classpath elements
-                Resource classResource = currClasspathElement.getResource(classfilePath);
-                ClasspathElement foundInClasspathElt = null;
-                if (classResource != null) {
-                    // Found the classfile in the current classpath element
-                    foundInClasspathElt = currClasspathElement;
-                } else {
-                    // Didn't find the classfile in the current classpath element -- iterate through other elements
-                    for (final ClasspathElement classpathElt : classpathOrder) {
-                        if (classpathElt != currClasspathElement) {
-                            classResource = classpathElt.getResource(classfilePath);
-                            if (classResource != null) {
-                                foundInClasspathElt = classpathElt;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (classResource != null) {
-                    // Found class resource 
-                    if (subLog != null) {
-                        subLog.log("Scheduling external class for scanning: " + relationship + " " + className
-                                + " -- found in classpath element " + foundInClasspathElt);
-                    }
-                    if (additionalWorkUnits == null) {
-                        additionalWorkUnits = new ArrayList<>();
-                    }
-                    additionalWorkUnits.add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource,
-                            /* isExternalClass = */ true));
-                } else {
-                    if (subLog != null && !className.equals("java.lang.Object")) {
-                        subLog.log("External " + relationship + " " + className + " was not found in "
-                                + "non-blacklisted packages -- cannot extend scanning to this class");
-                    }
-                }
-            }
-            return additionalWorkUnits;
-        }
-
-        /**
-         * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
-         *
-         * @param classpathElement
-         *            the classpath element
-         * @param classInfoUnlinked
-         *            the {@link ClassInfoUnlinked} object
-         * @param log
-         *            the log
-         * @return any additional work units that were created
-         */
-        private List<ClassfileScanWorkUnit> extendScanningUpwards(final ClasspathElement classpathElement,
-                final ClassInfoUnlinked classInfoUnlinked, final LogNode log) {
-            // Check superclass
-            List<ClassfileScanWorkUnit> additionalWorkUnits = null;
-            additionalWorkUnits = extendScanningUpwards(classInfoUnlinked.superclassName, "superclass",
-                    classpathElement, additionalWorkUnits, log);
-            // Check implemented interfaces
-            if (classInfoUnlinked.implementedInterfaces != null) {
-                for (final String className : classInfoUnlinked.implementedInterfaces) {
-                    additionalWorkUnits = extendScanningUpwards(className, "interface", classpathElement,
-                            additionalWorkUnits, log);
-                }
-            }
-            // Check class annotations
-            if (classInfoUnlinked.classAnnotations != null) {
-                for (final AnnotationInfo annotationInfo : classInfoUnlinked.classAnnotations) {
-                    additionalWorkUnits = extendScanningUpwards(annotationInfo.getName(), "class annotation",
-                            classpathElement, additionalWorkUnits, log);
-                }
-            }
-            // Check method annotations and method parameter annotations
-            if (classInfoUnlinked.methodInfoList != null) {
-                for (final MethodInfo methodInfo : classInfoUnlinked.methodInfoList) {
-                    if (methodInfo.annotationInfo != null) {
-                        for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
-                            additionalWorkUnits = extendScanningUpwards(methodAnnotationInfo.getName(),
-                                    "method annotation", classpathElement, additionalWorkUnits, log);
-                        }
-                        if (methodInfo.parameterAnnotationInfo != null
-                                && methodInfo.parameterAnnotationInfo.length > 0) {
-                            for (final AnnotationInfo[] paramAnns : methodInfo.parameterAnnotationInfo) {
-                                if (paramAnns != null && paramAnns.length > 0) {
-                                    for (final AnnotationInfo paramAnn : paramAnns) {
-                                        additionalWorkUnits = extendScanningUpwards(paramAnn.getName(),
-                                                "method parameter annotation", classpathElement,
-                                                additionalWorkUnits, log);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // Check field annotations
-            if (classInfoUnlinked.fieldInfoList != null) {
-                for (final FieldInfo fieldInfo : classInfoUnlinked.fieldInfoList) {
-                    if (fieldInfo.annotationInfo != null) {
-                        for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
-                            additionalWorkUnits = extendScanningUpwards(fieldAnnotationInfo.getName(),
-                                    "field annotation", classpathElement, additionalWorkUnits, log);
-                        }
-                    }
-                }
-            }
-            return additionalWorkUnits;
+            this.classNamesScheduledForScanning = classNamesScheduledForScanning;
+            this.scannedClassfiles = scannedClassfiles;
         }
 
         /* (non-Javadoc)
@@ -683,30 +552,14 @@ class Scanner implements Callable<ScanResult> {
                     : log.log(workUnit.classfileResource.getPath(),
                             "Parsing classfile " + workUnit.classfileResource);
             try {
-                // Parse classfile binary format, creating a ClassInfoUnlinked object
-                final ClassInfoUnlinked classInfoUnlinked = new ClassfileBinaryParser()
-                        .readClassInfoFromClassfileHeader(workUnit.classpathElement,
-                                workUnit.classfileResource.getPath(), workUnit.classfileResource,
-                                workUnit.isExternalClass, scanSpec, subLog);
+                // Parse classfile binary format, creating a Classfile object
+                final Classfile classfile = new Classfile(workUnit.classpathElement, classpathOrder,
+                        classNamesScheduledForScanning, workUnit.classfileResource.getPath(),
+                        workUnit.classfileResource, workUnit.isExternalClass, workQueue, scanSpec, subLog);
 
-                // If class was successfully read, output new ClassInfoUnlinked object
-                if (classInfoUnlinked != null) {
-                    classInfoUnlinkedQueue.add(classInfoUnlinked);
-                    classInfoUnlinked.logTo(subLog);
+                // Enqueue the classfile for linking
+                scannedClassfiles.add(classfile);
 
-                    // Check if any superclasses, interfaces or annotations are external (non-whitelisted) classes
-                    if (scanSpec.extendScanningUpwardsToExternalClasses) {
-                        final List<ClassfileScanWorkUnit> additionalWorkUnits = extendScanningUpwards(
-                                workUnit.classpathElement, classInfoUnlinked, subLog);
-                        // If any external classes were found, schedule them for scanning
-                        if (additionalWorkUnits != null) {
-                            workQueue.addWorkUnits(additionalWorkUnits);
-                        }
-                    }
-                }
-                if (subLog != null) {
-                    subLog.addElapsedTime();
-                }
             } catch (final ClassfileFormatException e) {
                 if (subLog != null) {
                     subLog.log("Corrupt or unsupported classfile " + workUnit.classfileResource + " : " + e);
@@ -715,6 +568,10 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.log("IOException while attempting to read classfile " + workUnit.classfileResource
                             + " : " + e);
+                }
+            } finally {
+                if (subLog != null) {
+                    subLog.addElapsedTime();
                 }
             }
         }
@@ -1001,7 +858,7 @@ class Scanner implements Callable<ScanResult> {
             } else {
                 // Get whitelisted classfile order
                 final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-                final Set<String> scannedClassNames = Collections
+                final Set<String> classNamesScheduledForScanning = Collections
                         .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
                 for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
                     // Get classfile scan order across all classpath elements
@@ -1010,21 +867,20 @@ class Scanner implements Callable<ScanResult> {
                                 new ClassfileScanWorkUnit(classpathElement, resource, /* isExternal = */ false));
                         // Pre-seed scanned class names with all whitelisted classes (since these will
                         // be scanned for sure)
-                        scannedClassNames.add(JarUtils.classfilePathToClassName(resource.getPath()));
+                        classNamesScheduledForScanning.add(JarUtils.classfilePathToClassName(resource.getPath()));
                     }
                 }
 
                 // Scan classfiles in parallel
-                final Queue<ClassInfoUnlinked> classInfoUnlinkedQueue = new ConcurrentLinkedQueue<>();
+                final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
                 processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
                         new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrderFiltered,
-                                scannedClassNames, classInfoUnlinkedQueue));
+                                classNamesScheduledForScanning, scannedClassfiles));
 
-                // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
+                // Link the Classfile objects to produce ClassInfo objects.
                 final LogNode classGraphLog = topLevelLog == null ? null : topLevelLog.log("Building class graph");
-                for (final ClassInfoUnlinked c : classInfoUnlinkedQueue) {
-                    c.link(scanSpec, classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo,
-                            classGraphLog);
+                for (final Classfile c : scannedClassfiles) {
+                    c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, classGraphLog);
                 }
 
                 // Uncomment the following code to create placeholder external classes for any classes

@@ -30,16 +30,22 @@ package io.github.classgraph;
 
 import java.io.IOException;
 import java.lang.reflect.Modifier;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.exceptions.ClassfileFormatException;
+import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -47,16 +53,72 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
  * sequence, to avoid re-allocating buffer memory.
  */
-class ClassfileBinaryParser {
-    /**
-     * The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader().
-     */
+class Classfile {
+    /** The InputStream or ByteBuffer for the current classfile. */
     private InputStreamOrByteBufferAdapter inputStreamOrByteBuffer;
 
-    /**
-     * The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader().
-     */
+    /** The classpath element that contains this classfile. */
+    private final ClasspathElement classpathElement;
+
+    /** The classpath order. */
+    private final List<ClasspathElement> classpathOrder;
+
+    /** The relative path to the classfile (should correspond to className). */
+    private final String relativePath;
+
+    /** The name of the class. */
     private String className;
+
+    /** Whether this is an external class. */
+    private final boolean isExternalClass;
+
+    /** The class modifiers. */
+    private int classModifiers;
+
+    /** Whether this class is an interface. */
+    private boolean isInterface;
+
+    /** Whether this class is an annotation. */
+    private boolean isAnnotation;
+
+    /** The superclass name. (can be null if no superclass, or if superclass is blacklisted.) */
+    private String superclassName;
+
+    /** The implemented interfaces. */
+    private List<String> implementedInterfaces;
+
+    /** The class annotations. */
+    private AnnotationInfoList classAnnotations;
+
+    /** The fully qualified name of the defining method. */
+    private String fullyQualifiedDefiningMethodName;
+
+    /** Class containment entries. */
+    private List<SimpleEntry<String, String>> classContainmentEntries;
+
+    /** Annotation default parameter values. */
+    private AnnotationParameterValueList annotationParamDefaultValues;
+
+    /** Referenced class names. */
+    private Set<String> refdClassNames;
+
+    /** The classfile resource. */
+    private final Resource classfileResource;
+
+    /** The field info list. */
+    private FieldInfoList fieldInfoList;
+
+    /** The method info list. */
+    private MethodInfoList methodInfoList;
+
+    /** The type signature. */
+    private String typeSignature;
+
+    /** The scan spec. */
+    private final ScanSpec scanSpec;
+
+    /** The log. */
+    private final LogNode log;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -68,6 +130,294 @@ class ClassfileBinaryParser {
 
     /** The indirection index for String/Class entries in the constant pool. */
     private int[] indirectStringRefs;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Thrown when a classfile's contents are not in the correct format. */
+    class ClassfileFormatException extends IOException {
+        /** serialVersionUID. */
+        static final long serialVersionUID = 1L;
+
+        /** Constructor. */
+        public ClassfileFormatException() {
+            super();
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param message
+         *            the message
+         */
+        public ClassfileFormatException(final String message) {
+            super(message);
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param cause
+         *            the cause
+         */
+        public ClassfileFormatException(final Throwable cause) {
+            super(cause);
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param message
+         *            the message
+         * @param cause
+         *            the cause
+         */
+        public ClassfileFormatException(final String message, final Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Extend scanning to a superclass, interface or annotation.
+     *
+     * @param className
+     *            the class name
+     * @param relationship
+     *            the relationship type
+     * @param additionalWorkUnitsIn
+     *            additional work units (in)
+     * @param classNamesScheduledForScanning
+     *            class names scheduled for scanning (to avoid scheduling the same class twice)
+     * @return additional work units (out)
+     */
+    private List<ClassfileScanWorkUnit> extendScanningUpwardsForClass(final String className,
+            final String relationship, final List<ClassfileScanWorkUnit> additionalWorkUnitsIn,
+            final Set<String> classNamesScheduledForScanning) {
+        List<ClassfileScanWorkUnit> additionalWorkUnits = additionalWorkUnitsIn;
+        // The call to classNamesScheduledForScanning.add(className) will return true only for external classes
+        // that have not yet been scheduled for scanning
+        if (className != null && classNamesScheduledForScanning.add(className)) {
+            // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
+            // for each class, but there shouldn't be too many cases of extending scanning upwards)
+            final String classfilePath = JarUtils.classNameToClassfilePath(className);
+            // First check current classpath element, to avoid iterating through other classpath elements
+            Resource classResource = classpathElement.getResource(classfilePath);
+            ClasspathElement foundInClasspathElt = null;
+            if (classResource != null) {
+                // Found the classfile in the current classpath element
+                foundInClasspathElt = classpathElement;
+            } else {
+                // Didn't find the classfile in the current classpath element -- iterate through other elements
+                for (final ClasspathElement classpathElt : classpathOrder) {
+                    if (classpathElt != classpathElement) {
+                        classResource = classpathElt.getResource(classfilePath);
+                        if (classResource != null) {
+                            foundInClasspathElt = classpathElt;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (classResource != null) {
+                // Found class resource 
+                if (log != null) {
+                    log.log("Scheduling external class for scanning: " + relationship + " " + className
+                            + " -- found in classpath element " + foundInClasspathElt);
+                }
+                if (additionalWorkUnits == null) {
+                    additionalWorkUnits = new ArrayList<>();
+                }
+                additionalWorkUnits.add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource,
+                        /* isExternalClass = */ true));
+            } else {
+                if (log != null && !className.equals("java.lang.Object")) {
+                    log.log("External " + relationship + " " + className + " was not found in "
+                            + "non-blacklisted packages -- cannot extend scanning to this class");
+                }
+            }
+        }
+        return additionalWorkUnits;
+    }
+
+    /**
+     * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
+     *
+     * @param classNamesScheduledForScanning
+     *            the class names scheduled for scanning
+     * @return any additional work units that were created
+     */
+    private List<ClassfileScanWorkUnit> extendScanningUpwards(final Set<String> classNamesScheduledForScanning) {
+        // Check superclass
+        List<ClassfileScanWorkUnit> additionalWorkUnits = null;
+        if (superclassName != null) {
+            additionalWorkUnits = extendScanningUpwardsForClass(superclassName, "superclass", additionalWorkUnits,
+                    classNamesScheduledForScanning);
+        }
+        // Check implemented interfaces
+        if (implementedInterfaces != null) {
+            for (final String className : implementedInterfaces) {
+                additionalWorkUnits = extendScanningUpwardsForClass(className, "interface", additionalWorkUnits,
+                        classNamesScheduledForScanning);
+            }
+        }
+        // Check class annotations
+        if (classAnnotations != null) {
+            for (final AnnotationInfo annotationInfo : classAnnotations) {
+                additionalWorkUnits = extendScanningUpwardsForClass(annotationInfo.getName(), "class annotation",
+                        additionalWorkUnits, classNamesScheduledForScanning);
+            }
+        }
+        // Check method annotations and method parameter annotations
+        if (methodInfoList != null) {
+            for (final MethodInfo methodInfo : methodInfoList) {
+                if (methodInfo.annotationInfo != null) {
+                    for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
+                        additionalWorkUnits = extendScanningUpwardsForClass(methodAnnotationInfo.getName(),
+                                "method annotation", additionalWorkUnits, classNamesScheduledForScanning);
+                    }
+                    if (methodInfo.parameterAnnotationInfo != null
+                            && methodInfo.parameterAnnotationInfo.length > 0) {
+                        for (final AnnotationInfo[] paramAnns : methodInfo.parameterAnnotationInfo) {
+                            if (paramAnns != null && paramAnns.length > 0) {
+                                for (final AnnotationInfo paramAnn : paramAnns) {
+                                    additionalWorkUnits = extendScanningUpwardsForClass(paramAnn.getName(),
+                                            "method parameter annotation", additionalWorkUnits,
+                                            classNamesScheduledForScanning);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Check field annotations
+        if (fieldInfoList != null) {
+            for (final FieldInfo fieldInfo : fieldInfoList) {
+                if (fieldInfo.annotationInfo != null) {
+                    for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
+                        additionalWorkUnits = extendScanningUpwardsForClass(fieldAnnotationInfo.getName(),
+                                "field annotation", additionalWorkUnits, classNamesScheduledForScanning);
+                    }
+                }
+            }
+        }
+        return additionalWorkUnits;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Link classes. Not threadsafe, should be run in a single-threaded context.
+     *
+     * @param classNameToClassInfo
+     *            map from class name to class info
+     * @param packageNameToPackageInfo
+     *            map from package name to package info
+     * @param moduleNameToModuleInfo
+     *            map from module name to module info
+     * @param log
+     *            the log
+     */
+    void link(final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, PackageInfo> packageNameToPackageInfo,
+            final Map<String, ModuleInfo> moduleNameToModuleInfo, final LogNode log) {
+        if (className.equals("module-info")) {
+            // Handle module descriptor classfile
+            String moduleName = null;
+            final ModuleRef moduleRef = classfileResource.getModuleRef();
+            if (moduleRef != null) {
+                // Get module name from ModuleReference of this ClasspathElementModule, if available
+                moduleName = moduleRef.getName();
+            }
+            if (moduleName == null) {
+                moduleName = classpathElement.moduleName;
+            }
+            if (moduleName != null && !moduleName.isEmpty()) {
+                // Get or create a ModuleInfo object for this module
+                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+                if (moduleInfo == null) {
+                    moduleNameToModuleInfo.put(moduleName,
+                            moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+                }
+                // Add any class annotations on the module-info.class file to the ModuleInfo
+                moduleInfo.addAnnotations(classAnnotations);
+            }
+
+        } else if (className.equals("package-info") || className.endsWith(".package-info")) {
+            // Handle package descriptor classfile
+            final PackageInfo packageInfo = PackageInfo
+                    .getOrCreatePackage(PackageInfo.getParentPackageName(className), packageNameToPackageInfo);
+            packageInfo.addAnnotations(classAnnotations);
+
+        } else {
+            // Handle regular classfile
+            final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
+                    classNameToClassInfo, classpathElement, classfileResource, log);
+            classInfo.setModifiers(classModifiers);
+            classInfo.setIsInterface(isInterface);
+            classInfo.setIsAnnotation(isAnnotation);
+            if (superclassName != null) {
+                classInfo.addSuperclass(superclassName, classNameToClassInfo);
+            }
+            if (implementedInterfaces != null) {
+                for (final String interfaceName : implementedInterfaces) {
+                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
+                }
+            }
+            if (classAnnotations != null) {
+                for (final AnnotationInfo classAnnotation : classAnnotations) {
+                    classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
+                }
+            }
+            if (classContainmentEntries != null) {
+                ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
+            }
+            if (annotationParamDefaultValues != null) {
+                classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
+            }
+            if (fullyQualifiedDefiningMethodName != null) {
+                classInfo.addFullyQualifiedDefiningMethodName(fullyQualifiedDefiningMethodName);
+            }
+            if (fieldInfoList != null) {
+                classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
+            }
+            if (methodInfoList != null) {
+                classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
+            }
+            if (typeSignature != null) {
+                classInfo.addTypeSignature(typeSignature);
+            }
+            if (refdClassNames != null) {
+                classInfo.addReferencedClassNames(refdClassNames);
+            }
+
+            final PackageInfo packageInfo = PackageInfo
+                    .getOrCreatePackage(PackageInfo.getParentPackageName(className), packageNameToPackageInfo);
+            packageInfo.addClassInfo(classInfo);
+
+            String moduleName = null;
+            final ModuleRef moduleRef = classInfo.getModuleRef();
+            if (moduleRef != null) {
+                // Get module name from ModuleReference of this ClasspathElementModule, if available
+                moduleName = moduleRef.getName();
+            }
+            if (moduleName == null) {
+                // Otherwise get the module name from any module-info.class file found in the classpath element
+                moduleName = classpathElement.moduleName;
+            }
+            // Only add class to ModuleInfo if a module name is defined, and if it's not empty
+            if (moduleName != null && !moduleName.isEmpty()) {
+                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+                if (moduleInfo == null) {
+                    moduleNameToModuleInfo.put(moduleName,
+                            moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+                }
+                moduleInfo.addClassInfo(classInfo);
+                moduleInfo.addPackageInfo(packageInfo);
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -354,7 +704,7 @@ class ClassfileBinaryParser {
      * @throws ClassfileFormatException
      *             If a problem occurs.
      */
-    private AnnotationInfo readAnnotation() throws IOException, ClassfileFormatException {
+    private AnnotationInfo readAnnotation() throws IOException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
         final String annotationClassName = getConstantPoolClassDescriptor(
                 inputStreamOrByteBuffer.readUnsignedShort());
@@ -380,7 +730,7 @@ class ClassfileBinaryParser {
      * @throws ClassfileFormatException
      *             If a problem occurs.
      */
-    private Object readAnnotationElementValue() throws IOException, ClassfileFormatException {
+    private Object readAnnotationElementValue() throws IOException {
         final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -441,41 +791,21 @@ class ClassfileBinaryParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
-     * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
-     * masking has already been performed, so that only one class of a given name will be added.
+     * Read constant pool entries.
      *
-     * @param classpathElement
-     *            the classpath element
-     * @param relativePath
-     *            the relative path
-     * @param isExternalClass
-     *            true if this is an external class
-     * @param classfileResource
-     *            the classfile resource
-     * @param scanSpec
-     *            the scan spec
-     * @param log
-     *            the log
-     * @return a {@link ClassInfoUnlinked} instance, or null if there was an exception.
      * @throws IOException
-     *             If an IO exception occurs.
+     *             Signals that an I/O exception has occurred.
      * @throws ClassfileFormatException
-     *             If a problem occurs.
+     *             the classfile format exception
      */
-    private ClassInfoUnlinked readClassfile(final ClasspathElement classpathElement, final String relativePath,
-            final boolean isExternalClass, final Resource classfileResource, final ScanSpec scanSpec,
-            final LogNode log) throws IOException, ClassfileFormatException {
-        // Minor version
-        inputStreamOrByteBuffer.readUnsignedShort();
-        // Major version
-        inputStreamOrByteBuffer.readUnsignedShort();
-
+    private void readConstantPoolEntries() throws IOException {
         // Only record class dependency info if inter-class dependencies are enabled
-        final List<Integer> constClassInfoCpIdxs = scanSpec.enableInterClassDependencies ? new ArrayList<Integer>()
-                : null;
-        final List<Integer> typeSignatureIdxs = scanSpec.enableInterClassDependencies ? new ArrayList<Integer>()
-                : null;
+        List<Integer> classNameCpIdxs = null;
+        List<Integer> typeSignatureIdxs = null;
+        if (scanSpec.enableInterClassDependencies) {
+            classNameCpIdxs = new ArrayList<Integer>();
+            typeSignatureIdxs = new ArrayList<Integer>();
+        }
 
         // Read size of constant pool
         final int cpCount = inputStreamOrByteBuffer.readUnsignedShort();
@@ -520,7 +850,7 @@ class ClassfileBinaryParser {
                 indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
                 if (scanSpec.enableInterClassDependencies && entryTag[i] == 7) {
                     // If this is a class ref, and inter-class dependencies are enabled, record the dependency
-                    constClassInfoCpIdxs.add(indirectStringRefs[i]);
+                    classNameCpIdxs.add(indirectStringRefs[i]);
                 }
                 break;
             case 8: // String
@@ -565,22 +895,19 @@ class ClassfileBinaryParser {
                 inputStreamOrByteBuffer.skip(2);
                 break;
             default:
-                throw new ClassfileFormatException(
-
-                        "Unknown constant pool tag " + entryTag[i] + " in classfile " + relativePath
-                                + " (element size unknown, cannot continue reading class). Please report this at "
-                                + "https://github.com/classgraph/classgraph/issues");
+                throw new ClassfileFormatException("Unknown constant pool tag " + entryTag[i]
+                        + " (element size unknown, cannot continue reading class). Please report this at "
+                        + "https://github.com/classgraph/classgraph/issues");
             }
         }
 
         // Find classes referenced in the constant pool (note that there are some class refs that will not be
         // found this way, e.g. enum classes and class refs in annotation parameter values, since they are
-        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12).
-        final Set<String> refdClassNames;
+        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12)).
         if (scanSpec.enableInterClassDependencies) {
             refdClassNames = new HashSet<>();
             // Get class names from direct class references in constant pool
-            for (final int cpIdx : constClassInfoCpIdxs) {
+            for (final int cpIdx : classNameCpIdxs) {
                 final String refdClassName = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
                         /* stripLSemicolon = */ false);
                 if (refdClassName != null) {
@@ -591,9 +918,9 @@ class ClassfileBinaryParser {
                                     /* definingClass = */ null);
                             typeSig.getReferencedClassNames(refdClassNames);
                         } catch (final ParseException e) {
-                            if (log != null) {
-                                log.log("Could not parse type signature: " + refdClassName + " : " + e);
-                            }
+                            // Should not happen
+                            throw new ClassfileFormatException("Could not parse type signature: " + refdClassName,
+                                    e);
                         }
                     } else {
                         refdClassNames.add(refdClassName);
@@ -619,84 +946,101 @@ class ClassfileBinaryParser {
                             typeSig.getReferencedClassNames(refdClassNames);
                         }
                     } catch (final ParseException e) {
-                        if (log != null) {
-                            log.log("Could not parse type signature: " + typeSigStr + " : " + e);
-                        }
+                        throw new ClassfileFormatException("Could not parse type signature: " + typeSigStr, e);
                     }
                 }
             }
-        } else {
-            refdClassNames = null;
         }
+    }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read basic class information.
+     * 
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     */
+    private void readBasicClassInfo() throws IOException, ClassfileFormatException {
         // Modifier flags
-        final int classModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
-        final boolean isInterface = (classModifierFlags & 0x0200) != 0;
-        final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
-        final boolean isModule = (classModifierFlags & 0x8000) != 0; // Equivalently filename is "module-info.class"
+        classModifiers = inputStreamOrByteBuffer.readUnsignedShort();
+        isInterface = (classModifiers & 0x0200) != 0;
+        isAnnotation = (classModifiers & 0x2000) != 0;
+        final boolean isModule = (classModifiers & 0x8000) != 0; // Equivalently filename is "module-info.class"
         final boolean isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1,
                 "package-info.class", 0, 18);
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         final String classNamePath = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
         if (classNamePath == null) {
-            if (log != null) {
-                log.log("Null class name in classfile " + relativePath + " -- ignoring");
-            }
-            return null;
+            throw new ClassfileFormatException("Class name is null");
         }
         className = classNamePath.replace('/', '.');
         if ("java.lang.Object".equals(className)) {
             // Don't process java.lang.Object (it has a null superclass), though you can still search for classes
             // that are subclasses of java.lang.Object (as an external class).
-            if (log != null) {
-                log.log("Skipping " + className);
-            }
-            return null;
+            throw new ClassfileFormatException("Skipping java.lang.Object");
         }
 
         // Check class visibility modifiers
-        if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifierFlags) && !isModule && !isPackage) {
-            if (log != null) {
-                log.log("Skipping non-public class: " + className);
-            }
-            return null;
+        if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifiers) && !isModule && !isPackage) {
+            throw new ClassfileFormatException(
+                    "Skipping non-public class, because ignoreClassVisibility() was not called");
         }
 
         // Make sure classname matches relative path
         if (!relativePath.endsWith(".class")) {
             // Should not happen
-            if (log != null) {
-                log.log("File " + relativePath + " does not end in \".class\"");
-            }
-            return null;
+            throw new ClassfileFormatException(
+                    "Classfile filename " + relativePath + " does not end in \".class\"");
         }
         final int len = classNamePath.length();
         if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
-            if (log != null) {
-                log.log("Class " + className + " is at incorrect relative path " + relativePath + " -- ignoring");
-            }
-            return null;
+            throw new ClassfileFormatException("Incorrect relative path " + relativePath + " -- ignoring");
         }
 
         // Superclass name, with slashes replaced with dots
         final int superclassNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-        final String superclassName = superclassNameCpIdx > 0 ? getConstantPoolClassName(superclassNameCpIdx)
-                : null;
+        if (superclassNameCpIdx > 0) {
+            superclassName = getConstantPoolClassName(superclassNameCpIdx);
+        }
+    }
 
-        // Create holder object for the class information. This is "unlinked", in the sense that it is
-        // not linked other class info references at this point.
-        final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, superclassName,
-                isExternalClass, refdClassNames, classpathElement, classfileResource);
-        classInfoUnlinked.setModifiers(classModifierFlags, isInterface, isAnnotation);
+    // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Read the class' interfaces.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     */
+    private void readInterfaces() throws IOException {
         // Interfaces
         final int interfaceCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < interfaceCount; i++) {
             final String interfaceName = getConstantPoolClassName(inputStreamOrByteBuffer.readUnsignedShort());
-            classInfoUnlinked.addImplementedInterface(interfaceName);
+            if (implementedInterfaces == null) {
+                implementedInterfaces = new ArrayList<>();
+            }
+            implementedInterfaces.add(interfaceName);
         }
+    }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read the class' fields.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     */
+    private void readFields() throws IOException, ClassfileFormatException {
         // Fields
         final int fieldCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
@@ -764,12 +1108,27 @@ class ClassfileBinaryParser {
                     }
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
-                    classInfoUnlinked.addFieldInfo(new FieldInfo(className, fieldName, fieldModifierFlags,
-                            fieldTypeDescriptor, fieldTypeSignature, fieldConstValue, fieldAnnotationInfo));
+                    if (fieldInfoList == null) {
+                        fieldInfoList = new FieldInfoList();
+                    }
+                    fieldInfoList.add(new FieldInfo(className, fieldName, fieldModifierFlags, fieldTypeDescriptor,
+                            fieldTypeSignature, fieldConstValue, fieldAnnotationInfo));
                 }
             }
         }
+    }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read the class' methods.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     */
+    private void readMethods() throws IOException, ClassfileFormatException {
         // Methods
         final int methodCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < methodCount; i++) {
@@ -853,10 +1212,12 @@ class ClassfileBinaryParser {
                         // Add type params to method type signature
                         methodTypeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
-                        // Get annotation parameter default value
-                        final Object annotationParamDefaultValue = readAnnotationElementValue();
-                        classInfoUnlinked.addAnnotationParamDefaultValue(
-                                new AnnotationParameterValue(methodName, annotationParamDefaultValue));
+                        if (annotationParamDefaultValues == null) {
+                            annotationParamDefaultValues = new AnnotationParameterValueList();
+                        }
+                        this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName,
+                                // Get annotation parameter default value
+                                readAnnotationElementValue()));
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
                         methodHasBody = true;
                         inputStreamOrByteBuffer.skip(attributeLength);
@@ -866,13 +1227,28 @@ class ClassfileBinaryParser {
                 }
                 // Create MethodInfo
                 if (enableMethodInfo) {
-                    classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
+                    if (methodInfoList == null) {
+                        methodInfoList = new MethodInfoList();
+                    }
+                    methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
                             methodParameterModifiers, methodParameterAnnotations, methodHasBody));
                 }
             }
         }
+    }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read class attributes.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     */
+    private void readClassAttributes() throws IOException, ClassfileFormatException {
         // Class attributes (including class annotations, class type variables, module info, etc.)
         final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < attributesCount; i++) {
@@ -884,8 +1260,10 @@ class ClassfileBinaryParser {
                                     attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                 final int annotationCount = inputStreamOrByteBuffer.readUnsignedShort();
                 for (int m = 0; m < annotationCount; m++) {
-                    final AnnotationInfo classAnnotation = readAnnotation();
-                    classInfoUnlinked.addClassAnnotation(classAnnotation);
+                    if (classAnnotations == null) {
+                        classAnnotations = new AnnotationInfoList();
+                    }
+                    classAnnotations.add(readAnnotation());
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 final int numInnerClasses = inputStreamOrByteBuffer.readUnsignedShort();
@@ -893,16 +1271,18 @@ class ClassfileBinaryParser {
                     final int innerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                     final int outerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
-                        classInfoUnlinked.addClassContainment(getConstantPoolClassName(innerClassInfoCpIdx),
-                                getConstantPoolClassName(outerClassInfoCpIdx));
+                        if (classContainmentEntries == null) {
+                            classContainmentEntries = new ArrayList<>();
+                        }
+                        classContainmentEntries.add(new SimpleEntry<>(getConstantPoolClassName(innerClassInfoCpIdx),
+                                getConstantPoolClassName(outerClassInfoCpIdx)));
                     }
                     inputStreamOrByteBuffer.skip(2); // inner_name_idx
                     inputStreamOrByteBuffer.skip(2); // inner_class_access_flags
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 // Get class type signature, including type variables
-                classInfoUnlinked
-                        .addTypeSignature(getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort()));
+                typeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
                 final String innermostEnclosingClassName = getConstantPoolClassName(
                         inputStreamOrByteBuffer.readUnsignedShort());
@@ -917,10 +1297,13 @@ class ClassfileBinaryParser {
                     // Could also fetch method type signature using subFieldIdx = 1, if needed
                 }
                 // Link anonymous inner classes into the class with their containing method
-                classInfoUnlinked.addClassContainment(className, innermostEnclosingClassName);
+                if (classContainmentEntries == null) {
+                    classContainmentEntries = new ArrayList<>();
+                }
+                classContainmentEntries.add(new SimpleEntry<>(className, innermostEnclosingClassName));
                 // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
                 // class
-                classInfoUnlinked.addEnclosingMethod(innermostEnclosingClassName + "." + definingMethodName);
+                this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
                 final int moduleNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 String moduleName = getConstantPoolString(moduleNameCpIdx);
@@ -928,15 +1311,16 @@ class ClassfileBinaryParser {
                     moduleName = "";
                 }
                 classpathElement.moduleName = moduleName;
-                // TODO: parse the rest of the module descriptor fields, and add to ModuleInfo:
+                // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
                 // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
                 inputStreamOrByteBuffer.skip(attributeLength - 2);
             } else {
                 inputStreamOrByteBuffer.skip(attributeLength);
             }
         }
-        return classInfoUnlinked;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
@@ -945,45 +1329,138 @@ class ClassfileBinaryParser {
      *
      * @param classpathElement
      *            the classpath element
+     * @param classpathOrder
+     *            the classpath order
+     * @param classNamesScheduledForScanning
+     *            the class names scheduled for scanning
      * @param relativePath
      *            the relative path
      * @param classfileResource
      *            the classfile resource
      * @param isExternalClass
      *            if this is an external class
+     * @param workQueue
+     *            the work queue
      * @param scanSpec
      *            the scan spec
      * @param log
      *            the log
-     * @return a {@link ClassInfoUnlinked} instance, or null if there was an exception.
-     * @throws IOException
-     *             If an IO exception occurs.
      * @throws ClassfileFormatException
      *             If a problem occurs while parsing the classfile.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
-    ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
-            final String relativePath, final Resource classfileResource, final boolean isExternalClass,
-            final ScanSpec scanSpec, final LogNode log) throws IOException, ClassfileFormatException {
+    Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
+            final Set<String> classNamesScheduledForScanning, final String relativePath,
+            final Resource classfileResource, final boolean isExternalClass,
+            final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final LogNode log)
+            throws IOException {
+        this.classpathElement = classpathElement;
+        this.classpathOrder = classpathOrder;
+        this.relativePath = relativePath;
+        this.classfileResource = classfileResource;
+        this.isExternalClass = isExternalClass;
+        this.scanSpec = scanSpec;
+        this.log = log;
+
         try {
             // Open classfile as a ByteBuffer or InputStream
             inputStreamOrByteBuffer = classfileResource.openOrRead();
 
-            // Read the initial chunk of data into the buffer
-            inputStreamOrByteBuffer.readInitialChunk();
-
             // Check magic number
             if (inputStreamOrByteBuffer.readInt() != 0xCAFEBABE) {
-                throw new ClassfileFormatException(
-                        "Classfile " + relativePath + " does not have correct classfile magic number");
+                throw new ClassfileFormatException("Classfile does not have correct magic number");
             }
 
-            // Read and parse classfile
-            return readClassfile(classpathElement, relativePath, isExternalClass, classfileResource, scanSpec, log);
+            // Read classfile minor version
+            inputStreamOrByteBuffer.readUnsignedShort();
+
+            // Read classfile major version
+            inputStreamOrByteBuffer.readUnsignedShort();
+
+            // Read the constant pool
+            readConstantPoolEntries();
+
+            // Read basic class info (
+            readBasicClassInfo();
+
+            // Read interfaces
+            readInterfaces();
+
+            // Read fields
+            readFields();
+
+            // Read methods
+            readMethods();
+
+            // Read class attributes
+            readClassAttributes();
 
         } finally {
             // Close ByteBuffer or InputStream
             classfileResource.close();
             inputStreamOrByteBuffer = null;
+        }
+
+        // Check if any superclasses, interfaces or annotations are external (non-whitelisted) classes
+        // that need to be scheduled for scanning, so that all of the "upwards" direction of the class
+        // graph is scanned for any whitelisted class, even if the superclasses / interfaces / annotations
+        // are not themselves whitelisted.
+        if (scanSpec.extendScanningUpwardsToExternalClasses) {
+            final List<ClassfileScanWorkUnit> additionalWorkUnits = extendScanningUpwards(
+                    classNamesScheduledForScanning);
+            // If any external classes were found, schedule them for scanning
+            if (additionalWorkUnits != null) {
+                workQueue.addWorkUnits(additionalWorkUnits);
+            }
+        }
+
+        // Write class info to log 
+        if (log != null) {
+            final LogNode subLog = log.log("Found " //
+                    + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
+                    + " " + className);
+            if (superclassName != null) {
+                subLog.log(
+                        "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
+            }
+            if (implementedInterfaces != null) {
+                subLog.log("Interfaces: " + Join.join(", ", implementedInterfaces));
+            }
+            if (classAnnotations != null) {
+                subLog.log("Class annotations: " + Join.join(", ", classAnnotations));
+            }
+            if (annotationParamDefaultValues != null) {
+                for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
+                    subLog.log("Annotation default param value: " + apv);
+                }
+            }
+            if (fieldInfoList != null) {
+                for (final FieldInfo fieldInfo : fieldInfoList) {
+                    subLog.log("Field: " + fieldInfo);
+                }
+            }
+            if (methodInfoList != null) {
+                for (final MethodInfo methodInfo : methodInfoList) {
+                    subLog.log("Method: " + methodInfo);
+                }
+            }
+            if (typeSignature != null) {
+                ClassTypeSignature typeSig = null;
+                try {
+                    typeSig = ClassTypeSignature.parse(typeSignature, /* classInfo = */ null);
+                } catch (final ParseException e) {
+                    // Ignore
+                }
+                subLog.log("Class type signature: " + (typeSig == null ? typeSignature
+                        : typeSig.toString(className, /* typeNameOnly = */ false, classModifiers, isAnnotation,
+                                isInterface)));
+            }
+            if (refdClassNames != null) {
+                final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
+                Collections.sort(refdClassNamesSorted);
+                subLog.log("Referenced class names: " + Join.join(", ", refdClassNamesSorted));
+            }
         }
     }
 }
