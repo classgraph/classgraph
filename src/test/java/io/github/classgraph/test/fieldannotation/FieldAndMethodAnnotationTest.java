@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -38,14 +38,24 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
+/**
+ * The Class FieldAndMethodAnnotationTest.
+ */
 public class FieldAndMethodAnnotationTest {
+
+    /** The public field with annotation. */
     public int publicFieldWithAnnotation;
 
+    /** The private field with annotation. */
     @ExternalAnnotation
     private int privateFieldWithAnnotation;
 
+    /** The field without annotation. */
     public int fieldWithoutAnnotation;
 
+    /**
+     * Get the names of classes with field annotation.
+     */
     @Test
     public void getNamesOfClassesWithFieldAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
@@ -57,6 +67,9 @@ public class FieldAndMethodAnnotationTest {
         }
     }
 
+    /**
+     * Get the names of classes with field annotation ignoring visibility.
+     */
     @Test
     public void getNamesOfClassesWithFieldAnnotationIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph()
@@ -68,6 +81,9 @@ public class FieldAndMethodAnnotationTest {
         }
     }
 
+    /**
+     * Get the names of classes with method annotation.
+     */
     @Test
     @ExternalAnnotation
     public void getNamesOfClassesWithMethodAnnotation() {

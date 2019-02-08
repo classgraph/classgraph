@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -37,21 +37,34 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
 public class URLClassLoaderHandler implements ClassLoaderHandler {
+
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+     */
     @Override
     public String[] handledClassLoaders() {
         return new String[] { "java.net.URLClassLoader" };
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+     */
     @Override
     public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
         return null;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
+     */
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -37,7 +37,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue166Test.
+ */
 public class Issue166Test {
+
+    /**
+     * Issue 166 test.
+     */
     @Test
     public void issue166Test() {
         final URL jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");
@@ -46,6 +53,9 @@ public class Issue166Test {
         }
     }
 
+    /**
+     * Test non jar file on classpath.
+     */
     @Test
     public void testNonJarFileOnClasspath() {
         final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
@@ -54,6 +64,9 @@ public class Issue166Test {
         }
     }
 
+    /**
+     * Test non existent jar file on classpath.
+     */
     @Test
     public void testNonExistentJarFileOnClasspath() {
         final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");

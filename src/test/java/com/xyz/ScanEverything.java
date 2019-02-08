@@ -1,5 +1,8 @@
 package com.xyz;
 
+/**
+ * The Class ScanEverything.
+ */
 public class ScanEverything {
 
     //    @Test

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -45,24 +45,40 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderAndModuleFinder {
+
+    /** The context class loaders. */
     private final ClassLoader[] contextClassLoaders;
-    private final List<ModuleRef> systemModuleRefs;
-    private final List<ModuleRef> nonSystemModuleRefs;
+
+    /** The system module refs. */
+    private List<ModuleRef> systemModuleRefs;
+
+    /** The non system module refs. */
+    private List<ModuleRef> nonSystemModuleRefs;
 
     /**
+     * Get the context class loaders.
+     *
      * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
      */
     public ClassLoader[] getContextClassLoaders() {
         return contextClassLoaders;
     }
 
-    /** @return The system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8). */
+    /**
+     * Get the system modules as {@link ModuleRef} wrappers.
+     *
+     * @return The system modules as {@link ModuleRef} wrappers, or null if no modules were found (e.g. on JDK 7 or
+     *         8).
+     */
     public List<ModuleRef> getSystemModuleRefs() {
         return systemModuleRefs;
     }
 
     /**
-     * @return The non-system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8).
+     * Get the non-system modules as {@link ModuleRef} wrappers.
+     *
+     * @return The non-system modules as {@link ModuleRef} wrappers, or null if no modules were found (e.g. on JDK 7
+     *         or 8).
      */
     public List<ModuleRef> getNonSystemModuleRefs() {
         return nonSystemModuleRefs;
@@ -71,10 +87,21 @@ public class ClassLoaderAndModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively find the topological sort order of ancestral layers. The JDK (as of 10.0.0.1) uses a broken
-     * (non-topological) DFS ordering for layer resolution in ModuleLayer#layers() and
-     * Configuration#configurations() but when I reported this bug on the Jigsaw mailing list, Alan didn't see what
-     * the problem was...
+     * Recursively find the topological sort order of ancestral layers.
+     * 
+     * <p>
+     * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for layer resolution in
+     * ModuleLayer#layers() and Configuration#configurations() but when I reported this bug on the Jigsaw mailing
+     * list, Alan didn't see what the problem was.)
+     *
+     * @param layer
+     *            the layer
+     * @param layerVisited
+     *            layer visited
+     * @param parentLayers
+     *            the parent layers
+     * @param layerOrderOut
+     *            the layer order
      */
     private static void findLayerOrder(final Object /* ModuleLayer */ layer,
             final Set<Object> /* Set<ModuleLayer> */ layerVisited,
@@ -94,7 +121,17 @@ public class ClassLoaderAndModuleFinder {
         }
     }
 
-    /** Get all visible ModuleReferences in a list of layers. */
+    /**
+     * Get all visible ModuleReferences in a list of layers.
+     *
+     * @param layers
+     *            the layers
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     * @return the list
+     */
     private static List<ModuleRef> findModuleRefs(final List<Object> layers, final ScanSpec scanSpec,
             final LogNode log) {
         if (layers.isEmpty()) {
@@ -166,6 +203,14 @@ public class ClassLoaderAndModuleFinder {
 
     /**
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
+     *
+     * @param callStack
+     *            the call stack
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     * @return the list
      */
     private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final ScanSpec scanSpec,
             final LogNode log) {
@@ -186,7 +231,8 @@ public class ClassLoaderAndModuleFinder {
         Class<?> moduleLayerClass = null;
         try {
             moduleLayerClass = Class.forName("java.lang.ModuleLayer");
-        } catch (final Throwable e) {
+        } catch (ClassNotFoundException | LinkageError e) {
+            // Ignored
         }
         if (moduleLayerClass != null) {
             final Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
@@ -211,8 +257,6 @@ public class ClassLoaderAndModuleFinder {
     public ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog;
-        List<ModuleRef> systemModuleRefs = null;
-        List<ModuleRef> nonSystemModuleRefs = null;
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
@@ -348,7 +392,5 @@ public class ClassLoaderAndModuleFinder {
         }
 
         this.contextClassLoaders = classLoaderFinalOrder.toArray(new ClassLoader[0]);
-        this.systemModuleRefs = systemModuleRefs;
-        this.nonSystemModuleRefs = nonSystemModuleRefs;
     }
 }

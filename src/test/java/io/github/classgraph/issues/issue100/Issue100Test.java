@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,7 +41,14 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue100Test.
+ */
 public class Issue100Test {
+
+    /**
+     * Issue 100 test.
+     */
     @Test
     public void issue100Test() {
         final ClassLoader classLoader = Issue100Test.class.getClassLoader();

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -37,12 +37,19 @@ import java.lang.reflect.WildcardType;
 
 /** A mapping from {@link TypeVariable} to resolved {@link Type}. */
 class TypeResolutions {
+
+    /** The type variables. */
     private final TypeVariable<?>[] typeVariables;
+
+    /** The resolved type arguments. */
     Type[] resolvedTypeArguments;
 
     /**
      * Produce a list of type variable resolutions from a resolved type, by comparing its actual type parameters
      * with the generic (declared) parameters of its generic type.
+     *
+     * @param resolvedType
+     *            the resolved type
      */
     TypeResolutions(final ParameterizedType resolvedType) {
         typeVariables = ((Class<?>) resolvedType.getRawType()).getTypeParameters();
@@ -52,7 +59,13 @@ class TypeResolutions {
         }
     }
 
-    /** Resolve the type variables in a type using a type variable resolution list, producing a resolved type. */
+    /**
+     * Resolve the type variables in a type using a type variable resolution list, producing a resolved type.
+     *
+     * @param type
+     *            the type
+     * @return the resolved type
+     */
     Type resolveTypeVariables(final Type type) {
         if (type instanceof Class<?>) {
             // Arrays and non-generic classes have no type variables
@@ -134,6 +147,9 @@ class TypeResolutions {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         if (typeVariables.length == 0) {

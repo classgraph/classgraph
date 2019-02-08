@@ -36,41 +36,90 @@ import io.github.classgraph.ScanResult;
 @interface NormalAnnotation {
 }
 
+/**
+ * The Class DeclaredVsNonDeclared.
+ */
 public class DeclaredVsNonDeclared {
 
+    /**
+     * The Class A.
+     */
     @NormalAnnotation
     @InheritedAnnotation
     public abstract static class A {
+
+        /** The x. */
         float x;
 
+        /** The z. */
         String z;
 
+        /**
+         * Y.
+         *
+         * @param x
+         *            the x
+         * @param y
+         *            the y
+         */
         abstract void y(int x, int y);
 
+        /**
+         * Y.
+         *
+         * @param x
+         *            the x
+         */
         abstract void y(String x);
 
+        /**
+         * Y.
+         *
+         * @param x
+         *            the x
+         */
         abstract void y(Integer x);
 
+        /**
+         * W.
+         */
         @InheritedAnnotation
         abstract void w();
     }
 
+    /**
+     * The Class B.
+     */
     public abstract static class B extends A {
+
+        /** The x. */
         int x;
 
+        /* (non-Javadoc)
+         * @see io.github.classgraph.features.DeclaredVsNonDeclared.A#y(int, int)
+         */
         @Override
         void y(final int x, final int y) {
         }
 
+        /* (non-Javadoc)
+         * @see io.github.classgraph.features.DeclaredVsNonDeclared.A#w()
+         */
         @Override
         void w() {
         }
     }
 
+    /**
+     * The Class C.
+     */
     @NormalAnnotation
     public abstract static class C extends A {
     }
 
+    /**
+     * Declared vs non declared methods.
+     */
     @Test
     public void declaredVsNonDeclaredMethods() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
@@ -87,6 +136,9 @@ public class DeclaredVsNonDeclared {
         }
     }
 
+    /**
+     * Annotation infos should be able to differentiate between direct and reachable.
+     */
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
         final Extractor<AnnotationInfo, Object> annotationNameExtractor = new Extractor<AnnotationInfo, Object>() {
@@ -133,6 +185,9 @@ public class DeclaredVsNonDeclared {
         }
     }
 
+    /**
+     * Annotations should be able to differentiate between direct and reachable.
+     */
     @Test
     public void annotationsShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
@@ -153,11 +208,13 @@ public class DeclaredVsNonDeclared {
         }
     }
 
+    /**
+     * Load field and method.
+     */
     @Test
     public void loadFieldAndMethod() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
                 .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
-            final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
             assertThat(B.getFieldInfo("x").loadClassAndGetField().getName()).isEqualTo("x");
             assertThat(B.getMethodInfo("y").get(0).loadClassAndGetMethod().getName()).isEqualTo("y");

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -37,7 +37,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue245Test.
+ */
 public class Issue245Test {
+
+    /**
+     * Test custom package root.
+     */
     @Test
     public void testCustomPackageRoot() {
         final ClassLoader classLoader = Issue245Test.class.getClassLoader();

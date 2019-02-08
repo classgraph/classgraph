@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -34,7 +34,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.TypeUtils;
+import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
@@ -83,10 +85,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     private int[] parameterModifiers;
 
-    /** Unaligned parameter annotations */
+    /** Unaligned parameter annotations. */
     AnnotationInfo[][] parameterAnnotationInfo;
 
-    /** Aligned method parameter info */
+    /** Aligned method parameter info. */
     private transient MethodParameterInfo[] parameterInfo;
 
     /** True if this method has a body. */
@@ -99,6 +101,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Constructor.
+     *
      * @param definingClassName
      *            The name of the enclosing class.
      * @param methodName
@@ -167,11 +171,15 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public String getModifiersStr() {
         final StringBuilder buf = new StringBuilder();
-        modifiersToString(modifiers, isDefault(), buf);
+        TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         return buf.toString();
     }
 
-    /** @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this method). */
+    /**
+     * Get the {@link ClassInfo} object for the declaring class (i.e. the class that declares this method).
+     *
+     * @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this method).
+     */
     @Override
     public ClassInfo getClassInfo() {
         return super.getClassInfo();
@@ -470,6 +478,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Check if this method has the named annotation.
+     *
      * @param annotationName
      *            The name of an annotation.
      * @return true if this method has the named annotation.
@@ -479,6 +489,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Check if this method has a parameter with the named annotation.
+     *
      * @param annotationName
      *            The name of a method parameter annotation.
      * @return true if this method has a parameter with the named annotation.
@@ -504,8 +516,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public Method loadClassAndGetMethod() throws IllegalArgumentException {
         final MethodParameterInfo[] allParameterInfo = getParameterInfo();
         final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
-        for (final MethodParameterInfo parameterInfo : allParameterInfo) {
-            final TypeSignature parameterType = parameterInfo.getTypeSignatureOrTypeDescriptor();
+        for (final MethodParameterInfo mpi : allParameterInfo) {
+            final TypeSignature parameterType = mpi.getTypeSignatureOrTypeDescriptor();
             parameterClasses.add(parameterType.loadClass());
         }
         final Class<?>[] parameterClassesArr = parameterClasses.toArray(new Class<?>[0]);
@@ -525,12 +537,17 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /**
      * Returns the declaring class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
      * declaring class.
+     *
+     * @return the class name
      */
     @Override
     protected String getClassName() {
         return declaringClassName;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -561,7 +578,12 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         }
     }
 
-    /** Get the names of any classes in the type descriptor or type signature. */
+    /**
+     * Get the names of any classes in the type descriptor or type signature.
+     *
+     * @param classNames
+     *            the class names
+     */
     @Override
     protected void getReferencedClassNames(final Set<String> classNames) {
         final MethodTypeSignature methodSig = getTypeSignature();
@@ -573,15 +595,15 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             methodDesc.getReferencedClassNames(classNames);
         }
         if (annotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : annotationInfo) {
-                annotationInfo.getReferencedClassNames(classNames);
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.getReferencedClassNames(classNames);
             }
         }
-        for (final MethodParameterInfo parameterInfo : getParameterInfo()) {
-            final AnnotationInfo[] paramAnnotationInfo = parameterInfo.annotationInfo;
-            if (paramAnnotationInfo != null) {
-                for (final AnnotationInfo annotationInfo : paramAnnotationInfo) {
-                    annotationInfo.getReferencedClassNames(classNames);
+        for (final MethodParameterInfo mpi : getParameterInfo()) {
+            final AnnotationInfo[] aiArr = mpi.annotationInfo;
+            if (aiArr != null) {
+                for (final AnnotationInfo ai : aiArr) {
+                    ai.getReferencedClassNames(classNames);
                 }
             }
         }
@@ -589,7 +611,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Test class name, method name and type descriptor for equals(). */
+    /**
+     * Test class name, method name and type descriptor for equals().
+     *
+     * @param obj
+     *            the object to compare for equality
+     * @return true if equal
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -606,13 +634,23 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 && typeDescriptorStr.equals(other.typeDescriptorStr) && name.equals(other.name);
     }
 
-    /** Use hash code of class name, method name and type descriptor. */
+    /**
+     * Use hashcode of class name, method name and type descriptor.
+     *
+     * @return the hashcode
+     */
     @Override
     public int hashCode() {
         return name.hashCode() + typeDescriptorStr.hashCode() * 11 + declaringClassName.hashCode() * 57;
     }
 
-    /** Sort in order of class name, method name, then type descriptor. */
+    /**
+     * Sort in order of class name, method name, then type descriptor.
+     *
+     * @param other
+     *            the other {@link MethodInfo} to compare.
+     * @return the result of the comparison.
+     */
     @Override
     public int compareTo(final MethodInfo other) {
         final int diff0 = declaringClassName.compareTo(other.declaringClassName);
@@ -629,82 +667,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Convert modifiers into a string representation, e.g. "public static final".
-     * 
-     * @param modifiers
-     *            The field or method modifiers.
-     * @param buf
-     *            The buffer to write the result into.
-     */
-    static void modifiersToString(final int modifiers, final boolean isDefault, final StringBuilder buf) {
-        if ((modifiers & Modifier.PUBLIC) != 0) {
-            buf.append("public");
-        } else if ((modifiers & Modifier.PRIVATE) != 0) {
-            buf.append("private");
-        } else if ((modifiers & Modifier.PROTECTED) != 0) {
-            buf.append("protected");
-        }
-        if ((modifiers & Modifier.ABSTRACT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("abstract");
-        }
-        if ((modifiers & Modifier.STATIC) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("static");
-        }
-        if ((modifiers & Modifier.FINAL) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("final");
-        }
-        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synchronized");
-        }
-        if (isDefault) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("default");
-        }
-        if ((modifiers & 0x1000) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synthetic");
-        }
-        if ((modifiers & 0x40) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("bridge");
-        }
-        if ((modifiers & Modifier.NATIVE) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("native");
-        }
-        if ((modifiers & Modifier.STRICT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("strictfp");
-        }
-        // Ignored: 
-        // "ACC_VARARGS (0x0080) Declared with variable number of arguments."
-    }
-
-    /**
      * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
      * static class initializer blocks are named {@code "<clinit>"}.
+     *
+     * @return the string representation of the method.
      */
     @Override
     public String toString() {
@@ -725,7 +691,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            modifiersToString(modifiers, isDefault(), buf);
+            TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         }
 
         final List<TypeParameter> typeParameters = methodType.getTypeParameters();
@@ -792,8 +758,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             }
 
             if (paramInfo.annotationInfo != null) {
-                for (final AnnotationInfo annotationInfo : paramInfo.annotationInfo) {
-                    annotationInfo.toString(buf);
+                for (final AnnotationInfo ai : paramInfo.annotationInfo) {
+                    ai.toString(buf);
                     buf.append(' ');
                 }
             }

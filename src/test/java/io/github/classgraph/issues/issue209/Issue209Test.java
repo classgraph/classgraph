@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -38,7 +38,14 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue209Test.
+ */
 public class Issue209Test {
+
+    /**
+     * Test spring boot jar with lib jars.
+     */
     @Test
     public void testSpringBootJarWithLibJars() {
         try (ScanResult result = new ClassGraph().whitelistPackages( //

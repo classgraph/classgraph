@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -31,24 +31,44 @@ package nonapi.io.github.classgraph.json;
 /**
  * An object for wrapping a HashMap key so that the hashmap performs reference equality on the keys, not equals()
  * equality.
+ *
+ * @param <K>
+ *            the key type
  */
 class ReferenceEqualityKey<K> {
+
+    /** The wrapped key. */
     private final K wrappedKey;
 
+    /**
+     * Constructor.
+     *
+     * @param wrappedKey
+     *            the wrapped key
+     */
     public ReferenceEqualityKey(final K wrappedKey) {
         this.wrappedKey = wrappedKey;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return wrappedKey.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object other) {
         return other instanceof ReferenceEqualityKey && wrappedKey == ((ReferenceEqualityKey<?>) other).wrappedKey;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return wrappedKey.toString();

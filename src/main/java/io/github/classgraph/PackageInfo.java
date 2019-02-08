@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -102,7 +102,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * package-info.class file may be present in multiple definitions of the package in different modules.)
      *
      * @param classInfo
-     *            the class info
+     *            the {@link ClassInfo} object to add to the package.
      */
     void addClassInfo(final ClassInfo classInfo) {
         memberClassNameToClassInfo.put(classInfo.getName(), classInfo);
@@ -125,14 +125,14 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Get any annotations on the {@code package-info.class} file.
      *
-     * @return the annotation info
+     * @return the annotations on the {@code package-info.class} file.
      */
     public AnnotationInfoList getAnnotationInfo() {
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
     /**
-     * Checks for annotation.
+     * Check if the package has the named annotation.
      *
      * @param annotationName
      *            The name of an annotation.
@@ -147,7 +147,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * The parent package of this package, or null if this is the root package.
      *
-     * @return the parent
+     * @return the parent package, or null if this is the root package.
      */
     public PackageInfo getParent() {
         return parent;
@@ -156,7 +156,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * The child packages of this package, or the empty list if none.
      *
-     * @return the children
+     * @return the child packages, or the empty list if none.
      */
     public PackageInfoList getChildren() {
         if (children == null) {
@@ -177,11 +177,12 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
     /**
      * Get the {@link ClassInfo} object for the named class in this package, or null if the class was not found in
-     * this module.
+     * this package.
      *
      * @param className
      *            the class name
-     * @return the class info
+     * @return the {@link ClassInfo} object for the named class in this package, or null if the class was not found
+     *         in this package.
      */
     public ClassInfo getClassInfo(final String className) {
         return memberClassNameToClassInfo.get(className);
@@ -190,18 +191,17 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Get the {@link ClassInfo} objects for all classes that are members of this package.
      *
-     * @return the class info
+     * @return the {@link ClassInfo} objects for all classes that are members of this package.
      */
     public ClassInfoList getClassInfo() {
         return new ClassInfoList(new HashSet<>(memberClassNameToClassInfo.values()), /* sortByName = */ true);
     }
 
     /**
-     * Gets the class info recursive.
+     * Get the {@link ClassInfo} objects within this package recursively.
      *
      * @param reachableClassInfo
      *            the reachable class info
-     * @return the class info recursive
      */
     private void getClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
         reachableClassInfo.addAll(memberClassNameToClassInfo.values());
@@ -213,7 +213,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Get the {@link ClassInfo} objects for all classes that are members of this package or a sub-package.
      *
-     * @return the class info recursive
+     * @return the the {@link ClassInfo} objects for all classes that are members of this package or a sub-package.
      */
     public ClassInfoList getClassInfoRecursive() {
         final Set<ClassInfo> reachableClassInfo = new HashSet<>();
@@ -240,16 +240,16 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Get the {@link PackageInfo} object for the named package, also creating {@link PackageInfo} objects for any
-     * needed parent packages.
+     * Get the {@link PackageInfo} object for the named package, creating it if it doesn't exist, and also creating {@link PackageInfo} objects for any
+     * needed parent packages for which a {@link PackageInfo} has not yet been created.
      *
      * @param packageName
      *            the package name
      * @param packageNameToPackageInfo
-     *            the package name to package info map.
-     * @return the package
+     *            a map from package name to package info
+     * @return the {@link PackageInfo} for the named package.
      */
-    static PackageInfo getPackage(final String packageName,
+    static PackageInfo getOrCreatePackage(final String packageName,
             final Map<String, PackageInfo> packageNameToPackageInfo) {
         // Get or create PackageInfo object for this package
         PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
@@ -263,7 +263,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
         // Recursively create PackageInfo objects for parent packages (until a parent package that already
         // exists is reached), and connect each ancestral package to its parent
-        final PackageInfo parentPackageInfo = getPackage(getParentPackageName(packageInfo.name),
+        final PackageInfo parentPackageInfo = getOrCreatePackage(getParentPackageName(packageInfo.name),
                 packageNameToPackageInfo);
         if (parentPackageInfo != null) {
             // Link package to parent

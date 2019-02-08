@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -28,17 +28,21 @@
  */
 package io.github.classgraph;
 
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.types.TypeUtils;
+import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
+import nonapi.io.github.classgraph.utils.Join;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
+
+    /** The class info. */
     private final ClassInfo classInfo;
 
     /** The class type parameters. */
@@ -53,6 +57,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param classInfo
      *            the {@link ClassInfo} object of the class.
      * @param typeParameters
@@ -74,6 +80,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the type parameters for the class.
+     *
      * @return The type parameters for the class.
      */
     public List<TypeParameter> getTypeParameters() {
@@ -91,7 +99,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the type signatures of any superinterfaces
+     * Get the type signatures of any superinterfaces.
      * 
      * @return The type signatures of any superinterfaces.
      */
@@ -103,9 +111,11 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Parse a class type signature or class type descriptor.
-     * 
+     *
      * @param typeDescriptor
      *            The class type signature or class type descriptor to parse.
+     * @param classInfo
+     *            the class info
      * @return The parsed class type signature or class type descriptor.
      * @throws ParseException
      *             If the class type signature could not be parsed.
@@ -141,16 +151,25 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         return classInfo != null ? classInfo.getName() : null;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         return classInfo;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -169,6 +188,9 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
@@ -184,14 +206,23 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return typeParameters.hashCode() + superclassSignature.hashCode() * 7
                 + superinterfaceSignatures.hashCode() * 15;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ClassTypeSignature)) {
             return false;
         }
@@ -202,68 +233,6 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Convert modifiers into a string representation, e.g. "public static final".
-     * 
-     * @param modifiers
-     *            The field or method modifiers.
-     * @param buf
-     *            The buffer to write the result into.
-     */
-    static void modifiersToString(final int modifiers, final StringBuilder buf) {
-        if ((modifiers & Modifier.PUBLIC) != 0) {
-            buf.append("public");
-        } else if ((modifiers & Modifier.PRIVATE) != 0) {
-            buf.append("private");
-        } else if ((modifiers & Modifier.PROTECTED) != 0) {
-            buf.append("protected");
-        }
-        if ((modifiers & Modifier.ABSTRACT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("abstract");
-        }
-        if ((modifiers & Modifier.STATIC) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("static");
-        }
-        if ((modifiers & Modifier.FINAL) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("final");
-        }
-        if ((modifiers & 0x40) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("bridge");
-        }
-        if ((modifiers & 0x1000) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synthetic");
-        }
-        if ((modifiers & Modifier.NATIVE) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("native");
-        }
-        if ((modifiers & Modifier.STRICT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("strictfp");
-        }
-        // Ignored:
-        // "ACC_SUPER (0x0020): Treat superclass methods specially when invoked by the invokespecial instruction."
-    }
 
     /**
      * Render into String form.
@@ -285,7 +254,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         final StringBuilder buf = new StringBuilder();
         if (!typeNameOnly) {
             if (modifiers != 0) {
-                modifiersToString(modifiers, buf);
+                TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
             }
             if (buf.length() > 0) {
                 buf.append(' ');
@@ -298,14 +267,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             buf.append(className);
         }
         if (!typeParameters.isEmpty()) {
-            buf.append('<');
-            for (int i = 0; i < typeParameters.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                buf.append(typeParameters.get(i).toString());
-            }
-            buf.append('>');
+            Join.join(buf, "<", ", ", ">", typeParameters);
         }
         if (!typeNameOnly) {
             if (superclassSignature != null) {
@@ -317,17 +279,15 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             }
             if (!superinterfaceSignatures.isEmpty()) {
                 buf.append(isInterface ? " extends " : " implements ");
-                for (int i = 0; i < superinterfaceSignatures.size(); i++) {
-                    if (i > 0) {
-                        buf.append(", ");
-                    }
-                    buf.append(superinterfaceSignatures.get(i).toString());
-                }
+                Join.join(buf, "", ", ", "", superinterfaceSignatures);
             }
         }
         return buf.toString();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return toString(classInfo.getName(), /* typeNameOnly = */ false, classInfo.getModifiers(),

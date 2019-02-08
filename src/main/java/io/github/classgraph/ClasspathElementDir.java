@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -46,7 +46,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
+import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -66,7 +66,16 @@ class ClasspathElementDir extends ClasspathElement {
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final HashSet<String> scannedCanonicalPaths = new HashSet<>();
 
-    /** A directory classpath element. */
+    /**
+     * A directory classpath element.
+     *
+     * @param classpathEltDir
+     *            the classpath element directory
+     * @param classLoaders
+     *            the classloaders
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathElementDir(final File classpathEltDir, final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
         super(classLoaders, scanSpec);
         this.classpathEltDir = classpathEltDir;
@@ -78,8 +87,11 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
-    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
                 log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
@@ -100,7 +112,7 @@ class ClasspathElementDir extends ClasspathElement {
                         if (log != null) {
                             log.log("Found lib jar: " + file);
                         }
-                        workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                        workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
                                 /* rawClasspathEltPath = */ file.getPath(), /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                     }
@@ -113,15 +125,25 @@ class ClasspathElementDir extends ClasspathElement {
                 if (log != null) {
                     log.log("Found package root: " + packageRootDir);
                 }
-                workQueue.addWorkUnit(new RawClasspathElementWorkUnit(
+                workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
                         /* rawClasspathEltPath = */ packageRootDir.getPath(), /* parentClasspathElement = */ this,
                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
             }
         }
     }
 
-    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
-    private Resource newResource(final File classpathEltFile, final String relativePath,
+    /**
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     *
+     * @param classpathEltDir
+     *            the classpath element directory
+     * @param relativePath
+     *            the relative path
+     * @param classpathResourceFile
+     *            the classpath resource file
+     * @return the resource
+     */
+    private Resource newResource(final File classpathEltDir, final String relativePath,
             final File classpathResourceFile) {
         return new Resource() {
             private RandomAccessFile randomAccessFile;
@@ -144,10 +166,10 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    return new File(classpathEltFile, relativePath).toURI().toURL();
+                    return new File(classpathEltDir, relativePath).toURI().toURL();
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException(
-                            "Could not form URL for dir: " + classpathEltFile + " ; path: " + relativePath);
+                            "Could not form URL for dir: " + classpathEltDir + " ; path: " + relativePath);
                 }
             }
 
@@ -277,6 +299,8 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
+     * Get the {@link Resource} for a given relative path.
+     *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
@@ -290,7 +314,14 @@ class ClasspathElementDir extends ClasspathElement {
                 : null;
     }
 
-    /** Recursively scan a directory for file path patterns matching the scan spec. */
+    /**
+     * Recursively scan a directory for file path patterns matching the scan spec.
+     *
+     * @param dir
+     *            the directory
+     * @param log
+     *            the log
+     */
     private void scanDirRecursively(final File dir, final LogNode log) {
         if (skipClasspathElement) {
             return;
@@ -328,21 +359,9 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         // Whitelist/blacklist classpath elements based on dir resource paths
-        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-            if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(dirRelativePath)) {
-                if (log != null) {
-                    log.log("Reached blacklisted classpath element resource path, stopping scanning: "
-                            + dirRelativePath);
-                }
-                skipClasspathElement = true;
-                return;
-            }
-            if (scanSpec.classpathElementResourcePathWhiteBlackList.isSpecificallyWhitelisted(dirRelativePath)) {
-                if (log != null) {
-                    log.log("Reached specifically whitelisted classpath element resource path: " + dirRelativePath);
-                }
-                containsSpecificallyWhitelistedClasspathElementResourcePath = true;
-            }
+        checkResourcePathWhiteBlackList(dirRelativePath, log);
+        if (skipClasspathElement) {
+            return;
         }
 
         final ScanSpecPathMatch parentMatchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
@@ -367,7 +386,8 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         final LogNode subLog = log == null ? null
-                : log.log(canonicalPath, "Scanning directory: " + dir
+                // Log dirs after files (addWhitelistedResources precedes log entry with "0:file:")
+                : log.log("1:dir:" + canonicalPath, "Scanning directory: " + dir
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
         // Only scan files in directory if directory is not only an ancestor of a whitelisted path
@@ -381,25 +401,9 @@ class ClasspathElementDir extends ClasspathElement {
                             : dirRelativePath + fileInDir.getName();
 
                     // Whitelist/blacklist classpath elements based on file resource paths
-                    if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-                        if (scanSpec.classpathElementResourcePathWhiteBlackList
-                                .isBlacklisted(fileInDirRelativePath)) {
-                            if (subLog != null) {
-                                subLog.log(
-                                        "Reached blacklisted classpath element resource path, stopping scanning: "
-                                                + fileInDirRelativePath);
-                            }
-                            skipClasspathElement = true;
-                            return;
-                        }
-                        if (scanSpec.classpathElementResourcePathWhiteBlackList
-                                .isSpecificallyWhitelisted(fileInDirRelativePath)) {
-                            if (subLog != null) {
-                                subLog.log("Reached specifically whitelisted classpath element resource path: "
-                                        + fileInDirRelativePath);
-                            }
-                            containsSpecificallyWhitelistedClasspathElementResourcePath = true;
-                        }
+                    checkResourcePathWhiteBlackList(fileInDirRelativePath, subLog);
+                    if (skipClasspathElement) {
+                        return;
                     }
 
                     // If relative path is whitelisted
@@ -420,26 +424,44 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                 }
             }
+        } else if (scanSpec.enableClassInfo && dirRelativePath.equals("/")) {
+            // Always check for module descriptor in package root, even if package root isn't in whitelist
+            for (final File fileInDir : filesInDir) {
+                if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
+                    final Resource resource = newResource(classpathEltDir, "module-info.class", fileInDir);
+                    addWhitelistedResource(resource, parentMatchStatus, subLog);
+                    fileToLastModified.put(fileInDir, fileInDir.lastModified());
+                }
+            }
         }
         // Recurse into subdirectories
         for (final File fileInDir : filesInDir) {
             if (fileInDir.isDirectory()) {
                 scanDirRecursively(fileInDir, subLog);
-                if (subLog != null) {
-                    subLog.addElapsedTime();
-                }
-                // If a blacklisted classpath element resource path was found, stop scanning
+                // If a blacklisted classpath element resource path was found, it will set skipClasspathElement
                 if (skipClasspathElement) {
+                    if (subLog != null) {
+                        subLog.addElapsedTime();
+                    }
                     return;
                 }
             }
+        }
+
+        if (subLog != null) {
+            subLog.addElapsedTime();
         }
 
         // Save the last modified time of the directory
         fileToLastModified.put(dir, dir.lastModified());
     }
 
-    /** Hierarchically scan directory structure for classfiles and matching files. */
+    /**
+     * Hierarchically scan directory structure for classfiles and matching files.
+     *
+     * @param log
+     *            the log
+     */
     @Override
     void scanPaths(final LogNode log) {
         if (skipClasspathElement) {
@@ -455,32 +477,31 @@ class ClasspathElementDir extends ClasspathElement {
 
         scanDirRecursively(classpathEltDir, subLog);
 
-        if (subLog != null) {
-            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles or resources found");
-            } else if (whitelistedResources.isEmpty()) {
-                subLog.log("No whitelisted resources found");
-            } else if (whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles found");
-            }
-        }
-
-        if (subLog != null) {
-            subLog.addElapsedTime();
-        }
+        finishScanPaths(subLog);
     }
 
-    /** @return The classpath element directory as a {@link File}. */
+    /**
+     * Get the directory {@link File}.
+     *
+     * @return The classpath element directory as a {@link File}.
+     */
     public File getDirFile() {
         return classpathEltDir;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#getURI()
+     */
     @Override
     URI getURI() {
         return classpathEltDir.toURI();
     }
 
-    /** Return the classpath element directory. */
+    /**
+     * Return the classpath element directory as a String.
+     *
+     * @return the string
+     */
     @Override
     public String toString() {
         return classpathEltDir.toString();

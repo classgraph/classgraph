@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -39,11 +39,14 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** The name of the module. */
     private String name;
 
-    /** The location of the module. */
-    private URI location;
+    /** The classpath element. */
+    private transient ClasspathElement classpathElement;
 
     /** The {@link ModuleRef}. */
     private transient ModuleRef moduleRef;
+
+    /** The location of the module as a URI. */
+    private transient URI locationURI;
 
     /** {@link AnnotationInfo} objects for any annotations on the package-info.class file, if present, else null. */
     private AnnotationInfoList annotationInfo;
@@ -60,32 +63,47 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     ModuleInfo() {
     }
 
-    /** Construct a ModuleInfo object. */
+    /**
+     * Construct a ModuleInfo object.
+     *
+     * @param moduleRef
+     *            the module ref
+     * @param classpathElement
+     *            the classpath element
+     */
     ModuleInfo(final ModuleRef moduleRef, final ClasspathElement classpathElement) {
         this.moduleRef = moduleRef;
-        // Use moduleRef to get module name, or if not available, use module name from module-info.class 
-        // if available (stored in classpathElement.moduleName)
-        this.name = moduleRef != null ? moduleRef.getName() : classpathElement.moduleName;
-        if (this.name == null) {
-            this.name = "";
-        }
-        this.location = moduleRef != null ? moduleRef.getLocation() : classpathElement.getURI();
+        this.name = classpathElement.moduleName;
     }
 
-    /** The module name (or {@code ""} for the unnamed module). */
+    /**
+     * The module name, or {@code ""} for the unnamed module.
+     *
+     * @return the module name, or {@code ""} for the unnamed module.
+     */
     @Override
     public String getName() {
         return name;
     }
 
-    /** The module location, or null for modules whose location is unknown. */
+    /**
+     * The module location, or null for modules whose location is unknown.
+     *
+     * @return the module location, or null for modules whose location is unknown.
+     */
     public URI getLocation() {
-        return location;
+        if (locationURI == null) {
+            locationURI = moduleRef != null ? moduleRef.getLocation() : classpathElement.getURI();
+        }
+        return locationURI;
     }
 
     /**
      * The {@link ModuleRef} for this module, or null if this module was obtained from a classpath element on the
      * traditional classpath that contained a {@code module-info.class} file.
+     *
+     * @return the {@link ModuleRef}, or null if this module was obtained from a classpath element on the
+     *         traditional classpath that contained a {@code module-info.class} file.
      */
     public ModuleRef getModuleRef() {
         return moduleRef;
@@ -93,7 +111,12 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add a {@link ClassInfo} object to this {@link ModuleInfo}. */
+    /**
+     * Add a {@link ClassInfo} object to this {@link ModuleInfo}.
+     *
+     * @param classInfo
+     *            the {@link ClassInfo} object to add
+     */
     void addClassInfo(final ClassInfo classInfo) {
         classInfoSet.add(classInfo);
     }
@@ -101,11 +124,13 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Get the {@link ClassInfo} object for the named class in this module, or null if the class was not found in
      * this module.
+     *
+     * @param className
+     *            the class name
+     * @return the {@link ClassInfo} object for the named class in this module, or null if the class was not found
+     *         in this module.
      */
     public ClassInfo getClassInfo(final String className) {
-        if (classInfoSet == null) {
-            return null;
-        }
         for (final ClassInfo ci : classInfoSet) {
             if (ci.getName().equals(className)) {
                 return ci;
@@ -114,14 +139,23 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return null;
     }
 
-    /** Get the {@link ClassInfo} objects for all classes that are members of this package. */
+    /**
+     * Get the list of {@link ClassInfo} objects for all classes that are members of this package.
+     *
+     * @return the list of {@link ClassInfo} objects for all classes that are members of this package.
+     */
     public ClassInfoList getClassInfo() {
         return new ClassInfoList(classInfoSet, /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add a {@link PackageInfo} object to this {@link ModuleInfo}. */
+    /**
+     * Add a {@link PackageInfo} object to this {@link ModuleInfo}.
+     *
+     * @param packageInfo
+     *            the {@link PackageInfo} object
+     */
     void addPackageInfo(final PackageInfo packageInfo) {
         if (packageInfoSet == null) {
             packageInfoSet = new LinkedHashSet<>();
@@ -132,6 +166,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Get the {@link PackageInfo} object for the named package in this module, or null if the package was not found
      * in this module.
+     *
+     * @param packageName
+     *            the package name
+     * @return the {@link PackageInfo} object for the named package in this module, or null if the package was not
+     *         found in this module.
      */
     public PackageInfo getPackageInfo(final String packageName) {
         if (packageInfoSet == null) {
@@ -145,7 +184,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return null;
     }
 
-    /** Get the {@link PackageInfo} objects for all packages that are members of this module. */
+    /**
+     * Get the {@link PackageInfo} objects for all packages that are members of this module.
+     *
+     * @return the list of {@link PackageInfo} objects for all packages that are members of this module.
+     */
     public PackageInfoList getPackageInfo() {
         if (packageInfoSet == null) {
             return new PackageInfoList(1);
@@ -157,7 +200,12 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add annotations found in a module descriptor classfile. */
+    /**
+     * Add annotations found in a module descriptor classfile.
+     *
+     * @param moduleAnnotations
+     *            the module annotations
+     */
     void addAnnotations(final AnnotationInfoList moduleAnnotations) {
         // Currently only class annotations are used in the module-info.class file
         if (moduleAnnotations != null && !moduleAnnotations.isEmpty()) {
@@ -181,12 +229,18 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return getAnnotationInfo().get(annotationName);
     }
 
-    /** Get any annotations on the {@code package-info.class} file. */
+    /**
+     * Get any annotations on the {@code package-info.class} file.
+     *
+     * @return the list of {@link AnnotationInfo} objects for annotations on the {@code package-info.class} file.
+     */
     public AnnotationInfoList getAnnotationInfo() {
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
     /**
+     * Check if this module has the named annotation.
+     * 
      * @param annotationName
      *            The name of an annotation.
      * @return true if this module has the named annotation.
@@ -197,23 +251,34 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
     @Override
-    public int compareTo(final ModuleInfo o) {
-        final int diff = this.name.compareTo(o.name);
+    public int compareTo(final ModuleInfo other) {
+        final int diff = this.name.compareTo(other.name);
         if (diff != 0) {
             return diff;
-        } else if (this.location != null && o.location != null) {
-            return this.location.compareTo(o.location);
-        } else {
-            return (o.location == null ? 0 : 1) - (this.location == null ? 0 : 1);
         }
+        URI thisLoc = this.getLocation();
+        URI otherLoc = other.getLocation();
+        if (thisLoc != null && otherLoc != null) {
+            return thisLoc.compareTo(otherLoc);
+        }
+        return 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
-        return name.hashCode() * (location == null ? 1 : location.hashCode());
+        return name.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -224,8 +289,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return this.compareTo((ModuleInfo) o) == 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
-        return name + " [" + (location == null ? "" : location) + "]";
+        return name;
     }
 }

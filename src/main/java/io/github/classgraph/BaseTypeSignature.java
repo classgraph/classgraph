@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -40,6 +40,8 @@ public class BaseTypeSignature extends TypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param baseType
      *            the base type
      */
@@ -50,6 +52,8 @@ public class BaseTypeSignature extends TypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the type as a string.
+     *
      * @return The base type, such as "int", "float", or "void".
      */
     public String getTypeStr() {
@@ -57,6 +61,8 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     /**
+     * Get the type.
+     *
      * @return The class of the base type, such as int.class, float.class, or void.class.
      */
     public Class<?> getType() {
@@ -84,11 +90,17 @@ public class BaseTypeSignature extends TypeSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#loadClass()
+     */
     @Override
     Class<?> loadClass() {
         return getType();
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#loadClass(java.lang.Class)
+     */
     @Override
     <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
         final Class<?> type = getType();
@@ -103,7 +115,13 @@ public class BaseTypeSignature extends TypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Parse a base type. */
+    /**
+     * Parse a base type.
+     *
+     * @param parser
+     *            the parser
+     * @return the base type signature
+     */
     static BaseTypeSignature parse(final Parser parser) {
         switch (parser.peek()) {
         case 'B':
@@ -140,33 +158,52 @@ public class BaseTypeSignature extends TypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
+        // Don't return byte.class, int.class, etc. 
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return baseType.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         return obj instanceof BaseTypeSignature && ((BaseTypeSignature) obj).baseType.equals(this.baseType);
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.classgraph.TypeSignature)
+     */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
         if (!(other instanceof BaseTypeSignature)) {
@@ -175,6 +212,9 @@ public class BaseTypeSignature extends TypeSignature {
         return baseType.equals(((BaseTypeSignature) other).baseType);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return baseType;

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
 /**
@@ -42,11 +43,40 @@ import nonapi.io.github.classgraph.types.Parser;
  * https://github.com/azatoth/PanPG/blob/master/grammars/JSON.peg
  */
 class JSONParser extends Parser {
+
+    /**
+     * Constructor.
+     *
+     * @param string
+     *            the string
+     * @throws ParseException
+     *             if parsing fails
+     */
     private JSONParser(final String string) throws ParseException {
         super(string);
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get and parse a hexadecimal digit character.
+     *
+     * @return the hex char
+     * @throws ParseException
+     *             if the character was not hexadecimal
+     */
+    private int getAndParseHexChar() throws ParseException {
+        final char hexChar = getc();
+        if (hexChar >= '0' && hexChar <= '9') {
+            return hexChar - '0';
+        } else if (hexChar >= 'a' && hexChar <= 'f') {
+            return hexChar - 'a' + 10;
+        } else if (hexChar >= 'A' && hexChar <= 'F') {
+            return hexChar - 'A' + 10;
+        } else {
+            throw new ParseException(this, "Invalid character in Unicode escape sequence: " + hexChar);
+        }
+    }
 
     /**
      * Parse a quoted/escaped JSON string.
@@ -60,6 +90,10 @@ class JSONParser extends Parser {
      *     UnicodeEscape ← "u" [0-9A-Fa-f]{4}
      * 
      * </pre>
+     *
+     * @return the char sequence
+     * @throws ParseException
+     *             if the escape sequence was invalid
      */
     private CharSequence parseString() throws ParseException {
         skipWhitespace();
@@ -132,51 +166,10 @@ class JSONParser extends Parser {
                     break;
                 case 'u':
                     int charVal = 0;
-                    boolean charValInvalid = false;
-                    final char h3 = getc();
-                    if (h3 >= '0' && h3 <= '9') {
-                        charVal |= ((h3 - '0') << 12);
-                    } else if (h3 >= 'a' && h3 <= 'f') {
-                        charVal |= ((h3 - 'a' + 10) << 12);
-                    } else if (h3 >= 'A' && h3 <= 'F') {
-                        charVal |= ((h3 - 'A' + 10) << 12);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    final char h2 = getc();
-                    if (h2 >= '0' && h2 <= '9') {
-                        charVal |= ((h2 - '0') << 8);
-                    } else if (h2 >= 'a' && h2 <= 'f') {
-                        charVal |= ((h2 - 'a' + 10) << 8);
-                    } else if (h2 >= 'A' && h2 <= 'F') {
-                        charVal |= ((h2 - 'A' + 10) << 8);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    final char h1 = getc();
-                    if (h1 >= '0' && h1 <= '9') {
-                        charVal |= ((h1 - '0') << 4);
-                    } else if (h1 >= 'a' && h1 <= 'f') {
-                        charVal |= ((h1 - 'a' + 10) << 4);
-                    } else if (h1 >= 'A' && h1 <= 'F') {
-                        charVal |= ((h1 - 'A' + 10) << 4);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    final char h0 = getc();
-                    if (h0 >= '0' && h0 <= '9') {
-                        charVal |= (h0 - '0');
-                    } else if (h0 >= 'a' && h0 <= 'f') {
-                        charVal |= (h0 - 'a' + 10);
-                    } else if (h0 >= 'A' && h0 <= 'F') {
-                        charVal |= (h0 - 'A' + 10);
-                    } else {
-                        charValInvalid = true;
-                    }
-                    if (charValInvalid) {
-                        throw new ParseException(this,
-                                "Invalid Unicode escape sequence: \\" + c + "" + h3 + "" + h2 + "" + h1 + "" + h0);
-                    }
+                    charVal = getAndParseHexChar() << 12;
+                    charVal |= getAndParseHexChar() << 8;
+                    charVal |= getAndParseHexChar() << 4;
+                    charVal |= getAndParseHexChar();
                     buf.append((char) charVal);
                     break;
                 default:
@@ -210,8 +203,12 @@ class JSONParser extends Parser {
      *     ExponentPart ← ( "e" / "E" ) ( "+" / "-" )? [0-9]+
      * 
      * </pre>
+     *
+     * @return the number
+     * @throws ParseException
+     *             if parsing fails
      */
-    private Object parseNumber() throws ParseException {
+    private Number parseNumber() throws ParseException {
         final int startIdx = getPosition();
         if (peek() == '-') {
             next();
@@ -286,6 +283,12 @@ class JSONParser extends Parser {
      *     Array ← "[" ( JSON ( "," JSON )* / S? ) "]"
      * 
      * </pre>
+     * 
+     * .
+     *
+     * @return the JSON array
+     * @throws ParseException
+     *             if parsing fails
      */
     private JSONArray parseJSONArray() throws ParseException {
         expect('[');
@@ -320,6 +323,10 @@ class JSONParser extends Parser {
      *     Object ← "{" ( String ":" JSON ( "," String ":" JSON )* / S? ) "}"
      * 
      * </pre>
+     *
+     * @return the JSON object
+     * @throws ParseException
+     *             if parsing fails
      */
 
     private JSONObject parseJSONObject() throws ParseException {
@@ -372,12 +379,16 @@ class JSONParser extends Parser {
      * <p>
      * String values will have CharSequence type. Numerical values will have Integer, Long or Double type. Can
      * return null for JSON null value.
-     *
+     * 
      * <pre>
      * 
      *     JSON ← S? ( Object / Array / String / True / False / Null / Number ) S?
-     *
+     * 
      * </pre>
+     *
+     * @return the parsed JSON object
+     * @throws ParseException
+     *             if parsing fails
      */
     private Object parseJSON() throws ParseException {
         skipWhitespace();
@@ -423,7 +434,15 @@ class JSONParser extends Parser {
         }
     }
 
-    /** Parse a JSON object, array, string, value or object reference. */
+    /**
+     * Parse a JSON object, array, string, value or object reference.
+     *
+     * @param str
+     *            the str
+     * @return the parsed JSON object
+     * @throws ParseException
+     *             if parsing fails
+     */
     static Object parseJSON(final String str) throws ParseException {
         return new JSONParser(str).parseJSON();
     }

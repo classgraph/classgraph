@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -32,21 +32,41 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.TypeUtils;
+import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
 public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>, HasName {
+
+    /** The declaring class name. */
     private String declaringClassName;
+
+    /** The name of the field. */
     private String name;
+
+    /** The modifiers. */
     private int modifiers;
+
+    /** The type signature string. */
     private String typeSignatureStr;
+
+    /** The type descriptor string. */
     private String typeDescriptorStr;
+
+    /** The parsed type signature. */
     private transient TypeSignature typeSignature;
+
+    /** The parsed type descriptor. */
     private transient TypeSignature typeDescriptor;
+
+    /** The constant initializer value for the field, if any. */
     private ObjectTypedValueWrapper constantInitializerValue;
+
+    /** The annotation on the field, if any. */
     AnnotationInfoList annotationInfo;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -56,6 +76,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Constructor.
+     *
      * @param definingClassName
      *            The class the field is defined within.
      * @param fieldName
@@ -91,6 +113,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the name of the field.
+     *
      * @return The name of the field.
      */
     @Override
@@ -98,7 +122,11 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return name;
     }
 
-    /** @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this field). */
+    /**
+     * Get the {@link ClassInfo} object for the declaring class (i.e. the class that declares this field).
+     *
+     * @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this field).
+     */
     @Override
     public ClassInfo getClassInfo() {
         return super.getClassInfo();
@@ -107,63 +135,13 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Convert modifiers into a string representation, e.g. "public static final".
-     * 
-     * @param modifiers
-     *            The field or method modifiers.
-     * @param buf
-     *            The buffer to write the result into.
-     */
-    static void modifiersToString(final int modifiers, final StringBuilder buf) {
-        if ((modifiers & Modifier.PUBLIC) != 0) {
-            buf.append("public");
-        } else if ((modifiers & Modifier.PRIVATE) != 0) {
-            buf.append("private");
-        } else if ((modifiers & Modifier.PROTECTED) != 0) {
-            buf.append("protected");
-        }
-        if ((modifiers & Modifier.STATIC) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("static");
-        }
-        if ((modifiers & Modifier.FINAL) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("final");
-        }
-        if ((modifiers & Modifier.VOLATILE) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("volatile");
-        }
-        if ((modifiers & Modifier.TRANSIENT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("transient");
-        }
-        if ((modifiers & 0x1000) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synthetic");
-        }
-        // Ignored:
-        // "ACC_ENUM (0x4000) Declared as an element of an enum."
-    }
-
-    /**
      * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
      * 
      * @return The field modifiers, as a string.
      */
     public String getModifierStr() {
         final StringBuilder buf = new StringBuilder();
-        modifiersToString(modifiers, buf);
+        TypeUtils.modifiersToString(modifiers, ModifierType.FIELD, /* ignored */ false, buf);
         return buf.toString();
     }
 
@@ -312,6 +290,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Check if the field has a given named annotation.
+     *
      * @param annotationName
      *            The name of an annotation.
      * @return true if this field has the named annotation.
@@ -346,12 +326,17 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     /**
      * Returns the name of the declaring class, so that super.getClassInfo() returns the {@link ClassInfo} object
      * for the declaring class.
+     *
+     * @return the name of the declaring class.
      */
     @Override
     protected String getClassName() {
         return declaringClassName;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -368,7 +353,12 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
     }
 
-    /** Get the names of any classes in the type descriptor or type signature. */
+    /**
+     * Get the names of any classes in the type descriptor or type signature.
+     *
+     * @param classNames
+     *            the names of any classes in the type descriptor or type signature.
+     */
     @Override
     protected void getReferencedClassNames(final Set<String> classNames) {
         final TypeSignature methodSig = getTypeSignature();
@@ -380,15 +370,21 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             methodDesc.getReferencedClassNames(classNames);
         }
         if (annotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : annotationInfo) {
-                annotationInfo.getReferencedClassNames(classNames);
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.getReferencedClassNames(classNames);
             }
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Use class name and field name for equals(). */
+    /**
+     * Use class name and field name for equals().
+     *
+     * @param obj
+     *            the object to compare to
+     * @return true if equal
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -404,13 +400,23 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return declaringClassName.equals(other.declaringClassName) && name.equals(other.name);
     }
 
-    /** Use hash code of class name and field name. */
+    /**
+     * Use hash code of class name and field name.
+     *
+     * @return the hashcode
+     */
     @Override
     public int hashCode() {
         return name.hashCode() + declaringClassName.hashCode() * 11;
     }
 
-    /** Sort in order of class name then field name */
+    /**
+     * Sort in order of class name then field name.
+     *
+     * @param other
+     *            the other FieldInfo object to compare to.
+     * @return the result of comparison.
+     */
     @Override
     public int compareTo(final FieldInfo other) {
         final int diff = declaringClassName.compareTo(other.declaringClassName);
@@ -420,6 +426,9 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return name.compareTo(other.name);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
@@ -437,7 +446,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            modifiersToString(modifiers, buf);
+            TypeUtils.modifiersToString(modifiers, ModifierType.FIELD, /* ignored */ false, buf);
         }
 
         if (buf.length() > 0) {

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
 
 /** A type argument. */
 public class TypeArgument extends HierarchicalTypeSignature {
@@ -42,11 +42,14 @@ public class TypeArgument extends HierarchicalTypeSignature {
     public enum Wildcard {
         /** No wildcard. */
         NONE,
-        /** The '?' wildcard */
+
+        /** The '?' wildcard. */
         ANY,
-        /** extends */
+
+        /** extends. */
         EXTENDS,
-        /** super */
+
+        /** super. */
         SUPER
     }
 
@@ -59,6 +62,8 @@ public class TypeArgument extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param wildcard
      *            The wildcard type
      * @param typeSignature
@@ -163,17 +168,26 @@ public class TypeArgument extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -182,6 +196,9 @@ public class TypeArgument extends HierarchicalTypeSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
         if (typeSignature != null) {
@@ -191,11 +208,17 @@ public class TypeArgument extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return typeSignature.hashCode() + 7 * wildcard.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof TypeArgument)) {
@@ -205,6 +228,9 @@ public class TypeArgument extends HierarchicalTypeSignature {
         return (o.typeSignature.equals(this.typeSignature) && o.wildcard.equals(this.wildcard));
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         switch (wildcard) {

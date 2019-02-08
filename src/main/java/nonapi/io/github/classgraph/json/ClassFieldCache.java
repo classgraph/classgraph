@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -60,12 +60,25 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TransferQueue;
 
+/**
+ * A cache of field types and associated constructors for each encountered class, used to speed up constructor
+ * lookup.
+ */
 class ClassFieldCache {
+
+    /** The map from class ref to class fields. */
     private final Map<Class<?>, ClassFields> classToClassFields = new HashMap<>();
+
+    /** Whether or not to resolve types. */
     private final boolean resolveTypes;
+
+    /** Whether or not to serialize public fields. */
     private final boolean onlySerializePublicFields;
 
+    /** The default constructor for each concrete type. */
     private final Map<Class<?>, Constructor<?>> defaultConstructorForConcreteType = new HashMap<>();
+
+    /** The constructor with size hint for each concrete type. */
     private final Map<Class<?>, Constructor<?>> constructorForConcreteTypeWithSizeHint = new HashMap<>();
 
     /** Placeholder constructor to signify no constructor was found previously. */
@@ -81,8 +94,10 @@ class ClassFieldCache {
 
     /** Placeholder class to signify no constructor was found previously. */
     private static class NoConstructor {
+        /** Constructor for NoConstructor class. */
         @SuppressWarnings("unused")
         public NoConstructor() {
+            // Empty
         }
     }
 
@@ -103,6 +118,10 @@ class ClassFieldCache {
     /**
      * For a given resolved type, find the visible and accessible fields, resolve the types of any generically typed
      * fields, and return the resolved fields.
+     *
+     * @param cls
+     *            the cls
+     * @return the class fields
      */
     ClassFields get(final Class<?> cls) {
         ClassFields classFields = classToClassFields.get(cls);
@@ -113,7 +132,15 @@ class ClassFieldCache {
         return classFields;
     }
 
-    /** Get the concrete type for a map or collection whose raw type is an interface or abstract class. */
+    /**
+     * Get the concrete type for a map or collection whose raw type is an interface or abstract class.
+     *
+     * @param rawType
+     *            the raw type
+     * @param returnNullIfNotMapOrCollection
+     *            return null if not map or collection
+     * @return the concrete type
+     */
     private static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
         if (rawType == Map.class || rawType == AbstractMap.class) {
             return HashMap.class;
@@ -140,13 +167,16 @@ class ClassFieldCache {
         } else if (rawType == TransferQueue.class) {
             return LinkedTransferQueue.class;
         } else {
-            return rawType;
+            return returnNullIfNotMapOrCollection ? null : rawType;
         }
     }
 
     /**
      * Get the concrete type of the given class, then return the default constructor for that type.
-     * 
+     *
+     * @param cls
+     *            the class
+     * @return the default constructor for concrete type of class
      * @throws IllegalArgumentException
      *             if no default constructor is both found and accessible.
      */
@@ -166,6 +196,7 @@ class ClassFieldCache {
                 defaultConstructorForConcreteType.put(cls, defaultConstructor);
                 return defaultConstructor;
             } catch (final Exception e) {
+                // Ignore
             }
         }
         throw new IllegalArgumentException(
@@ -176,6 +207,10 @@ class ClassFieldCache {
      * Get the concrete type of the given class, then return the constructor for that type that takes a single
      * integer parameter (the initial size hint, for Collection or Map). Returns null if not a Collection or Map, or
      * there is no constructor with size hint.
+     *
+     * @param cls
+     *            the class
+     * @return the constructor with size hint for concrete type of class
      */
     Constructor<?> getConstructorWithSizeHintForConcreteTypeOf(final Class<?> cls) {
         // Check cache
@@ -196,6 +231,7 @@ class ClassFieldCache {
                     constructorForConcreteTypeWithSizeHint.put(cls, constructorWithSizeHint);
                     return constructorWithSizeHint;
                 } catch (final Exception e) {
+                    // Ignore
                 }
             }
         }

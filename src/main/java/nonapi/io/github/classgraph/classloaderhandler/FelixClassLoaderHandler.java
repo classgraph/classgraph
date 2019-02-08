@@ -47,6 +47,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author elrufaie
  */
 public class FelixClassLoaderHandler implements ClassLoaderHandler {
+
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+     */
     @Override
     public String[] handledClassLoaders() {
         return new String[] { //
@@ -54,23 +58,49 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                 "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader" };
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+     */
     @Override
     public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
         return null;
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
+     */
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
 
+    /** The bundles. */
     final Set<Object> bundles = new HashSet<>();
 
+    /**
+     * Get the content location.
+     *
+     * @param content
+     *            the content object
+     * @return the content location
+     */
     private String getContentLocation(final Object content) {
         final File file = (File) ReflectionUtils.invokeMethod(content, "getFile", false);
         return file != null ? file.toURI().toString() : null;
     }
 
+    /**
+     * Adds the bundle.
+     *
+     * @param bundleWiring
+     *            the bundle wiring
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrderOut
+     *            the classpath order out
+     * @param log
+     *            the log
+     */
     private void addBundle(final Object bundleWiring, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         // Track the bundles we've processed to prevent loops
@@ -101,6 +131,9 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /* (non-Javadoc)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {

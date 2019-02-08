@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.Join;
 
 /**
  * Information on the module path. Note that this will only include module system parameters actually listed in
@@ -48,7 +49,7 @@ public class ModulePathInfo {
      * set of module names, in the order they were listed on the commandline.
      * 
      * <p>
-     * Note that some modules (such as system modules) will not be in this list, as they are added to the module
+     * Note that some modules (such as system modules) will not be in this set, as they are added to the module
      * system automatically by the runtime. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()}
      * to get all modules visible at runtime.
      */
@@ -63,7 +64,7 @@ public class ModulePathInfo {
     public final Set<String> addModules = new LinkedHashSet<>();
 
     /**
-     * The module patch directives listed on the commandline using the {@code --patch-modules} switch, as an ordered
+     * The module patch directives listed on the commandline using the {@code --patch-module} switch, as an ordered
      * set of strings in the format {@code <module>=<file>}, in the order they were listed on the commandline.
      */
     public final Set<String> patchModules = new LinkedHashSet<>();
@@ -74,7 +75,7 @@ public class ModulePathInfo {
      * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
      * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
      * additional {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to
-     * this list.
+     * this list, in the format `<source-module>/<package>=ALL-UNNAMED`.
      */
     public final Set<String> addExports = new LinkedHashSet<>();
 
@@ -84,7 +85,7 @@ public class ModulePathInfo {
      * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
      * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
      * additional {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to
-     * this list.
+     * this list, in the format `<source-module>/<package>=ALL-UNNAMED`.
      */
     public final Set<String> addOpens = new LinkedHashSet<>();
 
@@ -95,6 +96,7 @@ public class ModulePathInfo {
      */
     public final Set<String> addReads = new LinkedHashSet<>();
 
+    /** The fields. */
     private final List<Set<String>> fields = Arrays.asList( //
             modulePath, //
             addModules, //
@@ -103,6 +105,8 @@ public class ModulePathInfo {
             addOpens, //
             addReads //
     );
+
+    /** The module path commandline switches. */
     private static final List<String> argSwitches = Arrays.asList( //
             "--module-path=", //
             "--add-modules=", //
@@ -111,9 +115,11 @@ public class ModulePathInfo {
             "--add-opens=", //
             "--add-reads=" //
     );
+
+    /** The module path commandline switch value delimiters. */
     private static final List<Character> argPartSeparatorChars = Arrays.asList( //
-            File.pathSeparatorChar, // --module-path
-            ',', // --add-modules
+            File.pathSeparatorChar, // --module-path (delimited path format)
+            ',', // --add-modules (comma-delimited)
             '\0', // --patch-module (only one param per switch)
             '\0', // --add-exports (only one param per switch)
             '\0', // --add-opens (only one param per switch)
@@ -142,5 +148,49 @@ public class ModulePathInfo {
                 }
             }
         }
+    }
+
+    /**
+     * Return the module path info in commandline format.
+     *
+     * @return the module path commandline string.
+     */
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        if (!modulePath.isEmpty()) {
+            buf.append("--module-path=" + Join.join(File.pathSeparator, modulePath));
+        }
+        if (!addModules.isEmpty()) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-modules=" + Join.join(",", addModules));
+        }
+        for (final String patchModulesEntry : patchModules) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--patch-module=" + patchModulesEntry);
+        }
+        for (final String addExportsEntry : addExports) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-exports=" + addExportsEntry);
+        }
+        for (final String addOpensEntry : addOpens) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-opens=" + addOpensEntry);
+        }
+        for (final String addReadsEntry : addReads) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("--add-reads=" + addReadsEntry);
+        }
+        return buf.toString();
     }
 }

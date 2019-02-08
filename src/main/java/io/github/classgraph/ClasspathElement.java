@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -40,7 +40,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
+import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -98,15 +98,25 @@ abstract class ClasspathElement {
     /** The classloader(s) handling this classpath element. */
     protected ClassLoader[] classLoaders;
 
-    /** The module name, read from module-info.class if present. */
-    String moduleName;
+    /**
+     * The name of the module, if this is a {@link ClasspathElementModule}, or the module name from the
+     * {@code module-info.class} module descriptor, if one is present in the root of the classpath element.
+     */
+    String moduleName = "";
 
     /** The scan spec. */
     final ScanSpec scanSpec;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A classpath element (a directory or jarfile on the classpath). */
+    /**
+     * A classpath element (a directory or jarfile on the classpath).
+     *
+     * @param classLoaders
+     *            the classloaders
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathElement(final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
         this.classLoaders = classLoaders;
         this.scanSpec = scanSpec;
@@ -119,18 +129,28 @@ abstract class ClasspathElement {
      * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes". N.B. for non-modules, this
      * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the
      * package root (after extracting nested jars).
+     *
+     * @return the package root
      */
     String getPackageRoot() {
         // Overridden in ClasspathElementZip
         return "";
     }
 
-    /** Get the ClassLoader(s) to use when trying to load the class. */
+    /**
+     * Get the ClassLoader(s) to use when trying to load the class.
+     *
+     * @return the classloaders
+     */
     ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
 
-    /** Get the number of classfile matches. */
+    /**
+     * Get the number of classfile matches.
+     *
+     * @return the num classfile matches
+     */
     int getNumClassfileMatches() {
         return whitelistedClassfileResources == null ? 0 : whitelistedClassfileResources.size();
     }
@@ -138,13 +158,47 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check relativePath against classpathElementResourcePathWhiteBlackList.
+     *
+     * @param relativePath
+     *            the relative path
+     * @param log
+     *            the log
+     */
+    protected void checkResourcePathWhiteBlackList(final String relativePath, final LogNode log) {
+        // Whitelist/blacklist classpath elements based on file resource paths
+        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
+            if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(relativePath)) {
+                if (log != null) {
+                    log.log("Reached blacklisted classpath element resource path, stopping scanning: "
+                            + relativePath);
+                }
+                skipClasspathElement = true;
+                return;
+            }
+            if (scanSpec.classpathElementResourcePathWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
+                if (log != null) {
+                    log.log("Reached specifically whitelisted classpath element resource path: " + relativePath);
+                }
+                containsSpecificallyWhitelistedClasspathElementResourcePath = true;
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
      * earlier classpath element.
-     * 
-     * @return the masked classfile resources.
+     *
+     * @param classpathIdx
+     *            the classpath index
+     * @param classpathRelativePathsFound
+     *            the classpath relative paths found
+     * @param log
+     *            the log
      */
-    static List<Resource> maskClassfiles(final ScanSpec scanSpec, final int classpathIdx,
-            final List<Resource> classfileResources, final HashSet<String> classpathRelativePathsFound,
+    void maskClassfiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound,
             final LogNode log) {
         if (!scanSpec.performScan) {
             // Should not happen
@@ -155,10 +209,10 @@ abstract class ClasspathElement {
         // but actually there is no restriction for paths within a zipfile to be unique, and in fact
         // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
         // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
-        final BitSet masked = new BitSet(classfileResources.size());
+        final BitSet masked = new BitSet(whitelistedClassfileResources.size());
         boolean foundMasked = false;
-        for (int i = 0; i < classfileResources.size(); i++) {
-            final Resource res = classfileResources.get(i);
+        for (int i = 0; i < whitelistedClassfileResources.size(); i++) {
+            final Resource res = whitelistedClassfileResources.get(i);
             final String pathRelativeToPackageRoot = res.getPath();
             // Don't mask module-info.class or package-info.class, these are read for every module/package
             if (!pathRelativeToPackageRoot.equals("module-info.class")
@@ -180,53 +234,98 @@ abstract class ClasspathElement {
             }
         }
         if (!foundMasked) {
-            return classfileResources;
+            return;
         }
         // Remove masked (duplicated) paths
         final List<Resource> maskedClassfileResources = new ArrayList<>();
-        for (int i = 0; i < classfileResources.size(); i++) {
+        for (int i = 0; i < whitelistedClassfileResources.size(); i++) {
             if (!masked.get(i)) {
-                maskedClassfileResources.add(classfileResources.get(i));
+                maskedClassfileResources.add(whitelistedClassfileResources.get(i));
             }
         }
-        return maskedClassfileResources;
-    }
-
-    /** Implement masking for classfiles defined more than once on the classpath. */
-    void maskClassfiles(final int classpathIdx, final HashSet<String> whitelistedClasspathRelativePathsFound,
-            final HashSet<String> nonBlacklistedClasspathRelativePathsFound, final LogNode maskLog) {
-        // Mask whitelisted classfile resources
-        whitelistedClassfileResources = ClasspathElement.maskClassfiles(scanSpec, classpathIdx,
-                whitelistedClassfileResources, whitelistedClasspathRelativePathsFound, maskLog);
+        whitelistedClassfileResources = maskedClassfileResources;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add a resource discovered during the scan. */
+    /**
+     * Add a resource discovered during the scan.
+     *
+     * @param resource
+     *            the resource
+     * @param parentMatchStatus
+     *            the parent match status
+     * @param log
+     *            the log
+     */
     protected void addWhitelistedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final LogNode log) {
         final String path = resource.getPath();
         final boolean isClassFile = FileUtils.isClassfile(path);
+        boolean isWhitelisted = false;
         if (isClassFile) {
+            // Check classfile scanning is enabled, and classfile is not specifically blacklisted
             if (scanSpec.enableClassInfo && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path)) {
                 // ClassInfo is enabled, and found a whitelisted classfile
                 whitelistedClassfileResources.add(resource);
-                if (log != null) {
-                    log.log(path,
-                            "Found whitelisted classfile: " + path
-                                    + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
-                }
+                isWhitelisted = true;
             }
         } else {
-            if (log != null) {
-                log.log(path,
-                        "Found whitelisted resource:  " + path
-                                + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                                        : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+            // Resources are always whitelisted if found in whitelisted directories
+            isWhitelisted = true;
+        }
+
+        // Add resource to whitelistedResources, whether for a classfile or non-classfile resource
+        whitelistedResources.add(resource);
+
+        // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not
+        // a blacklisted classfile
+        if (log != null && isWhitelisted) {
+            final String type = isClassFile ? "classfile" : "resource";
+            String logStr;
+            switch (parentMatchStatus) {
+            case HAS_WHITELISTED_PATH_PREFIX:
+                logStr = "Found " + type + " within subpackage of whitelisted package: ";
+                break;
+            case AT_WHITELISTED_PATH:
+                logStr = "Found " + type + " within whitelisted package: ";
+                break;
+            case AT_WHITELISTED_CLASS_PACKAGE:
+                logStr = "Found specifically-whitelisted " + type + ": ";
+                break;
+            default:
+                logStr = "Found whitelisted " + type + ": ";
+                break;
+            }
+            // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
+            // ClasspathElementDir classpath elements
+            log.log("0:file:" + path,
+                    logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
+                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Called by scanPaths() after scan completion.
+     *
+     * @param log
+     *            the log
+     */
+    protected void finishScanPaths(final LogNode log) {
+        if (log != null) {
+            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
+                log.log("No whitelisted classfiles or resources found");
+            } else if (whitelistedResources.isEmpty()) {
+                log.log("No whitelisted resources found");
+            } else if (whitelistedClassfileResources.isEmpty()) {
+                log.log("No whitelisted classfiles found");
             }
         }
-        whitelistedResources.add(resource);
+        if (log != null) {
+            log.addElapsedTime();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -236,16 +335,29 @@ abstract class ClasspathElement {
      * {@link ClasspathElementZip}, may also open or extract inner jars, and also causes jarfile manifests to be
      * read to look for Class-Path entries. If nested jars or Class-Path entries are found, they are added to the
      * work queue. This method is only run once per classpath element, from a single thread.
+     *
+     * @param workQueue
+     *            the work queue
+     * @param log
+     *            the log
+     * @throws InterruptedException
+     *             if the thread was interrupted while trying to open the classpath element.
      */
-    abstract void open(final WorkQueue<RawClasspathElementWorkUnit> workQueue, final LogNode log);
+    abstract void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log)
+            throws InterruptedException;
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for
      * whitelisted and non-blacklisted resources and classfiles.
+     *
+     * @param log
+     *            the log
      */
     abstract void scanPaths(final LogNode log);
 
     /**
+     * Get the {@link Resource} for a given relative path.
+     *
      * @param relativePath
      *            The relative path of the {@link Resource} to return. Path should have already be sanitized by
      *            calling {@link FileUtils#sanitizeEntryPath(String, boolean)}, or by providing a path that is
@@ -255,6 +367,10 @@ abstract class ClasspathElement {
      */
     abstract Resource getResource(final String relativePath);
 
-    /** Get the URL string for this classpath element. */
+    /**
+     * Get the URI for this classpath element.
+     *
+     * @return the URI for the classpath element.
+     */
     abstract URI getURI();
 }

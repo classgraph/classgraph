@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -62,10 +62,20 @@ import io.github.classgraph.test.whitelisted.Whitelisted;
 import io.github.classgraph.test.whitelisted.WhitelistedInterface;
 import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
+/**
+ * The Class ClassGraphTest.
+ */
 public class ClassGraphTest {
+
+    /** The Constant ROOT_PACKAGE. */
     private static final String ROOT_PACKAGE = ClassGraphTest.class.getPackage().getName();
+
+    /** The Constant WHITELIST_PACKAGE. */
     private static final String WHITELIST_PACKAGE = Whitelisted.class.getPackage().getName();
 
+    /**
+     * Scan.
+     */
     @Test
     public void scan() {
         try (ScanResult scanResult = new ClassGraph().enableClassInfo().scan()) {
@@ -78,6 +88,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan with whitelist.
+     */
     @Test
     public void scanWithWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
@@ -90,6 +103,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan with whitelist and blacklist.
+     */
     @Test
     public void scanWithWhitelistAndBlacklist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
@@ -103,6 +119,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan sub and superclasses.
+     */
     @Test
     public void scanSubAndSuperclasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
@@ -117,6 +136,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan sub and superinterface.
+     */
     @Test
     public void scanSubAndSuperinterface() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
@@ -131,6 +153,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan transitive implements.
+     */
     @Test
     public void scanTransitiveImplements() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
@@ -179,6 +204,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test external superclass returned.
+     */
     @Test
     public void testExternalSuperclassReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
@@ -192,6 +220,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test whitelisted without exception without strict whitelist.
+     */
     @Test
     public void testWhitelistedWithoutExceptionWithoutStrictWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableExternalClasses()
@@ -201,6 +232,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test can query with blacklisted annotation.
+     */
     public void testCanQueryWithBlacklistedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames()).isEmpty();
@@ -209,6 +243,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test blacklisted placeholder not returned.
+     */
     @Test
     public void testBlacklistedPlaceholderNotReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE)
@@ -224,6 +261,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test blacklisted package overrides whitelisted class with whitelisted override returned.
+     */
     @Test
     public void testBlacklistedPackageOverridesWhitelistedClassWithWhitelistedOverrideReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE)
@@ -233,6 +273,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test non whitelisted annotation returned without strict whitelist.
+     */
     @Test
     public void testNonWhitelistedAnnotationReturnedWithoutStrictWhitelist() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableAnnotationInfo()
@@ -242,6 +285,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test external annotation returned.
+     */
     @Test
     public void testExternalAnnotationReturned() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableAnnotationInfo()
@@ -251,6 +297,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test blacklisted package.
+     */
     public void testBlacklistedPackage() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(ROOT_PACKAGE, "-" + BlacklistedSuperclass.class.getPackage().getName()).scan()) {
@@ -265,6 +314,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test no exception if querying blacklisted.
+     */
     public void testNoExceptionIfQueryingBlacklisted() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(WHITELIST_PACKAGE, "-" + BlacklistedSuperclass.class.getPackage().getName())
@@ -273,6 +325,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test no exception if explicitly whitelisted class in blacklisted package.
+     */
     public void testNoExceptionIfExplicitlyWhitelistedClassInBlacklistedPackage() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE,
                 "-" + BlacklistedSuperclass.class.getPackage().getName() + BlacklistedSuperclass.class.getName())
@@ -281,6 +336,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test visible if not blacklisted.
+     */
     @Test
     public void testVisibleIfNotBlacklisted() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE).enableAnnotationInfo()
@@ -298,6 +356,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan file pattern.
+     */
     @Test
     public void scanFilePattern() {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
@@ -312,6 +373,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan static final field name.
+     */
     @Test
     public void scanStaticFinalFieldName() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
@@ -326,6 +390,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Scan static final field name ignore visibility.
+     */
     @Test
     public void scanStaticFinalFieldNameIgnoreVisibility() {
         final HashSet<String> fieldNames = new HashSet<>();
@@ -365,6 +432,9 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Generate graph viz file.
+     */
     @Test
     public void generateGraphVizFile() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE).enableAllInfo().scan()) {
@@ -373,17 +443,24 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Test get classpath elements.
+     */
     @Test
     public void testGetClasspathElements() {
         assertThat(new ClassGraph().whitelistPackages(ROOT_PACKAGE).enableAllInfo().getClasspathFiles().size())
                 .isGreaterThan(0);
     }
 
+    /**
+     * Get the manifest.
+     */
     @Test
     public void getManifest() {
         final AtomicBoolean foundManifest = new AtomicBoolean();
         try (ScanResult scanResult = new ClassGraph().whitelistPaths("META-INF").enableAllInfo().scan()) {
-            for (final Resource res : scanResult.getResourcesWithLeafName("MANIFEST.MF")) {
+            for (@SuppressWarnings("unused")
+            final Resource res : scanResult.getResourcesWithLeafName("MANIFEST.MF")) {
                 foundManifest.set(true);
             }
             assertThat(foundManifest.get()).isTrue();

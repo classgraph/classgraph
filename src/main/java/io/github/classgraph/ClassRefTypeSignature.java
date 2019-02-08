@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -33,9 +33,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
+import nonapi.io.github.classgraph.utils.Join;
 
 /** A class reference type signature (called "ClassTypeSignature" in the classfile documentation). */
 public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
@@ -60,6 +61,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param className
      *            The class name.
      * @param typeArguments
@@ -184,6 +187,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
+     * Get the {@link ClassInfo} object for the referenced class.
+     *
      * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
      *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
      *         N.B. even if this method returns null, {@link #loadClass()} may be able to load the referenced class
@@ -194,6 +199,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         return super.getClassInfo();
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -211,6 +219,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
         classNameListOut.add(className);
@@ -222,13 +233,22 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixes.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ClassRefTypeSignature)) {
             return false;
         }
@@ -237,6 +257,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
                 && o.suffixes.equals(this.suffixes);
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.classgraph.TypeSignature)
+     */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
         if (other instanceof TypeVariableSignature) {
@@ -256,25 +279,20 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
-     * Return the class type as a string.
+     * Return the class type as a String.
      * 
      * <p>
      * For comparison, {@link #getFullyQualifiedClassName()} uses '$' to separate suffixes, and does not include
      * type parameters, whereas this method uses '.' to separate suffixes, and does include type parameters.
+     *
+     * @return the class type as a String.
      */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
         buf.append(className);
         if (!typeArguments.isEmpty()) {
-            buf.append('<');
-            for (int i = 0; i < typeArguments.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                buf.append(typeArguments.get(i).toString());
-            }
-            buf.append('>');
+            Join.join(buf, "<", ", ", ">", typeArguments);
         }
         for (int i = 0; i < suffixes.size(); i++) {
             // Use '.' before each suffix in the toString() representation, since that is
@@ -283,14 +301,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             buf.append(suffixes.get(i));
             final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
             if (!suffixTypeArgs.isEmpty()) {
-                buf.append('<');
-                for (int j = 0; j < suffixTypeArgs.size(); j++) {
-                    if (j > 0) {
-                        buf.append(", ");
-                    }
-                    buf.append(suffixTypeArgs.get(j).toString());
-                }
-                buf.append('>');
+                Join.join(buf, "<", ", ", ">", suffixTypeArgs);
             }
         }
         return buf.toString();

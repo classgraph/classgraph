@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -44,6 +44,14 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
  * Jarfile utilities.
  */
 public class JarUtils {
+
+    /**
+     * Constructor.
+     */
+    private JarUtils() {
+        // Cannot be constructed
+    }
+
     /**
      * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
      * non-separators, when at the beginning of the string or following a ':'.
@@ -180,7 +188,14 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Append a path element to a path string. */
+    /**
+     * Append a path element to a buffer.
+     *
+     * @param pathElt
+     *            the path element
+     * @param buf
+     *            the buf
+     */
     private static void appendPathElt(final Object pathElt, final StringBuilder buf) {
         if (buf.length() > 0) {
             buf.append(File.pathSeparatorChar);
@@ -254,7 +269,13 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Convert a classfile path to the corresponding class name. */
+    /**
+     * Convert a classfile path to the corresponding class name.
+     *
+     * @param classfilePath
+     *            the classfile path
+     * @return the class name
+     */
     public static String classfilePathToClassName(final String classfilePath) {
         if (!classfilePath.endsWith(".class")) {
             throw new IllegalArgumentException("Classfile path does not end with \".class\": " + classfilePath);
@@ -262,7 +283,13 @@ public class JarUtils {
         return classfilePath.substring(0, classfilePath.length() - 6).replace('/', '.');
     }
 
-    /** Convert a class name to the corresponding classfile path. */
+    /**
+     * Convert a class name to the corresponding classfile path.
+     *
+     * @param className
+     *            the class name
+     * @return the classfile path
+     */
     public static String classNameToClassfilePath(final String className) {
         return className.replace('.', '/') + ".class";
     }

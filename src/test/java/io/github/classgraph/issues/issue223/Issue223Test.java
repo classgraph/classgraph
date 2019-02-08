@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -40,11 +40,21 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue223Test.
+ */
 @Entity
 public class Issue223Test {
+
+    /**
+     * The Interface InnerInterface.
+     */
     public interface InnerInterface {
     }
 
+    /**
+     * Test classload inner classes.
+     */
     @Test
     public void testClassloadInnerClasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue223Test.class.getPackage().getName())

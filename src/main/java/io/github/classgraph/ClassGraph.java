@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,6 +43,7 @@ import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.WhiteBlackList;
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -73,13 +75,14 @@ public class ClassGraph {
                             Runtime.getRuntime().availableProcessors() * 1.25) //
     );
 
-    /** If non-null, log while scanning */
+    /** If non-null, log while scanning. */
     private LogNode topLevelLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
+        // Intentionally left blank
     }
 
     /**
@@ -240,7 +243,8 @@ public class ClassGraph {
      * {@link ScanResult#getReverseClassDependencyMap()}. (Automatically calls {@link #enableClassInfo()},
      * {@link #enableFieldInfo()}, {@link #enableMethodInfo()}, {@link #enableAnnotationInfo()},
      * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()} and {@link #ignoreMethodVisibility()}.)
-     * 
+     *
+     * @return this (for method chaining).
      */
     public ClassGraph enableInterClassDependencies() {
         enableClassInfo();
@@ -419,6 +423,8 @@ public class ClassGraph {
     @FunctionalInterface
     public interface ClasspathElementFilter {
         /**
+         * Whether or not to include a given classpath element in the scan.
+         *
          * @param classpathElementPathStr
          *            The path string of a classpath element, normalized so that the path separator is '/'. This
          *            will usually be a file path, but could be a URL, or it could be a path for a nested jar, where
@@ -558,7 +564,6 @@ public class ClassGraph {
             // Whitelist package
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
             scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
-            // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!packageName.contains("*")) {
                 // Whitelist sub-packages
                 scanSpec.packagePrefixWhiteBlackList
@@ -583,7 +588,6 @@ public class ClassGraph {
             // Whitelist path
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path));
             scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path) + "/");
-            // FIXME: using a wildcard makes whitelisting non-recursive 
             if (!path.contains("*")) {
                 // Whitelist sub-directories / nested paths
                 scanSpec.packagePrefixWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path) + ".");
@@ -795,26 +799,25 @@ public class ClassGraph {
     }
 
     /**
-     * Whitelist one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
-     * {@link #enableSystemPackages()} is called, by association with the JRE/JDK).
+     * Add lib or ext jars to whitelist or blacklist.
      *
+     * @param whitelist
+     *            if true, add to whitelist, otherwise add to blacklist.
      * @param jarLeafNames
-     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
-     *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
-     *            "lib/" or "ext/" jars will be whitelisted.
-     * @return this (for method chaining).
+     *            the jar leaf names to whitelist
      */
-    public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
+    private void whitelistOrBlacklistLibOrExtJars(final boolean whitelist, final String... jarLeafNames) {
         if (jarLeafNames.length == 0) {
-            // whitelist all lib or ext jars
+            // If no jar leafnames are given, whitelist or blacklist all lib or ext jars
             for (final String libOrExtJar : SystemJarFinder.getJreLibOrExtJars()) {
-                whitelistLibOrExtJars(JarUtils.leafName(libOrExtJar));
+                whitelistOrBlacklistLibOrExtJars(whitelist, JarUtils.leafName(libOrExtJar));
             }
         } else {
             for (final String jarLeafName : jarLeafNames) {
                 final String leafName = JarUtils.leafName(jarLeafName);
                 if (!leafName.equals(jarLeafName)) {
-                    throw new IllegalArgumentException("Can only whitelist jars by leafname: " + jarLeafName);
+                    throw new IllegalArgumentException("Can only " + (whitelist ? "whitelist" : "blacklist")
+                            + " jars by leafname: " + jarLeafName);
                 }
                 if (jarLeafName.contains("*")) {
                     // Compare wildcarded pattern against all jars in lib and ext dirs 
@@ -825,7 +828,7 @@ public class ClassGraph {
                         if (pattern.matcher(libOrExtJarLeafName).matches()) {
                             // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
                             if (!libOrExtJarLeafName.contains("*")) {
-                                whitelistLibOrExtJars(libOrExtJarLeafName);
+                                whitelistOrBlacklistLibOrExtJars(whitelist, libOrExtJarLeafName);
                             }
                             found = true;
                         }
@@ -834,14 +837,19 @@ public class ClassGraph {
                         topLevelLog.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
                     }
                 } else {
-                    // No wildcards, just whitelist the named jar, if present
+                    // No wildcards, just whitelist or blacklist the named jar, if present
                     boolean found = false;
                     for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (jarLeafName.equals(libOrExtJarLeafName)) {
-                            scanSpec.libOrExtJarWhiteBlackList.addToWhitelist(jarLeafName);
+                            if (whitelist) {
+                                scanSpec.libOrExtJarWhiteBlackList.addToWhitelist(jarLeafName);
+                            } else {
+                                scanSpec.libOrExtJarWhiteBlackList.addToBlacklist(jarLeafName);
+                            }
                             if (topLevelLog != null) {
-                                topLevelLog.log("Whitelisting lib or ext jar: " + libOrExtJarPath);
+                                topLevelLog.log((whitelist ? "Whitelisting" : "Blacklisting") + " lib or ext jar: "
+                                        + libOrExtJarPath);
                             }
                             found = true;
                             break;
@@ -853,6 +861,20 @@ public class ClassGraph {
                 }
             }
         }
+    }
+
+    /**
+     * Whitelist one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
+     * {@link #enableSystemJarsAndModules()} is called, by association with the JRE/JDK).
+     *
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
+     *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
+     *            "lib/" or "ext/" jars will be whitelisted.
+     * @return this (for method chaining).
+     */
+    public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
+        whitelistOrBlacklistLibOrExtJars(/* whitelist = */ true, jarLeafNames);
         return this;
     }
 
@@ -866,54 +888,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph blacklistLibOrExtJars(final String... jarLeafNames) {
-        if (jarLeafNames.length == 0) {
-            // Blacklist all lib or ext jars
-            for (final String libOrExtJar : SystemJarFinder.getJreLibOrExtJars()) {
-                blacklistLibOrExtJars(JarUtils.leafName(libOrExtJar));
-            }
-        } else {
-            for (final String jarLeafName : jarLeafNames) {
-                final String leafName = JarUtils.leafName(jarLeafName);
-                if (!leafName.equals(jarLeafName)) {
-                    throw new IllegalArgumentException("Can only blacklist jars by leafname: " + jarLeafName);
-                }
-                if (jarLeafName.contains("*")) {
-                    // Compare wildcarded pattern against all jars in lib and ext dirs 
-                    final Pattern pattern = WhiteBlackList.globToPattern(jarLeafName);
-                    boolean found = false;
-                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-                        final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
-                        if (pattern.matcher(libOrExtJarLeafName).matches()) {
-                            // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
-                            if (!libOrExtJarLeafName.contains("*")) {
-                                blacklistLibOrExtJars(libOrExtJarLeafName);
-                            }
-                            found = true;
-                        }
-                    }
-                    if (!found && topLevelLog != null) {
-                        topLevelLog.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
-                    }
-                } else {
-                    // No wildcards, just blacklist the named jar, if present
-                    boolean found = false;
-                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-                        final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
-                        if (jarLeafName.equals(libOrExtJarLeafName)) {
-                            scanSpec.libOrExtJarWhiteBlackList.addToBlacklist(jarLeafName);
-                            if (topLevelLog != null) {
-                                topLevelLog.log("Blacklisting lib or ext jar: " + libOrExtJarPath);
-                            }
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found && topLevelLog != null) {
-                        topLevelLog.log("Could not find lib or ext jar: " + jarLeafName);
-                    }
-                }
-            }
-        }
+        whitelistOrBlacklistLibOrExtJars(/* whitelist = */ false, jarLeafNames);
         return this;
     }
 
@@ -1005,17 +980,6 @@ public class ClassGraph {
     }
 
     /**
-     * Use {@link #enableSystemJarsAndModules()} instead.
-     * 
-     * @deprecated Use {@link #enableSystemJarsAndModules()} instead.
-     * @return this (for method chaining).
-     */
-    @Deprecated
-    public ClassGraph enableSystemPackages() {
-        return enableSystemJarsAndModules();
-    }
-
-    /**
      * Enables logging by calling {@link #verbose()}, and then sets the logger to "realtime logging mode", where log
      * entries are written out immediately to stderr, rather than only after the scan has completed. Can help to
      * identify problems where scanning is stuck in a loop, or where one scanning step is taking much longer than it
@@ -1082,9 +1046,14 @@ public class ClassGraph {
             // force the addition of a FailureHandler so that exceptions are not silently swallowed.
             throw new IllegalArgumentException("failureHandler cannot be null");
         }
-        // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
-        executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor,
-                failureHandler, topLevelLog));
+        // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
+                        topLevelLog);
+            }
+        });
     }
 
     /**
@@ -1115,9 +1084,9 @@ public class ClassGraph {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @return a {@link ScanResult} object representing the result of the scan.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
@@ -1127,37 +1096,13 @@ public class ClassGraph {
             //    final String scanResultJson = scanResult.toJSON();
             //    scanResult = ScanResult.fromJSON(scanResultJson);
 
-            // Return the scanResult
-            return executorService
-                    .submit(new Scanner(scanSpec, executorService, numParallelTasks,
-                            /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)) //
-                    .get();
+            // Return the scanResult, then block waiting for the result
+            return scanAsync(executorService, numParallelTasks).get();
 
-        } catch (final InterruptedException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Scan interrupted");
-            }
-            throw new RuntimeException("Scan interrupted", e);
+        } catch (final InterruptedException | CancellationException e) {
+            throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause == null) {
-                cause = e;
-            }
-            if (cause instanceof InterruptedException) {
-                if (topLevelLog != null) {
-                    topLevelLog.log("Scan interrupted");
-                }
-                throw new RuntimeException("Scan interrupted", e);
-            } else {
-                if (topLevelLog != null) {
-                    topLevelLog.log("Unexpected exception during scan", e);
-                }
-                throw new RuntimeException(cause);
-            }
-        } finally {
-            if (topLevelLog != null) {
-                topLevelLog.flush();
-            }
+            throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
         }
     }
 
@@ -1166,9 +1111,9 @@ public class ClassGraph {
      *
      * @param numThreads
      *            The number of worker threads to start up.
-     * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @return a {@link ScanResult} object representing the result of the scan.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final int numThreads) {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(numThreads)) {
@@ -1179,9 +1124,9 @@ public class ClassGraph {
     /**
      * Scans the classpath, blocking until the scan is complete.
      *
-     * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @return a {@link ScanResult} object representing the result of the scan.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan() {
         return scan(DEFAULT_NUM_WORKER_THREADS);
@@ -1196,34 +1141,13 @@ public class ClassGraph {
      *
      * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<File> getClasspathFiles() {
-        try {
-            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                    DEFAULT_NUM_WORKER_THREADS)) {
-                scanSpec.performScan = false;
-                try (ScanResult scanResult = executorService.submit( //
-                        new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog))
-                        .get()) {
-                    return scanResult.getClasspathFiles();
-                }
-            }
-        } catch (final InterruptedException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Thread interrupted while getting classpath elements");
-            }
-            throw new IllegalArgumentException("Scan interrupted", e);
-        } catch (final ExecutionException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Exception while getting classpath elements", e);
-            }
-            final Throwable cause = e.getCause();
-            throw new RuntimeException(cause == null ? e : cause);
-        } finally {
-            if (topLevelLog != null) {
-                topLevelLog.flush();
-            }
+        scanSpec.performScan = false;
+        try (ScanResult scanResult = scan()) {
+            return scanResult.getClasspathFiles();
         }
     }
 
@@ -1234,6 +1158,8 @@ public class ClassGraph {
      *
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public String getClasspath() {
         return JarUtils.pathElementsToPathStr(getClasspathFiles());
@@ -1246,69 +1172,27 @@ public class ClassGraph {
      *
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URL> getClasspathURLs() {
-        try {
-            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                    DEFAULT_NUM_WORKER_THREADS)) {
-                scanSpec.performScan = false;
-                final ScanResult scanResult = executorService.submit( //
-                        new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog))
-                        .get();
-                return scanResult.getClasspathURLs();
-
-            }
-        } catch (final InterruptedException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Thread interrupted while getting classpath elements");
-            }
-            throw new IllegalArgumentException("Scan interrupted", e);
-        } catch (final ExecutionException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Exception while getting classpath elements", e);
-            }
-            final Throwable cause = e.getCause();
-            throw new RuntimeException(cause == null ? e : cause);
-        } finally {
-            if (topLevelLog != null) {
-                topLevelLog.flush();
-            }
+        scanSpec.performScan = false;
+        try (ScanResult scanResult = scan()) {
+            return scanResult.getClasspathURLs();
         }
     }
 
     /**
      * Returns {@link ModuleRef} references for all the visible modules.
-     * 
+     *
      * @return a list of {@link ModuleRef} references for all the visible modules.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<ModuleRef> getModules() {
-        try {
-            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                    DEFAULT_NUM_WORKER_THREADS)) {
-                scanSpec.performScan = false;
-                try (ScanResult scanResult = executorService.submit( //
-                        new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
-                                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog))
-                        .get()) {
-                    return scanResult.getModules();
-                }
-            }
-        } catch (final InterruptedException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Thread interrupted while getting modules");
-            }
-            throw new IllegalArgumentException("Scan interrupted", e);
-        } catch (final ExecutionException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("Exception while getting modules", e);
-            }
-            final Throwable cause = e.getCause();
-            throw new RuntimeException(cause == null ? e : cause);
-        } finally {
-            if (topLevelLog != null) {
-                topLevelLog.flush();
-            }
+        scanSpec.performScan = false;
+        try (ScanResult scanResult = scan()) {
+            return scanResult.getModules();
         }
     }
 

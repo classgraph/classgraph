@@ -11,9 +11,20 @@ import io.github.classgraph.FieldInfoList;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.TypeVariableSignature;
 
+/**
+ * The Class ResolveTypeVariable.
+ *
+ * @param <T>
+ *            the generic type
+ */
 public class ResolveTypeVariable<T extends ArrayList<Integer>> {
+
+    /** The list. */
     T list;
 
+    /**
+     * Test.
+     */
     @Test
     public void test() {
         try (ScanResult scanResult = new ClassGraph()

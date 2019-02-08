@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -37,15 +37,37 @@ class JSONArray {
     /** Array items. */
     List<Object> items;
 
+    /**
+     * Constructor.
+     */
     public JSONArray() {
         items = new ArrayList<>();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param items
+     *            the items
+     */
     public JSONArray(final List<Object> items) {
         this.items = items;
     }
 
-    /** Serialize this JSONArray to a string. */
+    /**
+     * Serialize this JSONArray to a string.
+     *
+     * @param jsonReferenceToId
+     *            the map from json reference to id
+     * @param includeNullValuedFields
+     *            whether to include null-valued fields
+     * @param depth
+     *            the nesting depth
+     * @param indentWidth
+     *            the indent width
+     * @param buf
+     *            the buf
+     */
     void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final boolean includeNullValuedFields, final int depth, final int indentWidth,
             final StringBuilder buf) {

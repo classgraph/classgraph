@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -38,8 +38,18 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleReaderProxy implements Closeable {
+
+    /** The module reader. */
     private final AutoCloseable moduleReader;
 
+    /**
+     * Constructor.
+     *
+     * @param moduleRef
+     *            the module ref
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         try {
             moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef.getReference(), "open",
@@ -113,22 +123,39 @@ public class ModuleReaderProxy implements Closeable {
      * 
      * @param path
      *            The path to the resource to open.
+     * @param open
+     *            if true, call moduleReader.open(name).get() (returning an InputStream), otherwise call
+     *            moduleReader.read(name).get() (returning a ByteBuffer).
+     * @return An {@link InputStream} for the content of the resource.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
+     */
+    private Object openOrRead(final String path, final boolean open) throws SecurityException {
+        final String methodName = open ? "open" : "read";
+        final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils.invokeMethod(moduleReader,
+                methodName, String.class, path, /* throwException = */ true);
+        if (optionalInputStream == null) {
+            throw new IllegalArgumentException("Got null result from moduleReader." + methodName + "(name)");
+        }
+        final Object /* InputStream */ inputStream = ReflectionUtils.invokeMethod(optionalInputStream, "get",
+                /* throwException = */ true);
+        if (inputStream == null) {
+            throw new IllegalArgumentException("Got null result from moduleReader." + methodName + "(name).get()");
+        }
+        return inputStream;
+    }
+
+    /**
+     * Use the proxied ModuleReader to open the named resource as an InputStream.
+     * 
+     * @param path
+     *            The path to the resource to open.
      * @return An {@link InputStream} for the content of the resource.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
     public InputStream open(final String path) throws SecurityException {
-        final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils.invokeMethod(moduleReader,
-                "open", String.class, path, /* throwException = */ true);
-        if (optionalInputStream == null) {
-            throw new IllegalArgumentException("Could not call moduleReader.open(name)");
-        }
-        final Object /* InputStream */ inputStream = ReflectionUtils.invokeMethod(optionalInputStream, "get",
-                /* throwException = */ true);
-        if (inputStream == null) {
-            throw new IllegalArgumentException("Could not call moduleReader.open(name).get()");
-        }
-        return (InputStream) inputStream;
+        return (InputStream) openOrRead(path, /* open = */ true);
     }
 
     /**
@@ -144,17 +171,7 @@ public class ModuleReaderProxy implements Closeable {
      *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
-        final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils.invokeMethod(moduleReader,
-                "read", String.class, path, /* throwException = */ true);
-        if (optionalByteBuffer == null) {
-            throw new IllegalArgumentException("Could not call moduleReader.open(name)");
-        }
-        final Object /* ByteBuffer */ byteBuffer = ReflectionUtils.invokeMethod(optionalByteBuffer, "get",
-                /* throwException = */ true);
-        if (byteBuffer == null) {
-            throw new IllegalArgumentException("Could not call moduleReader.read(name).get()");
-        }
-        return (ByteBuffer) byteBuffer;
+        return (ByteBuffer) openOrRead(path, /* open = */ false);
     }
 
     /**

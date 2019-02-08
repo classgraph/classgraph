@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -38,11 +38,38 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * is called on this list, all items' {@code get()} methods are called, implementing a completion barrier.
  */
 class AutoCloseableFutureListWithCompletionBarrier extends ArrayList<Future<Void>> implements AutoCloseable {
-    private final LogNode log;
 
+    /** The log. */
+    private transient final LogNode log;
+
+    /**
+     * Constructor.
+     *
+     * @param size
+     *            the size
+     * @param log
+     *            the log
+     */
     AutoCloseableFutureListWithCompletionBarrier(final int size, final LogNode log) {
         super(size);
         this.log = log;
+    }
+
+    /* (non-Javadoc)
+     * @see java.util.ArrayList#equals(java.lang.Object)
+     */
+    // Override needed to remove Scrutinizer warning, since log field does not need to be compared in equals()
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    /* (non-Javadoc)
+     * @see java.util.ArrayList#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return super.hashCode();
     }
 
     /** Completion barrier. */

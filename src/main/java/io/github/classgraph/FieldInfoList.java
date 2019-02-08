@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -36,18 +36,34 @@ import io.github.classgraph.InfoList.MappableInfoList;
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
 
+    /**
+     * Constructor.
+     */
     FieldInfoList() {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     FieldInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param fieldInfoCollection
+     *            the field info collection
+     */
     FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
         super(fieldInfoCollection);
     }
 
+    /** An unmodifiable empty {@link FieldInfoList}. */
     static final FieldInfoList EMPTY_LIST = new FieldInfoList() {
         @Override
         public boolean add(final FieldInfo e) {
@@ -102,10 +118,15 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the names of any classes referenced in the fields in this list. */
-    void getReferencedClassNames(final Set<String> refdClassNames) {
+    /**
+     * Return the names of any classes referenced in the fields in this list.
+     *
+     * @param referencedClassNames
+     *            the referenced class names
+     */
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
         for (final FieldInfo fi : this) {
-            fi.getReferencedClassNames(refdClassNames);
+            fi.getReferencedClassNames(referencedClassNames);
         }
     }
 

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,7 +41,14 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue151Test.
+ */
 public class Issue151Test {
+
+    /**
+     * Issue 151 test.
+     */
     @Test
     public void issue151Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
@@ -62,21 +69,38 @@ public class Issue151Test {
         }
     }
 
+    /**
+     * The Interface ParamAnnotation0.
+     */
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
     public @interface ParamAnnotation0 {
     }
 
+    /**
+     * The Interface ParamAnnotation1.
+     */
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
     public @interface ParamAnnotation1 {
     }
 
+    /**
+     * The Interface ParamAnnotation2.
+     */
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
     public @interface ParamAnnotation2 {
     }
 
+    /**
+     * Method.
+     *
+     * @param annotatedValue0
+     *            the annotated value 0
+     * @param annotatedValue1
+     *            the annotated value 1
+     */
     public void method(@ParamAnnotation0 final String annotatedValue0,
             @ParamAnnotation1 @ParamAnnotation2 final String annotatedValue1) {
     }

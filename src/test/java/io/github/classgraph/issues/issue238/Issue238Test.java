@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -39,29 +39,57 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue238Test.
+ */
 @Entity
 public class Issue238Test {
+
+    /**
+     * The Class B.
+     */
     public static class B extends D {
     }
 
+    /**
+     * The Class C.
+     */
     public static class C {
     }
 
+    /**
+     * The Class D.
+     */
     public static class D extends C {
     }
 
+    /**
+     * The Class E.
+     */
     public static class E extends F {
     }
 
+    /**
+     * The Class A.
+     */
     public static class A extends G {
     }
 
+    /**
+     * The Class G.
+     */
     public static class G extends B {
     }
 
+    /**
+     * The Class F.
+     */
     public static class F extends A {
     }
 
+    /**
+     * Test superclass inheritance order.
+     */
     @Test
     public void testSuperclassInheritanceOrder() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue238Test.class.getPackage().getName())

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -48,7 +48,20 @@ import io.github.classgraph.ClassGraph;
 /** Finds the version number of ClassGraph, and the version of the JDK. */
 public class VersionFinder {
 
-    /** Get a system property (returning null if a SecurityException was thrown). */
+    /**
+     * Constructor.
+     */
+    private VersionFinder() {
+        // Cannot be constructed
+    }
+
+    /**
+     * Get a system property (returning null if a SecurityException was thrown).
+     *
+     * @param propName
+     *            the property name
+     * @return the property value
+     */
     public static String getProperty(final String propName) {
         try {
             return System.getProperty(propName);
@@ -57,7 +70,15 @@ public class VersionFinder {
         }
     }
 
-    /** Get a system property (returning null if a SecurityException was thrown). */
+    /**
+     * Get a system property (returning null if a SecurityException was thrown).
+     *
+     * @param propName
+     *            the property name
+     * @param defaultVal
+     *            the default value for the property
+     * @return the property value, or the default if the property is not defined.
+     */
     public static String getProperty(final String propName, final String defaultVal) {
         try {
             return System.getProperty(propName, defaultVal);
@@ -66,7 +87,7 @@ public class VersionFinder {
         }
     }
 
-    /** Java version string */
+    /** Java version string. */
     public static final String JAVA_VERSION = getProperty("java.version");
 
     /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
@@ -89,19 +110,25 @@ public class VersionFinder {
 
     /** The operating system type. */
     public enum OperatingSystem {
-        /** Windows */
+        /** Windows. */
         Windows,
-        /** Mac OS X */
+
+        /** Mac OS X. */
         MacOSX,
-        /** Linux */
+
+        /** Linux. */
         Linux,
-        /** Solaris */
+
+        /** Solaris. */
         Solaris,
-        /** BSD */
+
+        /** BSD. */
         BSD,
-        /** Unix or AIX */
+
+        /** Unix or AIX. */
         Unix,
-        /** Unknown */
+
+        /** Unknown. */
         Unknown
     }
 
@@ -131,10 +158,15 @@ public class VersionFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The Maven package for ClassGraph. */
     private static final String MAVEN_PACKAGE = "io.github.classgraph";
+
+    /** The Maven artifact for ClassGraph. */
     private static final String MAVEN_ARTIFACT = "classgraph";
 
     /**
+     * Get the version number of ClassGraph.
+     *
      * @return the version number of ClassGraph.
      */
     public static synchronized String getVersion() {

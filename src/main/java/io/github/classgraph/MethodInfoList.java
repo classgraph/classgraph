@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,14 +41,27 @@ public class MethodInfoList extends InfoList<MethodInfo> {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     MethodInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param methodInfoCollection
+     *            the method info collection
+     */
     MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
         super(methodInfoCollection);
     }
 
+    /** An unmodifiable empty {@link MethodInfoList}. */
     static final MethodInfoList EMPTY_LIST = new MethodInfoList() {
         @Override
         public boolean add(final MethodInfo e) {
@@ -103,20 +116,31 @@ public class MethodInfoList extends InfoList<MethodInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the names of any classes referenced in the methods in this list. */
-    void getReferencedClassNames(final Set<String> refdClassNames) {
+    /**
+     * Return the names of any classes referenced in the methods in this list.
+     *
+     * @param referencedClassNames
+     *            the referenced class names
+     */
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
         for (final MethodInfo mi : this) {
-            mi.getReferencedClassNames(refdClassNames);
+            mi.getReferencedClassNames(referencedClassNames);
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get this {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with that
+     * name.
+     *
      * @return This {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with
      *         that name.
      */
     public Map<String, MethodInfoList> asMap() {
+        // Note that MethodInfoList extends InfoList rather than MappableInfoList, because one
+        // name can be shared by multiple MethodInfo objects (so asMap() needs to be of type
+        // Map<String, MethodInfoList> rather than Map<String, MethodInfo>)
         final Map<String, MethodInfoList> methodNameToMethodInfoList = new HashMap<>();
         for (final MethodInfo methodInfo : this) {
             final String name = methodInfo.getName();
@@ -133,6 +157,8 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check whether the list contains a method with the given name.
+     *
      * @param methodName
      *            The name of a class.
      * @return true if the list contains a method with the given name.

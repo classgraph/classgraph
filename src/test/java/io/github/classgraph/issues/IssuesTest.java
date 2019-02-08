@@ -11,7 +11,14 @@ import io.github.classgraph.test.internal.InternalExtendsExternal;
 import io.github.classgraph.test.whitelisted.Impl1;
 import io.github.classgraph.test.whitelisted.Impl1Sub;
 
+/**
+ * The Class IssuesTest.
+ */
 public class IssuesTest {
+
+    /**
+     * Issue 70.
+     */
     @Test
     public void issue70() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Impl1.class.getPackage().getName())
@@ -20,6 +27,9 @@ public class IssuesTest {
         }
     }
 
+    /**
+     * Issue 70 enable external classes.
+     */
     @Test
     public void issue70EnableExternalClasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Impl1.class.getPackage().getName())
@@ -30,6 +40,9 @@ public class IssuesTest {
         }
     }
 
+    /**
+     * Extends external.
+     */
     @Test
     public void extendsExternal() {
         try (ScanResult scanResult = new ClassGraph()
@@ -39,6 +52,9 @@ public class IssuesTest {
         }
     }
 
+    /**
+     * Extends external with enable external.
+     */
     @Test
     public void extendsExternalWithEnableExternal() {
         try (ScanResult scanResult = new ClassGraph()
@@ -49,6 +65,9 @@ public class IssuesTest {
         }
     }
 
+    /**
+     * Extends external subclass.
+     */
     @Test
     public void extendsExternalSubclass() {
         try (ScanResult scanResult = new ClassGraph()
@@ -58,6 +77,9 @@ public class IssuesTest {
         }
     }
 
+    /**
+     * Non strict extends external subclass.
+     */
     @Test
     public void nonStrictExtendsExternalSubclass() {
         try (ScanResult scanResult = new ClassGraph()

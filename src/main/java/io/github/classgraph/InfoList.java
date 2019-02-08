@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -35,26 +35,47 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** A list of named objects. */
+/**
+ * A list of named objects.
+ *
+ * @param <T>
+ *            the element type
+ */
 class InfoList<T extends HasName> extends ArrayList<T> {
 
+    /**
+     * Constructor.
+     */
     InfoList() {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     InfoList(final int sizeHint) {
         super(sizeHint);
     }
 
-    InfoList(final Collection<T> InfoCollection) {
-        super(InfoCollection);
+    /**
+     * Constructor.
+     *
+     * @param infoCollection
+     *            the initial elements.
+     */
+    InfoList(final Collection<T> infoCollection) {
+        super(infoCollection);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return The names of all packages in this list, by calling {@link PackageInfo#getName()} for each item in the
-     *         list.
+     * Get the names of all items in this list, by calling {@code getName()} on each item in the list.
+     *
+     * @return The names of all items in this list, by calling {@code getName()} on each item in the list.
      */
     public List<String> getNames() {
         if (this.isEmpty()) {
@@ -69,8 +90,11 @@ class InfoList<T extends HasName> extends ArrayList<T> {
     }
 
     /**
-     * @return The string representations of all items in this list, obtained by calling {@code toString()} on each
-     *         item in the list.
+     * Get the String representations of all items in this list, by calling {@code toString()} on each item in the
+     * list.
+     *
+     * @return The String representations of all items in this list, by calling {@code toString()} on each item in
+     *         the list.
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
@@ -86,23 +110,47 @@ class InfoList<T extends HasName> extends ArrayList<T> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A list of named objects that can be indexed by name. */
+    /**
+     * A list of named objects that can be indexed by name.
+     *
+     * @param <T>
+     *            the element type
+     */
     static class MappableInfoList<T extends HasName> extends InfoList<T> {
+
+        /**
+         * Constructor.
+         */
         MappableInfoList() {
             super();
         }
 
+        /**
+         * Constructor.
+         *
+         * @param sizeHint
+         *            the size hint
+         */
         MappableInfoList(final int sizeHint) {
             super(sizeHint);
         }
 
-        MappableInfoList(final Collection<T> annotationInfoCollection) {
-            super(annotationInfoCollection);
+        /**
+         * Constructor.
+         *
+         * @param infoCollection
+         *            the initial elements
+         */
+        MappableInfoList(final Collection<T> infoCollection) {
+            super(infoCollection);
         }
 
         /**
+         * Get an index for this list, as a map from the name of each list item (obtained by calling
+         * {@code getName()} on each list item) to the list item.
+         *
          * @return An index for this list, as a map from the name of each list item (obtained by calling
-         *         {@code getName} on the list item) to the list item.
+         *         {@code getName()} on each list item) to the list item.
          */
         public Map<String, T> asMap() {
             final Map<String, T> nameToInfoObject = new HashMap<>();
@@ -113,6 +161,8 @@ class InfoList<T extends HasName> extends ArrayList<T> {
         }
 
         /**
+         * Check if this list contains an item with the given name.
+         *
          * @param name
          *            The name to search for.
          * @return true if this list contains an item with the given name.
@@ -127,6 +177,8 @@ class InfoList<T extends HasName> extends ArrayList<T> {
         }
 
         /**
+         * Get the list item with the given name, or null if not found.
+         *
          * @param name
          *            The name to search for.
          * @return The list item with the given name, or null if not found.

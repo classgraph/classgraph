@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -30,70 +30,98 @@ package nonapi.io.github.classgraph.concurrency;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted or
  * has thrown an exception.
  */
 public class InterruptionChecker {
-    private static final long MAX_CHECK_FREQUENCY_NANOS = (long) (0.1 * 1.0e9);
-
-    private long lastCheckTimeNanos = 0L;
+    /** Set to true when a thread is interrupted. */
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
-    private ExecutionException executionException;
+
+    /** The first {@link ExecutionException} that was thrown. */
+    private final AtomicReference<ExecutionException> thrownExecutionException = //
+            new AtomicReference<ExecutionException>();
 
     /** Interrupt all threads that share this InterruptionChecker. */
     public void interrupt() {
         interrupted.set(true);
+        Thread.currentThread().interrupt();
     }
 
     /**
+     * Set the {@link ExecutionException} that was thrown by a worker.
+     *
+     * @param executionException
+     *            the execution exception that was thrown
+     */
+    public void setExecutionException(final ExecutionException executionException) {
+        // Only set the execution exception once
+        if (executionException != null && thrownExecutionException.get() == null) {
+            thrownExecutionException.compareAndSet(/* expectedValue = */ null, executionException);
+        }
+    }
+
+    /**
+     * Get the {@link ExecutionException} that was thrown by a worker, or null if none.
+     * 
+     * @return the {@link ExecutionException} that was thrown by a worker, or null if none.
+     */
+    public ExecutionException getExecutionException() {
+        return thrownExecutionException.get();
+    }
+
+    /** Get the cause of an {@link ExecutionException}. */
+    public static Throwable getCause(final Throwable throwable) {
+        // Unwrap possibly-nested ExecutionExceptions to get to root cause
+        Throwable cause = throwable;
+        while (cause instanceof ExecutionException) {
+            cause = cause.getCause();
+        }
+        return cause != null ? cause : new ExecutionException("ExecutionException with unknown cause", null);
+    }
+
+    /**
+     * Check for interruption and return interruption status.
+     *
      * @return true if this thread or any other thread that shares this InterruptionChecker instance has been
      *         interrupted or has thrown an exception.
      */
     public boolean checkAndReturn() {
-        final long time = System.nanoTime();
-        if (time - lastCheckTimeNanos > MAX_CHECK_FREQUENCY_NANOS) {
-            lastCheckTimeNanos = time;
-            if (Thread.currentThread().isInterrupted()) {
-                interrupt();
-            }
-            return interrupted.get() || executionException != null;
-        } else {
-            return false;
+        // Check if any thread has been interrupted
+        if (interrupted.get()) {
+            // If so, interrupt this thread
+            interrupt();
+            return true;
         }
+        // Check if this thread has been interrupted
+        if (Thread.currentThread().isInterrupted()) {
+            // If so, interrupt other threads
+            interrupted.set(true);
+            return true;
+        }
+        return false;
     }
 
     /**
      * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted
      * or has thrown an exception, and if so, throw InterruptedException.
-     * 
+     *
      * @throws InterruptedException
-     *             If this thread or any other thread that shares this InterruptionChecker instance has been
-     *             interrupted.
+     *             If a thread has been interrupted.
      * @throws ExecutionException
-     *             If this thread or any other thread that shares this InterruptionChecker instance has thrown an
-     *             exception.
+     *             if a thread has thrown an uncaught exception.
      */
     public void check() throws InterruptedException, ExecutionException {
-        if (checkAndReturn()) {
-            if (executionException != null) {
-                throw executionException;
-            } else {
-                throw new InterruptedException();
-            }
+        // If a thread threw an uncaught exception, re-throw it.
+        final ExecutionException executionException = getExecutionException();
+        if (executionException != null) {
+            throw executionException;
         }
-    }
-
-    /**
-     * Stop all threads that share this InterruptionChecker due to an exception being thrown in one of them.
-     * 
-     * @param e
-     *            The exception that was thrown.
-     * @return A new {@link ExecutionException}.
-     */
-    public ExecutionException executionException(final Exception e) {
-        executionException = e instanceof ExecutionException ? (ExecutionException) e : new ExecutionException(e);
-        return executionException;
+        // If this thread or another thread has been interrupted, throw InterruptedException
+        if (checkAndReturn()) {
+            throw new InterruptedException();
+        }
     }
 }

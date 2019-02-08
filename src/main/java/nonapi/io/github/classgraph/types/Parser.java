@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -28,35 +28,24 @@
  */
 package nonapi.io.github.classgraph.types;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.json.JSONUtils;
 
 /**
  * A generic PEG parser.
  */
 public class Parser {
+    /** The string being parsed. */
     private final String string;
+
+    /** The current position. */
     private int position;
+
+    /** The token buffer. */
     private final StringBuilder token = new StringBuilder();
+
+    /** Extra parsing state. */
     private Object state;
-
-    /**
-     * A parsing exception.
-     */
-    public static class ParseException extends Exception {
-        static final long serialVersionUID = 1L;
-
-        /**
-         * A parsing exception.
-         * 
-         * @param parser
-         *            The parser.
-         * @param msg
-         *            The exception message.
-         */
-        public ParseException(final Parser parser, final String msg) {
-            super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
-        }
-    }
 
     /**
      * Construct a parser.
@@ -73,10 +62,15 @@ public class Parser {
         this.string = string;
     }
 
+    /** How much context to show before the current position. */
     private static final int SHOW_BEFORE = 80;
+
+    /** How much context to show after the current position. */
     private static final int SHOW_AFTER = 80;
 
     /**
+     * Get the parsing context as a string, for debugging.
+     *
      * @return A string showing parsing context, for debugging.
      */
     public String getPositionInfo() {
@@ -139,6 +133,8 @@ public class Parser {
     }
 
     /**
+     * Peek at the next character without reading it.
+     *
      * @return The next character, or '\0' if at the end of the string.
      */
     public char peek() {
@@ -198,6 +194,8 @@ public class Parser {
     }
 
     /**
+     * Check to see if there are more characters to parse.
+     *
      * @return true if the input has not all been consumed.
      */
     public boolean hasMore() {
@@ -205,6 +203,8 @@ public class Parser {
     }
 
     /**
+     * Get the current position.
+     *
      * @return the current position.
      */
     public int getPosition() {
@@ -297,6 +297,9 @@ public class Parser {
         return tok;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return getPositionInfo();

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -50,7 +50,7 @@ public class WorkQueue<T> implements AutoCloseable {
     private final WorkUnitProcessor<T> workUnitProcessor;
 
     /** The queue of work units. */
-    private final ConcurrentLinkedQueue<T> workQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<T> workUnits = new ConcurrentLinkedQueue<>();
 
     /**
      * The number of work units remaining. This will always be at least workQueue.size(), but will be higher if work
@@ -83,57 +83,68 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     public interface WorkUnitProcessor<T> {
         /**
+         * Process a work unit.
+         *
          * @param workUnit
          *            The work unit.
          * @param workQueue
          *            The work queue.
-         * @throws Exception
-         *             If something goes wrong while processing the work unit.
+         * @param log
+         *            The log.
+         * @throws InterruptedException
+         *             If the worker thread is interrupted.
          */
-        void processWorkUnit(T workUnit, WorkQueue<T> workQueue) throws Exception;
+        void processWorkUnit(T workUnit, WorkQueue<T> workQueue, LogNode log) throws InterruptedException;
     }
 
     /**
      * Start a work queue on the elements in the provided collection, blocking until all work units have been
      * completed.
-     * 
+     *
      * @param <U>
      *            The type of the work queue units.
      * @param elements
      *            The work queue units to process.
      * @param executorService
      *            The {@link ExecutorService}.
+     * @param interruptionChecker
+     *            the interruption checker
      * @param numParallelTasks
      *            The number of parallel tasks.
-     * @param workUnitProcessor
-     *            The {@link WorkUnitProcessor}.
-     * @param interruptionChecker
-     *            The {@link InterruptionChecker}.
      * @param log
      *            The log.
-     * @throws ExecutionException
-     *             If an exception is thrown while processing a work unit.
+     * @param workUnitProcessor
+     *            The {@link WorkUnitProcessor}.
      * @throws InterruptedException
      *             If the work was interrupted.
+     * @throws ExecutionException
+     *             If a worker throws an uncaught exception.
      */
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
-            final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
-            final InterruptionChecker interruptionChecker, final LogNode log)
-            throws ExecutionException, InterruptedException {
-        // Wrap in a try-with-resources block, so that the WorkQueue is closed on exception
+            final InterruptionChecker interruptionChecker, final int numParallelTasks, final LogNode log,
+            final WorkUnitProcessor<U> workUnitProcessor) throws InterruptedException, ExecutionException {
+        // WorkQueue#close() is called when this try-with-resources block terminates, initiating a barrier wait
+        // while all worker threads complete.
         try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, interruptionChecker, log)) {
             // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
-            workQueue.startWorkers(executorService, numParallelTasks - 1, log);
+            workQueue.startWorkers(executorService, numParallelTasks - 1);
             // Use the current thread to do work too, in case there is only one thread available in the
             // ExecutorService, or in case numParallelTasks is greater than the number of available threads in the
             // ExecutorService.
             workQueue.runWorkLoop();
         }
-        // WorkQueue#close() is called when the above try-with-resources block terminates, initiating a barrier wait
-        // while all worker threads complete.
     }
 
-    /** A parallel work queue. */
+    /**
+     * A parallel work queue.
+     *
+     * @param workUnitProcessor
+     *            the work unit processor
+     * @param interruptionChecker
+     *            the interruption checker
+     * @param log
+     *            the log
+     */
     private WorkQueue(final WorkUnitProcessor<T> workUnitProcessor, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         this.workUnitProcessor = workUnitProcessor;
@@ -141,16 +152,34 @@ public class WorkQueue<T> implements AutoCloseable {
         this.log = log;
     }
 
-    /** A parallel work queue. */
+    /**
+     * A parallel work queue.
+     *
+     * @param initialWorkUnits
+     *            the initial work units
+     * @param workUnitProcessor
+     *            the work unit processor
+     * @param interruptionChecker
+     *            the interruption checker
+     * @param log
+     *            the log
+     */
     private WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this(workUnitProcessor, interruptionChecker, log);
         addWorkUnits(initialWorkUnits);
     }
 
-    /** Start worker threads with a shared log. */
-    private void startWorkers(final ExecutorService executorService, final int numWorkers, final LogNode log) {
-        for (int i = 0; i < numWorkers; i++) {
+    /**
+     * Start worker threads with a shared log.
+     *
+     * @param executorService
+     *            the executor service
+     * @param numTasks
+     *            the number of worker tasks to start
+     */
+    private void startWorkers(final ExecutorService executorService, final int numTasks) {
+        for (int i = 0; i < numTasks; i++) {
             workerFutures.add(executorService.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
@@ -166,19 +195,22 @@ public class WorkQueue<T> implements AutoCloseable {
      * on that thread, to prevent deadlock in the case that the ExecutorService doesn't have as many threads
      * available as numParallelTasks. When this method returns, either all the work has been completed, or this or
      * some other thread was interrupted. If InterruptedException is thrown, this thread or another was interrupted.
+     *
+     * @throws InterruptedException
+     *             if a worker thread was interrupted
+     * @throws ExecutionException
+     *             if a worker thread throws an uncaught exception
      */
     private void runWorkLoop() throws InterruptedException, ExecutionException {
         // Get next work unit from queue
         while (numWorkUnitsRemaining.get() > 0) {
             T workUnit = null;
-            int counter = 0;
             while (numWorkUnitsRemaining.get() > 0) {
-                if (++counter > 100) {
-                    interruptionChecker.check();
-                }
+                // Check for interruption
+                interruptionChecker.check();
                 // Busy-wait for work units added after the queue is empty, while work units are still being
                 // processed, since the in-process work units may generate other work units.
-                workUnit = workQueue.poll();
+                workUnit = workUnits.poll();
                 if (workUnit != null) {
                     // Got a work unit
                     break;
@@ -186,27 +218,14 @@ public class WorkQueue<T> implements AutoCloseable {
                 Thread.sleep(5);
             }
             if (workUnit == null) {
-                // No work units remaining
+                // numWorkUnitsRemaining == 0
                 return;
             }
             // Got a work unit -- hold numWorkUnitsRemaining high until work is complete
-            interruptionChecker.check();
             try {
                 // Process the work unit
                 numRunningThreads.incrementAndGet();
-                workUnitProcessor.processWorkUnit(workUnit, this);
-            } catch (final InterruptedException e) {
-                // Interrupt all threads
-                interruptionChecker.interrupt();
-                throw e;
-            } catch (final Exception e) {
-                if (log != null) {
-                    log.log("Exception in worker thread", e);
-                }
-                if (e.getCause() instanceof InterruptedException) {
-                    interruptionChecker.interrupt();
-                }
-                throw interruptionChecker.executionException(e);
+                workUnitProcessor.processWorkUnit(workUnit, this, log);
             } finally {
                 // Only after completing the work unit, decrement the count of work units remaining. This way, if
                 // process() generates mork work units, but the queue is emptied some time after this work unit was
@@ -220,10 +239,13 @@ public class WorkQueue<T> implements AutoCloseable {
 
     /**
      * Add a unit of work. May be called by workers to add more work units to the tail of the queue.
+     *
+     * @param workUnit
+     *            the work unit
      */
     public void addWorkUnit(final T workUnit) {
         numWorkUnitsRemaining.incrementAndGet();
-        workQueue.add(workUnit);
+        workUnits.add(workUnit);
     }
 
     /**
@@ -242,36 +264,42 @@ public class WorkQueue<T> implements AutoCloseable {
      * Ensure that there are no work units still uncompleted. This should be called after runWorkLoop() exits on the
      * main thread (e.g. using try-with-resources, since this class is AutoCloseable). If any work units are still
      * uncompleted (e.g. in the case of an exception), will shut down remaining workers.
+     *
+     * @throws ExecutionException
+     *             If a worker threw an uncaught exception.
      */
     @Override
-    public void close() {
-        boolean uncompletedWork = false;
+    public void close() throws ExecutionException {
         if (numWorkUnitsRemaining.get() > 0) {
-            uncompletedWork = true;
             if (log != null) {
-                log.log("Some work units not completed");
+                log.log("~", "Some work units were not completed");
             }
+            // Interrupt threads, if there are work units that have not been completed
+            interruptionChecker.interrupt();
         }
         for (Future<?> future; (future = workerFutures.poll()) != null;) {
             try {
-                if (uncompletedWork) {
-                    future.cancel(true);
-                }
-                // Call future.get(), so that ExecutionExceptions get logged if the worker threw an exception
+                // Block on completion using future.get(), which may throw one of the exceptions below
                 future.get();
-            } catch (CancellationException | InterruptedException e) {
-                // Ignore
-            } catch (final ExecutionException e) {
+            } catch (final CancellationException e) {
                 if (log != null) {
-                    log.log("Closed work queue because worker threw exception", e);
+                    log.log("~", "Worker thread was cancelled");
                 }
-                interruptionChecker.executionException(e);
+            } catch (final InterruptedException e) {
+                if (log != null) {
+                    log.log("~", "Worker thread was interrupted");
+                }
+                // Interrupt other threads
+                interruptionChecker.interrupt();
+            } catch (final ExecutionException e) {
+                interruptionChecker.setExecutionException(e);
+                interruptionChecker.interrupt();
             }
         }
         while (numRunningThreads.get() > 0) {
             // Barrier (busy wait) for worker thread completion. (If an exception is thrown, future.cancel(true)
             // returns immediately, so we need to wait for thread shutdown here. Otherwise a finally-block of a
-            // caller may be called before the worker threads have completed and cleaned up theri resources.)
+            // caller may be called before the worker threads have completed and cleaned up their resources.)
         }
     }
 }

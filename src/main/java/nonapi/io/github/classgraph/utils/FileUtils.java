@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -50,6 +50,13 @@ import java.util.List;
  * File utilities.
  */
 public class FileUtils {
+    /**
+     * Constructor.
+     */
+    private FileUtils() {
+        // Cannot be constructed
+    }
+
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
      * will not reflect subsequent changes to the current directory).
@@ -317,7 +324,7 @@ public class FileUtils {
                         // Ignore "/./" or empty segment "//"
                     } else if (segment.equals("..")) {
                         // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
-                        if (currSectionSegments.size() > 0) {
+                        if (!currSectionSegments.isEmpty()) {
                             currSectionSegments.remove(currSectionSegments.size() - 1);
                         }
                     } else {
@@ -368,6 +375,8 @@ public class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check if the path ends with a ".class" extension, ignoring case.
+     *
      * @param path
      *            A file path.
      * @return true if path has a ".class" extension, ignoring case.
@@ -380,6 +389,8 @@ public class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check if the file exists and can be read.
+     *
      * @param file
      *            A {@link File}.
      * @return true if a file exists and can be read.
@@ -394,10 +405,18 @@ public class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The clean method. */
     private static Method cleanMethod;
+
+    /** The attachment method. */
     private static Method attachmentMethod;
+
+    /** The unsafe. */
     private static Object theUnsafe;
 
+    /**
+     * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
+     */
     static void getCleanMethodPrivileged() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
             try {
@@ -412,6 +431,7 @@ public class FileUtils {
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final Exception ex) {
+                // Ignore
             }
         } else {
             try {
@@ -434,6 +454,7 @@ public class FileUtils {
                                 + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final Exception ex) {
+                // Ignore
             }
         }
     }
@@ -448,6 +469,15 @@ public class FileUtils {
         });
     }
 
+    /**
+     * Close a direct byte buffer (run in doPrivileged).
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     * @param log
+     *            the log
+     * @return true if successful
+     */
     private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final LogNode log) {
         try {
             if (cleanMethod == null) {

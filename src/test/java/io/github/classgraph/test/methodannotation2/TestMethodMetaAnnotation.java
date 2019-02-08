@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -42,37 +42,66 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
+/**
+ * The Class TestMethodMetaAnnotation.
+ */
 public class TestMethodMetaAnnotation {
 
+    /**
+     * The Interface MetaAnnotation.
+     */
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface MetaAnnotation {
     }
 
+    /**
+     * The Interface ClassAnnotation.
+     */
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
     @MetaAnnotation
     public @interface ClassAnnotation {
     }
 
+    /**
+     * The Interface MethodAnnotation.
+     */
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @MetaAnnotation
     public @interface MethodAnnotation {
     }
 
+    /**
+     * The Class MetaAnnotatedClass.
+     */
     @ClassAnnotation
     public static class MetaAnnotatedClass {
+
+        /**
+         * Annotated method.
+         */
         public void annotatedMethod() {
         }
     }
 
+    /**
+     * The Class ClassWithMetaAnnotatedMethod.
+     */
     public static class ClassWithMetaAnnotatedMethod {
+
+        /**
+         * Annotated method.
+         */
         @MethodAnnotation
         public void annotatedMethod() {
         }
     }
 
+    /**
+     * Test meta annotation.
+     */
     @Test
     @ExternalAnnotation
     public void testMetaAnnotation() {
@@ -86,6 +115,9 @@ public class TestMethodMetaAnnotation {
         }
     }
 
+    /**
+     * Test meta annotation standard classes only.
+     */
     @Test
     @ExternalAnnotation
     public void testMetaAnnotationStandardClassesOnly() {
@@ -98,6 +130,9 @@ public class TestMethodMetaAnnotation {
         }
     }
 
+    /**
+     * Test method meta annotation.
+     */
     @Test
     @ExternalAnnotation
     public void testMethodMetaAnnotation() {

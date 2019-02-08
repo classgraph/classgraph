@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -33,8 +33,13 @@ import java.util.Objects;
 import java.util.Set;
 
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
-public class AnnotationParameterValue extends ScanResultObject implements Comparable<AnnotationParameterValue> {
+public class AnnotationParameterValue extends ScanResultObject
+        implements HasName, Comparable<AnnotationParameterValue> {
+
+    /** The the parameter name. */
     private String name;
+
+    /** The parameter value. */
     private ObjectTypedValueWrapper value;
 
     /** Default constructor for deserialization. */
@@ -42,6 +47,8 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
     }
 
     /**
+     * Constructor.
+     *
      * @param name
      *            The annotation paramater name.
      * @param value
@@ -52,12 +59,19 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         this.value = new ObjectTypedValueWrapper(value);
     }
 
-    /** @return The annotation parameter name. */
+    /**
+     * Get the annotation parameter name.
+     *
+     * @return The annotation parameter name.
+     */
+    @Override
     public String getName() {
         return name;
     }
 
     /**
+     * Get the annotation parameter value.
+     *
      * @return The annotation parameter value. May be one of the following types:
      *         <ul>
      *         <li>String for string constants
@@ -81,6 +95,9 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
     /**
      * Set (update) the value of the annotation parameter. Used to replace Object[] arrays containing boxed types
      * into primitive arrays.
+     *
+     * @param newValue
+     *            the new value
      */
     void setValue(final Object newValue) {
         this.value = new ObjectTypedValueWrapper(newValue);
@@ -88,17 +105,26 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -107,7 +133,12 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         }
     }
 
-    /** Get the names of any classes referenced in the annotation parameters. */
+    /**
+     * Get the names of any classes referenced in the annotation parameters.
+     *
+     * @param referencedClassNames
+     *            the referenced class names
+     */
     @Override
     void getReferencedClassNames(final Set<String> referencedClassNames) {
         if (value != null) {
@@ -120,6 +151,9 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
     /**
      * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
      * to check the type of each method of the annotation class to determine if it is a primitive array type).
+     *
+     * @param annotationClassInfo
+     *            the annotation class info
      */
     void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
         if (value != null) {
@@ -127,13 +161,22 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         }
     }
 
-    /** Instantiate an annotation parameter value. */
+    /**
+     * Instantiate an annotation parameter value.
+     *
+     * @param annotationClassInfo
+     *            the annotation class info
+     * @return the instance
+     */
     Object instantiate(final ClassInfo annotationClassInfo) {
         return value.instantiateOrGet(annotationClassInfo, name);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
@@ -141,12 +184,24 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         return buf.toString();
     }
 
+    /**
+     * To string.
+     *
+     * @param buf
+     *            the buf
+     */
     void toString(final StringBuilder buf) {
         buf.append(name);
         buf.append(" = ");
         toStringParamValueOnly(buf);
     }
 
+    /**
+     * To string, param value only.
+     *
+     * @param buf
+     *            the buf
+     */
     void toStringParamValueOnly(final StringBuilder buf) {
         if (value == null) {
             buf.append("null");
@@ -177,6 +232,9 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
     @Override
     public int compareTo(final AnnotationParameterValue o) {
         final int diff = name.compareTo(o.getName());
@@ -187,19 +245,13 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         // if the annotation has multiple parameters of the same name but different value. 
         final Object p0 = getValue();
         final Object p1 = o.getValue();
-        if (p0 == null && p1 == null) {
-            return 0;
-        } else if (p0 == null && p1 != null) {
-            return -1;
-        } else if (p0 != null && p1 == null) {
-            return 1;
-        } else if (p0 != null && p1 != null) {
-            return p0.toString().compareTo(p1.toString());
-        }
-        // Never reached (fixes FindBugs warning)
-        return 0;
+        return p0 != null && p1 != null ? p0.toString().compareTo(p1.toString())
+                : (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof AnnotationParameterValue)) {
@@ -210,6 +262,9 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
                 && (value == null || value.equals(o.value));
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return Objects.hash(name, value);

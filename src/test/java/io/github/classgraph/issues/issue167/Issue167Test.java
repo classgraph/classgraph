@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -42,9 +42,18 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.issues.issue167.a.TestA;
 import io.github.classgraph.issues.issue167.a.b.TestAB;
 
+/**
+ * The Class Issue167Test.
+ */
 public class Issue167Test {
+
+    /** The classes. */
     public static List<Class<?>> classes = Arrays.asList(TestA.class, TestAB.class);
+
+    /** The packages. */
     public static List<String> packages = new ArrayList<>();
+
+    /** The class names. */
     public static List<String> classNames = new ArrayList<>();
     static {
         for (final Class<?> c : classes) {
@@ -53,6 +62,9 @@ public class Issue167Test {
         }
     }
 
+    /**
+     * Scan packages test 1.
+     */
     @Test
     public void scanPackagesTest1() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(packages.toArray(new String[0]))
@@ -61,6 +73,9 @@ public class Issue167Test {
         }
     }
 
+    /**
+     * Scan packages test 2.
+     */
     @Test
     public void scanPackagesTest2() {
         final List<String> reversedPackages = new ArrayList<>(packages);

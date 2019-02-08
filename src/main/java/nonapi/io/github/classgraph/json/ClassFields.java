@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -63,6 +63,18 @@ class ClassFields {
     /** If non-null, this is the field that has an {@link Id} annotation. */
     Field idField;
 
+    /**
+     * Constructor.
+     *
+     * @param cls
+     *            the class
+     * @param resolveTypes
+     *            whether to resolve types
+     * @param onlySerializePublicFields
+     *            whether to only serialize public fields
+     * @param classFieldCache
+     *            the class field cache
+     */
     public ClassFields(final Class<?> cls, final boolean resolveTypes, final boolean onlySerializePublicFields,
             final ClassFieldCache classFieldCache) {
 

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,7 +41,11 @@ public class RecyclableInflater implements Resettable, AutoCloseable {
     /** Create a new {@link Inflater} instance with the "nowrap" option (which is needed for zipfile entries). */
     private final Inflater inflater = new Inflater(/* nowrap = */ true);
 
-    /** Get the {@link Inflater} instance. */
+    /**
+     * Get the {@link Inflater} instance.
+     *
+     * @return the {@link Inflater} instance.
+     */
     public Inflater getInflater() {
         return inflater;
     }

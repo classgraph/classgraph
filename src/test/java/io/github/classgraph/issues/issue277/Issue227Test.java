@@ -9,11 +9,17 @@ import io.github.classgraph.ClassGraph;
  */
 public class Issue227Test {
 
+    /**
+     * Test no args blacklist lib or ext jars.
+     */
     @Test
     public void testNoArgsBlacklistLibOrExtJars() {
         new ClassGraph().blacklistLibOrExtJars();
     }
 
+    /**
+     * Test no args whitelist lib or ext jars.
+     */
     @Test
     public void testNoArgsWhitelistLibOrExtJars() {
         new ClassGraph().whitelistLibOrExtJars();

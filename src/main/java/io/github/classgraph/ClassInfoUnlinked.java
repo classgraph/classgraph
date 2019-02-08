@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -44,44 +44,117 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * classes. (The cross-linking is done in a separate step to avoid the complexity of dealing with race conditions.)
  */
 class ClassInfoUnlinked {
+
+    /** The class name. */
     final String className;
-    private final int classModifiers;
-    private final boolean isInterface;
-    private final boolean isAnnotation;
+
+    /** Whether this is an external class. */
     private final boolean isExternalClass;
-    // Superclass (can be null if no superclass, or if superclass is blacklisted)
+
+    /** The class modifiers. */
+    private int classModifiers;
+
+    /** Whether this class is an interface. */
+    private boolean isInterface;
+
+    /** Whether this class is an annotation. */
+    private boolean isAnnotation;
+
+    /** The superclass name. (can be null if no superclass, or if superclass is blacklisted.) */
     String superclassName;
+
+    /** The implemented interfaces. */
     List<String> implementedInterfaces;
+
+    /** The class annotations. */
     AnnotationInfoList classAnnotations;
+
+    /** The fully qualified name of the defining method. */
     private String fullyQualifiedDefiningMethodName;
+
+    /** Class containment entries. */
     private List<SimpleEntry<String, String>> classContainmentEntries;
+
+    /** Annotation default parameter values. */
     private AnnotationParameterValueList annotationParamDefaultValues;
+
+    /** Referenced class names. */
     private final Set<String> refdClassNames;
+
+    /** The classpath element. */
     final ClasspathElement classpathElement;
+
+    /** The classfile resource. */
     final Resource classfileResource;
+
+    /** The field info list. */
     FieldInfoList fieldInfoList;
+
+    /** The method info list. */
     MethodInfoList methodInfoList;
+
+    /** The type signature. */
     private String typeSignature;
 
-    ClassInfoUnlinked(final String className, final String superclassName, final int classModifiers,
-            final boolean isInterface, final boolean isAnnotation, final boolean isExternalClass,
+    /**
+     * Constructor.
+     *
+     * @param className
+     *            the class name
+     * @param superclassName
+     *            the superclass name
+     * @param isExternalClass
+     *            true if external class
+     * @param refdClassNames
+     *            the referenced class names
+     * @param classpathElement
+     *            the classpath element
+     * @param classfileResource
+     *            the classfile resource
+     */
+    ClassInfoUnlinked(final String className, final String superclassName, final boolean isExternalClass,
             final Set<String> refdClassNames, final ClasspathElement classpathElement,
             final Resource classfileResource) {
         this.className = (className);
         this.superclassName = superclassName;
-        this.classModifiers = classModifiers;
-        this.isInterface = isInterface;
-        this.isAnnotation = isAnnotation;
         this.isExternalClass = isExternalClass;
         this.refdClassNames = refdClassNames;
         this.classpathElement = classpathElement;
         this.classfileResource = classfileResource;
     }
 
+    /**
+     * Sets the modifiers.
+     *
+     * @param classModifiers
+     *            the class modifiers
+     * @param isInterface
+     *            true if this class is an interface
+     * @param isAnnotation
+     *            true if this class is an annotation
+     */
+    public void setModifiers(final int classModifiers, final boolean isInterface, final boolean isAnnotation) {
+        this.classModifiers = classModifiers;
+        this.isInterface = isInterface;
+        this.isAnnotation = isAnnotation;
+    }
+
+    /**
+     * Adds the type signature.
+     *
+     * @param typeSignature
+     *            the type signature
+     */
     void addTypeSignature(final String typeSignature) {
         this.typeSignature = typeSignature;
     }
 
+    /**
+     * Adds the implemented interface.
+     *
+     * @param interfaceName
+     *            the interface name
+     */
     void addImplementedInterface(final String interfaceName) {
         if (implementedInterfaces == null) {
             implementedInterfaces = new ArrayList<>();
@@ -89,6 +162,12 @@ class ClassInfoUnlinked {
         implementedInterfaces.add(interfaceName);
     }
 
+    /**
+     * Adds the class annotation.
+     *
+     * @param classAnnotation
+     *            the class annotation
+     */
     void addClassAnnotation(final AnnotationInfo classAnnotation) {
         if (classAnnotations == null) {
             classAnnotations = new AnnotationInfoList();
@@ -96,6 +175,12 @@ class ClassInfoUnlinked {
         classAnnotations.add(classAnnotation);
     }
 
+    /**
+     * Adds the field info.
+     *
+     * @param fieldInfo
+     *            the field info
+     */
     void addFieldInfo(final FieldInfo fieldInfo) {
         if (fieldInfoList == null) {
             fieldInfoList = new FieldInfoList();
@@ -103,6 +188,12 @@ class ClassInfoUnlinked {
         fieldInfoList.add(fieldInfo);
     }
 
+    /**
+     * Adds the method info.
+     *
+     * @param methodInfo
+     *            the method info
+     */
     void addMethodInfo(final MethodInfo methodInfo) {
         if (methodInfoList == null) {
             methodInfoList = new MethodInfoList();
@@ -110,10 +201,24 @@ class ClassInfoUnlinked {
         methodInfoList.add(methodInfo);
     }
 
+    /**
+     * Adds the enclosing method.
+     *
+     * @param fullyQualifiedDefiningMethodName
+     *            the fully qualified defining method name
+     */
     public void addEnclosingMethod(final String fullyQualifiedDefiningMethodName) {
         this.fullyQualifiedDefiningMethodName = fullyQualifiedDefiningMethodName;
     }
 
+    /**
+     * Adds the class containment.
+     *
+     * @param innerClassName
+     *            the inner class name
+     * @param outerClassName
+     *            the outer class name
+     */
     public void addClassContainment(final String innerClassName, final String outerClassName) {
         if (classContainmentEntries == null) {
             classContainmentEntries = new ArrayList<>();
@@ -121,6 +226,12 @@ class ClassInfoUnlinked {
         classContainmentEntries.add(new SimpleEntry<>(innerClassName, outerClassName));
     }
 
+    /**
+     * Adds the annotation param default value.
+     *
+     * @param annotationParamDefaultValue
+     *            the annotation param default value
+     */
     public void addAnnotationParamDefaultValue(final AnnotationParameterValue annotationParamDefaultValue) {
         if (annotationParamDefaultValues == null) {
             annotationParamDefaultValues = new AnnotationParameterValueList();
@@ -130,6 +241,17 @@ class ClassInfoUnlinked {
 
     /**
      * Link classes. Not threadsafe, should be run in a single-threaded context.
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @param classNameToClassInfo
+     *            map from class name to class info
+     * @param packageNameToPackageInfo
+     *            map from package name to package info
+     * @param moduleNameToModuleInfo
+     *            map from module name to module info
+     * @param log
+     *            the log
      */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
@@ -158,15 +280,17 @@ class ClassInfoUnlinked {
 
         } else if (className.equals("package-info") || className.endsWith(".package-info")) {
             // Handle package descriptor classfile
-            final PackageInfo packageInfo = PackageInfo.getPackage(PackageInfo.getParentPackageName(className),
-                    packageNameToPackageInfo);
+            final PackageInfo packageInfo = PackageInfo
+                    .getOrCreatePackage(PackageInfo.getParentPackageName(className), packageNameToPackageInfo);
             packageInfo.addAnnotations(classAnnotations);
 
         } else {
             // Handle regular classfile
-            final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface,
-                    isAnnotation, isExternalClass, classNameToClassInfo, classpathElement, classfileResource,
-                    scanSpec, log);
+            final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
+                    classNameToClassInfo, classpathElement, classfileResource, log);
+            classInfo.setModifiers(classModifiers);
+            classInfo.setIsInterface(isInterface);
+            classInfo.setIsAnnotation(isAnnotation);
             if (superclassName != null) {
                 classInfo.addSuperclass(superclassName, classNameToClassInfo);
             }
@@ -202,8 +326,8 @@ class ClassInfoUnlinked {
                 classInfo.addReferencedClassNames(refdClassNames);
             }
 
-            final PackageInfo packageInfo = PackageInfo.getPackage(PackageInfo.getParentPackageName(className),
-                    packageNameToPackageInfo);
+            final PackageInfo packageInfo = PackageInfo
+                    .getOrCreatePackage(PackageInfo.getParentPackageName(className), packageNameToPackageInfo);
             packageInfo.addClassInfo(classInfo);
 
             String moduleName = null;
@@ -229,6 +353,12 @@ class ClassInfoUnlinked {
         }
     }
 
+    /**
+     * Write to log.
+     *
+     * @param log
+     *            the log
+     */
     void logTo(final LogNode log) {
         if (log != null) {
             final LogNode subLog = log.log("Found " //
@@ -264,6 +394,7 @@ class ClassInfoUnlinked {
                 try {
                     typeSig = ClassTypeSignature.parse(typeSignature, /* classInfo = */ null);
                 } catch (final ParseException e) {
+                    // Ignore
                 }
                 subLog.log("Class type signature: " + (typeSig == null ? typeSignature
                         : typeSig.toString(className, /* typeNameOnly = */ false, classModifiers, isAnnotation,

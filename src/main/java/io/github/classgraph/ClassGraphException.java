@@ -26,40 +26,51 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.issues.issue146;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-import org.junit.Test;
-
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
+package io.github.classgraph;
 
 /**
- * The Class Issue146Test.
+ * An unchecked exception that is thrown when an error state occurs or an unhandled exception is caught during
+ * scanning.
+ * 
+ * <p>
+ * (Extends {@link IllegalArgumentException}, which extends {@link RuntimeException}, so either of the more generic
+ * exceptions may be caught.)
  */
-public class Issue146Test {
+public class ClassGraphException extends IllegalArgumentException {
+    /** Constructor. */
+    public ClassGraphException() {
+        super();
+    }
 
     /**
-     * Issue 146 test.
+     * Constructor.
+     *
+     * @param message
+     *            the message
      */
-    @Test
-    public void issue146Test() {
-        // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
-        // src/test/resources
-        final String pkg = Issue146Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
-                .enableMethodInfo() //
-                .scan()) {
-            final ClassInfo classInfo = scanResult.getClassInfo(pkg + "." + "CompiledWithJDK8");
-            assertThat(classInfo).isNotNull();
-            final MethodInfo methodInfo = classInfo //
-                    .getMethodInfo("method") //
-                    .get(0);
-            assertThat(methodInfo.toString()) //
-                    .isEqualTo("public void method(int param0, java.lang.String param1, double[] param2)");
-        }
+    public ClassGraphException(final String message) {
+        super(message);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param cause
+     *            the cause
+     */
+    public ClassGraphException(final Throwable cause) {
+        super(cause);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param message
+     *            the message
+     * @param cause
+     *            the cause
+     */
+    public ClassGraphException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }

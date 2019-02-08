@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,7 +41,6 @@ import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -49,12 +48,38 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
+
+    /** The classpath order. */
     private final ClasspathOrder classpathOrder;
+
+    /** The classloader and module finder. */
     private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Add a ClassLoaderHandler, and recurse to parent classloader. */
+    /**
+     * Add a ClassLoaderHandler, and recurse to parent classloader.
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @param classLoader
+     *            the classloader
+     * @param classLoaderHandlerRegistryEntry
+     *            the classloader handler registry entry
+     * @param foundClassLoaders
+     *            the found classloaders
+     * @param allClassLoaderHandlerRegistryEntries
+     *            the all classloader handler registry entries
+     * @param classLoaderAndHandlerOrderOut
+     *            the classloader and handler order
+     * @param ignoredClassLoaderAndHandlerOrderOut
+     *            the ignored classloader and handler order
+     * @param visited
+     *            visited
+     * @param log
+     *            the log
+     * @return true, if successful
+     */
     private boolean addClassLoaderHandler(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry,
             final LinkedHashSet<ClassLoader> foundClassLoaders,
@@ -127,6 +152,21 @@ public class ClasspathFinder {
     /**
      * Recursively find the ClassLoaderHandler that can handle each ClassLoader and its parent(s), correctly
      * observing parent delegation order (PARENT_FIRST or PARENT_LAST).
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @param classLoader
+     *            the classloader
+     * @param foundClassLoaders
+     *            the found classloaders
+     * @param allClassLoaderHandlerRegistryEntries
+     *            the all classloader handler registry entries
+     * @param classLoaderAndHandlerOrderOut
+     *            the classloader and handler order out
+     * @param ignoredClassLoaderAndHandlerOrderOut
+     *            the ignored classloader and handler order out
+     * @param log
+     *            the log
      */
     private void findClassLoaderHandlerForClassLoaderAndParents(final ScanSpec scanSpec,
             final ClassLoader classLoader, final LinkedHashSet<ClassLoader> foundClassLoaders,
@@ -189,13 +229,11 @@ public class ClasspathFinder {
      *            The {@link ScanSpec}.
      * @param classpathEltPathToClassLoaders
      *            A map from classpath element path to classloader(s).
-     * @param nestedJarHandler
-     *            The {@link NestedJarHandler}.
      * @param log
      *            The log.
      */
     public ClasspathFinder(final ScanSpec scanSpec, final Map<String, ClassLoader[]> classpathEltPathToClassLoaders,
-            final NestedJarHandler nestedJarHandler, final LogNode log) {
+            final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
         // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
@@ -326,8 +364,7 @@ public class ClasspathFinder {
                                 pathElement);
                         if (!ignoredClasspathOrder.getOrder().contains(pathElementResolved)) {
                             // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathElement(pathElement, contextClassLoaders, scanSpec,
-                                    sysPropLog);
+                            classpathOrder.addClasspathElement(pathElement, contextClassLoaders, sysPropLog);
                         } else {
                             // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {
@@ -342,12 +379,18 @@ public class ClasspathFinder {
         }
     }
 
-    /** @return The order of raw classpath elements obtained from ClassLoaders. */
+    /**
+     * Get the classpath order.
+     *
+     * @return The order of raw classpath elements obtained from ClassLoaders.
+     */
     public ClasspathOrder getClasspathOrder() {
         return classpathOrder;
     }
 
     /**
+     * Get the classloader and module finder.
+     *
      * @return The {@link ClassLoaderAndModuleFinder}.
      */
     public ClassLoaderAndModuleFinder getClassLoaderAndModuleFinder() {

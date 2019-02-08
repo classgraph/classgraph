@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -38,64 +38,85 @@ import nonapi.io.github.classgraph.ScanSpec;
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {
 
+    /**
+     * Constructor.
+     */
+    private GraphvizDotfileGenerator() {
+        // Cannot be constructed
+    }
+
+    /** The color for standard classes. */
     private static final String STANDARD_CLASS_COLOR = "fff2b6";
 
+    /** The color for interfaces. */
     private static final String INTERFACE_COLOR = "b6e7ff";
 
+    /** The color for annotations. */
     private static final String ANNOTATION_COLOR = "f3c9ff";
 
+    /** The wrap width for method parameters. */
     private static final int PARAM_WRAP_WIDTH = 40;
 
-    private static final char NBSP_CHAR = (char) 0x00A0;
-
+    /** Which characters are Unicode whitespace. */
     private static final BitSet IS_UNICODE_WHITESPACE = new BitSet(1 << 16);
 
     static {
         // Valid unicode whitespace chars, see:
         // http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java
+        // Also see (for \n and \r -- a real example of Java stupidity):
+        // https://stackoverflow.com/a/3866219/3950982
         final String wsChars = ""//
-                + (char) 0x0009 // CHARACTER TABULATION
-                + (char) 0x000A // LINE FEED (LF)
-                + (char) 0x000B // LINE TABULATION
-                + (char) 0x000C // FORM FEED (FF)
-                + (char) 0x000D // CARRIAGE RETURN (CR)
-                + (char) 0x0020 // SPACE
-                + (char) 0x0085 // NEXT LINE (NEL) 
-                + NBSP_CHAR // NO-BREAK SPACE
-                + (char) 0x1680 // OGHAM SPACE MARK
-                + (char) 0x180E // MONGOLIAN VOWEL SEPARATOR
-                + (char) 0x2000 // EN QUAD 
-                + (char) 0x2001 // EM QUAD 
-                + (char) 0x2002 // EN SPACE
-                + (char) 0x2003 // EM SPACE
-                + (char) 0x2004 // THREE-PER-EM SPACE
-                + (char) 0x2005 // FOUR-PER-EM SPACE
-                + (char) 0x2006 // SIX-PER-EM SPACE
-                + (char) 0x2007 // FIGURE SPACE
-                + (char) 0x2008 // PUNCTUATION SPACE
-                + (char) 0x2009 // THIN SPACE
-                + (char) 0x200A // HAIR SPACE
-                + (char) 0x2028 // LINE SEPARATOR
-                + (char) 0x2029 // PARAGRAPH SEPARATOR
-                + (char) 0x202F // NARROW NO-BREAK SPACE
-                + (char) 0x205F // MEDIUM MATHEMATICAL SPACE
-                + (char) 0x3000; // IDEOGRAPHIC SPACE
+                + "\u0009" // CHARACTER TABULATION
+                + "\n" // LINE FEED (LF)
+                + "\u000B" // LINE TABULATION
+                + "\u000C" // FORM FEED (FF)
+                + "/r" // CARRIAGE RETURN (CR)
+                + "\u0020" // SPACE
+                + "\u0085" // NEXT LINE (NEL) 
+                + "\u00A0" // NO-BREAK SPACE
+                + "\u1680" // OGHAM SPACE MARK
+                + "\u180E" // MONGOLIAN VOWEL SEPARATOR
+                + "\u2000" // EN QUAD 
+                + "\u2001" // EM QUAD 
+                + "\u2002" // EN SPACE
+                + "\u2003" // EM SPACE
+                + "\u2004" // THREE-PER-EM SPACE
+                + "\u2005" // FOUR-PER-EM SPACE
+                + "\u2006" // SIX-PER-EM SPACE
+                + "\u2007" // FIGURE SPACE
+                + "\u2008" // PUNCTUATION SPACE
+                + "\u2009" // THIN SPACE
+                + "\u200A" // HAIR SPACE
+                + "\u2028" // LINE SEPARATOR
+                + "\u2029" // PARAGRAPH SEPARATOR
+                + "\u202F" // NARROW NO-BREAK SPACE
+                + "\u205F" // MEDIUM MATHEMATICAL SPACE
+                + "\u3000"; // IDEOGRAPHIC SPACE
         for (int i = 0; i < wsChars.length(); i++) {
             IS_UNICODE_WHITESPACE.set(wsChars.charAt(i));
         }
     }
 
+    /**
+     * Checks if a character is Unicode whitespace.
+     *
+     * @param c
+     *            the character
+     * @return true if the character is Unicode whitespace
+     */
     private static boolean isUnicodeWhitespace(final char c) {
         return IS_UNICODE_WHITESPACE.get(c);
     }
 
     /**
      * Encode HTML-unsafe characters as HTML entities.
-     * 
+     *
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
      * @param turnNewlineIntoBreak
      *            If true, turn '\n' into a break element in the output.
+     * @param buf
+     *            the buf
      */
     private static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
             final StringBuilder buf) {
@@ -157,7 +178,7 @@ class GraphvizDotfileGenerator {
             case '®':
                 buf.append("&reg;");
                 break;
-            case NBSP_CHAR:
+            case (char) 0x00A0:
                 buf.append("&nbsp;");
                 break;
             case '\n':
@@ -180,14 +201,34 @@ class GraphvizDotfileGenerator {
 
     /**
      * Encode HTML-unsafe characters as HTML entities.
-     * 
+     *
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
+     * @param buf
+     *            the buf
      */
     private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
     }
 
+    /**
+     * Produce HTML label for class node.
+     *
+     * @param ci
+     *            the class info
+     * @param shape
+     *            the shape to use
+     * @param boxBgColor
+     *            the box background color
+     * @param showFields
+     *            whether to show fields
+     * @param showMethods
+     *            whether to show methods
+     * @param scanSpec
+     *            the scan spec
+     * @param buf
+     *            the buf
+     */
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
             final boolean showFields, final boolean showMethods, final ScanSpec scanSpec, final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
@@ -223,7 +264,7 @@ class GraphvizDotfileGenerator {
 
         // Class annotations
         final AnnotationInfoList annotationInfo = ci.annotationInfo;
-        if (annotationInfo != null && annotationInfo.size() > 0) {
+        if (annotationInfo != null && !annotationInfo.isEmpty()) {
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
                     .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
             final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo);
@@ -241,7 +282,7 @@ class GraphvizDotfileGenerator {
 
         // Fields
         final FieldInfoList fieldInfo = ci.fieldInfo;
-        if (showFields && fieldInfo != null && fieldInfo.size() > 0) {
+        if (showFields && fieldInfo != null && !fieldInfo.isEmpty()) {
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
                     .append(scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ").append("FIELDS</b></font></td></tr>");
             buf.append("<tr><td cellpadding='0'>");
@@ -290,7 +331,7 @@ class GraphvizDotfileGenerator {
 
         // Methods
         final MethodInfoList methodInfo = ci.methodInfo;
-        if (showMethods && methodInfo != null && methodInfo.size() > 0) {
+        if (showMethods && methodInfo != null && !methodInfo.isEmpty()) {
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
@@ -413,6 +454,26 @@ class GraphvizDotfileGenerator {
      * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
+     *
+     * @param classInfoList
+     *            the class info list
+     * @param sizeX
+     *            the size X
+     * @param sizeY
+     *            the size Y
+     * @param showFields
+     *            whether to show fields
+     * @param showFieldTypeDependencyEdges
+     *            whether to show field type dependency edges
+     * @param showMethods
+     *            whether to show methods
+     * @param showMethodTypeDependencyEdges
+     *            whether to show method type dependency edges
+     * @param showAnnotations
+     *            whether to show annotations
+     * @param scanSpec
+     *            the scan spec
+     * @return the string
      */
     static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
@@ -476,42 +537,28 @@ class GraphvizDotfileGenerator {
                 }
             }
 
-            if (showFieldTypeDependencyEdges) {
-                final Set<String> referencedFieldTypeNames = new HashSet<>();
-                final FieldInfoList fieldInfo = classNode.fieldInfo;
-                if (fieldInfo != null) {
-                    for (final FieldInfo fi : fieldInfo) {
-                        final TypeSignature fieldSig = fi.getTypeSignatureOrTypeDescriptor();
-                        if (fieldSig != null) {
-                            fieldSig.getReferencedClassNames(referencedFieldTypeNames);
+            if (showFieldTypeDependencyEdges && classNode.fieldInfo != null) {
+                for (final FieldInfo fi : classNode.fieldInfo) {
+                    for (final String referencedFieldTypeName : fi.getReferencedClassNames()) {
+                        if (allVisibleNodes.contains(referencedFieldTypeName)) {
+                            // class --[ ] field type (open box)
+                            buf.append("  \"").append(referencedFieldTypeName).append("\" -> \"")
+                                    .append(classNode.getName())
+                                    .append("\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
                         }
-                    }
-                }
-                for (final String fieldTypeName : referencedFieldTypeNames) {
-                    if (allVisibleNodes.contains(fieldTypeName) && !"java.lang.Object".equals(fieldTypeName)) {
-                        // class --[ ] field type (open box)
-                        buf.append("  \"").append(fieldTypeName).append("\" -> \"").append(classNode.getName())
-                                .append("\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
                     }
                 }
             }
 
-            if (showMethodTypeDependencyEdges) {
-                final Set<String> referencedMethodTypeNames = new HashSet<>();
-                final MethodInfoList methodInfo = classNode.methodInfo;
-                if (methodInfo != null) {
-                    for (final MethodInfo mi : methodInfo) {
-                        final MethodTypeSignature methodSig = mi.getTypeSignatureOrTypeDescriptor();
-                        if (methodSig != null) {
-                            methodSig.getReferencedClassNames(referencedMethodTypeNames);
+            if (showMethodTypeDependencyEdges && classNode.methodInfo != null) {
+                for (final MethodInfo mi : classNode.methodInfo) {
+                    for (final String referencedMethodTypeName : mi.getReferencedClassNames()) {
+                        if (allVisibleNodes.contains(referencedMethodTypeName)) {
+                            // class --[#] field type (open box)
+                            buf.append("  \"").append(referencedMethodTypeName).append("\" -> \"")
+                                    .append(classNode.getName())
+                                    .append("\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
                         }
-                    }
-                }
-                for (final String methodTypeName : referencedMethodTypeNames) {
-                    if (allVisibleNodes.contains(methodTypeName) && !"java.lang.Object".equals(methodTypeName)) {
-                        // class --[#] method type (filled box)
-                        buf.append("  \"").append(methodTypeName).append("\" -> \"").append(classNode.getName())
-                                .append("\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
                     }
                 }
             }
@@ -570,10 +617,10 @@ class GraphvizDotfileGenerator {
      *            The GraphViz layout width in inches.
      * @param includeExternalClasses
      *            If true, include any dependency nodes in the graph that are not themselves in classInfoList.
+     * @return the GraphViz file contents.
      * @throws IllegalArgumentException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
      *             not called before scanning (since there would be nothing to graph).
-     * @return the GraphViz file contents.
      */
     static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
             final float sizeX, final float sizeY, final boolean includeExternalClasses) {

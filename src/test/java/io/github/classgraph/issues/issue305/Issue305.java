@@ -15,6 +15,9 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue305.
+ */
 public class Issue305 {
     /** Test that multi-line continuations in manifest file values are correctly assembled into a string. */
     @Test

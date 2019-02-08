@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -50,45 +50,47 @@ public class ScanSpec {
 
     /** Constructor for deserialization. */
     public ScanSpec() {
+        // Intentionally empty
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** Package white/blacklist (with separator '.'). */
-    public WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package prefix white/blacklist, for recursive scanning (with separator '.', ending in '.'). */
-    public WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix();
+    public final WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Path white/blacklist (with separator '/'). */
-    public WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path prefix white/blacklist, for recursive scanning (with separator '/', ending in '/'). */
-    public WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix();
+    public final WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Class white/blacklist (fully-qualified class names, with separator '.'). */
-    public WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Classfile white/blacklist (path to classfiles, with separator '/', ending in ".class"). */
-    public WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package containing white/blacklisted classes (with separator '.'). */
-    public WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path to white/blacklisted classes (with separator '/'). */
-    public WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Module white/blacklist (with separator '.'). */
-    public WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
+    public final WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
 
     /** Classpath element resource path white/blacklist. */
-    public WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = new WhiteBlackListWholeString();
+    public final WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = //
+            new WhiteBlackListWholeString();
 
     /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
+    public final WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
 
     /** Sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
     public void sortPrefixes() {
@@ -97,6 +99,7 @@ public class ScanSpec {
                 try {
                     ((WhiteBlackList) field.get(this)).sortPrefixes();
                 } catch (final Exception e) {
+                    throw new RuntimeException("Field is not accessible: " + field, e);
                 }
             }
         }
@@ -310,7 +313,13 @@ public class ScanSpec {
         }
     }
 
-    /** Return true if the argument is a ModuleLayer or a subclass of ModuleLayer. */
+    /**
+     * Return true if the argument is a ModuleLayer or a subclass of ModuleLayer.
+     *
+     * @param moduleLayer
+     *            the module layer
+     * @return true if the argument is a ModuleLayer or a subclass of ModuleLayer.
+     */
     private static boolean isModuleLayer(final Object moduleLayer) {
         if (moduleLayer == null) {
             throw new IllegalArgumentException("ModuleLayer references must not be null");
@@ -396,6 +405,10 @@ public class ScanSpec {
     /**
      * Returns true if the given directory path is a descendant of a blacklisted path, or an ancestor or descendant
      * of a whitelisted path. The path should end in "/".
+     *
+     * @param relativePath
+     *            the relative path
+     * @return the {@link ScanSpecPathMatch}
      */
     public ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
         // In blacklisted path
@@ -408,11 +421,13 @@ public class ScanSpec {
             return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
         }
 
-        // At whitelisted path
         if (pathWhiteBlackList.whitelistIsEmpty() && classPackagePathWhiteBlackList.whitelistIsEmpty()) {
-            // There are no whitelisted packages, so everything non-blacklisted is whitelisted
-            return ScanSpecPathMatch.AT_WHITELISTED_PATH;
+            // If there are no whitelisted packages, the root package is whitelisted
+            return relativePath.isEmpty() || relativePath.equals("/") ? ScanSpecPathMatch.AT_WHITELISTED_PATH
+                    : ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }
+
+        // At whitelisted path
         if (pathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
             // Reached a whitelisted path
             return ScanSpecPathMatch.AT_WHITELISTED_PATH;
@@ -420,6 +435,12 @@ public class ScanSpec {
         if (classPackagePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
             // Reached a package containing a specifically-whitelisted class
             return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
+        }
+
+        // Descendant of whitelisted path
+        if (pathPrefixWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
+            // Path prefix matches one in the whitelist
+            return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }
 
         // Ancestor of whitelisted path
@@ -436,12 +457,6 @@ public class ScanSpec {
             return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
         }
 
-        // Descendant of whitelisted path
-        if (pathPrefixWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
-            // Path prefix matches one in the whitelist
-            return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
-        }
-
         // Not in whitelisted path
         return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;
     }
@@ -449,18 +464,35 @@ public class ScanSpec {
     /**
      * Returns true if the given relative path (for a classfile name, including ".class") matches a
      * specifically-whitelisted (and non-blacklisted) classfile's relative path.
+     *
+     * @param relativePath
+     *            the relative path
+     * @return true if the given relative path (for a classfile name, including ".class") matches a
+     *         specifically-whitelisted (and non-blacklisted) classfile's relative path.
      */
     public boolean classfileIsSpecificallyWhitelisted(final String relativePath) {
         return classfilePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath);
     }
 
-    /** Returns true if the class is specifically whitelisted, or is within a whitelisted package. */
+    /**
+     * Returns true if the class is specifically whitelisted, or is within a whitelisted package.
+     *
+     * @param className
+     *            the class name
+     * @return true if the class is specifically whitelisted, or is within a whitelisted package.
+     */
     public boolean classOrPackageIsSpecificallyWhitelisted(final String className) {
         return classWhiteBlackList.isSpecificallyWhitelisted(className)
                 || packagePrefixWhiteBlackList.isSpecificallyWhitelisted(className);
     }
 
-    /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
+    /**
+     * Returns true if the class is specifically blacklisted, or is within a blacklisted package.
+     *
+     * @param className
+     *            the class name
+     * @return true if the class is specifically blacklisted, or is within a blacklisted package.
+     */
     public boolean classOrPackageIsBlacklisted(final String className) {
         return classWhiteBlackList.isBlacklisted(className) || packagePrefixWhiteBlackList.isBlacklisted(className);
     }
@@ -468,6 +500,8 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Write to log.
+     *
      * @param log
      *            The {@link LogNode} to log to.
      */
@@ -478,6 +512,7 @@ public class ScanSpec {
                 try {
                     scanSpecLog.log(field.getName() + ": " + field.get(this));
                 } catch (final Exception e) {
+                    // Ignore
                 }
             }
         }

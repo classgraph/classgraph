@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.IncompleteAnnotationException;
 import java.lang.annotation.Inherited;
@@ -44,7 +43,10 @@ import java.util.Set;
 /** Holds metadata about a specific annotation instance on a class, method, method parameter or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
 
+    /** The name. */
     private String name;
+
+    /** The annotation param values. */
     AnnotationParameterValueList annotationParamValues;
 
     /**
@@ -53,6 +55,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     private transient boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
+    /** The annotation param values with defaults. */
     private transient AnnotationParameterValueList annotationParamValuesWithDefaults;
 
     /** Default constructor for deserialization. */
@@ -62,6 +65,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param name
      *            The name of the annotation.
      * @param annotationParamValues
@@ -75,6 +80,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the name.
+     *
      * @return The name of the annotation class.
      */
     @Override
@@ -83,6 +90,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
+     * Checks if the annotation is inherited.
+     *
      * @return true if this annotation is meta-annotated with {@link Inherited}.
      */
     public boolean isInherited() {
@@ -90,6 +99,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
+     * Get the default parameter values.
+     *
      * @return the list of default parameter values for this annotation, or the empty list if none.
      */
     public AnnotationParameterValueList getDefaultParameterValues() {
@@ -97,6 +108,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
+     * Get the parameter values.
+     *
      * @return The parameter values of this annotation, including any default parameter values inherited from the
      *         annotation class definition, or the empty list if none.
      */
@@ -150,19 +163,30 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the name of the annotation class, for {@link #getClassInfo()}. */
+    /**
+     * Get the name of the annotation class, for {@link #getClassInfo()}.
+     *
+     * @return the class name
+     */
     @Override
     protected String getClassName() {
         return name;
     }
 
-    /** @return The {@link ClassInfo} object for the annotation class. */
+    /**
+     * Get the class info.
+     *
+     * @return The {@link ClassInfo} object for the annotation class.
+     */
     @Override
     public ClassInfo getClassInfo() {
         getClassName();
         return super.getClassInfo();
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -173,13 +197,18 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         }
     }
 
-    /** Get the names of any classes referenced in the type descriptors of annotation parameters. */
+    /**
+     * Get the names of any classes referenced in the type descriptors of annotation parameters.
+     *
+     * @param referencedClassNames
+     *            the referenced class names
+     */
     @Override
-    void getReferencedClassNames(final Set<String> classNames) {
-        classNames.add(name);
+    void getReferencedClassNames(final Set<String> referencedClassNames) {
+        referencedClassNames.add(name);
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
-                annotationParamValue.getReferencedClassNames(classNames);
+                annotationParamValue.getReferencedClassNames(referencedClassNames);
             }
         }
     }
@@ -200,11 +229,25 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /** {@link InvocationHandler} for dynamically instantiating an {@link Annotation} object. */
-    private static class AnnotationInvocationHandler implements InvocationHandler, Serializable {
+    private static class AnnotationInvocationHandler implements InvocationHandler {
+
+        /** The annotation class. */
         private final Class<? extends Annotation> annotationClass;
+
+        /** The annotation parameter values instantiated. */
         private final Map<String, Object> annotationParameterValuesInstantiated = new HashMap<>();
+
+        /** The to string. */
         private final String toString;
 
+        /**
+         * Constructor.
+         *
+         * @param annotationClass
+         *            the annotation class
+         * @param annotationInfo
+         *            the annotation info
+         */
         AnnotationInvocationHandler(final Class<? extends Annotation> annotationClass,
                 final AnnotationInfo annotationInfo) {
             this.annotationClass = annotationClass;
@@ -223,12 +266,19 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             }
         }
 
+        /* (non-Javadoc)
+         * @see java.lang.reflect.InvocationHandler#invoke(java.lang.Object, java.lang.reflect.Method, java.lang.Object[])
+         */
         @Override
         public Object invoke(final Object proxy, final Method method, final Object[] args) {
             final String methodName = method.getName();
             final Class<?>[] paramTypes = method.getParameterTypes();
-
-            if (paramTypes.length == 1) {
+            if ((args == null ? 0 : args.length) != paramTypes.length) {
+                throw new IllegalArgumentException(
+                        "Wrong number of arguments for " + annotationClass.getName() + "." + methodName + ": got "
+                                + (args == null ? 0 : args.length) + ", expected " + paramTypes.length);
+            }
+            if (args != null && paramTypes.length == 1) {
                 if (methodName.equals("equals") && paramTypes[0] == Object.class) {
                     return args[0] != null && args[0] instanceof AnnotationInvocationHandler
                             && ((AnnotationInvocationHandler) args[0]).annotationClass == annotationClass
@@ -247,6 +297,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     return toString.hashCode();
                 case "annotationType":
                     return annotationClass;
+                default:
+                    // Fall through (method names match annotation parameter values)
                 }
             } else {
                 // Throw exception for 2 or more params
@@ -293,6 +345,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         }
     }
 
+    /**
+     * Convert wrapper arrays to primitive arrays.
+     */
     void convertWrapperArraysToPrimitiveArrays() {
         if (annotationParamValues != null) {
             annotationParamValues.convertWrapperArraysToPrimitiveArrays(getClassInfo());
@@ -301,6 +356,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
     @Override
     public int compareTo(final AnnotationInfo o) {
         final int diff = getName().compareTo(o.getName());
@@ -331,6 +389,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof AnnotationInfo)) {
@@ -340,6 +401,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return this.compareTo(o) == 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         int h = getName().hashCode();
@@ -376,6 +440,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();

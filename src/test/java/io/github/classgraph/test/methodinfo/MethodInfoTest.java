@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -40,18 +40,49 @@ import io.github.classgraph.MethodInfoList.MethodInfoFilter;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
+/**
+ * The Class MethodInfoTest.
+ */
 public class MethodInfoTest {
+
+    /**
+     * Public method with args.
+     *
+     * @param str
+     *            the str
+     * @param c
+     *            the c
+     * @param j
+     *            the j
+     * @param f
+     *            the f
+     * @param b
+     *            the b
+     * @param l
+     *            the l
+     * @param varargs
+     *            the varargs
+     * @return the int
+     */
     @ExternalAnnotation
     public final int publicMethodWithArgs(final String str, final char c, final long j, final float[] f,
             final byte[][] b, final List<Float> l, final int[]... varargs) {
         return 0;
     }
 
+    /**
+     * Private method.
+     *
+     * @return the string[]
+     */
     @SuppressWarnings("unused")
     private static String[] privateMethod() {
         return null;
     }
 
+    /**
+     * Method info not enabled.
+     */
     @Test(expected = IllegalArgumentException.class)
     public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
@@ -61,6 +92,9 @@ public class MethodInfoTest {
         }
     }
 
+    /**
+     * Get method info.
+     */
     @Test
     public void getMethodInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
@@ -85,6 +119,9 @@ public class MethodInfoTest {
         }
     }
 
+    /**
+     * Get constructor info.
+     */
     @Test
     public void getConstructorInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
@@ -94,6 +131,9 @@ public class MethodInfoTest {
         }
     }
 
+    /**
+     * Get method info ignoring visibility.
+     */
     @Test
     public void getMethodInfoIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())

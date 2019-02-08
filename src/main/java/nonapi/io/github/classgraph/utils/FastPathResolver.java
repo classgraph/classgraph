@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -40,13 +40,33 @@ import java.util.regex.Pattern;
  */
 public class FastPathResolver {
 
+    /**
+     * Constructor.
+     */
+    private FastPathResolver() {
+        // Cannot be constructed
+    }
+
     /** Match %-encoded characters in URLs. */
     private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
 
     /** True if we're running on Windows. */
     private static final boolean WINDOWS = File.separatorChar == '\\';
 
-    /** Translate backslashes to forward slashes, optionally removing trailing separator. */
+    /**
+     * Translate backslashes to forward slashes, optionally removing trailing separator.
+     *
+     * @param path
+     *            the path
+     * @param startIdx
+     *            the start index
+     * @param endIdx
+     *            the end index
+     * @param stripFinalSeparator
+     *            if true, strip the final separator
+     * @param buf
+     *            the buf
+     */
     private static void translateSeparator(final String path, final int startIdx, final int endIdx,
             final boolean stripFinalSeparator, final StringBuilder buf) {
         for (int i = startIdx; i < endIdx; i++) {
@@ -66,7 +86,18 @@ public class FastPathResolver {
         }
     }
 
-    /** Unescape runs of percent encoding, e.g. "%20%43%20" -> " + " */
+    /**
+     * Unescape runs of percent encoding, e.g. "%20%43%20" -> " + "
+     *
+     * @param path
+     *            the path
+     * @param startIdx
+     *            the start index
+     * @param endIdx
+     *            the end index
+     * @param buf
+     *            the buf
+     */
     private static void unescapePercentEncoding(final String path, final int startIdx, final int endIdx,
             final StringBuilder buf) {
         if (endIdx - startIdx == 3 && path.charAt(startIdx + 1) == '2' && path.charAt(startIdx + 2) == '0') {

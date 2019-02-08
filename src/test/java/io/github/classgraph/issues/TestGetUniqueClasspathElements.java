@@ -9,7 +9,14 @@ import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
 
+/**
+ * The Class TestGetUniqueClasspathElements.
+ */
 public class TestGetUniqueClasspathElements {
+
+    /**
+     * Test get unique classpath elements.
+     */
     @Test
     public void testGetUniqueClasspathElements() {
         final List<File> classpathElements = new ClassGraph().whitelistPackages("com.xyz").getClasspathFiles();

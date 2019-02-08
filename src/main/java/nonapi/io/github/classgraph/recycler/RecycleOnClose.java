@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -32,9 +32,18 @@ package nonapi.io.github.classgraph.recycler;
  * An AutoCloseable wrapper for a recyclable object instance. Obtained by calling
  * {@link Recycler#acquireRecycleOnClose()} in a try-with-resources statement, so that when the try block exits, the
  * acquired instance is recycled.
+ *
+ * @param <T>
+ *            the type to recycle
+ * @param <E>
+ *            the exception type that may be thrown when a recyclable item is acquired.
  */
 public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
+
+    /** The recycler. */
     private final Recycler<T, E> recycler;
+
+    /** The instance. */
     private final T instance;
 
     /**
@@ -43,19 +52,21 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
      * @param recycler
      *            The {@link Recycler}.
      * @param instance
-     *            The instance.
+     *            An object instance that was obtained by calling {@link Recycler#acquire()} on the recycler.
      * @throws E
      *             If an exception of type E was thrown during instantiation.
      * @throws IllegalArgumentException
      *             If {@link Recycler#newInstance()} returned null.
      */
-    RecycleOnClose(final Recycler<T, E> recycler, final T instance) throws E {
+    RecycleOnClose(final Recycler<T, E> recycler, final T instance) {
         this.recycler = recycler;
         this.instance = instance;
     }
 
     /**
-     * @return The new or recycled object instance.
+     * Get the object instance.
+     *
+     * @return The object instance.
      */
     public T get() {
         return instance;

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -30,6 +30,47 @@ package nonapi.io.github.classgraph.utils;
 
 /** A replacement for Java 8's String.join() that will allow compilation on Java 7. */
 public class Join {
+
+    /**
+     * Constructor.
+     */
+    private Join() {
+        // Cannot be constructed
+    }
+
+    /**
+     * A replacement for Java 8's String.join().
+     * 
+     * @param buf
+     *            The buffer to append to.
+     * @param addAtBeginning
+     *            The token to add at the beginning of the string.
+     * @param sep
+     *            The separator string.
+     * @param addAtEnd
+     *            The token to add at the end of the string.
+     * @param iterable
+     *            The {@link Iterable} to join.
+     */
+    public static void join(final StringBuilder buf, final String addAtBeginning, final String sep,
+            final String addAtEnd, final Iterable<?> iterable) {
+        if (!addAtBeginning.isEmpty()) {
+            buf.append(addAtBeginning);
+        }
+        boolean first = true;
+        for (final Object item : iterable) {
+            if (first) {
+                first = false;
+            } else {
+                buf.append(sep);
+            }
+            buf.append(item.toString());
+        }
+        if (!addAtEnd.isEmpty()) {
+            buf.append(addAtEnd);
+        }
+    }
+
     /**
      * A replacement for Java 8's String.join().
      * 
@@ -41,15 +82,7 @@ public class Join {
      */
     public static String join(final String sep, final Iterable<?> iterable) {
         final StringBuilder buf = new StringBuilder();
-        boolean first = true;
-        for (final Object item : iterable) {
-            if (first) {
-                first = false;
-            } else {
-                buf.append(sep);
-            }
-            buf.append(item);
-        }
+        join(buf, "", sep, "", iterable);
         return buf.toString();
     }
 

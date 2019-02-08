@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,12 +41,20 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue37Test.
+ */
 public class Issue37Test {
-
+    /**
+     * Constructor.
+     */
     @Issue37Annotation
     public Issue37Test() {
     }
 
+    /**
+     * Issue 37 test.
+     */
     @Issue37Annotation
     @Test
     public void issue37Test() {
@@ -65,6 +73,9 @@ public class Issue37Test {
         }
     }
 
+    /**
+     * Unannotated method.
+     */
     public void unannotatedMethod() {
     }
 }

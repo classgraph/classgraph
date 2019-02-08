@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -30,7 +30,12 @@ package nonapi.io.github.classgraph.concurrency;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/** A list of AutoCloseable items that can be used in a try-with-resources block. */
+/**
+ * A list of AutoCloseable items that can be used in a try-with-resources block.
+ *
+ * @param <T>
+ *            the element type
+ */
 class AutoCloseableConcurrentQueue<T extends AutoCloseable> extends ConcurrentLinkedQueue<T>
         implements AutoCloseable {
     /** Empty the queue, calling close() on each item. */

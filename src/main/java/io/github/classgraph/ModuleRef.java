@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -71,6 +71,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     private final ClassLoader classLoader;
 
     /**
+     * Constructor.
+     *
      * @param moduleReference
      *            The module reference, of JPMS type ModuleReference.
      * @param moduleLayer
@@ -95,13 +97,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
                 /* throwException = */ true);
         this.name = moduleName;
         @SuppressWarnings("unchecked")
-        final Set<String> packages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
+        final Set<String> modulePackages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
                 /* throwException = */ true);
-        if (packages == null) {
+        if (modulePackages == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor().packages() should not return null");
         }
-        this.packages = new ArrayList<>(packages);
+        this.packages = new ArrayList<>(modulePackages);
         Collections.sort(this.packages);
         final Object optionalRawVersion = ReflectionUtils.invokeMethod(this.descriptor, "rawVersion",
                 /* throwException = */ true);
@@ -141,32 +143,55 @@ public class ModuleRef implements Comparable<ModuleRef> {
                 this.name, /* throwException = */ true);
     }
 
-    /** @return The module name, i.e. {@code getReference().descriptor().name()}. Potentially null or empty. */
+    /**
+     * Get the module name, i.e. {@code getReference().descriptor().name()}.
+     *
+     * @return The module name, i.e. {@code getReference().descriptor().name()}. Potentially null or empty.
+     */
     public String getName() {
         return name;
     }
 
-    /** @return The module reference (of JPMS type ModuleReference). */
+    /**
+     * Get the module reference (of JPMS type ModuleReference).
+     *
+     * @return The module reference (of JPMS type ModuleReference).
+     */
     public Object getReference() {
         return reference;
     }
 
-    /** @return The module layer (of JPMS type ModuleLayer). */
+    /**
+     * Get the module layer (of JPMS type ModuleLayer).
+     *
+     * @return The module layer (of JPMS type ModuleLayer).
+     */
     public Object getLayer() {
         return layer;
     }
 
-    /** @return The module descriptor, i.e. {@code getReference().descriptor()} (of JPMS type ModuleDescriptor). */
+    /**
+     * Get the module descriptor, i.e. {@code getReference().descriptor()} (of JPMS type ModuleDescriptor).
+     *
+     * @return The module descriptor, i.e. {@code getReference().descriptor()} (of JPMS type ModuleDescriptor).
+     */
     public Object getDescriptor() {
         return descriptor;
     }
 
-    /** @return The list of packages in the module. (Does not include non-package directories.) */
+    /**
+     * Get a list of packages in the module. (Does not include non-package directories.)
+     *
+     * @return The list of packages in the module. (Does not include non-package directories.)
+     */
     public List<String> getPackages() {
         return packages;
     }
 
     /**
+     * Get the module location, i.e. {@code getReference().location()}. Returns null for modules that do not have a
+     * location.
+     *
      * @return The module location, i.e. {@code getReference().location()}. Returns null for modules that do not
      *         have a location.
      */
@@ -175,6 +200,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
+     * Get the module location as a string, i.e. {@code getReference().location().toString()}. Returns null for
+     * modules that do not have a location.
+     *
      * @return The module location as a string, i.e. {@code getReference().location().toString()}. Returns null for
      *         modules that do not have a location.
      */
@@ -186,6 +214,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
+     * Get the module location as a File, i.e. {@code new File(getReference().location())}. Returns null for modules
+     * that do not have a location, or for system ("jrt:") modules.
+     *
      * @return The module location as a File, i.e. {@code new File(getReference().location())}. Returns null for
      *         modules that do not have a location, or for system ("jrt:") modules.
      */
@@ -214,6 +245,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
+     * Checks if this module is a system module.
+     *
      * @return true if this module's location is a non-"file:" (i.e. "jrt:") URI, or if it has no location URI, or
      *         if it uses the (null) bootstrap ClassLoader, or if the module name starts with a system prefix
      *         ("java.", "jre.", etc.).
@@ -230,6 +263,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
+     * Get the class loader for the module.
+     *
      * @return The classloader for the module, i.e.
      *         {@code moduleLayer.findLoader(getReference().descriptor().name())}.
      */
@@ -237,6 +272,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
         return classLoader;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof ModuleRef)) {
@@ -246,16 +284,25 @@ public class ModuleRef implements Comparable<ModuleRef> {
         return mr.reference.equals(this.reference) && mr.layer.equals(this.layer);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return reference.hashCode() * layer.hashCode();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return reference.toString();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
     @Override
     public int compareTo(final ModuleRef o) {
         final int diff = this.name.compareTo(o.name);

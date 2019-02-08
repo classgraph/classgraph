@@ -17,9 +17,17 @@ import io.github.classgraph.ResourceList.ByteArrayConsumer;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
+/**
+ * The Class MultiReleaseJar.
+ */
 public class MultiReleaseJar {
+
+    /** The Constant jarURL. */
     private static final URL jarURL = MultiReleaseJar.class.getClassLoader().getResource("multi-release-jar.jar");
 
+    /**
+     * Multi release jar.
+     */
     @Test
     public void multiReleaseJar() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
@@ -59,6 +67,9 @@ public class MultiReleaseJar {
         }
     }
 
+    /**
+     * Multi release versioning of resources.
+     */
     @Test
     public void multiReleaseVersioningOfResources() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {

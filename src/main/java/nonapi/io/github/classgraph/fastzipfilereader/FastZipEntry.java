@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -39,9 +39,8 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
-import nonapi.io.github.classgraph.recycler.RecyclerExceptionless;
+import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip entry within a {@link LogicalZipFile}. */
@@ -78,7 +77,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public final String entryNameUnversioned;
 
     /** The {@link Inflater} recycler. */
-    private final RecyclerExceptionless<RecyclableInflater> inflaterRecycler;
+    private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
 
     /** The {@link RecyclableInflater} instance wrapping recyclable {@link Inflater} instances. */
     private RecyclableInflater recyclableInflaterInstance;
@@ -86,6 +85,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param parentLogicalZipFile
      *            The parent logical zipfile containing this entry.
      * @param locHeaderPos
@@ -113,8 +114,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.inflaterRecycler = nestedJarHandler.inflaterRecycler;
 
         // Get multi-release jar version number, and strip any version prefix
-        int version = 8;
-        String entryNameUnversioned = entryName;
+        int entryVersion = 8;
+        String entryNameWithoutVersionPrefix = entryName;
         if (entryName.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)
                 && entryName.length() > LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length() + 1) {
             // This is a multi-release jar path
@@ -124,17 +125,15 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 final String versionStr = entryName.substring(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length(),
                         nextSlashIdx);
                 // For multi-release jars, the version number has to be an int >= 9
-                try {
-                    // Integer.parseInt() is slow, so this is a custom implementation (this is called many times
-                    // for large classpaths, and Integer.parseInt() was a bit of a bottleneck, surprisingly)
-                    int versionInt = 0;
-                    if (versionStr.length() > 5) {
-                        throw new NumberFormatException();
-                    }
+                // Integer.parseInt() is slow, so this is a custom implementation (this is called many times
+                // for large classpaths, and Integer.parseInt() was a bit of a bottleneck, surprisingly)
+                int versionInt = 0;
+                if (versionStr.length() < 6 && !versionStr.isEmpty()) {
                     for (int i = 0; i < versionStr.length(); i++) {
                         final char c = versionStr.charAt(i);
                         if (c < '0' || c > '9') {
-                            throw new NumberFormatException();
+                            versionInt = 0;
+                            break;
                         }
                         if (versionInt == 0) {
                             versionInt = c - '0';
@@ -142,29 +141,29 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                             versionInt = versionInt * 10 + c - '0';
                         }
                     }
-                    version = versionInt;
-                } catch (final NumberFormatException e) {
-                    // Ignore
+                }
+                if (versionInt != 0) {
+                    entryVersion = versionInt;
                 }
                 // Set version to 8 for out-of-range version numbers or invalid paths
-                if (version < 9 || version > VersionFinder.JAVA_MAJOR_VERSION) {
-                    version = 8;
+                if (entryVersion < 9 || entryVersion > VersionFinder.JAVA_MAJOR_VERSION) {
+                    entryVersion = 8;
                 }
-                if (version > 8) {
+                if (entryVersion > 8) {
                     // Strip version path prefix
-                    entryNameUnversioned = entryName.substring(nextSlashIdx + 1);
+                    entryNameWithoutVersionPrefix = entryName.substring(nextSlashIdx + 1);
                     // For META-INF/versions/{versionInt}/META-INF/*, don't strip version prefix:
                     // "The intention is that the META-INF directory cannot be versioned."
                     // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013954.html
-                    if (entryNameUnversioned.startsWith(LogicalZipFile.META_INF_PATH_PREFIX)) {
-                        version = 8;
-                        entryNameUnversioned = entryName;
+                    if (entryNameWithoutVersionPrefix.startsWith(LogicalZipFile.META_INF_PATH_PREFIX)) {
+                        entryVersion = 8;
+                        entryNameWithoutVersionPrefix = entryName;
                     }
                 }
             }
         }
-        this.version = version;
-        this.entryNameUnversioned = entryNameUnversioned;
+        this.version = entryVersion;
+        this.entryNameUnversioned = entryNameWithoutVersionPrefix;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -172,6 +171,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * Lazily find zip entry data start offset -- this is deferred until zip entry data needs to be read, in order
      * to avoid randomly seeking within zipfile for every entry as the central directory is read.
+     *
+     * @return the offset within the physical zip file of the entry's start offset.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     long getEntryDataStartOffsetWithinPhysicalZipFile() throws IOException {
         if (entryDataStartOffsetWithinPhysicalZipFile == -1L) {
@@ -196,8 +199,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return true if the zip entry can be opened as a ByteBuffer slice -- the entry must be STORED, and span only
-     *         one 2GB buffer chunk.
+     * True if the entire zip entry can be opened as a single ByteBuffer slice.
+     *
+     * @return true if the entire zip entry can be opened as a single ByteBuffer slice -- the entry must be STORED,
+     *         and span only one 2GB buffer chunk.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     public boolean canGetAsSlice() throws IOException {
         final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
@@ -208,8 +215,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * Open the ZipEntry as a ByteBuffer slice. Only call this method if {@link #canGetAsSlice()} returned true.
-     * 
+     *
      * @return the ZipEntry as a ByteBuffer.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     public ByteBuffer getAsSlice() throws IOException {
         // Check the file is STORED and resides in only one chunk
@@ -232,7 +241,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated. */
+    /**
+     * Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated.
+     *
+     * @return the input stream
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
     public InputStream open() throws IOException {
         if (recyclableInflaterInstance != null) {
             throw new IOException("Zip entry already open");
@@ -472,15 +487,27 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         };
     }
 
-    /** Load the content of the zip entry, and return it as a byte array. */
-    public byte[] load(final LogNode log) throws IOException {
+    /**
+     * Load the content of the zip entry, and return it as a byte array.
+     *
+     * @return the entry as a byte[] array
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
+    public byte[] load() throws IOException {
         try (InputStream is = open()) {
             return FileUtils.readAllBytesAsArray(is, uncompressedSize);
         }
     }
 
-    /** Load the content of the zip entry, and return it as a String (converting from UTF-8 byte format). */
-    public String loadAsString(final LogNode log) throws IOException {
+    /**
+     * Load the content of the zip entry, and return it as a String (converting from UTF-8 byte format).
+     *
+     * @return the entry as a String
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
+    public String loadAsString() throws IOException {
         try (InputStream is = open()) {
             return FileUtils.readAllBytesAsString(is, uncompressedSize);
         }
@@ -491,11 +518,16 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * Get the path to this zip entry, using "!/" as a separator between the parent logical zipfile and the entry
      * name.
+     *
+     * @return the path of the entry
      */
     public String getPath() {
         return parentLogicalZipFile.getPath() + "!/" + entryName;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         return "jar:file:" + getPath();
@@ -504,6 +536,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
      * path.
+     *
+     * @param o
+     *            the object to compare to
+     * @return the result of comparison
      */
     @Override
     public int compareTo(final FastZipEntry o) {
@@ -525,6 +561,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         return diff3 < 0L ? -1 : diff3 > 0L ? 1 : 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -537,6 +576,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         return this.parentLogicalZipFile.equals(other.parentLogicalZipFile) && this.compareTo(other) == 0;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return parentLogicalZipFile.hashCode() ^ version ^ entryName.hashCode() ^ (int) locHeaderPos;

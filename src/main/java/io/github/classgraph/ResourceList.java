@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -44,14 +44,30 @@ import java.util.Map.Entry;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
+
+    /**
+     * Constructor.
+     */
     ResourceList() {
         super();
     }
 
+    /**
+     * Constructor.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
     ResourceList(final int sizeHint) {
         super(sizeHint);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param collection
+     *            the collection
+     */
     ResourceList(final Collection<Resource> collection) {
         super(collection);
     }
@@ -59,10 +75,10 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return The paths of all resources in this list relative to the package root of the classpath element, by
-     *         calling {@link Resource#getPath()} for each item in the list. For example, given a resource path of
-     *         "BOOT-INF/classes/com/xyz/resource.xml" and a package root of "BOOT-INF/classes/", returns
-     *         "com/xyz/resource.xml".
+     * Get the paths of all resources in this list relative to the package root.
+     *
+     * @return The paths of all resources in this list relative to the package root, by calling
+     *         {@link Resource#getPath()} for each item in the list.
      */
     public List<String> getPaths() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
@@ -73,10 +89,10 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
+     * Get the paths of all resources in this list relative to the root of the classpath element.
+     *
      * @return The paths of all resources in this list relative to the root of the classpath element, by calling
-     *         {@link Resource#getPathRelativeToClasspathElement()} for each item in the list. For example, given a
-     *         resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
-     *         "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
+     *         {@link Resource#getPathRelativeToClasspathElement()} for each item in the list.
      */
     public List<String> getPathsRelativeToClasspathElement() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
@@ -87,8 +103,9 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
-     * @return The URLs of all resources in this list, by calling {@link Resource#getURL()} for each item in the
-     *         list.
+     * Get the URLs of all resources in this list, by calling {@link Resource#getURL()} for each item in the list.
+     *
+     * @return The URLs of all resources in this list.
      */
     public List<URL> getURLs() {
         final List<URL> resourceURLs = new ArrayList<>(this.size());
@@ -115,6 +132,8 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     };
 
     /**
+     * Return a new {@link ResourceList} consisting of only the resources with the filename extension ".class".
+     *
      * @return A new {@link ResourceList} consisting of only the resources with the filename extension ".class".
      */
     public ResourceList classFilesOnly() {
@@ -122,6 +141,8 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
+     * Return a new {@link ResourceList} consisting of non-classfile resources only.
+     *
      * @return A new {@link ResourceList} consisting of only the resources that do not have the filename extension
      *         ".class".
      */
@@ -137,7 +158,10 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @return This {@link ResourceList} as a map from path (obtained from {@link Resource#getPath()}), to a
+     * Return this {@link ResourceList} as a map from resource path (obtained from {@link Resource#getPath()}) to a
+     * {@link ResourceList} of {@link Resource} objects that have that path.
+     *
+     * @return This {@link ResourceList} as a map from resource path (obtained from {@link Resource#getPath()}) to a
      *         {@link ResourceList} of {@link Resource} objects that have that path.
      */
     public Map<String, ResourceList> asMap() {
@@ -155,6 +179,8 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
+     * Find duplicate resource paths within this {@link ResourceList}.
+     *
      * @return A {@link List} of {@link Entry} objects for all resources in the classpath and/or module path that
      *         have a non-unique path (i.e. where there are at least two resources with the same path). The key of
      *         each returned {@link Entry} is the path (obtained from {@link Resource#getPath()}), and the value is
@@ -389,22 +415,6 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      */
     public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) {
         forEachByteBuffer(byteBufferConsumer, /* ignoreIOExceptions = */ false);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-        buf.append('[');
-        for (int i = 0, n = size(); i < n; i++) {
-            if (i > 0) {
-                buf.append(", ");
-            }
-            buf.append(get(i));
-        }
-        buf.append(']');
-        return buf.toString();
     }
 
     // -------------------------------------------------------------------------------------------------------------

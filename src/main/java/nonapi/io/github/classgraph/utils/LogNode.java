@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -48,6 +48,7 @@ import io.github.classgraph.ClassGraph;
  */
 public class LogNode {
 
+    /** The Constant log. */
     private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
 
     /**
@@ -92,6 +93,9 @@ public class LogNode {
      * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can
      * help debug situations where log info is never shown, e.g. deadlocks, or where you need to show the log info
      * right up to the point where you hit a breakpoint.
+     *
+     * @param logInRealtime
+     *            whether to log in realtime
      */
     public static void logInRealtime(final boolean logInRealtime) {
         LOG_IN_REALTIME = logInRealtime;
@@ -100,6 +104,15 @@ public class LogNode {
     /**
      * Create a non-toplevel log node. The order may also be made deterministic by specifying a sort key for log
      * entries.
+     *
+     * @param sortKey
+     *            the sort key
+     * @param msg
+     *            the log message
+     * @param elapsedTimeNanos
+     *            the elapsed time in nanos
+     * @param exception
+     *            the exception that was thrown
      */
     private LogNode(final String sortKey, final String msg, final long elapsedTimeNanos,
             final Throwable exception) {
@@ -125,7 +138,18 @@ public class LogNode {
         JarUtils.logJavaInfo(this);
     }
 
-    /** Append a line to the log output, indenting this log entry according to tree structure. */
+    /**
+     * Append a line to the log output, indenting this log entry according to tree structure.
+     *
+     * @param timeStampStr
+     *            the timestamp string
+     * @param indentLevel
+     *            the indent level
+     * @param line
+     *            the line to log
+     * @param buf
+     *            the buf
+     */
     private void appendLine(final String timeStampStr, final int indentLevel, final String line,
             final StringBuilder buf) {
         buf.append(timeStampStr);
@@ -143,7 +167,14 @@ public class LogNode {
         buf.append('\n');
     }
 
-    /** Recursively build the log output. */
+    /**
+     * Recursively build the log output.
+     *
+     * @param indentLevel
+     *            the indent level
+     * @param buf
+     *            the buf
+     */
     private void toString(final int indentLevel, final StringBuilder buf) {
         final Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timeStampMillis);
@@ -172,7 +203,11 @@ public class LogNode {
         }
     }
 
-    /** Build the log output. Call this on the toplevel log node. */
+    /**
+     * Build the log output. Call this on the toplevel log node.
+     *
+     * @return the string
+     */
     @Override
     public String toString() {
         // DateTimeFormatter is not threadsafe
@@ -191,7 +226,19 @@ public class LogNode {
         elapsedTimeNanos = System.nanoTime() - timeStampNano;
     }
 
-    /** Add a child log node. */
+    /**
+     * Add a child log node.
+     *
+     * @param sortKey
+     *            the sort key
+     * @param msg
+     *            the log message
+     * @param elapsedTimeNanos
+     *            the elapsed time in nanos
+     * @param exception
+     *            the exception that was thrown
+     * @return the log node
+     */
     private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos,
             final Throwable exception) {
         final String newSortKey = sortKeyPrefix + "\t" + (sortKey == null ? "" : sortKey) + "\t"
@@ -204,12 +251,28 @@ public class LogNode {
         return newChild;
     }
 
-    /** Add a child log node for a message. */
+    /**
+     * Add a child log node for a message.
+     *
+     * @param sortKey
+     *            the sort key
+     * @param msg
+     *            the log message
+     * @param elapsedTimeNanos
+     *            the elapsed time in nanos
+     * @return the log node
+     */
     private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos) {
         return addChild(sortKey, msg, elapsedTimeNanos, null);
     }
 
-    /** Add a child log node for an exception. */
+    /**
+     * Add a child log node for an exception.
+     *
+     * @param exception
+     *            the exception that was thrown
+     * @return the log node
+     */
     private LogNode addChild(final Throwable exception) {
         return addChild("", "", -1L, exception);
     }
@@ -335,8 +398,8 @@ public class LogNode {
      */
     public LogNode log(final Collection<String> msgs) {
         LogNode last = null;
-        for (final String msg : msgs) {
-            last = log(msg);
+        for (final String m : msgs) {
+            last = log(m);
         }
         return last;
     }
@@ -361,8 +424,10 @@ public class LogNode {
         if (parent != null) {
             throw new IllegalArgumentException("Only flush the toplevel LogNode");
         }
-        final String logOutput = this.toString();
-        this.children.clear();
-        log.info(logOutput);
+        if (!children.isEmpty()) {
+            final String logOutput = this.toString();
+            this.children.clear();
+            log.info(logOutput);
+        }
     }
 }

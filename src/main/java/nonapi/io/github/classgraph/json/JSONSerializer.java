@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -48,7 +48,30 @@ import java.util.concurrent.atomic.AtomicInteger;
  * object graph by inserting reference ids.
  */
 public class JSONSerializer {
-    /** Create a unique id for each referenced JSON object. */
+
+    /**
+     * Constructor.
+     */
+    private JSONSerializer() {
+        // Cannot be constructed
+    }
+
+    /**
+     * Create a unique id for each referenced JSON object.
+     *
+     * @param jsonVal
+     *            the json val
+     * @param objToJSONVal
+     *            a map from obj to JSON val
+     * @param classFieldCache
+     *            the class field cache
+     * @param jsonReferenceToId
+     *            a map from json reference to id
+     * @param objId
+     *            the object id
+     * @param onlySerializePublicFields
+     *            whether to only serialize public fields
+     */
     private static void assignObjectIds(final Object jsonVal,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
@@ -113,7 +136,22 @@ public class JSONSerializer {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Take an array of object values, and recursively convert them (in place) into JSON values. */
+    /**
+     * Take an array of object values, and recursively convert them (in place) into JSON values.
+     *
+     * @param convertedVals
+     *            the converted vals
+     * @param visitedOnPath
+     *            visited nodes
+     * @param standardObjectVisited
+     *            visited standard objects
+     * @param classFieldCache
+     *            the class field cache
+     * @param objToJSONVal
+     *            a map from obj to JSON val
+     * @param onlySerializePublicFields
+     *            whether to only serialize public fields
+     */
     private static void convertVals(final Object[] convertedVals,
             final Set<ReferenceEqualityKey<Object>> visitedOnPath,
             final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final ClassFieldCache classFieldCache,
@@ -164,6 +202,20 @@ public class JSONSerializer {
 
     /**
      * Turn an object graph into a graph of JSON objects, arrays, and values.
+     *
+     * @param obj
+     *            the obj
+     * @param visitedOnPath
+     *            visited nodes
+     * @param standardObjectVisited
+     *            standard objects visited
+     * @param classFieldCache
+     *            the class field cache
+     * @param objToJSONVal
+     *            a map from obj to json val
+     * @param onlySerializePublicFields
+     *            whether to only serialize public fields
+     * @return the object
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static Object toJSONGraph(final Object obj, final Set<ReferenceEqualityKey<Object>> visitedOnPath,
@@ -172,9 +224,7 @@ public class JSONSerializer {
             final boolean onlySerializePublicFields) {
 
         // For null and basic value types, just return value
-        if (obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
-                || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
-                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum()) {
+        if (JSONUtils.isBasicValueType(obj)) {
             return obj;
         }
 
@@ -320,7 +370,22 @@ public class JSONSerializer {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Serialize a JSON object, array, or value. */
+    /**
+     * Serialize a JSON object, array, or value.
+     *
+     * @param jsonVal
+     *            the json val
+     * @param jsonReferenceToId
+     *            a map from json reference to id
+     * @param includeNullValuedFields
+     *            the include null valued fields
+     * @param depth
+     *            the depth
+     * @param indentWidth
+     *            the indent width
+     * @param buf
+     *            the buf
+     */
     static void jsonValToJSONString(final Object jsonVal,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final boolean includeNullValuedFields, final int depth, final int indentWidth,

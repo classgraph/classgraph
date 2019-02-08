@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -28,7 +28,11 @@
  */
 package io.github.classgraph.issues.issue141;
 
-/** @author wuetherich */
+/**
+ * The Class Issue141Test.
+ *
+ * @author wuetherich
+ */
 public class Issue141Test {
     // Disabled because ClassGraph no longer stops if an invalid classfile is found (the classfile is simply skipped)
 

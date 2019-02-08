@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,11 +41,21 @@ import io.github.classgraph.FieldInfoList;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.TypeSignature;
 
+/**
+ * The Class Issue140Test.
+ */
 public class Issue140Test {
+
+    /** The int field. */
     // Order of fields is significant
     public int intField;
+
+    /** The string arr field. */
     public String[] stringArrField;
 
+    /**
+     * Issue 140 test.
+     */
     @Test
     public void issue140Test() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue140Test.class.getPackage().getName())

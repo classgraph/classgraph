@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -42,7 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.Scanner.RawClasspathElementWorkUnit;
+import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -55,16 +55,39 @@ import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {
+
+    /** The module ref. */
     private final ModuleRef moduleRef;
+
+    /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
+
+    /** The module reader proxy recycler. */
     private Recycler<ModuleReaderProxy, IOException> moduleReaderProxyRecycler;
+
+    /** All resource paths. */
     private final Set<String> allResourcePaths = new HashSet<>();
 
-    /** A zip/jarfile classpath element. */
+    /**
+     * A zip/jarfile classpath element.
+     *
+     * @param moduleRef
+     *            the module ref
+     * @param classLoaders
+     *            the classloaders
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param scanSpec
+     *            the scan spec
+     */
     ClasspathElementModule(final ModuleRef moduleRef, final ClassLoader[] classLoaders,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoaders, scanSpec);
         this.moduleRef = moduleRef;
+        this.moduleName = moduleRef.getName();
+        if (this.moduleName == null) {
+            this.moduleName = "";
+        }
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.performScan) {
             whitelistedResources = new ArrayList<>();
@@ -73,28 +96,23 @@ class ClasspathElementModule extends ClasspathElement {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     */
     @Override
-    void open(final WorkQueue<RawClasspathElementWorkUnit> workQueueIgnored, final LogNode log) {
-        try {
-            moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
-                    log);
-        } catch (final IOException | IllegalArgumentException e) {
-            if (log != null) {
-                log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName() + " : "
-                        + e);
-            }
-            skipClasspathElement = true;
-            return;
-        } catch (final Exception e) {
-            if (log != null) {
-                log.log("Exception while creating ModuleReaderProxy recycler for " + moduleRef.getName(), e);
-            }
-            skipClasspathElement = true;
-            return;
-        }
+    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueueIgnored, final LogNode log)
+            throws InterruptedException {
+        moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
+                /* ignored */ null);
     }
 
-    /** Create a new {@link Resource} object for a resource or classfile discovered while scanning paths. */
+    /**
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     *
+     * @param moduleResourcePath
+     *            the module resource path
+     * @return the resource
+     */
     private Resource newResource(final String moduleResourcePath) {
         return new Resource() {
             private ModuleReaderProxy moduleReaderProxy;
@@ -239,6 +257,8 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
+     * Get the {@link Resource} for a given relative path.
+     *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
@@ -249,7 +269,12 @@ class ClasspathElementModule extends ClasspathElement {
         return allResourcePaths.contains(relativePath) ? newResource(relativePath) : null;
     }
 
-    /** Scan for package matches within module */
+    /**
+     * Scan for package matches within module.
+     *
+     * @param log
+     *            the log
+     */
     @Override
     void scanPaths(final LogNode log) {
         if (skipClasspathElement) {
@@ -294,23 +319,9 @@ class ClasspathElementModule extends ClasspathElement {
                 }
 
                 // Whitelist/blacklist classpath elements based on file resource paths
-                if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-                    if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(relativePath)) {
-                        if (subLog != null) {
-                            subLog.log("Reached blacklisted classpath element resource path, stopping scanning: "
-                                    + relativePath);
-                        }
-                        skipClasspathElement = true;
-                        return;
-                    }
-                    if (scanSpec.classpathElementResourcePathWhiteBlackList
-                            .isSpecificallyWhitelisted(relativePath)) {
-                        if (subLog != null) {
-                            subLog.log("Reached specifically whitelisted classpath element resource path: "
-                                    + relativePath);
-                        }
-                        containsSpecificallyWhitelistedClasspathElementResourcePath = true;
-                    }
+                checkResourcePathWhiteBlackList(relativePath, log);
+                if (skipClasspathElement) {
+                    return;
                 }
 
                 // Get match status of the parent directory of this resource's relative path (or reuse the last
@@ -341,7 +352,8 @@ class ClasspathElementModule extends ClasspathElement {
                 if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
                         || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
                         || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
+                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
+                        || (scanSpec.enableClassInfo && relativePath.equals("module-info.class"))) {
                     // Add whitelisted resource
                     final Resource resource = newResource(relativePath);
                     addWhitelistedResource(resource, parentMatchStatus, subLog);
@@ -361,32 +373,31 @@ class ClasspathElementModule extends ClasspathElement {
             skipClasspathElement = true;
         }
 
-        if (subLog != null) {
-            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles or resources found");
-            } else if (whitelistedResources.isEmpty()) {
-                subLog.log("No whitelisted resources found");
-            } else if (whitelistedClassfileResources.isEmpty()) {
-                subLog.log("No whitelisted classfiles found");
-            }
-        }
-
-        if (subLog != null) {
-            subLog.addElapsedTime();
-        }
+        finishScanPaths(subLog);
     }
 
-    /** Get the ModuleRef for this classpath element. */
+    /**
+     * Get the ModuleRef for this classpath element.
+     *
+     * @return the module ref
+     */
     ModuleRef getModuleRef() {
         return moduleRef;
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#getURI()
+     */
     @Override
     URI getURI() {
         return moduleRef.getLocation();
     }
 
-    /** Return the module reference. */
+    /**
+     * Return the module reference as a String.
+     *
+     * @return the string
+     */
     @Override
     public String toString() {
         return moduleRef.toString();

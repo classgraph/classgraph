@@ -10,21 +10,38 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class Issue93.
+ */
 public class Issue93 {
+
+    /** The Constant PKG. */
     private static final String PKG = Issue93.class.getPackage().getName();
 
+    /**
+     * The Interface RetentionClass.
+     */
     @Retention(RetentionPolicy.CLASS)
     private @interface RetentionClass {
     }
 
+    /**
+     * The Interface RetentionRuntime.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     private @interface RetentionRuntime {
     }
 
+    /**
+     * The Class RetentionClassAnnotated.
+     */
     @RetentionClass
     static class RetentionClassAnnotated {
     }
 
+    /**
+     * The Class RetentionRuntimeAnnotated.
+     */
     @RetentionRuntime
     static class RetentionRuntimeAnnotated {
     }

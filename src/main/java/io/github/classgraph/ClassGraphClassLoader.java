@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -38,9 +38,13 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
 class ClassGraphClassLoader extends ClassLoader {
+
+    /** The scan result. */
     private final ScanResult scanResult;
 
     /**
+     * Constructor.
+     *
      * @param scanResult
      *            The ScanResult.
      */
@@ -50,6 +54,9 @@ class ClassGraphClassLoader extends ClassLoader {
         registerAsParallelCapable();
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.ClassLoader#findClass(java.lang.String)
+     */
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
@@ -117,6 +124,9 @@ class ClassGraphClassLoader extends ClassLoader {
         throw new ClassNotFoundException("Classfile for class " + className + " not found");
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.ClassLoader#getResource(java.lang.String)
+     */
     @Override
     public URL getResource(final String path) {
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
@@ -127,6 +137,9 @@ class ClassGraphClassLoader extends ClassLoader {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.ClassLoader#getResources(java.lang.String)
+     */
     @Override
     public Enumeration<URL> getResources(final String path) throws IOException {
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
@@ -149,6 +162,9 @@ class ClassGraphClassLoader extends ClassLoader {
         }
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.ClassLoader#getResourceAsStream(java.lang.String)
+     */
     @Override
     public InputStream getResourceAsStream(final String path) {
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);

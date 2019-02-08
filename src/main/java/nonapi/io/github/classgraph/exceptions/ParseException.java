@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -26,13 +26,26 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.recycler;
+package nonapi.io.github.classgraph.exceptions;
+
+import nonapi.io.github.classgraph.types.Parser;
 
 /**
- * Recycler for instances of type T, where creating an instance of this type does not throw a checked exception.
- * 
- * @param <T>
- *            The type to recycle.
+ * A parsing exception.
  */
-public abstract class RecyclerExceptionless<T> extends Recycler<T, RuntimeException> {
+public class ParseException extends Exception {
+    /** serialVersionUID. */
+    static final long serialVersionUID = 1L;
+
+    /**
+     * A parsing exception.
+     * 
+     * @param parser
+     *            The parser.
+     * @param msg
+     *            The exception message.
+     */
+    public ParseException(final Parser parser, final String msg) {
+        super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
+    }
 }

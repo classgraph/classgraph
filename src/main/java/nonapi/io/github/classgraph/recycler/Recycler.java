@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -41,8 +41,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <T>
  *            The type to recycle.
  * @param <E>
- *            An exception that can be thrown while acquiring an instance of the type to recycle, or use an
- *            unchecked exception type such as {@link RuntimeException} if none.
+ *            An exception that can be thrown while acquiring an instance of the type to recycle, or
+ *            {@link RuntimeException} if none.
  */
 public abstract class Recycler<T, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */
@@ -68,17 +68,17 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * @return Either a new or a recycled object instance.
      * @throws E
      *             if {@link #newInstance()} threw an exception of type E.
-     * @throws IllegalArgumentException
+     * @throws NullPointerException
      *             if {@link #newInstance()} returned null.
      */
     public T acquire() throws E {
         final T instance;
         final T recycledInstance = unusedInstances.poll();
         if (recycledInstance == null) {
-            // Allocate a new instance
-            final T newInstance = newInstance(); // May throw exception of type E
+            // Allocate a new instance -- may throw an exception of type E
+            final T newInstance = newInstance();
             if (newInstance == null) {
-                throw new IllegalArgumentException("Failed to allocate a new recyclable instance");
+                throw new NullPointerException("Failed to allocate a new recyclable instance");
             }
             instance = newInstance;
         } else {
@@ -104,7 +104,9 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     /**
      * Recycle an object for reuse by a subsequent call to {@link #acquire()}. If the object is an instance of
      * {@link Resettable}, then {@link Resettable#reset()} will be called on the instance before recycling it.
-     * 
+     *
+     * @param instance
+     *            the instance to recycle.
      * @throws IllegalArgumentException
      *             if the object instance was not originally obtained from this {@link Recycler}.
      */

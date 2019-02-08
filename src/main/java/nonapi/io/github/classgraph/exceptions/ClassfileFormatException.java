@@ -26,40 +26,47 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.issues.issue146;
+package nonapi.io.github.classgraph.exceptions;
 
-import static org.assertj.core.api.Assertions.assertThat;
+/** Thrown when a classfile's contents are not in the correct format. */
+public class ClassfileFormatException extends IllegalArgumentException {
+    /** serialVersionUID. */
+    static final long serialVersionUID = 1L;
 
-import org.junit.Test;
-
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
-
-/**
- * The Class Issue146Test.
- */
-public class Issue146Test {
+    /** Constructor. */
+    public ClassfileFormatException() {
+        super();
+    }
 
     /**
-     * Issue 146 test.
+     * Constructor.
+     *
+     * @param message
+     *            the message
      */
-    @Test
-    public void issue146Test() {
-        // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
-        // src/test/resources
-        final String pkg = Issue146Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
-                .enableMethodInfo() //
-                .scan()) {
-            final ClassInfo classInfo = scanResult.getClassInfo(pkg + "." + "CompiledWithJDK8");
-            assertThat(classInfo).isNotNull();
-            final MethodInfo methodInfo = classInfo //
-                    .getMethodInfo("method") //
-                    .get(0);
-            assertThat(methodInfo.toString()) //
-                    .isEqualTo("public void method(int param0, java.lang.String param1, double[] param2)");
-        }
+    public ClassfileFormatException(final String message) {
+        super(message);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param cause
+     *            the cause
+     */
+    public ClassfileFormatException(final Throwable cause) {
+        super(cause);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param message
+     *            the message
+     * @param cause
+     *            the cause
+     */
+    public ClassfileFormatException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }

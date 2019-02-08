@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -37,21 +37,35 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class MetaAnnotationTest.
+ */
 public class MetaAnnotationTest {
+
+    /** The scan result. */
     static ScanResult scanResult;
 
+    /**
+     * Setup.
+     */
     @BeforeClass
     public static void setup() {
         scanResult = new ClassGraph().whitelistPackages("com.xyz.meta").enableClassInfo().enableAnnotationInfo()
                 .scan();
     }
 
+    /**
+     * Teardown.
+     */
     @AfterClass
     public static void teardown() {
         scanResult.close();
         scanResult = null;
     }
 
+    /**
+     * One level.
+     */
     @Test
     public void oneLevel() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.E").directOnly().getNames())
@@ -62,18 +76,27 @@ public class MetaAnnotationTest {
                 .containsExactlyInAnyOrder("com.xyz.meta.C");
     }
 
+    /**
+     * Two levels.
+     */
     @Test
     public void twoLevels() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J").getNames())
                 .containsExactlyInAnyOrder("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.A");
     }
 
+    /**
+     * Three levels.
+     */
     @Test
     public void threeLevels() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.L").getNames())
                 .containsExactlyInAnyOrder("com.xyz.meta.I", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H");
     }
 
+    /**
+     * Across cycle.
+     */
     @Test
     public void acrossCycle() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getNames())
@@ -92,12 +115,18 @@ public class MetaAnnotationTest {
                 .containsExactlyInAnyOrder("com.xyz.meta.K");
     }
 
+    /**
+     * Cycle annotates self.
+     */
     @Test
     public void cycleAnnotatesSelf() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").getNames())
                 .containsExactlyInAnyOrder("com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H", "com.xyz.meta.I");
     }
 
+    /**
+     * Names of meta annotations.
+     */
     @Test
     public void namesOfMetaAnnotations() {
         assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getNames())
@@ -106,6 +135,9 @@ public class MetaAnnotationTest {
                 .containsExactlyInAnyOrder("com.xyz.meta.G");
     }
 
+    /**
+     * Union.
+     */
     @Test
     public void union() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J")
@@ -120,6 +152,9 @@ public class MetaAnnotationTest {
                         .containsExactlyInAnyOrder("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H");
     }
 
+    /**
+     * Intersect.
+     */
     @Test
     public void intersect() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")

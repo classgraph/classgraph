@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Luke Hutchison
+ * Copyright (c) 2019 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
-import nonapi.io.github.classgraph.types.Parser.ParseException;
 
 /** A method type signature (called "MethodSignature" in the classfile documentation). */
 public class MethodTypeSignature extends HierarchicalTypeSignature {
@@ -53,6 +53,8 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Constructor.
+     *
      * @param typeParameters
      *            The type parameters for the method.
      * @param paramTypes
@@ -194,17 +196,26 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassName()
+     */
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#getClassInfo()
+     */
     @Override
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+     */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -228,6 +239,9 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
         }
     }
 
+    /* (non-Javadoc)
+     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     */
     @Override
     void getReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
@@ -250,12 +264,18 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return typeParameters.hashCode() + parameterTypeSignatures.hashCode() * 7 + resultType.hashCode() * 15
                 + throwsSignatures.hashCode() * 31;
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof MethodTypeSignature)) {
@@ -267,6 +287,9 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
                 && o.resultType.equals(this.resultType) && o.throwsSignatures.equals(this.throwsSignatures);
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();

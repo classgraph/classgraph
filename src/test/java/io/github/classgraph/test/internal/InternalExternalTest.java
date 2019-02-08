@@ -10,7 +10,14 @@ import io.github.classgraph.test.external.ExternalAnnotation;
 import io.github.classgraph.test.external.ExternalInterface;
 import io.github.classgraph.test.external.ExternalSuperclass;
 
+/**
+ * The Class InternalExternalTest.
+ */
 public class InternalExternalTest {
+
+    /**
+     * Test whitelisting external classes.
+     */
     @Test
     public void testWhitelistingExternalClasses() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(
@@ -21,6 +28,9 @@ public class InternalExternalTest {
         }
     }
 
+    /**
+     * Test enable external classes.
+     */
     @Test
     public void testEnableExternalClasses() {
         try (ScanResult scanResult = new ClassGraph()
@@ -34,6 +44,9 @@ public class InternalExternalTest {
         }
     }
 
+    /**
+     * Test whitelisting external classes without enabling external classes.
+     */
     @Test
     public void testWhitelistingExternalClassesWithoutEnablingExternalClasses() {
         try (ScanResult scanResult = new ClassGraph()
@@ -54,6 +67,9 @@ public class InternalExternalTest {
         }
     }
 
+    /**
+     * Test include referenced classes.
+     */
     @Test
     public void testIncludeReferencedClasses() {
         try (ScanResult scanResult = new ClassGraph()

@@ -13,33 +13,85 @@ import io.github.classgraph.AnnotationParameterValueList;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
+/**
+ * The Class AnnotationParamWithPrimitiveTypedArray.
+ */
 public class AnnotationParamWithPrimitiveTypedArray {
 
+    /**
+     * The Interface NestedAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface NestedAnnotation {
+
+        /**
+         * Str.
+         *
+         * @return the string
+         */
         String str();
 
+        /**
+         * Int array.
+         *
+         * @return the int[]
+         */
         int[] intArray();
     }
 
+    /**
+     * The Interface AnnotationWithPrimitiveArrayParams.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface AnnotationWithPrimitiveArrayParams {
+
+        /**
+         * V 0.
+         *
+         * @return the int[]
+         */
         int[] v0() default { 1, 2 };
 
+        /**
+         * V 1.
+         *
+         * @return the char[]
+         */
         char[] v1();
 
+        /**
+         * V 2.
+         *
+         * @return the string[]
+         */
         String[] v2();
 
+        /**
+         * V 3.
+         *
+         * @return the int[]
+         */
         int[] v3();
 
+        /**
+         * V 4.
+         *
+         * @return the nested annotation[]
+         */
         NestedAnnotation[] v4();
     }
 
+    /**
+     * The Class AnnotatedClass.
+     */
     @AnnotationWithPrimitiveArrayParams(v1 = { 'a' }, v2 = { "x" }, v3 = {}, v4 = {
             @NestedAnnotation(str = "Test", intArray = { 9 }) })
     public abstract static class AnnotatedClass {
     }
 
+    /**
+     * Primitive array params.
+     */
     @Test
     public void primitiveArrayParams() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
@@ -47,11 +99,11 @@ public class AnnotationParamWithPrimitiveTypedArray {
             final AnnotationInfo annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName())
                     .getAnnotationInfo().get(0);
             final AnnotationParameterValueList annotationParams = annotationInfo.getParameterValues();
-            final Object v0 = annotationParams.get("v0");
-            final Object v1 = annotationParams.get("v1");
-            final Object v2 = annotationParams.get("v2");
-            final Object v3 = annotationParams.get("v3");
-            final Object v4 = annotationParams.get("v4");
+            final Object v0 = annotationParams.getValue("v0");
+            final Object v1 = annotationParams.getValue("v1");
+            final Object v2 = annotationParams.getValue("v2");
+            final Object v3 = annotationParams.getValue("v3");
+            final Object v4 = annotationParams.getValue("v4");
 
             assertThat(v0.getClass()).isEqualTo(int[].class);
             assertThat(v1.getClass()).isEqualTo(char[].class);
