@@ -260,8 +260,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         if (diff != 0) {
             return diff;
         }
-        URI thisLoc = this.getLocation();
-        URI otherLoc = other.getLocation();
+        final URI thisLoc = this.getLocation();
+        final URI otherLoc = other.getLocation();
         if (thisLoc != null && otherLoc != null) {
             return thisLoc.compareTo(otherLoc);
         }
