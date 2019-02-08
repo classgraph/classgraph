@@ -199,8 +199,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read an unsigned byte at a specific offset (without changing the current read point)
-     * 
+     * Read an unsigned byte at a specific offset (without changing the current read point).
+     *
      * @param offset
      *            The buffer offset to read from.
      * @return The unsigned byte at the buffer offset.
@@ -229,8 +229,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read an unsigned short at a specific offset (without changing the current read point)
-     * 
+     * Read an unsigned short at a specific offset (without changing the current read point).
+     *
      * @param offset
      *            The buffer offset to read from.
      * @return The unsigned short at the buffer offset.
@@ -259,8 +259,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     }
 
     /**
-     * Read an int at a specific offset (without changing the current read point)
-     * 
+     * Read an int at a specific offset (without changing the current read point).
+     *
      * @param offset
      *            The buffer offset to read from.
      * @return The int at the buffer offset.

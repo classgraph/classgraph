@@ -152,14 +152,14 @@ public class ZipFileSlice {
     }
 
     /**
-     * Recursively get path in top down ancestral order.
+     * Recursively append the path in top down ancestral order.
      *
      * @param buf
-     *            the buf to write path to
+     *            the buf to append the path to
      */
-    private void getPath(final StringBuilder buf) {
+    private void appendPath(final StringBuilder buf) {
         if (parentZipFileSlice != null) {
-            parentZipFileSlice.getPath(buf);
+            parentZipFileSlice.appendPath(buf);
         }
         if (buf.length() > 0) {
             buf.append("!/");
@@ -174,7 +174,7 @@ public class ZipFileSlice {
      */
     public String getPath() {
         final StringBuilder buf = new StringBuilder();
-        getPath(buf);
+        appendPath(buf);
         return buf.toString();
     }
 

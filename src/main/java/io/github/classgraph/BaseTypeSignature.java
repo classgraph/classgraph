@@ -176,10 +176,10 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> classNameListOut) {
+    void findReferencedClassNames(final Set<String> classNameListOut) {
         // Don't return byte.class, int.class, etc. 
     }
 

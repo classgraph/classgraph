@@ -197,12 +197,12 @@ public class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> classNameListOut) {
+    void findReferencedClassNames(final Set<String> classNameListOut) {
         if (typeSignature != null) {
-            typeSignature.getReferencedClassNames(classNameListOut);
+            typeSignature.findReferencedClassNames(classNameListOut);
         }
     }
 

@@ -60,9 +60,9 @@ abstract class ScanResultObject {
      *
      * @return the referenced class names
      */
-    Set<String> getReferencedClassNames() {
+    Set<String> findReferencedClassNames() {
         final Set<String> allReferencedClassNames = new LinkedHashSet<>();
-        getReferencedClassNames(allReferencedClassNames);
+        findReferencedClassNames(allReferencedClassNames);
         // Remove references to java.lang.Object
         allReferencedClassNames.remove("java.lang.Object");
         return allReferencedClassNames;
@@ -74,7 +74,7 @@ abstract class ScanResultObject {
      * @param refdClassNames
      *            the referenced class names
      */
-    abstract void getReferencedClassNames(Set<String> refdClassNames);
+    abstract void findReferencedClassNames(Set<String> refdClassNames);
 
     /**
      * The name of the class (used by {@link #getClassInfo()} to fetch the {@link ClassInfo} object for the class).

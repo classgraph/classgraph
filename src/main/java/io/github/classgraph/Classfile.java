@@ -169,7 +169,11 @@ class Classfile {
             super(message, cause);
         }
 
-        /** Speed up exception (stack trace is not needed for this exception). */
+        /**
+         * Speed up exception (stack trace is not needed for this exception).
+         *
+         * @return this
+         */
         @Override
         public synchronized Throwable fillInStackTrace() {
             return this;
@@ -191,7 +195,11 @@ class Classfile {
             super(message);
         }
 
-        /** Speed up exception (stack trace is not needed for this exception). */
+        /**
+         * Speed up exception (stack trace is not needed for this exception).
+         *
+         * @return this
+         */
         @Override
         public synchronized Throwable fillInStackTrace() {
             return this;
@@ -207,8 +215,6 @@ class Classfile {
      *            the class name
      * @param relationship
      *            the relationship type
-     * @param classNamesScheduledForScanning
-     *            class names scheduled for scanning (to avoid scheduling the same class twice)
      */
     private void scheduleScanningIfExternalClass(final String className, final String relationship) {
         // The call to classNamesScheduledForScanning.add(className) will return true only for external classes
@@ -259,9 +265,6 @@ class Classfile {
 
     /**
      * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
-     *
-     * @param classNamesScheduledForScanning
-     *            the class names scheduled for scanning
      */
     private void extendScanningUpwards() {
         // Check superclass
@@ -709,8 +712,6 @@ class Classfile {
      * @return the annotation, as an {@link AnnotationInfo} object.
      * @throws IOException
      *             If an IO exception occurs.
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
      */
     private AnnotationInfo readAnnotation() throws IOException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
@@ -735,8 +736,6 @@ class Classfile {
      * @return the annotation element value
      * @throws IOException
      *             If an IO exception occurs.
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
      */
     private Object readAnnotationElementValue() throws IOException {
         final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
@@ -803,8 +802,6 @@ class Classfile {
      *
      * @throws IOException
      *             Signals that an I/O exception has occurred.
-     * @throws ClassfileFormatException
-     *             the classfile format exception
      */
     private void readConstantPoolEntries() throws IOException {
         // Only record class dependency info if inter-class dependencies are enabled
@@ -924,7 +921,7 @@ class Classfile {
                         try {
                             final TypeSignature typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
                                     /* definingClass = */ null);
-                            typeSig.getReferencedClassNames(refdClassNames);
+                            typeSig.findReferencedClassNames(refdClassNames);
                         } catch (final ParseException e) {
                             // Should not happen
                             throw new ClassfileFormatException("Could not parse class name: " + refdClassName, e);
@@ -944,13 +941,13 @@ class Classfile {
                             final MethodTypeSignature typeSig = MethodTypeSignature.parse(typeSigStr,
                                     /* definingClassName = */ null);
                             // Extract class names from type signature
-                            typeSig.getReferencedClassNames(refdClassNames);
+                            typeSig.findReferencedClassNames(refdClassNames);
                         } else {
                             // Parse the type signature
                             final TypeSignature typeSig = TypeSignature.parse(typeSigStr,
                                     /* definingClassName = */ null);
                             // Extract class names from type signature
-                            typeSig.getReferencedClassNames(refdClassNames);
+                            typeSig.findReferencedClassNames(refdClassNames);
                         }
                     } catch (final ParseException e) {
                         throw new ClassfileFormatException("Could not parse type signature: " + typeSigStr, e);
@@ -1024,8 +1021,6 @@ class Classfile {
      *
      * @throws IOException
      *             if an I/O exception occurs.
-     * @throws ClassfileFormatException
-     *             if the classfile is incorrectly formatted.
      */
     private void readInterfaces() throws IOException {
         // Interfaces
@@ -1366,7 +1361,7 @@ class Classfile {
             final Set<String> classNamesScheduledForScanning, final String relativePath,
             final Resource classfileResource, final boolean isExternalClass,
             final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final LogNode log)
-            throws IOException {
+            throws IOException, ClassfileFormatException, SkipClassException {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
         this.relativePath = relativePath;

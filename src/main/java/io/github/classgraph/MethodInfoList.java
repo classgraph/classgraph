@@ -117,14 +117,14 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return the names of any classes referenced in the methods in this list.
+     * Find the names of any classes referenced in the methods in this list.
      *
      * @param referencedClassNames
      *            the referenced class names
      */
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
         for (final MethodInfo mi : this) {
-            mi.getReferencedClassNames(referencedClassNames);
+            mi.findReferencedClassNames(referencedClassNames);
         }
     }
 

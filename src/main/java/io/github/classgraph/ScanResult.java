@@ -185,7 +185,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             if (scanSpec.enableInterClassDependencies) {
                 for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
                     final Set<ClassInfo> refdClasses = new HashSet<>();
-                    for (final String refdClassName : ci.getReferencedClassNames()) {
+                    for (final String refdClassName : ci.findReferencedClassNames()) {
                         // Don't add circular dependencies
                         if (!ci.getName().equals(refdClassName)) {
                             // Get ClassInfo object for the named class, or create one if it doesn't exist

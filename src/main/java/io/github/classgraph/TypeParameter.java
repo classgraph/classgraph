@@ -182,15 +182,15 @@ public class TypeParameter extends HierarchicalTypeSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> classNameListOut) {
+    void findReferencedClassNames(final Set<String> classNameListOut) {
         if (classBound != null) {
-            classBound.getReferencedClassNames(classNameListOut);
+            classBound.findReferencedClassNames(classNameListOut);
         }
         for (final ReferenceTypeSignature typeSignature : interfaceBounds) {
-            typeSignature.getReferencedClassNames(classNameListOut);
+            typeSignature.findReferencedClassNames(classNameListOut);
         }
     }
 

@@ -240,24 +240,24 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> classNameListOut) {
+    void findReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
             if (typeParameter != null) {
-                typeParameter.getReferencedClassNames(classNameListOut);
+                typeParameter.findReferencedClassNames(classNameListOut);
             }
         }
         for (final TypeSignature typeSignature : parameterTypeSignatures) {
             if (typeSignature != null) {
-                typeSignature.getReferencedClassNames(classNameListOut);
+                typeSignature.findReferencedClassNames(classNameListOut);
             }
         }
-        resultType.getReferencedClassNames(classNameListOut);
+        resultType.findReferencedClassNames(classNameListOut);
         for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
             if (typeSignature != null) {
-                typeSignature.getReferencedClassNames(classNameListOut);
+                typeSignature.findReferencedClassNames(classNameListOut);
             }
         }
     }

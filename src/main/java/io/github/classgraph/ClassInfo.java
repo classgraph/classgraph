@@ -1542,7 +1542,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Get the annotations or meta-annotations on fields or methods declared by the class, (not including fields or
-     * methods declared by the interfaces or superclasses of this class)
+     * methods declared by the interfaces or superclasses of this class).
      *
      * @param isField
      *            If true, return field annotations, otherwise return method annotations.
@@ -2556,16 +2556,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the referenced class names
      */
     @Override
-    protected void getReferencedClassNames(final Set<String> referencedClassNames) {
-        getMethodInfo().getReferencedClassNames(referencedClassNames);
-        getFieldInfo().getReferencedClassNames(referencedClassNames);
-        getAnnotationInfo().getReferencedClassNames(referencedClassNames);
+    protected void findReferencedClassNames(final Set<String> referencedClassNames) {
+        getMethodInfo().findReferencedClassNames(referencedClassNames);
+        getFieldInfo().findReferencedClassNames(referencedClassNames);
+        getAnnotationInfo().findReferencedClassNames(referencedClassNames);
         if (annotationDefaultParamValues != null) {
-            annotationDefaultParamValues.getReferencedClassNames(referencedClassNames);
+            annotationDefaultParamValues.findReferencedClassNames(referencedClassNames);
         }
         final ClassTypeSignature classSig = getTypeSignature();
         if (classSig != null) {
-            classSig.getReferencedClassNames(referencedClassNames);
+            classSig.findReferencedClassNames(referencedClassNames);
         }
         // Remove any self-references
         referencedClassNames.remove(name);

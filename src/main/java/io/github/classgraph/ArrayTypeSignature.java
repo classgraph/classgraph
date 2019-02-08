@@ -105,11 +105,11 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
-        elementTypeSignature.getReferencedClassNames(referencedClassNames);
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
+        elementTypeSignature.findReferencedClassNames(referencedClassNames);
     }
 
     // -------------------------------------------------------------------------------------------------------------

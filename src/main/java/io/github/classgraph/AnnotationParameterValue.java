@@ -140,9 +140,9 @@ public class AnnotationParameterValue extends ScanResultObject
      *            the referenced class names
      */
     @Override
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
         if (value != null) {
-            value.getReferencedClassNames(referencedClassNames);
+            value.findReferencedClassNames(referencedClassNames);
         }
     }
 

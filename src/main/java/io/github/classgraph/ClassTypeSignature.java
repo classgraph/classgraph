@@ -189,18 +189,18 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> classNameListOut) {
+    void findReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
-            typeParameter.getReferencedClassNames(classNameListOut);
+            typeParameter.findReferencedClassNames(classNameListOut);
         }
         if (superclassSignature != null) {
-            superclassSignature.getReferencedClassNames(classNameListOut);
+            superclassSignature.findReferencedClassNames(classNameListOut);
         }
         for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
-            typeSignature.getReferencedClassNames(classNameListOut);
+            typeSignature.findReferencedClassNames(classNameListOut);
         }
     }
 

@@ -96,7 +96,7 @@ public class MethodInfoTest {
      * Get method info.
      */
     @Test
-    public void getMethodInfo() {
+    public void testGetMethodInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
@@ -123,7 +123,7 @@ public class MethodInfoTest {
      * Get constructor info.
      */
     @Test
-    public void getConstructorInfo() {
+    public void testGetConstructorInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
@@ -135,7 +135,7 @@ public class MethodInfoTest {
      * Get method info ignoring visibility.
      */
     @Test
-    public void getMethodInfoIgnoringVisibility() {
+    public void testGetMethodInfoIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()

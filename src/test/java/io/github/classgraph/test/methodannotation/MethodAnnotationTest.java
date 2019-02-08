@@ -50,7 +50,7 @@ public class MethodAnnotationTest {
      * Get the names of classes with method annotation.
      */
     @Test
-    public void getNamesOfClassesWithMethodAnnotation() {
+    public void testGetNamesOfClassesWithMethodAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().scan()) {
@@ -64,7 +64,7 @@ public class MethodAnnotationTest {
      * Get the names of classes with method annotation ignoring visibility.
      */
     @Test
-    public void getNamesOfClassesWithMethodAnnotationIgnoringVisibility() {
+    public void testGetNamesOfClassesWithMethodAnnotationIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {

@@ -182,14 +182,14 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return the names of any classes referenced in the annotations in this list or their parameters.
+     * Find the names of any classes referenced in the annotations in this list or their parameters.
      *
      * @param referencedClassNames
      *            the referenced class names
      */
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
         for (final AnnotationInfo ai : this) {
-            ai.getReferencedClassNames(referencedClassNames);
+            ai.findReferencedClassNames(referencedClassNames);
         }
     }
 

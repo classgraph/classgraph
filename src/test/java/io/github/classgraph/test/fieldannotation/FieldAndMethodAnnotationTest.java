@@ -57,7 +57,7 @@ public class FieldAndMethodAnnotationTest {
      * Get the names of classes with field annotation.
      */
     @Test
-    public void getNamesOfClassesWithFieldAnnotation() {
+    public void testGetNamesOfClassesWithFieldAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .enableAnnotationInfo().scan()) {
@@ -71,7 +71,7 @@ public class FieldAndMethodAnnotationTest {
      * Get the names of classes with field annotation ignoring visibility.
      */
     @Test
-    public void getNamesOfClassesWithFieldAnnotationIgnoringVisibility() {
+    public void testGetNamesOfClassesWithFieldAnnotationIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
@@ -86,7 +86,7 @@ public class FieldAndMethodAnnotationTest {
      */
     @Test
     @ExternalAnnotation
-    public void getNamesOfClassesWithMethodAnnotation() {
+    public void testGetNamesOfClassesWithMethodAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {

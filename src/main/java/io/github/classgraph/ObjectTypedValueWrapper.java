@@ -533,16 +533,16 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      *            referenced class names
      */
     @Override
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
         if (enumValue != null) {
-            enumValue.getReferencedClassNames(referencedClassNames);
+            enumValue.findReferencedClassNames(referencedClassNames);
         } else if (classRef != null) {
             referencedClassNames.add(classRef.getClassName());
         } else if (annotationInfo != null) {
-            annotationInfo.getReferencedClassNames(referencedClassNames);
+            annotationInfo.findReferencedClassNames(referencedClassNames);
         } else if (objectArrayValue != null) {
             for (final ObjectTypedValueWrapper item : objectArrayValue) {
-                item.getReferencedClassNames(referencedClassNames);
+                item.findReferencedClassNames(referencedClassNames);
             }
         }
     }

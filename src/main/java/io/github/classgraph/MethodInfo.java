@@ -585,25 +585,25 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *            the class names
      */
     @Override
-    protected void getReferencedClassNames(final Set<String> classNames) {
+    protected void findReferencedClassNames(final Set<String> classNames) {
         final MethodTypeSignature methodSig = getTypeSignature();
         if (methodSig != null) {
-            methodSig.getReferencedClassNames(classNames);
+            methodSig.findReferencedClassNames(classNames);
         }
         final MethodTypeSignature methodDesc = getTypeDescriptor();
         if (methodDesc != null) {
-            methodDesc.getReferencedClassNames(classNames);
+            methodDesc.findReferencedClassNames(classNames);
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
-                ai.getReferencedClassNames(classNames);
+                ai.findReferencedClassNames(classNames);
             }
         }
         for (final MethodParameterInfo mpi : getParameterInfo()) {
             final AnnotationInfo[] aiArr = mpi.annotationInfo;
             if (aiArr != null) {
                 for (final AnnotationInfo ai : aiArr) {
-                    ai.getReferencedClassNames(classNames);
+                    ai.findReferencedClassNames(classNames);
                 }
             }
         }

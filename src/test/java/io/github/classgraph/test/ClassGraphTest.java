@@ -456,7 +456,7 @@ public class ClassGraphTest {
      * Get the manifest.
      */
     @Test
-    public void getManifest() {
+    public void testGetManifest() {
         final AtomicBoolean foundManifest = new AtomicBoolean();
         try (ScanResult scanResult = new ClassGraph().whitelistPaths("META-INF").enableAllInfo().scan()) {
             for (@SuppressWarnings("unused")

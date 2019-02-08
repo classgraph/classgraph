@@ -35,11 +35,11 @@ import java.util.Set;
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
-     * Get the names of all classes referenced in the type signature.
+     * Find the names of all classes referenced in the type signature.
      *
      * @param classNames
      *            The set to store class names in.
      */
     @Override
-    abstract void getReferencedClassNames(final Set<String> classNames);
+    abstract void findReferencedClassNames(final Set<String> classNames);
 }

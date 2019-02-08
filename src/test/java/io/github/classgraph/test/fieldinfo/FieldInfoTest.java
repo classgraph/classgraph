@@ -69,7 +69,7 @@ public class FieldInfoTest {
      * Get field info.
      */
     @Test
-    public void getFieldInfo() {
+    public void testGetFieldInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
                 .scan()) {
@@ -86,7 +86,7 @@ public class FieldInfoTest {
      * Get field info ignoring visibility.
      */
     @Test
-    public void getFieldInfoIgnoringVisibility() {
+    public void testGetFieldInfoIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
                 .ignoreFieldVisibility().scan()) {

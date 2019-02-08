@@ -220,14 +220,14 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> classNameListOut) {
+    void findReferencedClassNames(final Set<String> classNameListOut) {
         classNameListOut.add(className);
         classNameListOut.add(getFullyQualifiedClassName());
         for (final TypeArgument typeArgument : typeArguments) {
-            typeArgument.getReferencedClassNames(classNameListOut);
+            typeArgument.findReferencedClassNames(classNameListOut);
         }
     }
 

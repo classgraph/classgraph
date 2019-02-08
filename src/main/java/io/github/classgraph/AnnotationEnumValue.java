@@ -138,10 +138,10 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     // -------------------------------------------------------------------------------------------------------------
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.ScanResultObject#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
         referencedClassNames.add(className);
     }
 

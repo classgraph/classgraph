@@ -119,14 +119,14 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the names of any classes referenced in the methods in this list.
+     * Find the names of any classes referenced in the methods in this list.
      *
      * @param referencedClassNames
      *            the referenced class names
      */
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
         for (final AnnotationParameterValue apv : this) {
-            apv.getReferencedClassNames(referencedClassNames);
+            apv.findReferencedClassNames(referencedClassNames);
         }
     }
 

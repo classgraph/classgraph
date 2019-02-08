@@ -174,10 +174,10 @@ public class AnnotationClassRef extends ScanResultObject {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.ScanResultObject#findReferencedClassNames(java.util.Set)
      */
     @Override
-    protected void getReferencedClassNames(final Set<String> classNames) {
+    protected void findReferencedClassNames(final Set<String> classNames) {
         classNames.add(getClassName());
     }
 

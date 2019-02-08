@@ -168,10 +168,10 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#getReferencedClassNames(java.util.Set)
+     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
      */
     @Override
-    void getReferencedClassNames(final Set<String> classNames) {
+    void findReferencedClassNames(final Set<String> classNames) {
         // No class names present in type variables
     }
 

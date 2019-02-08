@@ -72,7 +72,13 @@ public class InterruptionChecker {
         return thrownExecutionException.get();
     }
 
-    /** Get the cause of an {@link ExecutionException}. */
+    /**
+     * Get the cause of an {@link ExecutionException}.
+     *
+     * @param throwable
+     *            the Throwable
+     * @return the cause
+     */
     public static Throwable getCause(final Throwable throwable) {
         // Unwrap possibly-nested ExecutionExceptions to get to root cause
         Throwable cause = throwable;

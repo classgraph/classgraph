@@ -198,17 +198,17 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Get the names of any classes referenced in the type descriptors of annotation parameters.
+     * Find the names of any classes referenced in the type descriptors of annotation parameters.
      *
      * @param referencedClassNames
      *            the referenced class names
      */
     @Override
-    void getReferencedClassNames(final Set<String> referencedClassNames) {
+    void findReferencedClassNames(final Set<String> referencedClassNames) {
         referencedClassNames.add(name);
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
-                annotationParamValue.getReferencedClassNames(referencedClassNames);
+                annotationParamValue.findReferencedClassNames(referencedClassNames);
             }
         }
     }
