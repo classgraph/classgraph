@@ -341,7 +341,7 @@ class GraphvizDotfileGenerator {
                     buf.append("<b>");
                     if (mi.getName().equals("<init>")) {
                         // Show class name for constructors
-                        htmlEncode(ci.getName().substring(ci.getName().lastIndexOf('.') + 1), buf);
+                        htmlEncode(ci.getSimpleName(), buf);
                     } else {
                         htmlEncode(mi.getName(), buf);
                     }

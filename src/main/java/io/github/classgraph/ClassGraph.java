@@ -721,8 +721,7 @@ public class ClassGraph {
             // Whitelist the class itself
             scanSpec.classWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(className));
             scanSpec.classfilePathWhiteBlackList.addToWhitelist(WhiteBlackList.classNameToClassfilePath(className));
-            final int lastDotIdx = className.lastIndexOf('.');
-            final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
+            final String packageName = PackageInfo.getParentPackageName(className);
             // Record the package containing the class, so we can recurse to this point even if the package
             // is not itself whitelisted
             scanSpec.classPackageWhiteBlackList

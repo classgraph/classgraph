@@ -93,7 +93,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
         final String moduleName = (String) ReflectionUtils.invokeMethod(this.descriptor, "name",
                 /* throwException = */ true);
-        this.name = moduleName == null ? "" : moduleName;
+        this.name = moduleName;
         @SuppressWarnings("unchecked")
         final Set<String> packages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
                 /* throwException = */ true);
@@ -141,7 +141,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
                 this.name, /* throwException = */ true);
     }
 
-    /** @return The module name, i.e. {@code getReference().descriptor().name()}. */
+    /** @return The module name, i.e. {@code getReference().descriptor().name()}. Potentially null or empty. */
     public String getName() {
         return name;
     }

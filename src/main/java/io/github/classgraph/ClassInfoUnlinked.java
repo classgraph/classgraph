@@ -141,24 +141,25 @@ class ClassInfoUnlinked {
             if (moduleRef != null) {
                 // Get module name from ModuleReference of this ClasspathElementModule, if available
                 moduleName = moduleRef.getName();
-            } else if (classpathElement.moduleName != null) {
-                // Otherwise if this is a jar and the module name was defined in a module-info.class file
-                moduleName = classpathElement.moduleName;
             }
             if (moduleName == null) {
-                moduleName = "";
+                moduleName = classpathElement.moduleName;
             }
-            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
-            if (moduleInfo == null) {
-                moduleNameToModuleInfo.put(moduleName, moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+            if (moduleName != null && !moduleName.isEmpty()) {
+                // Get or create a ModuleInfo object for this module
+                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+                if (moduleInfo == null) {
+                    moduleNameToModuleInfo.put(moduleName,
+                            moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+                }
+                // Add any class annotations on the module-info.class file to the ModuleInfo
+                moduleInfo.addAnnotations(classAnnotations);
             }
-            moduleInfo.addAnnotations(classAnnotations);
 
         } else if (className.equals("package-info") || className.endsWith(".package-info")) {
             // Handle package descriptor classfile
-            final int lastDotIdx = className.lastIndexOf('.');
-            final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
-            final PackageInfo packageInfo = PackageInfo.getPackage(packageName, packageNameToPackageInfo);
+            final PackageInfo packageInfo = PackageInfo.getPackage(PackageInfo.getParentPackageName(className),
+                    packageNameToPackageInfo);
             packageInfo.addAnnotations(classAnnotations);
 
         } else {
@@ -201,9 +202,8 @@ class ClassInfoUnlinked {
                 classInfo.addReferencedClassNames(refdClassNames);
             }
 
-            final int lastDotIdx = className.lastIndexOf('.');
-            final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
-            final PackageInfo packageInfo = PackageInfo.getPackage(packageName, packageNameToPackageInfo);
+            final PackageInfo packageInfo = PackageInfo.getPackage(PackageInfo.getParentPackageName(className),
+                    packageNameToPackageInfo);
             packageInfo.addClassInfo(classInfo);
 
             String moduleName = null;
@@ -211,19 +211,21 @@ class ClassInfoUnlinked {
             if (moduleRef != null) {
                 // Get module name from ModuleReference of this ClasspathElementModule, if available
                 moduleName = moduleRef.getName();
-            } else if (classpathElement.moduleName != null) {
-                // Otherwise if this is a jar and the module name was defined in a module-info.class file
-                moduleName = classpathElement.moduleName;
             }
             if (moduleName == null) {
-                moduleName = "";
+                // Otherwise get the module name from any module-info.class file found in the classpath element
+                moduleName = classpathElement.moduleName;
             }
-            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
-            if (moduleInfo == null) {
-                moduleNameToModuleInfo.put(moduleName, moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+            // Only add class to ModuleInfo if a module name is defined, and if it's not empty
+            if (moduleName != null && !moduleName.isEmpty()) {
+                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+                if (moduleInfo == null) {
+                    moduleNameToModuleInfo.put(moduleName,
+                            moduleInfo = new ModuleInfo(moduleRef, classpathElement));
+                }
+                moduleInfo.addClassInfo(classInfo);
+                moduleInfo.addPackageInfo(packageInfo);
             }
-            moduleInfo.addClassInfo(classInfo);
-            moduleInfo.addPackageInfo(packageInfo);
         }
     }
 
