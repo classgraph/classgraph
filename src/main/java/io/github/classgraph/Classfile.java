@@ -138,11 +138,6 @@ class Classfile {
         /** serialVersionUID. */
         static final long serialVersionUID = 1L;
 
-        /** Constructor. */
-        public ClassfileFormatException() {
-            super();
-        }
-
         /**
          * Constructor.
          *
@@ -151,16 +146,6 @@ class Classfile {
          */
         public ClassfileFormatException(final String message) {
             super(message);
-        }
-
-        /**
-         * Constructor.
-         *
-         * @param cause
-         *            the cause
-         */
-        public ClassfileFormatException(final Throwable cause) {
-            super(cause);
         }
 
         /**
@@ -187,11 +172,6 @@ class Classfile {
         /** serialVersionUID. */
         static final long serialVersionUID = 1L;
 
-        /** Constructor. */
-        public SkipClassException() {
-            super();
-        }
-
         /**
          * Constructor.
          *
@@ -200,28 +180,6 @@ class Classfile {
          */
         public SkipClassException(final String message) {
             super(message);
-        }
-
-        /**
-         * Constructor.
-         *
-         * @param cause
-         *            the cause
-         */
-        public SkipClassException(final Throwable cause) {
-            super(cause);
-        }
-
-        /**
-         * Constructor.
-         *
-         * @param message
-         *            the message
-         * @param cause
-         *            the cause
-         */
-        public SkipClassException(final String message, final Throwable cause) {
-            super(message, cause);
         }
 
         /** Speed up exception (stack trace is not needed for this exception). */
