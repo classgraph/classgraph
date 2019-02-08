@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -40,11 +39,14 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** The name of the module. */
     private String name;
 
-    /** The location of the module. */
-    private String locationURIStr;
+    /** The classpath element. */
+    private transient ClasspathElement classpathElement;
 
     /** The {@link ModuleRef}. */
     private transient ModuleRef moduleRef;
+
+    /** The location of the module as a URI. */
+    private transient URI locationURI;
 
     /** {@link AnnotationInfo} objects for any annotations on the package-info.class file, if present, else null. */
     private AnnotationInfoList annotationInfo;
@@ -72,9 +74,6 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     ModuleInfo(final ModuleRef moduleRef, final ClasspathElement classpathElement) {
         this.moduleRef = moduleRef;
         this.name = classpathElement.moduleName;
-        // Store URI as a string so that JSON serialization works without a reflective access warning
-        final URI locationURI = moduleRef != null ? moduleRef.getLocation() : classpathElement.getURI();
-        this.locationURIStr = locationURI == null ? null : locationURI.toASCIIString();
     }
 
     /**
@@ -93,12 +92,10 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @return the module location, or null for modules whose location is unknown.
      */
     public URI getLocation() {
-        try {
-            return locationURIStr == null ? null : new URI(locationURIStr);
-        } catch (final URISyntaxException e) {
-            // Should not happen
-            return null;
+        if (locationURI == null) {
+            locationURI = moduleRef != null ? moduleRef.getLocation() : classpathElement.getURI();
         }
+        return locationURI;
     }
 
     /**
@@ -258,15 +255,17 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
     @Override
-    public int compareTo(final ModuleInfo o) {
-        final int diff = this.name.compareTo(o.name);
+    public int compareTo(final ModuleInfo other) {
+        final int diff = this.name.compareTo(other.name);
         if (diff != 0) {
             return diff;
-        } else if (this.locationURIStr != null && o.locationURIStr != null) {
-            return this.locationURIStr.compareTo(o.locationURIStr);
-        } else {
-            return (o.locationURIStr == null ? 0 : 1) - (this.locationURIStr == null ? 0 : 1);
         }
+        URI thisLoc = this.getLocation();
+        URI otherLoc = other.getLocation();
+        if (thisLoc != null && otherLoc != null) {
+            return thisLoc.compareTo(otherLoc);
+        }
+        return 0;
     }
 
     /* (non-Javadoc)
@@ -274,7 +273,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     @Override
     public int hashCode() {
-        return name.hashCode() * (locationURIStr == null ? 1 : locationURIStr.hashCode());
+        return name.hashCode();
     }
 
     /* (non-Javadoc)
@@ -295,6 +294,6 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     @Override
     public String toString() {
-        return name + " [" + (locationURIStr == null ? "" : locationURIStr) + "]";
+        return name;
     }
 }
