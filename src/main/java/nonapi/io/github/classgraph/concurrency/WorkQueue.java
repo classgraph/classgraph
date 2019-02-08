@@ -29,12 +29,14 @@
 package nonapi.io.github.classgraph.concurrency;
 
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -50,18 +52,16 @@ public class WorkQueue<T> implements AutoCloseable {
     private final WorkUnitProcessor<T> workUnitProcessor;
 
     /** The queue of work units. */
-    private final ConcurrentLinkedQueue<T> workUnits = new ConcurrentLinkedQueue<>();
+    private final BlockingQueue<WorkUnitWrapper<T>> workUnits = new LinkedBlockingQueue<>();
+
+    /** The number of workers. */
+    private final int numWorkers;
 
     /**
-     * The number of work units remaining. This will always be at least workQueue.size(), but will be higher if work
-     * units have been removed from the queue and are currently being processed. Holding this high while work is
-     * being done allows us to use this count to safely detect when all work has been completed. This is needed
-     * because work units can add new work units to the work queue.
+     * The number of work units remaining to be processed, plus the number of currently running threads working on a
+     * work unit.
      */
-    private final AtomicInteger numWorkUnitsRemaining = new AtomicInteger();
-
-    /** The number of threads currently running (used for clean shutdown). */
-    private final AtomicInteger numRunningThreads = new AtomicInteger();
+    private final AtomicInteger numIncompleteWorkUnits = new AtomicInteger();
 
     /** The Future object added for each worker, used to detect worker completion. */
     private final ConcurrentLinkedQueue<Future<?>> workerFutures = new ConcurrentLinkedQueue<>();
@@ -74,6 +74,28 @@ public class WorkQueue<T> implements AutoCloseable {
 
     /** The log node. */
     private final LogNode log;
+
+    /**
+     * A wrapper for work units (needed to send a poison pill as a null value, since BlockingQueue does not accept
+     * null values).
+     *
+     * @param <T>
+     *            the generic type
+     */
+    private static class WorkUnitWrapper<T> {
+        /** The work unit. */
+        final T workUnit;
+
+        /**
+         * Constructor.
+         * 
+         * @param workUnit
+         *            the work unit, or null to represent a poison pill.
+         */
+        public WorkUnitWrapper(final T workUnit) {
+            this.workUnit = workUnit;
+        }
+    }
 
     /**
      * A work unit processor.
@@ -123,9 +145,14 @@ public class WorkQueue<T> implements AutoCloseable {
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
             final InterruptionChecker interruptionChecker, final int numParallelTasks, final LogNode log,
             final WorkUnitProcessor<U> workUnitProcessor) throws InterruptedException, ExecutionException {
+        if (elements.isEmpty()) {
+            // Nothing to do
+            return;
+        }
         // WorkQueue#close() is called when this try-with-resources block terminates, initiating a barrier wait
         // while all worker threads complete.
-        try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, interruptionChecker, log)) {
+        try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, numParallelTasks,
+                interruptionChecker, log)) {
             // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
             workQueue.startWorkers(executorService, numParallelTasks - 1);
             // Use the current thread to do work too, in case there is only one thread available in the
@@ -138,35 +165,23 @@ public class WorkQueue<T> implements AutoCloseable {
     /**
      * A parallel work queue.
      *
-     * @param workUnitProcessor
-     *            the work unit processor
-     * @param interruptionChecker
-     *            the interruption checker
-     * @param log
-     *            the log
-     */
-    private WorkQueue(final WorkUnitProcessor<T> workUnitProcessor, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
-        this.workUnitProcessor = workUnitProcessor;
-        this.interruptionChecker = interruptionChecker;
-        this.log = log;
-    }
-
-    /**
-     * A parallel work queue.
-     *
      * @param initialWorkUnits
      *            the initial work units
      * @param workUnitProcessor
      *            the work unit processor
+     * @param numWorkers
+     *            the num workers
      * @param interruptionChecker
      *            the interruption checker
      * @param log
      *            the log
      */
     private WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
-        this(workUnitProcessor, interruptionChecker, log);
+            final int numWorkers, final InterruptionChecker interruptionChecker, final LogNode log) {
+        this.workUnitProcessor = workUnitProcessor;
+        this.numWorkers = numWorkers;
+        this.interruptionChecker = interruptionChecker;
+        this.log = log;
         addWorkUnits(initialWorkUnits);
     }
 
@@ -191,6 +206,15 @@ public class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
+     * Send poison pills to workers.
+     */
+    private void sendPoisonPills() {
+        for (int i = 0; i < numWorkers; i++) {
+            workUnits.add(new WorkUnitWrapper<>(null));
+        }
+    }
+
+    /**
      * Start a worker. Called by startWorkers(), but should also be called by the main thread to do some of the work
      * on that thread, to prevent deadlock in the case that the ExecutorService doesn't have as many threads
      * available as numParallelTasks. When this method returns, either all the work has been completed, or this or
@@ -203,36 +227,40 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private void runWorkLoop() throws InterruptedException, ExecutionException {
         // Get next work unit from queue
-        while (numWorkUnitsRemaining.get() > 0) {
-            T workUnit = null;
-            while (numWorkUnitsRemaining.get() > 0) {
-                // Check for interruption
-                interruptionChecker.check();
-                // Busy-wait for work units added after the queue is empty, while work units are still being
-                // processed, since the in-process work units may generate other work units.
-                workUnit = workUnits.poll();
-                if (workUnit != null) {
-                    // Got a work unit
-                    break;
-                }
-                Thread.sleep(5);
+        for (;;) {
+            // Check for interruption
+            interruptionChecker.check();
+
+            // Get next work unit
+            final WorkUnitWrapper<T> workUnitWrapper = workUnits.take();
+
+            if (workUnitWrapper.workUnit == null) {
+                // Received poison pill
+                break;
             }
-            if (workUnit == null) {
-                // numWorkUnitsRemaining == 0
-                return;
-            }
-            // Got a work unit -- hold numWorkUnitsRemaining high until work is complete
+
+            // Process the work unit
             try {
-                // Process the work unit
-                numRunningThreads.incrementAndGet();
-                workUnitProcessor.processWorkUnit(workUnit, this, log);
+                // Process the work unit (may throw InterruptedException) 
+                workUnitProcessor.processWorkUnit(workUnitWrapper.workUnit, this, log);
+
+            } catch (InterruptedException | OutOfMemoryError e) {
+                // On InterruptedException or OutOfMemoryError, drain work queue, send poison pills, and re-throw
+                workUnits.clear();
+                sendPoisonPills();
+                throw e;
+
+            } catch (final RuntimeException e) {
+                // On unchecked exception, drain work queue, send poison pills, and throw ExecutionException
+                workUnits.clear();
+                sendPoisonPills();
+                throw new ExecutionException("Worker thread threw unchecked exception", e);
+
             } finally {
-                // Only after completing the work unit, decrement the count of work units remaining. This way, if
-                // process() generates mork work units, but the queue is emptied some time after this work unit was
-                // removed from the queue, other worker threads haven't terminated yet, so the newly-added work
-                // units can get taken by workers.
-                numWorkUnitsRemaining.decrementAndGet();
-                numRunningThreads.decrementAndGet();
+                if (numIncompleteWorkUnits.decrementAndGet() == 0) {
+                    // No more work units -- send poison pills
+                    sendPoisonPills();
+                }
             }
         }
     }
@@ -242,10 +270,15 @@ public class WorkQueue<T> implements AutoCloseable {
      *
      * @param workUnit
      *            the work unit
+     * @throws NullPointerException
+     *             if the work unit is null.
      */
     public void addWorkUnit(final T workUnit) {
-        numWorkUnitsRemaining.incrementAndGet();
-        workUnits.add(workUnit);
+        if (workUnit == null) {
+            throw new NullPointerException("workUnit cannot be null");
+        }
+        numIncompleteWorkUnits.incrementAndGet();
+        workUnits.add(new WorkUnitWrapper<>(workUnit));
     }
 
     /**
@@ -253,6 +286,8 @@ public class WorkQueue<T> implements AutoCloseable {
      * 
      * @param workUnits
      *            The work units to add to the tail of the queue.
+     * @throws NullPointerException
+     *             if any of the work units are null.
      */
     public void addWorkUnits(final Collection<T> workUnits) {
         for (final T workUnit : workUnits) {
@@ -261,22 +296,14 @@ public class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
-     * Ensure that there are no work units still uncompleted. This should be called after runWorkLoop() exits on the
-     * main thread (e.g. using try-with-resources, since this class is AutoCloseable). If any work units are still
-     * uncompleted (e.g. in the case of an exception), will shut down remaining workers.
+     * Completion barrier for work queue. This should be called after runWorkLoop() exits on the main thread (e.g.
+     * using try-with-resources).
      *
      * @throws ExecutionException
      *             If a worker threw an uncaught exception.
      */
     @Override
     public void close() throws ExecutionException {
-        if (numWorkUnitsRemaining.get() > 0) {
-            if (log != null) {
-                log.log("~", "Some work units were not completed");
-            }
-            // Interrupt threads, if there are work units that have not been completed
-            interruptionChecker.interrupt();
-        }
         for (Future<?> future; (future = workerFutures.poll()) != null;) {
             try {
                 // Block on completion using future.get(), which may throw one of the exceptions below
@@ -295,11 +322,6 @@ public class WorkQueue<T> implements AutoCloseable {
                 interruptionChecker.setExecutionException(e);
                 interruptionChecker.interrupt();
             }
-        }
-        while (numRunningThreads.get() > 0) {
-            // Barrier (busy wait) for worker thread completion. (If an exception is thrown, future.cancel(true)
-            // returns immediately, so we need to wait for thread shutdown here. Otherwise a finally-block of a
-            // caller may be called before the worker threads have completed and cleaned up their resources.)
         }
     }
 }
