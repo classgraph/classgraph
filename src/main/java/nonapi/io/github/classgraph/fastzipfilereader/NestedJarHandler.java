@@ -51,7 +51,6 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.recycler.Recycler;
-import nonapi.io.github.classgraph.recycler.RecyclerExceptionless;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -378,8 +377,8 @@ public class NestedJarHandler {
             };
 
     /** A recycler for {@link Inflater} instances. */
-    public RecyclerExceptionless<RecyclableInflater> //
-    inflaterRecycler = new RecyclerExceptionless<RecyclableInflater>() {
+    public Recycler<RecyclableInflater, RuntimeException> //
+    inflaterRecycler = new Recycler<RecyclableInflater, RuntimeException>() {
         @Override
         public RecyclableInflater newInstance() throws RuntimeException {
             if (closed.get()) {
