@@ -240,8 +240,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Get the {@link PackageInfo} object for the named package, creating it if it doesn't exist, and also creating {@link PackageInfo} objects for any
-     * needed parent packages for which a {@link PackageInfo} has not yet been created.
+     * Get the {@link PackageInfo} object for the named package, creating it if it doesn't exist, and also creating
+     * {@link PackageInfo} objects for any needed parent packages for which a {@link PackageInfo} has not yet been
+     * created.
      *
      * @param packageName
      *            the package name
@@ -261,17 +262,20 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         // Create new PackageInfo for this package
         packageNameToPackageInfo.put(packageName, packageInfo = new PackageInfo(packageName));
 
-        // Recursively create PackageInfo objects for parent packages (until a parent package that already
-        // exists is reached), and connect each ancestral package to its parent
-        final PackageInfo parentPackageInfo = getOrCreatePackage(getParentPackageName(packageInfo.name),
-                packageNameToPackageInfo);
-        if (parentPackageInfo != null) {
-            // Link package to parent
-            if (parentPackageInfo.children == null) {
-                parentPackageInfo.children = new HashSet<>();
+        // If this is not the root package ("")
+        if (!packageName.isEmpty()) {
+            // Recursively create PackageInfo objects for parent packages (until a parent package that already
+            // exists is reached), and connect each ancestral package to its parent
+            final PackageInfo parentPackageInfo = getOrCreatePackage(getParentPackageName(packageInfo.name),
+                    packageNameToPackageInfo);
+            if (parentPackageInfo != null) {
+                // Link package to parent
+                if (parentPackageInfo.children == null) {
+                    parentPackageInfo.children = new HashSet<>();
+                }
+                parentPackageInfo.children.add(packageInfo);
+                packageInfo.parent = parentPackageInfo;
             }
-            parentPackageInfo.children.add(packageInfo);
-            packageInfo.parent = parentPackageInfo;
         }
 
         // Return the newly-created PackageInfo object
