@@ -977,7 +977,7 @@ class Classfile {
                             typeSig.getReferencedClassNames(refdClassNames);
                         } catch (final ParseException e) {
                             // Should not happen
-                            throw new ClassfileFormatException("Could not parse type signature: " + refdClassName,
+                            throw new ClassfileFormatException("Could not parse class name: " + refdClassName,
                                     e);
                         }
                     } else {
