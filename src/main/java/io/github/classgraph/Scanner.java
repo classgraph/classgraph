@@ -670,10 +670,10 @@ class Scanner implements Callable<ScanResult> {
     /**
      * Find classpath elements whose path is a prefix of another classpath element, and record the nesting.
      *
-     * @param classpathElts
-     *            the classpath elements
-     * @param log
-     *            the log
+     * @param finalTraditionalClasspathEltOrder
+     *            the final traditional classpath elt order
+     * @param classpathFinderLog
+     *            the classpath finder log
      */
     private void preprocessClasspathElementsByType(final List<ClasspathElement> finalTraditionalClasspathEltOrder,
             final LogNode classpathFinderLog) {
@@ -843,7 +843,7 @@ class Scanner implements Callable<ScanResult> {
 
             //    final Set<String> referencedClassNames = new HashSet<>();
             //    for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-            //        classInfo.getReferencedClassNames(referencedClassNames);
+            //        classInfo.findReferencedClassNames(referencedClassNames);
             //    }
             //    for (final String referencedClass : referencedClassNames) {
             //        ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0, scanSpec,

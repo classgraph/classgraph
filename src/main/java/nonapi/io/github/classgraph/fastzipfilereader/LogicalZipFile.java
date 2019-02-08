@@ -388,6 +388,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /**
      * Read the central directory of the zipfile.
      *
+     * @param zipFileSliceReader
+     *            the zipfile slice reader
      * @param log
      *            the log
      * @throws IOException

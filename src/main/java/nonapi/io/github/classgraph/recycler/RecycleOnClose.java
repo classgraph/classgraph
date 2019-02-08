@@ -48,13 +48,11 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
 
     /**
      * Acquire or allocate an instance.
-     * 
+     *
      * @param recycler
      *            The {@link Recycler}.
      * @param instance
      *            An object instance that was obtained by calling {@link Recycler#acquire()} on the recycler.
-     * @throws E
-     *             If an exception of type E was thrown during instantiation.
      * @throws IllegalArgumentException
      *             If {@link Recycler#newInstance()} returned null.
      */

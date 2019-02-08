@@ -54,6 +54,11 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     /**
      * Catch exceptions from both submit() and execute(), and call {@link InterruptionChecker#interrupt()} to
      * interrupt all threads.
+     *
+     * @param runnable
+     *            the Runnable
+     * @param throwable
+     *            the Throwable
      */
     @Override
     public void afterExecute(final Runnable runnable, final Throwable throwable) {

@@ -128,7 +128,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * If the given key is not currently in the map, store a placeholder in the map for this key, then run
      * {@link #newInstance(Object, LogNode)} for the key, store the result in the placeholder (which unblocks any
      * other threads waiting for the value), and then return the new instance.
-     * 
+     *
      * @param key
      *            The key for the singleton.
      * @param log
@@ -138,11 +138,11 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *         or a previous call to {@link #newInstance(Object, LogNode)} returned null.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} throws this exception.
-     * @throws NullPointerException
-     *             if {@link #newInstance(Object, LogNode)} returned null.
      * @throws InterruptedException
      *             if the thread was interrupted while waiting for the singleton to be instantiated by another
      *             thread.
+     * @throws NullPointerException
+     *             if {@link #newInstance(Object, LogNode)} returned null.
      */
     public V get(final K key, final LogNode log) throws E, InterruptedException {
         final SingletonHolder<V> singletonHolder = map.get(key);

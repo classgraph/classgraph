@@ -47,6 +47,7 @@ public abstract class LazyReference<V, E extends Exception> {
     /** The reference. */
     private V reference;
 
+    /** A single lease that is obtained by the first getter. */
     private final Semaphore firstGetter = new Semaphore(1);
 
     /** Whether or not the singleton has been initialized (the count will have reached 0 if so). */
@@ -86,6 +87,8 @@ public abstract class LazyReference<V, E extends Exception> {
      * Create a new instance of the reference type.
      *
      * @return the new instance (must not be null).
+     * @throws E
+     *             the e
      */
     public abstract V newInstance() throws E;
 }
