@@ -45,6 +45,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -54,10 +55,6 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * {@link PhysicalZipFile}.
  */
 public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
-
-    /** The zipfile slice reader. */
-    private ZipFileSliceReader zipFileSliceReader;
-
     /** The zipfile entries. */
     public List<FastZipEntry> entries;
 
@@ -107,8 +104,10 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
      */
     LogicalZipFile(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException {
         super(zipFileSlice);
-        zipFileSliceReader = new ZipFileSliceReader(this);
-        readCentralDirectory(log);
+        try (RecycleOnClose<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycleOnClose = //
+                zipFileSliceReaderRecycler.acquireRecycleOnClose()) {
+            readCentralDirectory(zipFileSliceReaderRecycleOnClose.get(), log);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -394,7 +393,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    private void readCentralDirectory(final LogNode log) throws IOException {
+    private void readCentralDirectory(final ZipFileSliceReader zipFileSliceReader, final LogNode log)
+            throws IOException {
         // Scan for End Of Central Directory (EOCD) signature
         long eocdPos = -1;
         for (long i = len - 22; i >= 0; --i) {
@@ -742,9 +742,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
      */
     @Override
     public void close() {
-        if (zipFileSliceReader != null) {
-            zipFileSliceReader.close();
-            zipFileSliceReader = null;
+        if (zipFileSliceReaderRecycler != null) {
+            zipFileSliceReaderRecycler.close();
         }
         if (entries != null) {
             entries.clear();

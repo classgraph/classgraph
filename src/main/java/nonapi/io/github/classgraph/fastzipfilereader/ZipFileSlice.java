@@ -31,6 +31,8 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 import java.io.IOException;
 
 import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
+import nonapi.io.github.classgraph.concurrency.LazyReference;
+import nonapi.io.github.classgraph.recycler.Recycler;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
 public class ZipFileSlice {
@@ -44,7 +46,26 @@ public class ZipFileSlice {
     final long len;
     /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name of the zipfile entry. */
     String name;
+    /** A {@link Recycler} for {@link ZipFileSliceReader} instances. */
+    final Recycler<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycler;
     // N.B. if any fields are added, make sure the clone constructor below is updated
+
+    /**
+     * Create a new {@link LazyReference} to a new {@link ZipFileSliceReader}.
+     *
+     * @return the {@link LazyReference} to a new {@link ZipFileSliceReader}.
+     */
+    private Recycler<ZipFileSliceReader, RuntimeException> newZipFileSliceReaderRecycler() {
+        return new Recycler<ZipFileSliceReader, RuntimeException>() {
+            /* (non-Javadoc)
+             * @see nonapi.io.github.classgraph.concurrency.LazyReference#newInstance()
+             */
+            @Override
+            public ZipFileSliceReader newInstance() throws RuntimeException {
+                return new ZipFileSliceReader(ZipFileSlice.this);
+            }
+        };
+    }
 
     /**
      * Create a ZipFileSlice that wraps an entire {@link PhysicalZipFile}.
@@ -58,6 +79,7 @@ public class ZipFileSlice {
         this.startOffsetWithinPhysicalZipFile = 0;
         this.len = physicalZipFile.fileLen;
         this.name = physicalZipFile.getPath();
+        this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
     /**
@@ -74,6 +96,7 @@ public class ZipFileSlice {
         this.startOffsetWithinPhysicalZipFile = 0;
         this.len = physicalZipFile.fileLen;
         this.name = zipEntry.entryName;
+        this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
     /**
@@ -90,6 +113,7 @@ public class ZipFileSlice {
         this.startOffsetWithinPhysicalZipFile = zipEntry.getEntryDataStartOffsetWithinPhysicalZipFile();
         this.len = zipEntry.compressedSize;
         this.name = zipEntry.entryName;
+        this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
     /**
@@ -104,6 +128,8 @@ public class ZipFileSlice {
         this.startOffsetWithinPhysicalZipFile = other.startOffsetWithinPhysicalZipFile;
         this.len = other.len;
         this.name = other.name;
+        // Reuse the recycler for clones
+        this.zipFileSliceReaderRecycler = other.zipFileSliceReaderRecycler;
     }
 
     /**

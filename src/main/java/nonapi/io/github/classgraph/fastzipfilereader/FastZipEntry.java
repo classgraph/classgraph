@@ -39,6 +39,7 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
+import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -179,19 +180,21 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     long getEntryDataStartOffsetWithinPhysicalZipFile() throws IOException {
         if (entryDataStartOffsetWithinPhysicalZipFile == -1L) {
             // Create zipfile slice reader for zip entry
-            @SuppressWarnings("resource")
-            final ZipFileSliceReader headerReader = new ZipFileSliceReader(parentLogicalZipFile);
-            // Check header magic
-            if (headerReader.getInt(locHeaderPos) != 0x04034b50) {
-                throw new IOException("Zip entry has bad LOC header: " + entryName);
+            try (RecycleOnClose<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycleOnClose = //
+                    parentLogicalZipFile.zipFileSliceReaderRecycler.acquireRecycleOnClose()) {
+                final ZipFileSliceReader headerReader = zipFileSliceReaderRecycleOnClose.get();
+                // Check header magic
+                if (headerReader.getInt(locHeaderPos) != 0x04034b50) {
+                    throw new IOException("Zip entry has bad LOC header: " + entryName);
+                }
+                final long dataStartPos = locHeaderPos + 30 + headerReader.getShort(locHeaderPos + 26)
+                        + headerReader.getShort(locHeaderPos + 28);
+                if (dataStartPos > parentLogicalZipFile.len) {
+                    throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
+                }
+                entryDataStartOffsetWithinPhysicalZipFile = parentLogicalZipFile.startOffsetWithinPhysicalZipFile
+                        + dataStartPos;
             }
-            final long dataStartPos = locHeaderPos + 30 + headerReader.getShort(locHeaderPos + 26)
-                    + headerReader.getShort(locHeaderPos + 28);
-            if (dataStartPos > parentLogicalZipFile.len) {
-                throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
-            }
-            entryDataStartOffsetWithinPhysicalZipFile = parentLogicalZipFile.startOffsetWithinPhysicalZipFile
-                    + dataStartPos;
         }
         return entryDataStartOffsetWithinPhysicalZipFile;
     }

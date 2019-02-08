@@ -42,7 +42,6 @@ import nonapi.io.github.classgraph.utils.FileUtils;
  * A class for reading from a {@link ZipFileSlice}.
  */
 class ZipFileSliceReader implements AutoCloseable {
-
     /** The zipfile slice. */
     private final ZipFileSlice zipFileSlice;
 
@@ -324,6 +323,7 @@ class ZipFileSliceReader implements AutoCloseable {
      */
     @Override
     public void close() {
+        // Drop refs to ByteBuffer chunks so they can be garbage collected
         Arrays.fill(chunkCache, null);
     }
 }
