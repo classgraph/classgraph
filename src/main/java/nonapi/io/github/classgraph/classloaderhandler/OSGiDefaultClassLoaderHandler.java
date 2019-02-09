@@ -79,7 +79,7 @@ public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
                 final Object bundleFile = ReflectionUtils.invokeMethod(entry, "getBundleFile", false);
                 final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile", false);
                 if (baseFile != null) {
-                    classpathOrderOut.addClasspathElement(baseFile.getPath(), classloader, log);
+                    classpathOrderOut.addClasspathEntry(baseFile.getPath(), classloader, log);
                 }
             }
         }

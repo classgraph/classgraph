@@ -79,7 +79,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
             } catch (final ExecutionException e) {
                 // Record the exception that was thrown by the thread
                 interruptionChecker.setExecutionException(e);
-                // If this thread threw an exception, interrupt other threads
+                // Interrupt other threads
                 interruptionChecker.interrupt();
             }
         }

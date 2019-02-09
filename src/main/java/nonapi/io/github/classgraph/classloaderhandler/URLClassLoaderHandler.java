@@ -72,7 +72,7 @@ public class URLClassLoaderHandler implements ClassLoaderHandler {
         if (urls != null) {
             for (final URL url : urls) {
                 if (url != null) {
-                    classpathOrderOut.addClasspathElement(url.toString(), classLoader, log);
+                    classpathOrderOut.addClasspathEntry(url.toString(), classLoader, log);
                 }
             }
         }

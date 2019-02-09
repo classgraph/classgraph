@@ -137,7 +137,7 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 for (final Object classpath : classPathElements) {
                     final String path = getPath(classpath);
                     if (path != null && path.length() > 0) {
-                        classpathOrderOut.addClasspathElement(path, classLoader, log);
+                        classpathOrderOut.addClasspathEntry(path, classLoader, log);
                     }
                 }
             }

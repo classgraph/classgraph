@@ -68,6 +68,6 @@ public class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoa
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath",
                 /* throwException = */ true);
-        classpathOrderOut.addClasspathElement(classpath, classLoader, log);
+        classpathOrderOut.addClasspathEntry(classpath, classLoader, log);
     }
 }

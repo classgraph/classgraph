@@ -124,8 +124,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The {@link Resource} for the classfile of this class. */
     private transient Resource resource;
 
-    /** The classloaders to try to load this class with before calling a MatchProcessor. */
-    transient ClassLoader[] classLoaders;
+    /** The classloader this class was obtained from. */
+    transient ClassLoader classLoader;
 
     /** Info on class annotations, including optional annotation param values. */
     AnnotationInfoList annotationInfo;
@@ -607,7 +607,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         classInfo.jarfilePackageRoot = classpathElement.getPackageRoot();
 
         // Remember which classloader is used to load the class
-        classInfo.classLoaders = classpathElement.getClassLoaders();
+        classInfo.classLoader = classpathElement.getClassLoader();
 
         return classInfo;
     }

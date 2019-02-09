@@ -80,9 +80,9 @@ public class ClassLoadingWorksWithParentLastLoaders {
             }).get(0);
 
             // ClassGraph finds "A" through the RestartClass Loader
-            final Field classLoadersField = classInfo.getClass().getDeclaredField("classLoaders");
+            final Field classLoadersField = classInfo.getClass().getDeclaredField("classLoader");
             classLoadersField.setAccessible(true);
-            assertThat(((ClassLoader[]) classLoadersField.get(classInfo))[0].getClass().getSimpleName())
+            assertThat(((ClassLoader) classLoadersField.get(classInfo)).getClass().getSimpleName())
                     .isEqualTo(expectedClassLoader);
 
             // And it should load it through the same class loader it found it with

@@ -103,7 +103,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         foundClassPathElement = fieldVal != null;
                         if (foundClassPathElement) {
                             // We found the base file and a classpath element, e.g. "bin/"
-                            classpathOrderOut.addClasspathElement(basefile.toString() + "/" + fieldVal.toString(),
+                            classpathOrderOut.addClasspathEntry(basefile.toString() + "/" + fieldVal.toString(),
                                     classLoader, log);
                             break;
                         }
@@ -111,7 +111,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
                     if (!foundClassPathElement) {
                         // No classpath element found, just use basefile
-                        classpathOrderOut.addClasspathElement(basefile.toString(), classLoader, log);
+                        classpathOrderOut.addClasspathEntry(basefile.toString(), classLoader, log);
                     }
 
                 }
@@ -204,7 +204,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         final int fileIdx = location.indexOf("file:");
                         if (fileIdx >= 0) {
                             location = location.substring(fileIdx);
-                            classpathOrderOut.addClasspathElement(location, classLoader, log);
+                            classpathOrderOut.addClasspathEntry(location, classLoader, log);
                         }
                     }
                 }

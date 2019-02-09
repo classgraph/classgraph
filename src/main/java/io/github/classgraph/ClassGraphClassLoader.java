@@ -31,7 +31,6 @@ package io.github.classgraph;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Enumeration;
 
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -63,15 +62,13 @@ class ClassGraphClassLoader extends ClassLoader {
         // Get ClassInfo for named class
         final ClassInfo classInfo = scanResult.getClassInfo(className);
         if (classInfo != null) {
-            // Try specific classloader(s) for class
-            final ClassLoader[] classLoaders = classInfo.classLoaders;
-            if (classLoaders != null) {
-                for (final ClassLoader classLoader : classLoaders) {
-                    try {
-                        return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, classLoader);
-                    } catch (final ClassNotFoundException | NoClassDefFoundError e) {
-                        // Ignore
-                    }
+            // Try specific classloader for class
+            if (classInfo.classLoader != null) {
+                try {
+                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
+                            classInfo.classLoader);
+                } catch (final ClassNotFoundException | NoClassDefFoundError e) {
+                    // Ignore
                 }
             }
         } else {
@@ -81,14 +78,16 @@ class ClassGraphClassLoader extends ClassLoader {
                 return Class.forName(className);
             }
         }
-        if (scanResult.envClassLoaderOrder != null
-                && (classInfo == null || !Arrays.equals(classInfo.classLoaders, scanResult.envClassLoaderOrder))) {
+        if (scanResult.envClassLoaderOrder != null) {
             // Try environment classloaders
             for (final ClassLoader envClassLoader : scanResult.envClassLoaderOrder) {
-                try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, envClassLoader);
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    // Ignore
+                if (classInfo == null || envClassLoader != classInfo.classLoader) {
+                    try {
+                        return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
+                                envClassLoader);
+                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        // Ignore
+                    }
                 }
             }
         }

@@ -41,12 +41,13 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
+import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -71,13 +72,13 @@ class ClasspathElementDir extends ClasspathElement {
      *
      * @param classpathEltDir
      *            the classpath element directory
-     * @param classLoaders
-     *            the classloaders
+     * @param classLoader
+     *            the classloader
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementDir(final File classpathEltDir, final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
-        super(classLoaders, scanSpec);
+    ClasspathElementDir(final File classpathEltDir, final ClassLoader classLoader, final ScanSpec scanSpec) {
+        super(classLoader, scanSpec);
         this.classpathEltDir = classpathEltDir;
         if (scanSpec.performScan) {
             ignorePrefixLen = classpathEltDir.getPath().length() + 1;
@@ -91,7 +92,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
                 log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
@@ -112,8 +113,9 @@ class ClasspathElementDir extends ClasspathElement {
                         if (log != null) {
                             log.log("Found lib jar: " + file);
                         }
-                        workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
-                                /* rawClasspathEltPath = */ file.getPath(), /* parentClasspathElement = */ this,
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                /* rawClasspathEntry = */ new SimpleEntry<>(file.getPath(), classLoader),
+                                /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                     }
                 }
@@ -125,8 +127,9 @@ class ClasspathElementDir extends ClasspathElement {
                 if (log != null) {
                     log.log("Found package root: " + packageRootDir);
                 }
-                workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
-                        /* rawClasspathEltPath = */ packageRootDir.getPath(), /* parentClasspathElement = */ this,
+                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                        /* rawClasspathEntry = */ new SimpleEntry<>(packageRootDir.getPath(), classLoader),
+                        /* parentClasspathElement = */ this,
                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
             }
         }

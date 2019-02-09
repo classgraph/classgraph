@@ -129,7 +129,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
             }
         }
         if (path != null) {
-            classpathOrderOut.addClasspathElement(path, classLoader, log);
+            classpathOrderOut.addClasspathEntry(path, classLoader, log);
         } else {
             if (log != null) {
                 log.log("Could not determine classpath for ResourceLoader: " + resourceLoader);

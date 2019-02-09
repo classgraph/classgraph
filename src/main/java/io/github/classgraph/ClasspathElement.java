@@ -40,7 +40,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
+import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -95,8 +95,8 @@ abstract class ClasspathElement {
     /** Flag to ensure classpath element is only scanned once. */
     protected final AtomicBoolean scanned = new AtomicBoolean(false);
 
-    /** The classloader(s) handling this classpath element. */
-    protected ClassLoader[] classLoaders;
+    /** The classloader that this classpath element was obtained from. */
+    protected ClassLoader classLoader;
 
     /**
      * The name of the module, if this is a {@link ClasspathElementModule}, or the module name from the
@@ -110,15 +110,15 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A classpath element (a directory or jarfile on the classpath).
+     * A classpath element.
      *
-     * @param classLoaders
-     *            the classloaders
+     * @param classLoader
+     *            the classloader
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElement(final ClassLoader[] classLoaders, final ScanSpec scanSpec) {
-        this.classLoaders = classLoaders;
+    ClasspathElement(final ClassLoader classLoader, final ScanSpec scanSpec) {
+        this.classLoader = classLoader;
         this.scanSpec = scanSpec;
     }
 
@@ -138,12 +138,12 @@ abstract class ClasspathElement {
     }
 
     /**
-     * Get the ClassLoader(s) to use when trying to load the class.
+     * Get the ClassLoader the classpath element was obtained from.
      *
-     * @return the classloaders
+     * @return the classloader
      */
-    ClassLoader[] getClassLoaders() {
-        return classLoaders;
+    ClassLoader getClassLoader() {
+        return classLoader;
     }
 
     /**
@@ -343,7 +343,7 @@ abstract class ClasspathElement {
      * @throws InterruptedException
      *             if the thread was interrupted while trying to open the classpath element.
      */
-    abstract void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log)
+    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log)
             throws InterruptedException;
 
     /**

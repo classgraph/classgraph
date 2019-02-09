@@ -70,86 +70,86 @@ public class FallbackClassLoaderHandler implements ClassLoaderHandler {
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         boolean valid = false;
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getClassPath", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "classpath", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "classPath", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(ReflectionUtils.invokeMethod(classLoader, "cp", false),
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "cp", false),
                 classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.getFieldVal(classLoader, "classpath", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.getFieldVal(classLoader, "classPath", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(ReflectionUtils.getFieldVal(classLoader, "cp", false),
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "cp", false),
                 classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getPath", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getPaths", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "path", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "path", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "paths", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.getFieldVal(classLoader, "paths", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.getFieldVal(classLoader, "paths", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "paths", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "paths", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getDir", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getDirs", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "dir", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "dirs", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(ReflectionUtils.getFieldVal(classLoader, "dir", false),
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "dir", false),
                 classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.getFieldVal(classLoader, "dirs", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "dirs", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "dir", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "dirs", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getFile", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getFiles", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "file", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "file", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "files", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.getFieldVal(classLoader, "file", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.getFieldVal(classLoader, "files", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "file", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "files", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getJar", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getJars", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "jar", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "jars", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(ReflectionUtils.getFieldVal(classLoader, "jar", false),
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "jar", false),
                 classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.getFieldVal(classLoader, "jars", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "jars", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "jar", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "jars", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getURL", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getURLs", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getUrl", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
+        valid |= classpathOrderOut.addClasspathEntryObject(
                 ReflectionUtils.invokeMethod(classLoader, "getUrls", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "url", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.invokeMethod(classLoader, "urls", false), classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(ReflectionUtils.getFieldVal(classLoader, "url", false),
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "url", false),
                 classLoader, log);
-        valid |= classpathOrderOut.addClasspathElementObject(
-                ReflectionUtils.getFieldVal(classLoader, "urls", false), classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "urls", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "url", false),
+                classLoader, log);
+        valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "urls", false),
+                classLoader, log);
         if (log != null) {
             log.log("FallbackClassLoaderHandler " + (valid ? "found" : "did not find")
                     + " classpath entries in unknown ClassLoader " + classLoader);

@@ -1122,12 +1122,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final ClassLoader parentClassLoader = envClassLoaderOrder == null || envClassLoaderOrder.length == 0 ? null
                 : envClassLoaderOrder[0];
         final URLClassLoader urlClassLoader = new URLClassLoader(urls.toArray(new URL[0]), parentClassLoader);
-        final ClassLoader[] classLoaderOrder = new ClassLoader[] { urlClassLoader };
 
         // Index ClassInfo, PackageInfo and MethodInfo objects by name
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
         for (final ClassInfo ci : deserialized.classInfo) {
-            ci.classLoaders = classLoaderOrder;
+            ci.classLoader = urlClassLoader;
             classNameToClassInfo.put(ci.getName(), ci);
         }
         final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
@@ -1142,8 +1141,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // Produce a new ScanResult
         return new ScanResult(deserialized.scanSpec,
                 /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), deserialized.classpath,
-                classLoaderOrder, classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo,
-                /* fileToLastModified = */ null, /* nestedJarHandler = */ null, /* log = */ null);
+                new URLClassLoader[] { urlClassLoader }, classNameToClassInfo, packageNameToPackageInfo,
+                moduleNameToModuleInfo, /* fileToLastModified = */ null, /* nestedJarHandler = */ null,
+                /* log = */ null);
     }
 
     /**

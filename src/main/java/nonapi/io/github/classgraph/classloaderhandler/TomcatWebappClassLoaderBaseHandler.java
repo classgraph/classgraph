@@ -75,7 +75,7 @@ public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         final Object resources = ReflectionUtils.invokeMethod(classLoader, "getResources", false);
         // type List<URL>
         final Object baseURLs = ReflectionUtils.invokeMethod(resources, "getBaseUrls", false);
-        classpathOrderOut.addClasspathElementObject(baseURLs, classLoader, log);
+        classpathOrderOut.addClasspathEntryObject(baseURLs, classLoader, log);
         // type List<List<WebResourceSet>>
         // members: preResources, mainResources, classResources, jarResources, postResources
         @SuppressWarnings("unchecked")
@@ -116,12 +116,12 @@ public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                         final String internalPath = (String) ReflectionUtils.invokeMethod(webResourceSet,
                                 "getInternalPath", false);
                         if (internalPath != null && !internalPath.isEmpty() && !internalPath.equals("/")) {
-                            classpathOrderOut.addClasspathElementObject(
+                            classpathOrderOut.addClasspathEntryObject(
                                     base + (isJar ? "!" : "")
                                             + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
                                     classLoader, log);
                         } else {
-                            classpathOrderOut.addClasspathElementObject(base, classLoader, log);
+                            classpathOrderOut.addClasspathEntryObject(base, classLoader, log);
                         }
                     }
                 }
@@ -129,6 +129,6 @@ public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         }
         // This may or may not duplicate the above
         final Object urls = ReflectionUtils.invokeMethod(classLoader, "getURLs", false);
-        classpathOrderOut.addClasspathElementObject(urls, classLoader, log);
+        classpathOrderOut.addClasspathEntryObject(urls, classLoader, log);
     }
 }

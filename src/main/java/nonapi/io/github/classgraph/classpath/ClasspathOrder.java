@@ -30,8 +30,11 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
 import java.lang.reflect.Array;
-import java.util.LinkedHashSet;
-import java.util.Map;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
@@ -47,11 +50,11 @@ public class ClasspathOrder {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
-    /** The classpath order. */
-    private final LinkedHashSet<String> order = new LinkedHashSet<>();
+    /** Unique classpath entries. */
+    private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
 
-    /** A map from classpath element path to classloaders. */
-    private final Map<String, ClassLoader[]> classpathEltPathToClassLoaders;
+    /** The classpath order. */
+    private final List<Entry<String, ClassLoader>> order = new ArrayList<>();
 
     /**
      * Constructor.
@@ -61,18 +64,26 @@ public class ClasspathOrder {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathOrder(final Map<String, ClassLoader[]> classpathEltPathToClassLoaders, final ScanSpec scanSpec) {
-        this.classpathEltPathToClassLoaders = classpathEltPathToClassLoaders;
+    ClasspathOrder(final ScanSpec scanSpec) {
         this.scanSpec = scanSpec;
     }
 
     /**
      * Get the order of classpath elements, as an ordered set.
      *
-     * @return the classpath order
+     * @return the classpath order, as (path/URL, ClassLoader) tuples.
      */
-    public Set<String> getOrder() {
+    public List<Entry<String, ClassLoader>> getOrder() {
         return order;
+    }
+
+    /**
+     * Get the unique classpath entry strings.
+     *
+     * @return the classpath entry strings.
+     */
+    public Set<String> getClasspathEntryUniqueResolvedPaths() {
+        return classpathEntryUniqueResolvedPaths;
     }
 
     /**
@@ -94,40 +105,40 @@ public class ClasspathOrder {
     }
 
     /**
-     * Add a system classpath element.
+     * Add a system classpath entry.
      *
-     * @param pathElement
-     *            the path element
-     * @param classLoaders
-     *            the classloaders
+     * @param pathEntry
+     *            the classpath entry
+     * @param classLoader
+     *            the classloader
      * @return true, if added and unique
      */
-    boolean addSystemClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
-        if (order.add(pathElement)) {
-            classpathEltPathToClassLoaders.put(pathElement, classLoaders);
+    boolean addSystemClasspathEntry(final String pathEntry, final ClassLoader classLoader) {
+        if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
+            order.add(new SimpleEntry<>(pathEntry, classLoader));
             return true;
         }
         return false;
     }
 
     /**
-     * Add a classpath element.
+     * Add a classpath entry.
      *
-     * @param pathElement
+     * @param pathEntry
      *            the path element
-     * @param classLoaders
-     *            the classloaders
+     * @param classLoader
+     *            the classloader
      * @return true, if added and unique
      */
-    private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders) {
-        if (SystemJarFinder.getJreLibOrExtJars().contains(pathElement)
-                || pathElement.equals(SystemJarFinder.getJreRtJarPath())) {
+    private boolean addClasspathEntry(final String pathEntry, final ClassLoader classLoader) {
+        if (SystemJarFinder.getJreLibOrExtJars().contains(pathEntry)
+                || pathEntry.equals(SystemJarFinder.getJreRtJarPath())) {
             // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
             // returned by a system classloader
             return false;
         }
-        if (order.add(pathElement)) {
-            classpathEltPathToClassLoaders.put(pathElement, classLoaders);
+        if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
+            order.add(new SimpleEntry<>(pathEntry, classLoader));
             return true;
         }
         return false;
@@ -139,14 +150,14 @@ public class ClasspathOrder {
      *
      * @param pathElement
      *            the URL or path of the classpath element.
-     * @param classLoaders
-     *            the ClassLoader(s) that this classpath element was obtained from.
+     * @param classLoader
+     *            the ClassLoader that this classpath element was obtained from.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
-    boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders, final LogNode log) {
+    public boolean addClasspathEntry(final String pathElement, final ClassLoader classLoader, final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
         }
@@ -200,7 +211,7 @@ public class ClasspathOrder {
                         final String fileInDirPath = fileInDir.getPath();
                         final String fileInDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                                 fileInDirPath);
-                        if (addClasspathElement(fileInDirPathResolved, classLoaders)) {
+                        if (addClasspathEntry(fileInDirPathResolved, classLoader)) {
                             if (dirLog != null) {
                                 dirLog.log("Found classpath element: " + fileInDirPath
                                         + (fileInDirPath.equals(fileInDirPathResolved) ? ""
@@ -234,7 +245,7 @@ public class ClasspathOrder {
                 }
                 return false;
             }
-            if (addClasspathElement(pathElementResolved, classLoaders)) {
+            if (addClasspathEntry(pathElementResolved, classLoader)) {
                 if (log != null) {
                     log.log("Found classpath element: " + pathElement
                             + (pathElement.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
@@ -251,18 +262,17 @@ public class ClasspathOrder {
     }
 
     /**
-     * Add classpath elements, separated by the system path separator character. May be called by a
-     * ClassLoaderHandler to add a path string that it knows about.
+     * Add classpath entries, separated by the system path separator character.
      *
      * @param pathStr
      *            the delimited string of URLs or paths of the classpath.
-     * @param classLoaders
-     *            the ClassLoader(s) that this classpath was obtained from.
+     * @param classLoader
+     *            the ClassLoader that this classpath was obtained from.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathElements(final String pathStr, final ClassLoader[] classLoaders, final LogNode log) {
+    public boolean addClasspathEntries(final String pathStr, final ClassLoader classLoader, final LogNode log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
@@ -271,7 +281,7 @@ public class ClasspathOrder {
                 return false;
             } else {
                 for (final String pathElement : parts) {
-                    addClasspathElement(pathElement, classLoaders, log);
+                    addClasspathEntry(pathElement, classLoader, log);
                 }
                 return true;
             }
@@ -279,23 +289,7 @@ public class ClasspathOrder {
     }
 
     /**
-     * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
-     * elements that it knows about.
-     *
-     * @param pathElement
-     *            the URL or path of the classpath element.
-     * @param classLoader
-     *            the ClassLoader that this classpath element was obtained from.
-     * @param log
-     *            the LogNode instance to use if logging in verbose mode.
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
-     */
-    public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
-        return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, log);
-    }
-
-    /**
-     * Add classpath elements from an object obtained from reflection. The object may be a String (containing a
+     * Add classpath entries from an object obtained from reflection. The object may be a String (containing a
      * single path, or several paths separated with File.pathSeparator), a List or other Iterable, or an array
      * object. In the case of Iterables and arrays, the elements may be any type whose {@code toString()} method
      * returns a path or URL string (including the {@code URL} and {@code Path} types).
@@ -308,16 +302,16 @@ public class ClasspathOrder {
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathElementObject(final Object pathObject, final ClassLoader classLoader,
+    public boolean addClasspathEntryObject(final Object pathObject, final ClassLoader classLoader,
             final LogNode log) {
         boolean valid = false;
         if (pathObject != null) {
             if (pathObject instanceof String) {
-                valid |= addClasspathElements((String) pathObject, classLoader, log);
+                valid |= addClasspathEntries((String) pathObject, classLoader, log);
             } else if (pathObject instanceof Iterable) {
                 for (final Object p : (Iterable<?>) pathObject) {
                     if (p != null) {
-                        valid |= addClasspathElements(p.toString(), classLoader, log);
+                        valid |= addClasspathEntries(p.toString(), classLoader, log);
                     }
                 }
             } else {
@@ -326,32 +320,16 @@ public class ClasspathOrder {
                     for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
                         final Object elt = Array.get(pathObject, j);
                         if (elt != null) {
-                            valid |= addClasspathElementObject(elt, classLoader, log);
+                            valid |= addClasspathEntryObject(elt, classLoader, log);
                         }
                     }
                 } else {
                     // Try simply calling toString() as a final fallback, in case this returns something sensible
-                    valid |= addClasspathElements(pathObject.toString(), classLoader, log);
+                    valid |= addClasspathEntries(pathObject.toString(), classLoader, log);
                 }
             }
         }
         return valid;
-    }
-
-    /**
-     * Add classpath elements, separated by the system path separator character. May be called by a
-     * ClassLoaderHandler to add a path string that it knows about.
-     *
-     * @param pathStr
-     *            the delimited string of URLs or paths of the classpath.
-     * @param classLoader
-     *            the ClassLoader that this classpath was obtained from.
-     * @param log
-     *            the LogNode instance to use if logging in verbose mode.
-     * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
-     */
-    public boolean addClasspathElements(final String pathStr, final ClassLoader classLoader, final LogNode log) {
-        return addClasspathElements(pathStr, new ClassLoader[] { classLoader }, log);
     }
 
     /**
@@ -361,11 +339,10 @@ public class ClasspathOrder {
      *            the ordering to add after this one.
      * @return true, if at least one element was added (i.e. was not a duplicate).
      */
-    public boolean addClasspathElements(final ClasspathOrder subsequentOrder) {
+    public boolean addClasspathEntries(final ClasspathOrder subsequentOrder) {
         boolean added = false;
-        for (final String classpathElt : subsequentOrder.getOrder()) {
-            added |= addClasspathElement(classpathElt,
-                    subsequentOrder.classpathEltPathToClassLoaders.get(classpathElt));
+        for (final Entry<String, ClassLoader> classpathEnt : subsequentOrder.getOrder()) {
+            added |= addClasspathEntry(classpathEnt.getKey(), classpathEnt.getValue());
         }
         return added;
     }

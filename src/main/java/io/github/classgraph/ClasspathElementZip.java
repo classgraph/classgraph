@@ -36,6 +36,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,7 +44,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
+import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -77,16 +78,16 @@ class ClasspathElementZip extends ClasspathElement {
      *
      * @param rawPath
      *            the raw path to the jarfile, possibly including "!"-delimited nested paths.
-     * @param classLoaders
-     *            the classloaders
+     * @param classLoader
+     *            the classloader
      * @param nestedJarHandler
      *            the nested jar handler
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementZip(final String rawPath, final ClassLoader[] classLoaders,
+    ClasspathElementZip(final String rawPath, final ClassLoader classLoader,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
-        super(classLoaders, scanSpec);
+        super(classLoader, scanSpec);
         this.rawPath = rawPath;
         this.zipFilePath = rawPath;
         this.nestedJarHandler = nestedJarHandler;
@@ -101,7 +102,7 @@ class ClasspathElementZip extends ClasspathElement {
      * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log.log("Skipping classpath element, since jar scanning is disabled: " + rawPath);
@@ -185,8 +186,9 @@ class ClasspathElementZip extends ClasspathElement {
                             if (subLog != null) {
                                 subLog.log("Found nested lib jar: " + entryPath);
                             }
-                            workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
-                                    /* rawClasspathEltPath = */ entryPath, /* parentClasspathElement = */ this,
+                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                    /* rawClasspathEntry = */ new SimpleEntry<>(entryPath, classLoader),
+                                    /* parentClasspathElement = */ this,
                                     /* orderWithinParentClasspathElement = */
                                     childClasspathEntryIdx++));
                             break;
@@ -209,8 +211,9 @@ class ClasspathElementZip extends ClasspathElement {
                         // Only add child classpath elements once
                         if (!childClassPathEltPathResolved.equals(rawPath)) {
                             // Schedule child classpath element for scanning
-                            workQueue.addWorkUnit(new ClasspathElementOpenerWorkUnit(
-                                    /* rawClasspathEltPath = */ childClassPathEltPathResolved,
+                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                    /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPathResolved,
+                                            classLoader),
                                     /* parentClasspathElement = */ this,
                                     /* orderWithinParentClasspathElement = */
                                     childClasspathEntryIdx++));

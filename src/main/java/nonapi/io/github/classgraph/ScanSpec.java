@@ -43,8 +43,7 @@ import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListWholeString;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * Parses the scanning specification that was passed to the ClassGraph constructor, and finds all ClassLoaders. Also
- * defines core MatchProcessor matching logic.
+ * The scanning specification.
  */
 public class ScanSpec {
 
@@ -225,11 +224,7 @@ public class ScanSpec {
     /** If non-null, a list of filter operations to apply to classpath elements. */
     public transient List<ClasspathElementFilter> classpathElementFilters;
 
-    /**
-     * If true, classes loaded with Class.forName() are initialized before passing class references to
-     * MatchProcessors. If false (the default), matched classes are loaded but not initialized before passing class
-     * references to MatchProcessors (meaning classes are instead initialized lazily on first usage of the class).
-     */
+    /** Whether to initialize classes when loading them. */
     public transient boolean initializeLoadedClasses = false;
 
     /**

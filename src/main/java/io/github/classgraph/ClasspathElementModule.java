@@ -42,7 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.Scanner.ClasspathElementOpenerWorkUnit;
+import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -73,16 +73,16 @@ class ClasspathElementModule extends ClasspathElement {
      *
      * @param moduleRef
      *            the module ref
-     * @param classLoaders
-     *            the classloaders
+     * @param classLoader
+     *            the classloader
      * @param nestedJarHandler
      *            the nested jar handler
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementModule(final ModuleRef moduleRef, final ClassLoader[] classLoaders,
+    ClasspathElementModule(final ModuleRef moduleRef, final ClassLoader classLoader,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
-        super(classLoaders, scanSpec);
+        super(classLoader, scanSpec);
         this.moduleRef = moduleRef;
         this.moduleName = moduleRef.getName();
         if (this.moduleName == null) {
@@ -100,7 +100,7 @@ class ClasspathElementModule extends ClasspathElement {
      * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathElementOpenerWorkUnit> workQueueIgnored, final LogNode log)
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log)
             throws InterruptedException {
         moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
                 /* ignored */ null);

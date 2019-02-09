@@ -66,7 +66,7 @@ public class AntClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
-        classpathOrderOut.addClasspathElements( //
+        classpathOrderOut.addClasspathEntries( //
                 (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, log);
     }
 }
