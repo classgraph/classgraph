@@ -35,7 +35,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -572,15 +571,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     static ClassInfo addScannedClass(final String className, final int classModifiers,
             final boolean isExternalClass, final Map<String, ClassInfo> classNameToClassInfo,
             final ClasspathElement classpathElement, final Resource classfileResource, final LogNode log) {
-        boolean classEncounteredMultipleTimes = false;
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             // This is the first time this class has been seen, add it
             classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers));
         } else {
-            // Check if the class was scanned more than once
+            // There was a previous placeholder ClassInfo class added, due to the class being referred
+            // to as a superclass, interface or annotation. The isScannedClass field should be false
+            // in this case, since the actual class definition wasn't reached before now.
             if (classInfo.isScannedClass) {
-                classEncounteredMultipleTimes = true;
+                // The class should not have been scanned more than once, because of classpath masking
+                throw new IllegalArgumentException("Class " + className
+                        + " should not have been encountered more than once due to classpath masking --"
+                        + " please report this bug at: https://github.com/classgraph/classgraph/issues");
             }
         }
 
@@ -588,58 +591,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         classInfo.isScannedClass = true;
 
         // Mark the class as non-external if it is a whitelisted class
-        if (!isExternalClass) {
-            classInfo.isExternalClass = isExternalClass;
-        }
+        classInfo.isExternalClass = isExternalClass;
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
-        final ModuleRef modRef = classpathElement instanceof ClasspathElementModule
+        classInfo.resource = classfileResource;
+        classInfo.moduleRef = classpathElement instanceof ClasspathElementModule
                 ? ((ClasspathElementModule) classpathElement).getModuleRef()
                 : null;
-        final File file = modRef != null ? null
+        classInfo.classpathElementFile = classInfo.moduleRef != null ? null
                 : classpathElement instanceof ClasspathElementDir
                         ? ((ClasspathElementDir) classpathElement).getDirFile()
                         : classpathElement instanceof ClasspathElementZip
                                 ? ((ClasspathElementZip) classpathElement).getZipFile()
                                 : null;
-        if ((classInfo.moduleRef != null && modRef != null && !classInfo.moduleRef.equals(modRef))
-                || (classInfo.classpathElementFile != null && file != null
-                        && !classInfo.classpathElementFile.equals(file))) {
-            classEncounteredMultipleTimes = true;
-        }
+        classInfo.jarfilePackageRoot = classpathElement.getPackageRoot();
 
-        if (classEncounteredMultipleTimes) {
-            // Should not happen, since classpath masking was applied, except maybe in the class of
-            // package-info.class being defined in multiple classpath elements.
-            if (log != null) {
-                log.log("Class " + className + " is defined in multiple different classpath elements or modules. "
-                        + "Attempting to merge info from all copies of the classfile.");
-            }
-        }
-        // If class was found in more than one classpath element, keep only the first reference 
-        if (classInfo.classpathElementFile == null) {
-            classInfo.classpathElementFile = file;
-            classInfo.jarfilePackageRoot = classpathElement.getPackageRoot();
-        }
-        if (classInfo.moduleRef == null) {
-            classInfo.moduleRef = modRef;
-        }
-        if (classInfo.resource == null) {
-            classInfo.resource = classfileResource;
-        }
+        // Remember which classloader is used to load the class
+        classInfo.classLoaders = classpathElement.getClassLoaders();
 
-        // Remember which classloader handles the class was found in, for classloading
-        final ClassLoader[] classLoaders = classpathElement.getClassLoaders();
-        if (classInfo.classLoaders == null) {
-            classInfo.classLoaders = classLoaders;
-        } else if (classLoaders != null && !Arrays.equals(classInfo.classLoaders, classLoaders)) {
-            // Merge together ClassLoader list (concatenate and dedup)
-            final LinkedHashSet<ClassLoader> allClassLoaders = new LinkedHashSet<>(
-                    Arrays.asList(classInfo.classLoaders));
-            Collections.addAll(allClassLoaders, classLoaders);
-            final List<ClassLoader> classLoaderOrder = new ArrayList<>(allClassLoaders);
-            classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[0]);
-        }
         return classInfo;
     }
 
