@@ -71,12 +71,6 @@ class ClassGraphClassLoader extends ClassLoader {
                     // Ignore
                 }
             }
-        } else {
-            // For classes not found during the scan, try context/system classloaders
-            if (scanResult.envClassLoaderOrder == null || scanResult.envClassLoaderOrder.length == 0) {
-                // Environment classloaders are not known, just try default
-                return Class.forName(className);
-            }
         }
         if (scanResult.envClassLoaderOrder != null) {
             // Try environment classloaders
@@ -120,7 +114,9 @@ class ClassGraphClassLoader extends ClassLoader {
                 }
             }
         }
-        throw new ClassNotFoundException("Classfile for class " + className + " not found");
+        
+        // Fallback
+        return Class.forName(className);
     }
 
     /* (non-Javadoc)
