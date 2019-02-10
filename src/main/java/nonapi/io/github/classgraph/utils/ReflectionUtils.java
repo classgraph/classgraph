@@ -29,6 +29,8 @@
 package nonapi.io.github.classgraph.utils;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InaccessibleObjectException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -64,30 +66,37 @@ public class ReflectionUtils {
      */
     public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException)
             throws IllegalArgumentException {
-        if (obj != null) {
-            for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
-                    classOrSuperclass = classOrSuperclass.getSuperclass()) {
+        if (obj == null || fieldName == null) {
+            throw new NullPointerException();
+        }
+        Field field = null;
+        for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
+                classOrSuperclass = classOrSuperclass.getSuperclass()) {
+            try {
+                field = classOrSuperclass.getDeclaredField(fieldName);
                 try {
-                    final Field field = classOrSuperclass.getDeclaredField(fieldName);
-                    try {
-                        field.setAccessible(true);
-                    } catch (final Exception e) {
-                        // Ignore
-                    }
-                    return field.get(obj);
-                } catch (final NoSuchFieldException e) {
-                    // Try parent
-                } catch (final Throwable e) {
-                    if (throwException) {
-                        throw new IllegalArgumentException("Could not get value of field \"" + fieldName + "\"", e);
-                    }
+                    field.setAccessible(true);
+                } catch (final InaccessibleObjectException | SecurityException e) {
+                    // Ignore
+                }
+                // Field found
+                break;
+            } catch (final ReflectiveOperationException | SecurityException e) {
+                // Try parent
+            }
+        }
+        if (field == null) {
+            if (throwException) {
+                throw new IllegalArgumentException("Field \"" + fieldName + "\" not found or not accessible");
+            }
+        } else {
+            try {
+                return field.get(obj);
+            } catch (final IllegalAccessException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Can't read field \"" + fieldName + "\": " + e);
                 }
             }
-            if (throwException) {
-                throw new IllegalArgumentException("Field \"" + fieldName + "\" doesn't exist");
-            }
-        } else if (throwException) {
-            throw new IllegalArgumentException("Can't get field value for null object");
         }
         return null;
     }
@@ -110,30 +119,37 @@ public class ReflectionUtils {
      */
     public static Object getStaticFieldVal(final Class<?> cls, final String fieldName, final boolean throwException)
             throws IllegalArgumentException {
-        if (cls != null) {
-            for (Class<?> classOrSuperclass = cls; classOrSuperclass != null; //
-                    classOrSuperclass = classOrSuperclass.getSuperclass()) {
+        if (cls == null || fieldName == null) {
+            throw new NullPointerException();
+        }
+        Field field = null;
+        for (Class<?> classOrSuperclass = cls; classOrSuperclass != null; //
+                classOrSuperclass = classOrSuperclass.getSuperclass()) {
+            try {
+                field = classOrSuperclass.getDeclaredField(fieldName);
                 try {
-                    final Field field = classOrSuperclass.getDeclaredField(fieldName);
-                    try {
-                        field.setAccessible(true);
-                    } catch (final Exception e) {
-                        // Ignore
-                    }
-                    return field.get(null);
-                } catch (final NoSuchFieldException e) {
-                    // Try parent
-                } catch (final Throwable e) {
-                    if (throwException) {
-                        throw new IllegalArgumentException("Could not get value of field \"" + fieldName + "\"", e);
-                    }
+                    field.setAccessible(true);
+                } catch (final InaccessibleObjectException | SecurityException e) {
+                    // Ignore
+                }
+                // Field found
+                break;
+            } catch (final ReflectiveOperationException | SecurityException e) {
+                // Try parent
+            }
+        }
+        if (field == null) {
+            if (throwException) {
+                throw new IllegalArgumentException("Field \"" + fieldName + "\" not found or not accessible");
+            }
+        } else {
+            try {
+                return field.get(null);
+            } catch (final IllegalAccessException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Can't read field \"" + fieldName + "\": " + e);
                 }
             }
-            if (throwException) {
-                throw new IllegalArgumentException("Field \"" + fieldName + "\" doesn't exist");
-            }
-        } else if (throwException) {
-            throw new IllegalArgumentException("Can't get field value for null class reference");
         }
         return null;
     }
@@ -202,45 +218,44 @@ public class ReflectionUtils {
      */
     public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException)
             throws IllegalArgumentException {
-        if (obj != null) {
-            final Class<?> cls = obj.getClass();
-
-            // Iterate through implemented interfaces, top-down, then superclass to subclasses, top-down
-            // (since higher-up superclasses and superinterfaces have the highest chance of being visible)
-            final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
-            IllegalAccessException illegalAccessException = null;
-            for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-                final Class<?> iface = reverseAttemptOrder.get(i);
+        if (obj == null || methodName == null) {
+            throw new NullPointerException();
+        }
+        Method method = null;
+        final Class<?> cls = obj.getClass();
+        final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
+        for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
+            final Class<?> iface = reverseAttemptOrder.get(i);
+            try {
+                // Try calling method on interface
+                method = iface.getDeclaredMethod(methodName);
                 try {
-                    // Try calling method on interface
-                    final Method method = iface.getDeclaredMethod(methodName);
-                    try {
-                        method.setAccessible(true);
-                    } catch (final Exception e) {
-                        // Ignore
-                    }
-                    return method.invoke(obj);
-                } catch (final NoSuchMethodException e) {
-                    // Fall through if method not found, since a superinterface might have the method 
-                } catch (final IllegalAccessException e) {
-                    illegalAccessException = e;
-                } catch (final Throwable e) {
-                    if (throwException) {
-                        throw new IllegalArgumentException("Exception while invoking method \"" + methodName + "\"",
-                                e);
-                    }
+                    method.setAccessible(true);
+                } catch (final InaccessibleObjectException | SecurityException e) {
+                    // Ignore
                 }
+                // Method found
+                break;
+            } catch (final ReflectiveOperationException | SecurityException e) {
+                // Try next interface or superclass 
             }
+        }
+        if (method == null) {
             if (throwException) {
-                if (illegalAccessException != null) {
-                    throw new IllegalArgumentException("Method \"" + methodName + "\" is not accessible",
-                            illegalAccessException);
-                } else {
-                    throw new IllegalArgumentException("Method \"" + methodName + "\" doesn't exist");
+                throw new IllegalArgumentException("Method \"" + methodName + "\" not found or not accesible");
+            }
+        } else {
+            try {
+                return method.invoke(obj);
+            } catch (final IllegalAccessException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Can't call method \"" + methodName + "\": " + e);
+                }
+            } catch (final InvocationTargetException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Exception while invoking method \"" + methodName + "\"", e);
                 }
             }
-        } else if (throwException) {
-            throw new IllegalArgumentException("Can't invoke method on null object");
         }
         return null;
     }
@@ -267,45 +282,44 @@ public class ReflectionUtils {
      */
     public static Object invokeMethod(final Object obj, final String methodName, final Class<?> argType,
             final Object arg, final boolean throwException) throws IllegalArgumentException {
-        if (obj != null) {
-            final Class<?> cls = obj.getClass();
-
-            // Iterate through implemented interfaces, top-down, then superclass to subclasses, top-down
-            // (since higher-up superclasses and superinterfaces have the highest chance of being visible)
-            final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
-            IllegalAccessException illegalAccessException = null;
-            for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-                final Class<?> iface = reverseAttemptOrder.get(i);
+        if (obj == null || methodName == null) {
+            throw new NullPointerException();
+        }
+        Method method = null;
+        final Class<?> cls = obj.getClass();
+        final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
+        for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
+            final Class<?> iface = reverseAttemptOrder.get(i);
+            try {
+                // Try calling method on interface
+                method = iface.getDeclaredMethod(methodName, argType);
                 try {
-                    // Try calling method on interface
-                    final Method method = iface.getDeclaredMethod(methodName, argType);
-                    try {
-                        method.setAccessible(true);
-                    } catch (final Exception e) {
-                        // Ignore
-                    }
-                    return method.invoke(obj, arg);
-                } catch (final NoSuchMethodException e) {
-                    // Fall through if method not found, since a superinterface might have the method 
-                } catch (final IllegalAccessException e) {
-                    illegalAccessException = e;
-                } catch (final Throwable e) {
-                    if (throwException) {
-                        throw new IllegalArgumentException("Exception while invoking method \"" + methodName + "\"",
-                                e);
-                    }
+                    method.setAccessible(true);
+                } catch (final InaccessibleObjectException | SecurityException e) {
+                    // Ignore
                 }
+                // Method found
+                break;
+            } catch (final ReflectiveOperationException | SecurityException e) {
+                // Try next interface or superclass 
             }
+        }
+        if (method == null) {
             if (throwException) {
-                if (illegalAccessException != null) {
-                    throw new IllegalArgumentException("Method \"" + methodName + "\" is not accessible",
-                            illegalAccessException);
-                } else {
-                    throw new IllegalArgumentException("Method \"" + methodName + "\" doesn't exist");
+                throw new IllegalArgumentException("Method \"" + methodName + "\" not found or not accesible");
+            }
+        } else {
+            try {
+                return method.invoke(obj, arg);
+            } catch (final IllegalAccessException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Can't call method \"" + methodName + "\": " + e);
+                }
+            } catch (final InvocationTargetException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Exception while invoking method \"" + methodName + "\"", e);
                 }
             }
-        } else if (throwException) {
-            throw new IllegalArgumentException("Can't invoke method on null object");
         }
         return null;
     }
@@ -328,22 +342,45 @@ public class ReflectionUtils {
      */
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName,
             final boolean throwException) throws IllegalArgumentException {
-        if (cls != null) {
+        if (cls == null || methodName == null) {
+            throw new NullPointerException();
+        }
+        Method method = null;
+        final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
+        for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
+            final Class<?> iface = reverseAttemptOrder.get(i);
             try {
-                final Method method = cls.getDeclaredMethod(methodName);
+                // Try calling method on interface
+                method = iface.getDeclaredMethod(methodName);
                 try {
                     method.setAccessible(true);
-                } catch (final Exception e) {
+                } catch (final InaccessibleObjectException | SecurityException e) {
                     // Ignore
                 }
+                // Method found
+                break;
+            } catch (final ReflectiveOperationException | SecurityException e) {
+                // Try next interface or superclass 
+            }
+        }
+        if (method == null) {
+            if (throwException) {
+                throw new IllegalArgumentException(
+                        "Static method \"" + methodName + "\" not found or not accesible");
+            }
+        } else {
+            try {
                 return method.invoke(null);
-            } catch (final Throwable e) {
+            } catch (final IllegalAccessException e) {
                 if (throwException) {
-                    throw new IllegalArgumentException("Could not invoke method \"" + methodName + "\"", e);
+                    throw new IllegalArgumentException("Can't call static method \"" + methodName + "\": " + e);
+                }
+            } catch (final InvocationTargetException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException(
+                            "Exception while invoking static method \"" + methodName + "\"", e);
                 }
             }
-        } else if (throwException) {
-            throw new IllegalArgumentException("Can't invoke static method on null class reference");
         }
         return null;
     }
@@ -370,22 +407,45 @@ public class ReflectionUtils {
      */
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName, final Class<?> argType,
             final Object arg, final boolean throwException) throws IllegalArgumentException {
-        if (cls != null) {
+        if (cls == null || methodName == null) {
+            throw new NullPointerException();
+        }
+        Method method = null;
+        final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
+        for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
+            final Class<?> iface = reverseAttemptOrder.get(i);
             try {
-                final Method method = cls.getDeclaredMethod(methodName, argType);
+                // Try calling method on interface
+                method = iface.getDeclaredMethod(methodName, argType);
                 try {
                     method.setAccessible(true);
-                } catch (final Exception e) {
+                } catch (final InaccessibleObjectException | SecurityException e) {
                     // Ignore
                 }
+                // Method found
+                break;
+            } catch (final ReflectiveOperationException | SecurityException e) {
+                // Try next interface or superclass 
+            }
+        }
+        if (method == null) {
+            if (throwException) {
+                throw new IllegalArgumentException(
+                        "Static method \"" + methodName + "\" not found or not accesible");
+            }
+        } else {
+            try {
                 return method.invoke(null, arg);
-            } catch (final Throwable e) {
+            } catch (final IllegalAccessException e) {
                 if (throwException) {
-                    throw new IllegalArgumentException("Could not invoke method \"" + methodName + "\"", e);
+                    throw new IllegalArgumentException("Can't call static method \"" + methodName + "\": " + e);
+                }
+            } catch (final InvocationTargetException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException(
+                            "Exception while invoking static method \"" + methodName + "\"", e);
                 }
             }
-        } else if (throwException) {
-            throw new IllegalArgumentException("Can't invoke static method on null class reference");
         }
         return null;
     }
