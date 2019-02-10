@@ -1097,7 +1097,13 @@ public class ClassGraph {
             //    scanResult = ScanResult.fromJSON(scanResultJson);
 
             // Return the scanResult, then block waiting for the result
-            return scanAsync(executorService, numParallelTasks).get();
+            final ScanResult scanResult = scanAsync(executorService, numParallelTasks).get();
+
+            // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
+            if (scanResult == null) {
+                throw new NullPointerException();
+            }
+            return scanResult;
 
         } catch (final InterruptedException | CancellationException e) {
             throw new ClassGraphException("Scan interrupted", e);

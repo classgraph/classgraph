@@ -123,6 +123,10 @@ public class InputStreamBenchmark {
     @Benchmark
     public void testFileChannel(final Blackhole blackhole) throws IOException {
         try (FileChannel open = FileChannel.open(file.toPath())) {
+            if (open == null) {
+                // Keep SpotBugs happy
+                throw new NullPointerException();
+            }
             try (InputStream is = Channels.newInputStream(open)) {
                 consume(is, blackhole);
             }

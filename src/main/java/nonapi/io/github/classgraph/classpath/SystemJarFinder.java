@@ -63,29 +63,32 @@ public class SystemJarFinder {
      */
     private static boolean addJREPath(final File dir) {
         if (dir != null && !dir.getPath().isEmpty() && FileUtils.canRead(dir) && dir.isDirectory()) {
-            for (final File file : dir.listFiles()) {
-                final String filePath = file.getPath();
-                if (filePath.endsWith(".jar")) {
-                    final String jarPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, filePath);
-                    if (filePath.endsWith("/rt.jar")) {
-                        RT_JARS.add(jarPathResolved);
-                    } else {
-                        JRE_LIB_OR_EXT_JARS.add(jarPathResolved);
-                    }
-                    try {
-                        final File canonicalFile = file.getCanonicalFile();
-                        final String canonicalFilePath = canonicalFile.getPath();
-                        if (!canonicalFilePath.equals(filePath)) {
-                            final String canonicalJarPathResolved = FastPathResolver
-                                    .resolve(FileUtils.CURR_DIR_PATH, filePath);
-                            JRE_LIB_OR_EXT_JARS.add(canonicalJarPathResolved);
+            final File[] dirFiles = dir.listFiles();
+            if (dirFiles != null) {
+                for (final File file : dirFiles) {
+                    final String filePath = file.getPath();
+                    if (filePath.endsWith(".jar")) {
+                        final String jarPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, filePath);
+                        if (filePath.endsWith("/rt.jar")) {
+                            RT_JARS.add(jarPathResolved);
+                        } else {
+                            JRE_LIB_OR_EXT_JARS.add(jarPathResolved);
                         }
-                    } catch (IOException | SecurityException e) {
-                        // Ignored
+                        try {
+                            final File canonicalFile = file.getCanonicalFile();
+                            final String canonicalFilePath = canonicalFile.getPath();
+                            if (!canonicalFilePath.equals(filePath)) {
+                                final String canonicalJarPathResolved = FastPathResolver
+                                        .resolve(FileUtils.CURR_DIR_PATH, filePath);
+                                JRE_LIB_OR_EXT_JARS.add(canonicalJarPathResolved);
+                            }
+                        } catch (IOException | SecurityException e) {
+                            // Ignored
+                        }
                     }
                 }
+                return true;
             }
-            return true;
         }
         return false;
     }

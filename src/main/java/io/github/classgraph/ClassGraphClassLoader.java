@@ -114,7 +114,7 @@ class ClassGraphClassLoader extends ClassLoader {
                 }
             }
         }
-        
+
         // Fallback
         return Class.forName(className);
     }

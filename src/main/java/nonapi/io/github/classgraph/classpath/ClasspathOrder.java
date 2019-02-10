@@ -206,29 +206,34 @@ public class ClasspathOrder {
                 // Add all elements in the requested directory to the classpath
                 final LogNode dirLog = log == null ? null
                         : log.log("Adding classpath elements from wildcarded directory: " + pathElement);
-                for (final File fileInDir : baseDir.listFiles()) {
-                    final String name = fileInDir.getName();
-                    if (!name.equals(".") && !name.equals("..")) {
-                        // Add each directory entry as a classpath element
-                        final String fileInDirPath = fileInDir.getPath();
-                        final String fileInDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-                                fileInDirPath);
-                        if (addClasspathEntry(fileInDirPathResolved, classLoader)) {
-                            if (dirLog != null) {
-                                dirLog.log("Found classpath element: " + fileInDirPath
-                                        + (fileInDirPath.equals(fileInDirPathResolved) ? ""
-                                                : " -> " + fileInDirPathResolved));
-                            }
-                        } else {
-                            if (dirLog != null) {
-                                dirLog.log("Ignoring duplicate classpath element: " + fileInDirPath
-                                        + (fileInDirPath.equals(fileInDirPathResolved) ? ""
-                                                : " -> " + fileInDirPathResolved));
+                final File[] baseDirFiles = baseDir.listFiles();
+                if (baseDirFiles != null) {
+                    for (final File fileInDir : baseDirFiles) {
+                        final String name = fileInDir.getName();
+                        if (!name.equals(".") && !name.equals("..")) {
+                            // Add each directory entry as a classpath element
+                            final String fileInDirPath = fileInDir.getPath();
+                            final String fileInDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                                    fileInDirPath);
+                            if (addClasspathEntry(fileInDirPathResolved, classLoader)) {
+                                if (dirLog != null) {
+                                    dirLog.log("Found classpath element: " + fileInDirPath
+                                            + (fileInDirPath.equals(fileInDirPathResolved) ? ""
+                                                    : " -> " + fileInDirPathResolved));
+                                }
+                            } else {
+                                if (dirLog != null) {
+                                    dirLog.log("Ignoring duplicate classpath element: " + fileInDirPath
+                                            + (fileInDirPath.equals(fileInDirPathResolved) ? ""
+                                                    : " -> " + fileInDirPathResolved));
+                                }
                             }
                         }
                     }
+                    return true;
+                } else {
+                    return false;
                 }
-                return true;
             } else {
                 if (log != null) {
                     log.log("Wildcard classpath elements can only end with a leaf of \"*\", "
