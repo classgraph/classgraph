@@ -252,8 +252,7 @@
                                         requires java.xml;
                                         requires jdk.unsupported;
                                         requires java.management;
-                                        requires static
-                                        java.logging;
+                                        requires java.logging;
                                         }
                                     </moduleInfoSource>
                                 </module>
