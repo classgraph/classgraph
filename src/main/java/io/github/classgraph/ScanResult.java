@@ -950,7 +950,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
         if (className == null || className.isEmpty()) {
-            throw new IllegalArgumentException("className cannot be null or empty");
+            throw new NullPointerException("className cannot be null or empty");
         }
         try {
             return Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader);
@@ -996,10 +996,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
         if (className == null || className.isEmpty()) {
-            throw new IllegalArgumentException("className cannot be null or empty");
+            throw new NullPointerException("className cannot be null or empty");
         }
         if (superclassOrInterfaceType == null) {
-            throw new IllegalArgumentException("superclassOrInterfaceType parameter cannot be null");
+            throw new NullPointerException("superclassOrInterfaceType parameter cannot be null");
         }
         final Class<?> loadedClass;
         try {

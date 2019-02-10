@@ -29,8 +29,6 @@
 package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -163,28 +161,6 @@ public class JarUtils {
             }
             return parts.toArray(new String[0]);
         }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Create a custom URLClassLoader from a classpath path string.
-     * 
-     * @param classpathStr
-     *            The classpath string.
-     * @return A custom {@link URLClassLoader} that can load from the path string.
-     */
-    public static ClassLoader createURLClassLoaderFromPathString(final String classpathStr) {
-        final List<URL> urls = new ArrayList<>();
-        for (final String pathEltStr : smartPathSplit(classpathStr)) {
-            try {
-                final URL url = new URL(pathEltStr);
-                urls.add(url);
-            } catch (final Exception e) {
-                // Skip bad URLs
-            }
-        }
-        return new URLClassLoader(urls.toArray(new URL[0]));
     }
 
     // -------------------------------------------------------------------------------------------------------------

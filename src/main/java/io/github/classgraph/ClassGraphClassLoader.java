@@ -59,42 +59,45 @@ class ClassGraphClassLoader extends ClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
-        // Get ClassInfo for named class
-        final ClassInfo classInfo = scanResult.getClassInfo(className);
-        if (classInfo != null) {
-            // Try specific classloader for class
-            if (classInfo.classLoader != null) {
-                try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
-                            classInfo.classLoader);
-                } catch (final ClassNotFoundException | NoClassDefFoundError e) {
-                    // Ignore
-                }
-            }
-        }
-        if (scanResult.envClassLoaderOrder != null) {
-            // Try environment classloaders
-            for (final ClassLoader envClassLoader : scanResult.envClassLoaderOrder) {
-                if (classInfo == null || envClassLoader != classInfo.classLoader) {
+        // Don't initially try environment classloaders if the classpath was overridden
+        if (scanResult.scanSpec.overrideClasspath == null || scanResult.scanSpec.overrideClasspath.isEmpty()) {
+            // Get ClassInfo for named class
+            final ClassInfo classInfo = scanResult.getClassInfo(className);
+            if (classInfo != null) {
+                // Try specific classloader for class
+                if (classInfo.classLoader != null) {
                     try {
                         return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
-                                envClassLoader);
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                                classInfo.classLoader);
+                    } catch (final ClassNotFoundException | NoClassDefFoundError e) {
                         // Ignore
                     }
                 }
             }
-        }
+            if (scanResult.envClassLoaderOrder != null) {
+                // Try environment classloaders
+                for (final ClassLoader envClassLoader : scanResult.envClassLoaderOrder) {
+                    if (classInfo == null || envClassLoader != classInfo.classLoader) {
+                        try {
+                            return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
+                                    envClassLoader);
+                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                            // Ignore
+                        }
+                    }
+                }
+            }
 
-        // If class came from a module, and it was not able to be loaded by the environment classloader,
-        // then it is possible it was a non-public class, and ClassGraph found it by ignoring class visibility
-        // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
-        // encapsulation rules by refusing to load modular classes that the context/system classloaders
-        // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
-        if (classInfo != null && classInfo.classpathElementFile == null && !classInfo.isPublic()) {
-            throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
-                    + "but the context and system classloaders could not load the class, probably because "
-                    + "the class is not public.");
+            // If class came from a module, and it was not able to be loaded by the environment classloader,
+            // then it is possible it was a non-public class, and ClassGraph found it by ignoring class visibility
+            // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
+            // encapsulation rules by refusing to load modular classes that the context/system classloaders
+            // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
+            if (classInfo != null && classInfo.classpathElementFile == null && !classInfo.isPublic()) {
+                throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
+                        + "but the context and system classloaders could not load the class, probably because "
+                        + "the class is not public.");
+            }
         }
 
         // Try obtaining the classfile as a resource, and defining the class from the resource content

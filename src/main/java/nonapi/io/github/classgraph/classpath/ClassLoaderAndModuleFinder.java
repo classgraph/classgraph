@@ -39,7 +39,6 @@ import java.util.Set;
 
 import io.github.classgraph.ModuleRef;
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
@@ -337,16 +336,6 @@ public class ClassLoaderAndModuleFinder {
             // ClassLoaders were overridden
             classLoadersUnique = new LinkedHashSet<>(scanSpec.overrideClassLoaders);
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
-        }
-
-        // Define a fallback classloader when classpath is overridden
-        if (scanSpec.overrideClasspath != null) {
-            final ClassLoader fallbackURLClassLoader = JarUtils
-                    .createURLClassLoaderFromPathString(scanSpec.overrideClasspath);
-            classLoadersUnique.add(fallbackURLClassLoader);
-            if (log != null) {
-                log.log("Adding fallback URLClassLoader for overriden classpath: " + fallbackURLClassLoader);
-            }
         }
 
         // Remove all ancestral classloaders (they are called automatically during class load)
