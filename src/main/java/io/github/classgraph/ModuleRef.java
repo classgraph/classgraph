@@ -215,13 +215,14 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     /**
      * Get the module location as a File, i.e. {@code new File(getReference().location())}. Returns null for modules
-     * that do not have a location, or for system ("jrt:") modules.
+     * that do not have a location, or for system (or jlinked) modules, which have "jrt:" location URIs that include
+     * only the module name and not the module jar location.
      *
      * @return The module location as a File, i.e. {@code new File(getReference().location())}. Returns null for
-     *         modules that do not have a location, or for system ("jrt:") modules.
+     *         modules that do not have a location, or for modules whole location is a "jrt:" URI.
      */
     public File getLocationFile() {
-        if (locationFile == null && location != null) {
+        if (locationFile == null && location != null && !"jrt".equals(location.getScheme())) {
             if (!isSystemModule()) {
                 try {
                     locationFile = new File(location);
@@ -247,19 +248,14 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /**
      * Checks if this module is a system module.
      *
-     * @return true if this module's location is a non-"file:" (i.e. "jrt:") URI, or if it has no location URI, or
-     *         if it uses the (null) bootstrap ClassLoader, or if the module name starts with a system prefix
-     *         ("java.", "jre.", etc.).
+     * @return true if this module is a system module.
      */
     public boolean isSystemModule() {
-        if (location == null) {
-            return true;
+        if (name == null) {
+            return false;
         }
-        final String scheme = location.getScheme();
-        if (scheme != null && scheme.equalsIgnoreCase("jrt")) {
-            return true;
-        }
-        return false;
+        return name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("javafx.")
+                || name.startsWith("oracle.");
     }
 
     /**
