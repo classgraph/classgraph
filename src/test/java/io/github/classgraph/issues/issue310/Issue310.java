@@ -50,9 +50,10 @@ public class Issue310 {
             assertThat(scanResult1.getClassInfo(Issue310.class.getName()).getFieldInfo("b")).isNotNull();
             final String json1 = scanResult1.toJSON(2);
             assertThat(json1).isNotEmpty();
-            final ScanResult scanResult2 = ScanResult.fromJSON(scanResult1.toJSON());
-            final String json2 = scanResult2.toJSON(2);
-            assertThat(json1).isEqualTo(json2);
+            try (ScanResult scanResult2 = ScanResult.fromJSON(scanResult1.toJSON())) {
+                final String json2 = scanResult2.toJSON(2);
+                assertThat(json1).isEqualTo(json2);
+            }
         }
     }
 }
