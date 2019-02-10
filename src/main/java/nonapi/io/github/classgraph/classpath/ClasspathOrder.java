@@ -108,7 +108,8 @@ public class ClasspathOrder {
      * Add a system classpath entry.
      *
      * @param pathEntry
-     *            the classpath entry
+     *            the system classpath entry -- the path string should already have been run through
+     *            FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path
      * @param classLoader
      *            the classloader
      * @return true, if added and unique
@@ -125,7 +126,8 @@ public class ClasspathOrder {
      * Add a classpath entry.
      *
      * @param pathEntry
-     *            the path element
+     *            the classpath entry -- the path string should already have been run through
+     *            FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path)
      * @param classLoader
      *            the classloader
      * @return true, if added and unique
