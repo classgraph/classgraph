@@ -106,17 +106,20 @@ class ClasspathElementDir extends ClasspathElement {
             if (libDir.exists() && libDir.isDirectory()) {
                 // Sort directory entries for consistency
                 final File[] listFiles = libDir.listFiles();
-                Arrays.sort(listFiles);
-                // Add all jarfiles within lib dir as child classpath entries
-                for (final File file : listFiles) {
-                    if (file.isFile() && file.getName().endsWith(".jar")) {
-                        if (log != null) {
-                            log.log("Found lib jar: " + file);
+                if (listFiles != null) {
+                    Arrays.sort(listFiles);
+                    // Add all jarfiles within lib dir as child classpath entries
+                    for (final File file : listFiles) {
+                        if (file.isFile() && file.getName().endsWith(".jar")) {
+                            if (log != null) {
+                                log.log("Found lib jar: " + file);
+                            }
+                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                    /* rawClasspathEntry = */ //
+                                    new SimpleEntry<>(file.getPath(), classLoader),
+                                    /* parentClasspathElement = */ this,
+                                    /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                         }
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                /* rawClasspathEntry = */ new SimpleEntry<>(file.getPath(), classLoader),
-                                /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                     }
                 }
             }
@@ -381,13 +384,13 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         final File[] filesInDir = dir.listFiles();
-        Arrays.sort(filesInDir);
         if (filesInDir == null) {
             if (log != null) {
                 log.log("Invalid directory " + dir);
             }
             return;
         }
+        Arrays.sort(filesInDir);
         final LogNode subLog = log == null ? null
                 // Log dirs after files (addWhitelistedResources precedes log entry with "0:file:")
                 : log.log("1:dir:" + canonicalPath, "Scanning directory: " + dir
