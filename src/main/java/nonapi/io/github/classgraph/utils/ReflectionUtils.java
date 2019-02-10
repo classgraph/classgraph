@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.utils;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -76,7 +75,7 @@ public class ReflectionUtils {
                 field = classOrSuperclass.getDeclaredField(fieldName);
                 try {
                     field.setAccessible(true);
-                } catch (final InaccessibleObjectException | SecurityException e) {
+                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
                     // Ignore
                 }
                 // Field found
@@ -129,7 +128,7 @@ public class ReflectionUtils {
                 field = classOrSuperclass.getDeclaredField(fieldName);
                 try {
                     field.setAccessible(true);
-                } catch (final InaccessibleObjectException | SecurityException e) {
+                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
                     // Ignore
                 }
                 // Field found
@@ -231,7 +230,7 @@ public class ReflectionUtils {
                 method = iface.getDeclaredMethod(methodName);
                 try {
                     method.setAccessible(true);
-                } catch (final InaccessibleObjectException | SecurityException e) {
+                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
                     // Ignore
                 }
                 // Method found
@@ -295,7 +294,7 @@ public class ReflectionUtils {
                 method = iface.getDeclaredMethod(methodName, argType);
                 try {
                     method.setAccessible(true);
-                } catch (final InaccessibleObjectException | SecurityException e) {
+                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
                     // Ignore
                 }
                 // Method found
@@ -354,7 +353,7 @@ public class ReflectionUtils {
                 method = iface.getDeclaredMethod(methodName);
                 try {
                     method.setAccessible(true);
-                } catch (final InaccessibleObjectException | SecurityException e) {
+                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
                     // Ignore
                 }
                 // Method found
@@ -419,7 +418,7 @@ public class ReflectionUtils {
                 method = iface.getDeclaredMethod(methodName, argType);
                 try {
                     method.setAccessible(true);
-                } catch (final InaccessibleObjectException | SecurityException e) {
+                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
                     // Ignore
                 }
                 // Method found
