@@ -234,6 +234,7 @@
                                     <!-- VersionFinder requires java.xml -->
                                     <!-- FileUtils requires jdk.unsupported (for usage of Unsafe) -->
                                     <!-- ModulePathInfo requires java.management -->
+                                    <!-- LogNode requires java.logging -->
                                     <moduleInfoSource>
                                         /**
                                         ClassGraph, the uber-fast, ultra-lightweight, parallelized
@@ -246,6 +247,7 @@
                                         requires java.xml;
                                         requires jdk.unsupported;
                                         requires java.management;
+                                        requires java.logging;
                                         }
                                     </moduleInfoSource>
                                 </module>
