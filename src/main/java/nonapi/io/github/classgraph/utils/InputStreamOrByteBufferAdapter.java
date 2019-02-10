@@ -150,24 +150,26 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If an I/O exception occurs.
      */
     private void readMore(final int bytesRequired) throws IOException {
-        final int chunkSizeToRequest = Math
-                .max(used == 0 ? INITIAL_BUFFER_CHUNK_SIZE : SUBSEQUENT_BUFFER_CHUNK_SIZE, bytesRequired);
-        final int maxNewUsed = used + chunkSizeToRequest;
-        if (maxNewUsed <= 0) {
-            throw new IOException("Classfile is bigger than 2GB, cannot read it");
+        if ((long) used + (long) bytesRequired > FileUtils.MAX_BUFFER_SIZE) {
+            // Since buf is an array, we're limited to reading 2GB per file
+            throw new IOException("File is larger than 2GB, cannot read it");
         }
+        // Read INITIAL_BUFFER_CHUNK_SIZE for first chunk, or SUBSEQUENT_BUFFER_CHUNK_SIZE for subsequent chunks,
+        // but don't try to read past 2GB limit
+        final int targetReadSize = Math.max(bytesRequired, // 
+                used == 0 ? INITIAL_BUFFER_CHUNK_SIZE : SUBSEQUENT_BUFFER_CHUNK_SIZE);
+        // Calculate number of bytes to read, based on the target read size, handling integer overflow
+        final int maxNewUsed = (int) Math.min((long) used + (long) targetReadSize, FileUtils.MAX_BUFFER_SIZE);
+        final int bytesToRead = maxNewUsed - used;
         if (maxNewUsed > buf.length) {
             // Ran out of space, need to increase the size of the buffer
-            int newBufLen = buf.length;
+            long newBufLen = buf.length;
             while (newBufLen < maxNewUsed) {
                 newBufLen <<= 1;
-                if (newBufLen <= 0) {
-                    throw new IOException("Classfile is bigger than 2GB, cannot read it");
-                }
             }
-            buf = Arrays.copyOf(buf, newBufLen);
+            buf = Arrays.copyOf(buf, (int) Math.min(newBufLen, FileUtils.MAX_BUFFER_SIZE));
         }
-        int extraBytesStillNotRead = chunkSizeToRequest;
+        int extraBytesStillNotRead = bytesToRead;
         int totBytesRead = 0;
         while (extraBytesStillNotRead > 0) {
             final int bytesRead = read(used, extraBytesStillNotRead);
