@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
@@ -137,7 +138,7 @@ public class ClassLoaderHandlerRegistry {
                 this.handledClassLoaderNames = classLoaderHandlerClass.getDeclaredConstructor().newInstance()
                         .handledClassLoaders();
             } catch (final Exception e) {
-                throw new RuntimeException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+                throw new ClassGraphException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
             }
         }
 

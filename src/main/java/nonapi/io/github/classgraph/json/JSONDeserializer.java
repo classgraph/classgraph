@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import io.github.classgraph.ClassGraphException;
+
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
@@ -70,7 +72,7 @@ public class JSONDeserializer {
         if (jsonVal == null) {
             return null;
         } else if (jsonVal instanceof JSONArray || jsonVal instanceof JSONObject) {
-            throw new RuntimeException("Expected a basic value type");
+            throw new ClassGraphException("Expected a basic value type");
         }
         if (expectedType instanceof ParameterizedType) {
             // TODO: add support for Class<T> reference values, which may be parameterized
@@ -386,7 +388,7 @@ public class JSONDeserializer {
                 itemJsonValue = jsonArray.items.get(i);
             } else {
                 // Can't happen
-                throw new RuntimeException();
+                throw new ClassGraphException();
             }
             final boolean itemJsonValueIsJsonObject = itemJsonValue instanceof JSONObject;
             final boolean itemJsonValueIsJsonArray = itemJsonValue instanceof JSONArray;

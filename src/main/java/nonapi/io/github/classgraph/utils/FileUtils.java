@@ -46,6 +46,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import io.github.classgraph.ClassGraphException;
+
 /**
  * File utilities.
  */
@@ -77,7 +79,7 @@ public class FileUtils {
             currDirPathStr = currDirPath.toString();
             currDirPathStr = FastPathResolver.resolve(currDirPathStr);
         } catch (final IOException e) {
-            throw new RuntimeException("Could not resolve current directory: " + currDirPathStr, e);
+            throw new ClassGraphException("Could not resolve current directory: " + currDirPathStr, e);
         }
         CURR_DIR_PATH = currDirPathStr;
     }
@@ -427,7 +429,7 @@ public class FileUtils {
                 attachmentMethod = directByteBufferClass.getMethod("attachment");
                 attachmentMethod.setAccessible(true);
             } catch (final SecurityException e) {
-                throw new RuntimeException(
+                throw new ClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final Exception ex) {
@@ -449,7 +451,7 @@ public class FileUtils {
                 theUnsafeField.setAccessible(true);
                 theUnsafe = theUnsafeField.get(null);
             } catch (final SecurityException e) {
-                throw new RuntimeException(
+                throw new ClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
                                 + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");

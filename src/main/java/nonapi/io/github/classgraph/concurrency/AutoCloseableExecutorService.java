@@ -35,6 +35,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import io.github.classgraph.ClassGraphException;
+
 /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
 public class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
     /** The {@link InterruptionChecker}. */
@@ -106,7 +108,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
                 // Interrupt all the threads to terminate them, if awaitTermination() timed out
                 shutdownNow();
             } catch (final SecurityException e) {
-                throw new RuntimeException("Could not shut down ExecutorService -- need "
+                throw new ClassGraphException("Could not shut down ExecutorService -- need "
                         + "java.lang.RuntimePermission(\"modifyThread\"), "
                         + "or the security manager's checkAccess method denies access", e);
             }

@@ -39,6 +39,7 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -74,7 +75,8 @@ public class Issue128Test {
             if (filesInsideLevel3.isEmpty()) {
                 // If there were no files inside jar, it is possible that remote jar could not be downloaded
                 try (InputStream is = jarURL.openStream()) {
-                    throw new RuntimeException("Able to download remote jar, but could not find files within jar");
+                    throw new ClassGraphException(
+                            "Able to download remote jar, but could not find files within jar");
                 } catch (final IOException e) {
                     System.err.println("Could not download remote jar, skipping test "
                             + Issue128Test.class.getName() + ": " + e);

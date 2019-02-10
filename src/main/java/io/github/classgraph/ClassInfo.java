@@ -51,7 +51,6 @@ import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.json.Id;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
-import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */
@@ -182,7 +181,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         this.name = name;
         if (name.endsWith(";")) {
             // Spot check to make sure class names were parsed from descriptors
-            throw new RuntimeException("Bad class name");
+            throw new IllegalArgumentException("Bad class name");
         }
         setModifiers(classModifiers);
     }
@@ -515,20 +514,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Add the class type signature, including type params.
+     * Set the class type signature, including any type params.
      *
      * @param typeSignatureStr
      *            the type signature str
      */
-    void addTypeSignature(final String typeSignatureStr) {
-        if (this.typeSignatureStr == null) {
-            this.typeSignatureStr = typeSignatureStr;
-        } else {
-            if (typeSignatureStr != null && !this.typeSignatureStr.equals(typeSignatureStr)) {
-                throw new RuntimeException("Trying to merge two classes with different type signatures for class "
-                        + name + ": " + this.typeSignatureStr + " ; " + typeSignatureStr);
-            }
-        }
+    void setTypeSignature(final String typeSignatureStr) {
+        this.typeSignatureStr = typeSignatureStr;
     }
 
     /**
@@ -564,13 +556,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the classpath element
      * @param classfileResource
      *            the classfile resource
-     * @param log
-     *            the log
      * @return the class info
      */
     static ClassInfo addScannedClass(final String className, final int classModifiers,
             final boolean isExternalClass, final Map<String, ClassInfo> classNameToClassInfo,
-            final ClasspathElement classpathElement, final Resource classfileResource, final LogNode log) {
+            final ClasspathElement classpathElement, final Resource classfileResource) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             // This is the first time this class has been seen, add it
@@ -671,7 +661,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 includeImplementedInterfaces = includeAnnotations = true;
                 break;
             default:
-                throw new RuntimeException("Unknown ClassType: " + classType);
+                throw new IllegalArgumentException("Unknown ClassType: " + classType);
             }
         }
         if (includeStandardClasses && includeImplementedInterfaces && includeAnnotations) {

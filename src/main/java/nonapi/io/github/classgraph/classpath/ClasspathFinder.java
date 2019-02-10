@@ -35,6 +35,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder;
@@ -141,7 +142,7 @@ public class ClasspathFinder {
                     }
                     return true;
                 default:
-                    throw new RuntimeException("Unknown delegation order");
+                    throw new ClassGraphException("Unknown delegation order");
                 }
             }
         }

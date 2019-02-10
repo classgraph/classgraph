@@ -45,6 +45,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Inflater;
 
+import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
@@ -69,7 +70,7 @@ public class NestedJarHandler {
         @Override
         public PhysicalZipFile newInstance(final File canonicalFile, final LogNode log) throws IOException {
             if (closed.get()) {
-                throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
+                throw new ClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
             return new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
         }
@@ -181,7 +182,7 @@ public class NestedJarHandler {
         @Override
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException {
             if (closed.get()) {
-                throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
+                throw new ClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
             // Read the central directory for the logical zipfile slice
             final LogicalZipFile logicalZipFile = new LogicalZipFile(zipFileSlice, log);
@@ -204,7 +205,7 @@ public class NestedJarHandler {
                 public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
                         throws IOException, InterruptedException {
                     if (closed.get()) {
-                        throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
+                        throw new ClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
                     }
                     final String nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
                     final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
@@ -367,7 +368,7 @@ public class NestedJarHandler {
                         @Override
                         public ModuleReaderProxy newInstance() throws IOException {
                             if (closed.get()) {
-                                throw new RuntimeException(
+                                throw new ClassGraphException(
                                         NestedJarHandler.class.getSimpleName() + " already closed");
                             }
                             return moduleRef.open();
@@ -382,7 +383,7 @@ public class NestedJarHandler {
         @Override
         public RecyclableInflater newInstance() throws RuntimeException {
             if (closed.get()) {
-                throw new RuntimeException(NestedJarHandler.class.getSimpleName() + " already closed");
+                throw new ClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
             return new RecyclableInflater();
         }

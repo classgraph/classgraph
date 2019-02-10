@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList.ByteArrayConsumer;
@@ -421,9 +422,9 @@ public class ClassGraphTest {
                         break;
                     case "integerField":
                     case "booleanField":
-                        throw new RuntimeException("Non-constant field should not be matched");
+                        throw new ClassGraphException("Non-constant field should not be matched");
                     default:
-                        throw new RuntimeException("Unknown field");
+                        throw new ClassGraphException("Unknown field");
                     }
                     numInitializers++;
                 }

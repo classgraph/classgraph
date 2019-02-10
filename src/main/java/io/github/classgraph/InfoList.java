@@ -42,7 +42,6 @@ import java.util.Map;
  *            the element type
  */
 class InfoList<T extends HasName> extends ArrayList<T> {
-
     /**
      * Constructor.
      */

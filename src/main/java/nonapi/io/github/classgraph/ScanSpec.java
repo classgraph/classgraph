@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
+import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ModulePathInfo;
 import io.github.classgraph.ScanResult;
@@ -98,7 +99,7 @@ public class ScanSpec {
                 try {
                     ((WhiteBlackList) field.get(this)).sortPrefixes();
                 } catch (final Exception e) {
-                    throw new RuntimeException("Field is not accessible: " + field, e);
+                    throw new ClassGraphException("Field is not accessible: " + field, e);
                 }
             }
         }

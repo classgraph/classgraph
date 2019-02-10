@@ -353,7 +353,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             final int numParams = paramTypeDescriptors.size();
             if (paramTypeSignatures != null && paramTypeSignatures.size() > paramTypeDescriptors.size()) {
                 // Should not happen
-                throw new RuntimeException(
+                throw new ClassGraphException(
                         "typeSignatureParamTypes.size() > typeDescriptorParamTypes.size() for method "
                                 + declaringClassName + "." + name);
             }
@@ -364,7 +364,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                             parameterAnnotationInfo == null ? 0 : parameterAnnotationInfo.length));
             if (otherParamMax > numParams) {
                 // Should not happen
-                throw new RuntimeException("Type descriptor for method " + declaringClassName + "." + name
+                throw new ClassGraphException("Type descriptor for method " + declaringClassName + "." + name
                         + " has insufficient parameters");
             }
 

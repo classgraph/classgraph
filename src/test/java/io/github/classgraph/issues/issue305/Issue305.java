@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -30,7 +31,7 @@ public class Issue305 {
             System.setErr(new PrintStream(err));
             final Logger log = Logger.getLogger(ClassGraph.class.getName());
             if (!log.isLoggable(Level.INFO)) {
-                throw new RuntimeException("Could not create log");
+                throw new ClassGraphException("Could not create log");
             }
             errPrintStreamHandler = new ConsoleHandler();
             errPrintStreamHandler.setLevel(Level.INFO);

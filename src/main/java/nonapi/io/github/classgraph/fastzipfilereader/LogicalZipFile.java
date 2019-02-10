@@ -45,6 +45,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -180,7 +181,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 val = buf.toString("UTF-8");
             } catch (final UnsupportedEncodingException e) {
                 // Should not happen
-                throw new RuntimeException(e);
+                throw new ClassGraphException(e);
             }
         }
         return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);
@@ -514,7 +515,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         entries = new ArrayList<>((int) numEnt);
         FastZipEntry manifestZipEntry = null;
         try {
-            for (long entOff = 0, entSize; entOff + 46 <= cenSize; entOff += entSize) {
+            int entSize = 0;
+            for (long entOff = 0; entOff + 46 <= cenSize; entOff += entSize) {
                 final int sig = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff)
                         : zipFileSliceReader.getInt(cenPos + entOff);
                 if (sig != 0x02014b50) {

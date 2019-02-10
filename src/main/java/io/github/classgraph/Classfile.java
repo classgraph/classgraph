@@ -273,8 +273,8 @@ class Classfile {
         }
         // Check implemented interfaces
         if (implementedInterfaces != null) {
-            for (final String className : implementedInterfaces) {
-                scheduleScanningIfExternalClass(className, "interface");
+            for (final String interfaceName : implementedInterfaces) {
+                scheduleScanningIfExternalClass(interfaceName, "interface");
             }
         }
         // Check class annotations
@@ -364,7 +364,7 @@ class Classfile {
         } else {
             // Handle regular classfile
             final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
-                    classNameToClassInfo, classpathElement, classfileResource, log);
+                    classNameToClassInfo, classpathElement, classfileResource);
             classInfo.setModifiers(classModifiers);
             classInfo.setIsInterface(isInterface);
             classInfo.setIsAnnotation(isAnnotation);
@@ -397,7 +397,7 @@ class Classfile {
                 classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
             }
             if (typeSignature != null) {
-                classInfo.addTypeSignature(typeSignature);
+                classInfo.setTypeSignature(typeSignature);
             }
             if (refdClassNames != null) {
                 classInfo.addReferencedClassNames(refdClassNames);

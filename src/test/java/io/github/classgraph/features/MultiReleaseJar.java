@@ -10,6 +10,7 @@ import java.net.URLClassLoader;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList;
@@ -61,7 +62,7 @@ public class MultiReleaseJar {
                         }
                     });
                 } catch (final Exception e) {
-                    throw new RuntimeException(e);
+                    throw new ClassGraphException(e);
                 }
             }
         }
@@ -83,7 +84,7 @@ public class MultiReleaseJar {
                     assertThat(scanResult.getResourcesWithPath("mrj/Cls.class")).isEmpty();
                     assertThat(scanResult.getResourcesWithPathIgnoringWhitelist("mrj/Cls.class")).isNotEmpty();
                 } catch (final Exception e) {
-                    throw new RuntimeException(e);
+                    throw new ClassGraphException(e);
                 }
             }
         }

@@ -43,6 +43,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.classgraph.ClassGraphException;
+
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
@@ -93,14 +95,14 @@ public class JSONSerializer {
             final Object refdObj = ((JSONReference) jsonVal).idObject;
             if (refdObj == null) {
                 // Should not happen
-                throw new RuntimeException("Internal inconsistency");
+                throw new ClassGraphException("Internal inconsistency");
             }
             // Look up the JSON object corresponding to the referenced object
             final ReferenceEqualityKey<Object> refdObjKey = new ReferenceEqualityKey<>(refdObj);
             final JSONObject refdJsonVal = objToJSONVal.get(refdObjKey);
             if (refdJsonVal == null) {
                 // Should not happen
-                throw new RuntimeException("Internal inconsistency");
+                throw new ClassGraphException("Internal inconsistency");
             }
             // See if the JSON object has an @Id field
             // (for serialization, typeResolutions can be null)
@@ -357,7 +359,7 @@ public class JSONSerializer {
                 jsonVal = new JSONObject(convertedKeyValPairs);
 
             } catch (IllegalArgumentException | IllegalAccessException e) {
-                throw new RuntimeException("Could not get value of field in object: " + obj, e);
+                throw new ClassGraphException("Could not get value of field in object: " + obj, e);
             }
         }
 

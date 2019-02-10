@@ -34,6 +34,8 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import io.github.classgraph.ClassGraphException;
+
 /** Buffer class that can wrap either an InputStream or a ByteBuffer, depending on which is available. */
 public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /**
@@ -378,11 +380,11 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             case 13:
                 byteIdx += 2;
                 if (byteIdx > utfLen) {
-                    throw new RuntimeException("Bad modified UTF8");
+                    throw new ClassGraphException("Bad modified UTF8");
                 }
                 c2 = buf[utfStart + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80) {
-                    throw new RuntimeException("Bad modified UTF8");
+                    throw new ClassGraphException("Bad modified UTF8");
                 }
                 c4 = ((c & 0x1f) << 6) | (c2 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
@@ -390,18 +392,18 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             case 14:
                 byteIdx += 3;
                 if (byteIdx > utfLen) {
-                    throw new RuntimeException("Bad modified UTF8");
+                    throw new ClassGraphException("Bad modified UTF8");
                 }
                 c2 = buf[utfStart + byteIdx - 2];
                 c3 = buf[utfStart + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80 || (c3 & 0xc0) != 0x80) {
-                    throw new RuntimeException("Bad modified UTF8");
+                    throw new ClassGraphException("Bad modified UTF8");
                 }
                 c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
                 break;
             default:
-                throw new RuntimeException("Bad modified UTF8");
+                throw new ClassGraphException("Bad modified UTF8");
             }
         }
         if (charIdx == utfLen && !stripLSemicolon) {
@@ -409,7 +411,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         } else {
             if (stripLSemicolon) {
                 if (charIdx < 2 || chars[0] != 'L' || chars[charIdx - 1] != ';') {
-                    throw new RuntimeException("Expected string to start with 'L' and end with ';', got \""
+                    throw new ClassGraphException("Expected string to start with 'L' and end with ';', got \""
                             + new String(chars) + "\"");
                 }
                 return new String(chars, 1, charIdx - 2);

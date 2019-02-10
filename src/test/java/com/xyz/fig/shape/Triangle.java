@@ -2,6 +2,8 @@ package com.xyz.fig.shape;
 
 import java.awt.Graphics2D;
 
+import io.github.classgraph.ClassGraphException;
+
 /**
  * The Class Triangle.
  */
@@ -54,6 +56,6 @@ public class Triangle extends ShapeImpl {
      */
     @Override
     public void draw(final Graphics2D f) {
-        throw new RuntimeException("Not implemented");
+        throw new ClassGraphException("Not implemented");
     }
 }
