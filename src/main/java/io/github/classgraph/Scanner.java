@@ -159,7 +159,7 @@ class Scanner implements Callable<ScanResult> {
      * @return the module order
      */
     private List<ClasspathElementModule> getModuleOrder(final LogNode log) {
-        final List<ClasspathElementModule> moduleClasspathEltOrder = new ArrayList<>();
+        final List<ClasspathElementModule> moduleCpEltOrder = new ArrayList<>();
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
             // Add modules to start of classpath order, before traditional classpath
             final List<ModuleRef> systemModuleRefs = classLoaderAndModuleFinder.getSystemModuleRefs();
@@ -180,7 +180,7 @@ class Scanner implements Callable<ScanResult> {
                         // Create a new ClasspathElementModule
                         final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                 systemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
-                        moduleClasspathEltOrder.add(classpathElementModule);
+                        moduleCpEltOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
                         try {
                             classpathElementModule.open(/* ignored */ null, log);
@@ -202,7 +202,7 @@ class Scanner implements Callable<ScanResult> {
                         // Create a new ClasspathElementModule
                         final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                 nonSystemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
-                        moduleClasspathEltOrder.add(classpathElementModule);
+                        moduleCpEltOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
                         try {
                             classpathElementModule.open(/* ignored */ null, log);
@@ -217,7 +217,7 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
         }
-        return moduleClasspathEltOrder;
+        return moduleCpEltOrder;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -443,14 +443,11 @@ class Scanner implements Callable<ScanResult> {
      *            the opened classpath elements set
      * @param toplevelClasspathEltOrder
      *            the toplevel classpath elt order
-     * @param interruptionChecker
-     *            the interruption checker
      * @return the work unit processor
      */
     private WorkUnitProcessor<ClasspathEntryWorkUnit> newClasspathEntryWorkUnitProcessor(
             final Set<ClasspathElement> openedClasspathElementsSet,
-            final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder,
-            final InterruptionChecker interruptionChecker) {
+            final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder) {
         return new WorkUnitProcessor<ClasspathEntryWorkUnit>() {
             @Override
             public void processWorkUnit(final ClasspathEntryWorkUnit workUnit,
@@ -899,8 +896,7 @@ class Scanner implements Callable<ScanResult> {
                 .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
         final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder = new ConcurrentLinkedQueue<>();
         processWorkUnits(rawClasspathEntryWorkUnits, "Opening classpath elements", log,
-                newClasspathEntryWorkUnitProcessor(openedClasspathEltsSet, toplevelClasspathEltOrder,
-                        interruptionChecker));
+                newClasspathEntryWorkUnitProcessor(openedClasspathEltsSet, toplevelClasspathEltOrder));
 
         // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
         // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
@@ -964,93 +960,97 @@ class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         ScanResult scanResult = null;
-        boolean exceptionThrown = false;
+        Exception exception = null;
         final long scanStart = System.currentTimeMillis();
         try {
-
             // Perform the scan
             scanResult = openClasspathElementsThenScan();
 
-        } catch (final Exception e) {
-            // Close the NestedJarHandler in the finally block
-            exceptionThrown = true;
-
-            // Call failure handler, if one is registered
-            if (failureHandler != null) {
-                try {
-                    // Flush the toplevel log before calling the failureHandler
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "An uncaught exception was thrown:", InterruptionChecker.getCause(e));
-                        topLevelLog.flush();
-                    }
-                    // Call the FailureHandler
-                    failureHandler.onFailure(e);
-                    // The return value is discarded when using a scanResultProcessor and failureHandler
-                    return null;
-
-                } catch (final Exception failureHandlerException) {
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "The failure handler threw an exception:", failureHandlerException);
-                    }
-                    // Group the two exceptions into one, using the suppressed exception mechanism
-                    final ClassGraphException exception = new ClassGraphException(
-                            "Exception while calling failure handler", failureHandlerException);
-                    exception.addSuppressed(e);
-                    // Throw exception -- this will probably be ignored, since job was started with
-                    // ExecutorService::execute rather than ExecutorService::submit  
-                    throw exception;
-                }
-            } else {
-                if (e instanceof InterruptedException) {
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "Scan interrupted");
-                    }
-                    // Re-throw
-                    throw e;
-                } else if (e instanceof CancellationException) {
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "Scan cancelled");
-                    }
-                    // Re-throw
-                    throw e;
-                } else if (e instanceof ExecutionException) {
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "Uncaught exception during scan", InterruptionChecker.getCause(e));
-                    }
-                    // Re-throw
-                    throw e;
-                } else {
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "Uncaught exception during scan", e);
-                    }
-                    // Wrap anything else in a new ExecutionException
-                    throw new ExecutionException("Exception while scanning", e);
-                }
-            }
-        } finally {
-            if (exceptionThrown || scanSpec.removeTemporaryFilesAfterScan) {
-                // If an exception was thrown or removeTemporaryFilesAfterScan was set, remove temporary files
-                // and close resources, zipfiles, and modules
-                nestedJarHandler.close(topLevelLog);
-            }
-            // Log total time after scan completes
+            // Log total time after scan completes, and flush log
             if (topLevelLog != null) {
                 topLevelLog.log("Total time: " + (System.currentTimeMillis() - scanStart) * .001 + " sec");
                 topLevelLog.flush();
             }
-        }
 
-        // Call the ScanResultProcessor, if one was provided
-        if (scanResultProcessor != null && scanResult != null) {
-            try {
-                // Flush the toplevel log before calling the scanResultProcessor
+            // Call the ScanResultProcessor, if one was provided
+            if (scanResultProcessor != null) {
+                scanResultProcessor.processScanResult(scanResult);
+            }
+
+        } catch (final InterruptedException e) {
+            if (topLevelLog != null) {
+                topLevelLog.log("~", "Scan interrupted");
+            }
+            exception = e;
+            if (failureHandler == null) {
+                // Re-throw
+                throw e;
+            }
+        } catch (final CancellationException e) {
+            if (topLevelLog != null) {
+                topLevelLog.log("~", "Scan cancelled");
+            }
+            exception = e;
+            if (failureHandler == null) {
+                // Re-throw
+                throw e;
+            }
+        } catch (final ExecutionException e) {
+            if (topLevelLog != null) {
+                topLevelLog.log("~", "Uncaught exception during scan", InterruptionChecker.getCause(e));
+            }
+            exception = e;
+            if (failureHandler == null) {
+                // Re-throw
+                throw e;
+            }
+        } catch (final RuntimeException e) {
+            if (topLevelLog != null) {
+                topLevelLog.log("~", "Uncaught exception during scan", e);
+            }
+            exception = e;
+            if (failureHandler == null) {
+                // Wrap unchecked exceptions in a new ExecutionException
+                throw new ExecutionException("Exception while scanning", e);
+            }
+
+        } finally {
+            if (exception != null || scanSpec.removeTemporaryFilesAfterScan) {
+                // If an exception was thrown or removeTemporaryFilesAfterScan was set, remove temporary files
+                // and close resources, zipfiles, and modules
+                nestedJarHandler.close(topLevelLog);
+            }
+
+            if (exception != null) {
+                // If an exception was thrown, log the cause, and flush the toplevel log
                 if (topLevelLog != null) {
+                    final Throwable cause = InterruptionChecker.getCause(exception);
+                    topLevelLog.log("~", "An uncaught exception was thrown:", cause);
                     topLevelLog.flush();
                 }
-                // Run scanResultProcessor in the current thread
-                scanResultProcessor.processScanResult(scanResult);
-            } catch (final Exception e) {
-                throw new ExecutionException("Exception while calling scan result processor", e);
+
+                // Call the failure handler, if one is set
+                if (failureHandler != null) {
+                    try {
+                        // Call the FailureHandler
+                        failureHandler.onFailure(exception);
+                        // The return value is discarded when using a failureHandler -- just return null
+                        return null;
+                    } catch (final Exception f) {
+                        // The failure handler failed
+                        if (topLevelLog != null) {
+                            topLevelLog.log("~", "The failure handler threw an exception:", f);
+                        }
+                        // Group the two exceptions into one, using the suppressed exception mechanism
+                        // to show the scan exception below the failure handler exception
+                        final ClassGraphException failureHandlerException = new ClassGraphException(
+                                "Exception while calling failure handler", f);
+                        failureHandlerException.addSuppressed(exception);
+                        // Throw a new ClassGraph exception (although this will probably be ignored,
+                        // since job was started with ExecutorService::execute rather than ::submit)  
+                        throw failureHandlerException;
+                    }
+                }
             }
         }
         return scanResult;
