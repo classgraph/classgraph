@@ -40,6 +40,10 @@ import java.util.Set;
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public class ReflectionUtils {
 
+    // In JDK 9+, could use MethodHandles.privateLookupIn
+    // And then use getter lookup to get fields (which works even if there is no getter function defined):
+    // https://stackoverflow.com/q/19135218/3950982
+
     /**
      * Constructor.
      */
