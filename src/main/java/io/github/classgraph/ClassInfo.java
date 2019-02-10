@@ -154,7 +154,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     transient boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
     /** The set of classes related to this one. */
-    private final Map<RelType, Set<ClassInfo>> relatedClasses = new EnumMap<>(RelType.class);
+    private Map<RelType, Set<ClassInfo>> relatedClasses;
 
     /**
      * The override order for a class' fields or methods (base class, followed by interfaces, followed by
@@ -184,6 +184,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Bad class name");
         }
         setModifiers(classModifiers);
+        relatedClasses = new EnumMap<>(RelType.class);
     }
 
     // -------------------------------------------------------------------------------------------------------------

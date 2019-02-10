@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -203,6 +204,28 @@ public class JSONSerializer {
     }
 
     /**
+     * Comparator for set elements, to sort them into some sort of consistent order, so that JSON ordering is
+     * deterministic.
+     */
+    private static final Comparator<Object> SET_COMPARATOR = new Comparator<Object>() {
+        @Override
+        public int compare(final Object o1, final Object o2) {
+            if (o1 == null || o2 == null) {
+                return (o1 == null ? 0 : 1) - (o2 == null ? 0 : 1);
+            }
+            if (Comparable.class.isAssignableFrom(o1.getClass())
+                    && Comparable.class.isAssignableFrom(o2.getClass())) {
+                @SuppressWarnings("unchecked")
+                final Comparable<Object> comparableO1 = (Comparable<Object>) o1;
+                return comparableO1.compareTo(o2);
+            }
+            // If the objects are not comparable, just compare the toString() method, and hope it's overridden
+            // (otherwise would need to do a deep compare, which is not worth it)
+            return o1.toString().compareTo(o2.toString());
+        }
+    };
+
+    /**
      * Turn an object graph into a graph of JSON objects, arrays, and values.
      *
      * @param obj
@@ -321,8 +344,13 @@ public class JSONSerializer {
         } else if (Collection.class.isAssignableFrom(cls)) {
             final Collection<?> collection = (Collection<?>) obj;
 
-            // Convert items to JSON values
+            // If collection is a set, need to sort values into some sort of consistent order 
             final List<Object> convertedValsList = new ArrayList<>(collection);
+            if (Set.class.isAssignableFrom(cls)) {
+                Collections.sort(convertedValsList, SET_COMPARATOR);
+            }
+
+            // Convert items to JSON values
             final Object[] convertedVals = convertedValsList.toArray();
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);

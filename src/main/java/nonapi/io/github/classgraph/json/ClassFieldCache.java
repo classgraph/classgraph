@@ -144,29 +144,32 @@ class ClassFieldCache {
      * @return the concrete type
      */
     private static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
-        if (rawType == Map.class || rawType == AbstractMap.class) {
+        // This list is not complete (e.g. EnumMap cannot be instantiated directly, you need to pass the
+        // enum key type into a factory method), but this should cover a lot of the common types
+        if (rawType == Map.class || rawType == AbstractMap.class || rawType == HashMap.class) {
             return HashMap.class;
-        } else if (rawType == ConcurrentMap.class) {
+        } else if (rawType == ConcurrentMap.class || rawType == ConcurrentHashMap.class) {
             return ConcurrentHashMap.class;
-        } else if (rawType == SortedMap.class || rawType == NavigableMap.class) {
+        } else if (rawType == SortedMap.class || rawType == NavigableMap.class || rawType == TreeMap.class) {
             return TreeMap.class;
-        } else if (rawType == ConcurrentNavigableMap.class) {
+        } else if (rawType == ConcurrentNavigableMap.class || rawType == ConcurrentSkipListMap.class) {
             return ConcurrentSkipListMap.class;
-        } else if (rawType == List.class || rawType == AbstractList.class) {
+        } else if (rawType == List.class || rawType == AbstractList.class || rawType == ArrayList.class) {
             return ArrayList.class;
-        } else if (rawType == AbstractSequentialList.class) {
+        } else if (rawType == AbstractSequentialList.class || rawType == LinkedList.class) {
             return LinkedList.class;
-        } else if (rawType == Set.class || rawType == AbstractSet.class) {
+        } else if (rawType == Set.class || rawType == AbstractSet.class || rawType == HashSet.class) {
             return HashSet.class;
-        } else if (rawType == SortedSet.class) {
+        } else if (rawType == SortedSet.class || rawType == TreeSet.class) {
             return TreeSet.class;
-        } else if (rawType == Queue.class || rawType == AbstractQueue.class || rawType == Deque.class) {
+        } else if (rawType == Queue.class || rawType == AbstractQueue.class || rawType == Deque.class
+                || rawType == ArrayDeque.class) {
             return ArrayDeque.class;
-        } else if (rawType == BlockingQueue.class) {
+        } else if (rawType == BlockingQueue.class || rawType == LinkedBlockingQueue.class) {
             return LinkedBlockingQueue.class;
-        } else if (rawType == BlockingDeque.class) {
+        } else if (rawType == BlockingDeque.class || rawType == LinkedBlockingDeque.class) {
             return LinkedBlockingDeque.class;
-        } else if (rawType == TransferQueue.class) {
+        } else if (rawType == TransferQueue.class || rawType == LinkedTransferQueue.class) {
             return LinkedTransferQueue.class;
         } else {
             return returnNullIfNotMapOrCollection ? null : rawType;
