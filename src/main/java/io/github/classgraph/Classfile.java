@@ -341,7 +341,7 @@ class Classfile {
                 // Get module name from ModuleReference of this ClasspathElementModule, if available
                 moduleName = moduleRef.getName();
             }
-            if (moduleName == null) {
+            if (moduleName == null || moduleName.isEmpty()) {
                 moduleName = classpathElement.moduleName;
             }
             if (moduleName != null && !moduleName.isEmpty()) {
@@ -1310,11 +1310,7 @@ class Classfile {
                 this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
                 final int moduleNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                String moduleName = getConstantPoolString(moduleNameCpIdx);
-                if (moduleName == null) {
-                    moduleName = "";
-                }
-                classpathElement.moduleName = moduleName;
+                classpathElement.moduleName = getConstantPoolString(moduleNameCpIdx);
                 // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
                 // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
                 inputStreamOrByteBuffer.skip(attributeLength - 2);

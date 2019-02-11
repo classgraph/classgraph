@@ -77,6 +77,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** The value of the "Add-Opens" manifest entry, if present in the manifest, else null. */
     public String addOpensManifestEntryValue;
 
+    /** The value of the "Automatic-Module-Name" manifest entry, if present in the manifest, else null. */
+    public String automaticModuleNameManifestEntryValue;
+
     /** If true, this is a JRE jar. */
     public boolean isJREJar;
 
@@ -226,6 +229,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** The {@code "Add-Opens"} manifest key. */
     private static final byte[] ADD_OPENS_KEY = manifestKeyToBytes("Add-Opens");
 
+    /** The {@code "Automatic-Module-Name"} manifest key. */
+    private static final byte[] AUTOMATIC_MODULE_NAME_KEY = manifestKeyToBytes("Automatic-Module-Name");
+
     /** For quickly converting ASCII characters to lower case. */
     private static byte[] toLowerCase = new byte[256];
     static {
@@ -356,6 +362,16 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Add-Opens entry in manifest file: " + addOpensManifestEntryValue);
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, AUTOMATIC_MODULE_NAME_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + AUTOMATIC_MODULE_NAME_KEY.length + 1);
+                automaticModuleNameManifestEntryValue = manifestValueAndEndIdx.getKey();
+                if (log != null) {
+                    log.log("Found Automatic-Module-Name entry in manifest file: "
+                            + automaticModuleNameManifestEntryValue);
                 }
                 i = manifestValueAndEndIdx.getValue();
 

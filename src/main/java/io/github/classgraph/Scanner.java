@@ -197,7 +197,10 @@ class Scanner implements Callable<ScanResult> {
             final List<ModuleRef> nonSystemModuleRefs = classLoaderAndModuleFinder.getNonSystemModuleRefs();
             if (nonSystemModuleRefs != null) {
                 for (final ModuleRef nonSystemModuleRef : nonSystemModuleRefs) {
-                    final String moduleName = nonSystemModuleRef.getName();
+                    String moduleName = nonSystemModuleRef.getName();
+                    if (moduleName == null) {
+                        moduleName = "";
+                    }
                     if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
                         // Create a new ClasspathElementModule
                         final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
@@ -689,13 +692,13 @@ class Scanner implements Callable<ScanResult> {
                 final ClasspathElementZip classpathEltZip = (ClasspathElementZip) classpathElt;
                 classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
 
-                // Find additional Add-Exports and Add-Opens entries in jarfile manifests,
-                // and add to scanSpec.modulePathInfo. From JEP 261:
-                // "A <module>/<package> pair in the value of an Add-Exports attribute has the same
-                // meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. 
-                // A <module>/<package> pair in the value of an Add-Opens attribute has the same 
-                // meaning as the command-line option --add-opens <module>/<package>=ALL-UNNAMED."
+                // Handle module-related manifest entries
                 if (classpathEltZip.logicalZipFile != null) {
+                    // From JEP 261:
+                    // "A <module>/<package> pair in the value of an Add-Exports attribute has the same
+                    // meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. 
+                    // A <module>/<package> pair in the value of an Add-Opens attribute has the same 
+                    // meaning as the command-line option --add-opens <module>/<package>=ALL-UNNAMED."
                     if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
                         for (final String addExports : JarUtils
                                 .smartPathSplit(classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ')) {
@@ -707,6 +710,12 @@ class Scanner implements Callable<ScanResult> {
                                 .smartPathSplit(classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ')) {
                             scanSpec.modulePathInfo.addOpens.add(addOpens + "=ALL-UNNAMED");
                         }
+                    }
+                    // Handle Automatic-Module-Name manifest entry
+                    if (classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue != null
+                            && classpathEltZip.moduleName == null || classpathEltZip.moduleName.isEmpty()) {
+                        classpathEltZip.moduleName = //
+                                classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue;
                     }
                 }
             } else {
@@ -904,7 +913,7 @@ class Scanner implements Callable<ScanResult> {
                 toplevelClasspathEltOrder);
 
         // Find classpath elements that are path prefixes of other classpath elements, and for
-        // ClasspathElementZip, extract "Add-Exports" and "Add-Opens" manifest entries
+        // ClasspathElementZip, get module-related manifest entry values
         preprocessClasspathElementsByType(classpathEltOrder, log);
 
         // Order modules before classpath elements from traditional classpath 

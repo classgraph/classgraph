@@ -251,7 +251,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @return true if this module is a system module.
      */
     public boolean isSystemModule() {
-        if (name == null) {
+        if (name == null || name.isEmpty()) {
             return false;
         }
         return name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("javafx.")

@@ -73,7 +73,10 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     ModuleInfo(final ModuleRef moduleRef, final ClasspathElement classpathElement) {
         this.moduleRef = moduleRef;
-        this.name = classpathElement.moduleName;
+        this.name = moduleRef != null ? moduleRef.getName() : null;
+        if (this.name == null || this.name.isEmpty()) {
+            this.name = classpathElement.moduleName;
+        }
         this.classpathElement = classpathElement;
     }
 
