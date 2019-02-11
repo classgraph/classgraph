@@ -300,25 +300,29 @@ public class JarUtils {
      * @return The automatic module name.
      */
     public static String derivedAutomaticModuleName(final String jarPath) {
-        // If jar path does not end in ".jar", Strip off everything after last "!", to remove package root
+        // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after
+        // the last '!', in order to remove package root
         int endIdx = jarPath.length();
-        if (!jarPath.endsWith(".jar")) {
-            final int lastPlingIdx = jarPath.lastIndexOf("!");
-            if (lastPlingIdx > 0) {
-                endIdx = lastPlingIdx;
-            }
+        final int lastPlingIdx = jarPath.lastIndexOf('!');
+        if (lastPlingIdx > 0
+                // If there is no '.' after the last '/' (if any) after the last '!'
+                && jarPath.lastIndexOf('.') <= Math.max(lastPlingIdx, jarPath.lastIndexOf('/'))) {
+            // Then truncate at last '!'
+            endIdx = lastPlingIdx;
         }
-        // Find second to last '/'
+        // Find the second to last '!' (or -1, if none)
         final int secondToLastPlingIdx = endIdx == 0 ? -1 : jarPath.lastIndexOf("!", endIdx - 1);
-        // Find last '/' before last '!', but after second to last '!'
-        final int lastSlashBeforeLastPlingIdx = Math.max(secondToLastPlingIdx, jarPath.lastIndexOf('/', endIdx));
-        int lastDotBeforeLastPlingIdx = jarPath.lastIndexOf('.', endIdx);
-        if (lastDotBeforeLastPlingIdx <= lastSlashBeforeLastPlingIdx) {
-            lastDotBeforeLastPlingIdx = endIdx;
+        // Find last '/' between the second to last and the last '!'
+        final int startIdx = Math.max(secondToLastPlingIdx, jarPath.lastIndexOf('/', endIdx - 1)) + 1;
+        // Find last '.' after that '/'
+        final int lastDotBeforeLastPlingIdx = jarPath.lastIndexOf('.', endIdx - 1);
+        if (lastDotBeforeLastPlingIdx > startIdx) {
+            // Strip off extension
+            endIdx = lastDotBeforeLastPlingIdx;
         }
 
         // Remove .jar extension
-        String moduleName = jarPath.substring(lastSlashBeforeLastPlingIdx + 1, lastDotBeforeLastPlingIdx);
+        String moduleName = jarPath.substring(startIdx, endIdx);
 
         // Find first occurrence of "-[0-9]"
         final Matcher matcher = DASH_VERSION.matcher(moduleName);
