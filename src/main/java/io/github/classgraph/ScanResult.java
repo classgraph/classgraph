@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -89,6 +90,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * if this ScanResult object is the result of a call to ClassGraph#getUniqueClasspathElementsAsync().
      */
     private Map<File, Long> fileToLastModified;
+
+    /** If true, this {@link ScanResult} was produced by {@link ScanResult#fromJSON(String)}. */
+    boolean scanResultCameFromDeserialization;
 
     /** A custom ClassLoader that can load classes found during the scan. */
     private ClassGraphClassLoader classGraphClassLoader;
@@ -1139,11 +1143,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
 
         // Produce a new ScanResult
-        return new ScanResult(deserialized.scanSpec,
+        final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
                 /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), deserialized.classpath,
                 new URLClassLoader[] { urlClassLoader }, classNameToClassInfo, packageNameToPackageInfo,
                 moduleNameToModuleInfo, /* fileToLastModified = */ null, /* nestedJarHandler = */ null,
                 /* log = */ null);
+        scanResult.scanResultCameFromDeserialization = true;
+        return scanResult;
     }
 
     /**
@@ -1258,7 +1264,21 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 nestedJarHandler.close(log);
                 nestedJarHandler = null;
             }
+            // Close the created URLClassLoader, if this ScanResult came from deserialization
+            if (scanResultCameFromDeserialization) {
+                for (final ClassLoader classLoader : envClassLoaderOrder) {
+                    if (classLoader instanceof URLClassLoader) {
+                        try {
+                            ((URLClassLoader) classLoader).close();
+                        } catch (final IOException e) {
+                            // Ignore
+                        }
+                    }
+                }
+            }
+            // Remove WeakReference to this ScanResult, so shutdown hook does not try to close this
             nonClosedWeakReferences.remove(weakReference);
+            // Flush log on exit, in case additional log entries were generated after scan() completed
             if (log != null) {
                 log.flush();
             }

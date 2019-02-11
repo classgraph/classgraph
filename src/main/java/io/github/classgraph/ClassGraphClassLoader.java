@@ -59,10 +59,14 @@ class ClassGraphClassLoader extends ClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
-        // Don't initially try environment classloaders if the classpath was overridden
-        if (scanResult.scanSpec.overrideClasspath == null || scanResult.scanSpec.overrideClasspath.isEmpty()) {
+        // Don't use class' specific classloader if the classpath was overridden, or the ScanResult was
+        // produced by deserialization
+        final boolean classpathOverridden = scanResult.scanSpec.overrideClasspath != null
+                && !scanResult.scanSpec.overrideClasspath.isEmpty();
+        ClassInfo classInfo = null;
+        if (!classpathOverridden && !scanResult.scanResultCameFromDeserialization) {
             // Get ClassInfo for named class
-            final ClassInfo classInfo = scanResult.getClassInfo(className);
+            classInfo = scanResult.getClassInfo(className);
             if (classInfo != null) {
                 // Try specific classloader for class
                 if (classInfo.classLoader != null) {
@@ -74,6 +78,11 @@ class ClassGraphClassLoader extends ClassLoader {
                     }
                 }
             }
+        }
+        // Try environment classloaders next, if the classpath was not overridden, or the scan result
+        // came from deserialization (since in this case, a new URLClassLoader was created for the
+        // classpath entries that were found in the serialized JSON doc)
+        if (!classpathOverridden || scanResult.scanResultCameFromDeserialization) {
             if (scanResult.envClassLoaderOrder != null) {
                 // Try environment classloaders
                 for (final ClassLoader envClassLoader : scanResult.envClassLoaderOrder) {
