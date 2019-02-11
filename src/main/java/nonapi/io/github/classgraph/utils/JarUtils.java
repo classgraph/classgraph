@@ -34,6 +34,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
@@ -269,6 +271,78 @@ public class JarUtils {
      */
     public static String classNameToClassfilePath(final String className) {
         return className.replace('.', '/') + ".class";
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** The Constant DASH_VERSION. */
+    private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");
+
+    /** The Constant NON_ALPHANUM. */
+    private static final Pattern NON_ALPHANUM = Pattern.compile("[^A-Za-z0-9]");
+
+    /** The Constant REPEATING_DOTS. */
+    private static final Pattern REPEATING_DOTS = Pattern.compile("(\\.)(\\1)+");
+
+    /** The Constant LEADING_DOTS. */
+    private static final Pattern LEADING_DOTS = Pattern.compile("^\\.");
+
+    /** The Constant TRAILING_DOTS. */
+    private static final Pattern TRAILING_DOTS = Pattern.compile("\\.$");
+
+    /**
+     * Derive automatic module name from jar name, using <a href=
+     * "https://docs.oracle.com/javase/9/docs/api/java/lang/module/ModuleFinder.html#of-java.nio.file.Path...-">this
+     * algorithm</a>.
+     * 
+     * @param jarPath
+     *            The jar path.
+     * @return The automatic module name.
+     */
+    public static String derivedAutomaticModuleName(final String jarPath) {
+        // If jar path does not end in ".jar", Strip off everything after last "!", to remove package root
+        int endIdx = jarPath.length();
+        if (!jarPath.endsWith(".jar")) {
+            final int lastPlingIdx = jarPath.lastIndexOf("!");
+            if (lastPlingIdx > 0) {
+                endIdx = lastPlingIdx;
+            }
+        }
+        // Find second to last '/'
+        final int secondToLastPlingIdx = endIdx == 0 ? -1 : jarPath.lastIndexOf("!", endIdx - 1);
+        // Find last '/' before last '!', but after second to last '!'
+        final int lastSlashBeforeLastPlingIdx = Math.max(secondToLastPlingIdx, jarPath.lastIndexOf('/', endIdx));
+        int lastDotBeforeLastPlingIdx = jarPath.lastIndexOf('.', endIdx);
+        if (lastDotBeforeLastPlingIdx <= lastSlashBeforeLastPlingIdx) {
+            lastDotBeforeLastPlingIdx = endIdx;
+        }
+
+        // Remove .jar extension
+        String moduleName = jarPath.substring(lastSlashBeforeLastPlingIdx + 1, lastDotBeforeLastPlingIdx);
+
+        // Find first occurrence of "-[0-9]"
+        final Matcher matcher = DASH_VERSION.matcher(moduleName);
+        if (matcher.find()) {
+            moduleName = moduleName.substring(0, matcher.start());
+        }
+
+        // Replace non-alphanumeric characters with dots
+        moduleName = NON_ALPHANUM.matcher(moduleName).replaceAll(".");
+
+        // Collapse repeating dots into a single dot
+        moduleName = REPEATING_DOTS.matcher(moduleName).replaceAll(".");
+
+        // Drop leading dots
+        if (moduleName.length() > 0 && moduleName.charAt(0) == '.') {
+            moduleName = LEADING_DOTS.matcher(moduleName).replaceAll("");
+        }
+
+        // Drop trailing dots
+        final int len = moduleName.length();
+        if (len > 0 && moduleName.charAt(len - 1) == '.') {
+            moduleName = TRAILING_DOTS.matcher(moduleName).replaceAll("");
+        }
+        return moduleName;
     }
 
     // -------------------------------------------------------------------------------------------------------------

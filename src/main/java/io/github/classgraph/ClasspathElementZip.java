@@ -55,6 +55,7 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
+import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
@@ -72,6 +73,13 @@ class ClasspathElementZip extends ClasspathElement {
     private final ConcurrentHashMap<String, Resource> relativePathToResource = new ConcurrentHashMap<>();
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
+    /**
+     * The name of the module from the {@code Automatic-Module-Name} manifest attribute, if one is present in the
+     * root of the classpath element.
+     */
+    String moduleNameFromManifestFile;
+    /** The automatic module name, derived from the jarfile filename. */
+    private String derivedAutomaticModuleName;
 
     /**
      * A jarfile classpath element.
@@ -89,7 +97,7 @@ class ClasspathElementZip extends ClasspathElement {
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
         this.rawPath = rawPath;
-        this.zipFilePath = rawPath;
+        this.zipFilePath = rawPath; // May change when open() is called
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.performScan) {
             whitelistedResources = new ArrayList<>();
@@ -484,6 +492,27 @@ class ClasspathElementZip extends ClasspathElement {
     @Override
     String getPackageRoot() {
         return packageRootPrefix;
+    }
+
+    /**
+     * Get module name from module descriptor, or get the automatic module name from the manifest file, or derive an
+     * automatic module name from the jar name.
+     *
+     * @return the module name
+     */
+    @Override
+    public String getModuleName() {
+        String moduleName = moduleNameFromModuleDescriptor;
+        if (moduleName == null || moduleName.isEmpty()) {
+            moduleName = moduleNameFromManifestFile;
+        }
+        if (moduleName == null || moduleName.isEmpty()) {
+            if (derivedAutomaticModuleName == null) {
+                derivedAutomaticModuleName = JarUtils.derivedAutomaticModuleName(zipFilePath);
+            }
+            moduleName = derivedAutomaticModuleName;
+        }
+        return moduleName == null || moduleName.isEmpty() ? null : moduleName;
     }
 
     /**

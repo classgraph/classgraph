@@ -487,6 +487,17 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
+     * Get the module name from module descriptor.
+     *
+     * @return the module name
+     */
+    @Override
+    public String getModuleName() {
+        return moduleNameFromModuleDescriptor == null || moduleNameFromModuleDescriptor.isEmpty() ? null
+                : moduleNameFromModuleDescriptor;
+    }
+
+    /**
      * Get the directory {@link File}.
      *
      * @return The classpath element directory as a {@link File}.

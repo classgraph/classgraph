@@ -99,10 +99,10 @@ abstract class ClasspathElement {
     protected ClassLoader classLoader;
 
     /**
-     * The name of the module, if this is a {@link ClasspathElementModule}, or the module name from the
-     * {@code module-info.class} module descriptor, if one is present in the root of the classpath element.
+     * The name of the module from the {@code module-info.class} module descriptor, if one is present in the root of
+     * the classpath element.
      */
-    String moduleName = "";
+    String moduleNameFromModuleDescriptor;
 
     /** The scan spec. */
     final ScanSpec scanSpec;
@@ -123,6 +123,13 @@ abstract class ClasspathElement {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the name of this classpath element's module, or null if there is no module name.
+     *
+     * @return the module name
+     */
+    abstract String getModuleName();
 
     /**
      * If non-empty, this path represents the package root within a jarfile, e.g. if the path is

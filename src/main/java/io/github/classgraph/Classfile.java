@@ -333,38 +333,19 @@ class Classfile {
     void link(final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo, final LogNode log) {
+        boolean isModuleDescriptor = false;
+        boolean isPackageDescriptor = false;
+        ClassInfo classInfo = null;
         if (className.equals("module-info")) {
-            // Handle module descriptor classfile
-            String moduleName = null;
-            final ModuleRef moduleRef = classfileResource.getModuleRef();
-            if (moduleRef != null) {
-                // Get module name from ModuleReference of this ClasspathElementModule, if available
-                moduleName = moduleRef.getName();
-            }
-            if (moduleName == null || moduleName.isEmpty()) {
-                moduleName = classpathElement.moduleName;
-            }
-            if (moduleName != null && !moduleName.isEmpty()) {
-                // Get or create a ModuleInfo object for this module
-                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
-                if (moduleInfo == null) {
-                    moduleNameToModuleInfo.put(moduleName,
-                            moduleInfo = new ModuleInfo(moduleRef, classpathElement));
-                }
-                // Add any class annotations on the module-info.class file to the ModuleInfo
-                moduleInfo.addAnnotations(classAnnotations);
-            }
+            isModuleDescriptor = true;
 
         } else if (className.equals("package-info") || className.endsWith(".package-info")) {
-            // Handle package descriptor classfile
-            final PackageInfo packageInfo = PackageInfo
-                    .getOrCreatePackage(PackageInfo.getParentPackageName(className), packageNameToPackageInfo);
-            packageInfo.addAnnotations(classAnnotations);
+            isPackageDescriptor = true;
 
         } else {
             // Handle regular classfile
-            final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
-                    classNameToClassInfo, classpathElement, classfileResource);
+            classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass, classNameToClassInfo,
+                    classpathElement, classfileResource);
             classInfo.setModifiers(classModifiers);
             classInfo.setIsInterface(isInterface);
             classInfo.setIsAnnotation(isAnnotation);
@@ -402,32 +383,46 @@ class Classfile {
             if (refdClassNames != null) {
                 classInfo.addReferencedClassNames(refdClassNames);
             }
+        }
 
-            final PackageInfo packageInfo = PackageInfo
-                    .getOrCreatePackage(PackageInfo.getParentPackageName(className), packageNameToPackageInfo);
-            packageInfo.addClassInfo(classInfo);
+        // Get or create PackageInfo, if this is not a module descriptor (the module descriptor's package is "")
+        PackageInfo packageInfo = null;
+        if (!isModuleDescriptor) {
+            // Get package for this class or package descriptor
+            packageInfo = PackageInfo.getOrCreatePackage(PackageInfo.getParentPackageName(className),
+                    packageNameToPackageInfo);
+            if (isPackageDescriptor) {
+                // Add any class annotations on the package-info.class file to the ModuleInfo
+                packageInfo.addAnnotations(classAnnotations);
+            } else if (classInfo != null) {
+                // Add ClassInfo to the PackageInfo
+                packageInfo.addClassInfo(classInfo);
+            }
+        }
 
-            String moduleName = null;
-            final ModuleRef moduleRef = classInfo.getModuleRef();
-            if (moduleRef != null) {
-                // Get module name from ModuleReference of this ClasspathElementModule, if available
-                moduleName = moduleRef.getName();
+        // Get or create ModuleInfo, if there is a module name
+        final String moduleName = classpathElement.getModuleName();
+        if (moduleName != null) {
+            // Get or create a ModuleInfo object for this module
+            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
+            if (moduleInfo == null) {
+                moduleNameToModuleInfo.put(moduleName,
+                        moduleInfo = new ModuleInfo(classfileResource.getModuleRef(), classpathElement));
             }
-            if (moduleName == null) {
-                // Otherwise get the module name from any module-info.class file found in the classpath element
-                moduleName = classpathElement.moduleName;
+            if (isModuleDescriptor) {
+                // Add any class annotations on the module-info.class file to the ModuleInfo
+                moduleInfo.addAnnotations(classAnnotations);
             }
-            // Only add class to ModuleInfo if a module name is defined, and if it's not empty
-            if (moduleName != null && !moduleName.isEmpty()) {
-                ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
-                if (moduleInfo == null) {
-                    moduleNameToModuleInfo.put(moduleName,
-                            moduleInfo = new ModuleInfo(moduleRef, classpathElement));
-                }
+            if (classInfo != null) {
+                // Add ClassInfo to ModuleInfo
                 moduleInfo.addClassInfo(classInfo);
+            }
+            if (packageInfo != null) {
+                // Add PackageInfo to ModuleInfo
                 moduleInfo.addPackageInfo(packageInfo);
             }
         }
+
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1310,7 +1305,7 @@ class Classfile {
                 this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
                 final int moduleNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                classpathElement.moduleName = getConstantPoolString(moduleNameCpIdx);
+                classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);
                 // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
                 // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
                 inputStreamOrByteBuffer.skip(attributeLength - 2);

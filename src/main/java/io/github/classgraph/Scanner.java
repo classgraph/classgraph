@@ -711,10 +711,9 @@ class Scanner implements Callable<ScanResult> {
                             scanSpec.modulePathInfo.addOpens.add(addOpens + "=ALL-UNNAMED");
                         }
                     }
-                    // Handle Automatic-Module-Name manifest entry
-                    if (classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue != null
-                            && classpathEltZip.moduleName == null || classpathEltZip.moduleName.isEmpty()) {
-                        classpathEltZip.moduleName = //
+                    // Retrieve Automatic-Module-Name manifest entry, if present
+                    if (classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue != null) {
+                        classpathEltZip.moduleNameFromManifestFile = //
                                 classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue;
                     }
                 }

@@ -84,7 +84,6 @@ class ClasspathElementModule extends ClasspathElement {
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
         this.moduleRef = moduleRef;
-        this.moduleName = moduleRef.getName();
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.performScan) {
             whitelistedResources = new ArrayList<>();
@@ -380,6 +379,20 @@ class ClasspathElementModule extends ClasspathElement {
      */
     ModuleRef getModuleRef() {
         return moduleRef;
+    }
+
+    /**
+     * Get the module name from the module reference or the module descriptor.
+     *
+     * @return the module name
+     */
+    @Override
+    public String getModuleName() {
+        String moduleName = moduleRef.getName();
+        if (moduleName == null || moduleName.isEmpty()) {
+            moduleName = moduleNameFromModuleDescriptor;
+        }
+        return moduleName == null || moduleName.isEmpty() ? null : moduleName;
     }
 
     /* (non-Javadoc)
