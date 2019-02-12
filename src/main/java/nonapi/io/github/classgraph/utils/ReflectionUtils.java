@@ -228,10 +228,10 @@ public class ReflectionUtils {
         final Class<?> cls = obj.getClass();
         final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
         for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-            final Class<?> iface = reverseAttemptOrder.get(i);
+            final Class<?> classOrInterface = reverseAttemptOrder.get(i);
             try {
                 // Try calling method on interface
-                method = iface.getDeclaredMethod(methodName);
+                method = classOrInterface.getDeclaredMethod(methodName);
                 try {
                     method.setAccessible(true);
                 } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
@@ -292,10 +292,10 @@ public class ReflectionUtils {
         final Class<?> cls = obj.getClass();
         final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
         for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-            final Class<?> iface = reverseAttemptOrder.get(i);
+            final Class<?> classOrInterface = reverseAttemptOrder.get(i);
             try {
                 // Try calling method on interface
-                method = iface.getDeclaredMethod(methodName, argType);
+                method = classOrInterface.getDeclaredMethod(methodName, argType);
                 try {
                     method.setAccessible(true);
                 } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
@@ -351,10 +351,10 @@ public class ReflectionUtils {
         Method method = null;
         final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
         for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-            final Class<?> iface = reverseAttemptOrder.get(i);
+            final Class<?> classOrInterface = reverseAttemptOrder.get(i);
             try {
                 // Try calling method on interface
-                method = iface.getDeclaredMethod(methodName);
+                method = classOrInterface.getDeclaredMethod(methodName);
                 try {
                     method.setAccessible(true);
                 } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
@@ -416,10 +416,10 @@ public class ReflectionUtils {
         Method method = null;
         final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
         for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-            final Class<?> iface = reverseAttemptOrder.get(i);
+            final Class<?> classOrInterface = reverseAttemptOrder.get(i);
             try {
                 // Try calling method on interface
-                method = iface.getDeclaredMethod(methodName, argType);
+                method = classOrInterface.getDeclaredMethod(methodName, argType);
                 try {
                     method.setAccessible(true);
                 } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
