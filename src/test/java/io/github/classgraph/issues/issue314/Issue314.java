@@ -34,12 +34,9 @@ public class Issue314 {
             assertThat(scanResult1.getClassInfo(A.class.getName())).isNotNull();
             assertThat(scanResult1.getClassInfo(B.class.getName())).isNotNull();
             final String json1 = scanResult1.toJSON(2);
-            System.out.println(json1);
             assertThat(json1).isNotEmpty();
             try (final ScanResult scanResult2 = ScanResult.fromJSON(scanResult1.toJSON())) {
                 final String json2 = scanResult2.toJSON(2);
-                System.out.println("\n" + json2);
-
                 assertThat(json1).isEqualTo(json2);
                 assertThat(scanResult1.getSubclasses(A.class.getName()).getNames()).containsOnly(B.class.getName());
                 assertThat(scanResult2.getSubclasses(A.class.getName()).getNames()).containsOnly(B.class.getName());
