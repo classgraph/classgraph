@@ -32,12 +32,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 
 /** A type variable signature. */
-public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
+public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /** The type variable name. */
     private final String name;
 
@@ -58,6 +58,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
      *            the defining class name.
      */
     private TypeVariableSignature(final String typeVariableName, final String definingClassName) {
+        super();
         this.name = typeVariableName;
         this.definingClassName = definingClassName;
     }
@@ -85,13 +86,11 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
      */
     public TypeParameter resolve() {
         // Try resolving the type variable against the containing method
-        if (containingMethodSignature != null) {
-            if (containingMethodSignature.typeParameters != null
-                    && !containingMethodSignature.typeParameters.isEmpty()) {
-                for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
-                    if (typeParameter.name.equals(this.name)) {
-                        return typeParameter;
-                    }
+        if (containingMethodSignature != null && containingMethodSignature.typeParameters != null
+                && !containingMethodSignature.typeParameters.isEmpty()) {
+            for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
+                if (typeParameter.name.equals(this.name)) {
+                    return typeParameter;
                 }
             }
         }
@@ -101,13 +100,11 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
             throw new IllegalArgumentException("Could not find ClassInfo object for " + definingClassName);
         }
         final ClassTypeSignature containingClassSignature = containingClassInfo.getTypeSignature();
-        if (containingClassSignature != null) {
-            if (containingClassSignature.typeParameters != null
-                    && !containingClassSignature.typeParameters.isEmpty()) {
-                for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {
-                    if (typeParameter.name.equals(this.name)) {
-                        return typeParameter;
-                    }
+        if (containingClassSignature != null && containingClassSignature.typeParameters != null
+                && !containingClassSignature.typeParameters.isEmpty()) {
+            for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {
+                if (typeParameter.name.equals(this.name)) {
+                    return typeParameter;
                 }
             }
         }

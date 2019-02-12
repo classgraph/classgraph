@@ -50,7 +50,7 @@ import io.github.classgraph.ClassGraphException;
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
  */
-public class JSONSerializer {
+public final class JSONSerializer {
 
     /**
      * Constructor.
@@ -79,9 +79,7 @@ public class JSONSerializer {
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final AtomicInteger objId, final boolean onlySerializePublicFields) {
-        if (jsonVal == null) {
-            // No referenced JSON object
-        } else if (jsonVal instanceof JSONObject) {
+        if (jsonVal instanceof JSONObject) {
             for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
                 assignObjectIds(item.getValue(), objToJSONVal, classFieldCache, jsonReferenceToId, objId,
                         onlySerializePublicFields);
@@ -135,6 +133,7 @@ public class JSONSerializer {
             // Link both the JSON representation ob the object to the id
             jsonReferenceToId.put(new ReferenceEqualityKey<>((JSONReference) jsonVal), idStr);
         }
+        // if (jsonVal == null) then do nothing
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -285,11 +284,9 @@ public class JSONSerializer {
             for (int i = 0; i < n && firstNonNullKey == null; i++) {
                 firstNonNullKey = keys.get(i);
             }
-            if (firstNonNullKey != null) {
-                if (Comparable.class.isAssignableFrom(firstNonNullKey.getClass())) {
-                    Collections.sort((ArrayList<Comparable>) keys);
-                    keysComparable = true;
-                }
+            if (firstNonNullKey != null && Comparable.class.isAssignableFrom(firstNonNullKey.getClass())) {
+                Collections.sort((ArrayList<Comparable>) keys);
+                keysComparable = true;
             }
 
             // Serialize keys into string form
@@ -562,8 +559,8 @@ public class JSONSerializer {
         Object fieldValue;
         try {
             fieldValue = JSONUtils.getFieldValue(containingObject, field);
-        } catch (final Exception e) {
-            throw new IllegalArgumentException("Could not parse JSON", e);
+        } catch (final IllegalAccessException e) {
+            throw new IllegalArgumentException("Could get value of field " + fieldName, e);
         }
         return serializeObject(fieldValue, indentWidth, onlySerializePublicFields, classFieldCache);
     }

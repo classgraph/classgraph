@@ -26,9 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.exceptions;
-
-import nonapi.io.github.classgraph.types.Parser;
+package nonapi.io.github.classgraph.types;
 
 /**
  * A parsing exception.

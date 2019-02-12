@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.types;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.json.JSONUtils;
 
 /**
@@ -47,6 +46,12 @@ public class Parser {
     /** Extra parsing state. */
     private Object state;
 
+    /** How much context to show before the current position. */
+    private static final int SHOW_BEFORE = 80;
+
+    /** How much context to show after the current position. */
+    private static final int SHOW_AFTER = 80;
+
     /**
      * Construct a parser.
      * 
@@ -61,12 +66,6 @@ public class Parser {
         }
         this.string = string;
     }
-
-    /** How much context to show before the current position. */
-    private static final int SHOW_BEFORE = 80;
-
-    /** How much context to show after the current position. */
-    private static final int SHOW_AFTER = 80;
 
     /**
      * Get the parsing context as a string, for debugging.

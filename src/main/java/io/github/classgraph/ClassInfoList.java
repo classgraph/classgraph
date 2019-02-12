@@ -726,7 +726,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *             before scanning (since there would be nothing to graph).
      */
     public void generateGraphVizDotFile(final File file) throws IOException {
-        try (final PrintWriter writer = new PrintWriter(file)) {
+        try (PrintWriter writer = new PrintWriter(file)) {
             writer.print(generateGraphVizDotFile());
         }
     }

@@ -42,6 +42,21 @@ public class ModuleReaderProxy implements Closeable {
     /** The module reader. */
     private final AutoCloseable moduleReader;
 
+    /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
+    private static Class<?> collectorClass;
+
+    /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
+    private static Object collectorsToList;
+
+    static {
+        collectorClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collector");
+        final Class<?> collectorsClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collectors");
+        if (collectorsClass != null) {
+            collectorsToList = ReflectionUtils.invokeStaticMethod(collectorsClass, "toList",
+                    /* throwException = */ true);
+        }
+    }
+
     /**
      * Constructor.
      *
@@ -69,19 +84,6 @@ public class ModuleReaderProxy implements Closeable {
             moduleReader.close();
         } catch (final Exception e) {
             // Ignore
-        }
-    }
-
-    /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
-    private static Class<?> collectorClass;
-    /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
-    private static Object collectorsToList;
-    static {
-        collectorClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collector");
-        final Class<?> collectorsClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collectors");
-        if (collectorsClass != null) {
-            collectorsToList = ReflectionUtils.invokeStaticMethod(collectorsClass, "toList",
-                    /* throwException = */ true);
         }
     }
 

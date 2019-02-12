@@ -135,7 +135,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
             if (unusedInstance instanceof AutoCloseable) {
                 try {
                     ((AutoCloseable) unusedInstance).close();
-                } catch (final Throwable e) {
+                } catch (final Exception e) {
                     // Ignore
                 }
             }

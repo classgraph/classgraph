@@ -101,7 +101,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
             final String name = (String) ReflectionUtils.invokeMethod(root, "getName", false);
             if (name != null) {
                 // getParentFile() removes "contents" directory
-                final File file = new java.io.File(physicalFile.getParentFile(), name);
+                final File file = new File(physicalFile.getParentFile(), name);
                 if (FileUtils.canRead(file)) {
                     path = file.getAbsolutePath();
                 } else {

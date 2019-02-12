@@ -44,14 +44,22 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 /**
  * Jarfile utilities.
  */
-public class JarUtils {
+public final class JarUtils {
 
-    /**
-     * Constructor.
-     */
-    private JarUtils() {
-        // Cannot be constructed
-    }
+    /** The Constant DASH_VERSION. */
+    private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");
+
+    /** The Constant NON_ALPHANUM. */
+    private static final Pattern NON_ALPHANUM = Pattern.compile("[^A-Za-z0-9]");
+
+    /** The Constant REPEATING_DOTS. */
+    private static final Pattern REPEATING_DOTS = Pattern.compile("(\\.)(\\1)+");
+
+    /** The Constant LEADING_DOTS. */
+    private static final Pattern LEADING_DOTS = Pattern.compile("^\\.");
+
+    /** The Constant TRAILING_DOTS. */
+    private static final Pattern TRAILING_DOTS = Pattern.compile("\\.$");
 
     /**
      * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
@@ -78,6 +86,13 @@ public class JarUtils {
                 throw new ClassGraphException("Could not find ':' in \"" + UNIX_NON_PATH_SEPARATORS[i] + "\"");
             }
         }
+    }
+
+    /**
+     * Constructor.
+     */
+    private JarUtils() {
+        // Cannot be constructed
     }
 
     /**
@@ -109,7 +124,7 @@ public class JarUtils {
         if (separatorChar != ':') {
             // The fast path for Windows (which uses ';' as a path separator), or for separator other than ':'
             final List<String> partsFiltered = new ArrayList<>();
-            for (final String part : pathStr.split("" + separatorChar)) {
+            for (final String part : pathStr.split(String.valueOf(separatorChar))) {
                 final String partFiltered = part.trim();
                 if (!partFiltered.isEmpty()) {
                     partsFiltered.add(partFiltered);
@@ -127,12 +142,11 @@ public class JarUtils {
                     // Skip ':' characters in the middle of non-path-separators such as "http://"
                     final int startIdx = i - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j];
                     if (pathStr.regionMatches(true, startIdx, UNIX_NON_PATH_SEPARATORS[j], 0,
-                            UNIX_NON_PATH_SEPARATORS[j].length())) {
+                            UNIX_NON_PATH_SEPARATORS[j].length())
+                            && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
                         // Don't treat the "jar:" in the middle of "x.jar:y.jar" as a URL scheme
-                        if (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':') {
-                            foundNonPathSeparator = true;
-                            break;
-                        }
+                        foundNonPathSeparator = true;
+                        break;
                     }
                 }
                 if (!foundNonPathSeparator) {
@@ -231,7 +245,7 @@ public class JarUtils {
      * @return The leafname of the path.
      */
     public static String leafName(final String path) {
-        final int bangIdx = path.indexOf("!");
+        final int bangIdx = path.indexOf('!');
         final int endIdx = bangIdx >= 0 ? bangIdx : path.length();
         int leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
@@ -274,21 +288,6 @@ public class JarUtils {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** The Constant DASH_VERSION. */
-    private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");
-
-    /** The Constant NON_ALPHANUM. */
-    private static final Pattern NON_ALPHANUM = Pattern.compile("[^A-Za-z0-9]");
-
-    /** The Constant REPEATING_DOTS. */
-    private static final Pattern REPEATING_DOTS = Pattern.compile("(\\.)(\\1)+");
-
-    /** The Constant LEADING_DOTS. */
-    private static final Pattern LEADING_DOTS = Pattern.compile("^\\.");
-
-    /** The Constant TRAILING_DOTS. */
-    private static final Pattern TRAILING_DOTS = Pattern.compile("\\.$");
 
     /**
      * Derive automatic module name from jar name, using <a href=

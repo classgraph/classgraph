@@ -486,14 +486,6 @@ class ClasspathElementZip extends ClasspathElement {
         finishScanPaths(subLog);
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ClasspathElement#getPackageRoot()
-     */
-    @Override
-    String getPackageRoot() {
-        return packageRootPrefix;
-    }
-
     /**
      * Get module name from module descriptor, or get the automatic module name from the manifest file, or derive an
      * automatic module name from the jar name.

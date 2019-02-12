@@ -125,17 +125,17 @@ class Scanner implements Callable<ScanResult> {
      * @param topLevelLog
      *            the log
      */
-    Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
+    Scanner(final ScanSpec scanSpec, final AutoCloseableExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler,
             final LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
 
-        this.nestedJarHandler = new NestedJarHandler(scanSpec);
+        this.nestedJarHandler = new NestedJarHandler(scanSpec, executorService.interruptionChecker);
         this.executorService = executorService;
         this.interruptionChecker = executorService instanceof AutoCloseableExecutorService
-                ? ((AutoCloseableExecutorService) executorService).interruptionChecker
+                ? executorService.interruptionChecker
                 : new InterruptionChecker();
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
@@ -237,7 +237,7 @@ class Scanner implements Callable<ScanResult> {
      *            the classpath element order
      */
     private static void findClasspathOrderRec(final ClasspathElement currClasspathElement,
-            final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order) {
+            final Set<ClasspathElement> visitedClasspathElts, final List<ClasspathElement> order) {
         if (visitedClasspathElts.add(currClasspathElement)) {
             if (!currClasspathElement.skipClasspathElement) {
                 // Don't add a classpath element if it is marked to be skipped.
@@ -299,8 +299,8 @@ class Scanner implements Callable<ScanResult> {
             classpathElt.childClasspathElementsOrdered = orderClasspathElements(
                     classpathElt.childClasspathElementsIndexed);
         }
-        final HashSet<ClasspathElement> visitedClasspathElts = new HashSet<>();
-        final ArrayList<ClasspathElement> order = new ArrayList<>();
+        final Set<ClasspathElement> visitedClasspathElts = new HashSet<>();
+        final List<ClasspathElement> order = new ArrayList<>();
         for (final ClasspathElement toplevelClasspathElt : toplevelClasspathEltsOrdered) {
             findClasspathOrderRec(toplevelClasspathElt, visitedClasspathElts, order);
         }
@@ -391,7 +391,7 @@ class Scanner implements Callable<ScanResult> {
                     final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                             classpathEntryPath);
                     // Strip everything after first "!", to get path of base jarfile or dir
-                    final int plingIdx = pathNormalized.indexOf("!");
+                    final int plingIdx = pathNormalized.indexOf('!');
                     final String pathToCanonicalize = plingIdx < 0 ? pathNormalized
                             : pathNormalized.substring(0, plingIdx);
                     // Canonicalize base jarfile or dir (may throw IOException)
@@ -718,9 +718,8 @@ class Scanner implements Callable<ScanResult> {
                                 classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue;
                     }
                 }
-            } else {
-                // Ignore ClasspathElementModule
             }
+            // (Ignore ClasspathElementModule, no preprocessing to perform)
         }
         // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)
         findNestedClasspathElements(classpathEltDirs, classpathFinderLog);
@@ -739,7 +738,7 @@ class Scanner implements Callable<ScanResult> {
      *            the mask log
      */
     private void maskClassfiles(final List<ClasspathElement> classpathElementOrder, final LogNode maskLog) {
-        final HashSet<String> whitelistedClasspathRelativePathsFound = new HashSet<>();
+        final Set<String> whitelistedClasspathRelativePathsFound = new HashSet<>();
         for (int classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
             final ClasspathElement classpathElement = classpathElementOrder.get(classpathIdx);
             classpathElement.maskClassfiles(classpathIdx, whitelistedClasspathRelativePathsFound, maskLog);
@@ -1029,36 +1028,34 @@ class Scanner implements Callable<ScanResult> {
                 // and close resources, zipfiles, and modules
                 nestedJarHandler.close(topLevelLog);
             }
+        }
 
-            if (exception != null) {
-                // If an exception was thrown, log the cause, and flush the toplevel log
-                if (topLevelLog != null) {
-                    final Throwable cause = InterruptionChecker.getCause(exception);
-                    topLevelLog.log("~", "An uncaught exception was thrown:", cause);
-                    topLevelLog.flush();
-                }
+        if (exception != null) {
+            // If an exception was thrown, log the cause, and flush the toplevel log
+            if (topLevelLog != null) {
+                final Throwable cause = InterruptionChecker.getCause(exception);
+                topLevelLog.log("~", "An uncaught exception was thrown:", cause);
+                topLevelLog.flush();
+            }
 
-                // Call the failure handler, if one is set
-                if (failureHandler != null) {
-                    try {
-                        // Call the FailureHandler
-                        failureHandler.onFailure(exception);
-                        // The return value is discarded when using a failureHandler -- just return null
-                        return null;
-                    } catch (final Exception f) {
-                        // The failure handler failed
-                        if (topLevelLog != null) {
-                            topLevelLog.log("~", "The failure handler threw an exception:", f);
-                        }
-                        // Group the two exceptions into one, using the suppressed exception mechanism
-                        // to show the scan exception below the failure handler exception
-                        final ClassGraphException failureHandlerException = new ClassGraphException(
-                                "Exception while calling failure handler", f);
-                        failureHandlerException.addSuppressed(exception);
-                        // Throw a new ClassGraph exception (although this will probably be ignored,
-                        // since job was started with ExecutorService::execute rather than ::submit)  
-                        throw failureHandlerException;
+            // Call the failure handler, if one is set
+            if (failureHandler != null) {
+                try {
+                    // Call the FailureHandler
+                    failureHandler.onFailure(exception);
+                } catch (final Exception f) {
+                    // The failure handler failed
+                    if (topLevelLog != null) {
+                        topLevelLog.log("~", "The failure handler threw an exception:", f);
                     }
+                    // Group the two exceptions into one, using the suppressed exception mechanism
+                    // to show the scan exception below the failure handler exception
+                    final ClassGraphException failureHandlerException = new ClassGraphException(
+                            "Exception while calling failure handler", f);
+                    failureHandlerException.addSuppressed(exception);
+                    // Throw a new ClassGraph exception (although this will probably be ignored,
+                    // since job was started with ExecutorService::execute rather than ::submit)  
+                    throw failureHandlerException;
                 }
             }
         }

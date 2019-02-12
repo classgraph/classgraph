@@ -34,6 +34,7 @@ import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -46,7 +47,7 @@ import io.github.classgraph.ClassGraph;
  * A tree-structured threadsafe log that allows you to add log entries in arbitrary order, and have the output
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
-public class LogNode {
+public final class LogNode {
 
     /** The Constant log. */
     private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
@@ -81,13 +82,14 @@ public class LogNode {
     private static AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
 
     /** The date/time formatter (not threadsafe). */
-    private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
+    private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ",
+            Locale.US);
 
     /** The elapsed time formatter. */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
     /** If true, log entries are output in realtime, as well as added to the LogNode tree. */
-    private static boolean LOG_IN_REALTIME = false;
+    private static boolean LOG_IN_REALTIME;
 
     /**
      * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can

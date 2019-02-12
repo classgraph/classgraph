@@ -217,7 +217,7 @@ class ClasspathElementDir extends ClasspathElement {
                     MappedByteBuffer buffer = null;
                     try {
                         buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                    } catch (final FileNotFoundException e) {
+                    } catch (final FileNotFoundException | NonReadableChannelException e) {
                         throw e;
                     } catch (IOException | OutOfMemoryError e) {
                         // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
@@ -230,7 +230,7 @@ class ClasspathElementDir extends ClasspathElement {
                     byteBuffer = buffer;
                     length = byteBuffer.remaining();
                     return byteBuffer;
-                } catch (final IOException | SecurityException | NonReadableChannelException e) {
+                } catch (final IOException | SecurityException | NonReadableChannelException | OutOfMemoryError e) {
                     close();
                     throw new IOException("Could not open " + this, e);
                 }

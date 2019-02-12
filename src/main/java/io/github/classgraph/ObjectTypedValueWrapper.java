@@ -106,6 +106,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
 
     /** Default constructor for deserialization. */
     public ObjectTypedValueWrapper() {
+        super();
     }
 
     /**
@@ -115,6 +116,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      *            annotation parameter value
      */
     public ObjectTypedValueWrapper(final Object annotationParamValue) {
+        super();
         if (annotationParamValue != null) {
             final Class<?> annotationParameterValueClass = annotationParamValue.getClass();
             if (annotationParameterValueClass.isArray()) {

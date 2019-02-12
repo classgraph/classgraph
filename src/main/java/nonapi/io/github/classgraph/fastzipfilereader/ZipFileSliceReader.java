@@ -70,8 +70,10 @@ class ZipFileSliceReader implements AutoCloseable {
      * @return the chunk
      * @throws IOException
      *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    private ByteBuffer getChunk(final int chunkIdx) throws IOException {
+    private ByteBuffer getChunk(final int chunkIdx) throws IOException, InterruptedException {
         ByteBuffer chunk = chunkCache[chunkIdx];
         if (chunk == null) {
             final ByteBuffer byteBufferDup = zipFileSlice.physicalZipFile.getByteBuffer(chunkIdx).duplicate();
@@ -95,8 +97,11 @@ class ZipFileSliceReader implements AutoCloseable {
      * @return the number of bytes read
      * @throws IOException
      *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    int read(final long off, final byte[] buf, final int bufStart, final int numBytesToRead) throws IOException {
+    int read(final long off, final byte[] buf, final int bufStart, final int numBytesToRead)
+            throws IOException, InterruptedException {
         if (off < 0 || bufStart < 0 || bufStart + numBytesToRead > buf.length) {
             throw new IndexOutOfBoundsException();
         }
@@ -162,8 +167,10 @@ class ZipFileSliceReader implements AutoCloseable {
      * @return the short
      * @throws IOException
      *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    int getShort(final long off) throws IOException {
+    int getShort(final long off) throws IOException, InterruptedException {
         if (off < 0 || off > zipFileSlice.len - 2) {
             throw new IndexOutOfBoundsException();
         }
@@ -203,8 +210,10 @@ class ZipFileSliceReader implements AutoCloseable {
      * @return the int
      * @throws IOException
      *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    int getInt(final long off) throws IOException {
+    int getInt(final long off) throws IOException, InterruptedException {
         if (off < 0 || off > zipFileSlice.len - 4) {
             throw new IndexOutOfBoundsException();
         }
@@ -253,8 +262,10 @@ class ZipFileSliceReader implements AutoCloseable {
      * @return the long
      * @throws IOException
      *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    long getLong(final long off) throws IOException {
+    long getLong(final long off) throws IOException, InterruptedException {
         if (off < 0 || off > zipFileSlice.len - 8) {
             throw new IndexOutOfBoundsException();
         }
@@ -304,8 +315,10 @@ class ZipFileSliceReader implements AutoCloseable {
      * @return the string
      * @throws IOException
      *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    String getString(final long off, final int lenBytes) throws IOException {
+    String getString(final long off, final int lenBytes) throws IOException, InterruptedException {
         if (off < 0 || off > zipFileSlice.len - lenBytes) {
             throw new IndexOutOfBoundsException();
         }

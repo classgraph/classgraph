@@ -182,7 +182,7 @@ public class AnnotationParameterValue extends ScanResultObject
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
-        toStringBuf(buf);
+        toString(buf);
         return buf.toString();
     }
 
@@ -192,10 +192,10 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param buf
      *            the buf
      */
-    void toStringBuf(final StringBuilder buf) {
+    void toString(final StringBuilder buf) {
         buf.append(name);
         buf.append(" = ");
-        toStringBufParamValueOnly(buf);
+        toStringParamValueOnly(buf);
     }
 
     /**
@@ -204,7 +204,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param buf
      *            the buf
      */
-    void toStringBufParamValueOnly(final StringBuilder buf) {
+    void toStringParamValueOnly(final StringBuilder buf) {
         if (value == null) {
             buf.append("null");
         } else {

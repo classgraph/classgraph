@@ -33,11 +33,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
 /** A method type signature (called "MethodSignature" in the classfile documentation). */
-public class MethodTypeSignature extends HierarchicalTypeSignature {
+public final class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The method type parameters. */
     final List<TypeParameter> typeParameters;
 
@@ -66,6 +66,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     private MethodTypeSignature(final List<TypeParameter> typeParameters, final List<TypeSignature> paramTypes,
             final TypeSignature resultType, final List<ClassRefOrTypeVariableSignature> throwsSignatures) {
+        super();
         this.typeParameters = typeParameters;
         this.parameterTypeSignatures = paramTypes;
         this.resultType = resultType;

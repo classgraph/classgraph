@@ -82,7 +82,7 @@ public class ClasspathFinder {
      */
     private boolean addClassLoaderHandler(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry,
-            final LinkedHashSet<ClassLoader> foundClassLoaders,
+            final Set<ClassLoader> foundClassLoaders,
             final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
@@ -169,7 +169,7 @@ public class ClasspathFinder {
      *            the log
      */
     private void findClassLoaderHandlerForClassLoaderAndParents(final ScanSpec scanSpec,
-            final ClassLoader classLoader, final LinkedHashSet<ClassLoader> foundClassLoaders,
+            final ClassLoader classLoader, final Set<ClassLoader> foundClassLoaders,
             final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
@@ -266,12 +266,9 @@ public class ClasspathFinder {
                 : null;
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
-            if (scanSpec.overrideClassLoaders != null) {
-                if (classpathFinderLog != null) {
-                    classpathFinderLog
-                            .log("It is not possible to override both the classpath and the ClassLoaders -- "
-                                    + "ignoring the ClassLoader override");
-                }
+            if (scanSpec.overrideClassLoaders != null && classpathFinderLog != null) {
+                classpathFinderLog.log("It is not possible to override both the classpath and the ClassLoaders -- "
+                        + "ignoring the ClassLoader override");
             }
             final LogNode overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
@@ -326,7 +323,7 @@ public class ClasspathFinder {
                                 "Finding classpath elements in ClassLoader " + classLoader.getClass().getName());
                 try {
                     classLoaderHandler.handle(scanSpec, classLoader, classpathOrder, classLoaderClasspathLog);
-                } catch (final Throwable e) {
+                } catch (final RuntimeException | LinkageError e) {
                     if (classLoaderClasspathLog != null) {
                         classLoaderClasspathLog.log("Exception in ClassLoaderHandler", e);
                     }
@@ -344,7 +341,7 @@ public class ClasspathFinder {
                 try {
                     classLoaderHandler.handle(scanSpec, classLoader, ignoredClasspathOrder,
                             classLoaderClasspathLog);
-                } catch (final Throwable e) {
+                } catch (final RuntimeException | LinkageError e) {
                     if (classLoaderClasspathLog != null) {
                         classLoaderClasspathLog.log("Exception in ClassLoaderHandler", e);
                     }

@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Set;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
-public class ReflectionUtils {
+public final class ReflectionUtils {
 
     // In JDK 9+, could use MethodHandles.privateLookupIn
     // And then use getter lookup to get fields (which works even if there is no getter function defined):
@@ -172,10 +172,8 @@ public class ReflectionUtils {
         final Set<Class<?>> addedIfaces = new HashSet<>();
         final LinkedList<Class<?>> ifaceQueue = new LinkedList<>();
         for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-            if (c.isInterface()) {
-                if (addedIfaces.add(c)) {
-                    ifaceQueue.add(c);
-                }
+            if (c.isInterface() && addedIfaces.add(c)) {
+                ifaceQueue.add(c);
             }
             for (final Class<?> iface : c.getInterfaces()) {
                 if (addedIfaces.add(iface)) {
@@ -381,7 +379,7 @@ public class ReflectionUtils {
     public static Class<?> classForNameOrNull(final String className) {
         try {
             return Class.forName(className);
-        } catch (final Exception e) {
+        } catch (final ReflectiveOperationException | LinkageError e) {
             return null;
         }
     }

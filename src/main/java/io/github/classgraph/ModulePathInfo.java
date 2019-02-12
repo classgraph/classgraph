@@ -157,39 +157,45 @@ public class ModulePathInfo {
      */
     @Override
     public String toString() {
-        final StringBuilder buf = new StringBuilder();
+        final StringBuilder buf = new StringBuilder(1024);
         if (!modulePath.isEmpty()) {
-            buf.append("--module-path=" + Join.join(File.pathSeparator, modulePath));
+            buf.append("--module-path=");
+            buf.append(Join.join(File.pathSeparator, modulePath));
         }
         if (!addModules.isEmpty()) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("--add-modules=" + Join.join(",", addModules));
+            buf.append("--add-modules=");
+            buf.append(Join.join(",", addModules));
         }
         for (final String patchModulesEntry : patchModules) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("--patch-module=" + patchModulesEntry);
+            buf.append("--patch-module=");
+            buf.append(patchModulesEntry);
         }
         for (final String addExportsEntry : addExports) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("--add-exports=" + addExportsEntry);
+            buf.append("--add-exports=");
+            buf.append(addExportsEntry);
         }
         for (final String addOpensEntry : addOpens) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("--add-opens=" + addOpensEntry);
+            buf.append("--add-opens=");
+            buf.append(addOpensEntry);
         }
         for (final String addReadsEntry : addReads) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("--add-reads=" + addReadsEntry);
+            buf.append("--add-reads=");
+            buf.append(addReadsEntry);
         }
         return buf.toString();
     }

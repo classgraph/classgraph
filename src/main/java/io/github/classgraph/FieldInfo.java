@@ -32,7 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 
@@ -74,6 +74,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
 
     /** Default constructor for deserialization. */
     FieldInfo() {
+        super();
     }
 
     /**
@@ -97,6 +98,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constantInitializerValue,
             final AnnotationInfoList annotationInfo) {
+        super();
         if (fieldName == null) {
             throw new IllegalArgumentException();
         }
@@ -462,10 +464,10 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             final Object val = constantInitializerValue.get();
             buf.append(" = ");
             if (val instanceof String) {
-                buf.append("\"").append(((String) val).replace("\\", "\\\\").replace("\"", "\\\"")).append("\"");
+                buf.append('"').append(((String) val).replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
             } else if (val instanceof Character) {
-                buf.append("'").append(((Character) val).toString().replace("\\", "\\\\").replaceAll("'", "\\'"))
-                        .append("'");
+                buf.append('\'').append(((Character) val).toString().replace("\\", "\\\\").replaceAll("'", "\\'"))
+                        .append('\'');
             } else {
                 buf.append(val.toString());
             }

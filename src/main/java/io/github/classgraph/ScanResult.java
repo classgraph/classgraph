@@ -111,10 +111,40 @@ public final class ScanResult implements Closeable, AutoCloseable {
     final ScanSpec scanSpec;
 
     /** If true, this ScanResult has already been closed. */
-    private volatile AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /** The log. */
     final LogNode log;
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Shutdown hook
+
+    /** The {@link WeakReference} for this ScanResult. */
+    private final WeakReference<ScanResult> weakReference;
+
+    /**
+     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
+     * not blocked. (Bug #233)
+     */
+    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
+            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+
+    static {
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
+                        nonClosedWeakReferences)) {
+                    final ScanResult scanResult = nonClosedWeakReference.get();
+                    if (scanResult != null) {
+                        scanResult.close();
+                    }
+                    nonClosedWeakReferences.remove(nonClosedWeakReference);
+                }
+            }
+        });
+    }
 
     // -------------------------------------------------------------------------------------------------------------
     // Constructor
@@ -433,10 +463,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 final String relativePath = classpathResource.getPath();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
                 final int lastDotIdx = relativePath.lastIndexOf('.');
-                if (lastDotIdx > lastSlashIdx) {
-                    if (relativePath.substring(lastDotIdx + 1).equalsIgnoreCase(bareExtension)) {
-                        filteredResources.add(classpathResource);
-                    }
+                if (lastDotIdx > lastSlashIdx
+                        && relativePath.substring(lastDotIdx + 1).equalsIgnoreCase(bareExtension)) {
+                    filteredResources.add(classpathResource);
                 }
             }
             return filteredResources;
@@ -1179,34 +1208,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Shutdown hook / close()
-
-    /** The {@link WeakReference} for this ScanResult. */
-    private final WeakReference<ScanResult> weakReference;
-
-    /**
-     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
-     * not blocked. (Bug #233)
-     */
-    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
-            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
-
-    static {
-        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
-                        nonClosedWeakReferences)) {
-                    final ScanResult scanResult = nonClosedWeakReference.get();
-                    if (scanResult != null) {
-                        scanResult.close();
-                    }
-                    nonClosedWeakReferences.remove(nonClosedWeakReference);
-                }
-            }
-        });
-    }
 
     /**
      * Free any temporary files created by extracting jars or files from within jars. Without calling this method,

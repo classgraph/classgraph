@@ -34,5 +34,5 @@ package nonapi.io.github.classgraph.recycler;
  */
 public interface Resettable {
     /** Reset a recycleable object (called when the object is recycled). */
-    public void reset();
+    void reset();
 }

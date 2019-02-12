@@ -31,14 +31,7 @@ package nonapi.io.github.classgraph.utils;
 import java.nio.charset.StandardCharsets;
 
 /** A simple URL path encoder. */
-public class URLPathEncoder {
-
-    /**
-     * Constructor.
-     */
-    private URLPathEncoder() {
-        // Cannot be constructed
-    }
+public final class URLPathEncoder {
 
     /** Whether an ASCII character is URL-safe. */
     private static boolean[] safe = new boolean[256];
@@ -67,6 +60,13 @@ public class URLPathEncoder {
 
     /** Valid classpath URL scheme prefixes. */
     private static final String[] SCHEME_PREFIXES = { "jrt:", "file:", "jar:file:", "jar:", "http:", "https:" };
+
+    /**
+     * Constructor.
+     */
+    private URLPathEncoder() {
+        // Cannot be constructed
+    }
 
     /**
      * Encode a URL path using percent-encoding. '/' is not encoded.

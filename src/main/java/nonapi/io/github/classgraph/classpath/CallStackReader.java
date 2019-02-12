@@ -65,12 +65,12 @@ class CallStackReader {
             final Class<?> consumerClass = Class.forName("java.util.function.Consumer");
             final List<Class<?>> stackFrameClasses = new ArrayList<>();
             final Class<?> stackWalkerOptionClass = Class.forName("java.lang.StackWalker$Option");
-            final Object RETAIN_CLASS_REFERENCE = Class.forName("java.lang.Enum")
+            final Object retainClassReference = Class.forName("java.lang.Enum")
                     .getMethod("valueOf", Class.class, String.class)
                     .invoke(null, stackWalkerOptionClass, "RETAIN_CLASS_REFERENCE");
             final Class<?> stackWalkerClass = Class.forName("java.lang.StackWalker");
             final Object stackWalkerInstance = stackWalkerClass.getMethod("getInstance", stackWalkerOptionClass)
-                    .invoke(null, RETAIN_CLASS_REFERENCE);
+                    .invoke(null, retainClassReference);
             final Method stackFrameGetDeclaringClassMethod = Class.forName("java.lang.StackWalker$StackFrame")
                     .getMethod("getDeclaringClass");
             stackWalkerClass.getMethod("forEach", consumerClass).invoke(stackWalkerInstance, //
@@ -175,7 +175,7 @@ class CallStackReader {
                 for (final StackTraceElement elt : e.getStackTrace()) {
                     try {
                         classes.add(Class.forName(elt.getClassName()));
-                    } catch (final Throwable ignored) {
+                    } catch (final ClassNotFoundException | LinkageError ignored) {
                         // Ignored
                     }
                 }

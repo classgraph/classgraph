@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import io.github.classgraph.ClassGraphException;
+import nonapi.io.github.classgraph.types.ParseException;
 
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
@@ -533,7 +534,7 @@ public class JSONDeserializer {
                                 throw new IllegalArgumentException("Got illegal type");
                             }
                         }
-                    } catch (final Exception e) {
+                    } catch (final ReflectiveOperationException | SecurityException e) {
                         throw new IllegalArgumentException("Could not instantiate type " + resolvedItemValueType,
                                 e);
                     }
@@ -601,9 +602,9 @@ public class JSONDeserializer {
      *            the parsed JSON
      * @return the initial id to object map
      */
-    private static HashMap<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
+    private static Map<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
             final Object parsedJSON) {
-        final HashMap<CharSequence, Object> idToObjectInstance = new HashMap<>();
+        final Map<CharSequence, Object> idToObjectInstance = new HashMap<>();
         if (parsedJSON instanceof JSONObject) {
             final JSONObject itemJsonObject = (JSONObject) parsedJSON;
             if (!itemJsonObject.items.isEmpty()) {
@@ -645,7 +646,7 @@ public class JSONDeserializer {
         Object parsedJSON;
         try {
             parsedJSON = JSONParser.parseJSON(json);
-        } catch (final Exception e) {
+        } catch (final ParseException e) {
             throw new IllegalArgumentException("Could not parse JSON", e);
         }
 
@@ -656,7 +657,7 @@ public class JSONDeserializer {
             @SuppressWarnings("unchecked")
             final T newInstance = (T) constructor.newInstance();
             objectInstance = newInstance;
-        } catch (final Exception e) {
+        } catch (final ReflectiveOperationException | SecurityException e) {
             throw new IllegalArgumentException("Could not construct object of type " + expectedType.getName(), e);
         }
 
@@ -719,7 +720,7 @@ public class JSONDeserializer {
         Object parsedJSON;
         try {
             parsedJSON = JSONParser.parseJSON(json);
-        } catch (final Exception e) {
+        } catch (final ParseException e) {
             throw new IllegalArgumentException("Could not parse JSON", e);
         }
 

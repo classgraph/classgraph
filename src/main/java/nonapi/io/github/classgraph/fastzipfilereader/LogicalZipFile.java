@@ -94,6 +94,41 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** {@code "META-INF/versions/"}. */
     public static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
 
+    /** The {@code "Implementation-Title"} manifest key. */
+    private static final byte[] IMPLEMENTATION_TITLE_KEY = manifestKeyToBytes("Implementation-Title");
+
+    /** The {@code "Specification-Title"} manifest key. */
+    private static final byte[] SPECIFICATION_TITLE_KEY = manifestKeyToBytes("Specification-Title");
+
+    /** The {@code "Class-Path"} manifest key. */
+    private static final byte[] CLASS_PATH_KEY = manifestKeyToBytes("Class-Path");
+
+    /** The {@code "Spring-Boot-Classes"} manifest key. */
+    private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
+
+    /** The {@code "Spring-Boot-Lib"} manifest key. */
+    private static final byte[] SPRING_BOOT_LIB_KEY = manifestKeyToBytes("Spring-Boot-Lib");
+
+    /** The {@code "Multi-Release"} manifest key. */
+    private static final byte[] MULTI_RELEASE_KEY = manifestKeyToBytes("Multi-Release");
+
+    /** The {@code "Add-Exports"} manifest key. */
+    private static final byte[] ADD_EXPORTS_KEY = manifestKeyToBytes("Add-Exports");
+
+    /** The {@code "Add-Opens"} manifest key. */
+    private static final byte[] ADD_OPENS_KEY = manifestKeyToBytes("Add-Opens");
+
+    /** The {@code "Automatic-Module-Name"} manifest key. */
+    private static final byte[] AUTOMATIC_MODULE_NAME_KEY = manifestKeyToBytes("Automatic-Module-Name");
+
+    /** For quickly converting ASCII characters to lower case. */
+    private static byte[] toLowerCase = new byte[256];
+    static {
+        for (int i = 32; i < 127; i++) {
+            toLowerCase[i] = (byte) Character.toLowerCase((char) i);
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -105,8 +140,10 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
      *            the log
      * @throws IOException
      *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException {
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException, InterruptedException {
         super(zipFileSlice);
         try (RecycleOnClose<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycleOnClose = //
                 zipFileSliceReaderRecycler.acquireRecycleOnClose()) {
@@ -205,41 +242,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         return bytes;
     }
 
-    /** The {@code "Implementation-Title"} manifest key. */
-    private static final byte[] IMPLEMENTATION_TITLE_KEY = manifestKeyToBytes("Implementation-Title");
-
-    /** The {@code "Specification-Title"} manifest key. */
-    private static final byte[] SPECIFICATION_TITLE_KEY = manifestKeyToBytes("Specification-Title");
-
-    /** The {@code "Class-Path"} manifest key. */
-    private static final byte[] CLASS_PATH_KEY = manifestKeyToBytes("Class-Path");
-
-    /** The {@code "Spring-Boot-Classes"} manifest key. */
-    private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
-
-    /** The {@code "Spring-Boot-Lib"} manifest key. */
-    private static final byte[] SPRING_BOOT_LIB_KEY = manifestKeyToBytes("Spring-Boot-Lib");
-
-    /** The {@code "Multi-Release"} manifest key. */
-    private static final byte[] MULTI_RELEASE_KEY = manifestKeyToBytes("Multi-Release");
-
-    /** The {@code "Add-Exports"} manifest key. */
-    private static final byte[] ADD_EXPORTS_KEY = manifestKeyToBytes("Add-Exports");
-
-    /** The {@code "Add-Opens"} manifest key. */
-    private static final byte[] ADD_OPENS_KEY = manifestKeyToBytes("Add-Opens");
-
-    /** The {@code "Automatic-Module-Name"} manifest key. */
-    private static final byte[] AUTOMATIC_MODULE_NAME_KEY = manifestKeyToBytes("Automatic-Module-Name");
-
-    /** For quickly converting ASCII characters to lower case. */
-    private static byte[] toLowerCase = new byte[256];
-    static {
-        for (int i = 32; i < 127; i++) {
-            toLowerCase[i] = (byte) Character.toLowerCase((char) i);
-        }
-    }
-
     /**
      * Key matches at position.
      *
@@ -273,8 +275,11 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
      *            the log
      * @throws IOException
      *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             If the thread was interrupted.
      */
-    private void parseManifest(final FastZipEntry manifestZipEntry, final LogNode log) throws IOException {
+    private void parseManifest(final FastZipEntry manifestZipEntry, final LogNode log)
+            throws IOException, InterruptedException {
         // Load contents of manifest entry as a byte array
         final byte[] manifest = manifestZipEntry.load();
 
@@ -411,9 +416,11 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
      *            the log
      * @throws IOException
      *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
     private void readCentralDirectory(final ZipFileSliceReader zipFileSliceReader, final LogNode log)
-            throws IOException {
+            throws IOException, InterruptedException {
         // Scan for End Of Central Directory (EOCD) signature
         long eocdPos = -1;
         for (long i = len - 22; i >= 0; --i) {

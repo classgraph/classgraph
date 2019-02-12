@@ -33,11 +33,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
 /** A type argument. */
-public class TypeArgument extends HierarchicalTypeSignature {
+public final class TypeArgument extends HierarchicalTypeSignature {
     /** A type wildcard. */
     public enum Wildcard {
         /** No wildcard. */
@@ -70,6 +70,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
      *            The type signature
      */
     private TypeArgument(final Wildcard wildcard, final ReferenceTypeSignature typeSignature) {
+        super();
         this.wildcard = wildcard;
         this.typeSignature = typeSignature;
     }

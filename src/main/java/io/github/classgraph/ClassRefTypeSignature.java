@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.utils.Join;

@@ -32,11 +32,11 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -185,8 +185,7 @@ abstract class ClasspathElement {
      * @param log
      *            the log
      */
-    void maskClassfiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound,
-            final LogNode log) {
+    void maskClassfiles(final int classpathIdx, final Set<String> classpathRelativePathsFound, final LogNode log) {
         if (!scanSpec.performScan) {
             // Should not happen
             throw new IllegalArgumentException("performScan is false");
@@ -372,17 +371,4 @@ abstract class ClasspathElement {
      * @return the module name
      */
     abstract String getModuleName();
-
-    /**
-     * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
-     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes". N.B. for non-modules, this
-     * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the
-     * package root (after extracting nested jars).
-     *
-     * @return the package root
-     */
-    String getPackageRoot() {
-        // Overridden in ClasspathElementZip
-        return "";
-    }
 }

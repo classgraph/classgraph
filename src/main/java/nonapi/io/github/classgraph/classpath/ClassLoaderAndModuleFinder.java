@@ -178,15 +178,12 @@ public class ClassLoaderAndModuleFinder {
                     for (final Object /* ResolvedModule */ module : modules) {
                         final Object /* ModuleReference */ moduleReference = ReflectionUtils.invokeMethod(module,
                                 "reference", /* throwException = */ true);
-                        if (moduleReference != null) {
-                            if (addedModules.add(moduleReference)) {
-                                try {
-                                    modulesInLayer.add(new ModuleRef(moduleReference, layer));
-                                } catch (final Exception e) {
-                                    if (log != null) {
-                                        log.log("Exception while creating ModuleRef for module " + moduleReference,
-                                                e);
-                                    }
+                        if (moduleReference != null && addedModules.add(moduleReference)) {
+                            try {
+                                modulesInLayer.add(new ModuleRef(moduleReference, layer));
+                            } catch (final IllegalArgumentException e) {
+                                if (log != null) {
+                                    log.log("Exception while creating ModuleRef for module " + moduleReference, e);
                                 }
                             }
                         }
@@ -356,7 +353,7 @@ public class ClassLoaderAndModuleFinder {
         // Log all identified ClassLoaders
         if (classLoadersFoundLog != null) {
             for (final ClassLoader classLoader : classLoaderFinalOrder) {
-                classLoadersFoundLog.log("" + classLoader.getClass().getName());
+                classLoadersFoundLog.log(classLoader.getClass().getName());
             }
         }
 

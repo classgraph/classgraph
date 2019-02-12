@@ -106,8 +106,10 @@ public class ZipFileSlice {
      *            the zip entry
      * @throws IOException
      *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             If the thread was interrupted.
      */
-    ZipFileSlice(final FastZipEntry zipEntry) throws IOException {
+    ZipFileSlice(final FastZipEntry zipEntry) throws IOException, InterruptedException {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
         this.physicalZipFile = zipEntry.parentLogicalZipFile.physicalZipFile;
         this.startOffsetWithinPhysicalZipFile = zipEntry.getEntryDataStartOffsetWithinPhysicalZipFile();
@@ -142,13 +144,9 @@ public class ZipFileSlice {
      *         jarfile white/blacklist.
      */
     public boolean isWhitelistedAndNotBlacklisted(final WhiteBlackListLeafname jarWhiteBlackList) {
-        if (!jarWhiteBlackList.isWhitelistedAndNotBlacklisted(name)) {
-            return false;
-        }
-        if (parentZipFileSlice != null && !parentZipFileSlice.isWhitelistedAndNotBlacklisted(jarWhiteBlackList)) {
-            return false;
-        }
-        return true;
+        return jarWhiteBlackList.isWhitelistedAndNotBlacklisted(name) //
+                && (parentZipFileSlice == null
+                        || parentZipFileSlice.isWhitelistedAndNotBlacklisted(jarWhiteBlackList));
     }
 
     /**

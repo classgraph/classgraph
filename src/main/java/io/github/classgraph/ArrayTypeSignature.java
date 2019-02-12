@@ -30,7 +30,7 @@ package io.github.classgraph;
 
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
 /** An array type signature. */

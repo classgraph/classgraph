@@ -47,14 +47,6 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * The scanning specification.
  */
 public class ScanSpec {
-
-    /** Constructor for deserialization. */
-    public ScanSpec() {
-        // Intentionally empty
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** Package white/blacklist (with separator '.'). */
     public final WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
 
@@ -92,19 +84,6 @@ public class ScanSpec {
     /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
     public final WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
 
-    /** Sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
-    public void sortPrefixes() {
-        for (final Field field : ScanSpec.class.getDeclaredFields()) {
-            if (WhiteBlackList.class.isAssignableFrom(field.getType())) {
-                try {
-                    ((WhiteBlackList) field.get(this)).sortPrefixes();
-                } catch (final Exception e) {
-                    throw new ClassGraphException("Field is not accessible: " + field, e);
-                }
-            }
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** If true, performing a scan. If false, only fetching the classpath. */
@@ -123,44 +102,44 @@ public class ScanSpec {
     public boolean scanModules = true;
 
     /** If true, scan classfile bytecodes, producing {@link ClassInfo} objects. */
-    public boolean enableClassInfo = false;
+    public boolean enableClassInfo;
 
     /**
      * If true, enables the saving of field info during the scan. This information can be obtained using
      * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
      */
-    public boolean enableFieldInfo = false;
+    public boolean enableFieldInfo;
 
     /**
      * If true, enables the saving of method info during the scan. This information can be obtained using
      * {@link ClassInfo#getMethodInfo()}. By default, method info is not scanned, for efficiency.
      */
-    public boolean enableMethodInfo = false;
+    public boolean enableMethodInfo;
 
     /**
      * If true, enables the saving of annotation info (for class, field, method or method parameter annotations)
      * during the scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()} etc. By
      * default, annotation info is not scanned, for efficiency.
      */
-    public boolean enableAnnotationInfo = false;
+    public boolean enableAnnotationInfo;
 
     /** Enable the storing of constant initializer values for static final fields in ClassInfo objects. */
-    public boolean enableStaticFinalFieldConstantInitializerValues = false;
+    public boolean enableStaticFinalFieldConstantInitializerValues;
 
     /** If true, enables the determination of inter-class dependencies. */
-    public boolean enableInterClassDependencies = false;
+    public boolean enableInterClassDependencies;
 
     /**
      * If true, allow external classes (classes outside of whitelisted packages) to be returned in the ScanResult,
      * if they are directly referred to by a whitelisted class, as a superclass, implemented interface or
      * annotation. Disabled by default.
      */
-    public boolean enableExternalClasses = false;
+    public boolean enableExternalClasses;
 
     /**
      * If true, system jarfiles (rt.jar) and system packages and modules (java.*, jre.*, etc.) should be scanned .
      */
-    public boolean enableSystemJarsAndModules = false;
+    public boolean enableSystemJarsAndModules;
 
     /**
      * If true, ignore class visibility. If false, classes must be public to be scanned.
@@ -170,17 +149,17 @@ public class ScanSpec {
     /**
      * If true, ignore field visibility. If false, fields must be public to be scanned.
      */
-    public boolean ignoreFieldVisibility = false;
+    public boolean ignoreFieldVisibility;
 
     /**
      * If true, ignore method visibility. If false, methods must be public to be scanned.
      */
-    public boolean ignoreMethodVisibility = false;
+    public boolean ignoreMethodVisibility;
 
     /**
      * If true, don't scan runtime-invisible annotations (only scan annotations with RetentionPolicy.RUNTIME).
      */
-    public boolean disableRuntimeInvisibleAnnotations = false;
+    public boolean disableRuntimeInvisibleAnnotations;
 
     /**
      * If true, when classes have superclasses, implemented interfaces or annotations that are external classes,
@@ -194,7 +173,7 @@ public class ScanSpec {
      * default as this may present a security vulnerability, since classes from downloaded jars can be subsequently
      * loaded using {@link ClassInfo#loadClass}.
      */
-    public boolean enableRemoteJarScanning = false;
+    public boolean enableRemoteJarScanning;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -226,23 +205,45 @@ public class ScanSpec {
     public transient List<ClasspathElementFilter> classpathElementFilters;
 
     /** Whether to initialize classes when loading them. */
-    public transient boolean initializeLoadedClasses = false;
+    public transient boolean initializeLoadedClasses;
 
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
      * temporary directory (e.g. /tmp/ClassGraph-8JX2u4w) after the scan has completed. If false, temporary files
      * are removed by the {@link ScanResult} finalizer, or on JVM exit.
      */
-    public transient boolean removeTemporaryFilesAfterScan = false;
+    public transient boolean removeTemporaryFilesAfterScan;
 
     /** If true, do not fetch paths from parent classloaders. */
-    public transient boolean ignoreParentClassLoaders = false;
+    public transient boolean ignoreParentClassLoaders;
 
     /** If true, do not scan module layers that are the parent of other module layers. */
-    public transient boolean ignoreParentModuleLayers = false;
+    public transient boolean ignoreParentModuleLayers;
 
     /** Commandline module path parameters. */
     public ModulePathInfo modulePathInfo = new ModulePathInfo();
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Constructor for deserialization. */
+    public ScanSpec() {
+        // Intentionally empty
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
+    public void sortPrefixes() {
+        for (final Field field : ScanSpec.class.getDeclaredFields()) {
+            if (WhiteBlackList.class.isAssignableFrom(field.getType())) {
+                try {
+                    ((WhiteBlackList) field.get(this)).sortPrefixes();
+                } catch (final ReflectiveOperationException e) {
+                    throw new ClassGraphException("Field is not accessible: " + field, e);
+                }
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -507,7 +508,7 @@ public class ScanSpec {
             for (final Field field : ScanSpec.class.getDeclaredFields()) {
                 try {
                     scanSpecLog.log(field.getName() + ": " + field.get(this));
-                } catch (final Exception e) {
+                } catch (final ReflectiveOperationException e) {
                     // Ignore
                 }
             }

@@ -39,15 +39,7 @@ import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Utils for Java serialization and deserialization. */
-public class JSONUtils {
-
-    /**
-     * Constructor.
-     */
-    private JSONUtils() {
-        // Cannot be constructed
-    }
-
+public final class JSONUtils {
     /**
      * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
      * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
@@ -59,8 +51,6 @@ public class JSONUtils {
 
     /** JSON object reference id suffix. */
     static final String ID_SUFFIX = "]";
-
-    // -------------------------------------------------------------------------------------------------------------
 
     /** JSON character-to-string escaping replacements -- see http://www.json.org/ under "string". */
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
@@ -82,6 +72,25 @@ public class JSONUtils {
         JSON_CHAR_REPLACEMENTS['\t'] = "\\t";
         JSON_CHAR_REPLACEMENTS['\b'] = "\\b";
         JSON_CHAR_REPLACEMENTS['\f'] = "\\f";
+    }
+
+    /** Lookup table for fast indenting. */
+    private static final String[] INDENT_LEVELS = new String[17];
+    static {
+        final StringBuilder buf = new StringBuilder();
+        for (int i = 0; i < INDENT_LEVELS.length; i++) {
+            INDENT_LEVELS[i] = buf.toString();
+            buf.append(' ');
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Constructor.
+     */
+    private JSONUtils() {
+        // Cannot be constructed
     }
 
     /**
@@ -147,16 +156,6 @@ public class JSONUtils {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** Lookup table for fast indenting. */
-    private static final String[] INDENT_LEVELS = new String[17];
-    static {
-        final StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < INDENT_LEVELS.length; i++) {
-            INDENT_LEVELS[i] = buf.toString();
-            buf.append(' ');
-        }
-    }
 
     /**
      * Indent (depth * indentWidth) spaces.
@@ -321,14 +320,14 @@ public class JSONUtils {
             try {
                 fieldOrConstructor.setAccessible(true);
                 isAccessible.set(true);
-            } catch (final Exception e) {
+            } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException 
                 AccessController.doPrivileged(new PrivilegedAction<Void>() {
                     @Override
                     public Void run() {
                         try {
                             fieldOrConstructor.setAccessible(true);
                             isAccessible.set(true);
-                        } catch (final Exception e) {
+                        } catch (final RuntimeException e) {
                             // Ignore
                         }
                         return null;

@@ -36,15 +36,7 @@ import java.util.Set;
 import nonapi.io.github.classgraph.ScanSpec;
 
 /** Builds a class graph visualization in Graphviz .dot file format. */
-class GraphvizDotfileGenerator {
-
-    /**
-     * Constructor.
-     */
-    private GraphvizDotfileGenerator() {
-        // Cannot be constructed
-    }
-
+final class GraphvizDotfileGenerator {
     /** The color for standard classes. */
     private static final String STANDARD_CLASS_COLOR = "fff2b6";
 
@@ -60,18 +52,24 @@ class GraphvizDotfileGenerator {
     /** Which characters are Unicode whitespace. */
     private static final BitSet IS_UNICODE_WHITESPACE = new BitSet(1 << 16);
 
+    /**
+     * Constructor.
+     */
+    private GraphvizDotfileGenerator() {
+        // Cannot be constructed
+    }
+
     static {
         // Valid unicode whitespace chars, see:
         // http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java
         // Also see (for \n and \r -- a real example of Java stupidity):
         // https://stackoverflow.com/a/3866219/3950982
-        final String wsChars = ""//
+        final String wsChars = "\u0020" // SPACE
                 + "\u0009" // CHARACTER TABULATION
                 + "\n" // LINE FEED (LF)
                 + "\u000B" // LINE TABULATION
                 + "\u000C" // FORM FEED (FF)
                 + "/r" // CARRIAGE RETURN (CR)
-                + "\u0020" // SPACE
                 + "\u0085" // NEXT LINE (NEL) 
                 + "\u00A0" // NO-BREAK SPACE
                 + "\u1680" // OGHAM SPACE MARK
@@ -233,11 +231,11 @@ class GraphvizDotfileGenerator {
             final boolean showFields, final boolean showMethods, final ScanSpec scanSpec, final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
                 .append("\",label=");
-        buf.append("<");
+        buf.append('<');
         buf.append("<table border='0' cellborder='0' cellspacing='1'>");
 
         // Class modifiers
-        buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(" ")
+        buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(' ')
                 .append(ci.isEnum() ? "enum"
                         : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
                 .append("</font></td></tr>");
@@ -478,9 +476,9 @@ class GraphvizDotfileGenerator {
     static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
             final boolean showMethodTypeDependencyEdges, final boolean showAnnotations, final ScanSpec scanSpec) {
-        final StringBuilder buf = new StringBuilder();
+        final StringBuilder buf = new StringBuilder(1024 * 1024);
         buf.append("digraph {\n");
-        buf.append("size=\"").append(sizeX).append(",").append(sizeY).append("\";\n");
+        buf.append("size=\"").append(sizeX).append(',').append(sizeY).append("\";\n");
         buf.append("layout=dot;\n");
         buf.append("rankdir=\"BT\";\n");
         buf.append("overlap=false;\n");
@@ -495,19 +493,19 @@ class GraphvizDotfileGenerator {
         final ClassInfoList annotationNodes = classInfoList.getAnnotations();
 
         for (final ClassInfo node : standardClassNodes) {
-            buf.append("\"").append(node.getName()).append("\"");
+            buf.append('"').append(node.getName()).append('"');
             labelClassNodeHTML(node, "box", STANDARD_CLASS_COLOR, showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
-            buf.append("\"").append(node.getName()).append("\"");
+            buf.append('"').append(node.getName()).append('"');
             labelClassNodeHTML(node, "diamond", INTERFACE_COLOR, showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
-            buf.append("\"").append(node.getName()).append("\"");
+            buf.append('"').append(node.getName()).append('"');
             labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
@@ -517,7 +515,7 @@ class GraphvizDotfileGenerator {
         allVisibleNodes.addAll(interfaceNodes.getNames());
         allVisibleNodes.addAll(annotationNodes.getNames());
 
-        buf.append("\n");
+        buf.append('\n');
         for (final ClassInfo classNode : standardClassNodes) {
             for (final ClassInfo directSuperclassNode : classNode.getSuperclasses().directOnly()) {
                 if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getName())
@@ -599,7 +597,7 @@ class GraphvizDotfileGenerator {
                 }
             }
         }
-        buf.append("}");
+        buf.append('}');
         return buf.toString();
     }
 
@@ -625,9 +623,9 @@ class GraphvizDotfileGenerator {
     static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
             final float sizeX, final float sizeY, final boolean includeExternalClasses) {
 
-        final StringBuilder buf = new StringBuilder();
+        final StringBuilder buf = new StringBuilder(1024 * 1024);
         buf.append("digraph {\n");
-        buf.append("size=\"").append(sizeX).append(",").append(sizeY).append("\";\n");
+        buf.append("size=\"").append(sizeX).append(',').append(sizeY).append("\";\n");
         buf.append("layout=dot;\n");
         buf.append("rankdir=\"BT\";\n");
         buf.append("overlap=false;\n");
@@ -645,16 +643,16 @@ class GraphvizDotfileGenerator {
         }
 
         for (final ClassInfo ci : allVisibleNodes) {
-            buf.append("\"").append(ci.getName()).append("\"");
+            buf.append('"').append(ci.getName()).append('"');
             buf.append("[shape=").append(ci.isAnnotation() ? "oval" : ci.isInterface() ? "diamond" : "box")
                     .append(",style=filled,fillcolor=\"#").append(ci.isAnnotation() ? ANNOTATION_COLOR
                             : ci.isInterface() ? INTERFACE_COLOR : STANDARD_CLASS_COLOR)
                     .append("\",label=");
-            buf.append("<");
+            buf.append('<');
             buf.append("<table border='0' cellborder='0' cellspacing='1'>");
 
             // Class modifiers
-            buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(" ")
+            buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(' ')
                     .append(ci.isEnum() ? "enum"
                             : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
                     .append("</font></td></tr>");
@@ -673,7 +671,7 @@ class GraphvizDotfileGenerator {
             buf.append(">];\n");
         }
 
-        buf.append("\n");
+        buf.append('\n');
         for (final ClassInfo ci : classInfoList) {
             for (final ClassInfo dep : ci.getClassDependencies()) {
                 if (includeExternalClasses || allVisibleNodes.contains(dep)) {
@@ -684,7 +682,7 @@ class GraphvizDotfileGenerator {
             }
         }
 
-        buf.append("}");
+        buf.append('}');
         return buf.toString();
     }
 }

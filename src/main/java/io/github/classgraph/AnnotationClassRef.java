@@ -30,7 +30,7 @@ package io.github.classgraph;
 
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 
 /**
  * Stores the type descriptor of a {@code Class<?>}, as found in an annotation parameter value.

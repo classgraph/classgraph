@@ -78,7 +78,7 @@ class FieldTypeInfo {
     /**
      * The Enum PrimitiveType.
      */
-    private static enum PrimitiveType {
+    private enum PrimitiveType {
         /** The non primitive. */
         NON_PRIMITIVE,
         /** The integer. */

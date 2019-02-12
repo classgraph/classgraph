@@ -38,7 +38,12 @@ import java.util.regex.Pattern;
  * much faster than Path), while aiming for cross-platform compatibility, and hopefully in particular being robust
  * to the many forms of Windows path weirdness.
  */
-public class FastPathResolver {
+public final class FastPathResolver {
+    /** Match %-encoded characters in URLs. */
+    private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
+
+    /** True if we're running on Windows. */
+    private static final boolean WINDOWS = File.separatorChar == '\\';
 
     /**
      * Constructor.
@@ -46,12 +51,6 @@ public class FastPathResolver {
     private FastPathResolver() {
         // Cannot be constructed
     }
-
-    /** Match %-encoded characters in URLs. */
-    private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
-
-    /** True if we're running on Windows. */
-    private static final boolean WINDOWS = File.separatorChar == '\\';
 
     /**
      * Translate backslashes to forward slashes, optionally removing trailing separator.

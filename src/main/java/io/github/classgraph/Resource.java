@@ -132,6 +132,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
          */
         protected InputStreamResourceCloser(final Resource parentResource, final InputStream inputStream)
                 throws IOException {
+            super();
             if (inputStream == null) {
                 throw new IOException("InputStream cannot be null");
             }
@@ -231,7 +232,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             if (inputStream != null) {
                 try {
                     inputStream.close();
-                } catch (final Exception e) {
+                } catch (final IOException e) {
                     // Ignore
                 }
                 inputStream = null;
@@ -248,11 +249,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         @Override
         public void close() throws IOException {
             if (parentResource != null) {
-                try {
-                    parentResource.close();
-                } catch (final Exception e) {
-                    // Ignore
-                }
+                parentResource.close();
                 parentResource = null;
             }
         }

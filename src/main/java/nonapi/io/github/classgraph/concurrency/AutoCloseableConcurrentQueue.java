@@ -38,6 +38,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 class AutoCloseableConcurrentQueue<T extends AutoCloseable> extends ConcurrentLinkedQueue<T>
         implements AutoCloseable {
+    /** serialVersionUID. */
+    static final long serialVersionUID = 1L;
+
     /** Empty the queue, calling close() on each item. */
     @Override
     public void close() {

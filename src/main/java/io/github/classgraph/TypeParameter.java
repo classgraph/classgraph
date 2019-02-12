@@ -33,12 +33,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 
 /** A type parameter. */
-public class TypeParameter extends HierarchicalTypeSignature {
+public final class TypeParameter extends HierarchicalTypeSignature {
     /** The type parameter identifier. */
     final String name;
 
@@ -62,6 +62,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
      */
     private TypeParameter(final String identifier, final ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
+        super();
         this.name = identifier;
         this.classBound = classBound;
         this.interfaceBounds = interfaceBounds;

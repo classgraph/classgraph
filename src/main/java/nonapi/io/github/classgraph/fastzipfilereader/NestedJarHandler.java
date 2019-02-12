@@ -50,6 +50,7 @@ import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -180,7 +181,8 @@ public class NestedJarHandler {
     private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
     zipFileSliceToLogicalZipFileMap = new SingletonMap<ZipFileSlice, LogicalZipFile, IOException>() {
         @Override
-        public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException {
+        public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log)
+                throws IOException, InterruptedException {
             if (closed.get()) {
                 throw new ClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
@@ -404,16 +406,22 @@ public class NestedJarHandler {
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
+    /** The interruption checker. */
+    public InterruptionChecker interruptionChecker;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * A handler for nested jars.
-     * 
+     *
      * @param scanSpec
      *            The {@link ScanSpec}.
+     * @param interruptionChecker
+     *            the interruption checker
      */
-    public NestedJarHandler(final ScanSpec scanSpec) {
+    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker) {
         this.scanSpec = scanSpec;
+        this.interruptionChecker = interruptionChecker;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -481,7 +489,7 @@ public class NestedJarHandler {
             if (subLog != null) {
                 subLog.addElapsedTime();
             }
-        } catch (final Exception e) {
+        } catch (final IOException | SecurityException e) {
             if (subLog != null) {
                 subLog.log("Could not download " + jarURL, e);
             }

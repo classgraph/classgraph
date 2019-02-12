@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 
@@ -98,6 +98,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
     /** Default constructor for deserialization. */
     MethodInfo() {
+        super();
     }
 
     /**
@@ -128,6 +129,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
             final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody) {
+        super();
         this.declaringClassName = definingClassName;
         this.name = methodName;
         this.modifiers = modifiers;
@@ -351,7 +353,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
             // Figure out the number of params in the alignment (should be num params in type descriptor)
             final int numParams = paramTypeDescriptors.size();
-            if (paramTypeSignatures != null && paramTypeSignatures.size() > paramTypeDescriptors.size()) {
+            if (paramTypeSignatures != null && paramTypeSignatures.size() > numParams) {
                 // Should not happen
                 throw new ClassGraphException(
                         "typeSignatureParamTypes.size() > typeDescriptorParamTypes.size() for method "
@@ -683,7 +685,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                annotation.toStringBuf(buf);
+                annotation.toString(buf);
             }
         }
 
@@ -759,7 +761,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
             if (paramInfo.annotationInfo != null) {
                 for (final AnnotationInfo ai : paramInfo.annotationInfo) {
-                    ai.toStringBuf(buf);
+                    ai.toString(buf);
                     buf.append(' ');
                 }
             }

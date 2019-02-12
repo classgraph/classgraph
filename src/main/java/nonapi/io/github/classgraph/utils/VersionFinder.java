@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,15 +39,93 @@ import java.util.Locale;
 import java.util.Properties;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 
 import io.github.classgraph.ClassGraph;
 
 /** Finds the version number of ClassGraph, and the version of the JDK. */
-public class VersionFinder {
+public final class VersionFinder {
+
+    /** The Maven package for ClassGraph. */
+    private static final String MAVEN_PACKAGE = "io.github.classgraph";
+
+    /** The Maven artifact for ClassGraph. */
+    private static final String MAVEN_ARTIFACT = "classgraph";
+
+    /** The operating system type. */
+    public static final OperatingSystem OS;
+
+    /** Java version string. */
+    public static final String JAVA_VERSION = getProperty("java.version");
+
+    /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
+    public static final int JAVA_MAJOR_VERSION;
+
+    static {
+        int javaMajorVersion = 0;
+        if (JAVA_VERSION != null) {
+            for (final String versionPart : JAVA_VERSION.split("[^0-9]+")) {
+                if (!versionPart.isEmpty() && !versionPart.equals("1")) {
+                    javaMajorVersion = Integer.parseInt(versionPart);
+                    break;
+                }
+            }
+        }
+        JAVA_MAJOR_VERSION = javaMajorVersion;
+    }
+
+    /** The operating system type. */
+    public enum OperatingSystem {
+        /** Windows. */
+        Windows,
+
+        /** Mac OS X. */
+        MacOSX,
+
+        /** Linux. */
+        Linux,
+
+        /** Solaris. */
+        Solaris,
+
+        /** BSD. */
+        BSD,
+
+        /** Unix or AIX. */
+        Unix,
+
+        /** Unknown. */
+        Unknown
+    }
+
+    static {
+        final String osName = getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
+        if (osName == null) {
+            OS = OperatingSystem.Unknown;
+        } else if (osName.contains("mac") || osName.contains("darwin")) {
+            OS = OperatingSystem.MacOSX;
+        } else if (osName.contains("win")) {
+            OS = OperatingSystem.Windows;
+        } else if (osName.contains("nux")) {
+            OS = OperatingSystem.Linux;
+        } else if (osName.contains("sunos") || osName.contains("solaris")) {
+            OS = OperatingSystem.Solaris;
+        } else if (osName.contains("bsd")) {
+            OS = OperatingSystem.Unix;
+        } else if (osName.contains("nix") || osName.contains("aix")) {
+            OS = OperatingSystem.Unix;
+        } else {
+            OS = OperatingSystem.Unknown;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Constructor.
@@ -54,6 +133,8 @@ public class VersionFinder {
     private VersionFinder() {
         // Cannot be constructed
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get a system property (returning null if a SecurityException was thrown).
@@ -87,82 +168,7 @@ public class VersionFinder {
         }
     }
 
-    /** Java version string. */
-    public static final String JAVA_VERSION = getProperty("java.version");
-
-    /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
-    public static final int JAVA_MAJOR_VERSION;
-
-    static {
-        int javaMajorVersion = 0;
-        if (JAVA_VERSION != null) {
-            for (final String versionPart : JAVA_VERSION.split("[^0-9]+")) {
-                if (!versionPart.isEmpty() && !versionPart.equals("1")) {
-                    javaMajorVersion = Integer.parseInt(versionPart);
-                    break;
-                }
-            }
-        }
-        JAVA_MAJOR_VERSION = javaMajorVersion;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
-
-    /** The operating system type. */
-    public enum OperatingSystem {
-        /** Windows. */
-        Windows,
-
-        /** Mac OS X. */
-        MacOSX,
-
-        /** Linux. */
-        Linux,
-
-        /** Solaris. */
-        Solaris,
-
-        /** BSD. */
-        BSD,
-
-        /** Unix or AIX. */
-        Unix,
-
-        /** Unknown. */
-        Unknown
-    }
-
-    /** The operating system type. */
-    public static final OperatingSystem OS;
-
-    static {
-        final String osName = getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
-        if (osName == null) {
-            OS = OperatingSystem.Unknown;
-        } else if (osName.contains("mac") || osName.contains("darwin")) {
-            OS = OperatingSystem.MacOSX;
-        } else if (osName.contains("win")) {
-            OS = OperatingSystem.Windows;
-        } else if (osName.contains("nux")) {
-            OS = OperatingSystem.Linux;
-        } else if (osName.contains("sunos") || osName.contains("solaris")) {
-            OS = OperatingSystem.Solaris;
-        } else if (osName.contains("bsd")) {
-            OS = OperatingSystem.Unix;
-        } else if (osName.contains("nix") || osName.contains("aix")) {
-            OS = OperatingSystem.Unix;
-        } else {
-            OS = OperatingSystem.Unknown;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** The Maven package for ClassGraph. */
-    private static final String MAVEN_PACKAGE = "io.github.classgraph";
-
-    /** The Maven artifact for ClassGraph. */
-    private static final String MAVEN_ARTIFACT = "classgraph";
 
     /**
      * Get the version number of ClassGraph.
@@ -202,7 +208,8 @@ public class VersionFinder {
                     }
                 }
             }
-        } catch (final Exception e) {
+        } catch (final URISyntaxException | ParserConfigurationException | SAXException
+                | XPathExpressionException e) {
             // Ignore
         }
 
@@ -217,7 +224,7 @@ public class VersionFinder {
                     return version;
                 }
             }
-        } catch (final Exception e) {
+        } catch (final IOException e) {
             // Ignore
         }
 

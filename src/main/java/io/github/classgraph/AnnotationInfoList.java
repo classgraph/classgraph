@@ -206,19 +206,18 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
             final Set<ClassInfo> visited) {
         final ClassInfo annotationClassInfo = ai.getClassInfo();
-        if (annotationClassInfo != null && annotationClassInfo.annotationInfo != null) {
-            // Don't get in a cycle
-            if (visited.add(annotationClassInfo)) {
-                for (final AnnotationInfo metaAnnotationInfo : annotationClassInfo.annotationInfo) {
-                    final ClassInfo metaAnnotationClassInfo = metaAnnotationInfo.getClassInfo();
-                    final String metaAnnotationClassName = metaAnnotationClassInfo.getName();
-                    // Don't treat java.lang.annotation annotations as meta-annotations 
-                    if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
-                        // Add the meta-annotation to the transitive closure
-                        allAnnotationsOut.add(metaAnnotationInfo);
-                        // Recurse to meta-meta-annotation
-                        findMetaAnnotations(metaAnnotationInfo, allAnnotationsOut, visited);
-                    }
+        if (annotationClassInfo != null && annotationClassInfo.annotationInfo != null
+        // Don't get in a cycle
+                && visited.add(annotationClassInfo)) {
+            for (final AnnotationInfo metaAnnotationInfo : annotationClassInfo.annotationInfo) {
+                final ClassInfo metaAnnotationClassInfo = metaAnnotationInfo.getClassInfo();
+                final String metaAnnotationClassName = metaAnnotationClassInfo.getName();
+                // Don't treat java.lang.annotation annotations as meta-annotations 
+                if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
+                    // Add the meta-annotation to the transitive closure
+                    allAnnotationsOut.add(metaAnnotationInfo);
+                    // Recurse to meta-meta-annotation
+                    findMetaAnnotations(metaAnnotationInfo, allAnnotationsOut, visited);
                 }
             }
         }

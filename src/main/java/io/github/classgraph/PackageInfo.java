@@ -56,6 +56,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
     /** Deerialization constructor. */
     PackageInfo() {
+        // Empty
     }
 
     /**

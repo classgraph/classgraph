@@ -140,7 +140,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
             } else {
                 buf.append(ownerType.toString());
             }
-            buf.append("$");
+            buf.append('$');
             if (ownerType instanceof ParameterizedTypeImpl) {
                 final String simpleName = rawType.getName()
                         .replace(((ParameterizedTypeImpl) ownerType).rawType.getName() + "$", "");
@@ -150,7 +150,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
             }
         }
         if (actualTypeArguments != null && actualTypeArguments.length > 0) {
-            buf.append("<");
+            buf.append('<');
             boolean first = true;
             for (final Type t : actualTypeArguments) {
                 if (first) {
@@ -160,7 +160,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
                 }
                 buf.append(t.toString());
             }
-            buf.append(">");
+            buf.append('>');
         }
         return buf.toString();
     }

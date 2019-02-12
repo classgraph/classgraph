@@ -222,16 +222,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
      *         modules that do not have a location, or for modules whole location is a "jrt:" URI.
      */
     public File getLocationFile() {
-        if (locationFile == null && location != null && !"jrt".equals(location.getScheme())) {
-            if (!isSystemModule()) {
-                try {
-                    locationFile = new File(location);
-                } catch (final Exception e) {
-                    return null;
-                }
-            } else {
-                return null;
-            }
+        if (locationFile == null && location != null && "file".equals(location.getScheme())) {
+            locationFile = new File(location);
         }
         return locationFile;
     }

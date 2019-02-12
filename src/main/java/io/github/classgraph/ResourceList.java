@@ -44,6 +44,8 @@ import java.util.Map.Entry;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
+    /** serialVersionUID. */
+    static final long serialVersionUID = 1L;
 
     /**
      * Constructor.
@@ -423,11 +425,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     @Override
     public void close() {
         for (final Resource resource : this) {
-            try {
-                resource.close();
-            } catch (final Exception e) {
-                // Ignore
-            }
+            resource.close();
         }
     }
 }

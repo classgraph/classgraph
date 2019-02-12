@@ -63,6 +63,7 @@ public abstract class WhiteBlackList {
 
     /** Constructor for deserialization. */
     public WhiteBlackList() {
+        // Empty
     }
 
     /** Whitelist/blacklist for prefix strings. */

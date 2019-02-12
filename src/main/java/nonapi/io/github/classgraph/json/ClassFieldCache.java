@@ -200,7 +200,7 @@ class ClassFieldCache {
                 // Store found constructor in cache
                 defaultConstructorForConcreteType.put(cls, defaultConstructor);
                 return defaultConstructor;
-            } catch (final Exception e) {
+            } catch (final ReflectiveOperationException | SecurityException e) {
                 // Ignore
             }
         }
@@ -235,7 +235,7 @@ class ClassFieldCache {
                     // Store found constructor in cache
                     constructorForConcreteTypeWithSizeHint.put(cls, constructorWithSizeHint);
                     return constructorWithSizeHint;
-                } catch (final Exception e) {
+                } catch (final ReflectiveOperationException | SecurityException e) {
                     // Ignore
                 }
             }

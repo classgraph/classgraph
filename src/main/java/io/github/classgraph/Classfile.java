@@ -42,7 +42,7 @@ import java.util.Set;
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.Join;
@@ -142,6 +142,11 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** An empty array for the case where there are no annotations. */
+    private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Thrown when a classfile's contents are not in the correct format. */
     class ClassfileFormatException extends IOException {
         /** serialVersionUID. */
@@ -231,11 +236,11 @@ class Classfile {
                 foundInClasspathElt = classpathElement;
             } else {
                 // Didn't find the classfile in the current classpath element -- iterate through other elements
-                for (final ClasspathElement classpathElt : classpathOrder) {
-                    if (classpathElt != classpathElement) {
-                        classResource = classpathElt.getResource(classfilePath);
+                for (final ClasspathElement classpathOrderElt : classpathOrder) {
+                    if (classpathOrderElt != classpathElement) {
+                        classResource = classpathOrderElt.getResource(classfilePath);
                         if (classResource != null) {
-                            foundInClasspathElt = classpathElt;
+                            foundInClasspathElt = classpathOrderElt;
                             break;
                         }
                     }
@@ -786,9 +791,6 @@ class Classfile {
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
     }
-
-    /** An empty array for the case where there are no annotations. */
-    private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
 
     // -------------------------------------------------------------------------------------------------------------
 

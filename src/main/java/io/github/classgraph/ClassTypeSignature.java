@@ -33,14 +33,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.exceptions.ParseException;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.Join;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
-public class ClassTypeSignature extends HierarchicalTypeSignature {
+public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /** The class info. */
     private final ClassInfo classInfo;
@@ -71,6 +71,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
             final ClassRefTypeSignature superclassSignature,
             final List<ClassRefTypeSignature> superinterfaceSignatures) {
+        super();
         this.classInfo = classInfo;
         this.typeParameters = typeParameters;
         this.superclassSignature = superclassSignature;

@@ -38,14 +38,6 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
-
-    /**
-     * Constructor.
-     */
-    private ClassLoaderHandlerRegistry() {
-        // Cannot be constructed
-    }
-
     /**
      * Default ClassLoaderHandlers.
      */
@@ -116,6 +108,13 @@ public class ClassLoaderHandlerRegistry {
     };
 
     /**
+     * Constructor.
+     */
+    private ClassLoaderHandlerRegistry() {
+        // Cannot be constructed
+    }
+
+    /**
      * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
      */
     public static class ClassLoaderHandlerRegistryEntry {
@@ -137,7 +136,7 @@ public class ClassLoaderHandlerRegistry {
                 // needed because Java doesn't support inherited static interface methods)
                 this.handledClassLoaderNames = classLoaderHandlerClass.getDeclaredConstructor().newInstance()
                         .handledClassLoaders();
-            } catch (final Exception e) {
+            } catch (final ReflectiveOperationException | ExceptionInInitializerError e) {
                 throw new ClassGraphException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
             }
         }
@@ -164,7 +163,7 @@ public class ClassLoaderHandlerRegistry {
             try {
                 // Instantiate a ClassLoaderHandler
                 return classLoaderHandlerClass.getDeclaredConstructor().newInstance();
-            } catch (final Exception e) {
+            } catch (final ReflectiveOperationException | ExceptionInInitializerError e) {
                 if (log != null) {
                     log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
                 }

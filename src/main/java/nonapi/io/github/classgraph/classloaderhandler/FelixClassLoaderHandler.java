@@ -58,6 +58,9 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                 "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader" };
     }
 
+    /** The bundles. */
+    final Set<Object> bundles = new HashSet<>();
+
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
      */
@@ -73,9 +76,6 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
-
-    /** The bundles. */
-    final Set<Object> bundles = new HashSet<>();
 
     /**
      * Get the content location.

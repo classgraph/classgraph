@@ -68,10 +68,10 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      * 
      * /** The current position in the buffer.
      */
-    public int curr = 0;
+    public int curr;
 
     /** Bytes used in the buffer. */
-    public int used = 0;
+    public int used;
 
     /**
      * Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}.
@@ -429,7 +429,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         if (this.inputStream != null) {
             try {
                 this.inputStream.close();
-            } catch (final Exception e) {
+            } catch (final IOException e) {
                 // Ignore
             }
             this.inputStream = null;

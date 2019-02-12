@@ -36,6 +36,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.NonReadableChannelException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -111,7 +112,7 @@ public class PhysicalZipFile implements Closeable {
                 throw new IOException("Zipfile is empty: " + file);
             }
             fc = raf.getChannel();
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             if (raf != null) {
                 raf.close();
                 raf = null;
@@ -136,7 +137,7 @@ public class PhysicalZipFile implements Closeable {
                 MappedByteBuffer buffer = null;
                 try {
                     buffer = fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                } catch (final FileNotFoundException e) {
+                } catch (final FileNotFoundException | NonReadableChannelException e) {
                     throw e;
                 } catch (IOException | OutOfMemoryError e) {
                     // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
@@ -193,8 +194,10 @@ public class PhysicalZipFile implements Closeable {
      * @return The {@link MappedByteBuffer} for the requested file chunk, up to 2GB in size.
      * @throws IOException
      *             If the chunk could not be mmap'd.
+     * @throws InterruptedException
+     *             If the thread was interrupted.
      */
-    ByteBuffer getByteBuffer(final int chunkIdx) throws IOException {
+    ByteBuffer getByteBuffer(final int chunkIdx) throws IOException, InterruptedException {
         if (closed.get()) {
             throw new IOException(getClass().getSimpleName() + " already closed");
         }
@@ -208,10 +211,8 @@ public class PhysicalZipFile implements Closeable {
                 // doesn't happen more than once, in case of race condition)
                 mappedByteBuffersCached[chunkIdx] = chunkIdxToByteBuffer.get(chunkIdx, /* log = */ null);
 
-            } catch (final IOException e) {
+            } catch (final IOException | InterruptedException e) {
                 throw e;
-            } catch (final Exception e) {
-                throw new IOException(e);
             }
         }
         return mappedByteBuffersCached[chunkIdx];

@@ -39,7 +39,12 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find rt.jar and any JRE "lib/" or "ext/" jars. */
-public class SystemJarFinder {
+public final class SystemJarFinder {
+    /** The paths of any "rt.jar" files found in the JRE. */
+    private static final Set<String> RT_JARS = new LinkedHashSet<>();
+
+    /** The paths of any "lib/" or "ext/" jars found in the JRE. */
+    private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
 
     /**
      * Constructor.
@@ -47,12 +52,6 @@ public class SystemJarFinder {
     private SystemJarFinder() {
         // Cannot be constructed
     }
-
-    /** The paths of any "rt.jar" files found in the JRE. */
-    private static final Set<String> RT_JARS = new LinkedHashSet<>();
-
-    /** The paths of any "lib/" or "ext/" jars found in the JRE. */
-    private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
 
     /**
      * Add and search a JRE path.
@@ -160,6 +159,8 @@ public class SystemJarFinder {
             addJREPath(new File("/usr/jdk/packages"));
             addJREPath(new File("/usr/jdk/packages/lib"));
             addJREPath(new File("/usr/jdk/packages/lib/ext"));
+            break;
+        default:
             break;
         }
     }

@@ -51,19 +51,52 @@ import io.github.classgraph.ClassGraphException;
 /**
  * File utilities.
  */
-public class FileUtils {
+public final class FileUtils {
+
+    /** The clean() method. */
+    private static Method cleanMethod;
+
+    /** The attachment() method. */
+    private static Method attachmentMethod;
+
+    /** The Unsafe object. */
+    private static Object theUnsafe;
+
     /**
-     * Constructor.
+     * The minimum filesize at which it becomes more efficient to read a file with a memory-mapped file channel
+     * rather than an InputStream. Based on benchmark testing using the following benchmark, averaged over three
+     * separate runs, then plotted as a speedup curve for 1, 2, 4 and 8 concurrent threads:
+     * 
+     * https://github.com/lukehutch/FileReadingBenchmark
      */
-    private FileUtils() {
-        // Cannot be constructed
-    }
+    public static final int FILECHANNEL_FILE_SIZE_THRESHOLD;
 
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
      * will not reflect subsequent changes to the current directory).
      */
     public static final String CURR_DIR_PATH;
+
+    /** The default size of a file buffer. */
+    private static final int DEFAULT_BUFFER_SIZE = 16384;
+
+    /**
+     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
+     * reserve header words in arrays.
+     */
+    public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+
+    /** The maximum initial buffer size. */
+    private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Constructor.
+     */
+    private FileUtils() {
+        // Cannot be constructed
+    }
 
     static {
         String currDirPathStr = "";
@@ -85,15 +118,6 @@ public class FileUtils {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * The minimum filesize at which it becomes more efficient to read a file with a memory-mapped file channel
-     * rather than an InputStream. Based on benchmark testing using the following benchmark, averaged over three
-     * separate runs, then plotted as a speedup curve for 1, 2, 4 and 8 concurrent threads:
-     * 
-     * https://github.com/lukehutch/FileReadingBenchmark
-     */
-    public static final int FILECHANNEL_FILE_SIZE_THRESHOLD;
 
     static {
         switch (VersionFinder.OS) {
@@ -125,22 +149,11 @@ public class FileUtils {
             // For any other operating system
         default:
             FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
+            break;
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** The default size of a file buffer. */
-    private static final int DEFAULT_BUFFER_SIZE = 16384;
-
-    /**
-     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
-     * reserve header words in arrays.
-     */
-    public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
-
-    /** The maximum initial buffer size. */
-    private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
     /**
      * Read all the bytes in an {@link InputStream}.
@@ -244,6 +257,7 @@ public class FileUtils {
     public static InputStream byteBufferToInputStream(final ByteBuffer byteBuffer) {
         // https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
         return new InputStream() {
+            /** The intermediate buffer. */
             final ByteBuffer buf = byteBuffer;
 
             @Override
@@ -333,12 +347,10 @@ public class FileUtils {
                         // Encountered normal path segment
                         currSectionSegments.add(segment);
                     }
-                    if (c == '!') {
+                    if (c == '!' && !currSectionSegments.isEmpty()) {
                         // Begin new section
-                        if (!currSectionSegments.isEmpty()) {
-                            currSectionSegments = new ArrayList<>();
-                            allSectionSegments.add(currSectionSegments);
-                        }
+                        currSectionSegments = new ArrayList<>();
+                        allSectionSegments.add(currSectionSegments);
                     }
                     lastSepIdx = i;
                 }
@@ -349,11 +361,11 @@ public class FileUtils {
                 if (!sectionSegments.isEmpty()) {
                     // Delineate segments with "!"
                     if (buf.length() > 0) {
-                        buf.append("!");
+                        buf.append('!');
                     }
-                    for (int i = 0; i < sectionSegments.size(); i++) {
-                        buf.append("/");
-                        buf.append(sectionSegments.get(i));
+                    for (final String sectionSegment : sectionSegments) {
+                        buf.append('/');
+                        buf.append(sectionSegment);
                     }
                 }
             }
@@ -407,15 +419,6 @@ public class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** The clean method. */
-    private static Method cleanMethod;
-
-    /** The attachment method. */
-    private static Method attachmentMethod;
-
-    /** The unsafe. */
-    private static Object theUnsafe;
-
     /**
      * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
      */
@@ -432,7 +435,7 @@ public class FileUtils {
                 throw new ClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
-            } catch (final Exception ex) {
+            } catch (final ReflectiveOperationException | LinkageError ex) {
                 // Ignore
             }
         } else {
@@ -440,7 +443,7 @@ public class FileUtils {
                 Class<?> unsafeClass;
                 try {
                     unsafeClass = Class.forName("sun.misc.Unsafe");
-                } catch (final Exception e) {
+                } catch (final ReflectiveOperationException | LinkageError e) {
                     // jdk.internal.misc.Unsafe doesn't yet have an invokeCleaner() method,
                     // but that method should be added if sun.misc.Unsafe is removed.
                     unsafeClass = Class.forName("jdk.internal.misc.Unsafe");
@@ -455,7 +458,7 @@ public class FileUtils {
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
                                 + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
-            } catch (final Exception ex) {
+            } catch (final ReflectiveOperationException | LinkageError ex) {
                 // Ignore
             }
         }
@@ -526,7 +529,7 @@ public class FileUtils {
                     return false;
                 }
             }
-        } catch (final Exception e) {
+        } catch (final ReflectiveOperationException | SecurityException e) {
             if (log != null) {
                 log.log("Could not unmap ByteBuffer: " + e);
             }

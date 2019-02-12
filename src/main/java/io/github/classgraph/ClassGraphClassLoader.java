@@ -72,7 +72,7 @@ class ClassGraphClassLoader extends ClassLoader {
                 try {
                     return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
                             classInfo.classLoader);
-                } catch (final ClassNotFoundException | NoClassDefFoundError e) {
+                } catch (final ReflectiveOperationException | LinkageError e) {
                     // Ignore
                 }
             }
@@ -88,7 +88,7 @@ class ClassGraphClassLoader extends ClassLoader {
                         try {
                             return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
                                     envClassLoader);
-                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        } catch (ReflectiveOperationException | LinkageError e) {
                             // Ignore
                         }
                     }

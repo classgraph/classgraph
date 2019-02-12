@@ -47,8 +47,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.json.Id;
+import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 
@@ -144,9 +144,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The modifier bit for annotations. */
+    private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
+
+    /** The constant empty return value used when no classes are reachable. */
+    private static final ReachableAndDirectlyRelatedClasses NO_REACHABLE_CLASSES = //
+            new ReachableAndDirectlyRelatedClasses(Collections.<ClassInfo> emptySet(),
+                    Collections.<ClassInfo> emptySet());
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Default constructor for deserialization. */
     ClassInfo() {
-        // Intentionally blank
+        super();
     }
 
     /**
@@ -158,7 +168,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the class modifiers
      */
     private ClassInfo(final String name, final int classModifiers) {
-        this();
+        super();
         this.name = name;
         if (name.endsWith(";")) {
             // Spot check to make sure class names were parsed from descriptors
@@ -258,9 +268,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** The modifier bit for annotations. */
-    private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
 
     /**
      * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
@@ -685,11 +692,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             this.directlyRelatedClasses = directlyRelatedClasses;
         }
     }
-
-    /** The constant empty return value used when no classes are reachable. */
-    private static final ReachableAndDirectlyRelatedClasses NO_REACHABLE_CLASSES = //
-            new ReachableAndDirectlyRelatedClasses(Collections.<ClassInfo> emptySet(),
-                    Collections.<ClassInfo> emptySet());
 
     /**
      * Get the classes related to this one (the transitive closure) for the given relationship type, and those
