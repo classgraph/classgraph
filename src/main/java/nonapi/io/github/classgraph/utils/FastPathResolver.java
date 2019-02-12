@@ -87,6 +87,18 @@ public class FastPathResolver {
     }
 
     /**
+     * Hex char to int.
+     *
+     * @param c
+     *            the character
+     */
+    private static int hexCharToInt(char c) {
+        return (c >= '0' && c <= '9') ? (c - '0') //
+                : (c >= 'a' && c <= 'f') ? (c - 'a' + 10) //
+                        : (c - 'A' + 10);
+    }
+
+    /**
      * Unescape runs of percent encoding, e.g. "%20%43%20" -> " + "
      *
      * @param path
@@ -108,30 +120,15 @@ public class FastPathResolver {
             for (int i = startIdx, j = 0; i < endIdx; i += 3, j++) {
                 final char c1 = path.charAt(i + 1);
                 final char c2 = path.charAt(i + 2);
-                final int digit1 = (c1 >= '0' && c1 <= '9') ? (c1 - '0')
-                        : (c1 >= 'a' && c1 <= 'f') ? (c1 - 'a' + 10) : (c1 - 'A' + 10);
-                final int digit2 = (c2 >= '0' && c2 <= '9') ? (c2 - '0')
-                        : (c2 >= 'a' && c2 <= 'f') ? (c2 - 'a' + 10) : (c2 - 'A' + 10);
+                final int digit1 = hexCharToInt(c1);
+                final int digit2 = hexCharToInt(c2);
                 bytes[j] = (byte) ((digit1 << 4) | digit2);
             }
             // Decode UTF-8 bytes
-            final String str = new String(bytes, StandardCharsets.UTF_8);
-            // Turn a few illegal characters back into %-encoding
-            for (int i = 0; i < str.length(); i++) {
-                final char c = str.charAt(i);
-                if (c == '/') {
-                    buf.append("%2F");
-                } else if (c == '\\') {
-                    buf.append("%5C");
-                } else if (c < 32) {
-                    buf.append('%');
-                    buf.append(c >= 16 ? '1' : '0');
-                    final int l = (c & 0xf);
-                    buf.append((char) (l >= 10 ? 'a' + l : '0' + l));
-                } else {
-                    buf.append(c);
-                }
-            }
+            String str = new String(bytes, StandardCharsets.UTF_8);
+            // Turn forward slash / backslash back into %-encoding
+            str = str.replace("/", "%2F").replace("\\", "%5C");
+            buf.append(str);
         }
     }
 
