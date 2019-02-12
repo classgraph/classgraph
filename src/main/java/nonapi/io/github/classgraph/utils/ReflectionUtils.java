@@ -56,6 +56,59 @@ public class ReflectionUtils {
      * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
      * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
      * throwException is true, then throws IllegalArgumentException.
+     *
+     * @param cls
+     *            The class.
+     * @param obj
+     *            The object, or null to get the value of a static field.
+     * @param fieldName
+     *            The field name.
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @return The field value.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
+     */
+    private static Object getFieldVal(final Class<?> cls, final Object obj, final String fieldName,
+            final boolean throwException) throws IllegalArgumentException {
+        Field field = null;
+        for (Class<?> currClass = cls; currClass != null; currClass = currClass.getSuperclass()) {
+            try {
+                field = currClass.getDeclaredField(fieldName);
+                // Field found
+                break;
+            } catch (final ReflectiveOperationException | SecurityException e) {
+                // Try parent
+            }
+        }
+        if (field == null) {
+            if (throwException) {
+                throw new IllegalArgumentException((obj == null ? "Static field " : "Field ") + "\"" + fieldName
+                        + "\" not found or not accessible");
+            }
+        } else {
+            try {
+                field.setAccessible(true);
+            } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
+                // Ignore
+            }
+            try {
+                return field.get(obj);
+            } catch (final IllegalAccessException e) {
+                if (throwException) {
+                    throw new IllegalArgumentException(
+                            "Can't read " + (obj == null ? "static " : "") + " field \"" + fieldName + "\": " + e);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
+     * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
+     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
+     * throwException is true, then throws IllegalArgumentException.
      * 
      * @param obj
      *            The object.
@@ -72,36 +125,7 @@ public class ReflectionUtils {
         if (obj == null || fieldName == null) {
             throw new NullPointerException();
         }
-        Field field = null;
-        for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
-                classOrSuperclass = classOrSuperclass.getSuperclass()) {
-            try {
-                field = classOrSuperclass.getDeclaredField(fieldName);
-                try {
-                    field.setAccessible(true);
-                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
-                    // Ignore
-                }
-                // Field found
-                break;
-            } catch (final ReflectiveOperationException | SecurityException e) {
-                // Try parent
-            }
-        }
-        if (field == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Field \"" + fieldName + "\" not found or not accessible");
-            }
-        } else {
-            try {
-                return field.get(obj);
-            } catch (final IllegalAccessException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException("Can't read field \"" + fieldName + "\": " + e);
-                }
-            }
-        }
-        return null;
+        return getFieldVal(obj.getClass(), obj, fieldName, throwException);
     }
 
     /**
@@ -125,36 +149,7 @@ public class ReflectionUtils {
         if (cls == null || fieldName == null) {
             throw new NullPointerException();
         }
-        Field field = null;
-        for (Class<?> classOrSuperclass = cls; classOrSuperclass != null; //
-                classOrSuperclass = classOrSuperclass.getSuperclass()) {
-            try {
-                field = classOrSuperclass.getDeclaredField(fieldName);
-                try {
-                    field.setAccessible(true);
-                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
-                    // Ignore
-                }
-                // Field found
-                break;
-            } catch (final ReflectiveOperationException | SecurityException e) {
-                // Try parent
-            }
-        }
-        if (field == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Field \"" + fieldName + "\" not found or not accessible");
-            }
-        } else {
-            try {
-                return field.get(null);
-            } catch (final IllegalAccessException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException("Can't read field \"" + fieldName + "\": " + e);
-                }
-            }
-        }
-        return null;
+        return getFieldVal(cls, null, fieldName, throwException);
     }
 
     /**
@@ -208,35 +203,36 @@ public class ReflectionUtils {
      * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
      * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
      * throws IllegalArgumentException.
-     * 
+     *
+     * @param cls
+     *            The class.
      * @param obj
-     *            The object.
+     *            The object, or null to invoke a static method.
      * @param methodName
      *            The method name.
+     * @param oneArg
+     *            If true, look for a method with one argument of type argType. If false, look for method with no
+     *            arguments.
+     * @param argType
+     *            The type of the first argument to the method.
+     * @param param
+     *            The value of the first parameter to invoke the method with.
      * @param throwException
      *            If true, throw an exception if the field value could not be read.
      * @return The field value.
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
-    public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException)
+    private static Object invokeMethod(final Class<?> cls, final Object obj, final String methodName,
+            final boolean oneArg, final Class<?> argType, final Object param, final boolean throwException)
             throws IllegalArgumentException {
-        if (obj == null || methodName == null) {
-            throw new NullPointerException();
-        }
         Method method = null;
-        final Class<?> cls = obj.getClass();
         final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
         for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
             final Class<?> classOrInterface = reverseAttemptOrder.get(i);
             try {
-                // Try calling method on interface
-                method = classOrInterface.getDeclaredMethod(methodName);
-                try {
-                    method.setAccessible(true);
-                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
-                    // Ignore
-                }
+                method = oneArg ? classOrInterface.getDeclaredMethod(methodName, argType)
+                        : classOrInterface.getDeclaredMethod(methodName);
                 // Method found
                 break;
             } catch (final ReflectiveOperationException | SecurityException e) {
@@ -245,18 +241,26 @@ public class ReflectionUtils {
         }
         if (method == null) {
             if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" not found or not accesible");
+                throw new IllegalArgumentException((obj == null ? "Static method " : "Method ") + "\"" + methodName
+                        + "\" not found or not accesible");
             }
         } else {
             try {
-                return method.invoke(obj);
+                method.setAccessible(true);
+            } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
+                // Ignore
+            }
+            try {
+                return oneArg ? method.invoke(obj, param) : method.invoke(obj);
             } catch (final IllegalAccessException e) {
                 if (throwException) {
-                    throw new IllegalArgumentException("Can't call method \"" + methodName + "\": " + e);
+                    throw new IllegalArgumentException(
+                            "Can't call " + (obj == null ? "static " : "") + "method \"" + methodName + "\": " + e);
                 }
             } catch (final InvocationTargetException e) {
                 if (throwException) {
-                    throw new IllegalArgumentException("Exception while invoking method \"" + methodName + "\"", e);
+                    throw new IllegalArgumentException("Exception while invoking " + (obj == null ? "static " : "")
+                            + "method \"" + methodName + "\"", e);
                 }
             }
         }
@@ -273,10 +277,34 @@ public class ReflectionUtils {
      *            The object.
      * @param methodName
      *            The method name.
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @return The field value.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
+     */
+    public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException)
+            throws IllegalArgumentException {
+        if (obj == null || methodName == null) {
+            throw new NullPointerException();
+        }
+        return invokeMethod(obj.getClass(), obj, methodName, false, null, null, throwException);
+    }
+
+    /**
+     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
+     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
+     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
+     * throws IllegalArgumentException.
+     * 
+     * @param obj
+     *            The object.
+     * @param methodName
+     *            The method name.
      * @param argType
-     *            The type of the parameter.
-     * @param arg
-     *            The argument value.
+     *            The type of the method argument.
+     * @param param
+     *            The parameter value to use when invoking the method.
      * @param throwException
      *            Whether to throw an exception on failure.
      * @return The result of the method invocation.
@@ -284,47 +312,11 @@ public class ReflectionUtils {
      *             If the method could not be invoked.
      */
     public static Object invokeMethod(final Object obj, final String methodName, final Class<?> argType,
-            final Object arg, final boolean throwException) throws IllegalArgumentException {
+            final Object param, final boolean throwException) throws IllegalArgumentException {
         if (obj == null || methodName == null) {
             throw new NullPointerException();
         }
-        Method method = null;
-        final Class<?> cls = obj.getClass();
-        final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
-        for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-            final Class<?> classOrInterface = reverseAttemptOrder.get(i);
-            try {
-                // Try calling method on interface
-                method = classOrInterface.getDeclaredMethod(methodName, argType);
-                try {
-                    method.setAccessible(true);
-                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
-                    // Ignore
-                }
-                // Method found
-                break;
-            } catch (final ReflectiveOperationException | SecurityException e) {
-                // Try next interface or superclass 
-            }
-        }
-        if (method == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" not found or not accesible");
-            }
-        } else {
-            try {
-                return method.invoke(obj, arg);
-            } catch (final IllegalAccessException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException("Can't call method \"" + methodName + "\": " + e);
-                }
-            } catch (final InvocationTargetException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException("Exception while invoking method \"" + methodName + "\"", e);
-                }
-            }
-        }
-        return null;
+        return invokeMethod(obj.getClass(), obj, methodName, true, argType, param, throwException);
     }
 
     /**
@@ -348,44 +340,7 @@ public class ReflectionUtils {
         if (cls == null || methodName == null) {
             throw new NullPointerException();
         }
-        Method method = null;
-        final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
-        for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-            final Class<?> classOrInterface = reverseAttemptOrder.get(i);
-            try {
-                // Try calling method on interface
-                method = classOrInterface.getDeclaredMethod(methodName);
-                try {
-                    method.setAccessible(true);
-                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
-                    // Ignore
-                }
-                // Method found
-                break;
-            } catch (final ReflectiveOperationException | SecurityException e) {
-                // Try next interface or superclass 
-            }
-        }
-        if (method == null) {
-            if (throwException) {
-                throw new IllegalArgumentException(
-                        "Static method \"" + methodName + "\" not found or not accesible");
-            }
-        } else {
-            try {
-                return method.invoke(null);
-            } catch (final IllegalAccessException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException("Can't call static method \"" + methodName + "\": " + e);
-                }
-            } catch (final InvocationTargetException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException(
-                            "Exception while invoking static method \"" + methodName + "\"", e);
-                }
-            }
-        }
-        return null;
+        return invokeMethod(cls, null, methodName, false, null, null, throwException);
     }
 
     /**
@@ -399,9 +354,9 @@ public class ReflectionUtils {
      * @param methodName
      *            The method name.
      * @param argType
-     *            The type of the parameter.
-     * @param arg
-     *            The argument value.
+     *            The type of the method argument.
+     * @param param
+     *            The parameter value to use when invoking the method.
      * @param throwException
      *            Whether to throw an exception on failure.
      * @return The result of the method invocation.
@@ -409,48 +364,11 @@ public class ReflectionUtils {
      *             If the method could not be invoked.
      */
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName, final Class<?> argType,
-            final Object arg, final boolean throwException) throws IllegalArgumentException {
+            final Object param, final boolean throwException) throws IllegalArgumentException {
         if (cls == null || methodName == null) {
             throw new NullPointerException();
         }
-        Method method = null;
-        final List<Class<?>> reverseAttemptOrder = getReverseMethodAttemptOrder(cls);
-        for (int i = reverseAttemptOrder.size() - 1; i >= 0; i--) {
-            final Class<?> classOrInterface = reverseAttemptOrder.get(i);
-            try {
-                // Try calling method on interface
-                method = classOrInterface.getDeclaredMethod(methodName, argType);
-                try {
-                    method.setAccessible(true);
-                } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
-                    // Ignore
-                }
-                // Method found
-                break;
-            } catch (final ReflectiveOperationException | SecurityException e) {
-                // Try next interface or superclass 
-            }
-        }
-        if (method == null) {
-            if (throwException) {
-                throw new IllegalArgumentException(
-                        "Static method \"" + methodName + "\" not found or not accesible");
-            }
-        } else {
-            try {
-                return method.invoke(null, arg);
-            } catch (final IllegalAccessException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException("Can't call static method \"" + methodName + "\": " + e);
-                }
-            } catch (final InvocationTargetException e) {
-                if (throwException) {
-                    throw new IllegalArgumentException(
-                            "Exception while invoking static method \"" + methodName + "\"", e);
-                }
-            }
-        }
-        return null;
+        return invokeMethod(cls, null, methodName, true, argType, param, throwException);
     }
 
     /**
