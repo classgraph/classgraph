@@ -300,6 +300,9 @@ class ClasspathElementZip extends ClasspathElement {
                 } catch (final IOException e) {
                     close();
                     throw e;
+                } catch (final InterruptedException e) {
+                    close();
+                    throw new IOException(e);
                 }
             }
 
@@ -310,25 +313,28 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public synchronized ByteBuffer read() throws IOException {
-                if (zipEntry.canGetAsSlice()) {
-                    // For STORED entries that do not span multiple 2GB chunks, can create a
-                    // ByteBuffer slice directly from the entry
-                    markAsOpen();
-                    try {
+                try {
+                    if (zipEntry.canGetAsSlice()) {
+                        // For STORED entries that do not span multiple 2GB chunks, can create a
+                        // ByteBuffer slice directly from the entry
+                        markAsOpen();
                         // compressedSize should have the same value as uncompressedSize for STORED
                         // entries, but compressedSize is more reliable (uncompressedSize may be -1)
                         length = zipEntry.compressedSize;
                         return zipEntry.getAsSlice();
 
-                    } catch (final IOException e) {
-                        close();
-                        throw e;
+                    } else {
+                        // Otherwise, decompress or extract the entry into a byte[] array,
+                        // then wrap in a ByteBuffer
+                        open();
+                        return inputStreamToByteBuffer();
                     }
-                } else {
-                    // Otherwise, decompress or extract the entry into a byte[] array,
-                    // then wrap in a ByteBuffer
-                    open();
-                    return inputStreamToByteBuffer();
+                } catch (final IOException e) {
+                    close();
+                    throw e;
+                } catch (final InterruptedException e) {
+                    close();
+                    throw new IOException(e);
                 }
             }
 

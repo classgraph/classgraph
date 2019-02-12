@@ -125,18 +125,18 @@ class Scanner implements Callable<ScanResult> {
      * @param topLevelLog
      *            the log
      */
-    Scanner(final ScanSpec scanSpec, final AutoCloseableExecutorService executorService, final int numParallelTasks,
+    Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler,
             final LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
 
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, executorService.interruptionChecker);
         this.executorService = executorService;
         this.interruptionChecker = executorService instanceof AutoCloseableExecutorService
-                ? executorService.interruptionChecker
+                ? ((AutoCloseableExecutorService) executorService).interruptionChecker
                 : new InterruptionChecker();
+        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker);
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
