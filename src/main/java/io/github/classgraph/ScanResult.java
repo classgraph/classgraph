@@ -230,13 +230,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final List<File> classpathElementOrderFiles = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
-            final File file = classpathElement instanceof ClasspathElementModule
-                    ? ((ClasspathElementModule) classpathElement).getModuleRef().getLocationFile()
-                    : classpathElement instanceof ClasspathElementDir
-                            ? ((ClasspathElementDir) classpathElement).getDirFile()
-                            : classpathElement instanceof ClasspathElementZip
-                                    ? ((ClasspathElementZip) classpathElement).getZipFile()
-                                    : null;
+            final File file = classpathElement.getFile();
             if (file != null) {
                 classpathElementOrderFiles.add(file);
             }
@@ -279,12 +273,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
                 } else if (classpathElement instanceof ClasspathElementDir) {
                     // Get the URL for a classpath directory
-                    classpathElementOrderURLs
-                            .add(((ClasspathElementDir) classpathElement).getDirFile().toURI().toURL());
+                    classpathElementOrderURLs.add(((ClasspathElementDir) classpathElement).getURI().toURL());
 
                 } else if (classpathElement instanceof ClasspathElementZip) {
                     // Get the URL for a jarfile, with "!/" separating any nested jars, and optional package root
-                    classpathElementOrderURLs.add(((ClasspathElementZip) classpathElement).getZipFileURL());
+                    classpathElementOrderURLs.add(((ClasspathElementZip) classpathElement).getURI().toURL());
                 }
             } catch (final MalformedURLException e) {
                 // Skip malformed URLs
@@ -1256,8 +1249,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 fileToLastModified.clear();
                 fileToLastModified = null;
             }
-            classGraphClassLoader = null;
-            envClassLoaderOrder = null;
             // nestedJarHandler should be closed last, since it needs to have all MappedByteBuffer refs
             // dropped before it tries to delete any temporary files that were written to disk
             if (nestedJarHandler != null) {
@@ -1276,6 +1267,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     }
                 }
             }
+            classGraphClassLoader = null;
+            envClassLoaderOrder = null;
             // Remove WeakReference to this ScanResult, so shutdown hook does not try to close this
             nonClosedWeakReferences.remove(weakReference);
             // Flush log on exit, in case additional log entries were generated after scan() completed
