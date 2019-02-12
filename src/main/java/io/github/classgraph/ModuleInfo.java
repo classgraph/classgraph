@@ -73,11 +73,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     ModuleInfo(final ModuleRef moduleRef, final ClasspathElement classpathElement) {
         this.moduleRef = moduleRef;
-        this.name = moduleRef != null ? moduleRef.getName() : null;
-        if (this.name == null || this.name.isEmpty()) {
-            this.name = classpathElement.getModuleName();
-        }
         this.classpathElement = classpathElement;
+        this.name = classpathElement.getModuleName();
     }
 
     /**
@@ -97,7 +94,10 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     public URI getLocation() {
         if (locationURI == null) {
-            locationURI = moduleRef != null ? moduleRef.getLocation() : classpathElement.getURI();
+            locationURI = moduleRef != null ? moduleRef.getLocation() : null;
+            if (locationURI == null) {
+                locationURI = classpathElement.getURI();
+            }
         }
         return locationURI;
     }
