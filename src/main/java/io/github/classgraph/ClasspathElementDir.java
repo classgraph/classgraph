@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,12 +39,14 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.NonReadableChannelException;
 import java.nio.file.Files;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
@@ -65,7 +66,7 @@ class ClasspathElementDir extends ClasspathElement {
     private int ignorePrefixLen;
 
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
-    private final HashSet<String> scannedCanonicalPaths = new HashSet<>();
+    private final Set<String> scannedCanonicalPaths = new HashSet<>();
 
     /**
      * A directory classpath element.
@@ -89,7 +90,8 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     * @see io.github.classgraph.ClasspathElement#open(
+     * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
@@ -152,7 +154,10 @@ class ClasspathElementDir extends ClasspathElement {
     private Resource newResource(final File classpathEltDir, final String relativePath,
             final File classpathResourceFile) {
         return new Resource() {
+            /** The random access file. */
             private RandomAccessFile randomAccessFile;
+
+            /** The file channel. */
             private FileChannel fileChannel;
 
             {
@@ -225,7 +230,7 @@ class ClasspathElementDir extends ClasspathElement {
                     byteBuffer = buffer;
                     length = byteBuffer.remaining();
                     return byteBuffer;
-                } catch (final Exception e) {
+                } catch (final IOException | SecurityException | NonReadableChannelException e) {
                     close();
                     throw new IOException("Could not open " + this, e);
                 }
@@ -237,7 +242,7 @@ class ClasspathElementDir extends ClasspathElement {
                     return new InputStreamOrByteBufferAdapter(read());
                 } else {
                     return new InputStreamOrByteBufferAdapter(inputStream = new InputStreamResourceCloser(this,
-                            new FileInputStream(classpathResourceFile)));
+                            Files.newInputStream(classpathResourceFile.toPath())));
                 }
             }
 
@@ -251,7 +256,7 @@ class ClasspathElementDir extends ClasspathElement {
                     try {
                         return inputStream = new InputStreamResourceCloser(this,
                                 Files.newInputStream(classpathResourceFile.toPath()));
-                    } catch (final Exception e) {
+                    } catch (final IOException | SecurityException e) {
                         close();
                         throw new IOException("Could not open " + this, e);
                     }
@@ -354,14 +359,12 @@ class ClasspathElementDir extends ClasspathElement {
         final String dirRelativePath = ignorePrefixLen > dirPath.length() ? "/" //
                 : dirPath.substring(ignorePrefixLen).replace(File.separatorChar, '/') + "/";
 
-        if (nestedClasspathRootPrefixes != null) {
-            if (nestedClasspathRootPrefixes.contains(dirRelativePath)) {
-                if (log != null) {
-                    log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
-                            + dirRelativePath);
-                }
-                return;
+        if (nestedClasspathRootPrefixes != null && nestedClasspathRootPrefixes.contains(dirRelativePath)) {
+            if (log != null) {
+                log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
+                        + dirRelativePath);
             }
+            return;
         }
 
         // Whitelist/blacklist classpath elements based on dir resource paths
@@ -502,7 +505,8 @@ class ClasspathElementDir extends ClasspathElement {
      *
      * @return The classpath element directory as a {@link File}.
      */
-    public File getDirFile() {
+    @Override
+    public File getFile() {
         return classpathEltDir;
     }
 

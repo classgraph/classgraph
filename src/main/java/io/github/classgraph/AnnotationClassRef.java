@@ -50,6 +50,7 @@ public class AnnotationClassRef extends ScanResultObject {
      * Constructor.
      */
     AnnotationClassRef() {
+        super();
     }
 
     /**
@@ -59,6 +60,7 @@ public class AnnotationClassRef extends ScanResultObject {
      *            the type descriptor str
      */
     AnnotationClassRef(final String typeDescriptorStr) {
+        super();
         this.typeDescriptorStr = typeDescriptorStr;
     }
 

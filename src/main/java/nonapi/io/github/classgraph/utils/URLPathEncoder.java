@@ -28,8 +28,6 @@
  */
 package nonapi.io.github.classgraph.utils;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /** A simple URL path encoder. */
@@ -103,15 +101,13 @@ public class URLPathEncoder {
     }
 
     /**
-     * Convert a URL path to a URL.
+     * Normalize a URL path, so that it can be fed into the URL or URI constructor.
      *
      * @param urlPath
      *            the URL path
-     * @return the URL
-     * @throws MalformedURLException
-     *             If the URL path was malformed.
+     * @return the URL string
      */
-    public static URL urlPathToURL(final String urlPath) throws MalformedURLException {
+    public static String normalizeURLPath(final String urlPath) {
         String urlPathNormalized = urlPath;
         if (!urlPathNormalized.startsWith("jrt:") && !urlPathNormalized.startsWith("http://")
                 && !urlPathNormalized.startsWith("https://")) {
@@ -125,11 +121,6 @@ public class URLPathEncoder {
                 urlPathNormalized = "jar:" + urlPathNormalized;
             }
         }
-        urlPathNormalized = encodePath(urlPathNormalized);
-        try {
-            return new URL(urlPathNormalized);
-        } catch (final MalformedURLException e) {
-            throw new MalformedURLException("Cannot parse URL " + urlPathNormalized + ": " + e);
-        }
+        return encodePath(urlPathNormalized);
     }
 }

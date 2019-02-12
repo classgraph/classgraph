@@ -52,6 +52,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *            The number of array dimensions.
      */
     ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims) {
+        super();
         this.elementTypeSignature = elementTypeSignature;
         this.numDims = numDims;
     }

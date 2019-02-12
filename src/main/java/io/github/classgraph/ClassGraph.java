@@ -82,7 +82,7 @@ public class ClassGraph {
 
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
-        // Intentionally left blank
+        // Blank
     }
 
     /**

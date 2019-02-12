@@ -578,7 +578,7 @@ class Classfile {
     /**
      * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
      *
-     * @param CpIdx
+     * @param cpIdx
      *            the constant pool index
      * @return the constant pool class name
      * @throws ClassfileFormatException
@@ -586,8 +586,8 @@ class Classfile {
      * @throws IOException
      *             If an IO exception occurs.
      */
-    private String getConstantPoolClassName(final int CpIdx) throws ClassfileFormatException, IOException {
-        return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
+    private String getConstantPoolClassName(final int cpIdx) throws ClassfileFormatException, IOException {
+        return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
     }
 
     /**
@@ -595,7 +595,7 @@ class Classfile {
      * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
      * "L" and the trailing ";".
      *
-     * @param CpIdx
+     * @param cpIdx
      *            the constant pool index
      * @return the constant pool class descriptor
      * @throws ClassfileFormatException
@@ -603,8 +603,8 @@ class Classfile {
      * @throws IOException
      *             If an IO exception occurs.
      */
-    private String getConstantPoolClassDescriptor(final int CpIdx) throws ClassfileFormatException, IOException {
-        return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
+    private String getConstantPoolClassDescriptor(final int cpIdx) throws ClassfileFormatException, IOException {
+        return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
     /**
@@ -931,7 +931,7 @@ class Classfile {
                 final String typeSigStr = getConstantPoolString(cpIdx);
                 if (typeSigStr != null) {
                     try {
-                        if (typeSigStr.indexOf('(') >= 0 || typeSigStr.equals("<init>")) {
+                        if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
                             // Parse the type signature
                             final MethodTypeSignature typeSig = MethodTypeSignature.parse(typeSigStr,
                                     /* definingClassName = */ null);
@@ -970,9 +970,6 @@ class Classfile {
         classModifiers = inputStreamOrByteBuffer.readUnsignedShort();
         isInterface = (classModifiers & 0x0200) != 0;
         isAnnotation = (classModifiers & 0x2000) != 0;
-        final boolean isModule = (classModifiers & 0x8000) != 0; // Equivalently filename is "module-info.class"
-        final boolean isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1,
-                "package-info.class", 0, 18);
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         final String classNamePath = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
@@ -987,6 +984,9 @@ class Classfile {
         }
 
         // Check class visibility modifiers
+        final boolean isModule = (classModifiers & 0x8000) != 0; // Equivalently filename is "module-info.class"
+        final boolean isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1,
+                "package-info.class", 0, 18);
         if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifiers) && !isModule && !isPackage) {
             throw new SkipClassException("Class is not public, and ignoreClassVisibility() was not called");
         }

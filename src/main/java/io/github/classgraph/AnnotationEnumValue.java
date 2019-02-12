@@ -45,6 +45,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
 
     /** Default constructor for deserialization. */
     AnnotationEnumValue() {
+        super();
     }
 
     /**
@@ -56,6 +57,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      *            The enum const value name.
      */
     AnnotationEnumValue(final String className, final String constValueName) {
+        super();
         this.className = className;
         this.valueName = constValueName;
     }
@@ -110,7 +112,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         Field field;
         try {
             field = classRef.getDeclaredField(valueName);
-        } catch (final Exception e) {
+        } catch (final ReflectiveOperationException | SecurityException e) {
             throw new IllegalArgumentException("Could not find enum constant " + toString(), e);
         }
         if (!field.isEnumConstant()) {
@@ -118,7 +120,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         }
         try {
             return field.get(null);
-        } catch (final Exception e) {
+        } catch (final ReflectiveOperationException | SecurityException e) {
             throw new IllegalArgumentException("Field " + toString() + " is not accessible", e);
         }
     }

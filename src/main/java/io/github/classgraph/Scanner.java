@@ -685,8 +685,9 @@ class Scanner implements Callable<ScanResult> {
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
             if (classpathElt instanceof ClasspathElementDir) {
                 // Separate out ClasspathElementDir elements from other types
-                classpathEltDirs.add(new SimpleEntry<>(((ClasspathElementDir) classpathElt).getDirFile().getPath(),
-                        classpathElt));
+                classpathEltDirs.add(
+                        new SimpleEntry<>(((ClasspathElementDir) classpathElt).getFile().getPath(), classpathElt));
+
             } else if (classpathElt instanceof ClasspathElementZip) {
                 // Separate out ClasspathElementZip elements from other types
                 final ClasspathElementZip classpathEltZip = (ClasspathElementZip) classpathElt;
@@ -775,7 +776,7 @@ class Scanner implements Callable<ScanResult> {
                     public void processWorkUnit(final ClasspathElement classpathElement,
                             final WorkQueue<ClasspathElement> workQueueIgnored, final LogNode pathScanLog)
                             throws InterruptedException {
-                        // Scan the paths within a directory or jar
+                        // Scan the paths within the classpath element
                         classpathElement.scanPaths(pathScanLog);
                     }
                 });

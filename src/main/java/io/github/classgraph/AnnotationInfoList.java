@@ -42,14 +42,13 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * annotation. This field is nullable, as the annotation info list is incrementally built. See
      * {@link #directOnly()}.
      */
-    private final AnnotationInfoList directlyRelatedAnnotations;
+    private AnnotationInfoList directlyRelatedAnnotations;
 
     /**
      * Constructor.
      */
     AnnotationInfoList() {
         super();
-        this.directlyRelatedAnnotations = null;
     }
 
     /**
@@ -60,7 +59,6 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     AnnotationInfoList(final int sizeHint) {
         super(sizeHint);
-        this.directlyRelatedAnnotations = null;
     }
 
     /**
@@ -254,17 +252,15 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             for (final ClassInfo superclass : annotatedClass.getSuperclasses()) {
                 if (superclass.annotationInfo != null) {
                     for (final AnnotationInfo sai : superclass.annotationInfo) {
-                        if (sai.isInherited()) {
-                            // Don't add inherited superclass annotation if it is overridden in a subclass 
-                            if (directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
-                                reachableAnnotationInfo.add(sai);
-                                final AnnotationInfoList reachableMetaAnnotationInfo = new AnnotationInfoList(2);
-                                findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses);
-                                // Meta-annotations also have to have @Inherited to be inherited
-                                for (final AnnotationInfo rmai : reachableMetaAnnotationInfo) {
-                                    if (rmai.isInherited()) {
-                                        reachableAnnotationInfo.add(rmai);
-                                    }
+                        // Don't add inherited superclass annotation if it is overridden in a subclass 
+                        if (sai.isInherited() && directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
+                            reachableAnnotationInfo.add(sai);
+                            final AnnotationInfoList reachableMetaAnnotationInfo = new AnnotationInfoList(2);
+                            findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses);
+                            // Meta-annotations also have to have @Inherited to be inherited
+                            for (final AnnotationInfo rmai : reachableMetaAnnotationInfo) {
+                                if (rmai.isInherited()) {
+                                    reachableAnnotationInfo.add(rmai);
                                 }
                             }
                         }

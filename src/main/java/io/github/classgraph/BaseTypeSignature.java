@@ -46,6 +46,7 @@ public class BaseTypeSignature extends TypeSignature {
      *            the base type
      */
     BaseTypeSignature(final String baseType) {
+        super();
         this.baseType = baseType;
     }
 

@@ -37,6 +37,9 @@ package io.github.classgraph;
  * exceptions may be caught.)
  */
 public class ClassGraphException extends IllegalArgumentException {
+    /** serialVersionUID. */
+    static final long serialVersionUID = 1L;
+
     /** Constructor. */
     public ClassGraphException() {
         super();

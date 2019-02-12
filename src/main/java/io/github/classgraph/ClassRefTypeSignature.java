@@ -39,7 +39,7 @@ import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.utils.Join;
 
 /** A class reference type signature (called "ClassTypeSignature" in the classfile documentation). */
-public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
+public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     /** The class name. */
     final String className;
 
@@ -74,6 +74,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      */
     private ClassRefTypeSignature(final String className, final List<TypeArgument> typeArguments,
             final List<String> suffixes, final List<List<TypeArgument>> suffixTypeArguments) {
+        super();
         this.className = className;
         this.typeArguments = typeArguments;
         this.suffixes = suffixes;

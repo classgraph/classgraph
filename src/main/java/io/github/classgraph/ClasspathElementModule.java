@@ -93,7 +93,8 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     * @see io.github.classgraph.ClasspathElement#open(
+     * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log)
@@ -111,6 +112,7 @@ class ClasspathElementModule extends ClasspathElement {
      */
     private Resource newResource(final String moduleResourcePath) {
         return new Resource() {
+            /** The module reader proxy. */
             private ModuleReaderProxy moduleReaderProxy;
 
             @Override
@@ -128,12 +130,13 @@ class ClasspathElementModule extends ClasspathElement {
                 try {
                     if (moduleRef.getLocationStr() != null) {
                         // Use module location string as URL base, if present
-                        return URLPathEncoder.urlPathToURL(moduleRef.getLocationStr() + "!/" + moduleResourcePath);
+                        return new URL(URLPathEncoder
+                                .normalizeURLPath(moduleRef.getLocationStr() + "!/" + moduleResourcePath));
                     } else {
                         // If there is no known module location, just make up a "jrt:" path based on the module
                         // name, so that the user can see something reasonable in the result
-                        return URLPathEncoder
-                                .urlPathToURL("jrt:/" + moduleRef.getName() + "/" + moduleResourcePath);
+                        return new URL(URLPathEncoder
+                                .normalizeURLPath("jrt:/" + moduleRef.getName() + "/" + moduleResourcePath));
                     }
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for module location: "
@@ -182,7 +185,7 @@ class ClasspathElementModule extends ClasspathElement {
                     length = byteBuffer.remaining();
                     return byteBuffer;
 
-                } catch (final Exception e) {
+                } catch (final SecurityException | OutOfMemoryError e) {
                     close();
                     throw new IOException("Could not open " + this, e);
                 }
@@ -207,7 +210,7 @@ class ClasspathElementModule extends ClasspathElement {
                     length = -1L;
                     return inputStream;
 
-                } catch (final Exception e) {
+                } catch (final SecurityException e) {
                     close();
                     throw new IOException("Could not open " + this, e);
                 }
@@ -230,12 +233,8 @@ class ClasspathElementModule extends ClasspathElement {
                 super.close(); // Close inputStream
                 if (byteBuffer != null) {
                     if (moduleReaderProxy != null) {
-                        try {
-                            // Release any open ByteBuffer
-                            moduleReaderProxy.release(byteBuffer);
-                        } catch (final Exception e) {
-                            // Ignore
-                        }
+                        // Release any open ByteBuffer
+                        moduleReaderProxy.release(byteBuffer);
                     }
                     byteBuffer = null;
                 }
@@ -285,13 +284,13 @@ class ClasspathElementModule extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log.log(moduleLocationStr, "Scanning module " + moduleRef.getName());
 
-        try (final RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
+        try (RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
                 = moduleReaderProxyRecycler.acquireRecycleOnClose()) {
             // Look for whitelisted files in the module.
             List<String> resourceRelativePaths;
             try {
                 resourceRelativePaths = moduleReaderProxyRecycleOnClose.get().list();
-            } catch (final Exception e) {
+            } catch (final SecurityException e) {
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName(), e);
                 }
@@ -322,7 +321,7 @@ class ClasspathElementModule extends ClasspathElement {
 
                 // Get match status of the parent directory of this resource's relative path (or reuse the last
                 // match status for speed, if the directory name hasn't changed).
-                final int lastSlashIdx = relativePath.lastIndexOf("/");
+                final int lastSlashIdx = relativePath.lastIndexOf('/');
                 final String parentRelativePath = lastSlashIdx < 0 ? "/"
                         : relativePath.substring(0, lastSlashIdx + 1);
                 final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
@@ -342,14 +341,13 @@ class ClasspathElementModule extends ClasspathElement {
                 }
 
                 // Found non-blacklisted relative path
-                allResourcePaths.add(relativePath);
-
-                // If resource is whitelisted
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
-                        || (scanSpec.enableClassInfo && relativePath.equals("module-info.class"))) {
+                if (allResourcePaths.add(relativePath)
+                        // If resource is whitelisted
+                        && (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                                || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                                || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                        && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
+                                || (scanSpec.enableClassInfo && relativePath.equals("module-info.class")))) {
                     // Add whitelisted resource
                     final Resource resource = newResource(relativePath);
                     addWhitelistedResource(resource, parentMatchStatus, subLog);
@@ -401,6 +399,19 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     URI getURI() {
         return moduleRef.getLocation();
+    }
+
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClasspathElement#getFile()
+     */
+    @Override
+    File getFile() {
+        final URI location = moduleRef.getLocation();
+        if (location != null && "file".equals(location.getScheme())) {
+            return new File(location);
+        } else {
+            return null;
+        }
     }
 
     /**

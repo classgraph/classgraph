@@ -44,6 +44,7 @@ public class AnnotationParameterValue extends ScanResultObject
 
     /** Default constructor for deserialization. */
     AnnotationParameterValue() {
+        super();
     }
 
     /**
@@ -55,6 +56,7 @@ public class AnnotationParameterValue extends ScanResultObject
      *            The annotation parameter value.
      */
     AnnotationParameterValue(final String name, final Object value) {
+        super();
         this.name = name;
         this.value = new ObjectTypedValueWrapper(value);
     }
@@ -180,7 +182,7 @@ public class AnnotationParameterValue extends ScanResultObject
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
-        toString(buf);
+        toStringBuf(buf);
         return buf.toString();
     }
 
@@ -190,10 +192,10 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param buf
      *            the buf
      */
-    void toString(final StringBuilder buf) {
+    void toStringBuf(final StringBuilder buf) {
         buf.append(name);
         buf.append(" = ");
-        toStringParamValueOnly(buf);
+        toStringBufParamValueOnly(buf);
     }
 
     /**
@@ -202,7 +204,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param buf
      *            the buf
      */
-    void toStringParamValueOnly(final StringBuilder buf) {
+    void toStringBufParamValueOnly(final StringBuilder buf) {
         if (value == null) {
             buf.append("null");
         } else {
@@ -245,8 +247,8 @@ public class AnnotationParameterValue extends ScanResultObject
         // if the annotation has multiple parameters of the same name but different value. 
         final Object p0 = getValue();
         final Object p1 = o.getValue();
-        return p0 != null && p1 != null ? p0.toString().compareTo(p1.toString())
-                : (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1);
+        return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
+                : p0.toString().compareTo(p1.toString());
     }
 
     /* (non-Javadoc)

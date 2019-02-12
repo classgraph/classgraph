@@ -51,7 +51,6 @@ import nonapi.io.github.classgraph.exceptions.ParseException;
 import nonapi.io.github.classgraph.json.Id;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
-import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
@@ -98,27 +97,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private boolean isScannedClass;
 
-    /**
-     * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
-     * class was found in a module.
-     */
-    transient File classpathElementFile;
-
-    /**
-     * The package root within a jarfile (e.g. "BOOT-INF/classes"), or the empty string if this is not a jarfile, or
-     * the package root is the classpath element path (as opposed to within a subdirectory of the classpath
-     * element).
-     */
-    private transient String jarfilePackageRoot = "";
-
-    /**
-     * The classpath element module that this class was found within, or null if this class was found within a
-     * directory or jar.
-     */
-    private transient ModuleRef moduleRef;
-
-    /** The classpath element URL (classpath root dir or jar) that this class was found within. */
-    private transient URL classpathElementURL;
+    /** The classpath element that this class was found within. */
+    transient ClasspathElement classpathElement;
 
     /** The {@link Resource} for the classfile of this class. */
     private transient Resource resource;
@@ -166,6 +146,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** Default constructor for deserialization. */
     ClassInfo() {
+        // Intentionally blank
     }
 
     /**
@@ -585,17 +566,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         classInfo.isExternalClass = isExternalClass;
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
-        classInfo.resource = classfileResource;
-        classInfo.moduleRef = classpathElement instanceof ClasspathElementModule
-                ? ((ClasspathElementModule) classpathElement).getModuleRef()
-                : null;
-        classInfo.classpathElementFile = classInfo.moduleRef != null ? null
-                : classpathElement instanceof ClasspathElementDir
-                        ? ((ClasspathElementDir) classpathElement).getDirFile()
-                        : classpathElement instanceof ClasspathElementZip
-                                ? ((ClasspathElementZip) classpathElement).getZipFile()
-                                : null;
-        classInfo.jarfilePackageRoot = classpathElement.getPackageRoot();
+        classInfo.classpathElement = classpathElement;
 
         // Remember which classloader is used to load the class
         classInfo.classLoader = classpathElement.getClassLoader();
@@ -671,21 +642,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final Set<ClassInfo> classInfoSetFiltered = new LinkedHashSet<>(classes.size());
         for (final ClassInfo classInfo : classes) {
             // Check class type against requested type(s)
-            if (includeAllTypes //
+            if ((includeAllTypes //
                     || includeStandardClasses && classInfo.isStandardClass()
                     || includeImplementedInterfaces && classInfo.isImplementedInterface()
-                    || includeAnnotations && classInfo.isAnnotation()) {
-                if (
-                // Always check blacklist 
-                !scanSpec.classOrPackageIsBlacklisted(classInfo.name) //
-                        && (
-                        // Always return whitelisted classes, or external classes if enableExternalClasses is true
-                        !classInfo.isExternalClass || scanSpec.enableExternalClasses
-                        // Return external (non-whitelisted) classes if viewing class hierarchy "upwards" 
-                                || !strictWhitelist)) {
-                    // Class passed strict whitelist criteria
-                    classInfoSetFiltered.add(classInfo);
-                }
+                    || includeAnnotations && classInfo.isAnnotation()) //
+                    // Always check blacklist 
+                    && !scanSpec.classOrPackageIsBlacklisted(classInfo.name) //
+                    // Always return whitelisted classes, or external classes if enableExternalClasses is true
+                    && (!classInfo.isExternalClass || scanSpec.enableExternalClasses
+                    // Return external (non-whitelisted) classes if viewing class hierarchy "upwards" 
+                            || !strictWhitelist)) {
+                // Class passed strict whitelist criteria
+                classInfoSetFiltered.add(classInfo);
             }
         }
         return classInfoSetFiltered;
@@ -1475,16 +1443,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final ClassInfo superclass : getSuperclasses()) {
             for (final ClassInfo superclassAnnotationClass : superclass.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                     /* strictWhitelist = */ false).reachableClasses) {
-                if (superclassAnnotationClass != null) {
-                    // Check if any of the meta-annotations on this annotation are @Inherited,
-                    // which causes an annotation to annotate a class and all of its subclasses.
-                    if (superclassAnnotationClass.isInherited) {
-                        // inheritedSuperclassAnnotations is an inherited annotation
-                        if (inheritedSuperclassAnnotations == null) {
-                            inheritedSuperclassAnnotations = new LinkedHashSet<>();
-                        }
-                        inheritedSuperclassAnnotations.add(superclassAnnotationClass);
+                // Check if any of the meta-annotations on this annotation are @Inherited,
+                // which causes an annotation to annotate a class and all of its subclasses.
+                if (superclassAnnotationClass != null && superclassAnnotationClass.isInherited) {
+                    // inheritedSuperclassAnnotations is an inherited annotation
+                    if (inheritedSuperclassAnnotations == null) {
+                        inheritedSuperclassAnnotations = new LinkedHashSet<>();
                     }
+                    inheritedSuperclassAnnotations.add(superclassAnnotationClass);
                 }
             }
         }
@@ -1706,9 +1672,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final MethodInfoList methodInfoList = new MethodInfoList();
             for (final MethodInfo mi : methodInfo) {
                 final String miName = mi.getName();
-                final boolean isConstructor = miName.equals("<init>");
+                final boolean isConstructor = "<init>".equals(miName);
                 // (Currently static initializer methods are never returned by public methods)
-                final boolean isStaticInitializer = miName.equals("<clinit>");
+                final boolean isStaticInitializer = "<clinit>".equals(miName);
                 if ((isConstructor && getConstructorMethods) || (isStaticInitializer && getStaticInitializerMethods)
                         || (!isConstructor && !isStaticInitializer && getNormalMethods)) {
                     methodInfoList.add(mi);
@@ -2304,26 +2270,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return The {@link URL} of the classpath element that this class was found within.
      */
     public URL getClasspathElementURL() {
-        if (classpathElementURL == null) {
-            try {
-                if (moduleRef != null) {
-                    // Classpath elt is a module
-                    classpathElementURL = moduleRef.getLocation().toURL();
-                } else if (classpathElementFile.isFile() && !jarfilePackageRoot.isEmpty()) {
-                    // Classpath elt is a jarfile with a non-empty package root
-                    classpathElementURL = URLPathEncoder.urlPathToURL(
-                            classpathElementFile.toURI().toURL().toString() + "!/" + jarfilePackageRoot);
-                } else {
-                    // Classpath elt is a directory, or a jarfile with an empty package root
-                    classpathElementURL = classpathElementFile.toURI().toURL();
-                }
-            } catch (final MalformedURLException e) {
-                // Shouldn't happen
-                throw new IllegalArgumentException(e);
-            }
+        try {
+            return classpathElement.getURI().toURL();
+        } catch (final MalformedURLException e) {
+            throw new IllegalArgumentException("Could not get classpath element URL", e);
         }
-        return classpathElementURL;
-
     }
 
     /**
@@ -2334,7 +2285,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         or null if this class was found in a module. (See also {@link #getModuleRef}.)
      */
     public File getClasspathElementFile() {
-        return classpathElementFile;
+        return classpathElement.getFile();
     }
 
     /**
@@ -2345,7 +2296,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
      */
     public ModuleRef getModuleRef() {
-        return moduleRef;
+        return classpathElement instanceof ClasspathElementModule
+                ? ((ClasspathElementModule) classpathElement).getModuleRef()
+                : null;
     }
 
     /**
@@ -2603,7 +2556,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     public int hashCode() {
-        return name != null ? name.hashCode() : 33;
+        return name == null ? 0 : name.hashCode();
     }
 
     /**

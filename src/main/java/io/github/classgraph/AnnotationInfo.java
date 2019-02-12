@@ -47,7 +47,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     private String name;
 
     /** The annotation param values. */
-    AnnotationParameterValueList annotationParamValues;
+    private AnnotationParameterValueList annotationParamValues;
 
     /**
      * Set to true once any Object[] arrays of boxed types in annotationParamValues have been lazily converted to
@@ -60,6 +60,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     /** Default constructor for deserialization. */
     AnnotationInfo() {
+        super();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -73,6 +74,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *            The annotation parameter values, or null if none.
      */
     AnnotationInfo(final String name, final AnnotationParameterValueList annotationParamValues) {
+        super();
         this.name = name;
         this.annotationParamValues = annotationParamValues;
     }
@@ -421,8 +423,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @param buf
      *            The buffer.
      */
-    void toString(final StringBuilder buf) {
-        buf.append("@").append(getName());
+    void toStringBuf(final StringBuilder buf) {
+        buf.append('@').append(getName());
         if (annotationParamValues != null && !annotationParamValues.isEmpty()) {
             buf.append('(');
             for (int i = 0; i < annotationParamValues.size(); i++) {
@@ -431,9 +433,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 }
                 final AnnotationParameterValue annotationParamValue = annotationParamValues.get(i);
                 if (annotationParamValues.size() > 1 || !"value".equals(annotationParamValue.getName())) {
-                    annotationParamValue.toString(buf);
+                    annotationParamValue.toStringBuf(buf);
                 } else {
-                    annotationParamValue.toStringParamValueOnly(buf);
+                    annotationParamValue.toStringBufParamValueOnly(buf);
                 }
             }
             buf.append(')');
@@ -446,7 +448,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
-        toString(buf);
+        toStringBuf(buf);
         return buf.toString();
     }
 }

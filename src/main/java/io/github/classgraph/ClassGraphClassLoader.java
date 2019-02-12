@@ -67,15 +67,13 @@ class ClassGraphClassLoader extends ClassLoader {
         if (!classpathOverridden && !scanResult.scanResultCameFromDeserialization) {
             // Get ClassInfo for named class
             classInfo = scanResult.getClassInfo(className);
-            if (classInfo != null) {
-                // Try specific classloader for class
-                if (classInfo.classLoader != null) {
-                    try {
-                        return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
-                                classInfo.classLoader);
-                    } catch (final ClassNotFoundException | NoClassDefFoundError e) {
-                        // Ignore
-                    }
+            // Try specific classloader for class
+            if (classInfo != null && classInfo.classLoader != null) {
+                try {
+                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
+                            classInfo.classLoader);
+                } catch (final ClassNotFoundException | NoClassDefFoundError e) {
+                    // Ignore
                 }
             }
         }
@@ -102,7 +100,8 @@ class ClassGraphClassLoader extends ClassLoader {
             // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
             // encapsulation rules by refusing to load modular classes that the context/system classloaders
             // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
-            if (classInfo != null && classInfo.classpathElementFile == null && !classInfo.isPublic()) {
+            if (classInfo != null && classInfo.classpathElement instanceof ClasspathElementModule
+                    && !classInfo.isPublic()) {
                 throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
                         + "but the context and system classloaders could not load the class, probably because "
                         + "the class is not public.");
@@ -154,7 +153,8 @@ class ClassGraphClassLoader extends ClassLoader {
             return super.getResources(path);
         } else {
             return new Enumeration<URL>() {
-                int idx = 0;
+                /** The idx. */
+                int idx;
 
                 @Override
                 public boolean hasMoreElements() {

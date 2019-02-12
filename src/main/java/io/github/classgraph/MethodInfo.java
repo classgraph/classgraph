@@ -683,7 +683,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                annotation.toString(buf);
+                annotation.toStringBuf(buf);
             }
         }
 
@@ -759,7 +759,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
             if (paramInfo.annotationInfo != null) {
                 for (final AnnotationInfo ai : paramInfo.annotationInfo) {
-                    ai.toString(buf);
+                    ai.toStringBuf(buf);
                     buf.append(' ');
                 }
             }

@@ -24,7 +24,6 @@
 package io.github.classgraph;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -143,7 +142,7 @@ public class InputStreamBenchmark {
      */
     @Benchmark
     public void testFileInputStream(final Blackhole blackhole) throws IOException {
-        try (FileInputStream is = new FileInputStream(file)) {
+        try (InputStream is = Files.newInputStream(file.toPath())) {
             consume(is, blackhole);
         }
     }

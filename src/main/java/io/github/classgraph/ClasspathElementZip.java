@@ -107,10 +107,11 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /* (non-Javadoc)
-     * @see io.github.classgraph.ClasspathElement#open(nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     * @see io.github.classgraph.ClasspathElement#open(
+     * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) throws InterruptedException {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log.log("Skipping classpath element, since jar scanning is disabled: " + rawPath);
@@ -148,12 +149,6 @@ class ClasspathElementZip extends ClasspathElement {
             } catch (final IOException | IllegalArgumentException e) {
                 if (subLog != null) {
                     subLog.log("Could not open jarfile " + rawPath + " : " + e);
-                }
-                skipClasspathElement = true;
-                return;
-            } catch (final Exception e) {
-                if (subLog != null) {
-                    subLog.log("Exception while opening jarfile " + rawPath, e);
                 }
                 skipClasspathElement = true;
                 return;
@@ -265,7 +260,7 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    return URLPathEncoder.urlPathToURL(zipFilePath + "!/" + zipEntry.entryName);
+                    return new URL(URLPathEncoder.normalizeURLPath(zipFilePath + "!/" + zipEntry.entryName));
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for resource: " + e);
                 }
@@ -273,12 +268,16 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public URL getClasspathElementURL() {
-                return getZipFileURL();
+                try {
+                    return getURI().toURL();
+                } catch (final MalformedURLException e) {
+                    throw new IllegalArgumentException("Could not form URL for resource: " + e);
+                }
             }
 
             @Override
             public File getClasspathElementFile() {
-                return getZipFile();
+                return getFile();
             }
 
             @Override
@@ -298,9 +297,9 @@ class ClasspathElementZip extends ClasspathElement {
                     length = zipEntry.uncompressedSize;
                     return inputStream;
 
-                } catch (final Exception e) {
+                } catch (final IOException e) {
                     close();
-                    throw new IOException("Could not open " + this, e);
+                    throw e;
                 }
             }
 
@@ -321,9 +320,9 @@ class ClasspathElementZip extends ClasspathElement {
                         length = zipEntry.compressedSize;
                         return zipEntry.getAsSlice();
 
-                    } catch (final Exception e) {
+                    } catch (final IOException e) {
                         close();
-                        throw new IOException("Could not open " + this, e);
+                        throw e;
                     }
                 } else {
                     // Otherwise, decompress or extract the entry into a byte[] array,
@@ -449,7 +448,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Get match status of the parent directory of this ZipEntry file's relative path (or reuse the last
             // match status for speed, if the directory name hasn't changed).
-            final int lastSlashIdx = relativePath.lastIndexOf("/");
+            final int lastSlashIdx = relativePath.lastIndexOf('/');
             final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
             final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
             final ScanSpecPathMatch parentMatchStatus = //
@@ -468,20 +467,21 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Add the ZipEntry path as a Resource
             final Resource resource = newResource(zipEntry, relativePath);
-            if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
-                        || (scanSpec.enableClassInfo && relativePath.equals("module-info.class"))) {
-                    // Resource is whitelisted
-                    addWhitelistedResource(resource, parentMatchStatus, subLog);
-                }
+            if (relativePathToResource.putIfAbsent(relativePath, resource) == null
+                    // If resource is whitelisted
+                    && (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                            || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                            || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                    && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
+                            || (scanSpec.enableClassInfo && relativePath.equals("module-info.class")))) {
+                // Resource is whitelisted
+                addWhitelistedResource(resource, parentMatchStatus, subLog);
             }
         }
 
         // Save the last modified time for the zipfile
-        fileToLastModified.put(getZipFile(), getZipFile().lastModified());
+        final File zipfile = getFile();
+        fileToLastModified.put(zipfile, zipfile.lastModified());
 
         finishScanPaths(subLog);
     }
@@ -516,46 +516,13 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Get the {@link File} for the outermost zipfile of this classpath element.
-     *
-     * @return The {@link File} for the outermost zipfile of this classpath element.
-     */
-    public File getZipFile() {
-        if (logicalZipFile != null) {
-            return logicalZipFile.physicalZipFile.getFile();
-        } else {
-            // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
-            final int plingIdx = rawPath.indexOf('!');
-            final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-                    plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
-            final File outermostZipFile = new File(outermostZipFilePathResolved);
-            return outermostZipFile;
-        }
-    }
-
-    /**
      * Get the zipfile path.
      *
      * @return the path of the zipfile, including any package root.
      */
-    public String getZipFilePath() {
+    String getZipFilePath() {
         return packageRootPrefix.isEmpty() ? zipFilePath
                 : zipFilePath + "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
-    }
-
-    /**
-     * Get the zipfile URL.
-     *
-     * @return the URL for a jarfile, with "!/" separating any nested jars, optionally followed by "!/" and then a
-     *         package root.
-     */
-    public URL getZipFileURL() {
-        try {
-            return URLPathEncoder.urlPathToURL(getZipFilePath());
-        } catch (final MalformedURLException e) {
-            // Shouldn't happen
-            throw new IllegalArgumentException("Could not form URL for classpath element: " + e);
-        }
     }
 
     /* (non-Javadoc)
@@ -564,10 +531,27 @@ class ClasspathElementZip extends ClasspathElement {
     @Override
     URI getURI() {
         try {
-            return getZipFileURL().toURI();
+            return new URI(URLPathEncoder.normalizeURLPath(getZipFilePath()));
         } catch (final URISyntaxException e) {
-            // Should not happen (but if it does, just causes ModuleInfo#getLocation() to return null)
-            return null;
+            throw new IllegalArgumentException("Could not form URI: " + e);
+        }
+    }
+
+    /**
+     * Get the {@link File} for the outermost zipfile of this classpath element.
+     *
+     * @return The {@link File} for the outermost zipfile of this classpath element.
+     */
+    @Override
+    File getFile() {
+        if (logicalZipFile != null) {
+            return logicalZipFile.physicalZipFile.getFile();
+        } else {
+            // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
+            final int plingIdx = rawPath.indexOf('!');
+            final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                    plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
+            return new File(outermostZipFilePathResolved);
         }
     }
 

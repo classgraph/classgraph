@@ -56,11 +56,11 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     /**
      * Constructor.
      *
-     * @param AnnotationParameterValueCollection
+     * @param annotationParameterValueCollection
      *            the annotation parameter value collection
      */
-    AnnotationParameterValueList(final Collection<AnnotationParameterValue> AnnotationParameterValueCollection) {
-        super(AnnotationParameterValueCollection);
+    AnnotationParameterValueList(final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
+        super(annotationParameterValueCollection);
     }
 
     /** An unmodifiable empty {@link AnnotationParameterValueList}. */
@@ -140,8 +140,8 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      *            the annotation class info
      */
     void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
-        for (final AnnotationParameterValue annotationParamValue : this) {
-            annotationParamValue.convertWrapperArraysToPrimitiveArrays(annotationClassInfo);
+        for (final AnnotationParameterValue apv : this) {
+            apv.convertWrapperArraysToPrimitiveArrays(annotationClassInfo);
         }
     }
 

@@ -125,26 +125,6 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the name of this classpath element's module, or null if there is no module name.
-     *
-     * @return the module name
-     */
-    abstract String getModuleName();
-
-    /**
-     * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
-     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes". N.B. for non-modules, this
-     * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the
-     * package root (after extracting nested jars).
-     *
-     * @return the package root
-     */
-    String getPackageRoot() {
-        // Overridden in ClasspathElementZip
-        return "";
-    }
-
-    /**
      * Get the ClassLoader the classpath element was obtained from.
      *
      * @return the classloader
@@ -225,18 +205,16 @@ abstract class ClasspathElement {
             if (!pathRelativeToPackageRoot.equals("module-info.class")
                     && !pathRelativeToPackageRoot.endsWith("/module-info.class")
                     && !pathRelativeToPackageRoot.equals("package-info.class")
-                    && !pathRelativeToPackageRoot.endsWith("/package-info.class")) {
-                if (!classpathRelativePathsFound.add(pathRelativeToPackageRoot)) {
-                    // This relative path has been encountered more than once; mask the second and subsequent
-                    // occurrences of the path
-                    masked.set(i);
-                    foundMasked = true;
-                    if (log != null) {
-                        log.log(String.format("%06d-1", classpathIdx),
-                                "Ignoring duplicate (masked) class "
-                                        + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot)
-                                        + " found at " + res);
-                    }
+                    && !pathRelativeToPackageRoot.endsWith("/package-info.class")
+                    // Check if pathRelativeToPackageRoot has been seen before
+                    && !classpathRelativePathsFound.add(pathRelativeToPackageRoot)) {
+                // This relative path has been encountered more than once;
+                // mask the second and subsequent occurrences of the path
+                masked.set(i);
+                foundMasked = true;
+                if (log != null) {
+                    log.log(String.format("%06d-1", classpathIdx), "Ignoring duplicate (masked) class "
+                            + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot) + " found at " + res);
                 }
             }
         }
@@ -380,4 +358,31 @@ abstract class ClasspathElement {
      * @return the URI for the classpath element.
      */
     abstract URI getURI();
+
+    /**
+     * Get the file for this classpath element, or null if this is a module with a "jrt:" URI.
+     *
+     * @return the file for the classpath element.
+     */
+    abstract File getFile();
+
+    /**
+     * Get the name of this classpath element's module, or null if there is no module name.
+     *
+     * @return the module name
+     */
+    abstract String getModuleName();
+
+    /**
+     * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
+     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes". N.B. for non-modules, this
+     * should only be called after {@link #getClasspathElementFile(LogNode)}, since that method determines the
+     * package root (after extracting nested jars).
+     *
+     * @return the package root
+     */
+    String getPackageRoot() {
+        // Overridden in ClasspathElementZip
+        return "";
+    }
 }
