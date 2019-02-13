@@ -207,10 +207,10 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @param reachableClassInfo
      *            the reachable class info
      */
-    private void getClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
+    private void obtainClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
         reachableClassInfo.addAll(memberClassNameToClassInfo.values());
         for (final PackageInfo subPackageInfo : getChildren()) {
-            subPackageInfo.getClassInfoRecursive(reachableClassInfo);
+            subPackageInfo.obtainClassInfoRecursive(reachableClassInfo);
         }
     }
 
@@ -221,7 +221,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      */
     public ClassInfoList getClassInfoRecursive() {
         final Set<ClassInfo> reachableClassInfo = new HashSet<>();
-        getClassInfoRecursive(reachableClassInfo);
+        obtainClassInfoRecursive(reachableClassInfo);
         return new ClassInfoList(reachableClassInfo, /* sortByName = */ true);
     }
 

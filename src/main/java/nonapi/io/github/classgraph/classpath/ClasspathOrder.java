@@ -59,8 +59,6 @@ public class ClasspathOrder {
     /**
      * Constructor.
      *
-     * @param classpathEltPathToClassLoaders
-     *            the classpath elt path to class loaders
      * @param scanSpec
      *            the scan spec
      */
