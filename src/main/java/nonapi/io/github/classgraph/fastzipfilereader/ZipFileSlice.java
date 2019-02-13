@@ -205,8 +205,8 @@ public class ZipFileSlice {
      */
     @Override
     public String toString() {
-        return (physicalZipFile.isDeflatedToRam ? "[ByteBuffer deflated to RAM]" : physicalZipFile.getFile())
-                + " [byte range " + startOffsetWithinPhysicalZipFile + ".."
+        return (physicalZipFile.isDeflatedToRam ? "[ByteBuffer deflated to RAM from " + getPath() + "]"
+                : physicalZipFile.getFile()) + " [byte range " + startOffsetWithinPhysicalZipFile + ".."
                 + (startOffsetWithinPhysicalZipFile + len) + " / " + physicalZipFile.fileLen + "]";
     }
 }
