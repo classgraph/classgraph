@@ -101,7 +101,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
             // Await termination of any running tasks
             terminated = awaitTermination(2500, TimeUnit.MILLISECONDS);
         } catch (final InterruptedException e) {
-            // Ignore
+            interruptionChecker.interrupt();
         }
         if (!terminated) {
             try {

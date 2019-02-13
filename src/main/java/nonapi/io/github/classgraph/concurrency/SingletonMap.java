@@ -76,10 +76,10 @@ public abstract class SingletonMap<K, V, E extends Exception> {
          *
          * @param singleton
          *            the singleton
-         * @throws RuntimeException
-         *             if this method is called more than once.
+         * @throws ClassGraphException
+         *             if this method is called more than once (indicating an internal inconsistency).
          */
-        void set(final V singleton) throws RuntimeException {
+        void set(final V singleton) throws ClassGraphException {
             if (initialized.getCount() < 1) {
                 // Should not happen
                 throw new ClassGraphException("Singleton already initialized");

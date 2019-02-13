@@ -101,7 +101,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     transient ClasspathElement classpathElement;
 
     /** The {@link Resource} for the classfile of this class. */
-    private transient Resource resource;
+    private transient Resource classfileResource;
 
     /** The classloader this class was obtained from. */
     transient ClassLoader classLoader;
@@ -172,8 +172,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the name
      * @param classModifiers
      *            the class modifiers
+     * @param classfileResource
+     *            the classfile resource
      */
-    private ClassInfo(final String name, final int classModifiers) {
+    private ClassInfo(final String name, final int classModifiers, final Resource classfileResource) {
         super();
         this.name = name;
         if (name.endsWith(";")) {
@@ -181,7 +183,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Bad class name");
         }
         setModifiers(classModifiers);
-        relatedClasses = new EnumMap<>(RelType.class);
+        this.classfileResource = classfileResource;
+        this.relatedClasses = new EnumMap<>(RelType.class);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -291,7 +294,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers));
+            classNameToClassInfo.put(className,
+                    classInfo = new ClassInfo(className, classModifiers, /* classfileResource = */ null));
         }
         classInfo.setModifiers(classModifiers);
         return classInfo;
@@ -559,7 +563,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             // This is the first time this class has been seen, add it
-            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers));
+            classNameToClassInfo.put(className,
+                    classInfo = new ClassInfo(className, classModifiers, classfileResource));
         } else {
             // There was a previous placeholder ClassInfo class added, due to the class being referred
             // to as a superclass, interface or annotation. The isScannedClass field should be false
@@ -2335,7 +2340,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         superclass, interface or annotation, but that wasn't in the scanned path).
      */
     public Resource getResource() {
-        return resource;
+        return classfileResource;
     }
 
     // -------------------------------------------------------------------------------------------------------------

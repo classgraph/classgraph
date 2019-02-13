@@ -36,6 +36,7 @@ import java.util.AbstractSequentialList;
 import java.util.AbstractSet;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -154,7 +155,8 @@ class ClassFieldCache {
             return TreeMap.class;
         } else if (rawType == ConcurrentNavigableMap.class || rawType == ConcurrentSkipListMap.class) {
             return ConcurrentSkipListMap.class;
-        } else if (rawType == List.class || rawType == AbstractList.class || rawType == ArrayList.class) {
+        } else if (rawType == List.class || rawType == AbstractList.class || rawType == ArrayList.class
+                || rawType == Collection.class) {
             return ArrayList.class;
         } else if (rawType == AbstractSequentialList.class || rawType == LinkedList.class) {
             return LinkedList.class;
@@ -186,6 +188,9 @@ class ClassFieldCache {
      *             if no default constructor is both found and accessible.
      */
     Constructor<?> getDefaultConstructorForConcreteTypeOf(final Class<?> cls) {
+        if (cls == null) {
+            throw new IllegalArgumentException("Class reference cannot be null");
+        }
         // Check cache
         final Constructor<?> constructor = defaultConstructorForConcreteType.get(cls);
         if (constructor != null) {
@@ -204,8 +209,8 @@ class ClassFieldCache {
                 // Ignore
             }
         }
-        throw new IllegalArgumentException(
-                "Class " + cls.getName() + " does not have an accessible default (no-arg) constructor");
+        throw new IllegalArgumentException("Class " + cls.getName() //
+                + " does not have an accessible default (no-arg) constructor");
     }
 
     /**

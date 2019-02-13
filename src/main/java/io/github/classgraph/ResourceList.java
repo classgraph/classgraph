@@ -47,6 +47,59 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /** serialVersionUID. */
     static final long serialVersionUID = 1L;
 
+    /** An unmodifiable empty {@link ResourceList}. */
+    static final ResourceList EMPTY_LIST = new ResourceList() {
+        @Override
+        public boolean add(final Resource e) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public void add(final int index, final Resource element) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean remove(final Object o) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public Resource remove(final int index) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean addAll(final Collection<? extends Resource> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean addAll(final int index, final Collection<? extends Resource> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean removeAll(final Collection<?> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public boolean retainAll(final Collection<?> c) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public void clear() {
+            throw new IllegalArgumentException("List is immutable");
+        }
+
+        @Override
+        public Resource set(final int index, final Resource element) {
+            throw new IllegalArgumentException("List is immutable");
+        }
+    };
+
     /**
      * Constructor.
      */

@@ -131,10 +131,19 @@ public class NestedJarHandler {
 
                     } catch (final IllegalArgumentException | IOException e) {
                         // Could not make temp file, or failed to extract entire contents of entry
+                        if (log != null) {
+                            log.log("Deflating zip entry to temporary file failed: " + e);
+                        }
                         if (tempFile != null) {
                             // Delete temp file, in case it contains partially-extracted data
                             // due to running out of disk space
-                            tempFile.delete();
+                            try {
+                                Files.delete(tempFile.toPath());
+                            } catch (final IOException | SecurityException e2) {
+                                if (log != null) {
+                                    log.log("Removing temporary file failed: " + e2);
+                                }
+                            }
                         }
                         childZipEntrySlice = null;
                     }
@@ -525,7 +534,7 @@ public class NestedJarHandler {
                         recycler.forceClose();
                     }
                 } catch (final InterruptedException e) {
-                    // Ignore
+                    interruptionChecker.interrupt();
                 }
                 moduleRefToModuleReaderProxyRecyclerMap.clear();
                 moduleRefToModuleReaderProxyRecyclerMap = null;
@@ -547,7 +556,7 @@ public class NestedJarHandler {
                         physicalZipFile.close();
                     }
                 } catch (final InterruptedException e) {
-                    // Ignore
+                    interruptionChecker.interrupt();
                 }
                 canonicalFileToPhysicalZipFileMap.clear();
                 canonicalFileToPhysicalZipFileMap = null;
@@ -570,17 +579,12 @@ public class NestedJarHandler {
                         : log.log("Removing temporary files");
                 while (!tempFiles.isEmpty()) {
                     final File tempFile = tempFiles.removeLast();
-                    final String path = tempFile.getPath();
-                    boolean success = false;
-                    Throwable e = null;
                     try {
-                        success = tempFile.delete();
-                    } catch (final SecurityException t) {
-                        e = t;
-                    }
-                    if (rmLog != null) {
-                        rmLog.log((success ? "Removed" : "Unable to remove") + " " + path
-                                + (e == null ? "" : " : " + e));
+                        Files.delete(tempFile.toPath());
+                    } catch (final IOException | SecurityException e) {
+                        if (rmLog != null) {
+                            rmLog.log("Removing temporary file failed: " + e);
+                        }
                     }
                 }
                 tempFiles.clear();

@@ -124,10 +124,12 @@ class Scanner implements Callable<ScanResult> {
      *            the failure handler
      * @param topLevelLog
      *            the log
+     * @throws InterruptedException
+     *             if interrupted
      */
     Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler,
-            final LogNode topLevelLog) {
+            final LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
@@ -157,8 +159,10 @@ class Scanner implements Callable<ScanResult> {
      * @param log
      *            the log
      * @return the module order
+     * @throws InterruptedException
+     *             if interrupted
      */
-    private List<ClasspathElementModule> getModuleOrder(final LogNode log) {
+    private List<ClasspathElementModule> getModuleOrder(final LogNode log) throws InterruptedException {
         final List<ClasspathElementModule> moduleCpEltOrder = new ArrayList<>();
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
             // Add modules to start of classpath order, before traditional classpath
@@ -182,11 +186,7 @@ class Scanner implements Callable<ScanResult> {
                                 systemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
                         moduleCpEltOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        try {
-                            classpathElementModule.open(/* ignored */ null, log);
-                        } catch (final InterruptedException e) {
-                            throw new ClassGraphException(e);
-                        }
+                        classpathElementModule.open(/* ignored */ null, log);
                     } else {
                         if (log != null) {
                             log.log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
@@ -207,11 +207,7 @@ class Scanner implements Callable<ScanResult> {
                                 nonSystemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
                         moduleCpEltOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        try {
-                            classpathElementModule.open(/* ignored */ null, log);
-                        } catch (final InterruptedException e) {
-                            throw new ClassGraphException(e);
-                        }
+                        classpathElementModule.open(/* ignored */ null, log);
                     } else {
                         if (log != null) {
                             log.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
@@ -486,7 +482,7 @@ class Scanner implements Callable<ScanResult> {
                             toplevelClasspathEltOrder.add(classpathEltEntry);
                         }
                     }
-                } catch (final IOException e) {
+                } catch (final IOException | SecurityException e) {
                     if (log != null) {
                         log.log("Skipping invalid classpath element " + workUnit.rawClasspathEntry.getKey() + " : "
                                 + e);
@@ -810,7 +806,7 @@ class Scanner implements Callable<ScanResult> {
             // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
             final LogNode linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
             for (final Classfile c : scannedClassfiles) {
-                c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, linkLog);
+                c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo);
             }
 
             // Uncomment the following code to create placeholder external classes for any classes
@@ -1038,25 +1034,23 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.flush();
             }
 
-            // Call the failure handler, if one is set
-            if (failureHandler != null) {
-                try {
-                    // Call the FailureHandler
-                    failureHandler.onFailure(exception);
-                } catch (final Exception f) {
-                    // The failure handler failed
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "The failure handler threw an exception:", f);
-                    }
-                    // Group the two exceptions into one, using the suppressed exception mechanism
-                    // to show the scan exception below the failure handler exception
-                    final ClassGraphException failureHandlerException = new ClassGraphException(
-                            "Exception while calling failure handler", f);
-                    failureHandlerException.addSuppressed(exception);
-                    // Throw a new ClassGraph exception (although this will probably be ignored,
-                    // since job was started with ExecutorService::execute rather than ::submit)  
-                    throw failureHandlerException;
+            // If exception is null, then failureHandler must be non-null at this point
+            try {
+                // Call the FailureHandler
+                failureHandler.onFailure(exception);
+            } catch (final Exception f) {
+                // The failure handler failed
+                if (topLevelLog != null) {
+                    topLevelLog.log("~", "The failure handler threw an exception:", f);
                 }
+                // Group the two exceptions into one, using the suppressed exception mechanism
+                // to show the scan exception below the failure handler exception
+                final ClassGraphException failureHandlerException = new ClassGraphException(
+                        "Exception while calling failure handler", f);
+                failureHandlerException.addSuppressed(exception);
+                // Throw a new ClassGraph exception (although this will probably be ignored,
+                // since job was started with ExecutorService::execute rather than ::submit)  
+                throw failureHandlerException;
             }
         }
         return scanResult;

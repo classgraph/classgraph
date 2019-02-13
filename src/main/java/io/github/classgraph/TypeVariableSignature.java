@@ -206,52 +206,53 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
                 return true;
             }
             // Resolve the type variable against the containing class' type parameters
-            final TypeParameter typeParameter = resolve();
-            // If the corresponding type parameter cannot be resolved
-            if (typeParameter == null) {
-                // Unknown type variables can always be reconciled with a concrete class
+            TypeParameter typeParameter;
+            try {
+                typeParameter = resolve();
+            } catch (final IllegalArgumentException e) {
+                // If the corresponding type parameter cannot be resolved:
+                // unknown type variables can always be reconciled with a concrete class
                 return true;
-            } else {
-                if (typeParameter.classBound == null
-                        && (typeParameter.interfaceBounds == null || typeParameter.interfaceBounds.isEmpty())) {
-                    // If the type parameter has no bounds, just assume the type variable can be reconciled
-                    // to the class by type inference
-                    return true;
+            }
+            if (typeParameter.classBound == null
+                    && (typeParameter.interfaceBounds == null || typeParameter.interfaceBounds.isEmpty())) {
+                // If the type parameter has no bounds, just assume the type variable can be reconciled
+                // to the class by type inference
+                return true;
+            }
+            if (typeParameter.classBound != null) {
+                if (typeParameter.classBound instanceof ClassRefTypeSignature) {
+                    if (typeParameter.classBound.equals(other)) {
+                        // T extends X, and X == other
+                        return true;
+                    }
+                } else if (typeParameter.classBound instanceof TypeVariableSignature) {
+                    // "X" is reconcilable with "Y extends X"
+                    return this.equalsIgnoringTypeParams(typeParameter.classBound);
+                } else /* if (typeParameter.classBound instanceof ArrayTypeSignature) */ {
+                    return false;
                 }
-                if (typeParameter.classBound != null) {
-                    if (typeParameter.classBound instanceof ClassRefTypeSignature) {
-                        if (typeParameter.classBound.equals(other)) {
-                            // T extends X, and X == other
+            }
+            if (typeParameter.interfaceBounds != null) {
+                for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
+                    if (interfaceBound instanceof ClassRefTypeSignature) {
+                        if (interfaceBound.equals(other)) {
+                            // T implements X, and X == other
                             return true;
                         }
-                    } else if (typeParameter.classBound instanceof TypeVariableSignature) {
-                        // "X" is reconcilable with "Y extends X"
-                        return this.equalsIgnoringTypeParams(typeParameter.classBound);
-                    } else /* if (typeParameter.classBound instanceof ArrayTypeSignature) */ {
+                    } else if (interfaceBound instanceof TypeVariableSignature) {
+                        // "X" is reconcilable with "Y implements X"
+                        return this.equalsIgnoringTypeParams(interfaceBound);
+                    } else /* if (interfaceBound instanceof ArrayTypeSignature) */ {
                         return false;
                     }
                 }
-                if (typeParameter.interfaceBounds != null) {
-                    for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
-                        if (interfaceBound instanceof ClassRefTypeSignature) {
-                            if (interfaceBound.equals(other)) {
-                                // T implements X, and X == other
-                                return true;
-                            }
-                        } else if (interfaceBound instanceof TypeVariableSignature) {
-                            // "X" is reconcilable with "Y implements X"
-                            return this.equalsIgnoringTypeParams(interfaceBound);
-                        } else /* if (interfaceBound instanceof ArrayTypeSignature) */ {
-                            return false;
-                        }
-                    }
-                }
-                // Type variable has a concrete bound that is not reconcilable with 'other'
-                // (we don't follow the class hierarchy to compare the bound against the class reference,
-                // since the compiler should only use the bound during type erasure, not some other class
-                // in the class hierarchy)
-                return false;
             }
+            // Type variable has a concrete bound that is not reconcilable with 'other'
+            // (we don't follow the class hierarchy to compare the bound against the class reference,
+            // since the compiler should only use the bound during type erasure, not some other class
+            // in the class hierarchy)
+            return false;
         }
         // Technically I think type variables are never equal to each other, due to capturing,
         // but just compare the variable name for equality here (this should never get
@@ -268,11 +269,11 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @return The string representation.
      */
     public String toStringWithTypeBound() {
-        final TypeParameter typeParameter = resolve();
-        if (typeParameter == null) {
+        try {
+            return resolve().toString();
+        } catch (final IllegalArgumentException e) {
+            // Type parameter could not be resolved
             return name;
-        } else {
-            return typeParameter.toString();
         }
     }
 

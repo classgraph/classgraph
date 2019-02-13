@@ -290,6 +290,7 @@ class ClasspathElementZip extends ClasspathElement {
                     throw e;
                 } catch (final InterruptedException e) {
                     close();
+                    nestedJarHandler.interruptionChecker.interrupt();
                     throw new IOException(e);
                 }
             }
@@ -322,6 +323,7 @@ class ClasspathElementZip extends ClasspathElement {
                     throw e;
                 } catch (final InterruptedException e) {
                     close();
+                    nestedJarHandler.interruptionChecker.interrupt();
                     throw new IOException(e);
                 }
             }

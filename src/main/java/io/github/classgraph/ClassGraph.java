@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -1050,8 +1051,14 @@ public class ClassGraph {
         executorService.execute(new Runnable() {
             @Override
             public void run() {
-                new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
-                        topLevelLog);
+                try {
+                    new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
+                            topLevelLog);
+                } catch (final InterruptedException e) {
+                    // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
+                    // which is unlikely to ever actually be interrupted -- but this exception needs to be caught)
+                    failureHandler.onFailure(e);
+                }
             }
         });
     }
@@ -1068,8 +1075,19 @@ public class ClassGraph {
      *         representing the result of the scan.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        return executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
-                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
+        try {
+            return executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
+                    /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
+        } catch (final InterruptedException e) {
+            // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
+            // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
+            return executorService.submit(new Callable<ScanResult>() {
+                @Override
+                public ScanResult call() throws Exception {
+                    throw e;
+                }
+            });
+        }
     }
 
     /**

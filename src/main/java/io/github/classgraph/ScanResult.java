@@ -70,7 +70,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
      */
-    private Map<String, ResourceList> pathToWhitelistedResourceListCached;
+    private Map<String, ResourceList> pathToWhitelistedResourcesCached;
 
     /** The map from class name to {@link ClassInfo}. */
     private Map<String, ClassInfo> classNameToClassInfo;
@@ -230,47 +230,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
     }
 
-    /**
-     * Get all whitelisted resources.
-     *
-     * @return All whitelisted resources.
-     */
-    private ResourceList getAllWhitelistedResources() {
-        if (allWhitelistedResourcesCached == null) {
-            // Index Resource objects by path
-            final ResourceList whitelistedResourcesList = new ResourceList();
-            for (final ClasspathElement classpathElt : classpathOrder) {
-                if (classpathElt.whitelistedResources != null) {
-                    whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
-                }
-            }
-            // Set atomically for thread safety
-            allWhitelistedResourcesCached = whitelistedResourcesList;
-        }
-        return allWhitelistedResourcesCached;
-    }
-
-    /**
-     * Get the map from resource path to {@link Resource}.
-     *
-     * @return The map from resource path to {@link Resource}.
-     */
-    public Map<String, ResourceList> getPathToWhitelistedResourceList() {
-        if (pathToWhitelistedResourceListCached == null) {
-            final Map<String, ResourceList> pathToWhitelistedResourceListMap = new HashMap<>();
-            for (final Resource res : getAllWhitelistedResources()) {
-                ResourceList resList = pathToWhitelistedResourceListMap.get(res.getPath());
-                if (resList == null) {
-                    pathToWhitelistedResourceListMap.put(res.getPath(), resList = new ResourceList());
-                }
-                resList.add(res);
-            }
-            // Set atomically for thread safety
-            pathToWhitelistedResourceListCached = pathToWhitelistedResourceListMap;
-        }
-        return pathToWhitelistedResourceListCached;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
     // Classpath / module path
 
@@ -380,17 +339,46 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // Resources
 
     /**
-     * Get the list of all resources (including classfiles and non-classfiles) found in whitelisted packages.
+     * Get the list of all resources.
      *
      * @return A list of all resources (including classfiles and non-classfiles) found in whitelisted packages.
      */
     public ResourceList getAllResources() {
-        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
-        if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
-            return new ResourceList(1);
-        } else {
-            return allWhitelistedResources;
+        if (allWhitelistedResourcesCached == null) {
+            // Index Resource objects by path
+            final ResourceList whitelistedResourcesList = new ResourceList();
+            for (final ClasspathElement classpathElt : classpathOrder) {
+                if (classpathElt.whitelistedResources != null) {
+                    whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
+                }
+            }
+            // Set atomically for thread safety
+            allWhitelistedResourcesCached = whitelistedResourcesList;
         }
+        return allWhitelistedResourcesCached;
+    }
+
+    /**
+     * Get a map from resource path to {@link Resource} for all resources (including classfiles and non-classfiles)
+     * found in whitelisted packages.
+     *
+     * @return The map from resource path to {@link Resource} for all resources (including classfiles and
+     *         non-classfiles) found in whitelisted packages.
+     */
+    public Map<String, ResourceList> getAllResourcesAsMap() {
+        if (pathToWhitelistedResourcesCached == null) {
+            final Map<String, ResourceList> pathToWhitelistedResourceListMap = new HashMap<>();
+            for (final Resource res : getAllResources()) {
+                ResourceList resList = pathToWhitelistedResourceListMap.get(res.getPath());
+                if (resList == null) {
+                    pathToWhitelistedResourceListMap.put(res.getPath(), resList = new ResourceList());
+                }
+                resList.add(res);
+            }
+            // Set atomically for thread safety
+            pathToWhitelistedResourcesCached = pathToWhitelistedResourceListMap;
+        }
+        return pathToWhitelistedResourcesCached;
     }
 
     /**
@@ -406,12 +394,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
-        if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
-            return new ResourceList(1);
+        final ResourceList allWhitelistedResources = getAllResources();
+        if (allWhitelistedResources.isEmpty()) {
+            return ResourceList.EMPTY_LIST;
         } else {
             final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
-            final ResourceList resourceList = getPathToWhitelistedResourceList().get(path);
+            final ResourceList resourceList = getAllResourcesAsMap().get(path);
             return (resourceList == null ? new ResourceList(1) : resourceList);
         }
     }
@@ -453,9 +441,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
-        if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
-            return new ResourceList(1);
+        final ResourceList allWhitelistedResources = getAllResources();
+        if (allWhitelistedResources.isEmpty()) {
+            return ResourceList.EMPTY_LIST;
         } else {
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allWhitelistedResources) {
@@ -480,9 +468,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
-        if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
-            return new ResourceList(1);
+        final ResourceList allWhitelistedResources = getAllResources();
+        if (allWhitelistedResources.isEmpty()) {
+            return ResourceList.EMPTY_LIST;
         } else {
             String bareExtension = extension;
             while (bareExtension.startsWith(".")) {
@@ -514,9 +502,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
-        if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
-            return new ResourceList(1);
+        final ResourceList allWhitelistedResources = getAllResources();
+        if (allWhitelistedResources.isEmpty()) {
+            return ResourceList.EMPTY_LIST;
         } else {
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allWhitelistedResources) {
@@ -688,6 +676,23 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
         return ClassInfo.getAllClasses(classNameToClassInfo.values(), scanSpec);
+    }
+
+    /**
+     * Get a map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
+     * during the scan.
+     *
+     * @return The map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
+     *         during the scan.
+     */
+    public Map<String, ClassInfo> getAllClassesAsMap() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+        }
+        return classNameToClassInfo;
     }
 
     /**
@@ -1277,9 +1282,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 allWhitelistedResourcesCached.clear();
                 allWhitelistedResourcesCached = null;
             }
-            if (pathToWhitelistedResourceListCached != null) {
-                pathToWhitelistedResourceListCached.clear();
-                pathToWhitelistedResourceListCached = null;
+            if (pathToWhitelistedResourcesCached != null) {
+                pathToWhitelistedResourcesCached.clear();
+                pathToWhitelistedResourcesCached = null;
             }
             classGraphClassLoader = null;
             if (classNameToClassInfo != null) {

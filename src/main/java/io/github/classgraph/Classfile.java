@@ -332,12 +332,10 @@ class Classfile {
      *            map from package name to package info
      * @param moduleNameToModuleInfo
      *            map from module name to module info
-     * @param log
-     *            the log
      */
     void link(final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
-            final Map<String, ModuleInfo> moduleNameToModuleInfo, final LogNode log) {
+            final Map<String, ModuleInfo> moduleNameToModuleInfo) {
         boolean isModuleDescriptor = false;
         boolean isPackageDescriptor = false;
         ClassInfo classInfo = null;
