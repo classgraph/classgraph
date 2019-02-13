@@ -59,18 +59,18 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** The result of a scan. */
 public final class ScanResult implements Closeable, AutoCloseable {
     /** The order of raw classpath elements. */
-    private final List<String> rawClasspathEltOrderStrs;
+    private List<String> rawClasspathEltOrderStrs;
 
     /** The order of classpath elements, after inner jars have been extracted to temporary files, etc. */
     private List<ClasspathElement> classpathOrder;
 
     /** A list of all files that were found in whitelisted packages. */
-    private ResourceList allWhitelistedResources;
+    private ResourceList allWhitelistedResourcesCached;
 
     /**
      * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
      */
-    private Map<String, ResourceList> pathToWhitelistedResourceList;
+    private Map<String, ResourceList> pathToWhitelistedResourceListCached;
 
     /** The map from class name to {@link ClassInfo}. */
     private Map<String, ClassInfo> classNameToClassInfo;
@@ -89,7 +89,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     private Map<File, Long> fileToLastModified;
 
     /** If true, this {@link ScanResult} was produced by {@link ScanResult#fromJSON(String)}. */
-    boolean isObtainedFromDeserialization;
+    private boolean isObtainedFromDeserialization;
 
     /** A custom ClassLoader that can load classes found during the scan. */
     private ClassGraphClassLoader classGraphClassLoader;
@@ -188,7 +188,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.log = log;
 
         if (classNameToClassInfo != null) {
-            initFromClassInfo();
+            indexResourcesAndClassInfo();
         }
 
         // Define a new ClassLoader that can load the classes found during the scan
@@ -199,27 +199,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
         nonClosedWeakReferences.add(this.weakReference);
     }
 
-    /** Initialize {@link #allWhitelistedResources} the from class info. */
-    private void initFromClassInfo() {
-        for (final ClasspathElement classpathElt : classpathOrder) {
-            if (classpathElt.whitelistedResources != null) {
-                if (allWhitelistedResources == null) {
-                    allWhitelistedResources = new ResourceList();
-                    pathToWhitelistedResourceList = new HashMap<>();
-                }
-                for (final Resource resource : classpathElt.whitelistedResources) {
-                    allWhitelistedResources.add(resource);
-                    final String path = resource.getPath();
-                    ResourceList resourceList = pathToWhitelistedResourceList.get(path);
-                    if (resourceList == null) {
-                        pathToWhitelistedResourceList.put(path, resourceList = new ResourceList());
-                    }
-                    resourceList.add(resource);
-                }
-            }
-        }
+    /** Index {@link Resource} and {@link ClassInfo} objects. */
+    private void indexResourcesAndClassInfo() {
+        // Add backrefs from Info objects back to this ScanResult
         final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
-        // Add backrefs from info objects back to this ScanResult
         for (final ClassInfo classInfo : allClassInfo) {
             classInfo.setScanResult(this);
         }
@@ -245,6 +228,47 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 ci.setReferencedClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
             }
         }
+    }
+
+    /**
+     * Get all whitelisted resources.
+     *
+     * @return All whitelisted resources.
+     */
+    private ResourceList getAllWhitelistedResources() {
+        if (allWhitelistedResourcesCached == null) {
+            // Index Resource objects by path
+            final ResourceList whitelistedResourcesList = new ResourceList();
+            for (final ClasspathElement classpathElt : classpathOrder) {
+                if (classpathElt.whitelistedResources != null) {
+                    whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
+                }
+            }
+            // Set atomically for thread safety
+            allWhitelistedResourcesCached = whitelistedResourcesList;
+        }
+        return allWhitelistedResourcesCached;
+    }
+
+    /**
+     * Get the map from resource path to {@link Resource}.
+     *
+     * @return The map from resource path to {@link Resource}.
+     */
+    public Map<String, ResourceList> getPathToWhitelistedResourceList() {
+        if (pathToWhitelistedResourceListCached == null) {
+            final Map<String, ResourceList> pathToWhitelistedResourceListMap = new HashMap<>();
+            for (final Resource res : getAllWhitelistedResources()) {
+                ResourceList resList = pathToWhitelistedResourceListMap.get(res.getPath());
+                if (resList == null) {
+                    pathToWhitelistedResourceListMap.put(res.getPath(), resList = new ResourceList());
+                }
+                resList.add(res);
+            }
+            // Set atomically for thread safety
+            pathToWhitelistedResourceListCached = pathToWhitelistedResourceListMap;
+        }
+        return pathToWhitelistedResourceListCached;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -361,6 +385,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @return A list of all resources (including classfiles and non-classfiles) found in whitelisted packages.
      */
     public ResourceList getAllResources() {
+        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
         if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -381,11 +406,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
+        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
         if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
             return new ResourceList(1);
         } else {
             final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
-            final ResourceList resourceList = pathToWhitelistedResourceList.get(path);
+            final ResourceList resourceList = getPathToWhitelistedResourceList().get(path);
             return (resourceList == null ? new ResourceList(1) : resourceList);
         }
     }
@@ -427,6 +453,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
+        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
         if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -453,6 +480,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
+        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
         if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -486,6 +514,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
+        final ResourceList allWhitelistedResources = getAllWhitelistedResources();
         if (allWhitelistedResources == null || allWhitelistedResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -1141,18 +1170,20 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("JSON was serialized by newer version of ClassGraph");
         }
 
-        // Perform a new scan with performScan set to false, which resolves all the ClasspathElement objects
-        // (needed for classloading), but does not scan the actual classfiles
+        // Perform a new "scan" with performScan set to false, which resolves all the ClasspathElement objects
+        // and scans classpath element paths (needed for classloading), but does not scan the actual classfiles
         final ClassGraph classGraph = new ClassGraph();
         classGraph.scanSpec = deserialized.scanSpec;
         classGraph.scanSpec.performScan = false;
         if (classGraph.scanSpec.overrideClasspath == null) {
+            // Use the same classpath as before, if classpath was not overridden
             classGraph.overrideClasspath(deserialized.classpath);
         }
         final ScanResult scanResult = classGraph.scan();
+        scanResult.rawClasspathEltOrderStrs = deserialized.classpath;
         scanResult.scanSpec.performScan = true;
 
-        // Restore the Info fields of the new ScanResult 
+        // Set the fields related to ClassInfo in the new ScanResult, based on the deserialized JSON 
         scanResult.scanSpec = deserialized.scanSpec;
         scanResult.classNameToClassInfo = new HashMap<>();
         if (deserialized.classInfo != null) {
@@ -1173,7 +1204,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 scanResult.packageNameToPackageInfo.put(pi.getName(), pi);
             }
         }
-        scanResult.initFromClassInfo();
+
+        // Index Resource and ClassInfo objects 
+        scanResult.indexResourcesAndClassInfo();
 
         scanResult.isObtainedFromDeserialization = true;
         return scanResult;
@@ -1237,16 +1270,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 classpathOrder.clear();
                 classpathOrder = null;
             }
-            if (allWhitelistedResources != null) {
-                for (final Resource classpathResource : allWhitelistedResources) {
+            if (allWhitelistedResourcesCached != null) {
+                for (final Resource classpathResource : allWhitelistedResourcesCached) {
                     classpathResource.close();
                 }
-                allWhitelistedResources.clear();
-                allWhitelistedResources = null;
+                allWhitelistedResourcesCached.clear();
+                allWhitelistedResourcesCached = null;
             }
-            if (pathToWhitelistedResourceList != null) {
-                pathToWhitelistedResourceList.clear();
-                pathToWhitelistedResourceList = null;
+            if (pathToWhitelistedResourceListCached != null) {
+                pathToWhitelistedResourceListCached.clear();
+                pathToWhitelistedResourceListCached = null;
             }
             classGraphClassLoader = null;
             if (classNameToClassInfo != null) {

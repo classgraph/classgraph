@@ -64,7 +64,7 @@ class ClassGraphClassLoader extends ClassLoader {
         final boolean classpathOverridden = scanResult.scanSpec.overrideClasspath != null
                 && !scanResult.scanSpec.overrideClasspath.isEmpty();
         ClassInfo classInfo = null;
-        if (!classpathOverridden && !scanResult.isObtainedFromDeserialization) {
+        if (!classpathOverridden && !scanResult.isObtainedFromDeserialization()) {
             // Get ClassInfo for named class
             classInfo = scanResult.getClassInfo(className);
             // Try specific classloader for class
@@ -80,7 +80,7 @@ class ClassGraphClassLoader extends ClassLoader {
         // Try environment classloaders next, if the classpath was not overridden, or the scan result
         // came from deserialization (since in this case, a new URLClassLoader was created for the
         // classpath entries that were found in the serialized JSON doc)
-        if (!classpathOverridden || scanResult.isObtainedFromDeserialization) {
+        if (!classpathOverridden || scanResult.isObtainedFromDeserialization()) {
             if (scanResult.envClassLoaderOrder != null) {
                 // Try environment classloaders
                 for (final ClassLoader envClassLoader : scanResult.envClassLoaderOrder) {
