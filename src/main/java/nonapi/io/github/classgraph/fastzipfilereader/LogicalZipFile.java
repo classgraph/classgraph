@@ -437,13 +437,13 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 || numEnt != zipFileSliceReader.getShort(eocdPos + 10)) {
             throw new IOException("Multi-disk jarfiles not supported: " + getPath());
         }
-        long cenOff = zipFileSliceReader.getInt(eocdPos + 16);
         long cenSize = zipFileSliceReader.getInt(eocdPos + 12);
-        long cenPos = eocdPos - cenSize;
         if (cenSize > eocdPos) {
             throw new IOException(
                     "Central directory size out of range: " + cenSize + " vs. " + eocdPos + ": " + getPath());
         }
+        long cenOff = zipFileSliceReader.getInt(eocdPos + 16);
+        long cenPos = eocdPos - cenSize;
 
         // Check for Zip64 End Of Central Directory Locator record
         final long zip64cdLocIdx = eocdPos - 20;

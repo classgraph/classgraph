@@ -35,7 +35,7 @@ import java.lang.reflect.Modifier;
  * 
  * @author lukehutch
  */
-public class TypeUtils {
+public final class TypeUtils {
 
     /**
      * Constructor.
@@ -91,7 +91,7 @@ public class TypeUtils {
     }
 
     /** The origin of the modifier bits. */
-    public static enum ModifierType {
+    public enum ModifierType {
         /** The modifier bits apply to a class. */
         CLASS,
         /** The modifier bits apply to a method. */
@@ -144,8 +144,8 @@ public class TypeUtils {
             appendModifierKeyword(buf, "static");
         }
         if (modifierType == ModifierType.FIELD) {
-            // "bridge" and "volatile" overlap in bit 0x40
             if ((modifiers & Modifier.VOLATILE) != 0) {
+                // "bridge" and "volatile" overlap in bit 0x40
                 appendModifierKeyword(buf, "volatile");
             }
             if ((modifiers & Modifier.TRANSIENT) != 0) {
@@ -166,23 +166,19 @@ public class TypeUtils {
         if ((modifiers & 0x1000) != 0) {
             appendModifierKeyword(buf, "synthetic");
         }
-        if (modifierType != ModifierType.FIELD) {
+        if (modifierType != ModifierType.FIELD && (modifiers & 0x40) != 0) {
             // "bridge" and "volatile" overlap in bit 0x40
-            if ((modifiers & 0x40) != 0) {
-                appendModifierKeyword(buf, "bridge");
-            }
+            appendModifierKeyword(buf, "bridge");
         }
-        if (modifierType == ModifierType.METHOD) {
-            if ((modifiers & Modifier.NATIVE) != 0) {
-                appendModifierKeyword(buf, "native");
-            }
-            // Ignored:
-            // ACC_SUPER (0x0020): Treat superclass methods specially when invoked by the invokespecial instruction
+        if (modifierType == ModifierType.METHOD && (modifiers & Modifier.NATIVE) != 0) {
+            appendModifierKeyword(buf, "native");
         }
         if (modifierType != ModifierType.FIELD) {
             if ((modifiers & Modifier.STRICT) != 0) {
                 appendModifierKeyword(buf, "strictfp");
             }
         }
+        // Ignored:
+        // ACC_SUPER (0x0020): Treat superclass methods specially when invoked by the invokespecial instruction
     }
 }

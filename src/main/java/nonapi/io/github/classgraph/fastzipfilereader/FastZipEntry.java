@@ -282,7 +282,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private int currChunkIdx;
 
             /** True if the end of the zip entry has been reached. */
-            private boolean eof = false;
+            private boolean eof;
 
             /** The {@link Inflater} instance, or null if the entry is stored rather than deflated. */
             private final Inflater inflater = isDeflated ? recyclableInflaterInstance.getInflater() : null;
@@ -372,11 +372,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                             return -1;
                         }
                         if (inflater.needsInput()) {
-                            if (!currChunkByteBuf.hasRemaining()) {
-                                // No more bytes in current chunk -- get next chunk
-                                if (!readNextChunk() || !currChunkByteBuf.hasRemaining()) {
-                                    throw new IOException("Unexpected EOF in deflated data");
-                                }
+                            // Check if there's still data left in the current chunk
+                            if (!currChunkByteBuf.hasRemaining()
+                                    // No more bytes in current chunk -- get next chunk, and then make sure
+                                    // that currChunkByteBuf.hasRemaining() subsequently returns true
+                                    && !(readNextChunk() && currChunkByteBuf.hasRemaining())) {
+                                // Ran out of data in the current chunk, and could not read a new chunk
+                                throw new IOException("Unexpected EOF in deflated data");
                             }
                             // Set inflater input for the current chunk
 

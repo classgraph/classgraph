@@ -89,7 +89,7 @@ public final class LogNode {
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
     /** If true, log entries are output in realtime, as well as added to the LogNode tree. */
-    private static boolean LOG_IN_REALTIME;
+    private static boolean logInRealtime;
 
     /**
      * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can
@@ -100,7 +100,7 @@ public final class LogNode {
      *            whether to log in realtime
      */
     public static void logInRealtime(final boolean logInRealtime) {
-        LOG_IN_REALTIME = logInRealtime;
+        LogNode.logInRealtime = logInRealtime;
     }
 
     /**
@@ -128,7 +128,7 @@ public final class LogNode {
         } else {
             stackTrace = null;
         }
-        if (LOG_IN_REALTIME) {
+        if (logInRealtime) {
             log.info(toString());
         }
     }

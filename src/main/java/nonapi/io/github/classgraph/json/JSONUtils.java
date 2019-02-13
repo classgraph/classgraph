@@ -327,7 +327,7 @@ public final class JSONUtils {
                         try {
                             fieldOrConstructor.setAccessible(true);
                             isAccessible.set(true);
-                        } catch (final RuntimeException e) {
+                        } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
                             // Ignore
                         }
                         return null;

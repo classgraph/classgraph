@@ -88,8 +88,7 @@ class CallStackReader {
                                 }
                             }));
             return stackFrameClasses.toArray(new Class<?>[0]);
-        } catch (ReflectiveOperationException | IllegalArgumentException | NullPointerException | LinkageError
-                | SecurityException e) {
+        } catch (Exception | LinkageError e) {
             return null;
         }
     }

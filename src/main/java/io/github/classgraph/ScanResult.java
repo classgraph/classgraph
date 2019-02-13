@@ -114,6 +114,67 @@ public final class ScanResult implements Closeable, AutoCloseable {
     final LogNode log;
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /** The current serialization format. */
+    private static final String CURRENT_SERIALIZATION_FORMAT = "9";
+
+    /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
+    private static class SerializationFormat {
+        /** The serialization format. */
+        public String format;
+
+        /** The scan spec. */
+        public ScanSpec scanSpec;
+
+        /** The classpath, as a list of URL strings. */
+        public List<String> classpath;
+
+        /** The list of all {@link ClassInfo} objects. */
+        public List<ClassInfo> classInfo;
+
+        /** The list of all {@link PackageInfo} objects. */
+        public List<PackageInfo> packageInfo;
+
+        /** The list of all {@link ModuleInfo} objects. */
+        public List<ModuleInfo> moduleInfo;
+
+        /**
+         * Constructor.
+         */
+        @SuppressWarnings("unused")
+        public SerializationFormat() {
+            // Empty
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param serializationFormatStr
+         *            the serialization format string
+         * @param scanSpec
+         *            the scan spec
+         * @param classInfo
+         *            the list of all {@link ClassInfo} objects
+         * @param packageInfo
+         *            the list of all {@link PackageInfo} objects
+         * @param moduleInfo
+         *            the list of all {@link ModuleInfo} objects
+         * @param classpath
+         *            the classpath as a list of URL strings
+         */
+        public SerializationFormat(final String serializationFormatStr, final ScanSpec scanSpec,
+                final List<ClassInfo> classInfo, final List<PackageInfo> packageInfo,
+                final List<ModuleInfo> moduleInfo, final List<String> classpath) {
+            this.format = serializationFormatStr;
+            this.scanSpec = scanSpec;
+            this.classpath = classpath;
+            this.classInfo = classInfo;
+            this.packageInfo = packageInfo;
+            this.moduleInfo = moduleInfo;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
     // Shutdown hook
 
     /** The {@link WeakReference} for this ScanResult. */
@@ -1089,64 +1150,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
     // Serialization / deserialization
-
-    /** The current serialization format. */
-    private static final String CURRENT_SERIALIZATION_FORMAT = "9";
-
-    /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
-    private static class SerializationFormat {
-        /** The serialization format. */
-        public String format;
-
-        /** The scan spec. */
-        public ScanSpec scanSpec;
-
-        /** The classpath, as a list of URL strings. */
-        public List<String> classpath;
-
-        /** The list of all {@link ClassInfo} objects. */
-        public List<ClassInfo> classInfo;
-
-        /** The list of all {@link PackageInfo} objects. */
-        public List<PackageInfo> packageInfo;
-
-        /** The list of all {@link ModuleInfo} objects. */
-        public List<ModuleInfo> moduleInfo;
-
-        /**
-         * Constructor.
-         */
-        @SuppressWarnings("unused")
-        public SerializationFormat() {
-        }
-
-        /**
-         * Constructor.
-         *
-         * @param serializationFormatStr
-         *            the serialization format string
-         * @param scanSpec
-         *            the scan spec
-         * @param classInfo
-         *            the list of all {@link ClassInfo} objects
-         * @param packageInfo
-         *            the list of all {@link PackageInfo} objects
-         * @param moduleInfo
-         *            the list of all {@link ModuleInfo} objects
-         * @param classpath
-         *            the classpath as a list of URL strings
-         */
-        public SerializationFormat(final String serializationFormatStr, final ScanSpec scanSpec,
-                final List<ClassInfo> classInfo, final List<PackageInfo> packageInfo,
-                final List<ModuleInfo> moduleInfo, final List<String> classpath) {
-            this.format = serializationFormatStr;
-            this.scanSpec = scanSpec;
-            this.classpath = classpath;
-            this.classInfo = classInfo;
-            this.packageInfo = packageInfo;
-            this.moduleInfo = moduleInfo;
-        }
-    }
 
     /**
      * Deserialize a ScanResult from previously-serialized JSON.
