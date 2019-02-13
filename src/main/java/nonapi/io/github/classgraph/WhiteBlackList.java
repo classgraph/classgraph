@@ -40,16 +40,12 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** A class storing whitelist or blacklist criteria. */
 public abstract class WhiteBlackList {
-
     /** Whitelisted items (whole-string match). */
     protected Set<String> whitelist;
-
     /** Blacklisted items (whole-string match). */
     protected Set<String> blacklist;
-
     /** Whitelisted items (prefix match). */
     protected List<String> whitelistPrefixes;
-
     /** Blacklisted items (prefix match). */
     protected List<String> blacklistPrefixes;
     /** Whitelist glob strings. (Serialized to JSON, for logging purposes.) */

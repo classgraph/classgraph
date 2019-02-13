@@ -50,7 +50,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     private Set<PackageInfo> children;
 
     /** Set of classes in the package. */
-    private final Map<String, ClassInfo> memberClassNameToClassInfo = new HashMap<>();
+    private Map<String, ClassInfo> memberClassNameToClassInfo;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -106,6 +106,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *            the {@link ClassInfo} object to add to the package.
      */
     void addClassInfo(final ClassInfo classInfo) {
+        if (memberClassNameToClassInfo == null) {
+            memberClassNameToClassInfo = new HashMap<>();
+        }
         memberClassNameToClassInfo.put(classInfo.getName(), classInfo);
     }
 

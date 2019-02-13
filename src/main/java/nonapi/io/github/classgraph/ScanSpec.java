@@ -48,41 +48,41 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 public class ScanSpec {
     /** Package white/blacklist (with separator '.'). */
-    public final WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
+    public WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package prefix white/blacklist, for recursive scanning (with separator '.', ending in '.'). */
-    public final WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix();
+    public WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Path white/blacklist (with separator '/'). */
-    public final WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString();
+    public WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path prefix white/blacklist, for recursive scanning (with separator '/', ending in '/'). */
-    public final WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix();
+    public WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Class white/blacklist (fully-qualified class names, with separator '.'). */
-    public final WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString();
+    public WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Classfile white/blacklist (path to classfiles, with separator '/', ending in ".class"). */
-    public final WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString();
+    public WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package containing white/blacklisted classes (with separator '.'). */
-    public final WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString();
+    public WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path to white/blacklisted classes (with separator '/'). */
-    public final WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString();
+    public WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Module white/blacklist (with separator '.'). */
-    public final WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString();
+    public WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Jar white/blacklist (leafname only, ending in ".jar"). */
-    public final WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
+    public WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
 
     /** Classpath element resource path white/blacklist. */
-    public final WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = //
+    public WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = //
             new WhiteBlackListWholeString();
 
     /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
-    public final WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
+    public WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -205,20 +205,20 @@ public class ScanSpec {
     public transient List<ClasspathElementFilter> classpathElementFilters;
 
     /** Whether to initialize classes when loading them. */
-    public transient boolean initializeLoadedClasses;
+    public boolean initializeLoadedClasses;
 
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
      * temporary directory (e.g. /tmp/ClassGraph-8JX2u4w) after the scan has completed. If false, temporary files
      * are removed by the {@link ScanResult} finalizer, or on JVM exit.
      */
-    public transient boolean removeTemporaryFilesAfterScan;
+    public boolean removeTemporaryFilesAfterScan;
 
     /** If true, do not fetch paths from parent classloaders. */
-    public transient boolean ignoreParentClassLoaders;
+    public boolean ignoreParentClassLoaders;
 
     /** If true, do not scan module layers that are the parent of other module layers. */
-    public transient boolean ignoreParentModuleLayers;
+    public boolean ignoreParentModuleLayers;
 
     /** Commandline module path parameters. */
     public ModulePathInfo modulePathInfo = new ModulePathInfo();

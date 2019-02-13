@@ -30,12 +30,10 @@ package io.github.classgraph;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -51,7 +49,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.classpath.ClassLoaderAndModuleFinder;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
@@ -92,7 +89,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     private Map<File, Long> fileToLastModified;
 
     /** If true, this {@link ScanResult} was produced by {@link ScanResult#fromJSON(String)}. */
-    boolean scanResultCameFromDeserialization;
+    boolean isObtainedFromDeserialization;
 
     /** A custom ClassLoader that can load classes found during the scan. */
     private ClassGraphClassLoader classGraphClassLoader;
@@ -108,7 +105,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     private NestedJarHandler nestedJarHandler;
 
     /** The scan spec. */
-    final ScanSpec scanSpec;
+    ScanSpec scanSpec;
 
     /** If true, this ScanResult has already been closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -182,23 +179,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
-        for (final ClasspathElement classpathElt : classpathOrder) {
-            if (classpathElt.whitelistedResources != null) {
-                if (allWhitelistedResources == null) {
-                    allWhitelistedResources = new ResourceList();
-                    pathToWhitelistedResourceList = new HashMap<>();
-                }
-                allWhitelistedResources.addAll(classpathElt.whitelistedResources);
-                for (final Resource resource : classpathElt.whitelistedResources) {
-                    final String path = resource.getPath();
-                    ResourceList resourceList = pathToWhitelistedResourceList.get(path);
-                    if (resourceList == null) {
-                        pathToWhitelistedResourceList.put(path, resourceList = new ResourceList());
-                    }
-                    resourceList.add(resource);
-                }
-            }
-        }
         this.envClassLoaderOrder = envClassLoaderOrder;
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
@@ -208,33 +188,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.log = log;
 
         if (classNameToClassInfo != null) {
-            final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
-            // Add backrefs from info objects back to this ScanResult
-            for (final ClassInfo classInfo : allClassInfo) {
-                classInfo.setScanResult(this);
-            }
-
-            // If inter-class dependencies are enabled, create placeholder ClassInfo objects for any referenced
-            // classes that were not scanned
-            if (scanSpec.enableInterClassDependencies) {
-                for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
-                    final Set<ClassInfo> refdClasses = new HashSet<>();
-                    for (final String refdClassName : ci.findReferencedClassNames()) {
-                        // Don't add circular dependencies
-                        if (!ci.getName().equals(refdClassName)) {
-                            // Get ClassInfo object for the named class, or create one if it doesn't exist
-                            final ClassInfo refdClassInfo = ClassInfo.getOrCreateClassInfo(refdClassName,
-                                    /* classModifiers are unknown */ 0, classNameToClassInfo);
-                            refdClassInfo.setScanResult(this);
-                            if (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses) {
-                                // Only add class to result if it is whitelisted, or external classes are enabled
-                                refdClasses.add(refdClassInfo);
-                            }
-                        }
-                    }
-                    ci.setReferencedClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
-                }
-            }
+            initFromClassInfo();
         }
 
         // Define a new ClassLoader that can load the classes found during the scan
@@ -243,6 +197,54 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // Provide the shutdown hook with a weak reference to this ScanResult
         this.weakReference = new WeakReference<>(this);
         nonClosedWeakReferences.add(this.weakReference);
+    }
+
+    /** Initialize {@link #allWhitelistedResources} the from class info. */
+    private void initFromClassInfo() {
+        for (final ClasspathElement classpathElt : classpathOrder) {
+            if (classpathElt.whitelistedResources != null) {
+                if (allWhitelistedResources == null) {
+                    allWhitelistedResources = new ResourceList();
+                    pathToWhitelistedResourceList = new HashMap<>();
+                }
+                for (final Resource resource : classpathElt.whitelistedResources) {
+                    allWhitelistedResources.add(resource);
+                    final String path = resource.getPath();
+                    ResourceList resourceList = pathToWhitelistedResourceList.get(path);
+                    if (resourceList == null) {
+                        pathToWhitelistedResourceList.put(path, resourceList = new ResourceList());
+                    }
+                    resourceList.add(resource);
+                }
+            }
+        }
+        final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
+        // Add backrefs from info objects back to this ScanResult
+        for (final ClassInfo classInfo : allClassInfo) {
+            classInfo.setScanResult(this);
+        }
+
+        // If inter-class dependencies are enabled, create placeholder ClassInfo objects for any referenced
+        // classes that were not scanned
+        if (scanSpec.enableInterClassDependencies) {
+            for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
+                final Set<ClassInfo> refdClasses = new HashSet<>();
+                for (final String refdClassName : ci.findReferencedClassNames()) {
+                    // Don't add circular dependencies
+                    if (!ci.getName().equals(refdClassName)) {
+                        // Get ClassInfo object for the named class, or create one if it doesn't exist
+                        final ClassInfo refdClassInfo = ClassInfo.getOrCreateClassInfo(refdClassName,
+                                /* classModifiers are unknown */ 0, classNameToClassInfo);
+                        refdClassInfo.setScanResult(this);
+                        if (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses) {
+                            // Only add class to result if it is whitelisted, or external classes are enabled
+                            refdClasses.add(refdClassInfo);
+                        }
+                    }
+                }
+                ci.setReferencedClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1055,7 +1057,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // Serialization / deserialization
 
     /** The current serialization format. */
-    private static final String CURRENT_SERIALIZATION_FORMAT = "8";
+    private static final String CURRENT_SERIALIZATION_FORMAT = "9";
 
     /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
     private static class SerializationFormat {
@@ -1139,38 +1141,41 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("JSON was serialized by newer version of ClassGraph");
         }
 
-        // Get the classpath that produced the serialized JSON, and extract inner jars, download remote jars, etc.
-        final List<URL> urls = new ClassGraph().overrideClasspath(deserialized.classpath).getClasspathURLs();
-
-        // Define a custom URLClassLoader with the result that delegates to the first environment classloader
-        final ClassLoader[] envClassLoaderOrder = new ClassLoaderAndModuleFinder(deserialized.scanSpec,
-                /* log = */ null).getContextClassLoaders();
-        final ClassLoader parentClassLoader = envClassLoaderOrder == null || envClassLoaderOrder.length == 0 ? null
-                : envClassLoaderOrder[0];
-        final URLClassLoader urlClassLoader = new URLClassLoader(urls.toArray(new URL[0]), parentClassLoader);
-
-        // Index ClassInfo, PackageInfo and MethodInfo objects by name
-        final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-        for (final ClassInfo ci : deserialized.classInfo) {
-            ci.classLoader = urlClassLoader;
-            classNameToClassInfo.put(ci.getName(), ci);
+        // Perform a new scan with performScan set to false, which resolves all the ClasspathElement objects
+        // (needed for classloading), but does not scan the actual classfiles
+        final ClassGraph classGraph = new ClassGraph();
+        classGraph.scanSpec = deserialized.scanSpec;
+        classGraph.scanSpec.performScan = false;
+        if (classGraph.scanSpec.overrideClasspath == null) {
+            classGraph.overrideClasspath(deserialized.classpath);
         }
-        final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
-        for (final PackageInfo pi : deserialized.packageInfo) {
-            packageNameToPackageInfo.put(pi.getName(), pi);
-        }
-        final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
-        for (final ModuleInfo mi : deserialized.moduleInfo) {
-            moduleNameToModuleInfo.put(mi.getName(), mi);
-        }
+        final ScanResult scanResult = classGraph.scan();
+        scanResult.scanSpec.performScan = true;
 
-        // Produce a new ScanResult
-        final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
-                /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), deserialized.classpath,
-                new URLClassLoader[] { urlClassLoader }, classNameToClassInfo, packageNameToPackageInfo,
-                moduleNameToModuleInfo, /* fileToLastModified = */ null, /* nestedJarHandler = */ null,
-                /* log = */ null);
-        scanResult.scanResultCameFromDeserialization = true;
+        // Restore the Info fields of the new ScanResult 
+        scanResult.scanSpec = deserialized.scanSpec;
+        scanResult.classNameToClassInfo = new HashMap<>();
+        if (deserialized.classInfo != null) {
+            for (final ClassInfo ci : deserialized.classInfo) {
+                scanResult.classNameToClassInfo.put(ci.getName(), ci);
+                ci.setScanResult(scanResult);
+            }
+        }
+        scanResult.moduleNameToModuleInfo = new HashMap<>();
+        if (deserialized.moduleInfo != null) {
+            for (final ModuleInfo mi : deserialized.moduleInfo) {
+                scanResult.moduleNameToModuleInfo.put(mi.getName(), mi);
+            }
+        }
+        scanResult.packageNameToPackageInfo = new HashMap<>();
+        if (deserialized.packageInfo != null) {
+            for (final PackageInfo pi : deserialized.packageInfo) {
+                scanResult.packageNameToPackageInfo.put(pi.getName(), pi);
+            }
+        }
+        scanResult.initFromClassInfo();
+
+        scanResult.isObtainedFromDeserialization = true;
         return scanResult;
     }
 
@@ -1205,6 +1210,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
      */
     public String toJSON() {
         return toJSON(0);
+    }
+
+    /**
+     * Checks if this {@link ScanResult} was obtained from JSON by deserialization, by calling
+     * {@link #fromJSON(String)}.
+     *
+     * @return True if this {@link ScanResult} was obtained from JSON by deserialization.
+     */
+    public boolean isObtainedFromDeserialization() {
+        return isObtainedFromDeserialization;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1255,18 +1270,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
             if (nestedJarHandler != null) {
                 nestedJarHandler.close(log);
                 nestedJarHandler = null;
-            }
-            // Close the created URLClassLoader, if this ScanResult came from deserialization
-            if (scanResultCameFromDeserialization) {
-                for (final ClassLoader classLoader : envClassLoaderOrder) {
-                    if (classLoader instanceof URLClassLoader) {
-                        try {
-                            ((URLClassLoader) classLoader).close();
-                        } catch (final IOException e) {
-                            // Ignore
-                        }
-                    }
-                }
             }
             classGraphClassLoader = null;
             envClassLoaderOrder = null;

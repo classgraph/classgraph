@@ -400,8 +400,9 @@ class Classfile {
                 // Add any class annotations on the package-info.class file to the ModuleInfo
                 packageInfo.addAnnotations(classAnnotations);
             } else if (classInfo != null) {
-                // Add ClassInfo to the PackageInfo
+                // Add ClassInfo to PackageInfo, and vice versa
                 packageInfo.addClassInfo(classInfo);
+                classInfo.packageInfo = packageInfo;
             }
         }
 
@@ -419,8 +420,9 @@ class Classfile {
                 moduleInfo.addAnnotations(classAnnotations);
             }
             if (classInfo != null) {
-                // Add ClassInfo to ModuleInfo
+                // Add ClassInfo to ModuleInfo, and vice versa
                 moduleInfo.addClassInfo(classInfo);
+                classInfo.packageInfo = packageInfo;
             }
             if (packageInfo != null) {
                 // Add PackageInfo to ModuleInfo

@@ -35,9 +35,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -85,11 +83,6 @@ class ClasspathElementModule extends ClasspathElement {
         super(classLoader, scanSpec);
         this.moduleRef = moduleRef;
         this.nestedJarHandler = nestedJarHandler;
-        if (scanSpec.performScan) {
-            whitelistedResources = new ArrayList<>();
-            whitelistedClassfileResources = new ArrayList<>();
-            fileToLastModified = new HashMap<>();
-        }
     }
 
     /* (non-Javadoc)

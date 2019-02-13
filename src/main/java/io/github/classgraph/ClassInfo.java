@@ -106,6 +106,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The classloader this class was obtained from. */
     transient ClassLoader classLoader;
 
+    /** Info on the class module. */
+    ModuleInfo moduleInfo;
+
+    /** Info on the package containing the class. */
+    PackageInfo packageInfo;
+
     /** Info on class annotations, including optional annotation param values. */
     AnnotationInfoList annotationInfo;
 
@@ -881,6 +887,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public String getSimpleName() {
         return name.substring(name.lastIndexOf('.') + 1);
+    }
+
+    /**
+     * Get the {@link ModuleInfo} object for the class.
+     *
+     * @return the {@link ModuleInfo} object for the class, or null if the class is not part of a named module.
+     */
+    public ModuleInfo getModuleInfo() {
+        return moduleInfo;
+    }
+
+    /**
+     * Get the {@link PackageInfo} object for the class.
+     *
+     * @return the {@link PackageInfo} object for the package that contains the class.
+     */
+    public PackageInfo getPackageInfo() {
+        return packageInfo;
     }
 
     /**

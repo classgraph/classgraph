@@ -211,8 +211,8 @@ public class ClassLoaderAndModuleFinder {
     private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final ScanSpec scanSpec,
             final LogNode log) {
         final List<Object> layers = new ArrayList<>();
-        for (final Class<?> aCallStack : callStack) {
-            final Object /* Module */ module = ReflectionUtils.invokeMethod(aCallStack, "getModule",
+        for (final Class<?> stackFrameClass : callStack) {
+            final Object /* Module */ module = ReflectionUtils.invokeMethod(stackFrameClass, "getModule",
                     /* throwException = */ false);
             if (module != null) {
                 final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",

@@ -272,7 +272,14 @@ public class JSONSerializationTest {
      */
     @Test
     public void testSerializeThenDeserializeScanResult() {
-        try (ScanResult scanResult = new ClassGraph()
+        // Get URL base for overriding classpath (otherwise the JSON representation of the ScanResult won't be
+        // the same after the first and second deserialization, because overrideClasspath is set by the first
+        // serialization for consistency.)
+        final String classfileURL = getClass().getClassLoader()
+                .getResource(JSONSerializationTest.class.getName().replace('.', '/') + ".class").toString();
+        final String classpathBase = classfileURL.substring(0,
+                classfileURL.length() - (JSONSerializationTest.class.getName().length() + 6));
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathBase)
                 .whitelistPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName())
                 .ignoreClassVisibility().scan()) {
             final int indent = 2;

@@ -59,7 +59,7 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 public class ClassGraph {
 
     /** The scanning specification. */
-    private final ScanSpec scanSpec = new ScanSpec();
+    ScanSpec scanSpec = new ScanSpec();
 
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
@@ -1092,12 +1092,19 @@ public class ClassGraph {
         try {
             // Start the scan and wait for completion
 
-            //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
-            //    final String scanResultJson = scanResult.toJSON();
-            //    scanResult = ScanResult.fromJSON(scanResultJson);
-
             // Return the scanResult, then block waiting for the result
             final ScanResult scanResult = scanAsync(executorService, numParallelTasks).get();
+
+            //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
+            //    if (scanSpec.enableClassInfo && scanSpec.performScan) {
+            //        final String scanResultJson = scanResult.toJSON(2);
+            //        final ScanResult scanResultFromJson = ScanResult.fromJSON(scanResultJson);
+            //        final String scanResultJson2 = scanResult.toJSON(2);
+            //        if (!scanResultJson2.equals(scanResultJson)) {
+            //            throw new RuntimeException("Serialization mismatch");
+            //        }
+            //        scanResult = scanResultFromJson;
+            //    }
 
             // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
             if (scanResult == null) {

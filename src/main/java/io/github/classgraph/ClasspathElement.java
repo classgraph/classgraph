@@ -31,12 +31,13 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.BitSet;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -73,7 +74,7 @@ abstract class ClasspathElement {
      * of the manifest file the child classpath element was listed in (or the position of the file within the sorted
      * entries of a lib directory).
      */
-    Queue<Entry<Integer, ClasspathElement>> childClasspathElementsIndexed = new ConcurrentLinkedQueue<>();
+    final Queue<Entry<Integer, ClasspathElement>> childClasspathElementsIndexed = new ConcurrentLinkedQueue<>();
 
     /**
      * The child classpath elements, ordered by order within the parent classpath element.
@@ -81,16 +82,13 @@ abstract class ClasspathElement {
     List<ClasspathElement> childClasspathElementsOrdered;
 
     /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
-    protected List<Resource> whitelistedResources;
+    protected final Collection<Resource> whitelistedResources = new ConcurrentLinkedQueue<>();
 
     /** The list of all classfiles found within this classpath element that were whitelisted and not blacklisted. */
-    protected List<Resource> whitelistedClassfileResources;
-
-    /** Map from class name to non-blacklisted resource. */
-    protected Map<String, Resource> classNameToNonBlacklistedResource;
+    protected Collection<Resource> whitelistedClassfileResources = new ConcurrentLinkedQueue<>();
 
     /** The map from File to last modified timestamp, if scanFiles is true. */
-    protected Map<File, Long> fileToLastModified;
+    protected final Map<File, Long> fileToLastModified = new ConcurrentHashMap<>();
 
     /** Flag to ensure classpath element is only scanned once. */
     protected final AtomicBoolean scanned = new AtomicBoolean(false);
@@ -195,10 +193,10 @@ abstract class ClasspathElement {
         // but actually there is no restriction for paths within a zipfile to be unique, and in fact
         // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
         // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
-        final BitSet masked = new BitSet(whitelistedClassfileResources.size());
+        final List<Resource> whitelistedClassfileResourcesFiltered = new ArrayList<>(
+                whitelistedClassfileResources.size());
         boolean foundMasked = false;
-        for (int i = 0; i < whitelistedClassfileResources.size(); i++) {
-            final Resource res = whitelistedClassfileResources.get(i);
+        for (final Resource res : whitelistedClassfileResources) {
             final String pathRelativeToPackageRoot = res.getPath();
             // Don't mask module-info.class or package-info.class, these are read for every module/package
             if (!pathRelativeToPackageRoot.equals("module-info.class")
@@ -209,25 +207,21 @@ abstract class ClasspathElement {
                     && !classpathRelativePathsFound.add(pathRelativeToPackageRoot)) {
                 // This relative path has been encountered more than once;
                 // mask the second and subsequent occurrences of the path
-                masked.set(i);
                 foundMasked = true;
                 if (log != null) {
                     log.log(String.format("%06d-1", classpathIdx), "Ignoring duplicate (masked) class "
                             + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot) + " found at " + res);
                 }
+            } else {
+                whitelistedClassfileResourcesFiltered.add(res);
             }
         }
-        if (!foundMasked) {
-            return;
+        if (foundMasked) {
+            // Remove masked (duplicated) paths. N.B. this replaces the concurrent collection with a non-concurrent
+            // collection, but this is the last time the collection is changed during a scan, and this method is
+            // run from a single thread.
+            whitelistedClassfileResources = whitelistedClassfileResourcesFiltered;
         }
-        // Remove masked (duplicated) paths
-        final List<Resource> maskedClassfileResources = new ArrayList<>();
-        for (int i = 0; i < whitelistedClassfileResources.size(); i++) {
-            if (!masked.get(i)) {
-                maskedClassfileResources.add(whitelistedClassfileResources.get(i));
-            }
-        }
-        whitelistedClassfileResources = maskedClassfileResources;
     }
 
     // -------------------------------------------------------------------------------------------------------------

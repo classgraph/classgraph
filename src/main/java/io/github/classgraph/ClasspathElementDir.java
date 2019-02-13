@@ -42,9 +42,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.NonReadableChannelException;
 import java.nio.file.Files;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -63,7 +61,7 @@ class ClasspathElementDir extends ClasspathElement {
     private final File classpathEltDir;
 
     /** The number of characters to ignore to strip the classpath element path and relativize the path. */
-    private int ignorePrefixLen;
+    private final int ignorePrefixLen;
 
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final Set<String> scannedCanonicalPaths = new HashSet<>();
@@ -81,12 +79,7 @@ class ClasspathElementDir extends ClasspathElement {
     ClasspathElementDir(final File classpathEltDir, final ClassLoader classLoader, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
         this.classpathEltDir = classpathEltDir;
-        if (scanSpec.performScan) {
-            ignorePrefixLen = classpathEltDir.getPath().length() + 1;
-            whitelistedResources = new ArrayList<>();
-            whitelistedClassfileResources = new ArrayList<>();
-            fileToLastModified = new HashMap<>();
-        }
+        this.ignorePrefixLen = classpathEltDir.getPath().length() + 1;
     }
 
     /* (non-Javadoc)

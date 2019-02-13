@@ -28,30 +28,19 @@ public class Issue310 {
     static final double E = Double.NaN;
 
     /**
-     * The Class DblVal.
-     */
-    public static class DblVal {
-        /** The double val. */
-        public double dblVal;
-
-        /**
-         * Instantiates a new DblVal.
-         *
-         * @param dblVal
-         *            the DblVal
-         */
-        public DblVal(final double dblVal) {
-            this.dblVal = dblVal;
-        }
-    }
-
-    /**
      * Issue 310.
      */
     @Test
     public void issue310() {
-        try (ScanResult scanResult1 = new ClassGraph().whitelistClasses(Issue310.class.getName()).enableAllInfo()
-                .scan()) {
+        // Get URL base for overriding classpath (otherwise the JSON representation of the ScanResult won't be
+        // the same after the first and second deserialization, because overrideClasspath is set by the first
+        // serialization for consistency.)
+        final String classfileURL = getClass().getClassLoader()
+                .getResource(Issue310.class.getName().replace('.', '/') + ".class").toString();
+        final String classpathBase = classfileURL.substring(0,
+                classfileURL.length() - (Issue310.class.getName().length() + 6));
+        try (ScanResult scanResult1 = new ClassGraph().overrideClasspath(classpathBase)
+                .whitelistClasses(Issue310.class.getName()).enableAllInfo().scan()) {
             assertThat(scanResult1.getClassInfo(Issue310.class.getName()).getFieldInfo("B")).isNotNull();
             final String json1 = scanResult1.toJSON(2);
             assertThat(json1).isNotEmpty();

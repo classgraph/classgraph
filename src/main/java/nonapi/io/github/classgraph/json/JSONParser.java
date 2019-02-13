@@ -211,10 +211,13 @@ final class JSONParser extends Parser {
     private Number parseNumber() throws ParseException {
         final int startIdx = getPosition();
         if (peekMatches("Infinity")) {
+            advance(8);
             return Double.POSITIVE_INFINITY;
         } else if (peekMatches("-Infinity")) {
+            advance(9);
             return Double.NEGATIVE_INFINITY;
         } else if (peekMatches("NaN")) {
+            advance(3);
             return Double.NaN;
         }
         if (peek() == '-') {

@@ -768,39 +768,16 @@ class Scanner implements Callable<ScanResult> {
     private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder,
             final List<String> finalClasspathEltOrderStrs, final ClassLoader[] contextClassLoaders)
             throws InterruptedException, ExecutionException {
-        // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
-        processWorkUnits(finalClasspathEltOrder, "Scanning filenames within classpath elements", topLevelLog,
-                new WorkUnitProcessor<ClasspathElement>() {
-                    @Override
-                    public void processWorkUnit(final ClasspathElement classpathElement,
-                            final WorkQueue<ClasspathElement> workQueueIgnored, final LogNode pathScanLog)
-                            throws InterruptedException {
-                        // Scan the paths within the classpath element
-                        classpathElement.scanPaths(pathScanLog);
-                    }
-                });
-
-        // Filter out classpath elements that do not contain required whitelisted paths.
-        List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
-        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistIsEmpty()) {
-            finalClasspathEltOrderFiltered = new ArrayList<>(finalClasspathEltOrder.size());
-            for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-                if (classpathElement.containsSpecificallyWhitelistedClasspathElementResourcePath) {
-                    finalClasspathEltOrderFiltered.add(classpathElement);
-                }
-            }
-        }
-
         // Mask classfiles (remove any classfile resources that are shadowed by an earlier definition
         // of the same class)
         if (scanSpec.enableClassInfo) {
-            maskClassfiles(finalClasspathEltOrderFiltered,
+            maskClassfiles(finalClasspathEltOrder,
                     topLevelLog == null ? null : topLevelLog.log("Masking classfiles"));
         }
 
         // Merge the file-to-timestamp maps across all classpath elements
         final Map<File, Long> fileToLastModified = new HashMap<>();
-        for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
+        for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
             fileToLastModified.putAll(classpathElement.fileToLastModified);
         }
 
@@ -813,7 +790,7 @@ class Scanner implements Callable<ScanResult> {
             final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
             final Set<String> classNamesScheduledForScanning = Collections
                     .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-            for (final ClasspathElement classpathElement : finalClasspathEltOrderFiltered) {
+            for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
                 // Get classfile scan order across all classpath elements
                 for (final Resource resource : classpathElement.whitelistedClassfileResources) {
                     classfileScanWorkItems
@@ -827,7 +804,7 @@ class Scanner implements Callable<ScanResult> {
             // Scan classfiles in parallel
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
             processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
-                    new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrderFiltered,
+                    new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
                             classNamesScheduledForScanning, scannedClassfiles));
 
             // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
@@ -936,16 +913,39 @@ class Scanner implements Callable<ScanResult> {
             }
         }
 
+        // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
+        processWorkUnits(finalClasspathEltOrder, "Scanning filenames within classpath elements", topLevelLog,
+                new WorkUnitProcessor<ClasspathElement>() {
+                    @Override
+                    public void processWorkUnit(final ClasspathElement classpathElement,
+                            final WorkQueue<ClasspathElement> workQueueIgnored, final LogNode pathScanLog)
+                            throws InterruptedException {
+                        // Scan the paths within the classpath element
+                        classpathElement.scanPaths(pathScanLog);
+                    }
+                });
+
+        // Filter out classpath elements that do not contain required whitelisted paths.
+        List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
+        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistIsEmpty()) {
+            finalClasspathEltOrderFiltered = new ArrayList<>(finalClasspathEltOrder.size());
+            for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+                if (classpathElement.containsSpecificallyWhitelistedClasspathElementResourcePath) {
+                    finalClasspathEltOrderFiltered.add(classpathElement);
+                }
+            }
+        }
+
         if (scanSpec.performScan) {
             // Scan classpath / modules, producing a ScanResult.
-            return performScan(finalClasspathEltOrder, finalClasspathEltOrderStrs, contextClassLoaders);
+            return performScan(finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs, contextClassLoaders);
         } else {
             // Only getting classpath -- return a placeholder ScanResult to hold classpath elements
             if (topLevelLog != null) {
                 topLevelLog.log("Only returning classpath elements (not performing a scan)");
             }
-            return new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs, contextClassLoaders,
-                    /* classNameToClassInfo = */ null, /* packageNameToPackageInfo = */ null,
+            return new ScanResult(scanSpec, finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs,
+                    contextClassLoaders, /* classNameToClassInfo = */ null, /* packageNameToPackageInfo = */ null,
                     /* moduleNameToModuleInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
                     topLevelLog);
         }

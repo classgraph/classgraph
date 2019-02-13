@@ -75,7 +75,6 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         this.moduleRef = moduleRef;
         this.classpathElement = classpathElement;
         this.name = classpathElement.getModuleName();
-        this.classInfoSet = new HashSet<>();
     }
 
     /**
@@ -123,6 +122,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *            the {@link ClassInfo} object to add
      */
     void addClassInfo(final ClassInfo classInfo) {
+        if (classInfoSet == null) {
+            classInfoSet = new HashSet<>();
+        }
         classInfoSet.add(classInfo);
     }
 

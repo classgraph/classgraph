@@ -65,7 +65,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
 
     /** The constant initializer value for the field, if any. */
     // This is transient because the constant initializer value is final, so the value doesn't need to be serialized
-    private transient ObjectTypedValueWrapper constantInitializerValue;
+    private ObjectTypedValueWrapper constantInitializerValue;
 
     /** The annotation on the field, if any. */
     AnnotationInfoList annotationInfo;

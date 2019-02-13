@@ -56,7 +56,6 @@ public class ClassLoadingWorksWithParentLastLoaders {
      */
     public void assertCorrectClassLoaders(final String parentClassLoader, final String expectedClassLoader)
             throws Exception {
-
         final A a = new A();
         // Checking the precondition here: We forced our classloader onto "everything"
         assertThat(ClassLoadingWorksWithParentLastLoaders.class.getClassLoader().getClass().getSimpleName())
@@ -72,6 +71,12 @@ public class ClassLoadingWorksWithParentLastLoaders {
 
         // Now use ClassGraph to find everything
         try (ScanResult scanResult = classGraph.scan()) {
+            // Skip the rest of the test if scan() round-tripped through JSON serialization (which is done to test
+            // the correctness of JSON serialization and deserialization), since this replaces the classloader with
+            // ClassGraphClassLoader.
+            if (scanResult.isObtainedFromDeserialization()) {
+                return;
+            }
             final ClassInfo classInfo = scanResult.getAllClasses().filter(new ClassInfoList.ClassInfoFilter() {
                 @Override
                 public boolean accept(final ClassInfo classInfo) {

@@ -37,8 +37,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -99,11 +97,6 @@ class ClasspathElementZip extends ClasspathElement {
         this.rawPath = rawPath;
         this.zipFilePath = rawPath; // May change when open() is called
         this.nestedJarHandler = nestedJarHandler;
-        if (scanSpec.performScan) {
-            whitelistedResources = new ArrayList<>();
-            whitelistedClassfileResources = new ArrayList<>();
-            fileToLastModified = new HashMap<>();
-        }
     }
 
     /* (non-Javadoc)
@@ -130,32 +123,27 @@ class ClasspathElementZip extends ClasspathElement {
             skipClasspathElement = true;
             return;
         }
-        if (scanSpec.performScan) {
-            // If performing the scan, get logical zipfile hierarchy
-            try {
-                // Get LogicalZipFile for innermost nested jarfile
-                final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = //
-                        nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.get(rawPath, subLog);
-                logicalZipFile = logicalZipFileAndPackageRoot.getKey();
 
-                // Get the normalized path of the logical zipfile
-                zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, logicalZipFile.getPath());
+        try {
+            // Get LogicalZipFile for innermost nested jarfile
+            final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = //
+                    nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.get(rawPath, subLog);
+            logicalZipFile = logicalZipFileAndPackageRoot.getKey();
 
-                // Get package root of jarfile 
-                final String packageRoot = logicalZipFileAndPackageRoot.getValue();
-                if (!packageRoot.isEmpty()) {
-                    packageRootPrefix = packageRoot + "/";
-                }
-            } catch (final IOException | IllegalArgumentException e) {
-                if (subLog != null) {
-                    subLog.log("Could not open jarfile " + rawPath + " : " + e);
-                }
-                skipClasspathElement = true;
-                return;
+            // Get the normalized path of the logical zipfile
+            zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, logicalZipFile.getPath());
+
+            // Get package root of jarfile 
+            final String packageRoot = logicalZipFileAndPackageRoot.getValue();
+            if (!packageRoot.isEmpty()) {
+                packageRootPrefix = packageRoot + "/";
             }
-        } else {
-            // Only getting classpath elements
-            zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, rawPath);
+        } catch (final IOException | IllegalArgumentException e) {
+            if (subLog != null) {
+                subLog.log("Could not open jarfile " + rawPath + " : " + e);
+            }
+            skipClasspathElement = true;
+            return;
         }
 
         if (logicalZipFile != null) {
