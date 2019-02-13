@@ -115,6 +115,18 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The {@link WeakReference} for this ScanResult. */
+    private final WeakReference<ScanResult> weakReference;
+
+    /**
+     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
+     * not blocked. (Bug #233)
+     */
+    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
+            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** The current serialization format. */
     private static final String CURRENT_SERIALIZATION_FORMAT = "9";
 
@@ -176,16 +188,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
     // Shutdown hook
-
-    /** The {@link WeakReference} for this ScanResult. */
-    private final WeakReference<ScanResult> weakReference;
-
-    /**
-     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
-     * not blocked. (Bug #233)
-     */
-    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
-            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
 
     static {
         // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
