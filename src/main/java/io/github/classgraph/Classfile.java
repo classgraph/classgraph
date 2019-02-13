@@ -420,7 +420,7 @@ class Classfile {
             if (classInfo != null) {
                 // Add ClassInfo to ModuleInfo, and vice versa
                 moduleInfo.addClassInfo(classInfo);
-                classInfo.packageInfo = packageInfo;
+                classInfo.moduleInfo = moduleInfo;
             }
             if (packageInfo != null) {
                 // Add PackageInfo to ModuleInfo

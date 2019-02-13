@@ -14,6 +14,7 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
 [![lgtm alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
 [![lgtm code quality](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/31d639dd3874454c917f80ea2bff8155)](https://www.codacy.com/app/lukehutch/classgraph?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=classgraph/classgraph&amp;utm_campaign=Badge_Grade)
 <br>
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
@@ -99,10 +100,7 @@ In particular, the Maven group id has changed from `io.github.lukehutch.fast-cla
 
 ## Author
 
-ClassGraph was written by Luke Hutchison:
-
-* https://github.com/lukehutch
-* [@LH](http://twitter.com/LH) on Twitter
+ClassGraph was written by Luke Hutchison ([@LH](http://twitter.com/LH) on Twitter).
 
 Please donate if this library makes your life easier:
 
@@ -137,7 +135,7 @@ Some other classpath scanning mechanisms include:
 
 **The MIT License (MIT)**
 
-**Copyright (c) 2018 Luke Hutchison**
+**Copyright (c) 2019 Luke Hutchison**
  
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  

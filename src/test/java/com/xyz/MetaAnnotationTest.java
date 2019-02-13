@@ -49,7 +49,7 @@ public class MetaAnnotationTest {
      * Setup.
      */
     @BeforeClass
-    public static void setup() {
+    public static void setUp() {
         scanResult = new ClassGraph().whitelistPackages("com.xyz.meta").enableClassInfo().enableAnnotationInfo()
                 .scan();
     }
@@ -58,7 +58,7 @@ public class MetaAnnotationTest {
      * Teardown.
      */
     @AfterClass
-    public static void teardown() {
+    public static void tearDown() {
         scanResult.close();
         scanResult = null;
     }
