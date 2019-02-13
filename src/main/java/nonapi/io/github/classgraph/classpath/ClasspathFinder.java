@@ -304,11 +304,13 @@ public class ClasspathFinder {
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
                     new ArrayList<>();
-            for (final ClassLoader envClassLoader : contextClassLoaders) {
-                findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
-                        /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
-                        ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS, classLoaderAndHandlerOrder,
-                        ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
+            if (contextClassLoaders != null) {
+                for (final ClassLoader envClassLoader : contextClassLoaders) {
+                    findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
+                            /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
+                            ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS, classLoaderAndHandlerOrder,
+                            ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
+                }
             }
 
             // Call each ClassLoaderHandler on its corresponding ClassLoader to get the classpath URLs or paths
