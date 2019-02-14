@@ -470,7 +470,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Get a the named annotation on this method, or null if the method does not have the named annotation.
+     * Get a the named non-{@link Repeatable} annotation on this method, or null if the method does not have the
+     * named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      * 
      * @param annotationName
      *            The annotation name.
@@ -479,6 +480,19 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
+    }
+
+    /**
+     * Get a the named {@link Repeatable} annotation on this method, or the empty list if the method does not have
+     * the named annotation.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfoList} containing all instances of the named annotation on this method, or the
+     *         empty list if the method does not have the named annotation.
+     */
+    public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+        return getAnnotationInfo().getRepeatable(annotationName);
     }
 
     /**

@@ -1585,7 +1585,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a the named annotation on this class, or null if the class does not have the named annotation.
+     * Get a the named non-{@link Repeatable} annotation on this class, or null if the class does not have the named
+     * annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      * 
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
@@ -1603,6 +1604,28 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
+    }
+
+    /**
+     * Get a the named {@link Repeatable} annotation on this class, or the empty list if the class does not have the
+     * named annotation.
+     * 
+     * <p>
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
+     * 
+     * <p>
+     * Note that if you need to get multiple named annotations, it is faster to call {@link #getAnnotationInfo()},
+     * and then get the named annotations from the returned {@link AnnotationInfoList}, so that the returned list
+     * doesn't have to be built multiple times.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfoList} of all instances of the named annotation on this class, or the empty
+     *         list if the class does not have the named annotation.
+     */
+    public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+        return getAnnotationInfo().getRepeatable(annotationName);
     }
 
     /**

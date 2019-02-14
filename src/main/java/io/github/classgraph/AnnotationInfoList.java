@@ -341,6 +341,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         return annotationInfoList;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * returns the list of direct annotations, excluding meta-annotations. If this {@link AnnotationInfoList}
      * consists of class annotations, i.e. if it was produced using `ClassInfo#getAnnotationInfo()`, then the
@@ -357,6 +359,37 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 // Make .directOnly() idempotent
                 : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the {@link Repeatable} annotation with the given name, or the empty list if none found.
+     *
+     * @param name
+     *            The name to search for.
+     * @return The list of annotations with the given name, or the empty list if none found.
+     */
+    public AnnotationInfoList getRepeatable(final String name) {
+        boolean hasNamedAnnotation = false;
+        for (final AnnotationInfo ai : this) {
+            if (ai.getName().equals(name)) {
+                hasNamedAnnotation = true;
+                break;
+            }
+        }
+        if (!hasNamedAnnotation) {
+            return AnnotationInfoList.EMPTY_LIST;
+        }
+        final AnnotationInfoList matchingAnnotations = new AnnotationInfoList(size());
+        for (final AnnotationInfo ai : this) {
+            if (ai.getName().equals(name)) {
+                matchingAnnotations.add(ai);
+            }
+        }
+        return matchingAnnotations;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /* (non-Javadoc)
      * @see java.util.ArrayList#equals(java.lang.Object)

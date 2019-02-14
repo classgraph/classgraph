@@ -283,7 +283,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Get a the named annotation on this field, or null if the field does not have the named annotation.
+     * Get a the named non-{@link Repeatable} annotation on this field, or null if the field does not have the named
+     * annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      * 
      * @param annotationName
      *            The annotation name.
@@ -292,6 +293,19 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     public AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
+    }
+
+    /**
+     * Get a the named {@link Repeatable} annotation on this field, or the empty list if the field does not have the
+     * named annotation.
+     * 
+     * @param annotationName
+     *            The annotation name.
+     * @return An {@link AnnotationInfoList} of all instances of the named annotation on this field, or the empty
+     *         list if the field does not have the named annotation.
+     */
+    public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+        return getAnnotationInfo().getRepeatable(annotationName);
     }
 
     /**
