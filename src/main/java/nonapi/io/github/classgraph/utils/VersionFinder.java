@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,13 +38,10 @@ import java.util.Locale;
 import java.util.Properties;
 
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
-import org.xml.sax.SAXException;
 
 import io.github.classgraph.ClassGraph;
 
@@ -208,8 +204,7 @@ public final class VersionFinder {
                     }
                 }
             }
-        } catch (final URISyntaxException | ParserConfigurationException | SAXException
-                | XPathExpressionException e) {
+        } catch (final Exception e) {
             // Ignore
         }
 
