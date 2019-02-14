@@ -254,28 +254,34 @@ public final class ScanResult implements Closeable, AutoCloseable {
             indexResourcesAndClassInfo();
         }
 
-        // Handle @Repeatable annotations
-        final Set<String> allRepeatableAnnotationNames = new HashSet<>();
-        for (final ClassInfo annotationClassInfo : getAllAnnotations()) {
-            final AnnotationInfo repeatableMetaAnnotation = annotationClassInfo
-                    .getAnnotationInfo("java.lang.annotation.Repeatable");
-            if (repeatableMetaAnnotation != null) {
-                final AnnotationParameterValueList vals = repeatableMetaAnnotation.getParameterValues();
-                if (!vals.isEmpty()) {
-                    final Object val = vals.getValue("value");
-                    if (val instanceof AnnotationClassRef) {
-                        final AnnotationClassRef classRef = (AnnotationClassRef) val;
-                        final String repeatableAnnotationName = classRef.getName();
-                        if (repeatableAnnotationName != null) {
-                            allRepeatableAnnotationNames.add(repeatableAnnotationName);
+        if (classNameToClassInfo != null) {
+            // Handle @Repeatable annotations
+            final Set<String> allRepeatableAnnotationNames = new HashSet<>();
+            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                if (classInfo.isAnnotation()) {
+                    if (classInfo.annotationInfo != null) {
+                        final AnnotationInfo repeatableMetaAnnotation = classInfo.annotationInfo
+                                .get("java.lang.annotation.Repeatable");
+                        if (repeatableMetaAnnotation != null) {
+                            final AnnotationParameterValueList vals = repeatableMetaAnnotation.getParameterValues();
+                            if (!vals.isEmpty()) {
+                                final Object val = vals.getValue("value");
+                                if (val instanceof AnnotationClassRef) {
+                                    final AnnotationClassRef classRef = (AnnotationClassRef) val;
+                                    final String repeatableAnnotationName = classRef.getName();
+                                    if (repeatableAnnotationName != null) {
+                                        allRepeatableAnnotationNames.add(repeatableAnnotationName);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-        if (!allRepeatableAnnotationNames.isEmpty()) {
-            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+            if (!allRepeatableAnnotationNames.isEmpty()) {
+                for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                    classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+                }
             }
         }
 
