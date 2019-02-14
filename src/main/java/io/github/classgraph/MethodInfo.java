@@ -28,12 +28,14 @@
  */
 package io.github.classgraph;
 
+import java.lang.annotation.Repeatable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.ClassInfo.RelType;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
@@ -530,6 +532,46 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 return loadClass().getDeclaredMethod(getName(), parameterClassesArr);
             } catch (final NoSuchMethodException es2) {
                 throw new IllegalArgumentException("No such method: " + getClassName() + "." + getName());
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Handle {@link Repeatable} annotations.
+     *
+     * @param allRepeatableAnnotationNames
+     *            the names of all repeatable annotations
+     */
+    void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
+        if (annotationInfo != null) {
+            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
+                    RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION);
+        }
+        if (parameterAnnotationInfo != null) {
+            for (int i = 0; i < parameterAnnotationInfo.length; i++) {
+                final AnnotationInfo[] pai = parameterAnnotationInfo[i];
+                if (pai != null && pai.length > 0) {
+                    boolean hasRepeatableAnnotation = false;
+                    for (final AnnotationInfo ai : pai) {
+                        if (allRepeatableAnnotationNames.contains(ai.getName())) {
+                            hasRepeatableAnnotation = true;
+                            break;
+                        }
+                    }
+                    if (hasRepeatableAnnotation) {
+                        final AnnotationInfoList aiList = new AnnotationInfoList(pai.length);
+                        for (final AnnotationInfo ai : pai) {
+                            aiList.add(ai);
+                        }
+                        // There is currently no RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION, so set
+                        // RelType values to null
+                        aiList.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(), null,
+                                null);
+                        parameterAnnotationInfo[i] = aiList.toArray(new AnnotationInfo[0]);
+                    }
+                }
             }
         }
     }

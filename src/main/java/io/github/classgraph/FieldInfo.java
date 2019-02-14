@@ -28,10 +28,12 @@
  */
 package io.github.classgraph;
 
+import java.lang.annotation.Repeatable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
+import io.github.classgraph.ClassInfo.RelType;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
@@ -321,6 +323,21 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             } catch (final NoSuchFieldException e2) {
                 throw new IllegalArgumentException("No such field: " + getClassName() + "." + getName());
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Handle {@link Repeatable} annotations.
+     *
+     * @param allRepeatableAnnotationNames
+     *            the names of all repeatable annotations
+     */
+    void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
+        if (annotationInfo != null) {
+            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
+                    RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION);
         }
     }
 

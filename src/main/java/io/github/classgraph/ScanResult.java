@@ -254,6 +254,31 @@ public final class ScanResult implements Closeable, AutoCloseable {
             indexResourcesAndClassInfo();
         }
 
+        // Handle @Repeatable annotations
+        final Set<String> allRepeatableAnnotationNames = new HashSet<>();
+        for (final ClassInfo annotationClassInfo : getAllAnnotations()) {
+            final AnnotationInfo repeatableMetaAnnotation = annotationClassInfo
+                    .getAnnotationInfo("java.lang.annotation.Repeatable");
+            if (repeatableMetaAnnotation != null) {
+                final AnnotationParameterValueList vals = repeatableMetaAnnotation.getParameterValues();
+                if (!vals.isEmpty()) {
+                    final Object val = vals.getValue("value");
+                    if (val instanceof AnnotationClassRef) {
+                        final AnnotationClassRef classRef = (AnnotationClassRef) val;
+                        final String repeatableAnnotationName = classRef.getName();
+                        if (repeatableAnnotationName != null) {
+                            allRepeatableAnnotationNames.add(repeatableAnnotationName);
+                        }
+                    }
+                }
+            }
+        }
+        if (!allRepeatableAnnotationNames.isEmpty()) {
+            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+            }
+        }
+
         // Define a new ClassLoader that can load the classes found during the scan
         this.classGraphClassLoader = new ClassGraphClassLoader(this);
 

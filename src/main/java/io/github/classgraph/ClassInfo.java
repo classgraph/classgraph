@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.lang.annotation.Inherited;
+import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -190,7 +191,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /** How classes are related. */
-    private enum RelType {
+    enum RelType {
 
         // Classes:
 
@@ -268,7 +269,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the {@link ClassInfo}
      * @return true, if successful
      */
-    private boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
+    boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
         Set<ClassInfo> classInfoSet = relatedClasses.get(relType);
         if (classInfoSet == null) {
             relatedClasses.put(relType, classInfoSet = new LinkedHashSet<>(4));
@@ -2472,6 +2473,31 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (annotationDefaultParamValues != null) {
             for (final AnnotationParameterValue apv : annotationDefaultParamValues) {
                 apv.setScanResult(scanResult);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Handle {@link Repeatable} annotations.
+     *
+     * @param allRepeatableAnnotationNames
+     *            the names of all repeatable annotations
+     */
+    void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
+        if (annotationInfo != null) {
+            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, this,
+                    RelType.CLASS_ANNOTATIONS, RelType.CLASSES_WITH_ANNOTATION);
+        }
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                fi.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+            }
+        }
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                mi.handleRepeatableAnnotations(allRepeatableAnnotationNames);
             }
         }
     }

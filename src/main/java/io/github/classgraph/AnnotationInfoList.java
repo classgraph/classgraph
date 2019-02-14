@@ -28,11 +28,15 @@
  */
 package io.github.classgraph;
 
+import java.lang.annotation.Repeatable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.ClassInfo.RelType;
 import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link AnnotationInfo} objects. */
@@ -188,6 +192,65 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     void findReferencedClassNames(final Set<String> referencedClassNames) {
         for (final AnnotationInfo ai : this) {
             ai.findReferencedClassNames(referencedClassNames);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Handle {@link Repeatable} annotations.
+     *
+     * @param allRepeatableAnnotationNames
+     *            the names of all repeatable annotations
+     * @param containingClassInfo
+     *            the containing class
+     * @param forwardRelType
+     *            the forward relationship type for linking (or null for none)
+     * @param reverseRelType
+     *            the reverse relationship type for linking (or null for none)
+     */
+    void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames,
+            final ClassInfo containingClassInfo, final RelType forwardRelType, final RelType reverseRelType) {
+        List<AnnotationInfo> repeatableAnnotations = null;
+        for (int i = size() - 1; i >= 0; --i) {
+            final AnnotationInfo ai = get(i);
+            if (allRepeatableAnnotationNames.contains(ai.getName())) {
+                if (repeatableAnnotations == null) {
+                    repeatableAnnotations = new ArrayList<>();
+                }
+                repeatableAnnotations.add(ai);
+                // Remove repeatable annotation
+                remove(i);
+            }
+        }
+        // Add the component annotations in each of the parameters of the repeatable annotation
+        if (repeatableAnnotations != null) {
+            for (final AnnotationInfo repeatableAnnotation : repeatableAnnotations) {
+                final AnnotationParameterValueList values = repeatableAnnotation.getParameterValues();
+                if (!values.isEmpty()) {
+                    final AnnotationParameterValue apv = values.get("value");
+                    if (apv != null) {
+                        final Object arr = apv.getValue();
+                        if (arr instanceof Object[]) {
+                            for (final Object value : (Object[]) arr) {
+                                if (value instanceof AnnotationInfo) {
+                                    final AnnotationInfo ai = (AnnotationInfo) value;
+                                    add(ai);
+
+                                    // Link annotation, if necessary
+                                    if (forwardRelType != null && reverseRelType != null) {
+                                        final ClassInfo annotationClass = ai.getClassInfo();
+                                        if (annotationClass != null) {
+                                            containingClassInfo.addRelatedClass(forwardRelType, annotationClass);
+                                            annotationClass.addRelatedClass(reverseRelType, containingClassInfo);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

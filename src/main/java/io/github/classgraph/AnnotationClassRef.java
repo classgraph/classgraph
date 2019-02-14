@@ -67,7 +67,7 @@ public class AnnotationClassRef extends ScanResultObject {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the name.
+     * Get the name of the referenced class.
      *
      * @return The name of the referenced class.
      */
