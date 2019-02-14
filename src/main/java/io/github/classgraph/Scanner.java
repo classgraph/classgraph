@@ -370,9 +370,9 @@ class Scanner implements Callable<ScanResult> {
      * The classpath element singleton map. For each classpath element path, canonicalize path, and create a
      * ClasspathElement singleton.
      */
-    private final SingletonMap<Entry<String, ClassLoader>, ClasspathElement, IOException> //
+    private final SingletonMap<Entry<String, ClassLoader>, ClasspathElement> //
     classpathEntryToClasspathElementSingletonMap = //
-            new SingletonMap<Entry<String, ClassLoader>, ClasspathElement, IOException>() {
+            new SingletonMap<Entry<String, ClassLoader>, ClasspathElement>() {
                 @Override
                 public ClasspathElement newInstance(final Entry<String, ClassLoader> classpathEntry,
                         final LogNode log) throws IOException, InterruptedException {
@@ -420,7 +420,15 @@ class Scanner implements Callable<ScanResult> {
                         // to map non-canonicalized path to singleton for canonicalized path (this should
                         // only recurse once, since File::getCanonicalFile and FastPathResolver::resolve are
                         // idempotent)
-                        return this.get(new SimpleEntry<>(canonicalPathNormalized, classLoader), log);
+                        try {
+                            return this.get(new SimpleEntry<>(canonicalPathNormalized, classLoader), log);
+                        } catch (IOException | InterruptedException e) {
+                            throw e;
+                        } catch (final Exception e) {
+                            throw new IOException(
+                                    "Cannot get classpath element for canonical path " + canonicalPathNormalized,
+                                    e);
+                        }
                     } else {
                         // Otherwise path is already canonical, and this is the first time this path has
                         // been seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton
@@ -454,8 +462,17 @@ class Scanner implements Callable<ScanResult> {
                     throws InterruptedException {
                 try {
                     // Create a ClasspathElementZip or ClasspathElementDir for each entry in the classpath
-                    final ClasspathElement classpathElt = classpathEntryToClasspathElementSingletonMap
-                            .get(workUnit.rawClasspathEntry, log);
+                    ClasspathElement classpathElt;
+                    try {
+                        classpathElt = classpathEntryToClasspathElementSingletonMap.get(workUnit.rawClasspathEntry,
+                                log);
+                    } catch (IOException | InterruptedException e) {
+                        throw e;
+                    } catch (final Exception e) {
+                        throw new IOException(
+                                "Cannot get classpath element for classpath entry " + workUnit.rawClasspathEntry,
+                                e);
+                    }
 
                     // Only run open() once per ClasspathElement (it is possible for there to be
                     // multiple classpath elements with different non-canonical paths that map to

@@ -92,8 +92,15 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log)
             throws InterruptedException {
-        moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
-                /* ignored */ null);
+        try {
+            moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
+                    /* ignored */ null);
+        } catch (final InterruptedException e) {
+            throw e;
+        } catch (final Exception e) {
+            // Should not happen
+            throw new ClassGraphException("Got unexpected exception", e);
+        }
     }
 
     /**
