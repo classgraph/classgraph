@@ -35,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
-import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -79,19 +78,19 @@ public abstract class SingletonMap<K, V> {
          *
          * @param singleton
          *            the singleton
-         * @throws ClassGraphException
+         * @throws IllegalArgumentException
          *             if this method is called more than once (indicating an internal inconsistency).
          */
-        void set(final V singleton) throws ClassGraphException {
+        void set(final V singleton) throws RuntimeException {
             if (initialized.getCount() < 1) {
                 // Should not happen
-                throw new ClassGraphException("Singleton already initialized");
+                throw new IllegalArgumentException("Singleton already initialized");
             }
             this.singleton = singleton;
             initialized.countDown();
             if (initialized.getCount() != 0) {
                 // Should not happen
-                throw new ClassGraphException("Singleton initialized more than once");
+                throw new IllegalArgumentException("Singleton initialized more than once");
             }
         }
 
@@ -104,7 +103,7 @@ public abstract class SingletonMap<K, V> {
          * @throws InterruptedException
          *             if the thread was interrupted while waiting for the value to be set.
          */
-        V get() throws Exception {
+        V get() throws Exception, InterruptedException {
             initialized.await();
             if (exception != null) {
                 throw exception;
