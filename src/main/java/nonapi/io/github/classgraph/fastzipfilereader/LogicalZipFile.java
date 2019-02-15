@@ -60,10 +60,10 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     public List<FastZipEntry> entries;
 
     /** If true, this is a multi-release jar. */
-    boolean isMultiReleaseJar;
+    private boolean isMultiReleaseJar;
 
     /** The version numbers of versioned sections found within a multi-release jar. */
-    int[] multiReleaseVersionsFound;
+    private int[] multiReleaseVersionsFound;
 
     /** A set of classpath roots found in the classpath for this zipfile. */
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());

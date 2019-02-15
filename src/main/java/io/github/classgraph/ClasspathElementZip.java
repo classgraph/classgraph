@@ -203,14 +203,15 @@ class ClasspathElementZip extends ClasspathElement {
             // Create child classpath elements from values obtained from Class-Path entry in manifest
             if (logicalZipFile.classPathManifestEntryValue != null) {
                 // Class-Path entries in the manifest file are resolved relative to the dir that
-                // the manifest's jarfile is contained in -- get parent dir of outermost zipfile
-                final String pathOfContainingDir = FastPathResolver
-                        .resolve(logicalZipFile.physicalZipFile.getFile().getParent());
+                // the manifest's jarfile is contained in -- get parent dir of logical zipfile
+                final String path = logicalZipFile.getPath();
+                final int lastSlashIdx = path.lastIndexOf('/');
+                final String parentPathPrefix = lastSlashIdx < 0 ? "" : path.substring(0, lastSlashIdx + 1);
                 for (final String childClassPathEltPath : logicalZipFile.classPathManifestEntryValue.split(" ")) {
                     if (!childClassPathEltPath.isEmpty()) {
                         // Resolve Class-Path entry relative to containing dir
-                        final String childClassPathEltPathResolved = FastPathResolver.resolve(pathOfContainingDir,
-                                childClassPathEltPath);
+                        final String childClassPathEltPathResolved = FastPathResolver
+                                .resolve(parentPathPrefix + "/" + childClassPathEltPath);
                         // Only add child classpath elements once
                         if (!childClassPathEltPathResolved.equals(rawPath)) {
                             // Schedule child classpath element for scanning
@@ -545,7 +546,7 @@ class ClasspathElementZip extends ClasspathElement {
     @Override
     File getFile() {
         if (logicalZipFile != null) {
-            return logicalZipFile.physicalZipFile.getFile();
+            return logicalZipFile.getPhysicalFile();
         } else {
             // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
             final int plingIdx = rawPath.indexOf('!');
