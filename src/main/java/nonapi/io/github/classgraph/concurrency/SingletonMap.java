@@ -76,10 +76,9 @@ public abstract class SingletonMap<K, V> {
         /**
          * Set the singleton value, and decreases the countdown latch to 0.
          *
-         * @param singleton
-         *            the singleton
-         * @throws IllegalArgumentException
-         *             if this method is called more than once (indicating an internal inconsistency).
+         * @param singleton            the singleton
+         * @throws RuntimeException the runtime exception
+         * @throws IllegalArgumentException             if this method is called more than once (indicating an internal inconsistency).
          */
         void set(final V singleton) throws RuntimeException {
             if (initialized.getCount() < 1) {

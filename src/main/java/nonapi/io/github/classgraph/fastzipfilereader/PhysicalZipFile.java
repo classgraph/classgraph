@@ -225,19 +225,19 @@ class PhysicalZipFile implements Closeable {
     }
 
     /**
-     * Get the {@link File} for the outermost jar file of this {@link PhysicalZipFile}.
+     * Get the {@link File} for the outermost jar file of this PhysicalZipFile.
      *
-     * @return the {@link File} for the outermost jar file of this {@link PhysicalZipFile}.
+     * @return the {@link File} for the outermost jar file of this PhysicalZipFile.
      */
     public File getFile() {
         return file;
     }
 
     /**
-     * Get the path for this {@link PhysicalZipFile}, which is the file path, if it is file-backed, or a compound
+     * Get the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a compound
      * nested jar path, if it is memory-backed.
      *
-     * @return the path for this {@link PhysicalZipFile}, which is the file path, if it is file-backed, or a
+     * @return the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a
      *         compound nested jar path, if it is memory-backed.
      */
     public String getPath() {

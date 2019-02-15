@@ -39,7 +39,7 @@ import java.util.Arrays;
 import nonapi.io.github.classgraph.utils.FileUtils;
 
 /**
- * A class for reading from a {@link ZipFileSlice}.
+ * A class for reading from a ZipFileSlice.
  */
 class ZipFileSliceReader implements AutoCloseable {
     /** The zipfile slice. */

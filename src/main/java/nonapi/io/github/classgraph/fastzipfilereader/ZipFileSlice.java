@@ -189,9 +189,9 @@ class ZipFileSlice {
     }
 
     /**
-     * Get the physical {@link File} that this {@link ZipFileSlice} is a slice of.
+     * Get the physical {@link File} that this ZipFileSlice is a slice of.
      *
-     * @return the physical {@link File} that this {@link ZipFileSlice} is a slice of.
+     * @return the physical {@link File} that this ZipFileSlice is a slice of.
      */
     public File getPhysicalFile() {
         return physicalZipFile.getFile();

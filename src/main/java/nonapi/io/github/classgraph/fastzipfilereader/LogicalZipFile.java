@@ -52,8 +52,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
- * A logical zipfile, which represents a zipfile contained within a {@link ZipFileSlice} of a
- * {@link PhysicalZipFile}.
+ * A logical zipfile, which represents a zipfile contained within a ZipFileSlice of a PhysicalZipFile.
  */
 public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** The zipfile entries. */
