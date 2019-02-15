@@ -310,7 +310,6 @@ public final class JSONUtils {
      *            the field or constructor
      * @return true if accessible
      */
-    @SuppressWarnings("deprecation")
     static boolean isAccessibleOrMakeAccessible(final AccessibleObject fieldOrConstructor) {
         // Make field accessible if needed
         final AtomicBoolean isAccessible = new AtomicBoolean(
