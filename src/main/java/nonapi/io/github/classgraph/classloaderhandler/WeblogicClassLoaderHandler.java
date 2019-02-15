@@ -34,7 +34,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Weblogic ClassLoaders. */
-public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
+class WeblogicClassLoaderHandler implements ClassLoaderHandler {
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()

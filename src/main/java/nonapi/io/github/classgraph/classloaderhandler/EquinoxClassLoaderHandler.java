@@ -43,7 +43,7 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 /**
  * Extract classpath entries from the Eclipse Equinox ClassLoader.
  */
-public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
+class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     /** Field names. */
     private static final List<String> FIELD_NAMES = Collections

@@ -37,7 +37,7 @@ import nonapi.io.github.classgraph.recycler.Resettable;
  * Wrapper class that allows an {@link Inflater} instance to be reset for reuse and then recycled by a
  * {@link Recycler}.
  */
-public class RecyclableInflater implements Resettable, AutoCloseable {
+class RecyclableInflater implements Resettable, AutoCloseable {
     /** Create a new {@link Inflater} instance with the "nowrap" option (which is needed for zipfile entries). */
     private final Inflater inflater = new Inflater(/* nowrap = */ true);
 

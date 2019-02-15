@@ -71,7 +71,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     public int curr;
 
     /** Bytes used in the buffer. */
-    public int used;
+    private int used;
 
     /**
      * Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}.

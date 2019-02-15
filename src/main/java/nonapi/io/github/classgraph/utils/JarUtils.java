@@ -38,7 +38,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.ClassGraphException;
-import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 
 /**
@@ -346,28 +345,5 @@ public final class JarUtils {
             moduleName = TRAILING_DOTS.matcher(moduleName).replaceAll("");
         }
         return moduleName;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Log the Java version and the JRE paths that were found.
-     * 
-     * @param log
-     *            The log.
-     */
-    public static void logJavaInfo(final LogNode log) {
-        if (log != null) {
-            log.log("Operating system: " + VersionFinder.getProperty("os.name") + " "
-                    + VersionFinder.getProperty("os.version") + " " + VersionFinder.getProperty("os.arch"));
-            log.log("Java version: " + VersionFinder.getProperty("java.version") + " / "
-                    + VersionFinder.getProperty("java.runtime.version") + " ("
-                    + VersionFinder.getProperty("java.vendor") + ")");
-            log.log("Java home: " + VersionFinder.getProperty("java.home"));
-            final String jreRtJarPath = SystemJarFinder.getJreRtJarPath();
-            if (jreRtJarPath != null) {
-                log.log("JRE rt.jar:").log(jreRtJarPath);
-            }
-        }
     }
 }

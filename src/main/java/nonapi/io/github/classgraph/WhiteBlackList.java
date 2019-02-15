@@ -564,7 +564,7 @@ public abstract class WhiteBlackList {
     }
 
     /** Need to sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
-    public void sortPrefixes() {
+    void sortPrefixes() {
         if (whitelistPrefixes != null) {
             Collections.sort(whitelistPrefixes);
         }

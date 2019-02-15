@@ -336,19 +336,4 @@ public class ClasspathOrder {
         }
         return valid;
     }
-
-    /**
-     * Add all classpath elements in another ClasspathElementOrder after the elements in this order.
-     *
-     * @param subsequentOrder
-     *            the ordering to add after this one.
-     * @return true, if at least one element was added (i.e. was not a duplicate).
-     */
-    public boolean addClasspathEntries(final ClasspathOrder subsequentOrder) {
-        boolean added = false;
-        for (final Entry<String, ClassLoader> classpathEnt : subsequentOrder.getOrder()) {
-            added |= addClasspathEntry(classpathEnt.getKey(), classpathEnt.getValue());
-        }
-        return added;
-    }
 }

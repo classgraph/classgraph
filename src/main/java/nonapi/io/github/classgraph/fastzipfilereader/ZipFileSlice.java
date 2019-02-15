@@ -28,16 +28,16 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
+import java.io.File;
 import java.io.IOException;
 
 import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
-import nonapi.io.github.classgraph.concurrency.LazyReference;
 import nonapi.io.github.classgraph.recycler.Recycler;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
-public class ZipFileSlice {
+class ZipFileSlice {
     /** The parent slice, or null if this is the toplevel slice (the whole zipfile). */
-    final ZipFileSlice parentZipFileSlice;
+    private final ZipFileSlice parentZipFileSlice;
     /** The underlying physical zipfile. */
     public final PhysicalZipFile physicalZipFile;
     /** The start offset of the slice within the physical zipfile. */
@@ -45,15 +45,15 @@ public class ZipFileSlice {
     /** The compressed or stored size of the zipfile slice or entry. */
     final long len;
     /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name of the zipfile entry. */
-    String name;
+    private final String name;
     /** A {@link Recycler} for {@link ZipFileSliceReader} instances. */
     final Recycler<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycler;
     // N.B. if any fields are added, make sure the clone constructor below is updated
 
     /**
-     * Create a new {@link LazyReference} to a new {@link ZipFileSliceReader}.
+     * Create a new {@link Recycler} for {@link ZipFileSliceReader} instances.
      *
-     * @return the {@link LazyReference} to a new {@link ZipFileSliceReader}.
+     * @return A new {@link Recycler} for {@link ZipFileSliceReader} instances.
      */
     private Recycler<ZipFileSliceReader, RuntimeException> newZipFileSliceReaderRecycler() {
         return new Recycler<ZipFileSliceReader, RuntimeException>() {
@@ -174,6 +174,27 @@ public class ZipFileSlice {
         final StringBuilder buf = new StringBuilder();
         appendPath(buf);
         return buf.toString();
+    }
+
+    /**
+     * Get the path of the parent of this zipfile slice. If this is a toplevel slice (i.e. if this slice corresponds
+     * to a whole physical zipfile), then the returned path is the directory of the containing dir.
+     *
+     * @return the path of this zipfile slice.
+     */
+    public String getParentPath() {
+        final StringBuilder buf = new StringBuilder();
+        appendPath(buf);
+        return buf.toString();
+    }
+
+    /**
+     * Get the physical {@link File} that this {@link ZipFileSlice} is a slice of.
+     *
+     * @return the physical {@link File} that this {@link ZipFileSlice} is a slice of.
+     */
+    public File getPhysicalFile() {
+        return physicalZipFile.getFile();
     }
 
     /* (non-Javadoc)

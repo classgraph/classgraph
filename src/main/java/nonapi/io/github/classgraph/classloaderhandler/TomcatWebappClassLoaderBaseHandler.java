@@ -37,7 +37,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
-public class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
+class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()

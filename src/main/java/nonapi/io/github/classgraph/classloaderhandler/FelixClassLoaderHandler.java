@@ -46,10 +46,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  *
  * @author elrufaie
  */
-public class FelixClassLoaderHandler implements ClassLoaderHandler {
+class FelixClassLoaderHandler implements ClassLoaderHandler {
 
     /** The bundles. */
-    final Set<Object> bundles = new HashSet<>();
+    private final Set<Object> bundles = new HashSet<>();
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()

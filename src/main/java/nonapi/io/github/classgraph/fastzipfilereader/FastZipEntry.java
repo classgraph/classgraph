@@ -58,7 +58,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public final String entryName;
 
     /** True if the zip entry is deflated; false if the zip entry is stored. */
-    public final boolean isDeflated;
+    final boolean isDeflated;
 
     /** The compressed size of the zip entry, in bytes. */
     public final long compressedSize;
@@ -69,7 +69,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
      */
-    public final int version;
+    final int version;
 
     /**
      * The unversioned entry name (i.e. entryName with "META_INF/versions/{versionInt}/" stripped)
@@ -102,7 +102,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @param nestedJarHandler
      *            The {@link NestedJarHandler}.
      */
-    public FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
+    FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
             final NestedJarHandler nestedJarHandler) {
         this.parentLogicalZipFile = parentLogicalZipFile;

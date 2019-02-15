@@ -472,18 +472,6 @@ public class ScanSpec {
     }
 
     /**
-     * Returns true if the class is specifically whitelisted, or is within a whitelisted package.
-     *
-     * @param className
-     *            the class name
-     * @return true if the class is specifically whitelisted, or is within a whitelisted package.
-     */
-    public boolean classOrPackageIsSpecificallyWhitelisted(final String className) {
-        return classWhiteBlackList.isSpecificallyWhitelisted(className)
-                || packagePrefixWhiteBlackList.isSpecificallyWhitelisted(className);
-    }
-
-    /**
      * Returns true if the class is specifically blacklisted, or is within a blacklisted package.
      *
      * @param className

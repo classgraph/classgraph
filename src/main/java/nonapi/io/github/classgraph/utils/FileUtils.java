@@ -422,7 +422,7 @@ public final class FileUtils {
     /**
      * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
      */
-    static void lookupCleanMethodPrivileged() {
+    private static void lookupCleanMethodPrivileged() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
             try {
                 // See: https://stackoverflow.com/a/19447758/3950982

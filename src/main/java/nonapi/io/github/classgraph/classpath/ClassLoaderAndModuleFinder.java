@@ -250,7 +250,7 @@ public class ClassLoaderAndModuleFinder {
      * @param log
      *            The log.
      */
-    public ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
+    ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog;
         if (scanSpec.overrideClassLoaders == null) {

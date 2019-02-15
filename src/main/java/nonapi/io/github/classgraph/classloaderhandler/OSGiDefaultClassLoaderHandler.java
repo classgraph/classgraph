@@ -40,7 +40,7 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * 
  * @author lukehutch
  */
-public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
+class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()

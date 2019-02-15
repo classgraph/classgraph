@@ -34,7 +34,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
-public class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
+class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()

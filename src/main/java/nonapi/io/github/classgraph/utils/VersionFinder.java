@@ -58,7 +58,7 @@ public final class VersionFinder {
     public static final OperatingSystem OS;
 
     /** Java version string. */
-    public static final String JAVA_VERSION = getProperty("java.version");
+    private static final String JAVA_VERSION = getProperty("java.version");
 
     /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
     public static final int JAVA_MAJOR_VERSION;

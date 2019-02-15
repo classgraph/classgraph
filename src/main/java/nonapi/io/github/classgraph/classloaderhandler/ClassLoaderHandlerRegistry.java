@@ -129,7 +129,7 @@ public class ClassLoaderHandlerRegistry {
          * @param classLoaderHandlerClass
          *            The ClassLoaderHandler class.
          */
-        public ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
+        private ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
             this.classLoaderHandlerClass = classLoaderHandlerClass;
             try {
                 // Instantiate each ClassLoaderHandler in order to call the handledClassLoaders() method (this is
@@ -139,17 +139,6 @@ public class ClassLoaderHandlerRegistry {
             } catch (final ReflectiveOperationException | ExceptionInInitializerError e) {
                 throw new ClassGraphException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
             }
-        }
-
-        /**
-         * Constructor.
-         *
-         * @param classLoaderHandler
-         *            The ClassLoaderHandler.
-         */
-        public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
-            this.classLoaderHandlerClass = classLoaderHandler.getClass();
-            this.handledClassLoaderNames = classLoaderHandler.handledClassLoaders();
         }
 
         /**

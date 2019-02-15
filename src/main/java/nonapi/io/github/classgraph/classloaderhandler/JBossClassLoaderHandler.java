@@ -49,7 +49,7 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * <p>
  * https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
  */
-public class JBossClassLoaderHandler implements ClassLoaderHandler {
+class JBossClassLoaderHandler implements ClassLoaderHandler {
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()

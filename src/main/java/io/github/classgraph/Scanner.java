@@ -75,7 +75,7 @@ class Scanner implements Callable<ScanResult> {
     private final ScanSpec scanSpec;
 
     /** The nested jar handler. */
-    final NestedJarHandler nestedJarHandler;
+    private final NestedJarHandler nestedJarHandler;
 
     /** The executor service. */
     private final ExecutorService executorService;
@@ -96,16 +96,16 @@ class Scanner implements Callable<ScanResult> {
     private final LogNode topLevelLog;
 
     /** The classpath finder. */
-    final ClasspathFinder classpathFinder;
+    private final ClasspathFinder classpathFinder;
 
     /** The classloader and module finder. */
-    final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
+    private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
     /** The module order. */
-    final List<ClasspathElementModule> moduleClasspathEltOrder;
+    private final List<ClasspathElementModule> moduleClasspathEltOrder;
 
     /** The context classloaders. */
-    final ClassLoader[] contextClassLoaders;
+    private final ClassLoader[] contextClassLoaders;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -340,13 +340,13 @@ class Scanner implements Callable<ScanResult> {
     /** Used to enqueue classpath elements for opening. */
     static class ClasspathEntryWorkUnit {
         /** The raw classpath entry and associated {@link ClassLoader}. */
-        final Entry<String, ClassLoader> rawClasspathEntry;
+        private final Entry<String, ClassLoader> rawClasspathEntry;
 
         /** The parent classpath element. */
-        final ClasspathElement parentClasspathElement;
+        private final ClasspathElement parentClasspathElement;
 
         /** The order within the parent classpath element. */
-        final int orderWithinParentClasspathElement;
+        private final int orderWithinParentClasspathElement;
 
         /**
          * Constructor.
@@ -515,13 +515,13 @@ class Scanner implements Callable<ScanResult> {
     static class ClassfileScanWorkUnit {
 
         /** The classpath element. */
-        final ClasspathElement classpathElement;
+        private final ClasspathElement classpathElement;
 
         /** The classfile resource. */
-        final Resource classfileResource;
+        private final Resource classfileResource;
 
         /** True if this is an external class. */
-        final boolean isExternalClass;
+        private final boolean isExternalClass;
 
         /**
          * Constructor.

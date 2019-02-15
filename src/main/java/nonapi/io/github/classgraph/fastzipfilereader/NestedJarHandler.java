@@ -428,7 +428,7 @@ public class NestedJarHandler {
             };
 
     /** A recycler for {@link Inflater} instances. */
-    public Recycler<RecyclableInflater, RuntimeException> //
+    Recycler<RecyclableInflater, RuntimeException> //
     inflaterRecycler = new Recycler<RecyclableInflater, RuntimeException>() {
         @Override
         public RecyclableInflater newInstance() throws RuntimeException {

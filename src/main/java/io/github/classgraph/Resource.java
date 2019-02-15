@@ -56,7 +56,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     protected long length = -1L;
 
     /** True if the resource is open. */
-    protected boolean isOpen;
+    private boolean isOpen;
 
     /** The cached result of toString(). */
     private String toString;

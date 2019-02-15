@@ -89,10 +89,10 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     static final String META_INF_PATH_PREFIX = "META-INF/";
 
     /** {@code "META-INF/MANIFEST.MF"}. */
-    static final String MANIFEST_PATH = META_INF_PATH_PREFIX + "MANIFEST.MF";
+    private static final String MANIFEST_PATH = META_INF_PATH_PREFIX + "MANIFEST.MF";
 
     /** {@code "META-INF/versions/"}. */
-    public static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
+    static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
 
     /** The {@code "Implementation-Title"} manifest key. */
     private static final byte[] IMPLEMENTATION_TITLE_KEY = manifestKeyToBytes("Implementation-Title");

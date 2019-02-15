@@ -44,7 +44,7 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  *
  * @author R. Kempees
  */
-public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
+class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
     /** {@code "com.ibm.ws.classloading.internal."} */
     private static final String PKG_PREFIX = "com.ibm.ws.classloading.internal.";

@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Johno Crawford (johno@sulake.com)
  */
-public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
+class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
 
     /** The thread name prefix. */
     private final String threadNamePrefix;
@@ -54,7 +54,7 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
      * @param daemon
      *            create daemon threads?
      */
-    public SimpleThreadFactory(final String threadNamePrefix, final boolean daemon) {
+    SimpleThreadFactory(final String threadNamePrefix, final boolean daemon) {
         this.threadNamePrefix = threadNamePrefix;
         this.daemon = daemon;
     }

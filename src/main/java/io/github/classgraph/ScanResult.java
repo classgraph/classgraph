@@ -110,8 +110,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /** If true, this ScanResult has already been closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    /** The log. */
-    final LogNode log;
+    /** The toplevel log. */
+    private final LogNode topLevelLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -230,15 +230,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
      *            a map from file to last modified time
      * @param nestedJarHandler
      *            the nested jar handler
-     * @param log
-     *            the log
+     * @param topLevelLog
+     *            the toplevel log
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final List<String> rawClasspathEltOrderStrs, final ClassLoader[] envClassLoaderOrder,
             final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo, final Map<File, Long> fileToLastModified,
-            final NestedJarHandler nestedJarHandler, final LogNode log) {
+            final NestedJarHandler nestedJarHandler, final LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
@@ -248,7 +248,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.packageNameToPackageInfo = packageNameToPackageInfo;
         this.moduleNameToModuleInfo = moduleNameToModuleInfo;
         this.nestedJarHandler = nestedJarHandler;
-        this.log = log;
+        this.topLevelLog = topLevelLog;
 
         if (classNameToClassInfo != null) {
             indexResourcesAndClassInfo();
@@ -1342,7 +1342,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // nestedJarHandler should be closed last, since it needs to have all MappedByteBuffer refs
             // dropped before it tries to delete any temporary files that were written to disk
             if (nestedJarHandler != null) {
-                nestedJarHandler.close(log);
+                nestedJarHandler.close(topLevelLog);
                 nestedJarHandler = null;
             }
             classGraphClassLoader = null;
@@ -1350,8 +1350,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // Remove WeakReference to this ScanResult, so shutdown hook does not try to close this
             nonClosedWeakReferences.remove(weakReference);
             // Flush log on exit, in case additional log entries were generated after scan() completed
-            if (log != null) {
-                log.flush();
+            if (topLevelLog != null) {
+                topLevelLog.flush();
             }
         }
     }

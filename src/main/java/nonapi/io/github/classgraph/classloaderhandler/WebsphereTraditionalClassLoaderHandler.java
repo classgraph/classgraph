@@ -38,7 +38,7 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * 
  * @author lukehutch
  */
-public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
+class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()

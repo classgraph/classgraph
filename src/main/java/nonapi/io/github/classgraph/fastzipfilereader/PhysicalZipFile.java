@@ -45,7 +45,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
-public class PhysicalZipFile implements Closeable {
+class PhysicalZipFile implements Closeable {
     /** The {@link File} backing this {@link PhysicalZipFile}. */
     private final File file;
 
