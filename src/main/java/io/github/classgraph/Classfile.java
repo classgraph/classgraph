@@ -131,6 +131,9 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The number of constant pool entries plus one. */
+    private int cpCount;
+
     /** The byte offset for the beginning of each entry in the constant pool. */
     private int[] entryOffset;
 
@@ -446,6 +449,11 @@ class Classfile {
      */
     private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx)
             throws ClassfileFormatException {
+        if (cpIdx < 1 || cpIdx >= cpCount) {
+            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
+                    + (cpCount - 1) + "] -- cannot continue reading class. "
+                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+        }
         final int t = entryTag[cpIdx];
         if ((t != 12 && subFieldIdx != 0) || (t == 12 && subFieldIdx != 0 && subFieldIdx != 1)) {
             throw new ClassfileFormatException(
@@ -492,6 +500,11 @@ class Classfile {
             throw new ClassfileFormatException("Wrong tag number " + t + " at constant pool index " + cpIdx + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
+        }
+        if (cpIdxToUse < 1 || cpIdxToUse >= cpCount) {
+            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
+                    + (cpCount - 1) + "] -- cannot continue reading class. "
+                    + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
         return entryOffset[cpIdxToUse];
     }
@@ -647,6 +660,64 @@ class Classfile {
         return true;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read an unsigned short from the constant pool.
+     *
+     * @param cpIdx
+     *            the constant pool index.
+     * @return the unsigned short
+     * @throws IOException
+     *             If an I/O exception occurred.
+     */
+    private int cpReadUnsignedShort(int cpIdx) throws IOException {
+        if (cpIdx < 1 || cpIdx >= cpCount) {
+            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
+                    + (cpCount - 1) + "] -- cannot continue reading class. "
+                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+        }
+        return inputStreamOrByteBuffer.readUnsignedShort(entryOffset[cpIdx]);
+    }
+
+    /**
+     * Read an int from the constant pool.
+     *
+     * @param cpIdx
+     *            the constant pool index.
+     * @return the int
+     * @throws IOException
+     *             If an I/O exception occurred.
+     */
+    private int cpReadInt(int cpIdx) throws IOException {
+        if (cpIdx < 1 || cpIdx >= cpCount) {
+            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
+                    + (cpCount - 1) + "] -- cannot continue reading class. "
+                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+        }
+        return inputStreamOrByteBuffer.readInt(entryOffset[cpIdx]);
+    }
+
+    /**
+     * Read a long from the constant pool.
+     *
+     * @param cpIdx
+     *            the constant pool index.
+     * @return the long
+     * @throws IOException
+     *             If an I/O exception occurred.
+     */
+    private long cpReadLong(int cpIdx) throws IOException {
+        if (cpIdx < 1 || cpIdx >= cpCount) {
+            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
+                    + (cpCount - 1) + "] -- cannot continue reading class. "
+                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+        }
+        return inputStreamOrByteBuffer.readLong(entryOffset[cpIdx]);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Get a field constant from the constant pool.
      *
@@ -671,7 +742,7 @@ class Classfile {
             // Forward or backward indirect reference to a modified UTF8 entry
             return getConstantPoolString(cpIdx);
         case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-            final int intVal = inputStreamOrByteBuffer.readInt(entryOffset[cpIdx]);
+            final int intVal = cpReadInt(cpIdx);
             switch (fieldTypeDescriptorFirstChar) {
             case 'I':
                 return intVal;
@@ -690,11 +761,11 @@ class Classfile {
                     + ", " + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
         case 4: // float
-            return Float.intBitsToFloat(inputStreamOrByteBuffer.readInt(entryOffset[cpIdx]));
+            return Float.intBitsToFloat(cpReadInt(cpIdx));
         case 5: // long
-            return inputStreamOrByteBuffer.readLong(entryOffset[cpIdx]);
+            return cpReadLong(cpIdx);
         case 6: // double
-            return Double.longBitsToDouble(inputStreamOrByteBuffer.readLong(entryOffset[cpIdx]));
+            return Double.longBitsToDouble(cpReadLong(cpIdx));
         default:
             // ClassGraph doesn't expect other types
             // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)  
@@ -741,24 +812,21 @@ class Classfile {
         final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
         switch (tag) {
         case 'B':
-            return (byte) inputStreamOrByteBuffer.readInt(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]);
+            return (byte) cpReadInt(inputStreamOrByteBuffer.readUnsignedShort());
         case 'C':
-            return (char) inputStreamOrByteBuffer.readInt(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]);
+            return (char) cpReadInt(inputStreamOrByteBuffer.readUnsignedShort());
         case 'D':
-            return Double.longBitsToDouble(
-                    inputStreamOrByteBuffer.readLong(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]));
+            return Double.longBitsToDouble(cpReadLong(inputStreamOrByteBuffer.readUnsignedShort()));
         case 'F':
-            return Float.intBitsToFloat(
-                    inputStreamOrByteBuffer.readInt(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]));
+            return Float.intBitsToFloat(cpReadInt(inputStreamOrByteBuffer.readUnsignedShort()));
         case 'I':
-            return inputStreamOrByteBuffer.readInt(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]);
+            return cpReadInt(inputStreamOrByteBuffer.readUnsignedShort());
         case 'J':
-            return inputStreamOrByteBuffer.readLong(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]);
+            return cpReadLong(inputStreamOrByteBuffer.readUnsignedShort());
         case 'S':
-            return (short) inputStreamOrByteBuffer
-                    .readInt(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]);
+            return (short) cpReadUnsignedShort(inputStreamOrByteBuffer.readUnsignedShort());
         case 'Z':
-            return inputStreamOrByteBuffer.readInt(entryOffset[inputStreamOrByteBuffer.readUnsignedShort()]) != 0;
+            return cpReadInt(inputStreamOrByteBuffer.readUnsignedShort()) != 0;
         case 's':
             return getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
         case 'e': {
@@ -810,14 +878,12 @@ class Classfile {
         }
 
         // Read size of constant pool
-        final int cpCount = inputStreamOrByteBuffer.readUnsignedShort();
+        cpCount = inputStreamOrByteBuffer.readUnsignedShort();
 
-        // Allocate storage for constant pool, or reuse storage if there's enough left from the previous scan
-        if (entryOffset == null || entryOffset.length < cpCount) {
-            entryOffset = new int[cpCount];
-            entryTag = new int[cpCount];
-            indirectStringRefs = new int[cpCount];
-        }
+        // Allocate storage for constant pool
+        entryOffset = new int[cpCount];
+        entryTag = new int[cpCount];
+        indirectStringRefs = new int[cpCount];
         Arrays.fill(indirectStringRefs, 0, cpCount, -1);
 
         // Read constant pool entries
@@ -1084,6 +1150,12 @@ class Classfile {
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         final int cpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                        if (cpIdx < 1 || cpIdx >= cpCount) {
+                            throw new ClassfileFormatException("Constant pool index " + cpIdx
+                                    + ", should be in range [1, " + (cpCount - 1)
+                                    + "] -- cannot continue reading class. "
+                                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+                        }
                         fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
                     } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
