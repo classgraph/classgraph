@@ -36,7 +36,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
@@ -60,9 +60,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     /** If true, this is a multi-release jar. */
     private boolean isMultiReleaseJar;
-
-    /** The version numbers of versioned sections found within a multi-release jar. */
-    private int[] multiReleaseVersionsFound;
 
     /** A set of classpath roots found in the classpath for this zipfile. */
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -691,7 +688,15 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 }
             } else {
                 if (log != null) {
-                    log.log("This is a multi-release jar");
+                    // Find all the unique multirelease versions within the jar
+                    final Set<Integer> versionsFound = new HashSet<>();
+                    for (final FastZipEntry entry : entries) {
+                        final int version = !isMultiReleaseJar ? 8 : entry.version;
+                        versionsFound.add(version);
+                    }
+                    final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
+                    Collections.sort(versionsFoundSorted);
+                    log.log("This is a multi-release jar, with versions: " + Join.join(", ", versionsFoundSorted));
                 }
 
                 // Sort in decreasing order of version in preparation for version masking
@@ -716,24 +721,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // Override entries with version-masked entries
                 entries = unversionedZipEntriesMasked;
             }
-        }
-
-        // Find all the unique multirelease versions within the jar
-        final Set<Integer> versionsFound = new HashSet<>();
-        for (final FastZipEntry entry : entries) {
-            final int version = !isMultiReleaseJar ? 8 : entry.version;
-            versionsFound.add(version);
-        }
-        final List<Integer> sortedVersionsFound = new ArrayList<>(versionsFound);
-        Collections.sort(sortedVersionsFound, new Comparator<Integer>() {
-            @Override
-            public int compare(final Integer o1, final Integer o2) {
-                return o2 - o1;
-            }
-        });
-        multiReleaseVersionsFound = new int[sortedVersionsFound.size()];
-        for (int i = 0; i < sortedVersionsFound.size(); i++) {
-            multiReleaseVersionsFound[i] = sortedVersionsFound.get(i);
         }
     }
 
