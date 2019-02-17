@@ -66,6 +66,9 @@ class Classfile {
     /** The relative path to the classfile (should correspond to className). */
     private final String relativePath;
 
+    /** The classfile resource. */
+    private final Resource classfileResource;
+
     /** The name of the class. */
     private String className;
 
@@ -101,9 +104,6 @@ class Classfile {
 
     /** Referenced class names. */
     private Set<String> refdClassNames;
-
-    /** The classfile resource. */
-    private final Resource classfileResource;
 
     /** The field info list. */
     private FieldInfoList fieldInfoList;
@@ -671,7 +671,7 @@ class Classfile {
      * @throws IOException
      *             If an I/O exception occurred.
      */
-    private int cpReadUnsignedShort(int cpIdx) throws IOException {
+    private int cpReadUnsignedShort(final int cpIdx) throws IOException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "
@@ -689,7 +689,7 @@ class Classfile {
      * @throws IOException
      *             If an I/O exception occurred.
      */
-    private int cpReadInt(int cpIdx) throws IOException {
+    private int cpReadInt(final int cpIdx) throws IOException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "
@@ -707,7 +707,7 @@ class Classfile {
      * @throws IOException
      *             If an I/O exception occurred.
      */
-    private long cpReadLong(int cpIdx) throws IOException {
+    private long cpReadLong(final int cpIdx) throws IOException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "

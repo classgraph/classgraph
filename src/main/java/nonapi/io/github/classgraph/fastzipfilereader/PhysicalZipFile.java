@@ -36,10 +36,10 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.NonReadableChannelException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -68,7 +68,7 @@ class PhysicalZipFile implements Closeable {
     private ByteBuffer[] mappedByteBuffersCached;
 
     /** A singleton map from chunk index to byte buffer, ensuring that any given chunk is only mapped once. */
-    private SingletonMap<Integer, ByteBuffer> chunkIdxToByteBuffer;
+    private SingletonMap<Integer, ByteBuffer, IOException> chunkIdxToByteBuffer;
 
     /** The nested jar handler. */
     NestedJarHandler nestedJarHandler;
@@ -128,7 +128,7 @@ class PhysicalZipFile implements Closeable {
         // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
         numMappedByteBuffers = (int) ((fileLen + FileUtils.MAX_BUFFER_SIZE) / FileUtils.MAX_BUFFER_SIZE);
         mappedByteBuffersCached = new MappedByteBuffer[numMappedByteBuffers];
-        chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer>() {
+        chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer, IOException>() {
             @Override
             public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws IOException {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer
@@ -137,7 +137,7 @@ class PhysicalZipFile implements Closeable {
                 MappedByteBuffer buffer = null;
                 try {
                     buffer = fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                } catch (final FileNotFoundException | NonReadableChannelException e) {
+                } catch (final FileNotFoundException e) {
                     throw e;
                 } catch (IOException | OutOfMemoryError e) {
                     // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
@@ -206,19 +206,12 @@ class PhysicalZipFile implements Closeable {
         }
         // Fast path: only look up singleton map if mappedByteBuffersCached is null 
         if (mappedByteBuffersCached[chunkIdx] == null) {
+            // This 2GB chunk has not yet been read -- mmap it (use a singleton map so that the mmap
+            // doesn't happen more than once, in case of race condition)
             try {
-                // This 2GB chunk has not yet been read -- mmap it (use a singleton map so that the mmap
-                // doesn't happen more than once, in case of race condition)
-                try {
-                    mappedByteBuffersCached[chunkIdx] = chunkIdxToByteBuffer.get(chunkIdx, /* log = */ null);
-                } catch (IOException | InterruptedException e) {
-                    throw e;
-                } catch (final Exception e) {
-                    throw new IOException("Cannot get ByteBuffer chunk", e);
-                }
-
-            } catch (final IOException | InterruptedException e) {
-                throw e;
+                mappedByteBuffersCached[chunkIdx] = chunkIdxToByteBuffer.get(chunkIdx, /* log = */ null);
+            } catch (final NullSingletonException e) {
+                throw new IOException("Cannot get ByteBuffer chunk " + chunkIdx + " : " + e);
             }
         }
         return mappedByteBuffersCached[chunkIdx];
@@ -234,11 +227,11 @@ class PhysicalZipFile implements Closeable {
     }
 
     /**
-     * Get the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a compound
-     * nested jar path, if it is memory-backed.
+     * Get the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a compound nested jar
+     * path, if it is memory-backed.
      *
-     * @return the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a
-     *         compound nested jar path, if it is memory-backed.
+     * @return the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a compound nested
+     *         jar path, if it is memory-backed.
      */
     public String getPath() {
         return path;

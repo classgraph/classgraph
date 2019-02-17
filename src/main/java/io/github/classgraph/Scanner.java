@@ -60,6 +60,7 @@ import nonapi.io.github.classgraph.classpath.ClasspathFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
@@ -370,9 +371,9 @@ class Scanner implements Callable<ScanResult> {
      * The classpath element singleton map. For each classpath element path, canonicalize path, and create a
      * ClasspathElement singleton.
      */
-    private final SingletonMap<Entry<String, ClassLoader>, ClasspathElement> //
+    private final SingletonMap<Entry<String, ClassLoader>, ClasspathElement, IOException> //
     classpathEntryToClasspathElementSingletonMap = //
-            new SingletonMap<Entry<String, ClassLoader>, ClasspathElement>() {
+            new SingletonMap<Entry<String, ClassLoader>, ClasspathElement, IOException>() {
                 @Override
                 public ClasspathElement newInstance(final Entry<String, ClassLoader> classpathEntry,
                         final LogNode log) throws IOException, InterruptedException {
@@ -422,12 +423,9 @@ class Scanner implements Callable<ScanResult> {
                         // idempotent)
                         try {
                             return this.get(new SimpleEntry<>(canonicalPathNormalized, classLoader), log);
-                        } catch (IOException | InterruptedException e) {
-                            throw e;
-                        } catch (final Exception e) {
-                            throw new IOException(
-                                    "Cannot get classpath element for canonical path " + canonicalPathNormalized,
-                                    e);
+                        } catch (final NullSingletonException e) {
+                            throw new IOException("Cannot get classpath element for canonical path "
+                                    + canonicalPathNormalized + " : " + e);
                         }
                     } else {
                         // Otherwise path is already canonical, and this is the first time this path has
@@ -466,12 +464,9 @@ class Scanner implements Callable<ScanResult> {
                     try {
                         classpathElt = classpathEntryToClasspathElementSingletonMap.get(workUnit.rawClasspathEntry,
                                 log);
-                    } catch (IOException | InterruptedException e) {
-                        throw e;
-                    } catch (final Exception e) {
-                        throw new IOException(
-                                "Cannot get classpath element for classpath entry " + workUnit.rawClasspathEntry,
-                                e);
+                    } catch (final NullSingletonException e) {
+                        throw new IOException("Cannot get classpath element for classpath entry "
+                                + workUnit.rawClasspathEntry + " : " + e);
                     }
 
                     // Only run open() once per ClasspathElement (it is possible for there to be

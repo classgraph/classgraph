@@ -43,6 +43,7 @@ import java.util.Set;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
@@ -92,14 +93,22 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log)
             throws InterruptedException {
+        if (!scanSpec.scanModules) {
+            if (log != null) {
+                log.log("Skipping module, since module scanning is disabled: " + getModuleName());
+            }
+            skipClasspathElement = true;
+            return;
+        }
         try {
             moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
                     /* ignored */ null);
-        } catch (final InterruptedException e) {
-            throw e;
-        } catch (final Exception e) {
-            // Should not happen
-            throw new ClassGraphException("Got unexpected exception", e);
+        } catch (final IOException | NullSingletonException e) {
+            if (log != null) {
+                log.log("Skipping invalid module " + getModuleName() + " : " + e);
+            }
+            skipClasspathElement = true;
+            return;
         }
     }
 

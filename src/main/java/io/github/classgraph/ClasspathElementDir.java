@@ -39,7 +39,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.NonReadableChannelException;
 import java.nio.file.Files;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
@@ -93,43 +92,54 @@ class ClasspathElementDir extends ClasspathElement {
                 log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
             }
             skipClasspathElement = true;
+            return;
         }
-        // Auto-add nested lib dirs
-        int childClasspathEntryIdx = 0;
-        for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-            final File libDir = new File(classpathEltDir, libDirPrefix);
-            if (libDir.exists() && libDir.isDirectory()) {
-                // Sort directory entries for consistency
-                final File[] listFiles = libDir.listFiles();
-                if (listFiles != null) {
-                    Arrays.sort(listFiles);
-                    // Add all jarfiles within lib dir as child classpath entries
-                    for (final File file : listFiles) {
-                        if (file.isFile() && file.getName().endsWith(".jar")) {
-                            if (log != null) {
-                                log.log("Found lib jar: " + file);
+        try {
+            // Auto-add nested lib dirs
+            int childClasspathEntryIdx = 0;
+            for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
+                final File libDir = new File(classpathEltDir, libDirPrefix);
+                if (libDir.exists() && libDir.isDirectory()) {
+                    // Sort directory entries for consistency
+                    final File[] listFiles = libDir.listFiles();
+                    if (listFiles != null) {
+                        Arrays.sort(listFiles);
+                        // Add all jarfiles within lib dir as child classpath entries
+                        for (final File file : listFiles) {
+                            if (file.isFile() && file.getName().endsWith(".jar")) {
+                                if (log != null) {
+                                    log.log("Found lib jar: " + file);
+                                }
+                                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                        /* rawClasspathEntry = */ //
+                                        new SimpleEntry<>(file.getPath(), classLoader),
+                                        /* parentClasspathElement = */ this,
+                                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                             }
-                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                    /* rawClasspathEntry = */ //
-                                    new SimpleEntry<>(file.getPath(), classLoader),
-                                    /* parentClasspathElement = */ this,
-                                    /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                         }
                     }
                 }
             }
-        }
-        for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
-            final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
-            if (packageRootDir.exists() && packageRootDir.isDirectory()) {
-                if (log != null) {
-                    log.log("Found package root: " + packageRootDir);
+            for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
+                final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
+                if (packageRootDir.exists() && packageRootDir.isDirectory()) {
+                    if (log != null) {
+                        log.log("Found package root: " + packageRootDir);
+                    }
+                    workQueue
+                            .addWorkUnit(new ClasspathEntryWorkUnit(
+                                    /* rawClasspathEntry = */ new SimpleEntry<>(packageRootDir.getPath(),
+                                            classLoader),
+                                    /* parentClasspathElement = */ this,
+                                    /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                 }
-                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                        /* rawClasspathEntry = */ new SimpleEntry<>(packageRootDir.getPath(), classLoader),
-                        /* parentClasspathElement = */ this,
-                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
             }
+        } catch (final SecurityException e) {
+            if (log != null) {
+                log.log("Skipping classpath element, since dir cannot be accessed: " + classpathEltDir);
+            }
+            skipClasspathElement = true;
+            return;
         }
     }
 
@@ -210,7 +220,7 @@ class ClasspathElementDir extends ClasspathElement {
                     MappedByteBuffer buffer = null;
                     try {
                         buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                    } catch (final FileNotFoundException | NonReadableChannelException e) {
+                    } catch (final FileNotFoundException e) {
                         throw e;
                     } catch (IOException | OutOfMemoryError e) {
                         // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
@@ -223,7 +233,7 @@ class ClasspathElementDir extends ClasspathElement {
                     byteBuffer = buffer;
                     length = byteBuffer.remaining();
                     return byteBuffer;
-                } catch (final IOException | SecurityException | NonReadableChannelException | OutOfMemoryError e) {
+                } catch (final IOException | SecurityException | OutOfMemoryError e) {
                     close();
                     throw new IOException("Could not open " + this, e);
                 }

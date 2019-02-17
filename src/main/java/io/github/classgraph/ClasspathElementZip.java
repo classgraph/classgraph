@@ -46,6 +46,7 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
@@ -130,11 +131,9 @@ class ClasspathElementZip extends ClasspathElement {
             try {
                 logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
                         .get(rawPath, subLog);
-            } catch (IOException | InterruptedException e) {
-                throw e;
-            } catch (final Exception e) {
-                // Should not happen
-                throw new IOException("Could not get logical zipfile", e);
+            } catch (final NullSingletonException e) {
+                // Generally thrown on the second and subsequent attempt to call .get(), after the first failed
+                throw new IOException("Could not get logical zipfile " + rawPath + " : " + e);
             }
             logicalZipFile = logicalZipFileAndPackageRoot.getKey();
             if (logicalZipFile == null) {
