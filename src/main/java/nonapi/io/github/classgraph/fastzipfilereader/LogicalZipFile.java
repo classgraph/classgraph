@@ -691,8 +691,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                     // Find all the unique multirelease versions within the jar
                     final Set<Integer> versionsFound = new HashSet<>();
                     for (final FastZipEntry entry : entries) {
-                        final int version = !isMultiReleaseJar ? 8 : entry.version;
-                        versionsFound.add(version);
+                        if (entry.version > 8) {
+                            versionsFound.add(entry.version);
+                        }
                     }
                     final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
                     Collections.sort(versionsFoundSorted);
