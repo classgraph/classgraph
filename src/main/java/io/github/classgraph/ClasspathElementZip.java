@@ -157,70 +157,68 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        if (logicalZipFile != null) {
-            if (!scanSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
-                // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
-                // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
-                if (subLog != null) {
-                    subLog.log("Ignoring JRE jar: " + rawPath);
-                }
-                skipClasspathElement = true;
-                return;
+        if (!scanSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
+            // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
+            // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
+            if (subLog != null) {
+                subLog.log("Ignoring JRE jar: " + rawPath);
             }
+            skipClasspathElement = true;
+            return;
+        }
 
-            if (!logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
-                if (subLog != null) {
-                    subLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
-                }
-                skipClasspathElement = true;
-                return;
+        if (!logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
+            if (subLog != null) {
+                subLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
             }
+            skipClasspathElement = true;
+            return;
+        }
 
-            // Automatically add any nested "lib/" dirs to classpath, since not all classloaders return them
-            // as classpath elements
-            int childClasspathEntryIdx = 0;
-            if (scanSpec.scanNestedJars) {
-                for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-                    for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                        if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
-                                && zipEntry.entryNameUnversioned.endsWith(".jar")) {
-                            final String entryPath = zipEntry.getPath();
-                            if (subLog != null) {
-                                subLog.log("Found nested lib jar: " + entryPath);
-                            }
-                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                    /* rawClasspathEntry = */ new SimpleEntry<>(entryPath, classLoader),
-                                    /* parentClasspathElement = */ this,
-                                    /* orderWithinParentClasspathElement = */
-                                    childClasspathEntryIdx++));
-                            break;
+        // Automatically add any nested "lib/" dirs to classpath, since not all classloaders return them
+        // as classpath elements
+        int childClasspathEntryIdx = 0;
+        if (scanSpec.scanNestedJars) {
+            for (final FastZipEntry zipEntry : logicalZipFile.entries) {
+                for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
+                    if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
+                            && zipEntry.entryNameUnversioned.endsWith(".jar")) {
+                        final String entryPath = zipEntry.getPath();
+                        if (subLog != null) {
+                            subLog.log("Found nested lib jar: " + entryPath);
                         }
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                /* rawClasspathEntry = */ new SimpleEntry<>(entryPath, classLoader),
+                                /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */
+                                childClasspathEntryIdx++));
+                        break;
                     }
                 }
             }
+        }
 
-            // Create child classpath elements from values obtained from Class-Path entry in manifest
-            if (logicalZipFile.classPathManifestEntryValue != null) {
-                // Class-Path entries in the manifest file are resolved relative to the dir that
-                // the manifest's jarfile is contained in -- get parent dir of logical zipfile
-                final String path = logicalZipFile.getPath();
-                final int lastSlashIdx = path.lastIndexOf('/');
-                final String parentPathPrefix = lastSlashIdx < 0 ? "" : path.substring(0, lastSlashIdx + 1);
-                for (final String childClassPathEltPath : logicalZipFile.classPathManifestEntryValue.split(" ")) {
-                    if (!childClassPathEltPath.isEmpty()) {
-                        // Resolve Class-Path entry relative to containing dir
-                        final String childClassPathEltPathResolved = FastPathResolver
-                                .resolve(parentPathPrefix + "/" + childClassPathEltPath);
-                        // Only add child classpath elements once
-                        if (!childClassPathEltPathResolved.equals(rawPath)) {
-                            // Schedule child classpath element for scanning
-                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                    /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPathResolved,
-                                            classLoader),
-                                    /* parentClasspathElement = */ this,
-                                    /* orderWithinParentClasspathElement = */
-                                    childClasspathEntryIdx++));
-                        }
+        // Create child classpath elements from values obtained from Class-Path entry in manifest
+        if (logicalZipFile.classPathManifestEntryValue != null) {
+            // Class-Path entries in the manifest file are resolved relative to the dir that
+            // the manifest's jarfile is contained in -- get parent dir of logical zipfile
+            final String path = logicalZipFile.getPath();
+            final int lastSlashIdx = path.lastIndexOf('/');
+            final String parentPathPrefix = lastSlashIdx < 0 ? "" : path.substring(0, lastSlashIdx + 1);
+            for (final String childClassPathEltPath : logicalZipFile.classPathManifestEntryValue.split(" ")) {
+                if (!childClassPathEltPath.isEmpty()) {
+                    // Resolve Class-Path entry relative to containing dir
+                    final String childClassPathEltPathResolved = FastPathResolver
+                            .resolve(parentPathPrefix + "/" + childClassPathEltPath);
+                    // Only add child classpath elements once
+                    if (!childClassPathEltPathResolved.equals(rawPath)) {
+                        // Schedule child classpath element for scanning
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPathResolved,
+                                        classLoader),
+                                /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */
+                                childClasspathEntryIdx++));
                     }
                 }
             }
