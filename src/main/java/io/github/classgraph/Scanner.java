@@ -998,6 +998,7 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.log("~", "Scan interrupted");
             }
             exception = e;
+            interruptionChecker.interrupt();
             if (failureHandler == null) {
                 // Re-throw
                 throw e;
@@ -1057,11 +1058,12 @@ class Scanner implements Callable<ScanResult> {
                 }
                 // Group the two exceptions into one, using the suppressed exception mechanism
                 // to show the scan exception below the failure handler exception
-                final ClassGraphException failureHandlerException = new ClassGraphException(
+                final ExecutionException failureHandlerException = new ExecutionException(
                         "Exception while calling failure handler", f);
                 failureHandlerException.addSuppressed(exception);
-                // Throw a new ClassGraph exception (although this will probably be ignored,
-                // since job was started with ExecutorService::execute rather than ::submit)  
+                // Throw a new ExecutionException (although this will probably be ignored,
+                // since any job with a FailureHandler was started with ExecutorService::execute
+                // rather than ExecutorService::submit)  
                 throw failureHandlerException;
             }
         }
