@@ -572,12 +572,12 @@ public class ClassGraph {
             }
             if (!packageNameNormalized.contains("*")) {
                 // Whitelist sub-packages
-                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(path + "/");
                 if (packageNameNormalized.isEmpty()) {
                     scanSpec.packagePrefixWhiteBlackList.addToWhitelist("");
                     scanSpec.pathPrefixWhiteBlackList.addToWhitelist("");
                 } else {
                     scanSpec.packagePrefixWhiteBlackList.addToWhitelist(packageNameNormalized + ".");
+                    scanSpec.pathPrefixWhiteBlackList.addToWhitelist(path + "/");
                 }
             }
         }
@@ -604,12 +604,12 @@ public class ClassGraph {
             }
             if (!pathNormalized.contains("*")) {
                 // Whitelist sub-directories / nested paths
-                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(pathNormalized + "/");
                 if (pathNormalized.isEmpty()) {
                     scanSpec.packagePrefixWhiteBlackList.addToWhitelist("");
                     scanSpec.pathPrefixWhiteBlackList.addToWhitelist("");
                 } else {
                     scanSpec.packagePrefixWhiteBlackList.addToWhitelist(packageName + ".");
+                    scanSpec.pathPrefixWhiteBlackList.addToWhitelist(pathNormalized + "/");
                 }
             }
         }
@@ -707,11 +707,7 @@ public class ClassGraph {
             scanSpec.pathWhiteBlackList.addToBlacklist(path + "/");
             if (!packageNameNormalized.contains("*")) {
                 // Blacklist sub-packages (zipfile entries can occur in any order)
-                if (packageNameNormalized.isEmpty()) {
-                    scanSpec.packagePrefixWhiteBlackList.addToBlacklist("");
-                } else {
-                    scanSpec.packagePrefixWhiteBlackList.addToBlacklist(packageNameNormalized + ".");
-                }
+                scanSpec.packagePrefixWhiteBlackList.addToBlacklist(packageNameNormalized + ".");
                 scanSpec.pathPrefixWhiteBlackList.addToBlacklist(path + "/");
             }
         }
@@ -738,11 +734,7 @@ public class ClassGraph {
             scanSpec.pathWhiteBlackList.addToBlacklist(pathNormalized + "/");
             if (!pathNormalized.contains("*")) {
                 // Blacklist sub-directories / nested paths
-                if (packageName.isEmpty()) {
-                    scanSpec.packagePrefixWhiteBlackList.addToBlacklist("");
-                } else {
-                    scanSpec.packagePrefixWhiteBlackList.addToBlacklist(packageName + ".");
-                }
+                scanSpec.packagePrefixWhiteBlackList.addToBlacklist(packageName + ".");
                 scanSpec.pathPrefixWhiteBlackList.addToBlacklist(pathNormalized + "/");
             }
         }
