@@ -84,7 +84,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     private static class SingletonHolder<V> {
         /** The singleton. */
-        private V singleton;
+        private volatile V singleton;
 
         /** Whether or not the singleton has been initialized (the count will have reached 0 if so). */
         private final CountDownLatch initialized = new CountDownLatch(1);
