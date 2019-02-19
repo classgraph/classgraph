@@ -562,4 +562,26 @@ class ClasspathElementZip extends ClasspathElement {
     public String toString() {
         return getZipFilePath();
     }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof ClasspathElementZip)) {
+            return false;
+        }
+        ClasspathElementZip other = (ClasspathElementZip) o;
+        return this.getZipFilePath().equals(other.getZipFilePath());
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return getZipFilePath().hashCode();
+    }
 }

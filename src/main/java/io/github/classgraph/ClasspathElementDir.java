@@ -530,4 +530,26 @@ class ClasspathElementDir extends ClasspathElement {
     public String toString() {
         return classpathEltDir.toString();
     }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof ClasspathElementDir)) {
+            return false;
+        }
+        ClasspathElementDir other = (ClasspathElementDir) o;
+        return this.classpathEltDir.equals(other.classpathEltDir);
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return classpathEltDir.hashCode();
+    }
 }

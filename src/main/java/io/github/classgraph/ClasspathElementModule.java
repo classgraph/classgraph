@@ -391,7 +391,7 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Get the module name from the module reference or the module descriptor.
      *
-     * @return the module name
+     * @return the module name, or null if the module does not have a name.
      */
     @Override
     public String getModuleName() {
@@ -400,6 +400,16 @@ class ClasspathElementModule extends ClasspathElement {
             moduleName = moduleNameFromModuleDescriptor;
         }
         return moduleName == null || moduleName.isEmpty() ? null : moduleName;
+    }
+
+    /**
+     * Get the module name from the module reference or the module descriptor.
+     *
+     * @return the module name, or the empty string if the module does not have a name.
+     */
+    private String getModuleNameOrEmpty() {
+        final String moduleName = getModuleName();
+        return moduleName == null ? "" : moduleName;
     }
 
     /* (non-Javadoc)
@@ -431,5 +441,27 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     public String toString() {
         return moduleRef.toString();
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof ClasspathElementModule)) {
+            return false;
+        }
+        ClasspathElementModule other = (ClasspathElementModule) o;
+        return this.getModuleNameOrEmpty().equals(other.getModuleNameOrEmpty());
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return getModuleNameOrEmpty().hashCode();
     }
 }
