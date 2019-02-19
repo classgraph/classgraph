@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList.ByteArrayConsumer;
@@ -395,7 +394,7 @@ public class ClassGraphTest {
      * Scan static final field name ignore visibility.
      */
     @Test
-    public void scanStaticFinalFieldNameIgnoreVisibility() {
+    public void scanStaticFinalFieldNameIgnoreVisibility() throws Exception {
         final HashSet<String> fieldNames = new HashSet<>();
         for (final String fieldName : new String[] { "stringField", "intField", "boolField", "charField",
                 "integerField", "booleanField" }) {
@@ -422,9 +421,9 @@ public class ClassGraphTest {
                         break;
                     case "integerField":
                     case "booleanField":
-                        throw new ClassGraphException("Non-constant field should not be matched");
+                        throw new Exception("Non-constant field should not be matched");
                     default:
-                        throw new ClassGraphException("Unknown field");
+                        throw new Exception("Unknown field");
                     }
                     numInitializers++;
                 }

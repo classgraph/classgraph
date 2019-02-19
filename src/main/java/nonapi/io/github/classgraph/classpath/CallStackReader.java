@@ -36,7 +36,6 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
@@ -168,8 +167,8 @@ class CallStackReader {
         // As a fallback, use getStackTrace() to try to get the call stack
         if (stack == null) {
             try {
-                throw new ClassGraphException();
-            } catch (final ClassGraphException e) {
+                throw new Exception();
+            } catch (final Exception e) {
                 final List<Class<?>> classes = new ArrayList<>();
                 for (final StackTraceElement elt : e.getStackTrace()) {
                     try {

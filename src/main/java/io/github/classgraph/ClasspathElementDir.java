@@ -535,13 +535,13 @@ class ClasspathElementDir extends ClasspathElement {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (o == this) {
             return true;
         } else if (!(o instanceof ClasspathElementDir)) {
             return false;
         }
-        ClasspathElementDir other = (ClasspathElementDir) o;
+        final ClasspathElementDir other = (ClasspathElementDir) o;
         return this.classpathEltDir.equals(other.classpathEltDir);
     }
 

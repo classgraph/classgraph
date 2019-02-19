@@ -40,40 +40,50 @@ public class ClassGraphException extends IllegalArgumentException {
     /** serialVersionUID. */
     static final long serialVersionUID = 1L;
 
-    /** Constructor. */
-    public ClassGraphException() {
-        super();
-    }
-
     /**
      * Constructor.
      *
      * @param message
      *            the message
      */
-    public ClassGraphException(final String message) {
+    private ClassGraphException(final String message) {
         super(message);
     }
 
     /**
      * Constructor.
      *
-     * @param cause
-     *            the cause
-     */
-    public ClassGraphException(final Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Constructor.
-     *
      * @param message
      *            the message
      * @param cause
      *            the cause
      */
-    public ClassGraphException(final String message, final Throwable cause) {
+    private ClassGraphException(final String message, final Throwable cause) {
         super(message, cause);
+    }
+
+    /**
+     * Static factory method to stop IDEs from auto-completing ClassGraphException after "new ClassGraph".
+     *
+     * @param message
+     *            the message
+     * @return the ClassGraphException
+     */
+    public static ClassGraphException newClassGraphException(final String message) {
+        return new ClassGraphException(message);
+    }
+
+    /**
+     * Static factory method to stop IDEs from auto-completing ClassGraphException after "new ClassGraph".
+     *
+     * @param message
+     *            the message
+     * @param cause
+     *            the cause
+     * @return the ClassGraphException
+     */
+    public static ClassGraphException newClassGraphException(final String message, final Throwable cause)
+            throws ClassGraphException {
+        return new ClassGraphException(message, cause);
     }
 }

@@ -142,10 +142,10 @@ class TypeResolutions {
 
         } else if (type instanceof WildcardType) {
             // TODO: Support WildcardType
-            throw new ClassGraphException("WildcardType not yet supported: " + type);
+            throw ClassGraphException.newClassGraphException("WildcardType not yet supported: " + type);
 
         } else {
-            throw new ClassGraphException("Got unexpected type: " + type);
+            throw ClassGraphException.newClassGraphException("Got unexpected type: " + type);
         }
     }
 

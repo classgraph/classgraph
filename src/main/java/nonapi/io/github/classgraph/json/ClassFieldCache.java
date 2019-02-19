@@ -91,7 +91,9 @@ class ClassFieldCache {
         try {
             NO_CONSTRUCTOR = NoConstructor.class.getDeclaredConstructor();
         } catch (NoSuchMethodException | SecurityException e) {
-            throw new ClassGraphException(e);
+            // Should not happen
+            throw ClassGraphException.newClassGraphException(
+                    "Could not find or access constructor for " + NoConstructor.class.getName(), e);
         }
     }
 

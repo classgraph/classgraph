@@ -142,7 +142,7 @@ public class ClasspathFinder {
                     }
                     return true;
                 default:
-                    throw new ClassGraphException("Unknown delegation order");
+                    throw ClassGraphException.newClassGraphException("Unknown delegation order");
                 }
             }
         }

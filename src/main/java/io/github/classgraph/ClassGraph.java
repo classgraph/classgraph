@@ -1131,9 +1131,10 @@ public class ClassGraph {
             return scanResult;
 
         } catch (final InterruptedException | CancellationException e) {
-            throw new ClassGraphException("Scan interrupted", e);
+            throw ClassGraphException.newClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
+            throw ClassGraphException.newClassGraphException("Uncaught exception during scan",
+                    InterruptionChecker.getCause(e));
         }
     }
 

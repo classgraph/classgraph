@@ -447,13 +447,13 @@ class ClasspathElementModule extends ClasspathElement {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (o == this) {
             return true;
         } else if (!(o instanceof ClasspathElementModule)) {
             return false;
         }
-        ClasspathElementModule other = (ClasspathElementModule) o;
+        final ClasspathElementModule other = (ClasspathElementModule) o;
         return this.getModuleNameOrEmpty().equals(other.getModuleNameOrEmpty());
     }
 

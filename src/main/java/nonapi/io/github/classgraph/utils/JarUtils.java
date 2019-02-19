@@ -82,7 +82,8 @@ public final class JarUtils {
         for (int i = 0; i < UNIX_NON_PATH_SEPARATORS.length; i++) {
             UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[i] = UNIX_NON_PATH_SEPARATORS[i].indexOf(':');
             if (UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[i] < 0) {
-                throw new ClassGraphException("Could not find ':' in \"" + UNIX_NON_PATH_SEPARATORS[i] + "\"");
+                throw ClassGraphException
+                        .newClassGraphException("Could not find ':' in \"" + UNIX_NON_PATH_SEPARATORS[i] + "\"");
             }
         }
     }

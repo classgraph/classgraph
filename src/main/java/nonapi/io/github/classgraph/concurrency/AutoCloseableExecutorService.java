@@ -108,7 +108,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
                 // Interrupt all the threads to terminate them, if awaitTermination() timed out
                 shutdownNow();
             } catch (final SecurityException e) {
-                throw new ClassGraphException("Could not shut down ExecutorService -- need "
+                throw ClassGraphException.newClassGraphException("Could not shut down ExecutorService -- need "
                         + "java.lang.RuntimePermission(\"modifyThread\"), "
                         + "or the security manager's checkAccess method denies access", e);
             }

@@ -73,7 +73,7 @@ public class JSONDeserializer {
         if (jsonVal == null) {
             return null;
         } else if (jsonVal instanceof JSONArray || jsonVal instanceof JSONObject) {
-            throw new ClassGraphException("Expected a basic value type");
+            throw ClassGraphException.newClassGraphException("Expected a basic value type");
         }
         if (expectedType instanceof ParameterizedType) {
             // TODO: add support for Class<T> reference values, which may be parameterized
@@ -388,8 +388,8 @@ public class JSONDeserializer {
                 itemJsonKey = null;
                 itemJsonValue = jsonArray.items.get(i);
             } else {
-                // Can't happen
-                throw new ClassGraphException();
+                // Can't happen (keep static analyzers happy)
+                throw ClassGraphException.newClassGraphException("This exception should not be thrown");
             }
             final boolean itemJsonValueIsJsonObject = itemJsonValue instanceof JSONObject;
             final boolean itemJsonValueIsJsonArray = itemJsonValue instanceof JSONArray;

@@ -239,7 +239,7 @@ public class ScanSpec {
                 try {
                     ((WhiteBlackList) field.get(this)).sortPrefixes();
                 } catch (final ReflectiveOperationException e) {
-                    throw new ClassGraphException("Field is not accessible: " + field, e);
+                    throw ClassGraphException.newClassGraphException("Field is not accessible: " + field, e);
                 }
             }
         }

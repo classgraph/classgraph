@@ -137,7 +137,8 @@ public class ClassLoaderHandlerRegistry {
                 this.handledClassLoaderNames = classLoaderHandlerClass.getDeclaredConstructor().newInstance()
                         .handledClassLoaders();
             } catch (final ReflectiveOperationException | ExceptionInInitializerError e) {
-                throw new ClassGraphException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+                throw ClassGraphException
+                        .newClassGraphException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
             }
         }
 

@@ -217,7 +217,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 val = buf.toString("UTF-8");
             } catch (final UnsupportedEncodingException e) {
                 // Should not happen
-                throw new ClassGraphException(e);
+                throw ClassGraphException.newClassGraphException("UTF-8 encoding unsupported", e);
             }
         }
         return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);

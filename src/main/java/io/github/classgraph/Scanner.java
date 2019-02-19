@@ -984,7 +984,8 @@ class Scanner implements Callable<ScanResult> {
 
             // Log total time after scan completes, and flush log
             if (topLevelLog != null) {
-                topLevelLog.log("Total time: " + (System.currentTimeMillis() - scanStart) * .001 + " sec");
+                topLevelLog.log("~",
+                        String.format("Total time: %.3f sec", (System.currentTimeMillis() - scanStart) * .001));
                 topLevelLog.flush();
             }
 

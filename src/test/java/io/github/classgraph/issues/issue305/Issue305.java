@@ -13,7 +13,6 @@ import java.util.logging.Logger;
 import org.junit.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -22,7 +21,7 @@ import io.github.classgraph.ScanResult;
 public class Issue305 {
     /** Test that multi-line continuations in manifest file values are correctly assembled into a string. */
     @Test
-    public void issue305() {
+    public void issue305() throws Exception {
         ConsoleHandler errPrintStreamHandler = null;
         final Logger rootLogger = Logger.getLogger("");
         try {
@@ -31,7 +30,7 @@ public class Issue305 {
             System.setErr(new PrintStream(err));
             final Logger log = Logger.getLogger(ClassGraph.class.getName());
             if (!log.isLoggable(Level.INFO)) {
-                throw new ClassGraphException("Could not create log");
+                throw new Exception("Could not create log");
             }
             errPrintStreamHandler = new ConsoleHandler();
             errPrintStreamHandler.setLevel(Level.INFO);

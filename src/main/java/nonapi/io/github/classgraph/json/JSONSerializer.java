@@ -94,14 +94,14 @@ public final class JSONSerializer {
             final Object refdObj = ((JSONReference) jsonVal).idObject;
             if (refdObj == null) {
                 // Should not happen
-                throw new ClassGraphException("Internal inconsistency");
+                throw ClassGraphException.newClassGraphException("Internal inconsistency");
             }
             // Look up the JSON object corresponding to the referenced object
             final ReferenceEqualityKey<Object> refdObjKey = new ReferenceEqualityKey<>(refdObj);
             final JSONObject refdJsonVal = objToJSONVal.get(refdObjKey);
             if (refdJsonVal == null) {
                 // Should not happen
-                throw new ClassGraphException("Internal inconsistency");
+                throw ClassGraphException.newClassGraphException("Internal inconsistency");
             }
             // See if the JSON object has an @Id field
             // (for serialization, typeResolutions can be null)
@@ -384,7 +384,8 @@ public final class JSONSerializer {
                 jsonVal = new JSONObject(convertedKeyValPairs);
 
             } catch (IllegalArgumentException | IllegalAccessException e) {
-                throw new ClassGraphException("Could not get value of field in object: " + obj, e);
+                throw ClassGraphException.newClassGraphException("Could not get value of field in object: " + obj,
+                        e);
             }
         }
 

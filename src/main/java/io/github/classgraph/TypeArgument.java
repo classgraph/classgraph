@@ -245,7 +245,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         case NONE:
             return typeSignature.toString();
         default:
-            throw new ClassGraphException("Unknown wildcard type");
+            // Should not happen
+            throw ClassGraphException.newClassGraphException("Unknown wildcard type " + wildcard);
         }
     }
 

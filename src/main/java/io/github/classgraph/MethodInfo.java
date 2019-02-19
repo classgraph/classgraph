@@ -357,7 +357,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             final int numParams = paramTypeDescriptors.size();
             if (paramTypeSignatures != null && paramTypeSignatures.size() > numParams) {
                 // Should not happen
-                throw new ClassGraphException(
+                throw ClassGraphException.newClassGraphException(
                         "typeSignatureParamTypes.size() > typeDescriptorParamTypes.size() for method "
                                 + declaringClassName + "." + name);
             }
@@ -368,8 +368,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                             parameterAnnotationInfo == null ? 0 : parameterAnnotationInfo.length));
             if (otherParamMax > numParams) {
                 // Should not happen
-                throw new ClassGraphException("Type descriptor for method " + declaringClassName + "." + name
-                        + " has insufficient parameters");
+                throw ClassGraphException.newClassGraphException("Type descriptor for method " + declaringClassName
+                        + "." + name + " has insufficient parameters");
             }
 
             // Kotlin is very inconsistent about the arity of each of the parameter metadata types, see:

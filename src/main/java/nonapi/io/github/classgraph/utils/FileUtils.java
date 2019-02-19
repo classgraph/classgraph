@@ -112,7 +112,8 @@ public final class FileUtils {
             currDirPathStr = currDirPath.toString();
             currDirPathStr = FastPathResolver.resolve(currDirPathStr);
         } catch (final IOException e) {
-            throw new ClassGraphException("Could not resolve current directory: " + currDirPathStr, e);
+            throw ClassGraphException
+                    .newClassGraphException("Could not resolve current directory: " + currDirPathStr, e);
         }
         CURR_DIR_PATH = currDirPathStr;
     }
@@ -432,7 +433,7 @@ public final class FileUtils {
                 attachmentMethod = directByteBufferClass.getMethod("attachment");
                 attachmentMethod.setAccessible(true);
             } catch (final SecurityException e) {
-                throw new ClassGraphException(
+                throw ClassGraphException.newClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");
             } catch (final ReflectiveOperationException | LinkageError ex) {
@@ -454,7 +455,7 @@ public final class FileUtils {
                 theUnsafeField.setAccessible(true);
                 theUnsafe = theUnsafeField.get(null);
             } catch (final SecurityException e) {
-                throw new ClassGraphException(
+                throw ClassGraphException.newClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
                                 + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")");

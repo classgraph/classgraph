@@ -567,13 +567,13 @@ class ClasspathElementZip extends ClasspathElement {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (o == this) {
             return true;
         } else if (!(o instanceof ClasspathElementZip)) {
             return false;
         }
-        ClasspathElementZip other = (ClasspathElementZip) o;
+        final ClasspathElementZip other = (ClasspathElementZip) o;
         return this.getZipFilePath().equals(other.getZipFilePath());
     }
 
