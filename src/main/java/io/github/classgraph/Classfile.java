@@ -225,9 +225,9 @@ class Classfile {
      *            the relationship type
      */
     private void scheduleScanningIfExternalClass(final String className, final String relationship) {
-        // The call to classNamesScheduledForScanning.add(className) will return true only for external classes
-        // that have not yet been scheduled for scanning
+        // Don't scan Object
         if (className != null && !className.equals("java.lang.Object")
+        // Only schedule each external class once for scanning, across all threads
                 && classNamesScheduledForScanning.add(className)) {
             // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
             // for each class, but there shouldn't be too many cases of extending scanning upwards)
