@@ -289,14 +289,14 @@ public final class FileUtils {
      * URL, but without allowing navigation above the path hierarchy root. Treats each "!" character as a new path
      * hierarchy root. Also removes "." and empty path segments ("//").
      * 
-     * @param entryPath
+     * @param path
      *            The path to sanitize.
      * @param removeInitialSlash
      *            If true, additionally removes any "/" character(s) from the beginning of the returned path.
      * @return The sanitized path.
      */
-    public static String sanitizeEntryPath(final String entryPath, final boolean removeInitialSlash) {
-        if (entryPath.isEmpty()) {
+    public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash) {
+        if (path.isEmpty()) {
             return "";
         }
 
@@ -305,18 +305,17 @@ public final class FileUtils {
         {
             int lastSepIdx = -1;
             char prevC = '\0';
-            for (int i = 0; i < entryPath.length() + 1; i++) {
-                final char c = i == entryPath.length() ? '\0' : entryPath.charAt(i);
+            for (int i = 0; i < path.length() + 1; i++) {
+                final char c = i == path.length() ? '\0' : path.charAt(i);
                 if (c == '/' || c == '!' || c == '\0') {
                     final int segmentLength = i - (lastSepIdx + 1);
                     if (
                     // Found empty segment "//" or "!!"
                     (segmentLength == 0 && prevC == c)
                             // Found segment "."
-                            || (segmentLength == 1 && entryPath.charAt(i - 1) == '.')
+                            || (segmentLength == 1 && path.charAt(i - 1) == '.')
                             // Found segment ".."
-                            || (segmentLength == 2 && entryPath.charAt(i - 2) == '.'
-                                    && entryPath.charAt(i - 1) == '.')) {
+                            || (segmentLength == 2 && path.charAt(i - 2) == '.' && path.charAt(i - 1) == '.')) {
                         foundSegmentToSanitize = true;
                     }
                     lastSepIdx = i;
@@ -326,17 +325,17 @@ public final class FileUtils {
         }
 
         // Handle "..", "." and empty path segments, if any were found
-        String path = entryPath;
+        String pathSanitized = path;
         if (foundSegmentToSanitize) {
             // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
             final List<List<String>> allSectionSegments = new ArrayList<>();
             List<String> currSectionSegments = new ArrayList<>();
             allSectionSegments.add(currSectionSegments);
             int lastSepIdx = -1;
-            for (int i = 0; i < entryPath.length() + 1; i++) {
-                final char c = i == entryPath.length() ? '\0' : entryPath.charAt(i);
+            for (int i = 0; i < path.length() + 1; i++) {
+                final char c = i == path.length() ? '\0' : path.charAt(i);
                 if (c == '/' || c == '!' || c == '\0') {
-                    final String segment = entryPath.substring(lastSepIdx + 1, i);
+                    final String segment = path.substring(lastSepIdx + 1, i);
                     if (segment.equals(".") || segment.isEmpty()) {
                         // Ignore "/./" or empty segment "//"
                     } else if (segment.equals("..")) {
@@ -370,21 +369,21 @@ public final class FileUtils {
                     }
                 }
             }
-            path = buf.toString();
-            if (path.isEmpty() && entryPath.startsWith("/")) {
-                path = "/";
+            pathSanitized = buf.toString();
+            if (pathSanitized.isEmpty() && path.startsWith("/")) {
+                pathSanitized = "/";
             }
         }
 
-        if (removeInitialSlash || !entryPath.startsWith("/")) {
+        if (removeInitialSlash || !path.startsWith("/")) {
             // Strip off leading "/" if it needs to be removed, or if it wasn't present in the original path
             // (the string-building code above prepends "/" to every segment). Note that "/" is always added
             // after "!", since "jar:" URLs expect this.
-            while (path.startsWith("/")) {
-                path = path.substring(1);
+            while (pathSanitized.startsWith("/")) {
+                pathSanitized = pathSanitized.substring(1);
             }
         }
-        return path;
+        return pathSanitized;
     }
 
     // -------------------------------------------------------------------------------------------------------------

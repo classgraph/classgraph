@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -437,14 +438,7 @@ public abstract class WhiteBlackList {
      * @return The normalized package or class name.
      */
     public static String normalizePackageOrClassName(final String packageOrClassName) {
-        String normalized = packageOrClassName;
-        while (normalized.startsWith(".")) {
-            normalized = normalized.substring(1);
-        }
-        while (normalized.endsWith(".")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
+        return normalizePath(packageOrClassName.replace('.', '/')).replace('/', '.');
     }
 
     /**
@@ -455,7 +449,7 @@ public abstract class WhiteBlackList {
      * @return The package name.
      */
     public static String pathToPackageName(final String path) {
-        return normalizePath(path).replace('/', '.');
+        return path.replace('/', '.');
     }
 
     /**
@@ -466,7 +460,7 @@ public abstract class WhiteBlackList {
      * @return The path.
      */
     public static String packageNameToPath(final String packageName) {
-        return normalizePackageOrClassName(packageName).replace('.', '/');
+        return packageName.replace('.', '/');
     }
 
     /**
@@ -477,7 +471,7 @@ public abstract class WhiteBlackList {
      * @return The classfile path (including a ".class" suffix).
      */
     public static String classNameToClassfilePath(final String className) {
-        return JarUtils.classNameToClassfilePath(normalizePackageOrClassName(className));
+        return JarUtils.classNameToClassfilePath(className);
     }
 
     /**
@@ -573,6 +567,29 @@ public abstract class WhiteBlackList {
         }
     }
 
+    private static void quoteList(final Collection<String> coll, final StringBuilder buf) {
+        buf.append('[');
+        boolean first = true;
+        for (final String item : coll) {
+            if (first) {
+                first = false;
+            } else {
+                buf.append(", ");
+            }
+            buf.append('"');
+            for (int i = 0; i < item.length(); i++) {
+                final char c = item.charAt(i);
+                if (c == '"') {
+                    buf.append("\\\"");
+                } else {
+                    buf.append(c);
+                }
+            }
+            buf.append('"');
+        }
+        buf.append(']');
+    }
+
     /* (non-Javadoc)
      * @see java.lang.Object#toString()
      */
@@ -580,37 +597,43 @@ public abstract class WhiteBlackList {
     public String toString() {
         final StringBuilder buf = new StringBuilder();
         if (whitelist != null) {
-            buf.append("whitelist: ").append(whitelist);
+            buf.append("whitelist: ");
+            quoteList(whitelist, buf);
         }
         if (whitelistPrefixes != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("whitelistPrefixes: ").append(whitelistPrefixes);
+            buf.append("whitelistPrefixes: ");
+            quoteList(whitelistPrefixes, buf);
         }
         if (whitelistGlobs != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("whitelistGlobs: ").append(whitelistGlobs);
+            buf.append("whitelistGlobs: ");
+            quoteList(whitelistGlobs, buf);
         }
         if (blacklist != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklist: ").append(blacklist);
+            buf.append("blacklist: ");
+            quoteList(blacklist, buf);
         }
         if (blacklistPrefixes != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklistPrefixes: ").append(blacklistPrefixes);
+            buf.append("blacklistPrefixes: ");
+            quoteList(blacklistPrefixes, buf);
         }
         if (blacklistGlobs != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklistGlobs: ").append(blacklistGlobs);
+            buf.append("blacklistGlobs: ");
+            quoteList(blacklistGlobs, buf);
         }
         return buf.toString();
     }

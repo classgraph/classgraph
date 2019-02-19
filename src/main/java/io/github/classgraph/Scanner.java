@@ -134,6 +134,13 @@ class Scanner implements Callable<ScanResult> {
         this.scanSpec = scanSpec;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
+        if (topLevelLog != null) {
+            if (scanSpec.pathWhiteBlackList != null && scanSpec.pathWhiteBlackList.isSpecificallyWhitelisted("")) {
+                topLevelLog.log("Note: There is no need to whitelist the root package (\"\") -- not whitelisting "
+                        + "anything will have the same effect of causing all packages to be scanned");
+            }
+            topLevelLog.log("Number of worker threads: " + numParallelTasks);
+        }
 
         this.executorService = executorService;
         this.interruptionChecker = executorService instanceof AutoCloseableExecutorService
@@ -144,10 +151,6 @@ class Scanner implements Callable<ScanResult> {
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
         this.topLevelLog = topLevelLog;
-
-        if (topLevelLog != null) {
-            topLevelLog.log("Number of worker threads: " + numParallelTasks);
-        }
 
         final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
         this.classpathFinder = new ClasspathFinder(scanSpec, classpathFinderLog);
