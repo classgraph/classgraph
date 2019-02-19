@@ -227,7 +227,8 @@ class Classfile {
     private void scheduleScanningIfExternalClass(final String className, final String relationship) {
         // The call to classNamesScheduledForScanning.add(className) will return true only for external classes
         // that have not yet been scheduled for scanning
-        if (className != null && classNamesScheduledForScanning.add(className)) {
+        if (className != null && !className.equals("java.lang.Object")
+                && classNamesScheduledForScanning.add(className)) {
             // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
             // for each class, but there shouldn't be too many cases of extending scanning upwards)
             final String classfilePath = JarUtils.classNameToClassfilePath(className);
@@ -263,7 +264,7 @@ class Classfile {
                 additionalWorkUnits.add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource,
                         /* isExternalClass = */ true));
             } else {
-                if (log != null && !className.equals("java.lang.Object")) {
+                if (log != null) {
                     log.log("External " + relationship + " " + className + " was not found in "
                             + "non-blacklisted packages -- cannot extend scanning to this class");
                 }
