@@ -398,8 +398,8 @@ class ClasspathElementDir extends ClasspathElement {
         }
         Arrays.sort(filesInDir);
         final LogNode subLog = log == null ? null
-                // Log dirs after files (addWhitelistedResources precedes log entry with "0:file:")
-                : log.log("1:dir:" + canonicalPath, "Scanning directory: " + dir
+                // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
+                : log.log("1:" + canonicalPath, "Scanning directory: " + dir
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
         // Only scan files in directory if directory is not only an ancestor of a whitelisted path

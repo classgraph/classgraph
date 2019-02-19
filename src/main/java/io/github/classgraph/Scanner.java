@@ -578,9 +578,9 @@ class Scanner implements Callable<ScanResult> {
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
                 final WorkQueue<ClassfileScanWorkUnit> workQueue, final LogNode log) throws InterruptedException {
-            final LogNode subLog = log == null ? null
-                    : log.log(workUnit.classfileResource.getPath(),
-                            "Parsing classfile " + workUnit.classfileResource);
+            final LogNode subLog = workUnit.classfileResource.scanLog == null ? null
+                    : workUnit.classfileResource.scanLog.log(workUnit.classfileResource.getPath(),
+                            "Parsing classfile");
             try {
                 // Parse classfile binary format, creating a Classfile object
                 final Classfile classfile = new Classfile(workUnit.classpathElement, classpathOrder,
@@ -809,7 +809,11 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
 
-            // Scan classfiles in parallel
+            // Scan classfiles in parallel.
+            // N.B. Classfile scan log entries are listed inline below the entry that was added to the
+            // log when the path of the corresponding resource was found, by using the LogNode stored
+            // in Resource#scanLog. This allows the path scanning and classfile scanning logs to be
+            // merged into a single tree, rather than having them appear as two separate trees.
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
             processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
                     new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
@@ -872,7 +876,7 @@ class Scanner implements Callable<ScanResult> {
      *             if a worker threw an uncaught exception
      */
     private ScanResult openClasspathElementsThenScan() throws InterruptedException, ExecutionException {
-        final LogNode log = topLevelLog == null ? null : topLevelLog.log("Finding classpath entries");
+        final LogNode log = topLevelLog == null ? null : topLevelLog.log("Finding nested classpath elements");
 
         // Get order of elements in traditional classpath
         final List<ClasspathEntryWorkUnit> rawClasspathEntryWorkUnits = new ArrayList<>();
@@ -922,7 +926,7 @@ class Scanner implements Callable<ScanResult> {
         }
 
         // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
-        processWorkUnits(finalClasspathEltOrder, "Scanning filenames within classpath elements", topLevelLog,
+        processWorkUnits(finalClasspathEltOrder, "Scanning classpath elements", topLevelLog,
                 new WorkUnitProcessor<ClasspathElement>() {
                     @Override
                     public void processWorkUnit(final ClasspathElement classpathElement,

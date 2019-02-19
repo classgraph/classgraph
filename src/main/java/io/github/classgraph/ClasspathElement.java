@@ -277,7 +277,7 @@ abstract class ClasspathElement {
             }
             // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
             // ClasspathElementDir classpath elements
-            log.log("0:file:" + path,
+            resource.scanLog = log.log("0:" + path,
                     logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
                             : " ; full path: " + resource.getPathRelativeToClasspathElement()));
         }

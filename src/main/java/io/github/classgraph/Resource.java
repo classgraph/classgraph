@@ -39,6 +39,7 @@ import java.util.zip.ZipEntry;
 
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
@@ -60,6 +61,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /** The cached result of toString(). */
     private String toString;
+
+    /**
+     * The {@link LogNode} used to log that the resource was found when classpath element paths are scanned. In the
+     * case of whitelisted classfile resources, sublog entries are added when the classfile's contents are scanned.
+     */
+    LogNode scanLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -108,6 +115,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             return byteArray;
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Class for closing the parent {@link Resource} when an {@link InputStream} opened on the resource is closed.
