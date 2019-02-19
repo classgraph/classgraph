@@ -123,7 +123,11 @@ public final class ReflectionUtils {
     public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException)
             throws IllegalArgumentException {
         if (obj == null || fieldName == null) {
-            throw new NullPointerException();
+            if (throwException) {
+                throw new NullPointerException();
+            } else {
+                return null;
+            }
         }
         return getFieldVal(obj.getClass(), obj, fieldName, throwException);
     }
@@ -147,7 +151,11 @@ public final class ReflectionUtils {
     public static Object getStaticFieldVal(final Class<?> cls, final String fieldName, final boolean throwException)
             throws IllegalArgumentException {
         if (cls == null || fieldName == null) {
-            throw new NullPointerException();
+            if (throwException) {
+                throw new NullPointerException();
+            } else {
+                return null;
+            }
         }
         return getFieldVal(cls, null, fieldName, throwException);
     }
@@ -284,7 +292,11 @@ public final class ReflectionUtils {
     public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException)
             throws IllegalArgumentException {
         if (obj == null || methodName == null) {
-            throw new NullPointerException();
+            if (throwException) {
+                throw new NullPointerException();
+            } else {
+                return null;
+            }
         }
         return invokeMethod(obj.getClass(), obj, methodName, false, null, null, throwException);
     }
@@ -312,7 +324,11 @@ public final class ReflectionUtils {
     public static Object invokeMethod(final Object obj, final String methodName, final Class<?> argType,
             final Object param, final boolean throwException) throws IllegalArgumentException {
         if (obj == null || methodName == null) {
-            throw new NullPointerException();
+            if (throwException) {
+                throw new NullPointerException();
+            } else {
+                return null;
+            }
         }
         return invokeMethod(obj.getClass(), obj, methodName, true, argType, param, throwException);
     }
@@ -336,7 +352,11 @@ public final class ReflectionUtils {
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName,
             final boolean throwException) throws IllegalArgumentException {
         if (cls == null || methodName == null) {
-            throw new NullPointerException();
+            if (throwException) {
+                throw new NullPointerException();
+            } else {
+                return null;
+            }
         }
         return invokeMethod(cls, null, methodName, false, null, null, throwException);
     }
@@ -364,7 +384,11 @@ public final class ReflectionUtils {
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName, final Class<?> argType,
             final Object param, final boolean throwException) throws IllegalArgumentException {
         if (cls == null || methodName == null) {
-            throw new NullPointerException();
+            if (throwException) {
+                throw new NullPointerException();
+            } else {
+                return null;
+            }
         }
         return invokeMethod(cls, null, methodName, true, argType, param, throwException);
     }
