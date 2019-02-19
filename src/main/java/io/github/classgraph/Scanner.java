@@ -145,6 +145,10 @@ class Scanner implements Callable<ScanResult> {
         this.failureHandler = failureHandler;
         this.topLevelLog = topLevelLog;
 
+        if (topLevelLog != null) {
+            topLevelLog.log("Number of worker threads: " + numParallelTasks);
+        }
+
         final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
         this.classpathFinder = new ClasspathFinder(scanSpec, classpathFinderLog);
         this.classLoaderAndModuleFinder = classpathFinder.getClassLoaderAndModuleFinder();
@@ -313,10 +317,8 @@ class Scanner implements Callable<ScanResult> {
      *            the work unit type
      * @param workUnits
      *            the work units
-     * @param logEntry
-     *            the log entry text to group work units under
      * @param log
-     *            the log
+     *            the log entry text to group work units under
      * @param workUnitProcessor
      *            the work unit processor
      * @throws InterruptedException
@@ -324,13 +326,12 @@ class Scanner implements Callable<ScanResult> {
      * @throws ExecutionException
      *             If a worker threw an uncaught exception.
      */
-    private <W> void processWorkUnits(final Collection<W> workUnits, final String logEntry, final LogNode log,
+    private <W> void processWorkUnits(final Collection<W> workUnits, final LogNode log,
             final WorkUnitProcessor<W> workUnitProcessor) throws InterruptedException, ExecutionException {
-        final LogNode subLog = log == null ? null : log.log(logEntry);
-        WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks, subLog,
+        WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks, log,
                 workUnitProcessor);
-        if (subLog != null) {
-            subLog.addElapsedTime();
+        if (log != null) {
+            log.addElapsedTime();
         }
         // Throw InterruptedException if any of the workers failed
         interruptionChecker.check();
@@ -815,7 +816,8 @@ class Scanner implements Callable<ScanResult> {
 
             // Scan classfiles in parallel.
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
-            processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
+            processWorkUnits(classfileScanWorkItems,
+                    topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"),
                     new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
                             classNamesScheduledForScanning, scannedClassfiles));
 
@@ -892,7 +894,8 @@ class Scanner implements Callable<ScanResult> {
         final Set<ClasspathElement> openedClasspathEltsSet = Collections
                 .newSetFromMap(new ConcurrentHashMap<ClasspathElement, Boolean>());
         final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder = new ConcurrentLinkedQueue<>();
-        processWorkUnits(rawClasspathEntryWorkUnits, "Opening classpath elements", log,
+        processWorkUnits(rawClasspathEntryWorkUnits,
+                topLevelLog == null ? null : topLevelLog.log("Opening classpath elements"),
                 newClasspathEntryWorkUnitProcessor(openedClasspathEltsSet, toplevelClasspathEltOrder));
 
         // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
@@ -926,7 +929,8 @@ class Scanner implements Callable<ScanResult> {
         }
 
         // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
-        processWorkUnits(finalClasspathEltOrder, "Scanning classpath elements", topLevelLog,
+        processWorkUnits(finalClasspathEltOrder,
+                topLevelLog == null ? null : topLevelLog.log("Scanning classpath elements"),
                 new WorkUnitProcessor<ClasspathElement>() {
                     @Override
                     public void processWorkUnit(final ClasspathElement classpathElement,
