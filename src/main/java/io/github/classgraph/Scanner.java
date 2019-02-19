@@ -578,6 +578,10 @@ class Scanner implements Callable<ScanResult> {
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
                 final WorkQueue<ClassfileScanWorkUnit> workQueue, final LogNode log) throws InterruptedException {
+            // Classfile scan log entries are listed inline below the entry that was added to the log
+            // when the path of the corresponding resource was found, by using the LogNode stored in
+            // Resource#scanLog. This allows the path scanning and classfile scanning logs to be
+            // merged into a single tree, rather than having them appear as two separate trees.
             final LogNode subLog = workUnit.classfileResource.scanLog == null ? null
                     : workUnit.classfileResource.scanLog.log(workUnit.classfileResource.getPath(),
                             "Parsing classfile");
@@ -810,10 +814,6 @@ class Scanner implements Callable<ScanResult> {
             }
 
             // Scan classfiles in parallel.
-            // N.B. Classfile scan log entries are listed inline below the entry that was added to the
-            // log when the path of the corresponding resource was found, by using the LogNode stored
-            // in Resource#scanLog. This allows the path scanning and classfile scanning logs to be
-            // merged into a single tree, rather than having them appear as two separate trees.
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
             processWorkUnits(classfileScanWorkItems, "Scanning classfiles", topLevelLog,
                     new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
