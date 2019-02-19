@@ -294,11 +294,13 @@ abstract class ClasspathElement {
     protected void finishScanPaths(final LogNode log) {
         if (log != null) {
             if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
-                log.log("No whitelisted classfiles or resources found");
+                log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles or resources found"
+                        : "Classfile scanning is disabled, and no whitelisted resources found");
             } else if (whitelistedResources.isEmpty()) {
                 log.log("No whitelisted resources found");
             } else if (whitelistedClassfileResources.isEmpty()) {
-                log.log("No whitelisted classfiles found");
+                log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles found"
+                        : "Classfile scanning is disabled");
             }
         }
         if (log != null) {
