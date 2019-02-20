@@ -12,6 +12,7 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 [![JDK compatibility: 7, 8, 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7,_8,_9+_(JPMS)-blue.svg)](#)
 <br>
 [![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
+[![GitHub issues](https://img.shields.io/github/issues/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/issues/)
 [![lgtm alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
 [![lgtm code quality](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
 [![Codacy Badge](https://img.shields.io/codacy/grade/31d639dd3874454c917f80ea2bff8155.svg?style=flat)](https://www.codacy.com/app/lukehutch/classgraph)
