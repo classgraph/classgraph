@@ -305,6 +305,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             if (args != null && paramTypes.length == 1) {
                 if (methodName.equals("equals") && paramTypes[0] == Object.class) {
                     // equals() needs to function the same as the JDK implementation 
+                    // (see src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in the JDK)
                     if (this == args[0]) {
                         return true;
                     } else if (!annotationClass.isInstance(args[0])) {
@@ -335,7 +336,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 case "toString":
                     return annotationInfo.toString();
                 case "hashCode": {
-                    // hashCode() needs to function the same as the JDK implementation 
+                    // hashCode() needs to function the same as the JDK implementation
+                    // (see src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in the JDK)
                     int result = 0;
                     for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
                         final String paramName = ent.getKey();
