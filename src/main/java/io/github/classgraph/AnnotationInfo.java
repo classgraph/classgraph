@@ -257,11 +257,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         /** The annotation class. */
         private final Class<? extends Annotation> annotationClass;
 
+        /** The {@link AnnotationInfo} object for this annotation. */
+        private final AnnotationInfo annotationInfo;
+
         /** The annotation parameter values instantiated. */
         private final Map<String, Object> annotationParameterValuesInstantiated = new HashMap<>();
-
-        /** The to string. */
-        private final String toString;
 
         /**
          * Constructor.
@@ -274,7 +274,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         AnnotationInvocationHandler(final Class<? extends Annotation> annotationClass,
                 final AnnotationInfo annotationInfo) {
             this.annotationClass = annotationClass;
-            this.toString = annotationInfo.toString();
+            this.annotationInfo = annotationInfo;
 
             // Instantiate the annotation parameter values (this loads and gets references for class literals,
             // enum constants, etc.)
@@ -290,7 +290,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         }
 
         /* (non-Javadoc)
-         * @see java.lang.reflect.InvocationHandler#invoke(java.lang.Object, java.lang.reflect.Method, java.lang.Object[])
+         * @see java.lang.reflect.InvocationHandler#invoke(java.lang.Object, java.lang.reflect.Method,
+         * java.lang.Object[])
          */
         @Override
         public Object invoke(final Object proxy, final Method method, final Object[] args) {
@@ -332,7 +333,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 // Handle .toString(), .hashCode(), .annotationType()
                 switch (methodName) {
                 case "toString":
-                    return toString;
+                    return annotationInfo.toString();
                 case "hashCode": {
                     // hashCode() needs to function the same as the JDK implementation 
                     int result = 0;
