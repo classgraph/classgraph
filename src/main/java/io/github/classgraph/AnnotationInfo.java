@@ -35,7 +35,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -157,11 +156,39 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             for (final AnnotationParameterValue annotationParamValue : this.annotationParamValues) {
                 allParamValues.put(annotationParamValue.getName(), annotationParamValue.getValue());
             }
-            annotationParamValuesWithDefaults = new AnnotationParameterValueList();
-            for (final Entry<String, Object> ent : allParamValues.entrySet()) {
-                annotationParamValuesWithDefaults.add(new AnnotationParameterValue(ent.getKey(), ent.getValue()));
+
+            // Put annotation values in the same order as the annotation methods (there is one method for each
+            // annotation constant)
+            if (classInfo.methodInfo == null) {
+                // Should not happen (when classfile is read, methods are always read, whether or not
+                // scanSpec.enableMethodInfo is true)
+                throw new IllegalArgumentException("Could not find methods for annotation " + classInfo.getName());
             }
-            Collections.sort(annotationParamValuesWithDefaults);
+            annotationParamValuesWithDefaults = new AnnotationParameterValueList();
+            for (final MethodInfo mi : classInfo.methodInfo) {
+                final String paramName = mi.getName();
+                switch (paramName) {
+                // None of these method names should be present in the @interface class itself, it should only
+                // contain methods for the annotation constants (but skip them anyway to be safe). These methods
+                // should only exist in concrete instances of the annotation.
+                case "<init>":
+                case "<clinit>":
+                case "hashCode":
+                case "equals":
+                case "toString":
+                case "annotationType":
+                    // Skip
+                    break;
+                default:
+                    // Annotation constant
+                    final Object paramValue = allParamValues.get(paramName);
+                    // Annotation values cannot be null (or absent, from either defaults or annotation instance)
+                    if (paramValue != null) {
+                        annotationParamValuesWithDefaults.add(new AnnotationParameterValue(paramName, paramValue));
+                    }
+                    break;
+                }
+            }
         }
         return annotationParamValuesWithDefaults;
     }
@@ -228,9 +255,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * {@link ClassInfo#getAnnotationDefaultParameterValues()}.
      * 
      * <p>
-     * Note that the returned {@link Annotation} will have some sort of proxy concrete type, such as
-     * {@code com.sun.proxy.$Proxy6}. This is an unavoidable side effect of the fact that concrete
-     * {@link Annotation} instances cannot be instantiated directly. (ClassGraph uses <a href=
+     * Note that the returned {@link Annotation} will have some sort of {@link InvocationHandler} proxy type, such
+     * as {@code io.github.classgraph.features.$Proxy4} or {@code com.sun.proxy.$Proxy6}. This is an unavoidable
+     * side effect of the fact that concrete {@link Annotation} instances cannot be instantiated directly.
+     * (ClassGraph uses <a href=
      * "http://hg.openjdk.java.net/jdk7/jdk7/jdk/file/9b8c96f96a0f/src/share/classes/sun/reflect/annotation/AnnotationParser.java#l255">the
      * same approach that the JDK uses to instantiate annotations from a map</a>.) However, proxy instances are
      * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/reflect/Proxy.html">handled
