@@ -34,11 +34,14 @@ import java.lang.annotation.Inherited;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
+import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Holds metadata about a specific annotation instance on a class, method, method parameter or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
@@ -300,10 +303,27 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             }
             if (args != null && paramTypes.length == 1) {
                 if (methodName.equals("equals") && paramTypes[0] == Object.class) {
-                    return args[0] != null && args[0] instanceof AnnotationInvocationHandler
-                            && ((AnnotationInvocationHandler) args[0]).annotationClass == annotationClass
-                            && ((AnnotationInvocationHandler) args[0]).annotationParameterValuesInstantiated
-                                    .equals(annotationParameterValuesInstantiated);
+                    // equals() needs to function the same as the JDK implementation 
+                    if (this == args[0]) {
+                        return true;
+                    } else if (!annotationClass.isInstance(args[0])) {
+                        return false;
+                    }
+                    for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
+                        final String paramName = ent.getKey();
+                        final Object paramVal = ent.getValue();
+                        final Object otherParamVal = ReflectionUtils.invokeMethod(args[0], paramName,
+                                /* throwException = */ false);
+                        if ((paramVal == null) != (otherParamVal == null)) {
+                            // Annotation values should never be null, but just to be safe
+                            return false;
+                        } else if (paramVal == null && otherParamVal == null) {
+                            return true;
+                        } else if (!paramVal.equals(otherParamVal)) {
+                            return false;
+                        }
+                    }
+                    return true;
                 } else {
                     // .equals(Object) is the only method of an enum that can take one parameter
                     throw new IllegalArgumentException();
@@ -313,12 +333,49 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 switch (methodName) {
                 case "toString":
                     return toString;
-                case "hashCode":
-                    return toString.hashCode();
+                case "hashCode": {
+                    // hashCode() needs to function the same as the JDK implementation 
+                    int result = 0;
+                    for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
+                        final String paramName = ent.getKey();
+                        final Object paramVal = ent.getValue();
+                        int paramValHashCode;
+                        if (paramVal == null) {
+                            // Annotation values should never be null, but just to be safe
+                            paramValHashCode = 0;
+                        } else {
+                            final Class<?> type = paramVal.getClass();
+                            if (!type.isArray()) {
+                                paramValHashCode = paramVal.hashCode();
+                            } else if (type == byte[].class) {
+                                paramValHashCode = Arrays.hashCode((byte[]) paramVal);
+                            } else if (type == char[].class) {
+                                paramValHashCode = Arrays.hashCode((char[]) paramVal);
+                            } else if (type == double[].class) {
+                                paramValHashCode = Arrays.hashCode((double[]) paramVal);
+                            } else if (type == float[].class) {
+                                paramValHashCode = Arrays.hashCode((float[]) paramVal);
+                            } else if (type == int[].class) {
+                                paramValHashCode = Arrays.hashCode((int[]) paramVal);
+                            } else if (type == long[].class) {
+                                paramValHashCode = Arrays.hashCode((long[]) paramVal);
+                            } else if (type == short[].class) {
+                                paramValHashCode = Arrays.hashCode((short[]) paramVal);
+                            } else if (type == boolean[].class) {
+                                paramValHashCode = Arrays.hashCode((boolean[]) paramVal);
+                            } else {
+                                paramValHashCode = Arrays.hashCode((Object[]) paramVal);
+                            }
+                            result += (127 * paramName.hashCode()) ^ paramValHashCode;
+                        }
+                    }
+                    return result;
+                }
                 case "annotationType":
                     return annotationClass;
                 default:
-                    // Fall through (method names match annotation parameter values)
+                    // Fall through (other method names are used for returning annotation parameter values)
+                    break;
                 }
             } else {
                 // Throw exception for 2 or more params
