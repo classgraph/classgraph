@@ -28,7 +28,7 @@
  */
 package io.github.classgraph;
 
-import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
 
@@ -194,7 +194,7 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     void toString(final StringBuilder buf) {
         buf.append(name);
-        buf.append(" = ");
+        buf.append("=");
         toStringParamValueOnly(buf);
     }
 
@@ -211,15 +211,7 @@ public class AnnotationParameterValue extends ScanResultObject
             final Object paramVal = value.get();
             final Class<?> valClass = paramVal.getClass();
             if (valClass.isArray()) {
-                buf.append('{');
-                for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
-                    if (j > 0) {
-                        buf.append(", ");
-                    }
-                    final Object elt = Array.get(paramVal, j);
-                    buf.append(elt == null ? "null" : elt.toString());
-                }
-                buf.append('}');
+                buf.append(Arrays.deepToString((Object[]) paramVal));
             } else if (paramVal instanceof String) {
                 buf.append('"');
                 buf.append(paramVal.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
