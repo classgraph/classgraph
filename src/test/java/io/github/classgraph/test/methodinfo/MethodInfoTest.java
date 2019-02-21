@@ -112,10 +112,14 @@ public class MethodInfoTest {
                                     + "(java.lang.String, char, long, float[], byte[][], "
                                     + "java.util.List<java.lang.Float>, int[]...)",
                             "@" + Test.class.getName()
-                                    + "(expected = java.lang.IllegalArgumentException) public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + " public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + " public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()");
+                                    + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
+                                    + "public void methodInfoNotEnabled()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testGetMethodInfo()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testGetConstructorInfo()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testGetMethodInfoIgnoringVisibility()");
         }
     }
 
@@ -152,10 +156,14 @@ public class MethodInfoTest {
                                     + "java.util.List<java.lang.Float>, int[]...)",
                             "private static java.lang.String[] privateMethod()",
                             "@" + Test.class.getName()
-                                    + "(expected = java.lang.IllegalArgumentException) public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + " public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + " public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()");
+                                    + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
+                                    + "public void methodInfoNotEnabled()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testGetMethodInfo()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testGetConstructorInfo()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testGetMethodInfoIgnoringVisibility()");
         }
     }
 }

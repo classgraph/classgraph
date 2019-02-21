@@ -220,12 +220,13 @@ public class Issue153Test {
             // Read class annotation parameters
             assertThat(classInfo.getAnnotationInfo().getAsStrings()) //
                     .containsExactlyInAnyOrder("@" + StringAnnotation.class.getName() + "(\"classlabel\")", //
-                            "@" + TwoParamAnnotation.class.getName() + "(value1 = 'x', value2 = {1, 2, 3})", //
+                            "@" + TwoParamAnnotation.class.getName() + "(value1='x', value2=[1, 2, 3])", //
                             "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA"
                                     + ")", //
-                            "@" + NestedAnnotation.class.getName() + "({@" + StringAnnotation.class.getName()
-                                    + "(\"one\"), @" + StringAnnotation.class.getName() + "(\"two\")})", //
-                            "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName() + ")");
+                            "@" + NestedAnnotation.class.getName() + "([@" + StringAnnotation.class.getName()
+                                    + "(\"one\"), @" + StringAnnotation.class.getName() + "(\"two\")])", //
+                            "@" + ClassRefAnnotation.class.getName() + "(class " + Issue153Test.class.getName()
+                                    + ")");
 
             assertThat(classInfo.getFieldInfo("testField").getAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + StringAnnotation.class.getName() + "(\"fieldlabel\")");
@@ -235,10 +236,10 @@ public class Issue153Test {
 
             assertThat(classInfo.getFieldInfo("testFieldWithAndWitoutDefault").getAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + AnnotationWithAndWithoutDefaultValue.class.getName()
-                            + "(valueWithoutDefault = \"x\")");
+                            + "(valueWithoutDefault=\"x\", valueWithDefault=5)");
 
             assertThat(classInfo.getFieldInfo("testFieldWithOnlyDefault").getAnnotationInfo().getAsStrings()) //
-                    .containsExactly("@" + AnnotationWithOnlyDefaultValue.class.getName());
+                    .containsExactly("@" + AnnotationWithOnlyDefaultValue.class.getName() + "(6)");
 
             // Make sure enum constants can be instantiated
             final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(EnumAnnotation.class.getName());
