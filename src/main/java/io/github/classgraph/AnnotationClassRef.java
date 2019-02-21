@@ -212,11 +212,9 @@ public class AnnotationClassRef extends ScanResultObject {
         String prefix = "class ";
         if (scanResult != null) {
             final ClassInfo ci = getClassInfo();
-            if (ci != null) {
-                // The JDK uses "interface" for both interfaces and annotations in Annotation::toString
-                if (ci.isInterfaceOrAnnotation()) {
-                    prefix = "interface ";
-                }
+            // The JDK uses "interface" for both interfaces and annotations in Annotation::toString
+            if (ci != null && ci.isInterfaceOrAnnotation()) {
+                prefix = "interface ";
             }
         }
         return prefix + getTypeSignature().toString();
