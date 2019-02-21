@@ -220,9 +220,27 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Load the {@link Annotation} class corresponding to this {@link AnnotationInfo} object, by calling
      * {@code getClassInfo().loadClass()}, then create a new instance of the annotation, with the annotation
-     * parameter values obtained from this {@link AnnotationInfo} object.
+     * parameter values obtained from this {@link AnnotationInfo} object, possibly overriding default annotation
+     * parameter values obtained from calling {@link AnnotationInfo#getClassInfo()} then
+     * {@link ClassInfo#getAnnotationDefaultParameterValues()}.
      * 
-     * @return The new {@link Annotation} instance.
+     * <p>
+     * Note that the returned {@link Annotation} will have some sort of proxy concrete type, such as
+     * {@code com.sun.proxy.$Proxy6}. This is an unavoidable side effect of the fact that concrete
+     * {@link Annotation} instances cannot be instantiated directly. (ClassGraph uses <a href=
+     * "http://hg.openjdk.java.net/jdk7/jdk7/jdk/file/9b8c96f96a0f/src/share/classes/sun/reflect/annotation/AnnotationParser.java#l255">the
+     * same approach that the JDK uses to instantiate annotations from a map</a>.) However, proxy instances are
+     * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/reflect/Proxy.html">handled
+     * specially</a> when it comes to casting and {@code instanceof}: you are able to cast the returned proxy
+     * instance to the annotation type, and {@code instanceof} checks against the annotation class will succeed.
+     * 
+     * <p>
+     * Of course another option you have for getting the concrete annotations, rather than instantiating the
+     * annotations on a {@link ClassInfo} object via this method, is to call {@link ClassInfo#loadClass()}, and read
+     * the annotations directly from the returned {@link Class} object.
+     * 
+     * @return The new {@link Annotation} instance, as a dynamic proxy object that can be cast to the expected
+     *         annotation type.
      */
     public Annotation loadClassAndInstantiate() {
         final Class<? extends Annotation> annotationClass = getClassInfo().loadClass(Annotation.class);
