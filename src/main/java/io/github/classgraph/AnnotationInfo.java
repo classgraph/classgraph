@@ -349,7 +349,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                             return false;
                         } else if (paramVal == null && otherParamVal == null) {
                             return true;
-                        } else if (!paramVal.equals(otherParamVal)) {
+                        } else if (paramVal == null || !paramVal.equals(otherParamVal)) {
                             return false;
                         }
                     }
