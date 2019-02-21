@@ -369,8 +369,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                             } else {
                                 paramValHashCode = Arrays.hashCode((Object[]) paramVal);
                             }
-                            result += (127 * paramName.hashCode()) ^ paramValHashCode;
                         }
+                        result += (127 * paramName.hashCode()) ^ paramValHashCode;
                     }
                     return result;
                 }
