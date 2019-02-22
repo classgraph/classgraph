@@ -75,7 +75,7 @@ public class ModulePathInfo {
      * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
      * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
      * additional {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to
-     * this list, in the format `<source-module>/<package>=ALL-UNNAMED`.
+     * this list, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
     public final Set<String> addExports = new LinkedHashSet<>();
 
@@ -85,7 +85,7 @@ public class ModulePathInfo {
      * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
      * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
      * additional {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to
-     * this list, in the format `<source-module>/<package>=ALL-UNNAMED`.
+     * this list, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
     public final Set<String> addOpens = new LinkedHashSet<>();
 
