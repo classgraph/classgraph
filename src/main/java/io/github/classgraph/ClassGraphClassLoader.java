@@ -81,11 +81,11 @@ class ClassGraphClassLoader extends ClassLoader {
                         }
                     }
                 }
-                try {
-                    return Class.forName(className);
-                } catch (ReflectiveOperationException | LinkageError e) {
-                    // Ignore
-                }
+            }
+            try {
+                return Class.forName(className);
+            } catch (ReflectiveOperationException | LinkageError e) {
+                // Ignore
             }
             // If class came from a module, and it was not able to be loaded by the environment classloader,
             // then it is possible it was a non-public class, and ClassGraph found it by ignoring class visibility
