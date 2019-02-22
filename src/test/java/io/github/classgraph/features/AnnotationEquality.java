@@ -33,7 +33,9 @@ public class AnnotationEquality {
          *
          * @return the int
          */
-        int a() default 3;
+        int a()
+
+        default 3;
 
         /**
          * B.
@@ -48,12 +50,31 @@ public class AnnotationEquality {
          * @return the class[]
          */
         Class<?>[] c();
+
+        // Right now Annotation::toString does not quote strings or chars, which seems like an oversight,
+        // so maybe it's better to break compatibility for these parameter value types.
+        
+        //        /**
+        //         * D.
+        //         *
+        //         * @return the string
+        //         */
+        //        String d();
+        //
+        //        /**
+        //         * E.
+        //         *
+        //         * @return the char
+        //         */
+        //        char e();
     }
 
     /**
      * The Class Y.
      */
-    @X(b = 5, c = { Long.class, Integer.class, AnnotationEquality.class, W.class, X.class })
+    @X(b = 5, c = { Long.class, Integer.class, AnnotationEquality.class, W.class, X.class }
+    // , d = "xyz", e = 'w'
+    )
     private static class Y {
     }
 
