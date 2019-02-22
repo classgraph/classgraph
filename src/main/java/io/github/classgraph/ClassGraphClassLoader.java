@@ -63,7 +63,7 @@ class ClassGraphClassLoader extends ClassLoader {
                 && !scanResult.scanSpec.overrideClasspath.isEmpty();
 
         // Get ClassInfo for named class
-        ClassInfo classInfo = scanResult.getClassInfo(className);
+        final ClassInfo classInfo = scanResult.getClassInfo(className);
 
         // Try environment classloaders first, if the classpath was not overridden, or the scan result
         // came from deserialization (since in this case, a new URLClassLoader was created for the
@@ -79,12 +79,12 @@ class ClassGraphClassLoader extends ClassLoader {
                         } catch (ReflectiveOperationException | LinkageError e) {
                             // Ignore
                         }
-                        try {
-                            return Class.forName(className);
-                        } catch (ReflectiveOperationException | LinkageError e) {
-                            // Ignore
-                        }
                     }
+                }
+                try {
+                    return Class.forName(className);
+                } catch (ReflectiveOperationException | LinkageError e) {
+                    // Ignore
                 }
             }
             // If class came from a module, and it was not able to be loaded by the environment classloader,
