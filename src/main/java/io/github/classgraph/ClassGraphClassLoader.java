@@ -59,25 +59,13 @@ class ClassGraphClassLoader extends ClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
-        // Don't use class' specific classloader if the classpath was overridden, or the ScanResult was
-        // produced by deserialization
         final boolean classpathOverridden = scanResult.scanSpec.overrideClasspath != null
                 && !scanResult.scanSpec.overrideClasspath.isEmpty();
-        ClassInfo classInfo = null;
-        if (!classpathOverridden && !scanResult.isObtainedFromDeserialization()) {
-            // Get ClassInfo for named class
-            classInfo = scanResult.getClassInfo(className);
-            // Try specific classloader for class
-            if (classInfo != null && classInfo.classLoader != null) {
-                try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
-                            classInfo.classLoader);
-                } catch (final ReflectiveOperationException | LinkageError e) {
-                    // Ignore
-                }
-            }
-        }
-        // Try environment classloaders next, if the classpath was not overridden, or the scan result
+        
+        // Get ClassInfo for named class
+        ClassInfo classInfo = scanResult.getClassInfo(className);
+
+        // Try environment classloaders first, if the classpath was not overridden, or the scan result
         // came from deserialization (since in this case, a new URLClassLoader was created for the
         // classpath entries that were found in the serialized JSON doc)
         if (!classpathOverridden || scanResult.isObtainedFromDeserialization()) {
@@ -94,7 +82,6 @@ class ClassGraphClassLoader extends ClassLoader {
                     }
                 }
             }
-
             // If class came from a module, and it was not able to be loaded by the environment classloader,
             // then it is possible it was a non-public class, and ClassGraph found it by ignoring class visibility
             // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
@@ -108,6 +95,20 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
+        // Don't use class' specific classloader if the classpath was overridden, or the ScanResult was
+        // produced by deserialization
+        if (!classpathOverridden && !scanResult.isObtainedFromDeserialization()) {
+            // Try specific classloader for class
+            if (classInfo != null && classInfo.classLoader != null) {
+                try {
+                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
+                            classInfo.classLoader);
+                } catch (final ReflectiveOperationException | LinkageError e) {
+                    // Ignore
+                }
+            }
+        }
+        
         // Try obtaining the classfile as a resource, and defining the class from the resource content
         final ResourceList classfileResources = scanResult
                 .getResourcesWithPath(JarUtils.classNameToClassfilePath(className));
