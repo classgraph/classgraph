@@ -61,7 +61,7 @@ class ClassGraphClassLoader extends ClassLoader {
             throws ClassNotFoundException, LinkageError, SecurityException {
         final boolean classpathOverridden = scanResult.scanSpec.overrideClasspath != null
                 && !scanResult.scanSpec.overrideClasspath.isEmpty();
-        
+
         // Get ClassInfo for named class
         ClassInfo classInfo = scanResult.getClassInfo(className);
 
@@ -76,6 +76,11 @@ class ClassGraphClassLoader extends ClassLoader {
                         try {
                             return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
                                     envClassLoader);
+                        } catch (ReflectiveOperationException | LinkageError e) {
+                            // Ignore
+                        }
+                        try {
+                            return Class.forName(className);
                         } catch (ReflectiveOperationException | LinkageError e) {
                             // Ignore
                         }
@@ -95,20 +100,17 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // Don't use class' specific classloader if the classpath was overridden, or the ScanResult was
-        // produced by deserialization
-        if (!classpathOverridden && !scanResult.isObtainedFromDeserialization()) {
-            // Try specific classloader for class
-            if (classInfo != null && classInfo.classLoader != null) {
-                try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
-                            classInfo.classLoader);
-                } catch (final ReflectiveOperationException | LinkageError e) {
-                    // Ignore
-                }
+        // Try specific classloader for class (don't use class' specific classloader if the classpath was
+        // overridden, or the ScanResult was produced by deserialization)
+        if (!classpathOverridden && !scanResult.isObtainedFromDeserialization() //
+                && classInfo != null && classInfo.classLoader != null) {
+            try {
+                return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, classInfo.classLoader);
+            } catch (final ReflectiveOperationException | LinkageError e) {
+                // Ignore
             }
         }
-        
+
         // Try obtaining the classfile as a resource, and defining the class from the resource content
         final ResourceList classfileResources = scanResult
                 .getResourcesWithPath(JarUtils.classNameToClassfilePath(className));
