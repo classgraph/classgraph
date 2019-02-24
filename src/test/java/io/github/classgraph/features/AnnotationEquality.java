@@ -53,7 +53,7 @@ public class AnnotationEquality {
 
         // Right now Annotation::toString does not quote strings or chars, which seems like an oversight,
         // so maybe it's better to break compatibility for these parameter value types.
-        
+
         //        /**
         //         * D.
         //         *

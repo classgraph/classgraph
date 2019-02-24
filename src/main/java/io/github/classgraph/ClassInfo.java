@@ -184,6 +184,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Bad class name");
         }
         setModifiers(classModifiers);
+        if ((classModifiers & ANNOTATION_CLASS_MODIFIER) != 0) {
+            isAnnotation = true;
+        }
+        if ((classModifiers & Modifier.INTERFACE) != 0) {
+            isInterface = true;
+        }
         this.classfileResource = classfileResource;
         this.relatedClasses = new EnumMap<>(RelType.class);
     }
@@ -248,6 +254,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
          * Classes that have one or more methods annotated with this annotation, if this is an annotation.
          */
         CLASSES_WITH_METHOD_ANNOTATION,
+
+        /** Annotations on one or more parameters of methods of this class. */
+        METHOD_PARAMETER_ANNOTATIONS,
+
+        /**
+         * Classes that have one or more methods that have one or more parameters annotated with this annotation, if
+         * this is an annotation.
+         */
+        CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
 
         // Field annotations:
 
@@ -489,22 +504,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final MethodInfo mi : methodInfoList) {
             addFieldOrMethodAnnotationInfo(mi.annotationInfo, /* isField = */ false, classNameToClassInfo);
 
-            //    // Currently it is not possible to find methods by method parameter annotation
-            //    final AnnotationInfo[][] methodParamAnnotationInfoList = methodInfo.parameterAnnotationInfo;
-            //    if (methodParamAnnotationInfoList != null) {
-            //        for (int i = 0; i < methodParamAnnotationInfoList.length; i++) {
-            //            final AnnotationInfo[] paramAnnotationInfoArr = methodParamAnnotationInfoList[i];
-            //            if (paramAnnotationInfoArr != null) {
-            //                for (int j = 0; j < paramAnnotationInfoArr.length; j++) {
-            //                    final AnnotationInfo methodParamAnnotationInfo = paramAnnotationInfoArr[j];
-            //                    final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-            //                            methodParamAnnotationInfo.getName(), ANNOTATION_CLASS_MODIFIER,
-            //                            classNameToClassInfo);
-            //                    // Index parameter annotations here
-            //                }
-            //            }
-            //        }
-            //    }
+            // Currently it is not possible to find methods by method parameter annotation
+            if (mi.parameterAnnotationInfo != null) {
+                for (int i = 0; i < mi.parameterAnnotationInfo.length; i++) {
+                    final AnnotationInfo[] paramAnnotationInfoArr = mi.parameterAnnotationInfo[i];
+                    if (paramAnnotationInfoArr != null) {
+                        for (int j = 0; j < paramAnnotationInfoArr.length; j++) {
+                            final AnnotationInfo methodParamAnnotationInfo = paramAnnotationInfoArr[j];
+                            final ClassInfo annotationClassInfo = getOrCreateClassInfo(
+                                    methodParamAnnotationInfo.getName(), ANNOTATION_CLASS_MODIFIER,
+                                    classNameToClassInfo);
+                            annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
+                                    this);
+                            this.addRelatedClass(RelType.METHOD_PARAMETER_ANNOTATIONS, annotationClassInfo);
+                        }
+                    }
+                }
+            }
         }
         if (this.methodInfo == null) {
             this.methodInfo = methodInfoList;
@@ -719,18 +735,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private ReachableAndDirectlyRelatedClasses filterClassInfo(final RelType relType, final boolean strictWhitelist,
             final ClassType... classTypes) {
-        final Set<ClassInfo> directlyRelatedClasses = this.relatedClasses.get(relType);
+        Set<ClassInfo> directlyRelatedClasses = this.relatedClasses.get(relType);
         if (directlyRelatedClasses == null) {
             return NO_REACHABLE_CLASSES;
+        } else {
+            // Clone collection to prevent users modifying contents accidentally or intentionally
+            directlyRelatedClasses = new LinkedHashSet<>(directlyRelatedClasses);
         }
         final Set<ClassInfo> reachableClasses = new LinkedHashSet<>(directlyRelatedClasses);
-        if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
+        if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.METHOD_PARAMETER_ANNOTATIONS
+                || relType == RelType.FIELD_ANNOTATIONS) {
             // For method and field annotations, need to change the RelType when finding meta-annotations
             for (final ClassInfo annotation : directlyRelatedClasses) {
                 reachableClasses.addAll(
                         annotation.filterClassInfo(RelType.CLASS_ANNOTATIONS, strictWhitelist).reachableClasses);
             }
         } else if (relType == RelType.CLASSES_WITH_METHOD_ANNOTATION
+                || relType == RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION
                 || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
             // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
             // look for the methods or fields that they annotate
@@ -762,32 +783,25 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             return NO_REACHABLE_CLASSES;
         }
 
-        // Special case -- don't inherit java.lang.annotation.* meta-annotations as related meta-annotations
-        // (but still return them as direct meta-annotations on annotation classes).
-        Set<ClassInfo> javaLangAnnotationRelatedClasses = null;
-        for (final ClassInfo classInfo : reachableClasses) {
-            if (classInfo.getName().startsWith("java.lang.annotation.")) {
-                if (javaLangAnnotationRelatedClasses == null) {
-                    javaLangAnnotationRelatedClasses = new LinkedHashSet<>();
-                }
-                javaLangAnnotationRelatedClasses.add(classInfo);
-            }
-        }
-        if (javaLangAnnotationRelatedClasses != null) {
-            // Remove all java.lang.annotation annotations that are not directly related to this class
-            Set<ClassInfo> javaLangAnnotationDirectlyRelatedClasses = null;
-            for (final ClassInfo classInfo : directlyRelatedClasses) {
+        if (relType == RelType.CLASS_ANNOTATIONS || relType == RelType.METHOD_ANNOTATIONS
+                || relType == RelType.METHOD_PARAMETER_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
+            // Special case -- don't inherit java.lang.annotation.* meta-annotations as related meta-annotations
+            // (but still return them as direct meta-annotations on annotation classes).
+            Set<ClassInfo> reachableClassesToRemove = null;
+            for (final ClassInfo classInfo : reachableClasses) {
                 if (classInfo.getName().startsWith("java.lang.annotation.")) {
-                    if (javaLangAnnotationDirectlyRelatedClasses == null) {
-                        javaLangAnnotationDirectlyRelatedClasses = new LinkedHashSet<>();
+                    // Remove all java.lang.annotation annotations that are not directly related to this class
+                    if (!directlyRelatedClasses.contains(classInfo)) {
+                        if (reachableClassesToRemove == null) {
+                            reachableClassesToRemove = new LinkedHashSet<>();
+                        }
+                        reachableClassesToRemove.add(classInfo);
                     }
-                    javaLangAnnotationDirectlyRelatedClasses.add(classInfo);
                 }
             }
-            if (javaLangAnnotationDirectlyRelatedClasses != null) {
-                javaLangAnnotationRelatedClasses.removeAll(javaLangAnnotationDirectlyRelatedClasses);
+            if (reachableClassesToRemove != null) {
+                reachableClasses.removeAll(reachableClassesToRemove);
             }
-            reachableClasses.removeAll(javaLangAnnotationRelatedClasses);
         }
 
         return new ReachableAndDirectlyRelatedClasses(
@@ -1459,6 +1473,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
      * its subclasses.
+     * 
+     * <p>
+     * Filters out meta-annotations in the {@code java.lang.annotation} package.
      *
      * @return the list of annotations and meta-annotations on this class.
      */
@@ -1473,16 +1490,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Check for any @Inherited annotations on superclasses
         Set<ClassInfo> inheritedSuperclassAnnotations = null;
         for (final ClassInfo superclass : getSuperclasses()) {
-            for (final ClassInfo superclassAnnotationClass : superclass.filterClassInfo(RelType.CLASS_ANNOTATIONS,
+            for (final ClassInfo superclassAnnotation : superclass.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                     /* strictWhitelist = */ false).reachableClasses) {
                 // Check if any of the meta-annotations on this annotation are @Inherited,
                 // which causes an annotation to annotate a class and all of its subclasses.
-                if (superclassAnnotationClass != null && superclassAnnotationClass.isInherited) {
-                    // inheritedSuperclassAnnotations is an inherited annotation
+                if (superclassAnnotation != null && superclassAnnotation.isInherited) {
+                    // superclassAnnotation has an @Inherited meta-annotation
                     if (inheritedSuperclassAnnotations == null) {
                         inheritedSuperclassAnnotations = new LinkedHashSet<>();
                     }
-                    inheritedSuperclassAnnotations.add(superclassAnnotationClass);
+                    inheritedSuperclassAnnotations.add(superclassAnnotation);
                 }
             }
         }
@@ -1499,52 +1516,50 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the annotations or meta-annotations on fields or methods declared by the class, (not including fields or
-     * methods declared by the interfaces or superclasses of this class).
+     * Get the annotations or meta-annotations on fields, methods or method parametres declared by the class, (not
+     * including fields, methods or method parameters declared by the interfaces or superclasses of this class).
      *
-     * @param isField
-     *            If true, return field annotations, otherwise return method annotations.
+     * @param relType
+     *            One of {@link RelType#FIELD_ANNOTATIONS}, {@link RelType#METHOD_ANNOTATIONS} or
+     *            {@link RelType#METHOD_PARAMETER_ANNOTATIONS}.
      * @return A list of annotations or meta-annotations on fields or methods declared by the class, (not including
      *         fields or methods declared by the interfaces or superclasses of this class), as a list of
      *         {@link ClassInfo} objects, or the empty list if none.
      */
-    private ClassInfoList getFieldOrMethodAnnotations(final boolean isField) {
+    private ClassInfoList getFieldOrMethodAnnotations(final RelType relType) {
+        final boolean isField = relType == RelType.FIELD_ANNOTATIONS;
         if (!(isField ? scanResult.scanSpec.enableFieldInfo : scanResult.scanSpec.enableMethodInfo)
                 || !scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
-        final ReachableAndDirectlyRelatedClasses fieldOrMethodAnnotations = this.filterClassInfo(
-                isField ? RelType.FIELD_ANNOTATIONS : RelType.METHOD_ANNOTATIONS, /* strictWhitelist = */ false,
-                ClassType.ANNOTATION);
+        final ReachableAndDirectlyRelatedClasses fieldOrMethodAnnotations = this.filterClassInfo(relType,
+                /* strictWhitelist = */ false, ClassType.ANNOTATION);
         final Set<ClassInfo> fieldOrMethodAnnotationsAndMetaAnnotations = new LinkedHashSet<>(
                 fieldOrMethodAnnotations.reachableClasses);
-        for (final ClassInfo fieldOrMethodAnnotation : fieldOrMethodAnnotations.reachableClasses) {
-            // Meta-annotations are all class annotations on an annotation class
-            fieldOrMethodAnnotationsAndMetaAnnotations.addAll(fieldOrMethodAnnotation
-                    .filterClassInfo(RelType.CLASS_ANNOTATIONS, /* strictWhitelist = */ false).reachableClasses);
-        }
         return new ClassInfoList(fieldOrMethodAnnotationsAndMetaAnnotations,
                 fieldOrMethodAnnotations.directlyRelatedClasses, /* sortByName = */ true);
     }
 
     /**
-     * Get the classes that have this class as a field or method annotation.
+     * Get the classes that have this class as a field, method or method parameter annotation.
      *
-     * @param isField
-     *            If true, return field annotations, otherwise return method annotations.
+     * @param relType
+     *            One of {@link RelType#CLASSES_WITH_FIELD_ANNOTATION},
+     *            {@link RelType#CLASSES_WITH_METHOD_ANNOTATION} or
+     *            {@link RelType#CLASSES_WITH_METHOD_PARAMETER_ANNOTATION}.
      * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
      *         list if none.
      */
-    private ClassInfoList getClassesWithFieldOrMethodAnnotation(final boolean isField) {
+    private ClassInfoList getClassesWithFieldOrMethodAnnotation(final RelType relType) {
+        final boolean isField = relType == RelType.CLASSES_WITH_FIELD_ANNOTATION;
         if (!(isField ? scanResult.scanSpec.enableFieldInfo : scanResult.scanSpec.enableMethodInfo)
                 || !scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
-        final ReachableAndDirectlyRelatedClasses classesWithDirectlyAnnotatedFieldsOrMethods = this.filterClassInfo(
-                isField ? RelType.CLASSES_WITH_FIELD_ANNOTATION : RelType.CLASSES_WITH_METHOD_ANNOTATION,
-                /* strictWhitelist = */ !isExternalClass);
+        final ReachableAndDirectlyRelatedClasses classesWithDirectlyAnnotatedFieldsOrMethods = this
+                .filterClassInfo(relType, /* strictWhitelist = */ !isExternalClass);
         final ReachableAndDirectlyRelatedClasses annotationsWithThisMetaAnnotation = this.filterClassInfo(
                 RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ !isExternalClass, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.reachableClasses.isEmpty()) {
@@ -1557,9 +1572,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     classesWithDirectlyAnnotatedFieldsOrMethods.reachableClasses);
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses) {
                 allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods
-                        .addAll(metaAnnotatedAnnotation.filterClassInfo(
-                                isField ? RelType.CLASSES_WITH_FIELD_ANNOTATION
-                                        : RelType.CLASSES_WITH_METHOD_ANNOTATION,
+                        .addAll(metaAnnotatedAnnotation.filterClassInfo(relType,
                                 /* strictWhitelist = */ !metaAnnotatedAnnotation.isExternalClass).reachableClasses);
             }
             return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods,
@@ -2081,25 +2094,49 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the method annotations.
+     * Get all method annotations.
      *
-     * @return A list of annotations or meta-annotations on methods declared by the class, (not including methods
-     *         declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo} objects, or
-     *         the empty list if none. N.B. these annotations do not contain specific annotation parameters -- call
-     *         {@link MethodInfo#getAnnotationInfo()} to get details on specific method annotation instances.
+     * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
+     *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
+     *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
+     *         parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific method
+     *         annotation instances.
      */
     public ClassInfoList getMethodAnnotations() {
-        return getFieldOrMethodAnnotations(/* isField = */ false);
+        return getFieldOrMethodAnnotations(RelType.METHOD_ANNOTATIONS);
     }
 
     /**
-     * Get the classes that have this class as a method annotation.
+     * Get all method parameter annotations.
+     *
+     * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
+     *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
+     *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
+     *         parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific method
+     *         annotation instances.
+     */
+    public ClassInfoList getMethodParameterAnnotations() {
+        return getFieldOrMethodAnnotations(RelType.METHOD_PARAMETER_ANNOTATIONS);
+    }
+
+    /**
+     * Get all classes that have this class as a method annotation.
      *
      * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
      *         list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation() {
-        return getClassesWithFieldOrMethodAnnotation(/* isField = */ false);
+        return getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_METHOD_ANNOTATION);
+    }
+
+    /**
+     * Get all classes that have this class as a method parameter annotation.
+     *
+     * @return A list of classes that have a declared method with a parameter that is annotated with this annotation
+     *         or meta-annotation, or the empty list if none.
+     */
+    public ClassInfoList getClassesWithMethodParameterAnnotation() {
+        return getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION);
     }
 
     /**
@@ -2264,14 +2301,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the classes that annotate fields of this class.
+     * Get all field annotations.
      *
-     * @return A list of annotations on fields of this class, or the empty list if none. N.B. these annotations do
-     *         not contain specific annotation parameters -- call {@link FieldInfo#getAnnotationInfo()} to get
+     * @return A list of all annotations on fields of this class, or the empty list if none. N.B. these annotations
+     *         do not contain specific annotation parameters -- call {@link FieldInfo#getAnnotationInfo()} to get
      *         details on specific field annotation instances.
      */
     public ClassInfoList getFieldAnnotations() {
-        return getFieldOrMethodAnnotations(/* isField = */ true);
+        return getFieldOrMethodAnnotations(RelType.FIELD_ANNOTATIONS);
     }
 
     /**
@@ -2281,7 +2318,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         none.
      */
     public ClassInfoList getClassesWithFieldAnnotation() {
-        return getClassesWithFieldOrMethodAnnotation(/* isField = */ true);
+        return getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_FIELD_ANNOTATION);
     }
 
     /**

@@ -863,6 +863,26 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get classes that have a method with a parameter that is annotated with an annotation of the named type.
+     *
+     * @param methodParameterAnnotationName
+     *            the name of the method parameter annotation.
+     * @return A list of classes that have a method with a parameter annotated with the named annotation type, or
+     *         the empty list if none.
+     */
+    public ClassInfoList getClassesWithMethodParameterAnnotation(final String methodParameterAnnotationName) {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo || !scanSpec.enableMethodInfo || !scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo(), #enableMethodInfo(), "
+                    + "and #enableAnnotationInfo() before #scan()");
+        }
+        final ClassInfo classInfo = classNameToClassInfo.get(methodParameterAnnotationName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodParameterAnnotation();
+    }
+
+    /**
      * Get classes that have a field with an annotation of the named type.
      *
      * @param fieldAnnotationName
