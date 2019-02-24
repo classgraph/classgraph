@@ -788,15 +788,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Special case -- don't inherit java.lang.annotation.* meta-annotations as related meta-annotations
             // (but still return them as direct meta-annotations on annotation classes).
             Set<ClassInfo> reachableClassesToRemove = null;
-            for (final ClassInfo classInfo : reachableClasses) {
-                if (classInfo.getName().startsWith("java.lang.annotation.")) {
-                    // Remove all java.lang.annotation annotations that are not directly related to this class
-                    if (!directlyRelatedClasses.contains(classInfo)) {
-                        if (reachableClassesToRemove == null) {
-                            reachableClassesToRemove = new LinkedHashSet<>();
-                        }
-                        reachableClassesToRemove.add(classInfo);
+            for (final ClassInfo reachableClassInfo : reachableClasses) {
+                // Remove all java.lang.annotation annotations that are not directly related to this class
+                if (reachableClassInfo.getName().startsWith("java.lang.annotation.")
+                        && !directlyRelatedClasses.contains(reachableClassInfo)) {
+                    if (reachableClassesToRemove == null) {
+                        reachableClassesToRemove = new LinkedHashSet<>();
                     }
+                    reachableClassesToRemove.add(reachableClassInfo);
                 }
             }
             if (reachableClassesToRemove != null) {
@@ -807,6 +806,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return new ReachableAndDirectlyRelatedClasses(
                 filterClassInfo(reachableClasses, scanResult.scanSpec, strictWhitelist, classTypes),
                 filterClassInfo(directlyRelatedClasses, scanResult.scanSpec, strictWhitelist, classTypes));
+
     }
 
     // -------------------------------------------------------------------------------------------------------------
