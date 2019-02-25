@@ -29,11 +29,11 @@
 package io.github.classgraph;
 
 /** A named object. */
-interface HasName {
+public interface HasName {
     /**
      * Get the name.
      *
      * @return The name.
      */
-    String getName();
+    public String getName();
 }

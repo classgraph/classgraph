@@ -30,8 +30,6 @@ package io.github.classgraph;
 
 import java.util.Collection;
 
-import io.github.classgraph.InfoList.MappableInfoList;
-
 /** A list of {@link PackageInfo} objects. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
 

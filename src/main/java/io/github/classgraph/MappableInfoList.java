@@ -28,25 +28,21 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * A list of named objects.
+ * A list of named objects that can be indexed by name.
  *
  * @param <T>
  *            the element type
  */
-public class InfoList<T extends HasName> extends ArrayList<T> {
-    /** serialVersionUID. */
-    static final long serialVersionUID = 1L;
-
+public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /**
      * Constructor.
      */
-    InfoList() {
+    MappableInfoList() {
         super();
     }
 
@@ -56,7 +52,7 @@ public class InfoList<T extends HasName> extends ArrayList<T> {
      * @param sizeHint
      *            the size hint
      */
-    InfoList(final int sizeHint) {
+    MappableInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
@@ -64,50 +60,56 @@ public class InfoList<T extends HasName> extends ArrayList<T> {
      * Constructor.
      *
      * @param infoCollection
-     *            the initial elements.
+     *            the initial elements
      */
-    InfoList(final Collection<T> infoCollection) {
+    MappableInfoList(final Collection<T> infoCollection) {
         super(infoCollection);
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
-     * Get the names of all items in this list, by calling {@code getName()} on each item in the list.
+     * Get an index for this list, as a map from the name of each list item (obtained by calling {@code getName()}
+     * on each list item) to the list item.
      *
-     * @return The names of all items in this list, by calling {@code getName()} on each item in the list.
+     * @return An index for this list, as a map from the name of each list item (obtained by calling
+     *         {@code getName()} on each list item) to the list item.
      */
-    public List<String> getNames() {
-        if (this.isEmpty()) {
-            return Collections.emptyList();
-        } else {
-            final List<String> names = new ArrayList<>(this.size());
-            for (final T i : this) {
-                names.add(i.getName());
-            }
-            return names;
+    public Map<String, T> asMap() {
+        final Map<String, T> nameToInfoObject = new HashMap<>();
+        for (final T i : this) {
+            nameToInfoObject.put(i.getName(), i);
         }
+        return nameToInfoObject;
     }
 
     /**
-     * Get the String representations of all items in this list, by calling {@code toString()} on each item in the
-     * list.
+     * Check if this list contains an item with the given name.
      *
-     * @return The String representations of all items in this list, by calling {@code toString()} on each item in
-     *         the list.
+     * @param name
+     *            The name to search for.
+     * @return true if this list contains an item with the given name.
      */
-    public List<String> getAsStrings() {
-        if (this.isEmpty()) {
-            return Collections.emptyList();
-        } else {
-            final List<String> toStringVals = new ArrayList<>(this.size());
-            for (final T i : this) {
-                toStringVals.add(i == null ? "null" : i.toString());
+    public boolean containsName(final String name) {
+        for (final T i : this) {
+            if (i.getName().equals(name)) {
+                return true;
             }
-            return toStringVals;
         }
+        return false;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
+    /**
+     * Get the list item with the given name, or null if not found.
+     *
+     * @param name
+     *            The name to search for.
+     * @return The list item with the given name, or null if not found.
+     */
+    public T get(final String name) {
+        for (final T i : this) {
+            if (i.getName().equals(name)) {
+                return i;
+            }
+        }
+        return null;
+    }
 }

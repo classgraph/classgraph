@@ -31,8 +31,6 @@ package io.github.classgraph;
 import java.util.Collection;
 import java.util.Set;
 
-import io.github.classgraph.InfoList.MappableInfoList;
-
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
 

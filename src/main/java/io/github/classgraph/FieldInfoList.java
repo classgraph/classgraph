@@ -31,8 +31,6 @@ package io.github.classgraph;
 import java.util.Collection;
 import java.util.Set;
 
-import io.github.classgraph.InfoList.MappableInfoList;
-
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
 

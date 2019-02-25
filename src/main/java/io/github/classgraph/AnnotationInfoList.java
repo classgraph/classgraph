@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
-import io.github.classgraph.InfoList.MappableInfoList;
 
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
