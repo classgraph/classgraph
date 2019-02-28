@@ -112,7 +112,7 @@ public final class URLPathEncoder {
         if (!urlPathNormalized.startsWith("jrt:") && !urlPathNormalized.startsWith("http://")
                 && !urlPathNormalized.startsWith("https://")) {
             // Any URL with the "jar:" prefix must have "/" after any "!"
-            urlPathNormalized = urlPathNormalized.replace("!/", "!").replace("!", "!/");
+            urlPathNormalized = urlPathNormalized.replace("/!", "!").replace("!/", "!").replace("!", "!/");
             // Prepend "jar:file:"
             if (!urlPathNormalized.startsWith("file:") && !urlPathNormalized.startsWith("jar:")) {
                 urlPathNormalized = "file:" + urlPathNormalized;

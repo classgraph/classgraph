@@ -35,6 +35,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -137,20 +138,32 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    if (moduleRef.getLocationStr() != null) {
-                        // Use module location string as URL base, if present
-                        return new URL(URLPathEncoder
-                                .normalizeURLPath(moduleRef.getLocationStr() + "!/" + moduleResourcePath));
+                    final URI location = moduleRef.getLocation();
+                    if (location != null) {
+                        try {
+                            final File locationFile = Paths.get(location).toFile();
+                            if (locationFile.isDirectory()) {
+                                // Module location is a directory -- create a new URL using the relative path
+                                return new URL(location.toURL(), moduleResourcePath);
+                            } else if (locationFile.isFile()) {
+                                // If module location is a file, assume this is a jar
+                                return new URL(URLPathEncoder
+                                        .normalizeURLPath(moduleRef.getLocationStr() + "!/" + moduleResourcePath));
+                            }
+                        } catch (final Exception e) {
+                            // Something went wrong, fall through
+                        }
                     } else {
-                        // If there is no known module location, just make up a "jrt:" path based on the module
-                        // name, so that the user can see something reasonable in the result
+                        // If there is no known module location, just make up a "jrt:" URL based on the module
+                        // name, so that the user can get something reasonable in the result
                         return new URL(URLPathEncoder
                                 .normalizeURLPath("jrt:/" + moduleRef.getName() + "/" + moduleResourcePath));
                     }
                 } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException("Could not form URL for module location: "
-                            + moduleRef.getLocationStr() + " ; path: " + moduleResourcePath);
+                    // Fall through
                 }
+                throw new IllegalArgumentException("Could not form URL for module location: "
+                        + moduleRef.getLocation() + " ; path: " + moduleResourcePath);
             }
 
             @Override
