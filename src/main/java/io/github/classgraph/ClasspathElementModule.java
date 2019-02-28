@@ -136,6 +136,22 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public URL getURL() {
+                final URL locationURL = getClasspathElementURL();
+                final String locationURLStr = locationURL.toString();
+                // Check if this is a directory-based module (location URI will end in "/")
+                final boolean isDir = locationURLStr.endsWith("/");
+                try {
+                    // Call normalizeURLPath, which will prepend "jar:" if the URL path contains "!"
+                    return new URL(
+                            URLPathEncoder.normalizeURLPath(locationURLStr + (isDir ? "" : "!/") + resourcePath));
+                } catch (final MalformedURLException e) {
+                    throw new IllegalArgumentException("Could not form URL for module location: "
+                            + moduleRef.getLocation() + " ; path: " + resourcePath + " : " + e);
+                }
+            }
+
+            @Override
+            public URL getClasspathElementURL() {
                 final URI location = moduleRef.getLocation();
                 if (location == null) {
                     // Some modules have no known module location (ModuleReference#location() can return null)
@@ -148,28 +164,7 @@ class ClasspathElementModule extends ClasspathElement {
                             + " ; path: " + resourcePath + " -- module location is a \"jrt:\" URI");
                 }
                 try {
-                    final String locationURLStr = location.toURL().toString();
-                    // Check if this is a directory-based module (location URI will end in "/")
-                    final boolean isDir = locationURLStr.endsWith("/");
-                    // Call normalizeURLPath, which will prepend "jar:" if the URL path contains "!"
-                    return new URL(
-                            URLPathEncoder.normalizeURLPath(locationURLStr + (isDir ? "" : "!/") + resourcePath));
-                } catch (final Exception e) {
-                    throw new IllegalArgumentException("Could not form URL for module location: "
-                            + moduleRef.getLocation() + " ; path: " + resourcePath + " : " + e);
-                }
-            }
-
-            @Override
-            public URL getClasspathElementURL() {
-                try {
-                    if (moduleRef.getLocation() == null) {
-                        // Some modules have no known module location (ModuleReference#location() can return null)
-                        throw new IllegalArgumentException("Could not form URL for module " + getModuleName()
-                                + " ; path: " + resourcePath + " -- module location is null");
-                    } else {
-                        return moduleRef.getLocation().toURL();
-                    }
+                    return location.toURL();
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException(
                             "Could not form URL for module classpath element: " + moduleRef.getLocationStr());
