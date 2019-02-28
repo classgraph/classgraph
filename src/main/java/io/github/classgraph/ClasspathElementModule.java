@@ -151,6 +151,7 @@ class ClasspathElementModule extends ClasspathElement {
                     final String locationURLStr = location.toURL().toString();
                     // Check if this is a directory-based module (location URI will end in "/")
                     final boolean isDir = locationURLStr.endsWith("/");
+                    // Call normalizeURLPath, which will prepend "jar:" if the URL path contains "!"
                     return new URL(
                             URLPathEncoder.normalizeURLPath(locationURLStr + (isDir ? "" : "!/") + resourcePath));
                 } catch (final Exception e) {
