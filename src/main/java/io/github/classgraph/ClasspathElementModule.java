@@ -137,33 +137,30 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public URL getURL() {
-                try {
-                    final URI location = moduleRef.getLocation();
-                    if (location != null) {
-                        try {
-                            final File locationFile = Paths.get(location).toFile();
-                            if (locationFile.isDirectory()) {
-                                // Module location is a directory -- create a new URL using the relative path
-                                return new URL(location.toURL(), moduleResourcePath);
-                            } else if (locationFile.isFile()) {
-                                // If module location is a file, assume this is a jar
-                                return new URL(URLPathEncoder
-                                        .normalizeURLPath(moduleRef.getLocationStr() + "!/" + moduleResourcePath));
-                            }
-                        } catch (final Exception e) {
-                            // Something went wrong, fall through
-                        }
-                    } else {
-                        // If there is no known module location, just make up a "jrt:" URL based on the module
-                        // name, so that the user can get something reasonable in the result
-                        return new URL(URLPathEncoder
-                                .normalizeURLPath("jrt:/" + moduleRef.getName() + "/" + moduleResourcePath));
-                    }
-                } catch (final MalformedURLException e) {
-                    // Fall through
+                final URI location = moduleRef.getLocation();
+                if (location == null) {
+                    // If there is no known module location, just make up a "jrt:" URL based on the module
+                    // name, so that the user can get something reasonable in the result
+                    throw new IllegalArgumentException("Could not form URL for module " + getModuleName()
+                            + " ; path: " + moduleResourcePath + " -- module location is null");
                 }
-                throw new IllegalArgumentException("Could not form URL for module location: "
-                        + moduleRef.getLocation() + " ; path: " + moduleResourcePath);
+                try {
+                    final File locationFile = Paths.get(location).toFile();
+                    if (locationFile.isDirectory()) {
+                        // Module location is a directory -- create a new URL using the relative path
+                        return new URL(location.toURL(), moduleResourcePath);
+                    } else if (locationFile.isFile()) {
+                        // If module location is a file, assume this is a jar
+                        return new URL(URLPathEncoder
+                                .normalizeURLPath(moduleRef.getLocationStr() + "!/" + moduleResourcePath));
+                    }
+                    throw new IllegalArgumentException(
+                            "Could not form URL for module location: " + moduleRef.getLocation() + " ; path: "
+                                    + moduleResourcePath + " : location is neither file nor directory");
+                } catch (final Exception e) {
+                    throw new IllegalArgumentException("Could not form URL for module location: "
+                            + moduleRef.getLocation() + " ; path: " + moduleResourcePath + " : " + e);
+                }
             }
 
             @Override
