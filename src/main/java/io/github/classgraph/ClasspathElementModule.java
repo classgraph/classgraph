@@ -35,7 +35,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -116,50 +115,47 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
      *
-     * @param moduleResourcePath
-     *            the module resource path
+     * @param resourcePath
+     *            the resource path
      * @return the resource
      */
-    private Resource newResource(final String moduleResourcePath) {
+    private Resource newResource(final String resourcePath) {
         return new Resource() {
             /** The module reader proxy. */
             private ModuleReaderProxy moduleReaderProxy;
 
             @Override
             public String getPath() {
-                return moduleResourcePath;
+                return resourcePath;
             }
 
             @Override
             public String getPathRelativeToClasspathElement() {
-                return moduleResourcePath;
+                return resourcePath;
             }
 
             @Override
             public URL getURL() {
                 final URI location = moduleRef.getLocation();
                 if (location == null) {
-                    // If there is no known module location, just make up a "jrt:" URL based on the module
-                    // name, so that the user can get something reasonable in the result
-                    throw new IllegalArgumentException("Could not form URL for module " + getModuleName()
-                            + " ; path: " + moduleResourcePath + " -- module location is null");
+                    // Some modules have no known module location (ModuleReference#location() can return null)
+                    throw new IllegalArgumentException("Could not create URL for module " + getModuleName()
+                            + " ; path: " + resourcePath + " -- module location is null");
+                } else if (location.getScheme().equals("jrt")) {
+                    // Currently URL cannot handle the "jrt:" scheme, used by system modules.
+                    // Need to add a getURI() method to support these.
+                    throw new IllegalArgumentException("Could not create URL for module " + getModuleName()
+                            + " ; path: " + resourcePath + " -- module location is a \"jrt:\" URI");
                 }
                 try {
-                    final File locationFile = Paths.get(location).toFile();
-                    if (locationFile.isDirectory()) {
-                        // Module location is a directory -- create a new URL using the relative path
-                        return new URL(location.toURL(), moduleResourcePath);
-                    } else if (locationFile.isFile()) {
-                        // If module location is a file, assume this is a jar
-                        return new URL(URLPathEncoder
-                                .normalizeURLPath(moduleRef.getLocationStr() + "!/" + moduleResourcePath));
-                    }
-                    throw new IllegalArgumentException(
-                            "Could not form URL for module location: " + moduleRef.getLocation() + " ; path: "
-                                    + moduleResourcePath + " : location is neither file nor directory");
+                    final String locationURLStr = location.toURL().toString();
+                    // Check if this is a directory-based module (location URI will end in "/")
+                    final boolean isDir = locationURLStr.endsWith("/");
+                    return new URL(
+                            URLPathEncoder.normalizeURLPath(locationURLStr + (isDir ? "" : "!/") + resourcePath));
                 } catch (final Exception e) {
                     throw new IllegalArgumentException("Could not form URL for module location: "
-                            + moduleRef.getLocation() + " ; path: " + moduleResourcePath + " : " + e);
+                            + moduleRef.getLocation() + " ; path: " + resourcePath + " : " + e);
                 }
             }
 
@@ -167,9 +163,9 @@ class ClasspathElementModule extends ClasspathElement {
             public URL getClasspathElementURL() {
                 try {
                     if (moduleRef.getLocation() == null) {
-                        // If there is no known module location, just guess a "jrt:" path based on the module
-                        // name, so that the user can see something reasonable in the result
-                        return new URL(new URL("jrt:/" + moduleRef.getName()).toString());
+                        // Some modules have no known module location (ModuleReference#location() can return null)
+                        throw new IllegalArgumentException("Could not form URL for module " + getModuleName()
+                                + " ; path: " + resourcePath + " -- module location is null");
                     } else {
                         return moduleRef.getLocation().toURL();
                     }
@@ -200,7 +196,7 @@ class ClasspathElementModule extends ClasspathElement {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
                     // ModuleReader#read(String name) internally calls:
                     // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
-                    byteBuffer = moduleReaderProxy.read(moduleResourcePath);
+                    byteBuffer = moduleReaderProxy.read(resourcePath);
                     length = byteBuffer.remaining();
                     return byteBuffer;
 
@@ -224,7 +220,7 @@ class ClasspathElementModule extends ClasspathElement {
                 markAsOpen();
                 try {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                    inputStream = new InputStreamResourceCloser(this, moduleReaderProxy.open(moduleResourcePath));
+                    inputStream = new InputStreamResourceCloser(this, moduleReaderProxy.open(resourcePath));
                     // Length cannot be obtained from ModuleReader
                     length = -1L;
                     return inputStream;
