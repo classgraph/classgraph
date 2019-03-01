@@ -36,6 +36,11 @@ import nonapi.io.github.classgraph.types.Parser;
  * ({@link ClassRefTypeSignature} or {@link TypeVariableSignature}), and {@link ArrayTypeSignature}.
  */
 public abstract class ReferenceTypeSignature extends TypeSignature {
+    /** Constructor. */
+    protected ReferenceTypeSignature() {
+        super();
+    }
+
     /**
      * Parse a reference type signature.
      * 

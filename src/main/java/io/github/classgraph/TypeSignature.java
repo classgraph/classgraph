@@ -37,6 +37,11 @@ import nonapi.io.github.classgraph.types.Parser;
  * {@link BaseTypeSignature}.
  */
 public abstract class TypeSignature extends HierarchicalTypeSignature {
+    /** Constructor. */
+    protected TypeSignature() {
+        // Empty
+    }
+
     /**
      * Compare base types, ignoring generic type parameters.
      * 

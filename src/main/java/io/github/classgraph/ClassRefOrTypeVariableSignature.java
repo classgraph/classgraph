@@ -30,4 +30,8 @@ package io.github.classgraph;
 
 /** A class type or type variable. Subclasses are ClassRefTypeSignature and TypeVariableSignature. */
 public abstract class ClassRefOrTypeVariableSignature extends ReferenceTypeSignature {
+    /** Constructor. */
+    protected ClassRefOrTypeVariableSignature() {
+        super();
+    }
 }
