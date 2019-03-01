@@ -222,13 +222,16 @@ final class GraphvizDotfileGenerator {
      *            whether to show fields
      * @param showMethods
      *            whether to show methods
+     * @param useSimpleNames
+     *            whether to use simple names for classes in type signatures
      * @param scanSpec
      *            the scan spec
      * @param buf
      *            the buf
      */
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
-            final boolean showFields, final boolean showMethods, final ScanSpec scanSpec, final StringBuilder buf) {
+            final boolean showFields, final boolean showMethods, final boolean useSimpleNames,
+            final ScanSpec scanSpec, final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
                 .append("\",label=");
         buf.append('<');
@@ -323,7 +326,8 @@ final class GraphvizDotfileGenerator {
                     if (buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
-                    htmlEncode(fi.getTypeSignatureOrTypeDescriptor().toString(), buf);
+                    final TypeSignature typeSig = fi.getTypeSignatureOrTypeDescriptor();
+                    htmlEncode(useSimpleNames ? typeSig.toStringWithSimpleNames() : typeSig.toString(), buf);
                     buf.append("</td>");
 
                     // Field name
@@ -347,7 +351,7 @@ final class GraphvizDotfileGenerator {
                 final MethodInfo mi = methodInfoSorted.get(i);
                 final String name = mi.getName();
                 final int numParam = mi.getParameterInfo().length;
-                if (name.equals("<clinit>") || name.equals("<init>") || name.equals("hashCode") && numParam == 0
+                if (name.equals("<clinit>") || name.equals("hashCode") && numParam == 0
                         || name.equals("toString") && numParam == 0 || name.equals("equals") && numParam == 1
                                 && mi.getTypeDescriptor().toString().equals("boolean (java.lang.Object)")) {
                     methodInfoSorted.remove(i);
@@ -390,7 +394,10 @@ final class GraphvizDotfileGenerator {
                     }
                     if (!mi.getName().equals("<init>")) {
                         // Don't list return type for constructors
-                        htmlEncode(mi.getTypeSignatureOrTypeDescriptor().getResultType().toString(), buf);
+                        final TypeSignature resultTypeSig = mi.getTypeSignatureOrTypeDescriptor().getResultType();
+                        htmlEncode(
+                                useSimpleNames ? resultTypeSig.toStringWithSimpleNames() : resultTypeSig.toString(),
+                                buf);
                     } else {
                         buf.append("<b>&lt;constructor&gt;</b>");
                     }
@@ -444,7 +451,9 @@ final class GraphvizDotfileGenerator {
                             }
 
                             // Param type
-                            final String paramTypeStr = paramInfo[i].getTypeSignatureOrTypeDescriptor().toString();
+                            final TypeSignature paramTypeSig = paramInfo[i].getTypeSignatureOrTypeDescriptor();
+                            final String paramTypeStr = useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
+                                    : paramTypeSig.toString();
                             htmlEncode(paramTypeStr, buf);
                             wrapPos += paramTypeStr.length();
 
@@ -490,13 +499,16 @@ final class GraphvizDotfileGenerator {
      *            whether to show method type dependency edges
      * @param showAnnotations
      *            whether to show annotations
+     * @param useSimpleNames
+     *            whether to use simple names for classes
      * @param scanSpec
      *            the scan spec
      * @return the string
      */
     static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
-            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations, final ScanSpec scanSpec) {
+            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations,
+            final boolean useSimpleNames, final ScanSpec scanSpec) {
         final StringBuilder buf = new StringBuilder(1024 * 1024);
         buf.append("digraph {\n");
         buf.append("size=\"").append(sizeX).append(',').append(sizeY).append("\";\n");
@@ -515,19 +527,22 @@ final class GraphvizDotfileGenerator {
 
         for (final ClassInfo node : standardClassNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "box", STANDARD_CLASS_COLOR, showFields, showMethods, scanSpec, buf);
+            labelClassNodeHTML(node, "box", STANDARD_CLASS_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
+                    buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "diamond", INTERFACE_COLOR, showFields, showMethods, scanSpec, buf);
+            labelClassNodeHTML(node, "diamond", INTERFACE_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
+                    buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, scanSpec, buf);
+            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
+                    buf);
             buf.append(";\n");
         }
 

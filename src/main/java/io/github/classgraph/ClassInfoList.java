@@ -633,6 +633,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *            If true, show edges between classes and the return types and/or parameter types of their methods.
      * @param showAnnotations
      *            If true, show annotations in the graph.
+     * @param useSimpleNames
+     *            whether to use simple names for classes in type signatures (if true, the package name is stripped
+     *            from class names in method and field type signatures).
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
@@ -640,7 +643,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
             final boolean showFieldTypeDependencyEdges, final boolean showMethods,
-            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations) {
+            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations,
+            final boolean useSimpleNames) {
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
@@ -650,7 +654,58 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         }
         return GraphvizDotfileGenerator.generateGraphVizDotFile(this, sizeX, sizeY, showFields,
                 showFieldTypeDependencyEdges, showMethods, showMethodTypeDependencyEdges, showAnnotations,
-                scanSpec);
+                useSimpleNames, scanSpec);
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
+     * .dot file.
+     * 
+     * <p>
+     * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()} before scanning.
+     * 
+     * <p>
+     * To show fields, call {@link ClassGraph#enableFieldInfo()} before scanning. To show non-public fields, also
+     * call {@link ClassGraph#ignoreFieldVisibility()} before scanning.
+     * 
+     * <p>
+     * To show methods, call {@link ClassGraph#enableMethodInfo()} before scanning. To show non-public methods, also
+     * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
+     * 
+     * <p>
+     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. To show non-public
+     * annotations, also call {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no separate
+     * visibility modifier for annotations).
+     * 
+     * <p>
+     * This method uses simple names for class names in type signatures of fields and methods (package names are
+     * stripped).
+     *
+     * @param sizeX
+     *            The GraphViz layout width in inches.
+     * @param sizeY
+     *            The GraphViz layout width in inches.
+     * @param showFields
+     *            If true, show fields within class nodes in the graph.
+     * @param showFieldTypeDependencyEdges
+     *            If true, show edges between classes and the types of their fields.
+     * @param showMethods
+     *            If true, show methods within class nodes in the graph.
+     * @param showMethodTypeDependencyEdges
+     *            If true, show edges between classes and the return types and/or parameter types of their methods.
+     * @param showAnnotations
+     *            If true, show annotations in the graph.
+     * @return the GraphViz file contents.
+     * @throws IllegalArgumentException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
+     */
+    public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
+            final boolean showFieldTypeDependencyEdges, final boolean showMethods,
+            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations) {
+        return generateGraphVizDotFile(sizeX, sizeY, showFields, showFieldTypeDependencyEdges, showMethods,
+                showMethodTypeDependencyEdges, showAnnotations, true);
     }
 
     /**
