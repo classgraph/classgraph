@@ -33,9 +33,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -178,23 +176,13 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
-            public URL getURL() {
-                try {
-                    return new File(classpathEltDir, relativePath).toURI().toURL();
-                } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException(
-                            "Could not form URL for dir: " + classpathEltDir + " ; path: " + relativePath);
-                }
+            public URI getURI() {
+                return new File(classpathEltDir, relativePath).toURI();
             }
 
             @Override
-            public URL getClasspathElementURL() {
-                try {
-                    return getClasspathElementFile().toURI().toURL();
-                } catch (final MalformedURLException e) {
-                    // Shouldn't happen
-                    throw new IllegalArgumentException(e);
-                }
+            public URI getClasspathElementURI() {
+                return getClasspathElementFile().toURI();
             }
 
             @Override

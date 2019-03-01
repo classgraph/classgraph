@@ -31,9 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
@@ -50,7 +48,6 @@ import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {
@@ -135,44 +132,33 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public URL getURL() {
-                final URL locationURL = getClasspathElementURL();
-                final String locationURLStr = locationURL.toString();
-                // Check if this is a directory-based module (location URI will end in "/")
-                final boolean isDir = locationURLStr.endsWith("/");
-                try {
-                    // Call normalizeURLPath, which will prepend "jar:" if the URL path contains "!"
-                    return new URL(
-                            URLPathEncoder.normalizeURLPath(locationURLStr + (isDir ? "" : "!/") + resourcePath));
-                } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException("Could not form URL for module location: "
-                            + moduleRef.getLocation() + " ; path: " + resourcePath + " : " + e);
-                }
+            public URI getURI() {
+                return getURI(resourcePath);
             }
 
             @Override
-            public URL getClasspathElementURL() {
-                final URI location = moduleRef.getLocation();
-                if (location == null) {
+            public URI getClasspathElementURI() {
+                final URI uri = moduleRef.getLocation();
+                if (uri == null) {
                     // Some modules have no known module location (ModuleReference#location() can return null)
-                    throw new IllegalArgumentException("Could not create URL for module " + getModuleName()
-                            + " ; path: " + resourcePath + " -- module location is null");
-                } else if (location.getScheme().equals("jrt")) {
-                    // Currently URL cannot handle the "jrt:" scheme, used by system modules.
-                    // Need to add a getURI() method to support these.
-                    throw new IllegalArgumentException("Could not create URL for module " + getModuleName()
-                            + " ; path: " + resourcePath + " -- module location is a \"jrt:\" URI");
+                    throw new IllegalArgumentException("Module " + getModuleName() + " has a null location");
                 }
-                try {
-                    return location.toURL();
-                } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException(
-                            "Could not form URL for module classpath element: " + moduleRef.getLocationStr());
-                }
+                return uri;
             }
 
             @Override
             public File getClasspathElementFile() {
+                try {
+                    final URI uri = moduleRef.getLocation();
+                    if (uri != null && !uri.getScheme().equals("jrt")) {
+                        final File file = new File(uri);
+                        if (file.exists()) {
+                            return file;
+                        }
+                    }
+                } catch (final Exception e) {
+                    // Invalid "file:" URI
+                }
                 return null;
             }
 

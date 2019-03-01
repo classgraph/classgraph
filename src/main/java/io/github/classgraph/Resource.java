@@ -33,6 +33,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.zip.ZipEntry;
@@ -287,6 +289,47 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Convert a URI to URL, catching "jrt:" URIs as invalid.
+     *
+     * @return the URL.
+     * @throws IllegalArgumentException
+     *             if the URI could not be converted to a URL, or the URI had "jrt:" scheme.
+     */
+    private static URL uriToURL(final URI uri) {
+        if (uri.getScheme().equals("jrt")) {
+            // Currently URL cannot handle the "jrt:" scheme, used by system modules.
+            throw new IllegalArgumentException("Could not create URL from URI with \"jrt:\" scheme: " + uri);
+        }
+        try {
+            return uri.toURL();
+        } catch (final MalformedURLException e) {
+            throw new IllegalArgumentException("Could not create URL from URI: " + uri + " -- " + e);
+        }
+    }
+
+    /**
+     * Get the URI of a resource, given the resource path.
+     *
+     * @param resourcePath
+     *            the resource path
+     * @return the resource URI.
+     */
+    protected URI getURI(final String resourcePath) {
+        final URI locationURI = getClasspathElementURI();
+        final String locationURIStr = locationURI.toString();
+        // Check if this is a directory-based module (location URI will end in "/")
+        final boolean isDir = locationURIStr.endsWith("/");
+        try {
+            return new URI((isDir ? "" : "jar:") + locationURIStr + (isDir ? "" : "!/") + resourcePath);
+        } catch (final URISyntaxException e) {
+            throw new IllegalArgumentException("Could not form URL for classpath element: " + locationURIStr
+                    + " ; path: " + resourcePath + " : " + e);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Get the path of this classpath resource relative to the package root.
      *
      * @return the path of this classpath resource relative to the package root. For example, for a resource path of
@@ -307,22 +350,53 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     public abstract String getPathRelativeToClasspathElement();
 
     /**
-     * Get the {@link URL} representing the resource's location.
+     * Get the {@link URI} representing the resource's location.
      *
-     * @return A {@link URL} representing the resource's location. May point to a temporary file that ClassGraph
-     *         extracted an inner jar or directory to, or downloaded a remote jar to. You may or may not be able to
-     *         fetch content from the URL.
+     * @return A {@link URI} representing the resource's location.
      * @throws IllegalArgumentException
-     *             if a {@link MalformedURLException} occurred while trying to construct the URL.
+     *             the resource was obtained from a module and the module's location URI is null.
      */
-    public abstract URL getURL();
+    public abstract URI getURI();
 
     /**
-     * Get the classpath element {@link URL}.
+     * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
+     * have come from a system module, since "jrt:" URI schemes are not suppored by {@link URL}, and this will cause
+     * {@link IllegalArgumentException} to be thrown.
      *
-     * @return The {@link URL} of the classpath element that this resource was found within.
+     * @return A {@link URL} representing the resource's location.
+     * @throws IllegalArgumentException
+     *             if a {@link MalformedURLException} occurred while trying to construct the URL, or the resource
+     *             was obtained from a module and the module's location URI is null, or the resource was obtained
+     *             from a system module with a "jrt:" location URI.
      */
-    public abstract URL getClasspathElementURL();
+    public URL getURL() {
+        return uriToURL(getURI());
+    }
+
+    /**
+     * Get the {@link URI} of the classpath element or module that this resource was obtained from.
+     *
+     * @return The {@link URL} of the classpath element or module that this resource was found within.
+     * @throws IllegalArgumentException
+     *             if the resource was obtained from a module and the module's location URI is null.
+     */
+    public abstract URI getClasspathElementURI();
+
+    /**
+     * Get the {@link URL} of the classpath element or module that this resource was obtained from. Use
+     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, since "jrt:"
+     * URI schemes are not suppored by {@link URL}, and this will cause {@link IllegalArgumentException} to be
+     * thrown.
+     *
+     * @return The {@link URL} of the classpath element or module that this resource was found within.
+     * @throws IllegalArgumentException
+     *             if a {@link MalformedURLException} occurred while trying to construct the URL, or the resource
+     *             was obtained from a module and the module's location URI is null, or the resource was obtained
+     *             from a system module with a "jrt:" location URI.
+     */
+    public URL getClasspathElementURL() {
+        return uriToURL(getClasspathElementURI());
+    }
 
     /**
      * Get the classpath element {@link File}.

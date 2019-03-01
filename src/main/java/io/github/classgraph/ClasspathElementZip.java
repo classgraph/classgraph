@@ -31,10 +31,8 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashSet;
@@ -256,26 +254,18 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public URL getURL() {
-                try {
-                    return new URL(URLPathEncoder.normalizeURLPath(zipFilePath + "!/" + zipEntry.entryName));
-                } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException("Could not form URL for resource: " + e);
-                }
+            public URI getURI() {
+                return getURI(zipEntry.entryName);
             }
 
             @Override
-            public URL getClasspathElementURL() {
-                try {
-                    return getURI().toURL();
-                } catch (final MalformedURLException e) {
-                    throw new IllegalArgumentException("Could not form URL for resource: " + e);
-                }
+            public URI getClasspathElementURI() {
+                return ClasspathElementZip.this.getURI();
             }
 
             @Override
             public File getClasspathElementFile() {
-                return getFile();
+                return ClasspathElementZip.this.getFile();
             }
 
             @Override
