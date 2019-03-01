@@ -233,12 +233,7 @@ class ClasspathElementZip extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
-        return new Resource() {
-            {
-                // ZipEntry size may be unknown (-1L), or even completely wrong
-                length = zipEntry.uncompressedSize;
-            }
-
+        return new Resource(this, zipEntry.uncompressedSize) {
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.
@@ -251,26 +246,6 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return zipEntry.entryName;
-            }
-
-            @Override
-            public URI getURI() {
-                return getURI(zipEntry.entryName);
-            }
-
-            @Override
-            public URI getClasspathElementURI() {
-                return ClasspathElementZip.this.getURI();
-            }
-
-            @Override
-            public File getClasspathElementFile() {
-                return ClasspathElementZip.this.getFile();
-            }
-
-            @Override
-            public ModuleRef getModuleRef() {
-                return null;
             }
 
             @Override

@@ -154,16 +154,12 @@ class ClasspathElementDir extends ClasspathElement {
      */
     private Resource newResource(final File classpathEltDir, final String relativePath,
             final File classpathResourceFile) {
-        return new Resource() {
+        return new Resource(this, classpathResourceFile.length()) {
             /** The random access file. */
             private RandomAccessFile randomAccessFile;
 
             /** The file channel. */
             private FileChannel fileChannel;
-
-            {
-                length = classpathResourceFile.length();
-            }
 
             @Override
             public String getPath() {
@@ -173,26 +169,6 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return relativePath;
-            }
-
-            @Override
-            public URI getURI() {
-                return new File(classpathEltDir, relativePath).toURI();
-            }
-
-            @Override
-            public URI getClasspathElementURI() {
-                return getClasspathElementFile().toURI();
-            }
-
-            @Override
-            public File getClasspathElementFile() {
-                return classpathEltDir;
-            }
-
-            @Override
-            public ModuleRef getModuleRef() {
-                return null;
             }
 
             @Override

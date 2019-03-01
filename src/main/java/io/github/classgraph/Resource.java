@@ -48,6 +48,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * classpath element or module.
  */
 public abstract class Resource implements Closeable, Comparable<Resource> {
+    /** The classpath element this resource was obtained from. */
+    private final ClasspathElement classpathElement;
 
     /** The input stream, or null. */
     protected InputStream inputStream;
@@ -56,7 +58,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     protected ByteBuffer byteBuffer;
 
     /** The length, or -1L for unknown. */
-    protected long length = -1L;
+    protected long length;
 
     /** True if the resource is open. */
     private boolean isOpen;
@@ -69,6 +71,21 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * case of whitelisted classfile resources, sublog entries are added when the classfile's contents are scanned.
      */
     LogNode scanLog;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Constructor.
+     *
+     * @param classpathElement
+     *            the classpath element this resource was obtained from.
+     * @param length
+     *            the length the length of the resource.
+     */
+    public Resource(final ClasspathElement classpathElement, final long length) {
+        this.classpathElement = classpathElement;
+        this.length = length;
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -308,14 +325,79 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the URI of a resource, given the resource path.
+     * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
+     * have come from a system module, or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
+     * system modules and jlink'd runtime images are not suppored by {@link URL}, and this will cause
+     * {@link IllegalArgumentException} to be thrown.
      *
-     * @param resourcePath
-     *            the resource path
-     * @return the resource URI.
+     * @return A {@link URL} representing the resource's location.
+     * @throws IllegalArgumentException
+     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
+     *             URI, or the resource was obtained from a module and the module's location URI is null
      */
-    protected URI getURI(final String resourcePath) {
+    public URL getURL() {
+        return uriToURL(getURI());
+    }
+
+    /**
+     * Get the {@link URI} of the classpath element or module that this resource was obtained from.
+     *
+     * @return The {@link URL} of the classpath element or module that this resource was found within.
+     * @throws IllegalArgumentException
+     *             if the resource was obtained from a module and the module's location URI is null.
+     */
+    public URI getClasspathElementURI() {
+        return classpathElement.getURI();
+    }
+
+    /**
+     * Get the {@link URL} of the classpath element or module that this resource was obtained from. Use
+     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
+     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
+     * suppored by {@link URL}, and this will cause {@link IllegalArgumentException} to be thrown.
+     *
+     * @return The {@link URL} of the classpath element or module that this resource was found within.
+     * @throws IllegalArgumentException
+     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
+     *             URI, or the resource was obtained from a module and the module's location URI is null.
+     */
+    public URL getClasspathElementURL() {
+        return uriToURL(getClasspathElementURI());
+    }
+
+    /**
+     * Get the classpath element {@link File}.
+     *
+     * @return The {@link File} for the classpath element package root dir or jar that this {@Resource} was found
+     *         within, or null if this {@link Resource} was found in a module backed by a "jrt:" URI, or a module
+     *         with an unknown location.
+     */
+    public File getClasspathElementFile() {
+        return classpathElement.getFile();
+    }
+
+    /**
+     * Get the The {@link ModuleRef} for the module that this {@link Resource} was found within.
+     *
+     * @return The {@link ModuleRef} for the module that this {@link Resource} was found within, as a
+     *         {@link ModuleRef}, or null if this {@link Resource} was found in a directory or jar in the classpath.
+     */
+    public ModuleRef getModuleRef() {
+        return classpathElement instanceof ClasspathElementModule
+                ? ((ClasspathElementModule) classpathElement).moduleRef
+                : null;
+    }
+
+    /**
+     * Get the {@link URI} representing the resource's location.
+     *
+     * @return A {@link URI} representing the resource's location.
+     * @throws IllegalArgumentException
+     *             the resource was obtained from a module and the module's location URI is null.
+     */
+    public URI getURI() {
         final URI locationURI = getClasspathElementURI();
+        final String resourcePath = getPathRelativeToClasspathElement();
         final String locationURIStr = locationURI.toString();
         // Check if this is a directory-based module (location URI will end in "/")
         final boolean isDir = locationURIStr.endsWith("/");
@@ -348,71 +430,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *         {@code "META-INF/versions/11/com/xyz/resource.xml"}, not {@code "com/xyz/resource.xml"}.
      */
     public abstract String getPathRelativeToClasspathElement();
-
-    /**
-     * Get the {@link URI} representing the resource's location.
-     *
-     * @return A {@link URI} representing the resource's location.
-     * @throws IllegalArgumentException
-     *             the resource was obtained from a module and the module's location URI is null.
-     */
-    public abstract URI getURI();
-
-    /**
-     * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
-     * have come from a system module, or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
-     * system modules and jlink'd runtime images are not suppored by {@link URL}, and this will cause
-     * {@link IllegalArgumentException} to be thrown.
-     *
-     * @return A {@link URL} representing the resource's location.
-     * @throws IllegalArgumentException
-     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
-     *             URI, or the resource was obtained from a module and the module's location URI is null
-     */
-    public URL getURL() {
-        return uriToURL(getURI());
-    }
-
-    /**
-     * Get the {@link URI} of the classpath element or module that this resource was obtained from.
-     *
-     * @return The {@link URL} of the classpath element or module that this resource was found within.
-     * @throws IllegalArgumentException
-     *             if the resource was obtained from a module and the module's location URI is null.
-     */
-    public abstract URI getClasspathElementURI();
-
-    /**
-     * Get the {@link URL} of the classpath element or module that this resource was obtained from. Use
-     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
-     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
-     * suppored by {@link URL}, and this will cause {@link IllegalArgumentException} to be thrown.
-     *
-     * @return The {@link URL} of the classpath element or module that this resource was found within.
-     * @throws IllegalArgumentException
-     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
-     *             URI, or the resource was obtained from a module and the module's location URI is null.
-     */
-    public URL getClasspathElementURL() {
-        return uriToURL(getClasspathElementURI());
-    }
-
-    /**
-     * Get the classpath element {@link File}.
-     *
-     * @return The {@link File} for the classpath element package root dir or jar that this {@Resource} was found
-     *         within, or null if this {@link Resource} was found in a module. (See also {@link #getModuleRef}.)
-     */
-    public abstract File getClasspathElementFile();
-
-    /**
-     * Get the The {@link ModuleRef} for the module that this {@link Resource} was found within.
-     *
-     * @return The {@link ModuleRef} for the module that this {@link Resource} was found within, as a
-     *         {@link ModuleRef}, or null if this {@link Resource} was found in a directory or jar in the classpath.
-     *         (See also {@link #getClasspathElementFile()}.)
-     */
-    public abstract ModuleRef getModuleRef();
 
     // -------------------------------------------------------------------------------------------------------------
 

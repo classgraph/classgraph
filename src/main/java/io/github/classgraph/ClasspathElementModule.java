@@ -53,7 +53,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 class ClasspathElementModule extends ClasspathElement {
 
     /** The module ref. */
-    private final ModuleRef moduleRef;
+    final ModuleRef moduleRef;
 
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
@@ -117,7 +117,7 @@ class ClasspathElementModule extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final String resourcePath) {
-        return new Resource() {
+        return new Resource(this, /* length unknown */ -1L) {
             /** The module reader proxy. */
             private ModuleReaderProxy moduleReaderProxy;
 
@@ -129,42 +129,6 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return resourcePath;
-            }
-
-            @Override
-            public URI getURI() {
-                return getURI(resourcePath);
-            }
-
-            @Override
-            public URI getClasspathElementURI() {
-                final URI uri = moduleRef.getLocation();
-                if (uri == null) {
-                    // Some modules have no known module location (ModuleReference#location() can return null)
-                    throw new IllegalArgumentException("Module " + getModuleName() + " has a null location");
-                }
-                return uri;
-            }
-
-            @Override
-            public File getClasspathElementFile() {
-                try {
-                    final URI uri = moduleRef.getLocation();
-                    if (uri != null && !uri.getScheme().equals("jrt")) {
-                        final File file = new File(uri);
-                        if (file.exists()) {
-                            return file;
-                        }
-                    }
-                } catch (final Exception e) {
-                    // Invalid "file:" URI
-                }
-                return null;
-            }
-
-            @Override
-            public ModuleRef getModuleRef() {
-                return moduleRef;
             }
 
             @Override
@@ -405,7 +369,12 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     URI getURI() {
-        return moduleRef.getLocation();
+        final URI uri = moduleRef.getLocation();
+        if (uri == null) {
+            // Some modules have no known module location (ModuleReference#location() can return null)
+            throw new IllegalArgumentException("Module " + getModuleName() + " has a null location");
+        }
+        return uri;
     }
 
     /* (non-Javadoc)
@@ -413,12 +382,18 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     File getFile() {
-        final URI location = moduleRef.getLocation();
-        if (location != null && "file".equals(location.getScheme())) {
-            return new File(location);
-        } else {
-            return null;
+        try {
+            final URI uri = moduleRef.getLocation();
+            if (uri != null && !uri.getScheme().equals("jrt")) {
+                final File file = new File(uri);
+                if (file.exists()) {
+                    return file;
+                }
+            }
+        } catch (final Exception e) {
+            // Invalid "file:" URI
         }
+        return null;
     }
 
     /**
