@@ -288,6 +288,9 @@ final class GraphvizDotfileGenerator {
             final FieldInfoList fieldInfoSorted = new FieldInfoList(fieldInfo);
             Collections.sort(fieldInfoSorted);
             for (final FieldInfo fi : fieldInfoSorted) {
+                if (fi.getName().equals("serialVersionUID")) {
+                    continue;
+                }
                 buf.append("<tr>");
                 buf.append("<td align='right' valign='top'>");
 
@@ -338,108 +341,116 @@ final class GraphvizDotfileGenerator {
             final MethodInfoList methodInfoSorted = new MethodInfoList(methodInfo);
             Collections.sort(methodInfoSorted);
             for (final MethodInfo mi : methodInfoSorted) {
+                if (
                 // Don't list static initializer blocks
-                if (!mi.getName().equals("<clinit>")) {
-                    buf.append("<tr>");
+                mi.getName().equals("<clinit>") || mi.getName().equals("<init>")
+                // Skip methods of Object
+                        || mi.getName().equals("hashCode") && mi.getParameterInfo().length == 0
+                        || mi.getName().equals("toString") && mi.getParameterInfo().length == 0
+                        || mi.getName().equals("equals") && mi.getParameterInfo().length == 1
+                                && mi.getTypeDescriptor().toString().equals("boolean (java.lang.Object)")) {
+                    continue;
+                }
 
-                    // Method annotations
-                    // TODO: wrap this cell if the contents get too long
-                    buf.append("<td align='right' valign='top'>");
-                    final AnnotationInfoList methodAnnotationInfo = mi.annotationInfo;
-                    if (methodAnnotationInfo != null) {
-                        for (final AnnotationInfo ai : methodAnnotationInfo) {
-                            if (buf.charAt(buf.length() - 1) != ' ') {
-                                buf.append(' ');
-                            }
-                            htmlEncode(ai.toString(), buf);
-                        }
-                    }
+                buf.append("<tr>");
 
-                    // Method modifiers
-                    if (scanSpec.ignoreMethodVisibility) {
+                // Method annotations
+                // TODO: wrap this cell if the contents get too long
+                buf.append("<td align='right' valign='top'>");
+                final AnnotationInfoList methodAnnotationInfo = mi.annotationInfo;
+                if (methodAnnotationInfo != null) {
+                    for (final AnnotationInfo ai : methodAnnotationInfo) {
                         if (buf.charAt(buf.length() - 1) != ' ') {
                             buf.append(' ');
                         }
-                        buf.append(mi.getModifiersStr());
+                        htmlEncode(ai.toString(), buf);
                     }
+                }
 
-                    // Method return type
+                // Method modifiers
+                if (scanSpec.ignoreMethodVisibility) {
                     if (buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
-                    if (!mi.getName().equals("<init>")) {
-                        // Don't list return type for constructors
-                        htmlEncode(mi.getTypeSignatureOrTypeDescriptor().getResultType().toString(), buf);
-                    } else {
-                        buf.append("<b>&lt;constructor&gt;</b>");
-                    }
-                    buf.append("</td>");
+                    buf.append(mi.getModifiersStr());
+                }
 
-                    // Method name
-                    buf.append("<td align='left' valign='top'>");
-                    buf.append("<b>");
-                    if (mi.getName().equals("<init>")) {
-                        // Show class name for constructors
-                        htmlEncode(ci.getSimpleName(), buf);
-                    } else {
-                        htmlEncode(mi.getName(), buf);
-                    }
-                    buf.append("</b>&nbsp;");
-                    buf.append("</td>");
+                // Method return type
+                if (buf.charAt(buf.length() - 1) != ' ') {
+                    buf.append(' ');
+                }
+                if (!mi.getName().equals("<init>")) {
+                    // Don't list return type for constructors
+                    htmlEncode(mi.getTypeSignatureOrTypeDescriptor().getResultType().toString(), buf);
+                } else {
+                    buf.append("<b>&lt;constructor&gt;</b>");
+                }
+                buf.append("</td>");
 
-                    // Method parameters
-                    buf.append("<td align='left' valign='top'>");
-                    buf.append('(');
-                    final MethodParameterInfo[] paramInfo = mi.getParameterInfo();
-                    if (paramInfo.length != 0) {
-                        for (int i = 0, wrapPos = 0; i < paramInfo.length; i++) {
-                            if (i > 0) {
-                                buf.append(", ");
-                                wrapPos += 2;
-                            }
-                            if (wrapPos > PARAM_WRAP_WIDTH) {
-                                buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
-                                wrapPos = 0;
-                            }
+                // Method name
+                buf.append("<td align='left' valign='top'>");
+                buf.append("<b>");
+                if (mi.getName().equals("<init>")) {
+                    // Show class name for constructors
+                    htmlEncode(ci.getSimpleName(), buf);
+                } else {
+                    htmlEncode(mi.getName(), buf);
+                }
+                buf.append("</b>&nbsp;");
+                buf.append("</td>");
 
-                            // Param annotation
-                            final AnnotationInfo[] paramAnnotationInfo = paramInfo[i].annotationInfo;
-                            if (paramAnnotationInfo != null) {
-                                for (final AnnotationInfo ai : paramAnnotationInfo) {
-                                    final String ais = ai.toString();
-                                    if (!ais.isEmpty()) {
-                                        if (buf.charAt(buf.length() - 1) != ' ') {
-                                            buf.append(' ');
-                                        }
-                                        htmlEncode(ais, buf);
-                                        wrapPos += 1 + ais.length();
-                                        if (wrapPos > PARAM_WRAP_WIDTH) {
-                                            buf.append("</td></tr><tr><td></td><td></td>"
-                                                    + "<td align='left' valign='top'>");
-                                            wrapPos = 0;
-                                        }
+                // Method parameters
+                buf.append("<td align='left' valign='top'>");
+                buf.append('(');
+                final MethodParameterInfo[] paramInfo = mi.getParameterInfo();
+                if (paramInfo.length != 0) {
+                    for (int i = 0, wrapPos = 0; i < paramInfo.length; i++) {
+                        if (i > 0) {
+                            buf.append(", ");
+                            wrapPos += 2;
+                        }
+                        if (wrapPos > PARAM_WRAP_WIDTH) {
+                            buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                            wrapPos = 0;
+                        }
+
+                        // Param annotation
+                        final AnnotationInfo[] paramAnnotationInfo = paramInfo[i].annotationInfo;
+                        if (paramAnnotationInfo != null) {
+                            for (final AnnotationInfo ai : paramAnnotationInfo) {
+                                final String ais = ai.toString();
+                                if (!ais.isEmpty()) {
+                                    if (buf.charAt(buf.length() - 1) != ' ') {
+                                        buf.append(' ');
+                                    }
+                                    htmlEncode(ais, buf);
+                                    wrapPos += 1 + ais.length();
+                                    if (wrapPos > PARAM_WRAP_WIDTH) {
+                                        buf.append("</td></tr><tr><td></td><td></td>"
+                                                + "<td align='left' valign='top'>");
+                                        wrapPos = 0;
                                     }
                                 }
                             }
+                        }
 
-                            // Param type
-                            final String paramTypeStr = paramInfo[i].getTypeSignatureOrTypeDescriptor().toString();
-                            htmlEncode(paramTypeStr, buf);
-                            wrapPos += paramTypeStr.length();
+                        // Param type
+                        final String paramTypeStr = paramInfo[i].getTypeSignatureOrTypeDescriptor().toString();
+                        htmlEncode(paramTypeStr, buf);
+                        wrapPos += paramTypeStr.length();
 
-                            // Param name
-                            final String paramName = paramInfo[i].getName();
-                            if (paramName != null) {
-                                buf.append(" <B>");
-                                htmlEncode(paramName, buf);
-                                wrapPos += 1 + paramName.length();
-                                buf.append("</B>");
-                            }
+                        // Param name
+                        final String paramName = paramInfo[i].getName();
+                        if (paramName != null) {
+                            buf.append(" <B>");
+                            htmlEncode(paramName, buf);
+                            wrapPos += 1 + paramName.length();
+                            buf.append("</B>");
                         }
                     }
-                    buf.append(')');
-                    buf.append("</td></tr>");
                 }
+                buf.append(')');
+                buf.append("</td></tr>");
             }
             buf.append("</table>");
             buf.append("</td></tr>");
