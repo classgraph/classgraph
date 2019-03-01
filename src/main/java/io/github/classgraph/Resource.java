@@ -360,14 +360,14 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /**
      * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
-     * have come from a system module, since "jrt:" URI schemes are not suppored by {@link URL}, and this will cause
+     * have come from a system module, or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
+     * system modules and jlink'd runtime images are not suppored by {@link URL}, and this will cause
      * {@link IllegalArgumentException} to be thrown.
      *
      * @return A {@link URL} representing the resource's location.
      * @throws IllegalArgumentException
-     *             if a {@link MalformedURLException} occurred while trying to construct the URL, or the resource
-     *             was obtained from a module and the module's location URI is null, or the resource was obtained
-     *             from a system module with a "jrt:" location URI.
+     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
+     *             URI, or the resource was obtained from a module and the module's location URI is null
      */
     public URL getURL() {
         return uriToURL(getURI());
@@ -384,15 +384,14 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /**
      * Get the {@link URL} of the classpath element or module that this resource was obtained from. Use
-     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, since "jrt:"
-     * URI schemes are not suppored by {@link URL}, and this will cause {@link IllegalArgumentException} to be
-     * thrown.
+     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
+     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
+     * suppored by {@link URL}, and this will cause {@link IllegalArgumentException} to be thrown.
      *
      * @return The {@link URL} of the classpath element or module that this resource was found within.
      * @throws IllegalArgumentException
-     *             if a {@link MalformedURLException} occurred while trying to construct the URL, or the resource
-     *             was obtained from a module and the module's location URI is null, or the resource was obtained
-     *             from a system module with a "jrt:" location URI.
+     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
+     *             URI, or the resource was obtained from a module and the module's location URI is null.
      */
     public URL getClasspathElementURL() {
         return uriToURL(getClasspathElementURI());
