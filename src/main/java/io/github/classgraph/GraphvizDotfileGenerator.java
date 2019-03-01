@@ -369,7 +369,7 @@ final class GraphvizDotfileGenerator {
                     }
                     if (!mi.getName().equals("<init>")) {
                         // Don't list return type for constructors
-                        htmlEncode(mi.getTypeSignatureOrTypeDescriptor().toString(), buf);
+                        htmlEncode(mi.getTypeSignatureOrTypeDescriptor().getResultType().toString(), buf);
                     } else {
                         buf.append("<b>&lt;constructor&gt;</b>");
                     }
