@@ -325,6 +325,27 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
+     * Get the {@link URI} representing the resource's location.
+     *
+     * @return A {@link URI} representing the resource's location.
+     * @throws IllegalArgumentException
+     *             the resource was obtained from a module and the module's location URI is null.
+     */
+    public URI getURI() {
+        final URI locationURI = getClasspathElementURI();
+        final String resourcePath = getPathRelativeToClasspathElement();
+        final String locationURIStr = locationURI.toString();
+        // Check if this is a directory-based module (location URI will end in "/")
+        final boolean isDir = locationURIStr.endsWith("/");
+        try {
+            return new URI((isDir ? "" : "jar:") + locationURIStr + (isDir ? "" : "!/") + resourcePath);
+        } catch (final URISyntaxException e) {
+            throw new IllegalArgumentException("Could not form URL for classpath element: " + locationURIStr
+                    + " ; path: " + resourcePath + " : " + e);
+        }
+    }
+
+    /**
      * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
      * have come from a system module, or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
      * system modules and jlink'd runtime images are not suppored by {@link URL}, and this will cause
@@ -386,27 +407,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         return classpathElement instanceof ClasspathElementModule
                 ? ((ClasspathElementModule) classpathElement).moduleRef
                 : null;
-    }
-
-    /**
-     * Get the {@link URI} representing the resource's location.
-     *
-     * @return A {@link URI} representing the resource's location.
-     * @throws IllegalArgumentException
-     *             the resource was obtained from a module and the module's location URI is null.
-     */
-    public URI getURI() {
-        final URI locationURI = getClasspathElementURI();
-        final String resourcePath = getPathRelativeToClasspathElement();
-        final String locationURIStr = locationURI.toString();
-        // Check if this is a directory-based module (location URI will end in "/")
-        final boolean isDir = locationURIStr.endsWith("/");
-        try {
-            return new URI((isDir ? "" : "jar:") + locationURIStr + (isDir ? "" : "!/") + resourcePath);
-        } catch (final URISyntaxException e) {
-            throw new IllegalArgumentException("Could not form URL for classpath element: " + locationURIStr
-                    + " ; path: " + resourcePath + " : " + e);
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
