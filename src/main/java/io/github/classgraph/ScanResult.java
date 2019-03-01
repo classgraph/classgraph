@@ -360,9 +360,34 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Returns the list of unique classpath element paths as URLs, in classloader resolution order.
+     * Returns an ordered list of unique classpath element and module URIs.
      *
-     * @return The unique classpath element URLs.
+     * @return The unique classpath element and module URIs.
+     */
+    public List<URI> getClasspathURIs() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        final List<URI> classpathElementOrderURIs = new ArrayList<>();
+        for (final ClasspathElement classpathElement : classpathOrder) {
+            try {
+                final URI uri = classpathElement.getURI();
+                if (uri != null) {
+                    classpathElementOrderURIs.add(uri);
+                }
+            } catch (final IllegalArgumentException e) {
+                // Skip null location URIs
+            }
+        }
+        return classpathElementOrderURIs;
+    }
+
+    /**
+     * Returns an ordered list of unique classpath element and module URLs. Will skip any system modules or modules
+     * that are part of a jlink'd runtime image, since {@link URL} does not support the {@code jrt:} {@link URI}
+     * scheme.
+     *
+     * @return The unique classpath element and module URLs.
      */
     public List<URL> getClasspathURLs() {
         if (closed.get()) {
@@ -371,23 +396,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final List<URL> classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             try {
-                if (classpathElement instanceof ClasspathElementModule) {
-                    // Get the URL for a module, if it has a location
-                    final URI location = ((ClasspathElementModule) classpathElement).getModuleRef().getLocation();
-                    if (location != null) {
-                        classpathElementOrderURLs.add(location.toURL());
-                    }
-
-                } else if (classpathElement instanceof ClasspathElementDir) {
-                    // Get the URL for a classpath directory
-                    classpathElementOrderURLs.add(((ClasspathElementDir) classpathElement).getURI().toURL());
-
-                } else if (classpathElement instanceof ClasspathElementZip) {
-                    // Get the URL for a jarfile, with "!/" separating any nested jars, and optional package root
-                    classpathElementOrderURLs.add(((ClasspathElementZip) classpathElement).getURI().toURL());
+                final URI uri = classpathElement.getURI();
+                if (uri != null) {
+                    classpathElementOrderURLs.add(uri.toURL());
                 }
-            } catch (final MalformedURLException e) {
-                // Skip malformed URLs
+            } catch (final IllegalArgumentException | MalformedURLException e) {
+                // Skip "jrt:" URIs and malformed URLs
             }
         }
         return classpathElementOrderURLs;

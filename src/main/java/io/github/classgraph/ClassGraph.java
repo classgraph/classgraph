@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.File;
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -1228,7 +1229,10 @@ public class ClassGraph {
     /**
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
      * classloader resolution order, in the form of a classpath path string. Classpath elements that do not exist as
-     * a file or directory are not included in the returned list.
+     * a file or directory are not included in the returned list. Note that the returned string contains only base
+     * files, and does not include package roots or nested jars within jars, since the path separator (':')
+     * conflicts with the URL scheme separator character (also ':') on Linux and Mac OS X. Call
+     * {@link #getClasspathURIs()} to get the full URIs for classpath elements and modules.
      *
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
@@ -1240,12 +1244,27 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the list of all unique URL objects representing directories, zip/jarfiles or modules on the
-     * classpath, in classloader resolution order. Classpath elements representing jarfiles or directories that do
-     * not exist are not included in the returned list.
+     * Returns the ordered list of all unique {@link URI} objects representing directory/jar classpath elements and
+     * modules. Classpath elements representing jarfiles or directories that do not exist are not included in the
+     * returned list.
      *
-     * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
-     *         classpath resolution order.
+     * @return the unique classpath elements and modules, as a list of {@link URI} objects.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     */
+    public List<URI> getClasspathURIs() {
+        scanSpec.performScan = false;
+        try (ScanResult scanResult = scan()) {
+            return scanResult.getClasspathURIs();
+        }
+    }
+
+    /**
+     * Returns the ordered list of all unique {@link URL} objects representing directory/jar classpath elements and
+     * modules. Classpath elements representing jarfiles or directories that do not exist, as well as modules with
+     * unknown (null) location or with {@code jrt:} location URI scheme, are not included in the returned list.
+     *
+     * @return the unique classpath elements and modules, as a list of {@link URL} objects.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
