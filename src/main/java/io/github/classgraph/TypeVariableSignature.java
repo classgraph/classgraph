@@ -278,10 +278,10 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /* (non-Javadoc)
-     * @see java.lang.Object#toString()
+     * @see io.github.classgraph.TypeSignature#toStringInternal(boolean)
      */
     @Override
-    public String toString() {
+    protected String toStringInternal(final boolean useSimpleNames) {
         return name;
     }
 }

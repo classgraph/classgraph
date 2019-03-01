@@ -901,12 +901,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Get simple name from fully-qualified class name.
+     *
+     * @return The simple name of the class.
+     */
+    static String getSimpleName(final String className) {
+        return className.substring(className.lastIndexOf('.') + 1);
+    }
+
+    /**
      * Get the simple name of the class.
      *
      * @return The simple name of the class.
      */
     public String getSimpleName() {
-        return name.substring(name.lastIndexOf('.') + 1);
+        return getSimpleName(name);
     }
 
     /**

@@ -229,11 +229,14 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         return (o.typeSignature.equals(this.typeSignature) && o.wildcard.equals(this.wildcard));
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
+    /**
+     * {@link #toString()} internal method.
+     *
+     * @param useSimpleNames
+     *            whether to use simple names for classes.
+     * @return the string
      */
-    @Override
-    public String toString() {
+    private String toStringInternal(final boolean useSimpleNames) {
         switch (wildcard) {
         case ANY:
             return "?";
@@ -243,11 +246,27 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         case SUPER:
             return "? super " + typeSignature.toString();
         case NONE:
-            return typeSignature.toString();
+            return useSimpleNames ? typeSignature.toStringWithSimpleNames() : typeSignature.toString();
         default:
             // Should not happen
             throw ClassGraphException.newClassGraphException("Unknown wildcard type " + wildcard);
         }
     }
 
+    /**
+     * {@link #toString()} with simple names for classes.
+     *
+     * @return the string
+     */
+    public String toStringWithSimpleNames() {
+        return toStringInternal(true);
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
+    @Override
+    public String toString() {
+        return toStringInternal(false);
+    }
 }

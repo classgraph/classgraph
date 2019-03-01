@@ -36,7 +36,6 @@ import java.util.Set;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
-import nonapi.io.github.classgraph.utils.Join;
 
 /** A class reference type signature (called "ClassTypeSignature" in the classfile documentation). */
 public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
@@ -279,30 +278,43 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         }
     }
 
-    /**
-     * Return the class type as a String.
-     * 
-     * <p>
-     * For comparison, {@link #getFullyQualifiedClassName()} uses '$' to separate suffixes, and does not include
-     * type parameters, whereas this method uses '.' to separate suffixes, and does include type parameters.
-     *
-     * @return the class type as a String.
+    /* (non-Javadoc)
+     * @see io.github.classgraph.TypeSignature#toStringInternal(boolean)
      */
     @Override
-    public String toString() {
+    protected String toStringInternal(final boolean useSimpleNames) {
         final StringBuilder buf = new StringBuilder();
-        buf.append(className);
-        if (!typeArguments.isEmpty()) {
-            Join.join(buf, "<", ", ", ">", typeArguments);
+        if (!useSimpleNames) {
+            buf.append(className);
+            if (!typeArguments.isEmpty()) {
+                buf.append('<');
+                for (int i = 0; i < typeArguments.size(); i++) {
+                    if (i > 0) {
+                        buf.append(", ");
+                    }
+                    buf.append(typeArguments.get(i).toString());
+                }
+                buf.append('>');
+            }
         }
-        for (int i = 0; i < suffixes.size(); i++) {
-            // Use '.' before each suffix in the toString() representation, since that is
-            // how the class name will be shown in Java, e.g. OuterClass<T>.InnerClass
-            buf.append('.');
+        for (int i = useSimpleNames && suffixes.size() > 0 ? suffixes.size() - 1 : 0; i < suffixes.size(); i++) {
+            if (!useSimpleNames) {
+                // Use '.' before each suffix in the toString() representation, since that is
+                // how the class name will be shown in Java, e.g. OuterClass<T>.InnerClass
+                buf.append('.');
+            }
             buf.append(suffixes.get(i));
             final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
             if (!suffixTypeArgs.isEmpty()) {
-                Join.join(buf, "<", ", ", ">", suffixTypeArgs);
+                buf.append('<');
+                for (int j = 0; j < suffixTypeArgs.size(); j++) {
+                    if (j > 0) {
+                        buf.append(", ");
+                    }
+                    buf.append(useSimpleNames ? suffixTypeArgs.get(j).toStringWithSimpleNames()
+                            : suffixTypeArgs.get(j).toString());
+                }
+                buf.append('>');
             }
         }
         return buf.toString();

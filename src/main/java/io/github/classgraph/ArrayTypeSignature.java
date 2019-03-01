@@ -155,12 +155,13 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /* (non-Javadoc)
-     * @see java.lang.Object#toString()
+     * @see io.github.classgraph.TypeSignature#toStringInternal(boolean)
      */
     @Override
-    public String toString() {
+    protected String toStringInternal(final boolean useSimpleNames) {
         final StringBuilder buf = new StringBuilder();
-        buf.append(elementTypeSignature.toString());
+        buf.append(
+                useSimpleNames ? elementTypeSignature.toStringWithSimpleNames() : elementTypeSignature.toString());
         for (int i = 0; i < numDims; i++) {
             buf.append("[]");
         }

@@ -344,9 +344,9 @@ final class GraphvizDotfileGenerator {
             Collections.sort(methodInfoSorted);
             for (int i = methodInfoSorted.size() - 1; i >= 0; --i) {
                 // Don't list static initializer blocks or methods of Object
-                MethodInfo mi = methodInfoSorted.get(i);
-                String name = mi.getName();
-                int numParam = mi.getParameterInfo().length;
+                final MethodInfo mi = methodInfoSorted.get(i);
+                final String name = mi.getName();
+                final int numParam = mi.getParameterInfo().length;
                 if (name.equals("<clinit>") || name.equals("<init>") || name.equals("hashCode") && numParam == 0
                         || name.equals("toString") && numParam == 0 || name.equals("equals") && numParam == 1
                                 && mi.getTypeDescriptor().toString().equals("boolean (java.lang.Object)")) {
