@@ -285,7 +285,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     protected String toStringInternal(final boolean useSimpleNames) {
         final StringBuilder buf = new StringBuilder();
         // Only append the base class name if not using simple names, or if there are no suffixes
-        if (!useSimpleNames || suffixes.size() == 0) {
+        if (!useSimpleNames || suffixes.isEmpty()) {
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(className) : className);
             if (!typeArguments.isEmpty()) {
                 buf.append('<');
@@ -300,7 +300,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             }
         }
         // Only use the last suffix if using simple names
-        for (int i = useSimpleNames && suffixes.size() > 0 ? suffixes.size() - 1 : 0; i < suffixes.size(); i++) {
+        for (int i = useSimpleNames && !suffixes.isEmpty() ? suffixes.size() - 1 : 0; i < suffixes.size(); i++) {
             if (!useSimpleNames) {
                 // Use '.' before each suffix in the toString() representation, since that is
                 // how the class name will be shown in Java, e.g. OuterClass<T>.InnerClass
