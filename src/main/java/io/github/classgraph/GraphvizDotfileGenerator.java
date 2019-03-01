@@ -69,7 +69,7 @@ final class GraphvizDotfileGenerator {
                 + "\n" // LINE FEED (LF)
                 + "\u000B" // LINE TABULATION
                 + "\u000C" // FORM FEED (FF)
-                + "/r" // CARRIAGE RETURN (CR)
+                + "\r" // CARRIAGE RETURN (CR)
                 + "\u0085" // NEXT LINE (NEL) 
                 + "\u00A0" // NO-BREAK SPACE
                 + "\u1680" // OGHAM SPACE MARK
