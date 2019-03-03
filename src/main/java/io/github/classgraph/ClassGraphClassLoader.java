@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.Enumeration;
 
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -110,8 +111,8 @@ class ClassGraphClassLoader extends ClassLoader {
                 // Iterate through resources (only loading of first resource in the list will be attempted)
                 try {
                     // Load the content of the resource, and define a class from it
-                    final byte[] resourceContent = resource.load();
-                    return defineClass(className, resourceContent, 0, resourceContent.length);
+                    final ByteBuffer resourceByteBuffer = resource.read();
+                    return defineClass(className, resourceByteBuffer, null);
                 } catch (final IOException e) {
                     throw new ClassNotFoundException("Could not load classfile for class " + className + " : " + e);
                 } finally {
