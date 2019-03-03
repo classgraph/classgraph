@@ -236,11 +236,7 @@
                                     <!-- ModulePathInfo requires java.management -->
                                     <!-- LogNode requires java.logging -->
                                     <moduleInfoSource>
-                                        /**
-                                        ClassGraph, the uber-fast, ultra-lightweight, parallelized
-                                        Java classpath scanner,
-                                        module scanner, and annotation processor for JVM
-                                        languages. https://github.com/classgraph/classgraph */
+                                        /** ${project.name}: ${project.description} ( ${project.url} ) */
                                         module
                                         io.github.classgraph {
                                         exports io.github.classgraph;
