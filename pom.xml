@@ -6,7 +6,7 @@
     <version>4.8.12-SNAPSHOT</version>
     <name>ClassGraph</name>
 
-    <description>The uber-fast, ultra-lightweight classpath and module path scanner for JVM languages.</description>
+    <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
 
     <url>https://github.com/classgraph/classgraph</url>
 
