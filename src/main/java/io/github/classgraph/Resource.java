@@ -389,9 +389,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Get the classpath element {@link File}.
      *
-     * @return The {@link File} for the classpath element package root dir or jar that this {@Resource} was found
-     *         within, or null if this {@link Resource} was found in a module backed by a "jrt:" URI, or a module
-     *         with an unknown location.
+     * @return The {@link File} for the classpath element package root dir or jar that this {@link Resource} was
+     *         found within, or null if this {@link Resource} was found in a module backed by a "jrt:" URI, or a
+     *         module with an unknown location.
      */
     public File getClasspathElementFile() {
         return classpathElement.getFile();
