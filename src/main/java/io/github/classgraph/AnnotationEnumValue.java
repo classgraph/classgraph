@@ -160,13 +160,13 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
-        if (o == this) {
+    public boolean equals(final Object obj) {
+        if (obj == this) {
             return true;
-        } else if (!(o instanceof AnnotationEnumValue)) {
+        } else if (!(obj instanceof AnnotationEnumValue)) {
             return false;
         }
-        return compareTo((AnnotationEnumValue) o) == 0;
+        return compareTo((AnnotationEnumValue) obj) == 0;
     }
 
     /* (non-Javadoc)

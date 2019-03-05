@@ -198,7 +198,7 @@ public class AnnotationClassRef extends ScanResultObject {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
         } else if (!(obj instanceof AnnotationClassRef)) {
             return false;

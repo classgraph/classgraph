@@ -211,7 +211,9 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof TypeParameter)) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof TypeParameter)) {
             return false;
         }
         final TypeParameter o = (TypeParameter) obj;

@@ -222,7 +222,9 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof TypeArgument)) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof TypeArgument)) {
             return false;
         }
         final TypeArgument o = (TypeArgument) obj;

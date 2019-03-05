@@ -250,10 +250,9 @@ class PhysicalZipFile implements Closeable {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
-        }
-        if (!(obj instanceof PhysicalZipFile)) {
+        } else if (!(obj instanceof PhysicalZipFile)) {
             return false;
         }
         return file.equals(((PhysicalZipFile) obj).file);

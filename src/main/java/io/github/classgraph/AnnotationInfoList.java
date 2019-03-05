@@ -394,14 +394,13 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @see java.util.ArrayList#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean equals(final Object obj) {
+        if (this == obj) {
             return true;
-        }
-        if (!(o instanceof AnnotationInfoList)) {
+        } else if (!(obj instanceof AnnotationInfoList)) {
             return false;
         }
-        final AnnotationInfoList other = (AnnotationInfoList) o;
+        final AnnotationInfoList other = (AnnotationInfoList) obj;
         if ((directlyRelatedAnnotations == null) != (other.directlyRelatedAnnotations == null)) {
             return false;
         }

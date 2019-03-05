@@ -287,13 +287,13 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean equals(final Object obj) {
+        if (obj == this) {
             return true;
-        } else if (!(o instanceof ModuleInfo)) {
+        } else if (!(obj instanceof ModuleInfo)) {
             return false;
         }
-        return this.compareTo((ModuleInfo) o) == 0;
+        return this.compareTo((ModuleInfo) obj) == 0;
     }
 
     /* (non-Javadoc)

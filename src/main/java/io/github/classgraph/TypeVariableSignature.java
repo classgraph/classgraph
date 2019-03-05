@@ -187,7 +187,9 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof TypeVariableSignature)) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof TypeVariableSignature)) {
             return false;
         }
         final TypeVariableSignature o = (TypeVariableSignature) obj;

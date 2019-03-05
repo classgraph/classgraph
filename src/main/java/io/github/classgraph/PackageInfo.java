@@ -308,13 +308,13 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean equals(final Object obj) {
+        if (obj == this) {
             return true;
-        } else if (!(o instanceof PackageInfo)) {
+        } else if (!(obj instanceof PackageInfo)) {
             return false;
         }
-        return this.name.equals(((PackageInfo) o).name);
+        return this.name.equals(((PackageInfo) obj).name);
     }
 
     /* (non-Javadoc)

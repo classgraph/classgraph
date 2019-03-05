@@ -128,14 +128,13 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
-        }
-        if (!(obj instanceof ArrayTypeSignature)) {
+        } else if (!(obj instanceof ArrayTypeSignature)) {
             return false;
         }
-        final ArrayTypeSignature o = (ArrayTypeSignature) obj;
-        return o.elementTypeSignature.equals(this.elementTypeSignature) && o.numDims == this.numDims;
+        final ArrayTypeSignature other = (ArrayTypeSignature) obj;
+        return other.elementTypeSignature.equals(this.elementTypeSignature) && other.numDims == this.numDims;
     }
 
     /* (non-Javadoc)

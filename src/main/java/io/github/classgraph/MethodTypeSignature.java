@@ -279,7 +279,9 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof MethodTypeSignature)) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof MethodTypeSignature)) {
             return false;
         }
         final MethodTypeSignature o = (MethodTypeSignature) obj;

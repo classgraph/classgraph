@@ -678,7 +678,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
         } else if (!(obj instanceof MethodInfo)) {
             return false;

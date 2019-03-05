@@ -421,7 +421,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
         } else if (!(obj instanceof FieldInfo)) {
             return false;

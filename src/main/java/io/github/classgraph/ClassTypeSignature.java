@@ -221,10 +221,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
-        }
-        if (!(obj instanceof ClassTypeSignature)) {
+        } else if (!(obj instanceof ClassTypeSignature)) {
             return false;
         }
         final ClassTypeSignature o = (ClassTypeSignature) obj;

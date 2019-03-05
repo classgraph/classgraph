@@ -2662,7 +2662,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
         } else if (!(obj instanceof ClassInfo)) {
             return false;

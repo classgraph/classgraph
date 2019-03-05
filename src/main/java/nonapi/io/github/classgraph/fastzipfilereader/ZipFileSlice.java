@@ -209,14 +209,13 @@ class ZipFileSlice {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean equals(final Object obj) {
+        if (obj == this) {
             return true;
-        }
-        if (!(o instanceof ZipFileSlice)) {
+        } else if (!(obj instanceof ZipFileSlice)) {
             return false;
         }
-        final ZipFileSlice other = (ZipFileSlice) o;
+        final ZipFileSlice other = (ZipFileSlice) obj;
         return startOffsetWithinPhysicalZipFile == other.startOffsetWithinPhysicalZipFile && len == other.len
                 && this.physicalZipFile.equals(other.physicalZipFile);
     }

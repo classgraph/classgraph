@@ -199,7 +199,12 @@ public class BaseTypeSignature extends TypeSignature {
      */
     @Override
     public boolean equals(final Object obj) {
-        return obj instanceof BaseTypeSignature && ((BaseTypeSignature) obj).baseType.equals(this.baseType);
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof BaseTypeSignature)) {
+            return false;
+        }
+        return ((BaseTypeSignature) obj).baseType.equals(this.baseType);
     }
 
     /* (non-Javadoc)

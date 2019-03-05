@@ -498,7 +498,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         if (toString != null) {
             return toString;
         } else {
-            return toString = getURL().toString();
+            return toString = getURI().toString();
         }
     }
 
@@ -515,7 +515,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof Resource)) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof Resource)) {
             return false;
         }
         return this.toString().equals(obj.toString());

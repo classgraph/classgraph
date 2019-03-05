@@ -265,11 +265,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof ModuleRef)) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof ModuleRef)) {
             return false;
         }
-        final ModuleRef mr = (ModuleRef) obj;
-        return mr.reference.equals(this.reference) && mr.layer.equals(this.layer);
+        final ModuleRef modRef = (ModuleRef) obj;
+        return modRef.reference.equals(this.reference) && modRef.layer.equals(this.layer);
     }
 
     /* (non-Javadoc)

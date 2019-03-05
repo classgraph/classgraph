@@ -62,8 +62,13 @@ class ReferenceEqualityKey<K> {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object other) {
-        return other instanceof ReferenceEqualityKey && wrappedKey == ((ReferenceEqualityKey<?>) other).wrappedKey;
+    public boolean equals(final Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof ReferenceEqualityKey)) {
+            return false;
+        }
+        return wrappedKey == ((ReferenceEqualityKey<?>) obj).wrappedKey;
     }
 
     /* (non-Javadoc)

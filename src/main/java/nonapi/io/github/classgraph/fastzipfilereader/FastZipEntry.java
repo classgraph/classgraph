@@ -641,8 +641,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
-        }
-        if (!(obj instanceof FastZipEntry)) {
+        } else if (!(obj instanceof FastZipEntry)) {
             return false;
         }
         final FastZipEntry other = (FastZipEntry) obj;

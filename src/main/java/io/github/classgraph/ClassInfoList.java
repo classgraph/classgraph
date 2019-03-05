@@ -791,14 +791,13 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @see java.util.ArrayList#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean equals(final Object obj) {
+        if (this == obj) {
             return true;
-        }
-        if (!(o instanceof ClassInfoList)) {
+        } else if (!(obj instanceof ClassInfoList)) {
             return false;
         }
-        final ClassInfoList other = (ClassInfoList) o;
+        final ClassInfoList other = (ClassInfoList) obj;
         if ((directlyRelatedClasses == null) != (other.directlyRelatedClasses == null)) {
             return false;
         }

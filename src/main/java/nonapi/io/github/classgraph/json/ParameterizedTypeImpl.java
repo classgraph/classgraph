@@ -102,19 +102,14 @@ class ParameterizedTypeImpl implements ParameterizedType {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean equals(final Object obj) {
+        if (obj == this) {
             return true;
-        }
-        if (!(o instanceof ParameterizedType)) {
+        } else if (!(obj instanceof ParameterizedType)) {
             return false;
         }
-        final ParameterizedType other = (ParameterizedType) o;
-
-        final Type otherOwnerType = other.getOwnerType();
-        final Type otherRawType = other.getRawType();
-
-        return Objects.equals(ownerType, otherOwnerType) && Objects.equals(rawType, otherRawType)
+        final ParameterizedType other = (ParameterizedType) obj;
+        return Objects.equals(ownerType, other.getOwnerType()) && Objects.equals(rawType, other.getRawType())
                 && Arrays.equals(actualTypeArguments, other.getActualTypeArguments());
     }
 

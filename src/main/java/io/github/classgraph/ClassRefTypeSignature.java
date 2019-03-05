@@ -246,10 +246,9 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      */
     @Override
     public boolean equals(final Object obj) {
-        if (this == obj) {
+        if (obj == this) {
             return true;
-        }
-        if (!(obj instanceof ClassRefTypeSignature)) {
+        } else if (!(obj instanceof ClassRefTypeSignature)) {
             return false;
         }
         final ClassRefTypeSignature o = (ClassRefTypeSignature) obj;
