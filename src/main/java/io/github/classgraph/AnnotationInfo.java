@@ -502,11 +502,13 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof AnnotationInfo)) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof AnnotationInfo)) {
             return false;
         }
-        final AnnotationInfo o = (AnnotationInfo) obj;
-        return this.compareTo(o) == 0;
+        final AnnotationInfo other = (AnnotationInfo) obj;
+        return this.compareTo(other) == 0;
     }
 
     /* (non-Javadoc)

@@ -198,7 +198,9 @@ public class AnnotationClassRef extends ScanResultObject {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof AnnotationClassRef)) {
+        if (this == obj) {
+            return true;
+        } else if (!(obj instanceof AnnotationClassRef)) {
             return false;
         }
         return getTypeSignature().equals(((AnnotationClassRef) obj).getTypeSignature());

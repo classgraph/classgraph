@@ -161,7 +161,9 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      */
     @Override
     public boolean equals(final Object o) {
-        if (!(o instanceof AnnotationEnumValue)) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof AnnotationEnumValue)) {
             return false;
         }
         return compareTo((AnnotationEnumValue) o) == 0;

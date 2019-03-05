@@ -423,11 +423,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (this.getClass() != obj.getClass()) {
+        } else if (!(obj instanceof FieldInfo)) {
             return false;
         }
         final FieldInfo other = (FieldInfo) obj;

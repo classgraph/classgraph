@@ -2664,11 +2664,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (this.getClass() != obj.getClass()) {
+        } else if (!(obj instanceof ClassInfo)) {
             return false;
         }
         final ClassInfo other = (ClassInfo) obj;

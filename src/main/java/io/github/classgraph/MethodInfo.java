@@ -680,11 +680,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (this.getClass() != obj.getClass()) {
+        } else if (!(obj instanceof MethodInfo)) {
             return false;
         }
         final MethodInfo other = (MethodInfo) obj;

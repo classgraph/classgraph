@@ -555,6 +555,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
     @Override
     public int hashCode() {
         return Objects.hash(enumValue, classRef, annotationInfo, stringValue, integerValue, longValue, shortValue,
@@ -565,6 +568,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 Arrays.hashCode(byteArrayValue), Arrays.hashCode(objectArrayValue));
     }
 
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
     @Override
     public boolean equals(final Object other) {
         if (other == this) {
