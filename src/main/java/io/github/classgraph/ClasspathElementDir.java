@@ -144,16 +144,13 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
      *
-     * @param classpathEltDir
-     *            the classpath element directory
      * @param relativePath
      *            the relative path
      * @param classpathResourceFile
      *            the classpath resource file
      * @return the resource
      */
-    private Resource newResource(final File classpathEltDir, final String relativePath,
-            final File classpathResourceFile) {
+    private Resource newResource(final String relativePath, final File classpathResourceFile) {
         return new Resource(this, classpathResourceFile.length()) {
             /** The random access file. */
             private RandomAccessFile randomAccessFile;
@@ -287,9 +284,7 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     Resource getResource(final String relativePath) {
         final File resourceFile = new File(classpathEltDir, relativePath);
-        return resourceFile.canRead() && resourceFile.isFile()
-                ? newResource(classpathEltDir, relativePath, resourceFile)
-                : null;
+        return resourceFile.canRead() && resourceFile.isFile() ? newResource(relativePath, resourceFile) : null;
     }
 
     /**
@@ -388,7 +383,7 @@ class ClasspathElementDir extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyWhitelisted(fileInDirRelativePath))) {
                         // Resource is whitelisted
-                        final Resource resource = newResource(classpathEltDir, fileInDirRelativePath, fileInDir);
+                        final Resource resource = newResource(fileInDirRelativePath, fileInDir);
                         addWhitelistedResource(resource, parentMatchStatus, subLog);
 
                         // Save last modified time  
@@ -404,7 +399,7 @@ class ClasspathElementDir extends ClasspathElement {
             // Always check for module descriptor in package root, even if package root isn't in whitelist
             for (final File fileInDir : filesInDir) {
                 if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
-                    final Resource resource = newResource(classpathEltDir, "module-info.class", fileInDir);
+                    final Resource resource = newResource("module-info.class", fileInDir);
                     addWhitelistedResource(resource, parentMatchStatus, subLog);
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
                 }
