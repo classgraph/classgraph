@@ -901,7 +901,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get simple name from fully-qualified class name.
+     * Get simple name from fully-qualified class name. Returns everything after the last '.' in the class name, or
+     * the whole string if the class is in the root package. (Note that this is not the same as the result of
+     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @return The simple name of the class.
      */
@@ -910,7 +912,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the simple name of the class.
+     * Get the simple name of the class. Returns everything after the last '.' in the class name, or the whole
+     * string if the class is in the root package. (Note that this is not the same as the result of
+     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @return The simple name of the class.
      */
