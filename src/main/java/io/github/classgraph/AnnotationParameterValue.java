@@ -250,9 +250,15 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Override
     public int compareTo(final AnnotationParameterValue other) {
+        if (other == this) {
+            return 0;
+        }
         final int diff = name.compareTo(other.getName());
         if (diff != 0) {
             return diff;
+        }
+        if (value.equals(other.value)) {
+            return 0;
         }
         // Use toString() order (which can be slow) as a last-ditch effort -- only happens
         // if the annotation has multiple parameters of the same name but different value. 
