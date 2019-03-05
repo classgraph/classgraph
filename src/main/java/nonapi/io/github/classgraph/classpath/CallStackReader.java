@@ -142,11 +142,11 @@ class CallStackReader {
      */
     static Class<?>[] getClassContext(final LogNode log) {
         // For JRE 9+, use StackWalker to get call stack
-        Class<?>[] stack = null;
+        Class<?>[] stackClasses = null;
         if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
             // Invoke with doPrivileged -- see:
             // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
-            stack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
+            stackClasses = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
                 @Override
                 public Class<?>[] run() {
                     return getCallStackViaStackWalker();
@@ -155,8 +155,8 @@ class CallStackReader {
         }
 
         // For JRE 7 and 8, use SecurityManager to get call stack
-        if (stack == null || stack.length == 0) {
-            stack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
+        if (stackClasses == null || stackClasses.length == 0) {
+            stackClasses = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
                 @Override
                 public Class<?>[] run() {
                     return getCallStackViaSecurityManager(log);
@@ -165,7 +165,7 @@ class CallStackReader {
         }
 
         // As a fallback, use getStackTrace() to try to get the call stack
-        if (stack == null || stack.length == 0) {
+        if (stackClasses == null || stackClasses.length == 0) {
             StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
             if (stackTrace == null || stackTrace.length == 0) {
                 try {
@@ -174,21 +174,21 @@ class CallStackReader {
                     stackTrace = e.getStackTrace();
                 }
             }
-            final List<Class<?>> classes = new ArrayList<>();
+            final List<Class<?>> stackClassesList = new ArrayList<>();
             for (final StackTraceElement elt : stackTrace) {
                 try {
-                    classes.add(Class.forName(elt.getClassName()));
+                    stackClassesList.add(Class.forName(elt.getClassName()));
                 } catch (final ClassNotFoundException | LinkageError ignored) {
                     // Ignored
                 }
             }
-            if (!classes.isEmpty()) {
-                stack = classes.toArray(new Class<?>[0]);
+            if (!stackClassesList.isEmpty()) {
+                stackClasses = stackClassesList.toArray(new Class<?>[0]);
             } else {
                 // Last-ditch effort -- include just this class in the call stack
-                stack = new Class<?>[] { CallStackReader.class };
+                stackClasses = new Class<?>[] { CallStackReader.class };
             }
         }
-        return stack;
+        return stackClasses;
     }
 }
