@@ -155,7 +155,7 @@ class CallStackReader {
         }
 
         // For JRE 7 and 8, use SecurityManager to get call stack
-        if (stack == null) {
+        if (stack == null || stack.length == 0) {
             stack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
                 @Override
                 public Class<?>[] run() {
@@ -165,7 +165,7 @@ class CallStackReader {
         }
 
         // As a fallback, use getStackTrace() to try to get the call stack
-        if (stack == null) {
+        if (stack == null || stack.length == 0) {
             StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
             if (stackTrace == null || stackTrace.length == 0) {
                 try {
