@@ -30,7 +30,9 @@ package io.github.classgraph;
 
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Objects;
 
 /**
  * Information on the parameters of a method.
@@ -239,6 +241,32 @@ public class MethodParameterInfo {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof MethodParameterInfo)) {
+            return false;
+        }
+        final MethodParameterInfo other = (MethodParameterInfo) obj;
+        return Objects.equals(methodInfo, other.methodInfo)
+                && Objects.deepEquals(annotationInfo, other.annotationInfo) && modifiers == other.modifiers
+                && Objects.equals(typeDescriptor, other.typeDescriptor)
+                && Objects.equals(typeSignature, other.typeSignature) && Objects.equals(name, other.name);
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(methodInfo, Arrays.hashCode(annotationInfo), typeDescriptor, typeSignature, name)
+                + modifiers;
+    }
 
     /**
      * Convert modifiers into a string representation, e.g. "public static final".
