@@ -234,21 +234,32 @@ public class AnnotationParameterValue extends ScanResultObject
         }
     }
 
+    /**
+     * To string, param value only.
+     * 
+     * @return the string.
+     */
+    private String toStringParamValueOnly() {
+        final StringBuilder buf = new StringBuilder();
+        toStringParamValueOnly(buf);
+        return buf.toString();
+    }
+
     /* (non-Javadoc)
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
     @Override
-    public int compareTo(final AnnotationParameterValue o) {
-        final int diff = name.compareTo(o.getName());
+    public int compareTo(final AnnotationParameterValue other) {
+        final int diff = name.compareTo(other.getName());
         if (diff != 0) {
             return diff;
         }
-        // Use toString() order and get() (which can be slow) as a last-ditch effort -- only happens
+        // Use toString() order (which can be slow) as a last-ditch effort -- only happens
         // if the annotation has multiple parameters of the same name but different value. 
         final Object p0 = getValue();
-        final Object p1 = o.getValue();
+        final Object p1 = other.getValue();
         return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
-                : p0.toString().compareTo(p1.toString());
+                : toStringParamValueOnly().compareTo(other.toStringParamValueOnly());
     }
 
     /* (non-Javadoc)
@@ -258,13 +269,12 @@ public class AnnotationParameterValue extends ScanResultObject
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
-        }
-        if (!(obj instanceof AnnotationParameterValue)) {
+        } else if (!(obj instanceof AnnotationParameterValue)) {
             return false;
         }
-        final AnnotationParameterValue o = (AnnotationParameterValue) obj;
-        return this.compareTo(o) == 0 && (value == null) == (o.value == null)
-                && (value == null || value.equals(o.value));
+        final AnnotationParameterValue other = (AnnotationParameterValue) obj;
+        return this.name.equals(other.name) && (value == null) == (other.value == null)
+                && (value == null || value.equals(other.value));
     }
 
     /* (non-Javadoc)
