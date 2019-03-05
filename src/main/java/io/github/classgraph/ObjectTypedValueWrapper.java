@@ -29,6 +29,8 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Set;
 
 /** A union type, used for typesafe serialization/deserialization to/from JSON. Only one field is ever set. */
@@ -108,6 +110,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     public ObjectTypedValueWrapper() {
         super();
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Constructor.
@@ -547,5 +551,39 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 item.findReferencedClassNames(referencedClassNames);
             }
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(enumValue, classRef, annotationInfo, stringValue, integerValue, longValue, shortValue,
+                booleanValue, characterValue, floatValue, doubleValue, byteValue, Arrays.hashCode(stringArrayValue),
+                Arrays.hashCode(intArrayValue), Arrays.hashCode(longArrayValue), Arrays.hashCode(shortArrayValue),
+                Arrays.hashCode(booleanArrayValue), Arrays.hashCode(charArrayValue),
+                Arrays.hashCode(floatArrayValue), Arrays.hashCode(doubleArrayValue),
+                Arrays.hashCode(byteArrayValue), Arrays.hashCode(objectArrayValue));
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        if (other == this) {
+            return true;
+        } else if (!(other instanceof ObjectTypedValueWrapper)) {
+            return false;
+        }
+        final ObjectTypedValueWrapper o = (ObjectTypedValueWrapper) other;
+        return Objects.equals(enumValue, o.enumValue) && Objects.equals(classRef, o.classRef)
+                && Objects.equals(annotationInfo, o.annotationInfo) && Objects.equals(stringValue, o.stringValue)
+                && Objects.equals(integerValue, o.integerValue) && Objects.equals(longValue, o.longValue)
+                && Objects.equals(shortValue, o.shortValue) && Objects.equals(booleanValue, o.booleanValue)
+                && Objects.equals(characterValue, o.characterValue) && Objects.equals(floatValue, o.floatValue)
+                && Objects.equals(doubleValue, o.doubleValue) && Objects.equals(byteValue, o.byteValue)
+                && Arrays.equals(stringArrayValue, o.stringArrayValue)
+                && Arrays.equals(intArrayValue, o.intArrayValue) && Arrays.equals(longArrayValue, o.longArrayValue)
+                && Arrays.equals(shortArrayValue, o.shortArrayValue)
+                && Arrays.equals(floatArrayValue, o.floatArrayValue)
+                && Arrays.equals(byteArrayValue, o.byteArrayValue)
+                && Arrays.deepEquals(objectArrayValue, o.objectArrayValue);
     }
 }
