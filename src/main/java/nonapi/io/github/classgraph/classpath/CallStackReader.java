@@ -166,23 +166,27 @@ class CallStackReader {
 
         // As a fallback, use getStackTrace() to try to get the call stack
         if (stack == null) {
-            try {
-                throw new Exception();
-            } catch (final Exception e) {
-                final List<Class<?>> classes = new ArrayList<>();
-                for (final StackTraceElement elt : e.getStackTrace()) {
-                    try {
-                        classes.add(Class.forName(elt.getClassName()));
-                    } catch (final ClassNotFoundException | LinkageError ignored) {
-                        // Ignored
-                    }
+            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+            if (stackTrace == null || stackTrace.length == 0) {
+                try {
+                    throw new Exception();
+                } catch (final Exception e) {
+                    stackTrace = e.getStackTrace();
                 }
-                if (!classes.isEmpty()) {
-                    stack = classes.toArray(new Class<?>[0]);
-                } else {
-                    // Last-ditch effort -- include just this class in the call stack
-                    stack = new Class<?>[] { CallStackReader.class };
+            }
+            final List<Class<?>> classes = new ArrayList<>();
+            for (final StackTraceElement elt : stackTrace) {
+                try {
+                    classes.add(Class.forName(elt.getClassName()));
+                } catch (final ClassNotFoundException | LinkageError ignored) {
+                    // Ignored
                 }
+            }
+            if (!classes.isEmpty()) {
+                stack = classes.toArray(new Class<?>[0]);
+            } else {
+                // Last-ditch effort -- include just this class in the call stack
+                stack = new Class<?>[] { CallStackReader.class };
             }
         }
         return stack;
