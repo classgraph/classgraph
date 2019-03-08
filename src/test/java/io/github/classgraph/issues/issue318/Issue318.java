@@ -14,7 +14,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue314.
+ * Unit test.
  */
 public class Issue318 {
 
@@ -40,20 +40,6 @@ public class Issue318 {
          */
         MyAnn[] value();
     }
-
-    //    /**
-    //     * The Interface MyAnnRepeating.
-    //     */
-    //    @Retention(RetentionPolicy.RUNTIME)
-    //    @Target({ ElementType.TYPE })
-    //    @interface MyAnnRepeating2 {
-    //        /**
-    //         * Value.
-    //         *
-    //         * @return the my ann[]
-    //         */
-    //        MyAnn[] value();
-    //    }
 
     /**
      * The Class With0MyAnn.
