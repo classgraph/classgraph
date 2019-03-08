@@ -2600,6 +2600,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     protected void findReferencedClassNames(final Set<String> referencedClassNames) {
+        if (this.referencedClassNames != null) {
+            referencedClassNames.addAll(this.referencedClassNames);
+        }
         getMethodInfo().findReferencedClassNames(referencedClassNames);
         getFieldInfo().findReferencedClassNames(referencedClassNames);
         getAnnotationInfo().findReferencedClassNames(referencedClassNames);
