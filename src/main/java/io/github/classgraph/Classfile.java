@@ -917,7 +917,7 @@ class Classfile {
             case 7: // Class reference (format is e.g. "java/lang/String")
                 // Forward or backward indirect reference to a modified UTF8 entry
                 indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
-                if (scanSpec.enableInterClassDependencies && entryTag[i] == 7) {
+                if (scanSpec.enableInterClassDependencies) {
                     // If this is a class ref, and inter-class dependencies are enabled, record the dependency
                     classNameCpIdxs.add(indirectStringRefs[i]);
                 }
