@@ -27,7 +27,7 @@ public class Issue329 {
     /** Test. */
     @Test
     public void test() {
-        try (ScanResult scanResult = new ClassGraph().enableAllInfo().enableInterClassDependencies().verbose()
+        try (ScanResult scanResult = new ClassGraph().enableAllInfo().enableInterClassDependencies()
                 .enableExternalClasses().whitelistClasses(Foo.class.getName()).scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(Foo.class.getName());
             assertThat(classInfo.getClassDependencies().getNames())
