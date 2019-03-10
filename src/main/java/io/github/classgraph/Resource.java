@@ -37,6 +37,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -407,6 +408,22 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         return classpathElement instanceof ClasspathElementModule
                 ? ((ClasspathElementModule) classpathElement).moduleRef
                 : null;
+    }
+
+    /**
+     * Convenience method to get the content of this {@link Resource} as a String. Assumes UTF8 encoding. (Calls
+     * {@link #close()} after completion.)
+     *
+     * @return the content of this {@link Resource} as a String.
+     * @throws IOException
+     *             If an I/O exception occurred.
+     */
+    public String getContentAsString() throws IOException {
+        try {
+            return new String(load(), StandardCharsets.UTF_8);
+        } finally {
+            close();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
