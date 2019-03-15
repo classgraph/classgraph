@@ -1107,7 +1107,9 @@ public class ClassGraph {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}.
+     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}. You should
+     * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
+     * finished with it.
      *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
@@ -1135,7 +1137,8 @@ public class ClassGraph {
 
     /**
      * Scans the classpath using the requested {@link ExecutorService} and the requested degree of parallelism,
-     * blocking until the scan is complete.
+     * blocking until the scan is complete. You should assign the returned {@link ScanResult} in a
+     * try-with-resources statement, or manually close it when you are finished with it.
      *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks. This {@link ExecutorService}
@@ -1182,7 +1185,9 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath with the requested number of threads, blocking until the scan is complete.
+     * Scans the classpath with the requested number of threads, blocking until the scan is complete. You should
+     * assign the returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are
+     * finished with it.
      *
      * @param numThreads
      *            The number of worker threads to start up.
@@ -1197,7 +1202,8 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath, blocking until the scan is complete.
+     * Scans the classpath, blocking until the scan is complete. You should assign the returned {@link ScanResult}
+     * in a try-with-resources statement, or manually close it when you are finished with it.
      *
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException

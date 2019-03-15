@@ -56,7 +56,10 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** The result of a scan. */
+/**
+ * The result of a scan. You should assign a ScanResult in a try-with-resources block, or manually close it when you
+ * have finished with the result of a scan.
+ */
 public final class ScanResult implements Closeable, AutoCloseable {
     /** The order of raw classpath elements. */
     private List<String> rawClasspathEltOrderStrs;
