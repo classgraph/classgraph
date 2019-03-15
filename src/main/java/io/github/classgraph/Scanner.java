@@ -1002,7 +1002,11 @@ class Scanner implements Callable<ScanResult> {
 
             // Call the ScanResultProcessor, if one was provided
             if (scanResultProcessor != null) {
-                scanResultProcessor.processScanResult(scanResult);
+                try {
+                    scanResultProcessor.processScanResult(scanResult);
+                } finally {
+                    scanResult.close();
+                }
             }
 
         } catch (final InterruptedException e) {
