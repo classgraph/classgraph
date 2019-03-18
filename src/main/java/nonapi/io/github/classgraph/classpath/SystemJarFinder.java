@@ -68,7 +68,7 @@ public final class SystemJarFinder {
                     final String filePath = file.getPath();
                     if (filePath.endsWith(".jar")) {
                         final String jarPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, filePath);
-                        if (filePath.endsWith("/rt.jar")) {
+                        if (jarPathResolved.endsWith("/rt.jar")) {
                             RT_JARS.add(jarPathResolved);
                         } else {
                             JRE_LIB_OR_EXT_JARS.add(jarPathResolved);
