@@ -207,13 +207,20 @@ class ClasspathElementZip extends ClasspathElement {
             // jar, probably the intent is that the Class-Path path is relative to the root of the parent jar
             // (although this is an unlikely scenario).
             final String parentZipPrefix = lastPlingIdx < 0 ? "" : path.substring(0, lastPlingIdx + 1);
-            final String parentPathPrefix = lastSlashIdx < 0 ? ""
-                    : path.substring(lastPlingIdx + 1, lastSlashIdx + 1);
+            String parentPathPrefix = lastSlashIdx < 0 ? "" : path.substring(lastPlingIdx + 1, lastSlashIdx + 1);
+            if (parentZipPrefix.isEmpty() && parentPathPrefix.isEmpty()) {
+                parentPathPrefix = FileUtils.CURR_DIR_PATH;
+            }
             for (final String childClassPathEltPath : logicalZipFile.classPathManifestEntryValue.split(" ")) {
                 if (!childClassPathEltPath.isEmpty()) {
                     // Resolve Class-Path entry relative to containing dir
-                    final String childClassPathEltPathResolved = parentZipPrefix
-                            + FastPathResolver.resolve(parentPathPrefix, childClassPathEltPath);
+                    String childClassPathEltPathResolved = FastPathResolver.resolve(parentPathPrefix,
+                            childClassPathEltPath);
+                    if (!parentZipPrefix.isEmpty()) {
+                        childClassPathEltPathResolved = parentZipPrefix
+                                + (childClassPathEltPathResolved.startsWith("/") ? childClassPathEltPathResolved
+                                        : "/" + childClassPathEltPathResolved);
+                    }
                     // Only add child classpath elements once
                     if (!childClassPathEltPathResolved.equals(rawPath)) {
                         // Schedule child classpath element for scanning
