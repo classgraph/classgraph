@@ -201,13 +201,19 @@ class ClasspathElementZip extends ClasspathElement {
             // Class-Path entries in the manifest file are resolved relative to the dir that
             // the manifest's jarfile is contained in -- get parent dir of logical zipfile
             final String path = logicalZipFile.getPath();
-            final int lastSlashIdx = path.lastIndexOf('/');
-            final String parentPathPrefix = lastSlashIdx < 0 ? "" : path.substring(0, lastSlashIdx + 1);
+            final int lastPlingIdx = path.lastIndexOf('!');
+            final int lastSlashIdx = Math.max(path.lastIndexOf('/'), lastPlingIdx);
+            // Get path of parent jarfile, if this is a nested jar. If there is a Class-Path entry in a nested
+            // jar, probably the intent is that the Class-Path path is relative to the root of the parent jar
+            // (although this is an unlikely scenario).
+            final String parentZipPrefix = lastPlingIdx < 0 ? "" : path.substring(0, lastPlingIdx + 1);
+            final String parentPathPrefix = lastSlashIdx < 0 ? ""
+                    : path.substring(lastPlingIdx + 1, lastSlashIdx + 1);
             for (final String childClassPathEltPath : logicalZipFile.classPathManifestEntryValue.split(" ")) {
                 if (!childClassPathEltPath.isEmpty()) {
                     // Resolve Class-Path entry relative to containing dir
-                    final String childClassPathEltPathResolved = FastPathResolver
-                            .resolve(parentPathPrefix + "/" + childClassPathEltPath);
+                    final String childClassPathEltPathResolved = parentZipPrefix
+                            + FastPathResolver.resolve(parentPathPrefix, childClassPathEltPath);
                     // Only add child classpath elements once
                     if (!childClassPathEltPathResolved.equals(rawPath)) {
                         // Schedule child classpath element for scanning
