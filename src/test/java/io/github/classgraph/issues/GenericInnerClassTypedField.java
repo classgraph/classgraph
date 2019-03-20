@@ -10,10 +10,9 @@ import io.github.classgraph.FieldInfoList;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class GenericInnerClassTypedField.
+ * GenericInnerClassTypedField.
  */
 public class GenericInnerClassTypedField {
-
     /**
      * The Class A.
      *

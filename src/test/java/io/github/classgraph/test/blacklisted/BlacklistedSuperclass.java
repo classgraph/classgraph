@@ -1,7 +1,7 @@
 package io.github.classgraph.test.blacklisted;
 
 /**
- * The Class BlacklistedSuperclass.
+ * BlacklistedSuperclass.
  */
 public class BlacklistedSuperclass {
 }

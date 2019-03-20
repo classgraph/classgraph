@@ -48,7 +48,6 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
-
     /** The classpath order. */
     private final ClasspathOrder classpathOrder;
 

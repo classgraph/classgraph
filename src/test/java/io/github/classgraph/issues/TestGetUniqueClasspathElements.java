@@ -10,10 +10,9 @@ import org.junit.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * The Class TestGetUniqueClasspathElements.
+ * TestGetUniqueClasspathElements.
  */
 public class TestGetUniqueClasspathElements {
-
     /**
      * Test get unique classpath elements.
      */

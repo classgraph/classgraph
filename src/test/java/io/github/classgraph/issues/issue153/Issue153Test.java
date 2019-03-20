@@ -49,7 +49,7 @@ import io.github.classgraph.issues.issue153.Issue153Test.StringAnnotation;
 import io.github.classgraph.issues.issue153.Issue153Test.TwoParamAnnotation;
 
 /**
- * The Class Issue153Test.
+ * Issue153Test.
  */
 @StringAnnotation("classlabel")
 @TwoParamAnnotation(value1 = 'x', value2 = { 1, 2, 3 })
@@ -57,7 +57,6 @@ import io.github.classgraph.issues.issue153.Issue153Test.TwoParamAnnotation;
 @NestedAnnotation({ @StringAnnotation("one"), @StringAnnotation("two") })
 @ClassRefAnnotation(Issue153Test.class)
 public class Issue153Test {
-
     /**
      * The Interface StringAnnotation.
      */

@@ -11,10 +11,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue171Test.
+ * Issue171Test.
  */
 public class Issue171Test {
-
     /**
      * Spring boot fully executable jar.
      */

@@ -18,10 +18,9 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
- * The Class MultiReleaseJar.
+ * MultiReleaseJar.
  */
 public class MultiReleaseJar {
-
     /** The Constant jarURL. */
     private static final URL jarURL = MultiReleaseJar.class.getClassLoader().getResource("multi-release-jar.jar");
 

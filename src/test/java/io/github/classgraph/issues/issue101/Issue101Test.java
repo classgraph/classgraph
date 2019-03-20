@@ -36,10 +36,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue101Test.
+ * Issue101Test.
  */
 public class Issue101Test {
-
     /**
      * Non inherited annotation.
      */

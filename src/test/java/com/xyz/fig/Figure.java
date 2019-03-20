@@ -5,11 +5,10 @@ import java.awt.Graphics2D;
 import com.xyz.fig.shape.Shape;
 
 /**
- * The Class Figure.
+ * Figure.
  */
 @UIWidget
 public class Figure implements Drawable {
-
     /** The scene graph. */
     SceneGraph sceneGraph = new SceneGraph();
 

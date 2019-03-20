@@ -17,7 +17,6 @@ import io.github.classgraph.ScanResult;
  * Unit test.
  */
 public class Issue318 {
-
     /**
      * The Interface MyAnn.
      */

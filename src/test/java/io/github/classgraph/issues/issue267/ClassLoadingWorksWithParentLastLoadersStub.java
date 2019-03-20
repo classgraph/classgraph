@@ -39,10 +39,9 @@ import org.junit.Test;
 import com.xyz.meta.A;
 
 /**
- * The Class ClassLoadingWorksWithParentLastLoadersStub.
+ * ClassLoadingWorksWithParentLastLoadersStub.
  */
 public class ClassLoadingWorksWithParentLastLoadersStub {
-
     /**
      * Same class loader that found A class should load it.
      *

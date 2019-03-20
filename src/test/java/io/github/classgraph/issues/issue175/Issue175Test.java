@@ -43,10 +43,9 @@ import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue175Test.
+ * Issue175Test.
  */
 public class Issue175Test {
-
     /**
      * Test synthetic.
      */

@@ -11,10 +11,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue93.
+ * Issue93.
  */
 public class Issue93 {
-
     /** The Constant PKG. */
     private static final String PKG = Issue93.class.getPackage().getName();
 

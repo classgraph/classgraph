@@ -15,11 +15,10 @@ import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
 
 /**
- * The Class JSONSerializationTest.
+ * JSONSerializationTest.
  */
 @SuppressWarnings("unused")
 public class JSONSerializationTest {
-
     /**
      * The Class A.
      *

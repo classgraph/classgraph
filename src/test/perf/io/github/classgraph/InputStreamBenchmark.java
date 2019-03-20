@@ -42,11 +42,10 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * The Class InputStreamBenchmark.
+ * InputStreamBenchmark.
  */
 @State(Scope.Benchmark)
 public class InputStreamBenchmark {
-
     /** The nb bytes. */
     @Param({ "16", "4096", "32178", "500000", "5000000" })
     public int nbBytes;

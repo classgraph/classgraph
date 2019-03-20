@@ -36,10 +36,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue260Test.
+ * Issue260Test.
  */
 public class Issue260Test {
-
     /**
      * Issue 260 test.
      */

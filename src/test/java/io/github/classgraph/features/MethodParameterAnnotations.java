@@ -11,7 +11,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class AnnotationEquality.
+ * AnnotationEquality.
  */
 public class MethodParameterAnnotations {
     /**

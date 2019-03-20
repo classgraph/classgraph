@@ -41,10 +41,9 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue152Test.
+ * Issue152Test.
  */
 public class Issue152Test {
-
     /** The test field. */
     public Map<Integer, Map<String, Boolean>> testField;
 

@@ -5,11 +5,10 @@ import java.lang.annotation.Annotation;
 import io.github.classgraph.issues.issue38.Issue38Test.AnnotationLiteral;
 
 /**
- * The Class SomeAnnotationLiteral.
+ * SomeAnnotationLiteral.
  */
 @SuppressWarnings("all")
 public class SomeAnnotationLiteral extends AnnotationLiteral<SomeAnnotationLiteral> implements SomeAnnotation {
-
     /* (non-Javadoc)
      * @see io.github.classgraph.issues.issue38.SomeAnnotation#value()
      */

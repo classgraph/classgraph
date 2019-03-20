@@ -8,10 +8,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue74Test.
+ * Issue74Test.
  */
 public class Issue74Test {
-
     /**
      * The Interface Function.
      */

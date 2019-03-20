@@ -5,7 +5,7 @@ import io.github.classgraph.test.blacklisted.BlacklistedInterface;
 import io.github.classgraph.test.blacklisted.BlacklistedSuperclass;
 
 /**
- * The Class Whitelisted.
+ * Whitelisted.
  */
 @BlacklistedAnnotation
 public class Whitelisted extends BlacklistedSuperclass implements BlacklistedInterface {

@@ -40,11 +40,10 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue238Test.
+ * Issue238Test.
  */
 @Entity
 public class Issue238Test {
-
     /**
      * The Class B.
      */

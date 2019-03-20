@@ -10,10 +10,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue38Test.
+ * Issue38Test.
  */
 public class Issue38Test {
-
     /**
      * The Class AnnotationLiteral.
      *

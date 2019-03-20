@@ -41,10 +41,9 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
- * The Class MethodInfoTest.
+ * MethodInfoTest.
  */
 public class MethodInfoTest {
-
     /**
      * Public method with args.
      *

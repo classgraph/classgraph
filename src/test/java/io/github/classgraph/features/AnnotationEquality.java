@@ -14,7 +14,7 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class AnnotationEquality.
+ * AnnotationEquality.
  */
 public class AnnotationEquality {
     /**

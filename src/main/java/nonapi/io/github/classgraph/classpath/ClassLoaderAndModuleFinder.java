@@ -44,7 +44,6 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderAndModuleFinder {
-
     /** The context class loaders. */
     private final ClassLoader[] contextClassLoaders;
 

@@ -35,7 +35,6 @@ import java.util.Set;
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
-
     /** The the parameter name. */
     private String name;
 

@@ -39,10 +39,9 @@ import io.github.classgraph.ResourceList.ByteArrayConsumer;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue255Test.
+ * Issue255Test.
  */
 public class Issue255Test {
-
     /**
      * Issue 255 test.
      */

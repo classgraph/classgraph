@@ -40,11 +40,10 @@ import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue216Test.
+ * Issue216Test.
  */
 @Entity
 public class Issue216Test {
-
     /**
      * Test spring boot jar with lib jars.
      */

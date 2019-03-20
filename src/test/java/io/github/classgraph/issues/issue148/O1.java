@@ -1,10 +1,9 @@
 package io.github.classgraph.issues.issue148;
 
 /**
- * The Class O1.
+ * O1.
  */
 public class O1 {
-
     /**
      * The Class SI.
      */
@@ -15,12 +14,10 @@ public class O1 {
      * The Class I.
      */
     public class I {
-
         /**
          * The Class II.
          */
         public class II {
-
             /**
              * Constructor.
              */

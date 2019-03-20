@@ -8,7 +8,6 @@ import io.github.classgraph.ClassGraph;
  * https://github.com/classgraph/classgraph/issues/277
  */
 public class Issue227Test {
-
     /**
      * Test no args blacklist lib or ext jars.
      */

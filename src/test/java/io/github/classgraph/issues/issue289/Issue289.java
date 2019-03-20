@@ -12,10 +12,9 @@ import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue289.
+ * Issue289.
  */
 public class Issue289 {
-
     /**
      * Issue 289.
      */

@@ -8,10 +8,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue314.
+ * Issue314.
  */
 public class Issue314 {
-
     /**
      * The Class A.
      */

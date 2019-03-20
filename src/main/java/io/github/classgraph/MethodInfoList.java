@@ -35,7 +35,6 @@ import java.util.Set;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
-
     /** Construct a list of {@link MethodInfo} objects. */
     MethodInfoList() {
         super();

@@ -6,10 +6,9 @@ import java.util.ArrayList;
 import com.xyz.fig.shape.Shape;
 
 /**
- * The Class SceneGraph.
+ * SceneGraph.
  */
 public class SceneGraph implements Drawable {
-
     /** The shapes. */
     ArrayList<Shape> shapes = new ArrayList<>();
 

@@ -47,10 +47,9 @@ import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class AnnotationClassRefTest.
+ * AnnotationClassRefTest.
  */
 public class AnnotationClassRefTest {
-
     /**
      * The Interface ClassRefAnnotation.
      */

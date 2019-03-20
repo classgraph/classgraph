@@ -29,7 +29,7 @@
 package io.github.classgraph.issues.issue141;
 
 /**
- * The Class Issue141Test.
+ * Issue141Test.
  *
  * @author wuetherich
  */

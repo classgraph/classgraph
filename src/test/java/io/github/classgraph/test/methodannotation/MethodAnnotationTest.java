@@ -42,10 +42,9 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
- * The Class MethodAnnotationTest.
+ * MethodAnnotationTest.
  */
 public class MethodAnnotationTest {
-
     /**
      * Get the names of classes with method annotation.
      */

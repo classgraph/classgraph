@@ -1,7 +1,7 @@
 package io.github.classgraph.test.external;
 
 /**
- * The Class ExternalSuperclass.
+ * ExternalSuperclass.
  */
 public class ExternalSuperclass {
 }

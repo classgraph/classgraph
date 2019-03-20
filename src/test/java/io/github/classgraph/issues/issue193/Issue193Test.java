@@ -45,10 +45,9 @@ import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue193Test.
+ * Issue193Test.
  */
 public class Issue193Test {
-
     /**
      * Issue 193 test.
      *

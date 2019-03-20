@@ -38,10 +38,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue303Test.
+ * Issue303Test.
  */
 public class Issue303Test {
-
     /** The Constant PACKAGE_NAME. */
     private static final String PACKAGE_NAME = "io.github.classgraph";
 

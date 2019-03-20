@@ -43,7 +43,6 @@ import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
  * classfile for the class.
  */
 public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>, HasName {
-
     /** The declaring class name. */
     private String declaringClassName;
 

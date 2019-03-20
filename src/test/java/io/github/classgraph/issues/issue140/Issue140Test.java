@@ -42,10 +42,9 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.TypeSignature;
 
 /**
- * The Class Issue140Test.
+ * Issue140Test.
  */
 public class Issue140Test {
-
     /** The int field. */
     // Order of fields is significant
     public int intField;

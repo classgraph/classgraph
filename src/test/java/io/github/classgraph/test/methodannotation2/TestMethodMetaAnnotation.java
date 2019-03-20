@@ -43,10 +43,9 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
- * The Class TestMethodMetaAnnotation.
+ * TestMethodMetaAnnotation.
  */
 public class TestMethodMetaAnnotation {
-
     /**
      * The Interface MetaAnnotation.
      */

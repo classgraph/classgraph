@@ -46,7 +46,6 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
-
     /** The scan spec. */
     private final ScanSpec scanSpec;
 

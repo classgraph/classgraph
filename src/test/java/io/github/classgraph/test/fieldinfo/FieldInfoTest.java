@@ -39,10 +39,9 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
- * The Class FieldInfoTest.
+ * FieldInfoTest.
  */
 public class FieldInfoTest {
-
     /** The Constant publicFieldWithAnnotation. */
     @ExternalAnnotation
     public static final int publicFieldWithAnnotation = 3;

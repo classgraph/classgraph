@@ -14,10 +14,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class AnnotationParamWithPrimitiveTypedArray.
+ * AnnotationParamWithPrimitiveTypedArray.
  */
 public class AnnotationParamWithPrimitiveTypedArray {
-
     /**
      * The Interface NestedAnnotation.
      */

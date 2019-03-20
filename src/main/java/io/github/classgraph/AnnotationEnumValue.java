@@ -36,7 +36,6 @@ import java.util.Set;
  * parameter value.
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
-
     /** The class name. */
     private String className;
 

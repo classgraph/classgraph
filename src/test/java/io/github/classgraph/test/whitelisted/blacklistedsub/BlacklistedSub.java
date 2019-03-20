@@ -1,7 +1,7 @@
 package io.github.classgraph.test.whitelisted.blacklistedsub;
 
 /**
- * The Class BlacklistedSub.
+ * BlacklistedSub.
  */
 public class BlacklistedSub {
 }

@@ -3,10 +3,9 @@ package com.xyz.fig.shape;
 import java.awt.Graphics2D;
 
 /**
- * The Class Triangle.
+ * Triangle.
  */
 public class Triangle extends ShapeImpl {
-
     /** The edge len. */
     private final float edgeLen;
 

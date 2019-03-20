@@ -1,7 +1,7 @@
 package io.github.classgraph.test.whitelisted;
 
 /**
- * The Class Cls.
+ * Cls.
  */
 public class Cls {
 }

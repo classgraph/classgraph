@@ -4,10 +4,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
- * The Class HasFieldWithTypeCls.
+ * HasFieldWithTypeCls.
  */
 public class HasFieldWithTypeCls {
-
     /**
      * The Class HasFieldWithTypeCls1.
      */

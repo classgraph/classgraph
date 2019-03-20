@@ -40,7 +40,6 @@ import java.util.Objects;
  * @author lukehutch
  */
 public class MethodParameterInfo {
-
     /** The containing method. */
     private final MethodInfo methodInfo;
 

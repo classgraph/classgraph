@@ -1,7 +1,7 @@
 package com.xyz.meta;
 
 /**
- * The Class A.
+ * A.
  */
 @F
 public class A {

@@ -42,10 +42,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue128Test.
+ * Issue128Test.
  */
 public class Issue128Test {
-
     /** The Constant SITE. */
     private static final String SITE = "https://github.com/classgraph";
 

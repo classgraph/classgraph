@@ -53,7 +53,6 @@ import nonapi.io.github.classgraph.ScanSpec;
  * related classes.
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
-
     /** Directly related classes. */
     // N.B. this is marked transient to keep Scrutinizer happy, since thi class extends ArrayList, which is
     // Serializable, so all fields must be serializable (and Set is an interface, so is not Serializable).

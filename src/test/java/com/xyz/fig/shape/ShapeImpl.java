@@ -3,7 +3,7 @@ package com.xyz.fig.shape;
 import java.awt.Graphics2D;
 
 /**
- * The Class ShapeImpl.
+ * ShapeImpl.
  */
 public abstract class ShapeImpl implements Shape {
 

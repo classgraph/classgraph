@@ -1,7 +1,7 @@
 package io.github.classgraph.issues.issue101;
 
 /**
- * The Class NonAnnotatedSubclass.
+ * NonAnnotatedSubclass.
  */
 public class NonAnnotatedSubclass extends AnnotatedClass {
 }

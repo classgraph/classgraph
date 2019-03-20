@@ -11,10 +11,9 @@ import io.github.classgraph.test.external.ExternalInterface;
 import io.github.classgraph.test.external.ExternalSuperclass;
 
 /**
- * The Class InternalExternalTest.
+ * InternalExternalTest.
  */
 public class InternalExternalTest {
-
     /**
      * Test whitelisting external classes.
      */

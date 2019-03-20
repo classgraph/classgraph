@@ -37,10 +37,9 @@ import io.github.classgraph.ScanResult;
 }
 
 /**
- * The Class DeclaredVsNonDeclared.
+ * DeclaredVsNonDeclared.
  */
 public class DeclaredVsNonDeclared {
-
     /**
      * The Class A.
      */

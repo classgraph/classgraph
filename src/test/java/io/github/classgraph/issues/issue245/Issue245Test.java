@@ -38,10 +38,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue245Test.
+ * Issue245Test.
  */
 public class Issue245Test {
-
     /**
      * Test custom package root.
      */

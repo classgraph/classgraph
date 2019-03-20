@@ -38,10 +38,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class MetaAnnotationTest.
+ * MetaAnnotationTest.
  */
 public class MetaAnnotationTest {
-
     /** The scan result. */
     static ScanResult scanResult;
 

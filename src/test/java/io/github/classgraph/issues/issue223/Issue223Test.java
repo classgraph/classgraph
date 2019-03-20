@@ -41,11 +41,10 @@ import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue223Test.
+ * Issue223Test.
  */
 @Entity
 public class Issue223Test {
-
     /**
      * The Interface InnerInterface.
      */

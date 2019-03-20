@@ -33,7 +33,6 @@ import java.util.Set;
 
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
-
     /**
      * Constructor.
      */

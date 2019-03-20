@@ -1,7 +1,7 @@
 package com.xyz.meta;
 
 /**
- * The Class B.
+ * B.
  */
 @E
 @F

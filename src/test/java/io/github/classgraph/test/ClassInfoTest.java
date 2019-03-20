@@ -25,10 +25,9 @@ import io.github.classgraph.test.whitelisted.Impl2Sub;
 import io.github.classgraph.test.whitelisted.Impl2SubSub;
 
 /**
- * The Class ClassInfoTest.
+ * ClassInfoTest.
  */
 public class ClassInfoTest {
-
     /** The scan result. */
     private static ScanResult scanResult;
 

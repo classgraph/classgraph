@@ -59,7 +59,6 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * https://github.com/classgraph/classgraph/wiki</a>
  */
 public class ClassGraph {
-
     /** The scanning specification. */
     ScanSpec scanSpec = new ScanSpec();
 

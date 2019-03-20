@@ -5,10 +5,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class ClassGraphGraphVizGenerator.
+ * ClassGraphGraphVizGenerator.
  */
 public class ClassGraphGraphVizGenerator {
-
     /**
      * The main method.
      *

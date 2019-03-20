@@ -36,10 +36,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue261Test.
+ * Issue261Test.
  */
 public class Issue261Test {
-
     /**
      * The Class SuperSuperCls.
      */

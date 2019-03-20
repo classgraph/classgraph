@@ -1,7 +1,7 @@
 package io.github.classgraph.issues.issue260;
 
 /**
- * The Class P.
+ * P.
  */
 public abstract class P {
 

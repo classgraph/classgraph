@@ -48,7 +48,6 @@ import nonapi.io.github.classgraph.types.ParseException;
  * object graph by inserting reference ids.
  */
 public class JSONDeserializer {
-
     /**
      * Constructor.
      */

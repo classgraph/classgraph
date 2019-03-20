@@ -14,10 +14,9 @@ import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue83Test.
+ * Issue83Test.
  */
 public class Issue83Test {
-
     /** The Constant jarPathURL. */
     private static final URL jarPathURL = Issue83Test.class.getClassLoader().getResource("nested-jars-level1.zip");
 

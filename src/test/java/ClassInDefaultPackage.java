@@ -1,5 +1,5 @@
 /**
- * The Class ClassInDefaultPackage.
+ * ClassInDefaultPackage.
  */
 public class ClassInDefaultPackage {
 }

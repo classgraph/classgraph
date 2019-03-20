@@ -39,10 +39,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue209Test.
+ * Issue209Test.
  */
 public class Issue209Test {
-
     /**
      * Test spring boot jar with lib jars.
      */

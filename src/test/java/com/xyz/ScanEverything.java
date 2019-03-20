@@ -1,10 +1,9 @@
 package com.xyz;
 
 /**
- * The Class ScanEverything.
+ * ScanEverything.
  */
 public class ScanEverything {
-
     //    @Test
     //    public void scanEverything() throws IOException {
     //        final long t0 = System.nanoTime();

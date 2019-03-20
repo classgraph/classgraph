@@ -3,10 +3,9 @@ package com.xyz.fig.shape;
 import java.awt.Graphics2D;
 
 /**
- * The Class Diamond.
+ * Diamond.
  */
 public class Diamond extends ShapeImpl {
-
     /** The w. */
     private final float w;
 

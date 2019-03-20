@@ -8,10 +8,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue310.
+ * Issue310.
  */
 public class Issue310 {
-
     /** The Constant A. */
     static final double A = 3.0;
 

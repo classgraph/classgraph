@@ -40,10 +40,9 @@ import io.github.classgraph.test.whitelisted.Cls;
 import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 /**
- * The Class DefaultPackageTest.
+ * DefaultPackageTest.
  */
 public class DefaultPackageTest {
-
     /** The Constant WHITELIST_PACKAGE. */
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
 

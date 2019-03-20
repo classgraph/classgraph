@@ -1,10 +1,9 @@
 package io.github.classgraph.test.methodannotation;
 
 /**
- * The Class ClassWithoutMethodAnnotations.
+ * ClassWithoutMethodAnnotations.
  */
 public class ClassWithoutMethodAnnotations {
-
     /** The field without annotations. */
     public int fieldWithoutAnnotations;
 

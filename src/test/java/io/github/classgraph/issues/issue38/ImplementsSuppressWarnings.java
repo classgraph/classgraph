@@ -3,11 +3,10 @@ package io.github.classgraph.issues.issue38;
 import java.lang.annotation.Annotation;
 
 /**
- * The Class ImplementsSuppressWarnings.
+ * ImplementsSuppressWarnings.
  */
 @SuppressWarnings("all")
 public class ImplementsSuppressWarnings implements SuppressWarnings {
-
     /* (non-Javadoc)
      * @see java.lang.annotation.Annotation#annotationType()
      */

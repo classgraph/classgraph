@@ -3,10 +3,9 @@ package com.xyz.fig.shape;
 import java.awt.Graphics2D;
 
 /**
- * The Class Square.
+ * Square.
  */
 public class Square extends ShapeImpl {
-
     /** The size. */
     private final float size;
 

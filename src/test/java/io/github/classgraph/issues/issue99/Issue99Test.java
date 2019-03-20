@@ -36,10 +36,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue99Test.
+ * Issue99Test.
  */
 public class Issue99Test {
-
     /** The Constant jarPath. */
     private static final String jarPath = Issue99Test.class.getClassLoader().getResource("nested-jars-level1.zip")
             .getPath() + "!level2.jar!level3.jar!classpath1/classpath2";

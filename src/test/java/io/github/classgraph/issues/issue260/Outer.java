@@ -1,10 +1,9 @@
 package io.github.classgraph.issues.issue260;
 
 /**
- * The Class Outer.
+ * Outer.
  */
 public class Outer {
-
     /**
      * Creates the anonymous.
      *

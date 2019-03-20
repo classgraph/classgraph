@@ -12,10 +12,9 @@ import io.github.classgraph.test.whitelisted.Impl1;
 import io.github.classgraph.test.whitelisted.Impl1Sub;
 
 /**
- * The Class IssuesTest.
+ * IssuesTest.
  */
 public class IssuesTest {
-
     /**
      * Issue 70.
      */

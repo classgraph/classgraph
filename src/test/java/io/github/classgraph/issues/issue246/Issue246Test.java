@@ -36,10 +36,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue246Test.
+ * Issue246Test.
  */
 public class Issue246Test {
-
     /**
      * Test method parameter annotations.
      */

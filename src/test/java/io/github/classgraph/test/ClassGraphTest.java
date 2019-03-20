@@ -63,10 +63,9 @@ import io.github.classgraph.test.whitelisted.WhitelistedInterface;
 import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 /**
- * The Class ClassGraphTest.
+ * ClassGraphTest.
  */
 public class ClassGraphTest {
-
     /** The Constant ROOT_PACKAGE. */
     private static final String ROOT_PACKAGE = ClassGraphTest.class.getPackage().getName();
 

@@ -4,10 +4,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class GenerateClassGraphFigDotFile.
+ * GenerateClassGraphFigDotFile.
  */
 public class GenerateClassGraphFigDotFile {
-
     /**
      * The main method.
      *

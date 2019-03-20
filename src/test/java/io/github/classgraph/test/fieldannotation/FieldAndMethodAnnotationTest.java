@@ -39,10 +39,9 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
- * The Class FieldAndMethodAnnotationTest.
+ * FieldAndMethodAnnotationTest.
  */
 public class FieldAndMethodAnnotationTest {
-
     /** The public field with annotation. */
     public int publicFieldWithAnnotation;
 

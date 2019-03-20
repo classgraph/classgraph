@@ -33,7 +33,6 @@ import java.util.Set;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
-
     /**
      * Constructor.
      */

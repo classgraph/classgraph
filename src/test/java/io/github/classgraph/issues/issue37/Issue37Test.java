@@ -42,7 +42,7 @@ import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class Issue37Test.
+ * Issue37Test.
  */
 public class Issue37Test {
     /**

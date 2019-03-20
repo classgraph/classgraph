@@ -3,10 +3,9 @@ package com.xyz.fig.shape;
 import java.awt.Graphics2D;
 
 /**
- * The Class Circle.
+ * Circle.
  */
 public class Circle extends ShapeImpl {
-
     /** The r. */
     private final float r;
 

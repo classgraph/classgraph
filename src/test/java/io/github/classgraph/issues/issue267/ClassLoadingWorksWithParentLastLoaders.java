@@ -40,10 +40,9 @@ import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 
 /**
- * The Class ClassLoadingWorksWithParentLastLoaders.
+ * ClassLoadingWorksWithParentLastLoaders.
  */
 public class ClassLoadingWorksWithParentLastLoaders {
-
     /**
      * Assert correct class loaders.
      *

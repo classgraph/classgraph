@@ -36,7 +36,6 @@ import nonapi.io.github.classgraph.types.ParseException;
  * Stores the type descriptor of a {@code Class<?>}, as found in an annotation parameter value.
  */
 public class AnnotationClassRef extends ScanResultObject {
-
     /** The type descriptor str. */
     private String typeDescriptorStr;
 

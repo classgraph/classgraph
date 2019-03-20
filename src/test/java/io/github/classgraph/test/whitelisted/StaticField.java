@@ -1,10 +1,9 @@
 package io.github.classgraph.test.whitelisted;
 
 /**
- * The Class StaticField.
+ * StaticField.
  */
 public class StaticField {
-
     /** The Constant stringField. */
     // Non-public -- need ignoreFieldVisibility() to match these
     static final String stringField = "Static field contents";

@@ -32,7 +32,6 @@ import java.util.Collection;
 
 /** A list of {@link PackageInfo} objects. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
-
     /**
      * Constructor.
      */
