@@ -270,16 +270,16 @@ public class ClassLoaderAndModuleFinder {
                 classLoadersUnique.add(currClassClassLoader);
             }
 
-            // Get system classloader
-            final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
-            if (systemClassLoader != null) {
-                classLoadersUnique.add(systemClassLoader);
-            }
-
             // Get thread classloader
             final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
             if (threadClassLoader != null) {
                 classLoadersUnique.add(threadClassLoader);
+            }
+
+            // Get system classloader
+            final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+            if (systemClassLoader != null) {
+                classLoadersUnique.add(systemClassLoader);
             }
 
             // There is one more classloader in JDK9+, the platform classloader (used for handling extensions),
