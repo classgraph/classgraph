@@ -53,6 +53,8 @@ public class ClassLoaderAndModuleFinder {
     /** The non system module refs. */
     private List<ModuleRef> nonSystemModuleRefs;
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Get the context class loaders.
      *

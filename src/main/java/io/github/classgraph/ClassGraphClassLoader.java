@@ -64,13 +64,12 @@ class ClassGraphClassLoader extends ClassLoader {
         // Get ClassInfo for named class
         final ClassInfo classInfo = scanResult.getClassInfo(className);
 
-        // Try environment classloaders first, if the classpath was not overridden, or the scan result
-        // came from deserialization (since in this case, a new URLClassLoader was created for the
-        // classpath entries that were found in the serialized JSON doc)
+        // Try environment classloaders first
         boolean triedClassInfoLoader = false;
-        if (scanResult.envClassLoaderOrder != null) {
+        final ClassLoader[] classLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
+        if (classLoaderOrder != null) {
             // Try environment classloaders
-            for (final ClassLoader envClassLoader : scanResult.envClassLoaderOrder) {
+            for (final ClassLoader envClassLoader : classLoaderOrder) {
                 try {
                     return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, envClassLoader);
                 } catch (ReflectiveOperationException | LinkageError e) {

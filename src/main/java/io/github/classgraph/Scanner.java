@@ -105,8 +105,8 @@ class Scanner implements Callable<ScanResult> {
     /** The module order. */
     private final List<ClasspathElementModule> moduleClasspathEltOrder;
 
-    /** The context classloaders. */
-    private final ClassLoader[] contextClassLoaders;
+    /** The environment classloader order, respecting parent-first or parent-last delegation order. */
+    private final ClassLoader[] classLoaderOrderRespectingParentDelegation;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -155,7 +155,8 @@ class Scanner implements Callable<ScanResult> {
         final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
         this.classpathFinder = new ClasspathFinder(scanSpec, classpathFinderLog);
         this.classLoaderAndModuleFinder = classpathFinder.getClassLoaderAndModuleFinder();
-        this.contextClassLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
+        this.classLoaderOrderRespectingParentDelegation = classpathFinder
+                .getClassLoaderOrderRespectingParentDelegation();
         this.moduleClasspathEltOrder = getModuleOrder(classpathFinderLog);
     }
 
@@ -175,9 +176,10 @@ class Scanner implements Callable<ScanResult> {
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
             // Add modules to start of classpath order, before traditional classpath
             final List<ModuleRef> systemModuleRefs = classLoaderAndModuleFinder.getSystemModuleRefs();
-            final ClassLoader defaultClassLoader = contextClassLoaders != null && contextClassLoaders.length != 0
-                    ? contextClassLoaders[0]
-                    : null;
+            final ClassLoader defaultClassLoader = classLoaderOrderRespectingParentDelegation != null
+                    && classLoaderOrderRespectingParentDelegation.length != 0
+                            ? classLoaderOrderRespectingParentDelegation[0]
+                            : null;
             if (systemModuleRefs != null) {
                 for (final ModuleRef systemModuleRef : systemModuleRefs) {
                     final String moduleName = systemModuleRef.getName();
@@ -773,8 +775,8 @@ class Scanner implements Callable<ScanResult> {
      *            the final classpath elt order
      * @param finalClasspathEltOrderStrs
      *            the final classpath elt order strs
-     * @param contextClassLoaders
-     *            the context classloaders
+     * @param classLoaderOrderRespectingParentDelegation
+     *            the environment classloader order, respecting parent-first or parent-last delegation order
      * @return the scan result
      * @throws InterruptedException
      *             if the scan was interrupted
@@ -782,7 +784,8 @@ class Scanner implements Callable<ScanResult> {
      *             if the scan threw an uncaught exception
      */
     private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder,
-            final List<String> finalClasspathEltOrderStrs, final ClassLoader[] contextClassLoaders)
+            final List<String> finalClasspathEltOrderStrs,
+            final ClassLoader[] classLoaderOrderRespectingParentDelegation)
             throws InterruptedException, ExecutionException {
         // Mask classfiles (remove any classfile resources that are shadowed by an earlier definition
         // of the same class)
@@ -862,9 +865,9 @@ class Scanner implements Callable<ScanResult> {
         }
 
         // Return a new ScanResult
-        return new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs, contextClassLoaders,
-                classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified,
-                nestedJarHandler, topLevelLog);
+        return new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs,
+                classLoaderOrderRespectingParentDelegation, classNameToClassInfo, packageNameToPackageInfo,
+                moduleNameToModuleInfo, fileToLastModified, nestedJarHandler, topLevelLog);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -957,16 +960,17 @@ class Scanner implements Callable<ScanResult> {
 
         if (scanSpec.performScan) {
             // Scan classpath / modules, producing a ScanResult.
-            return performScan(finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs, contextClassLoaders);
+            return performScan(finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs,
+                    classLoaderOrderRespectingParentDelegation);
         } else {
             // Only getting classpath -- return a placeholder ScanResult to hold classpath elements
             if (topLevelLog != null) {
                 topLevelLog.log("Only returning classpath elements (not performing a scan)");
             }
             return new ScanResult(scanSpec, finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs,
-                    contextClassLoaders, /* classNameToClassInfo = */ null, /* packageNameToPackageInfo = */ null,
-                    /* moduleNameToModuleInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
-                    topLevelLog);
+                    classLoaderOrderRespectingParentDelegation, /* classNameToClassInfo = */ null,
+                    /* packageNameToPackageInfo = */ null, /* moduleNameToModuleInfo = */ null,
+                    /* fileToLastModified = */ null, nestedJarHandler, topLevelLog);
         }
     }
 

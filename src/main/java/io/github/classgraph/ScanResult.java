@@ -98,11 +98,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
     private ClassGraphClassLoader classGraphClassLoader;
 
     /**
-     * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
-     * a record of which ClassLoader provided the URL used to locate the class (e.g. if the class is found using
-     * java.class.path).
+     * The default order in which ClassLoaders are called to load classes, respecting parent-first/parent-last
+     * delegation order.
      */
-    ClassLoader[] envClassLoaderOrder;
+    private ClassLoader[] classLoaderOrderRespectingParentDelegation;
 
     /** The nested jar handler instance. */
     private NestedJarHandler nestedJarHandler;
@@ -221,8 +220,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
      *            the classpath order
      * @param rawClasspathEltOrderStrs
      *            the raw classpath element order
-     * @param envClassLoaderOrder
-     *            the environment classloader order
+     * @param classLoaderOrderRespectingParentDelegation
+     *            the environment classloader order, respecting parent-first or parent-last delegation order
      * @param classNameToClassInfo
      *            a map from class name to class info
      * @param packageNameToPackageInfo
@@ -237,7 +236,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
      *            the toplevel log
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final List<String> rawClasspathEltOrderStrs, final ClassLoader[] envClassLoaderOrder,
+            final List<String> rawClasspathEltOrderStrs,
+            final ClassLoader[] classLoaderOrderRespectingParentDelegation,
             final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo, final Map<File, Long> fileToLastModified,
@@ -245,7 +245,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
-        this.envClassLoaderOrder = envClassLoaderOrder;
+        this.classLoaderOrderRespectingParentDelegation = classLoaderOrderRespectingParentDelegation;
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
         this.packageNameToPackageInfo = packageNameToPackageInfo;
@@ -1114,6 +1114,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // Classloading
 
     /**
+     * Get the ClassLoader order, respecting parent-first/parent-last delegation order.
+     *
+     * @return the class loader order.
+     */
+    ClassLoader[] getClassLoaderOrderRespectingParentDelegation() {
+        return classLoaderOrderRespectingParentDelegation;
+    }
+
+    /**
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
@@ -1381,7 +1390,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 nestedJarHandler = null;
             }
             classGraphClassLoader = null;
-            envClassLoaderOrder = null;
+            classLoaderOrderRespectingParentDelegation = null;
             // Remove WeakReference to this ScanResult, so shutdown hook does not try to close this
             nonClosedWeakReferences.remove(weakReference);
             // Flush log on exit, in case additional log entries were generated after scan() completed

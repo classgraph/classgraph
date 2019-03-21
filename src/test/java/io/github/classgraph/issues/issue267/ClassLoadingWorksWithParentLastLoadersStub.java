@@ -49,7 +49,7 @@ public class ClassLoadingWorksWithParentLastLoadersStub {
      *             the exception
      */
     @Test
-    public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Exception {
+    public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Throwable {
         final String currentClassLoadersName = Thread.currentThread().getContextClassLoader().getClass()
                 .getSimpleName();
 
@@ -59,12 +59,17 @@ public class ClassLoadingWorksWithParentLastLoadersStub {
         final TestLauncher launcher = new TestLauncher(currentClassLoadersName);
         launcher.start();
         launcher.join();
+        if (launcher.thrown != null) {
+            throw launcher.thrown;
+        }
     }
 }
 
 class TestLauncher extends Thread {
 
     private final String parentClassLoader;
+
+    Throwable thrown;
 
     TestLauncher(final String parentClassLoader) {
         this.parentClassLoader = parentClassLoader;
@@ -81,8 +86,8 @@ class TestLauncher extends Thread {
                     String.class);
             mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(), parentClassLoader,
                     "FakeRestartClassLoader");
-        } catch (final Throwable ex) {
-            getUncaughtExceptionHandler().uncaughtException(this, ex);
+        } catch (final Throwable t) {
+            thrown = t;
         }
     }
 }
