@@ -263,17 +263,17 @@ public class ClassLoaderAndModuleFinder {
             // those cases are ill-defined -- see:
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
-            // Get context classloader (this is the classloader used by Class.forName(className))
+            // Get thread context classloader
             classLoadersUnique = new LinkedHashSet<>();
-            final ClassLoader currClassClassLoader = getClass().getClassLoader();
-            if (currClassClassLoader != null) {
-                classLoadersUnique.add(currClassClassLoader);
-            }
-
-            // Get thread classloader
             final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
             if (threadClassLoader != null) {
                 classLoadersUnique.add(threadClassLoader);
+            }
+
+            // Get classloader for this class (this is the classloader used by Class.forName(className))
+            final ClassLoader currClassClassLoader = getClass().getClassLoader();
+            if (currClassClassLoader != null) {
+                classLoadersUnique.add(currClassClassLoader);
             }
 
             // Get system classloader
