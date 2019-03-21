@@ -215,8 +215,6 @@ public class ClasspathFinder {
      *            the scan spec
      * @param contextClassLoaders
      *            the context classloader order
-     * @param foundClassLoaders
-     *            the found classloaders
      * @param allClassLoaderHandlerRegistryEntries
      *            the ClassLoaderHandler registry entries
      * @param classLoaderAndHandlerOrderOut
@@ -227,7 +225,7 @@ public class ClasspathFinder {
      *            the log
      */
     private void findClassLoaderHandlerForClassLoaderAndParents(final ScanSpec scanSpec,
-            final ClassLoader[] contextClassLoaders, final Set<ClassLoader> foundClassLoaders,
+            final ClassLoader[] contextClassLoaders,
             final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries,
             final List<Entry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
             final List<Entry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
@@ -392,7 +390,6 @@ public class ClasspathFinder {
                     new ArrayList<>();
             if (contextClassLoaders != null) {
                 findClassLoaderHandlerForClassLoaderAndParents(scanSpec, contextClassLoaders,
-                        /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
                         ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS, classLoaderAndHandlerOrder,
                         ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
             }
