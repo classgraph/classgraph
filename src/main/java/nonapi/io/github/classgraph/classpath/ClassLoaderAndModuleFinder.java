@@ -261,11 +261,23 @@ public class ClassLoaderAndModuleFinder {
             // those cases are ill-defined -- see:
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
-            // Get system classloader
+            // Get context classloader (this is the classloader used by Class.forName(className))
             classLoadersUnique = new LinkedHashSet<>();
+            final ClassLoader currClassClassLoader = getClass().getClassLoader();
+            if (currClassClassLoader != null) {
+                classLoadersUnique.add(currClassClassLoader);
+            }
+
+            // Get system classloader
             final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
             if (systemClassLoader != null) {
                 classLoadersUnique.add(systemClassLoader);
+            }
+
+            // Get thread classloader
+            final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
+            if (threadClassLoader != null) {
+                classLoadersUnique.add(threadClassLoader);
             }
 
             // There is one more classloader in JDK9+, the platform classloader (used for handling extensions),
@@ -316,13 +328,7 @@ public class ClassLoaderAndModuleFinder {
                 }
             }
 
-            // Get context classloader
-            final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
-            if (threadClassLoader != null) {
-                classLoadersUnique.add(threadClassLoader);
-            }
-
-            // Add any custom-added classloaders after system/context classloaders
+            // Add any custom-added classloaders after system/context/module classloaders
             if (scanSpec.addedClassLoaders != null) {
                 classLoadersUnique.addAll(scanSpec.addedClassLoaders);
             }
@@ -334,24 +340,9 @@ public class ClassLoaderAndModuleFinder {
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
         }
 
-        // Remove all ancestral classloaders (they are called automatically during class load)
-        final Set<ClassLoader> ancestralClassLoaders = new HashSet<>(classLoadersUnique.size());
-        for (final ClassLoader classLoader : classLoadersUnique) {
-            for (ClassLoader cl = classLoader.getParent(); cl != null; cl = cl.getParent()) {
-                ancestralClassLoaders.add(cl);
-            }
-        }
-        final List<ClassLoader> classLoaderFinalOrder = new ArrayList<>(classLoadersUnique.size());
-        for (final ClassLoader classLoader : classLoadersUnique) {
-            // Build final ClassLoader order, with ancestral classloaders removed
-            if (!ancestralClassLoaders.contains(classLoader)) {
-                classLoaderFinalOrder.add(classLoader);
-            }
-        }
-
         // Log all identified ClassLoaders
         if (classLoadersFoundLog != null) {
-            for (final ClassLoader classLoader : classLoaderFinalOrder) {
+            for (final ClassLoader classLoader : classLoadersUnique) {
                 classLoadersFoundLog.log(classLoader.getClass().getName());
             }
         }
@@ -376,6 +367,6 @@ public class ClassLoaderAndModuleFinder {
             }
         }
 
-        this.contextClassLoaders = classLoaderFinalOrder.toArray(new ClassLoader[0]);
+        this.contextClassLoaders = classLoadersUnique.toArray(new ClassLoader[0]);
     }
 }
