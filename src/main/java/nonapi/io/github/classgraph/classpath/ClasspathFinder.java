@@ -29,12 +29,12 @@
 package nonapi.io.github.classgraph.classpath;
 
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -285,7 +285,7 @@ public class ClasspathFinder {
 
         // Perform a topological sort on the DAG of parent delegation order constraints, starting at the roots
         final Set<ClassLoader> visited = new HashSet<>();
-        final Deque<ClassLoader> topoSortOrder = new LinkedList<>();
+        final Deque<ClassLoader> topoSortOrder = new ArrayDeque<>();
         for (final ClassLoader rootClassLoader : rootClassLoaders) {
             topoSort(rootClassLoader, visited, orderingConstraints, topoSortOrder);
         }

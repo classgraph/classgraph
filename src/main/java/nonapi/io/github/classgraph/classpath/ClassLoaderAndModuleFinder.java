@@ -132,7 +132,7 @@ public class ClassLoaderAndModuleFinder {
      *            the log
      * @return the list
      */
-    private static List<ModuleRef> findModuleRefs(final List<Object> layers, final ScanSpec scanSpec,
+    private static List<ModuleRef> findModuleRefs(final LinkedHashSet<Object> layers, final ScanSpec scanSpec,
             final LogNode log) {
         if (layers.isEmpty()) {
             return Collections.emptyList();
@@ -209,18 +209,20 @@ public class ClassLoaderAndModuleFinder {
      *            the log
      * @return the list
      */
-    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack, final ScanSpec scanSpec,
+    private static List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
             final LogNode log) {
-        final List<Object> layers = new ArrayList<>();
-        for (final Class<?> stackFrameClass : callStack) {
-            final Object /* Module */ module = ReflectionUtils.invokeMethod(stackFrameClass, "getModule",
-                    /* throwException = */ false);
-            if (module != null) {
-                final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
-                        /* throwException = */ true);
-                // getLayer() returns null for unnamed modules -- we have to get their classes from java.class.path 
-                if (layer != null) {
-                    layers.add(layer);
+        final LinkedHashSet<Object> layers = new LinkedHashSet<>();
+        if (callStack != null) {
+            for (final Class<?> stackFrameClass : callStack) {
+                final Object /* Module */ module = ReflectionUtils.invokeMethod(stackFrameClass, "getModule",
+                        /* throwException = */ false);
+                if (module != null) {
+                    final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
+                            /* throwException = */ true);
+                    // getLayer() returns null for unnamed modules -- have to get their classes from java.class.path 
+                    if (layer != null) {
+                        layers.add(layer);
+                    }
                 }
             }
         }
@@ -257,26 +259,27 @@ public class ClassLoaderAndModuleFinder {
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
-            // Add the ClassLoaders in the order system, caller, context; then remove any of them that are
-            // parents/ancestors of one or more other classloaders (performed below). There will generally only be
-            // one class left after this. In rare cases, you may have a separate callerLoader and contextLoader, but
-            // those cases are ill-defined -- see:
+            // There's some advice here about choosing the best or the right classloader, but it is not complete
+            // (e.g. it doesn't cover parent delegation modes):
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
-            // Get thread context classloader
+            // Get thread context classloader (this is the first classloader to try, since a context classloader
+            // can be set as an override on a per-thread basis)
             classLoadersUnique = new LinkedHashSet<>();
             final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
             if (threadClassLoader != null) {
                 classLoadersUnique.add(threadClassLoader);
             }
 
-            // Get classloader for this class (this is the classloader used by Class.forName(className))
+            // Get classloader for this class, which will generally be the classloader of the class that
+            // called ClassGraph (the classloader of the caller is used by Class.forName(className), when
+            // no classloader is provided)
             final ClassLoader currClassClassLoader = getClass().getClassLoader();
             if (currClassClassLoader != null) {
                 classLoadersUnique.add(currClassClassLoader);
             }
 
-            // Get system classloader
+            // Get system classloader (this is a fallback if one of the above do not work)
             final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
             if (systemClassLoader != null) {
                 classLoadersUnique.add(systemClassLoader);
@@ -287,26 +290,30 @@ public class ClassLoaderAndModuleFinder {
             // The method call to get it is ClassLoader.getPlatformClassLoader()
             // However, since it's not possible to get URLs from this classloader, and it is the parent of
             // the application classloader returned by ClassLoader.getSystemClassLoader() (so is delegated to
-            // by the application classloader), there is no point adding it here.
+            // by the application classloader), there is no point adding it here. Modules are scanned
+            // directly anyway, so we don't need to get module path entries from the platform classloader. 
 
-            List<ModuleRef> allModuleRefsList = null;
-            if (scanSpec.overrideModuleLayers == null) {
-                try {
-                    // Find classloaders for classes on callstack
-                    final Class<?>[] callStack = CallStackReader.getClassContext(log);
-                    for (int i = callStack.length - 1; i >= 0; --i) {
-                        final ClassLoader callerClassLoader = callStack[i].getClassLoader();
-                        if (callerClassLoader != null) {
-                            classLoadersUnique.add(callerClassLoader);
-                        }
-                    }
-                    // Find module references for classes on callstack (for JDK9+)
-                    allModuleRefsList = findModuleRefs(callStack, scanSpec, log);
-                } catch (final IllegalArgumentException e) {
-                    if (log != null) {
-                        log.log("Could not get call stack", e);
+            // Find classloaders for classes on callstack, in case any were missed
+            Class<?>[] callStack = null;
+            try {
+                callStack = CallStackReader.getClassContext(log);
+                for (int i = callStack.length - 1; i >= 0; --i) {
+                    final ClassLoader callerClassLoader = callStack[i].getClassLoader();
+                    if (callerClassLoader != null) {
+                        classLoadersUnique.add(callerClassLoader);
                     }
                 }
+            } catch (final IllegalArgumentException e) {
+                if (log != null) {
+                    log.log("Could not get call stack", e);
+                }
+            }
+
+            // Get the module resolution order
+            List<ModuleRef> allModuleRefsList = null;
+            if (scanSpec.overrideModuleLayers == null) {
+                // Find module references for classes on callstack, and from system (for JDK9+)
+                allModuleRefsList = findModuleRefsFromCallstack(callStack, scanSpec, log);
             } else {
                 if (log != null) {
                     final LogNode subLog = log.log("Overriding module layers");
@@ -314,9 +321,9 @@ public class ClassLoaderAndModuleFinder {
                         subLog.log(moduleLayer.toString());
                     }
                 }
-                allModuleRefsList = findModuleRefs(scanSpec.overrideModuleLayers, scanSpec, log);
+                allModuleRefsList = findModuleRefs(new LinkedHashSet<>(scanSpec.overrideModuleLayers), scanSpec,
+                        log);
             }
-
             if (allModuleRefsList != null) {
                 // Split modules into system modules and non-system modules
                 systemModuleRefs = new ArrayList<>();
