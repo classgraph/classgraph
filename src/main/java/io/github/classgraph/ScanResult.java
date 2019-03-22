@@ -223,9 +223,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
         File tempFile = null;
         boolean createdTempFile = false;
         try {
-            tempFile = Files.createTempFile("ClassGraph", "").toFile();
+            tempFile = File.createTempFile("ClassGraph-", "-temp");
             tempFile.deleteOnExit();
-            try (PrintWriter printWriter = new PrintWriter(tempFile.getName())) {
+            System.err.println("Created temp file " + tempFile);
+            try (PrintWriter printWriter = new PrintWriter(tempFile)) {
                 printWriter.print("temp");
                 createdTempFile = true;
             }
@@ -269,7 +270,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // Preload classes needed by shutdown hook
         FileUtils.closeDirectByteBuffer(buffer, /* log = */ null);
         if (createdTempFile) {
-            tempFile.delete();
+            try {
+                Files.delete(tempFile.toPath());
+            } catch (final IOException | SecurityException e) {
+                // Failed
+            }
         }
     }
 
