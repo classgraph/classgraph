@@ -48,6 +48,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author elrufaie
  */
 class FelixClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private FelixClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

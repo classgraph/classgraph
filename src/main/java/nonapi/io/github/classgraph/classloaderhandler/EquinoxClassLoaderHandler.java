@@ -49,6 +49,10 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private static final List<String> FIELD_NAMES = Collections
             .unmodifiableList(Arrays.asList("cp", "nestedDirName"));
 
+    /** Class cannot be constructed. */
+    private EquinoxClassLoaderHandler() {
+    }
+
     /**
      * True if system bundles have been read. We assume there is only one system bundle on the classpath, so this is
      * static.

@@ -36,6 +36,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Ant ClassLoader. */
 class AntClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private AntClassLoaderHandler() {
+    }
+    
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

@@ -40,6 +40,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author lukehutch
  */
 class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private WebsphereTraditionalClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

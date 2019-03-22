@@ -42,6 +42,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private SpringBootRestartClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

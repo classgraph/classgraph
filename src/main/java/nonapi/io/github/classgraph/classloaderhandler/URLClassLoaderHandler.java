@@ -38,6 +38,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
 class URLClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private URLClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

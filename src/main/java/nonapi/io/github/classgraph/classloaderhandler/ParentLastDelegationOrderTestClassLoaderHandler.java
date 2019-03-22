@@ -36,6 +36,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
 class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private ParentLastDelegationOrderTestClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

@@ -36,6 +36,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Eclipse Equinox ContextFinder ClassLoader. */
 class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private EquinoxContextFinderClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

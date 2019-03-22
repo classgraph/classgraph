@@ -39,6 +39,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private TomcatWebappClassLoaderBaseHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

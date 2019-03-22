@@ -42,6 +42,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author lukehutch
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private PlexusClassWorldsClassRealmClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

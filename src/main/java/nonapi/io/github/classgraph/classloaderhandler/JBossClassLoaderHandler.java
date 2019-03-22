@@ -51,6 +51,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
  */
 class JBossClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private JBossClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

@@ -38,6 +38,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * them (module scanning uses a different mechanism from classpath scanning).
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private JPMSClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

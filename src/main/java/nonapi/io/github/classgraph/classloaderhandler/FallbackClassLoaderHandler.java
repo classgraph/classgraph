@@ -38,6 +38,10 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names.
  */
 class FallbackClassLoaderHandler implements ClassLoaderHandler {
+    /** Class cannot be constructed. */
+    private FallbackClassLoaderHandler() {
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *
