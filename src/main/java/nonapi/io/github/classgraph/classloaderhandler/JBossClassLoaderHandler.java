@@ -38,6 +38,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -50,29 +51,29 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
  */
 class JBossClassLoaderHandler implements ClassLoaderHandler {
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    @Override
-    public String[] handledClassLoaders() {
-        return new String[] { "org.jboss.modules.ModuleClassLoader" };
+    public static boolean canHandle(final ClassLoader classLoader) {
+        return "org.jboss.modules.ModuleClassLoader".equals(classLoader.getClass().getName());
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
      */
-    @Override
-    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
-        return null;
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
-     */
-    @Override
-    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
-        return DelegationOrder.PARENT_FIRST;
+    public static void findClassLoaderOrder(final ClassLoader classLoader,
+            final ClassLoaderOrder classLoaderOrder) {
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+        classLoaderOrder.add(classLoader);
     }
 
     /**
@@ -89,8 +90,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log
      */
-    private void handleResourceLoader(final Object resourceLoader, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
+    private static void handleResourceLoader(final Object resourceLoader, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final LogNode log) {
         if (resourceLoader == null) {
             return;
         }
@@ -155,8 +156,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log
      */
-    private void handleRealModule(final Object module, final Set<Object> visitedModules,
-            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, ScanSpec scanSpec,
+    private static void handleRealModule(final Object module, final Set<Object> visitedModules,
+            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec,
             final LogNode log) {
         if (!visitedModules.add(module)) {
             // Avoid extracting paths from the same module more than once
@@ -183,13 +184,20 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
-     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
      */
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+            final ScanSpec scanSpec, final LogNode log) {
         final Object module = ReflectionUtils.invokeMethod(classLoader, "getModule", false);
         final Object callerModuleLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader", false);
         final Set<Object> visitedModules = new HashSet<>();
@@ -201,7 +209,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             final Object val = ent.getValue();
             // type Module
             final Object realModule = ReflectionUtils.invokeMethod(val, "getModule", false);
-            handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, scanSpec, log);
+            handleRealModule(realModule, visitedModules, classLoader, classpathOrder, scanSpec, log);
         }
         // type Map<String, List<LocalLoader>>
         @SuppressWarnings("unchecked")
@@ -213,7 +221,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 final Object moduleClassLoader = ReflectionUtils.getFieldVal(localLoader, "this$0", false);
                 // type Module
                 final Object realModule = ReflectionUtils.getFieldVal(moduleClassLoader, "module", false);
-                handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, scanSpec, log);
+                handleRealModule(realModule, visitedModules, classLoader, classpathOrder, scanSpec, log);
             }
         }
     }

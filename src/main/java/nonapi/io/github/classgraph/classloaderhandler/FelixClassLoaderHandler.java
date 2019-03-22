@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
@@ -47,34 +48,32 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author elrufaie
  */
 class FelixClassLoaderHandler implements ClassLoaderHandler {
-
-    /** The bundles. */
-    private final Set<Object> bundles = new HashSet<>();
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    @Override
-    public String[] handledClassLoaders() {
-        return new String[] { //
-                "org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5",
-                "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader" };
+    public static boolean canHandle(final ClassLoader classLoader) {
+        return "org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5"
+                .equals(classLoader.getClass().getName())
+                || "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader"
+                        .equals(classLoader.getClass().getName());
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
      */
-    @Override
-    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
-        return null;
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
-     */
-    @Override
-    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
-        return DelegationOrder.PARENT_FIRST;
+    public static void findClassLoaderOrder(final ClassLoader classLoader,
+            final ClassLoaderOrder classLoaderOrder) {
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+        classLoaderOrder.add(classLoader);
     }
 
     /**
@@ -84,7 +83,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *            the content object
      * @return the content location
      */
-    private String getContentLocation(final Object content) {
+    private static String getContentLocation(final Object content) {
         final File file = (File) ReflectionUtils.invokeMethod(content, "getFile", false);
         return file != null ? file.toURI().toString() : null;
     }
@@ -98,13 +97,16 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrderOut
      *            the classpath order out
+     * @param bundles
+     *            the bundles
      * @param scanSpec
      *            the scan spec
      * @param log
      *            the log
      */
-    private void addBundle(final Object bundleWiring, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
+    private static void addBundle(final Object bundleWiring, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final Set<Object> bundles, final ScanSpec scanSpec,
+            final LogNode log) {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
@@ -133,17 +135,24 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
-     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
      */
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
-
+    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+            final ScanSpec scanSpec, final LogNode log) {
         // Get the wiring for the ClassLoader's bundle
+        final Set<Object> bundles = new HashSet<>();
         final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring", false);
-        addBundle(bundleWiring, classLoader, classpathOrderOut, scanSpec, log);
+        addBundle(bundleWiring, classLoader, classpathOrder, bundles, scanSpec, log);
 
         // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to narrow down the list of wires
         // that we follow.
@@ -154,7 +163,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             for (final Object wire : requiredWires) {
                 final Object provider = ReflectionUtils.invokeMethod(wire, "getProviderWiring", false);
                 if (!bundles.contains(provider)) {
-                    addBundle(provider, classLoader, classpathOrderOut, scanSpec, log);
+                    addBundle(provider, classLoader, classpathOrder, bundles, scanSpec, log);
                 }
             }
         }

@@ -32,6 +32,7 @@ import java.io.File;
 import java.util.List;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
@@ -45,7 +46,6 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author R. Kempees
  */
 class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
-
     /** {@code "com.ibm.ws.classloading.internal."} */
     private static final String PKG_PREFIX = "com.ibm.ws.classloading.internal.";
 
@@ -55,29 +55,30 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     /** {@code "com.ibm.ws.classloading.internal.ThreadContextClassLoader"} */
     private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    @Override
-    public String[] handledClassLoaders() {
-        return new String[] { IBM_APP_CLASS_LOADER, IBM_THREAD_CONTEXT_CLASS_LOADER };
+    public static boolean canHandle(final ClassLoader classLoader) {
+        return IBM_APP_CLASS_LOADER.equals(classLoader.getClass().getName())
+                || IBM_THREAD_CONTEXT_CLASS_LOADER.equals(classLoader.getClass().getName());
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
      */
-    @Override
-    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
-        return null;
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
-     */
-    @Override
-    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
-        // TODO: Read correct delegation order from ClassLoader
-        return DelegationOrder.PARENT_FIRST;
+    public static void findClassLoaderOrder(final ClassLoader classLoader,
+            final ClassLoaderOrder classLoaderOrder) {
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+        classLoaderOrder.add(classLoader);
     }
 
     /**
@@ -87,7 +88,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      *            the classpath object
      * @return the path object as a {@link File} or {@link String}.
      */
-    private String getPath(final Object classpath) {
+    private static String getPath(final Object classpath) {
         final Object container = ReflectionUtils.getFieldVal(classpath, "container", false);
         if (container == null) {
             return "";
@@ -117,13 +118,20 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         return "";
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
-     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
      */
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+            final ScanSpec scanSpec, final LogNode log) {
         Object smartClassPath;
         final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader", false);
         if (appLoader != null) {
@@ -138,7 +146,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 for (final Object classpath : classPathElements) {
                     final String path = getPath(classpath);
                     if (path != null && path.length() > 0) {
-                        classpathOrderOut.addClasspathEntry(path, classLoader, scanSpec, log);
+                        classpathOrder.addClasspathEntry(path, classLoader, scanSpec, log);
                     }
                 }
             }

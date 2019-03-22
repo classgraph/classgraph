@@ -225,7 +225,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
         try {
             tempFile = File.createTempFile("ClassGraph-", "-temp");
             tempFile.deleteOnExit();
-            System.err.println("Created temp file " + tempFile);
             try (PrintWriter printWriter = new PrintWriter(tempFile)) {
                 printWriter.print("temp");
                 createdTempFile = true;

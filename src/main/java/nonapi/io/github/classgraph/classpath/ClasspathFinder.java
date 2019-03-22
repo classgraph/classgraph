@@ -28,20 +28,12 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
-import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -90,220 +82,6 @@ public class ClasspathFinder {
      */
     public ClassLoader[] getClassLoaderOrderRespectingParentDelegation() {
         return classLoaderOrderRespectingParentDelegation;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Find a {@link ClassLoaderHandler} that can handle a given {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the classloader
-     * @param visitedEmbedded
-     *            the visited embedded classloaders
-     * @param allClassLoaderHandlerRegistryEntries
-     *            the ClassLoaderHandler registry entries
-     * @param log
-     *            the log
-     * @return the {@link ClassLoaderHandler}
-     */
-    private static ClassLoaderHandler findClassLoaderHandler(final ClassLoader classLoader,
-            final Set<ClassLoader> visitedEmbedded,
-            final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries, final LogNode log) {
-        // Iterate through each superclass of the classloader 
-        final Class<? extends ClassLoader> classLoaderClass = classLoader.getClass();
-        for (Class<?> superclass = classLoaderClass; superclass != null; superclass = superclass.getSuperclass()) {
-            final String superclassName = superclass.getName();
-            // Compare against the class names handled by each ClassLoaderHandler
-            for (final ClassLoaderHandlerRegistryEntry registryEntry : allClassLoaderHandlerRegistryEntries) {
-                for (final String handledClassLoaderName : registryEntry.handledClassLoaderNames) {
-                    if (handledClassLoaderName.equals(superclassName)) {
-                        // This ClassLoaderHandler can handle this class -- instantiate it
-                        final ClassLoaderHandler classLoaderHandler = registryEntry.instantiate(log);
-                        if (classLoaderHandler != null) {
-                            // If there is an embedded classloader, recursively find the ClassLoaderHandler
-                            // for the embedded classloader
-                            final ClassLoader embeddedClassLoader = classLoaderHandler
-                                    .getEmbeddedClassLoader(classLoader);
-                            if (embeddedClassLoader != null && embeddedClassLoader != classLoader
-                                    && visitedEmbedded.add(embeddedClassLoader)) {
-                                if (log != null) {
-                                    log.log("Delegating from " + classLoader.getClass().getName()
-                                            + " to embedded ClassLoader "
-                                            + embeddedClassLoader.getClass().getName());
-                                }
-                                return findClassLoaderHandler(embeddedClassLoader, visitedEmbedded,
-                                        allClassLoaderHandlerRegistryEntries, log);
-                            }
-                            // Otherwise, return the found ClassLoaderHandler
-                            if (log != null) {
-                                log.log("ClassLoader " + classLoader.getClass().getName() + " will be handled by "
-                                        + classLoaderHandler.getClass().getName());
-                            }
-                            return classLoaderHandler;
-                        }
-                    }
-                }
-            }
-        }
-        final ClassLoaderHandler classLoaderHandler = ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER
-                .instantiate(log);
-        if (classLoaderHandler == null) {
-            // Should not happen
-            throw new RuntimeException("Could not instantiate fallback ClassLoaderHandler");
-        }
-        if (log != null) {
-            log.log("ClassLoader " + classLoader.getClass().getName() + " will be handled by "
-                    + classLoaderHandler.getClass().getName());
-        }
-        return classLoaderHandler;
-    }
-
-    /**
-     * Perform a topological sort on classloader delegation ordering constraints.
-     *
-     * @param curr
-     *            the current classloader
-     * @param visited
-     *            the visited classloaders
-     * @param orderingConstraints
-     *            the ordering constraints
-     * @param orderOut
-     *            the order out
-     */
-    private static void topoSort(final ClassLoader curr, final Set<ClassLoader> visited,
-            final Map<ClassLoader, List<ClassLoader>> orderingConstraints, final Deque<ClassLoader> orderOut) {
-        if (visited.add(curr)) {
-            final List<ClassLoader> downstreamNodes = orderingConstraints.get(curr);
-            if (downstreamNodes != null) {
-                for (final ClassLoader downstreamNode : downstreamNodes) {
-                    topoSort(downstreamNode, visited, orderingConstraints, orderOut);
-                }
-            }
-            orderOut.push(curr);
-        }
-    }
-
-    /**
-     * Add an ordering constraint between two classloaders.
-     *
-     * @param processFirst
-     *            the first classloader to try loading a class from
-     * @param processSecond
-     *            the second classloader to try loading a class from
-     * @param orderingConstraints
-     *            the ordering constraints
-     * @param allDownstreamClassLoaders
-     *            all downstream class loaders
-     */
-    private static void addOrderingConstraint(final ClassLoader processFirst, final ClassLoader processSecond,
-            final Map<ClassLoader, List<ClassLoader>> orderingConstraints,
-            final Set<ClassLoader> allDownstreamClassLoaders) {
-        List<ClassLoader> immediateDownstreamClassLoaders = orderingConstraints.get(processFirst);
-        if (immediateDownstreamClassLoaders == null) {
-            orderingConstraints.put(processFirst, immediateDownstreamClassLoaders = new ArrayList<>());
-        }
-        immediateDownstreamClassLoaders.add(processSecond);
-        allDownstreamClassLoaders.add(processSecond);
-    }
-
-    /**
-     * Recursively find the {@link ClassLoaderHandler} that can handle each ClassLoader and its parent(s),
-     * respecting parent delegation order (PARENT_FIRST or PARENT_LAST).
-     *
-     * @param scanSpec
-     *            the scan spec
-     * @param contextClassLoaders
-     *            the context classloader order
-     * @param allClassLoaderHandlerRegistryEntries
-     *            the ClassLoaderHandler registry entries
-     * @param classLoaderAndHandlerOrderOut
-     *            the classloader and ClassLoaderHandler order
-     * @param ignoredClassLoaderAndHandlerOrderOut
-     *            the ignored classloader and handler order out
-     * @param log
-     *            the log
-     */
-    private void findClassLoaderHandlerForClassLoaderAndParents(final ScanSpec scanSpec,
-            final ClassLoader[] contextClassLoaders,
-            final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries,
-            final List<Entry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
-            final List<Entry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
-            final LogNode log) {
-        // Iterate through all classloaders and their ancestors.
-        // allClassLoaders is a LinkedHashSet so that the order in which nodes are added, when iterating
-        // depth first starting at contextClassLoaders, is preserved.
-        final Set<ClassLoader> allClassLoaders = new LinkedHashSet<>();
-        final Map<ClassLoader, ClassLoaderHandler> classLoaderToClassLoaderHandler = new HashMap<>();
-        final Map<ClassLoader, List<ClassLoader>> orderingConstraints = new HashMap<>();
-        final Set<ClassLoader> visitedEmbedded = new HashSet<>();
-        final Set<ClassLoader> allParentClassLoaders = new HashSet<>();
-        final Set<ClassLoader> allDownstreamClassLoaders = new HashSet<>();
-        for (final ClassLoader classLoader : contextClassLoaders) {
-            // Iterate through classloader parent hierarchy, trying to find a ClassLoaderHandler that can
-            // handle the classloader
-            for (ClassLoader ancestorClassLoader = classLoader; ancestorClassLoader != null; //
-                    ancestorClassLoader = ancestorClassLoader.getParent()) {
-                // Only process each ancestor classloader once
-                if (allClassLoaders.add(ancestorClassLoader)) {
-                    // Find ClassLoaderHandler for ancestor classloader (will be fallback handler if none found)
-                    final ClassLoaderHandler classLoaderHandler = findClassLoaderHandler(ancestorClassLoader,
-                            visitedEmbedded, allClassLoaderHandlerRegistryEntries, log);
-                    classLoaderToClassLoaderHandler.put(ancestorClassLoader, classLoaderHandler);
-
-                    // Find delegation order of ancestor classloader relative to its parent
-                    final ClassLoader ancestorParent = ancestorClassLoader.getParent();
-                    if (ancestorParent != null) {
-                        // Record parents
-                        allParentClassLoaders.add(ancestorParent);
-
-                        // Build a DAG using the delegation order
-                        switch (classLoaderHandler.getDelegationOrder(ancestorClassLoader)) {
-                        case PARENT_FIRST:
-                            addOrderingConstraint(ancestorParent, ancestorClassLoader, orderingConstraints,
-                                    allDownstreamClassLoaders);
-                            break;
-                        case PARENT_LAST:
-                            addOrderingConstraint(ancestorClassLoader, ancestorParent, orderingConstraints,
-                                    allDownstreamClassLoaders);
-                            break;
-                        default:
-                            // Should not happen
-                            throw new RuntimeException("Invalid delegation order");
-                        }
-                    }
-                } else {
-                    // Already processed this ancestor and all of its ancestors
-                    break;
-                }
-            }
-        }
-
-        // Find all DAG root nodes, which are all nodes that are not downstream of another node
-        final Set<ClassLoader> rootClassLoaders = new LinkedHashSet<>(allClassLoaders);
-        rootClassLoaders.removeAll(allDownstreamClassLoaders);
-
-        // Perform a topological sort on the DAG of parent delegation order constraints, starting at the roots
-        final Set<ClassLoader> visited = new HashSet<>();
-        final Deque<ClassLoader> topoSortOrder = new ArrayDeque<>();
-        for (final ClassLoader rootClassLoader : rootClassLoaders) {
-            topoSort(rootClassLoader, visited, orderingConstraints, topoSortOrder);
-        }
-
-        // If ignoring parent classloaders, split resulting list into parents and non-parents
-        for (final ClassLoader classLoader : topoSortOrder) {
-            final ClassLoaderHandler classLoaderHandler = classLoaderToClassLoaderHandler.get(classLoader);
-            final Entry<ClassLoader, ClassLoaderHandler> ent = new SimpleEntry<>(classLoader, classLoaderHandler);
-            if (classLoaderHandler == null) {
-                // Should not happen
-                throw new RuntimeException("ClassLoaderHandler not found");
-            }
-            if (scanSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
-                ignoredClassLoaderAndHandlerOrderOut.add(ent);
-            } else {
-                classLoaderAndHandlerOrderOut.add(ent);
-            }
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -384,59 +162,41 @@ public class ClasspathFinder {
                 }
             }
 
-            // Find all unique parent ClassLoaders, and put all ClassLoaders into a single order, according to the
-            // delegation order (PARENT_FIRST or PARENT_LAST)
-            final List<Entry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
-            final List<Entry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
-                    new ArrayList<>();
+            // Find all unique classloaders, in delegation order
+            final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder();
             if (contextClassLoaders != null) {
-                findClassLoaderHandlerForClassLoaderAndParents(scanSpec, contextClassLoaders,
-                        ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS, classLoaderAndHandlerOrder,
-                        ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
-            }
-
-            // Call each ClassLoaderHandler on its corresponding ClassLoader to get the classpath URLs or paths
-            final LogNode classLoaderClasspathLoopLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Finding classpath elements in ClassLoaders");
-            final LinkedHashSet<ClassLoader> classLoaderOrderRespectingParentDelegationSet = new LinkedHashSet<>();
-            for (final Entry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : classLoaderAndHandlerOrder) {
-                final ClassLoader classLoader = classLoaderAndHandler.getKey();
-                classLoaderOrderRespectingParentDelegationSet.add(classLoader);
-                final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
-                final LogNode classLoaderClasspathLog = classLoaderClasspathLoopLog == null ? null
-                        : classLoaderClasspathLoopLog.log(
-                                "Finding classpath elements in ClassLoader " + classLoader.getClass().getName());
-                try {
-                    classLoaderHandler.handle(scanSpec, classLoader, classpathOrder, classLoaderClasspathLog);
-                } catch (final RuntimeException | LinkageError e) {
-                    if (classLoaderClasspathLog != null) {
-                        classLoaderClasspathLog.log("Exception in ClassLoaderHandler", e);
-                    }
+                for (final ClassLoader classLoader : contextClassLoaders) {
+                    classLoaderOrder.delegateTo(classLoader, /* isParent = */ false);
                 }
             }
-            // Need to record the proper order in which classloaders should be called, in particular to
-            // respect parent-last delegation order, since this is not the default (issue #267).
-            classLoaderOrderRespectingParentDelegation = classLoaderOrderRespectingParentDelegationSet
-                    .toArray(new ClassLoader[0]);
 
-            // Repeat the process for ignored parent ClassLoaders
-            for (final Entry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : //
-            ignoredClassLoaderAndHandlerOrder) {
-                final ClassLoader classLoader = classLoaderAndHandler.getKey();
-                final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
-                final LogNode classLoaderClasspathLog = classpathFinderLog == null ? null
-                        : classpathFinderLog
-                                .log("Will not scan the following classpath elements from ignored ClassLoader "
-                                        + classLoader.getClass().getName());
-                try {
-                    classLoaderHandler.handle(scanSpec, classLoader, ignoredClasspathOrder,
-                            classLoaderClasspathLog);
-                } catch (final RuntimeException | LinkageError e) {
-                    if (classLoaderClasspathLog != null) {
-                        classLoaderClasspathLog.log("Exception in ClassLoaderHandler", e);
-                    }
+            // Get all parent classloaders
+            final Set<ClassLoader> allParentClassLoaders = classLoaderOrder.getAllParentClassLoaders();
+
+            // Get the classpath URLs from each ClassLoader
+            final List<ClassLoader> finalClassLoaderOrder = new ArrayList<>();
+            for (final Entry<ClassLoader, ClassLoaderHandlerRegistryEntry> ent : classLoaderOrder
+                    .getClassLoaderOrder()) {
+                final ClassLoader classLoader = ent.getKey();
+                final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry = ent.getValue();
+                // Add classpath entries to ignoredClasspathOrder or classpathOrder
+                if (scanSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
+                    // If this is a parent and parent classloaders are being ignored, add classpath entries
+                    // to ignoredClasspathOrder
+                    classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, ignoredClasspathOrder, scanSpec,
+                            classpathFinderLog);
+                } else {
+                    // Otherwise add classpath entries to classpathOrder, and add the classloader to the
+                    // final classloader ordering
+                    classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
+                            classpathFinderLog);
+                    finalClassLoaderOrder.add(classLoader);
                 }
             }
+
+            // Need to record the classloader delegation order, in particular to respect parent-last delegation
+            // order, since this is not the default (issue #267).
+            classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
 
             // Get classpath elements from java.class.path, but don't add them if the element is in an ignored
             // parent classloader and not in a child classloader (and don't use java.class.path at all if

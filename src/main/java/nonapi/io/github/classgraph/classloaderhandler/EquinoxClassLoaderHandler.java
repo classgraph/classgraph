@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
@@ -44,36 +45,39 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * Extract classpath entries from the Eclipse Equinox ClassLoader.
  */
 class EquinoxClassLoaderHandler implements ClassLoaderHandler {
-
     /** Field names. */
     private static final List<String> FIELD_NAMES = Collections
             .unmodifiableList(Arrays.asList("cp", "nestedDirName"));
 
-    /** True if system bundles have been read. */
-    private boolean alreadyReadSystemBundles;
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+    /**
+     * True if system bundles have been read. We assume there is only one system bundle on the classpath, so this is
+     * static.
      */
-    @Override
-    public String[] handledClassLoaders() {
-        return new String[] { "org.eclipse.osgi.internal.loader.EquinoxClassLoader" };
+    private static boolean alreadyReadSystemBundles;
+
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
+     */
+    public static boolean canHandle(final ClassLoader classLoader) {
+        return "org.eclipse.osgi.internal.loader.EquinoxClassLoader".equals(classLoader.getClass().getName());
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
      */
-    @Override
-    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
-        return null;
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
-     */
-    @Override
-    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
-        return DelegationOrder.PARENT_FIRST;
+    public static void findClassLoaderOrder(final ClassLoader classLoader,
+            final ClassLoaderOrder classLoaderOrder) {
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+        classLoaderOrder.add(classLoader);
     }
 
     /**
@@ -92,8 +96,9 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log
      */
-    private void addBundleFile(final Object bundlefile, final Set<Object> path, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
+    private static void addBundleFile(final Object bundlefile, final Set<Object> path,
+            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec,
+            final LogNode log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
@@ -138,8 +143,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log
      */
-    private void addClasspathEntries(final Object owner, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
+    private static void addClasspathEntries(final Object owner, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final LogNode log) {
         // type ClasspathEntry[]
         final Object entries = ReflectionUtils.getFieldVal(owner, "entries", false);
         if (entries != null) {
@@ -153,17 +158,23 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(
-     * nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader,
-     * nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
      */
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+            final ScanSpec scanSpec, final LogNode log) {
         // type ClasspathManager
         final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager", false);
-        addClasspathEntries(manager, classLoader, classpathOrderOut, scanSpec, log);
+        addClasspathEntries(manager, classLoader, classpathOrder, scanSpec, log);
 
         // type FragmentClasspath[]
         final Object fragments = ReflectionUtils.getFieldVal(manager, "fragments", false);
@@ -171,11 +182,10 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             for (int f = 0, fragLength = Array.getLength(fragments); f < fragLength; f++) {
                 // type FragmentClasspath
                 final Object fragment = Array.get(fragments, f);
-                addClasspathEntries(fragment, classLoader, classpathOrderOut, scanSpec, log);
+                addClasspathEntries(fragment, classLoader, classpathOrder, scanSpec, log);
             }
         }
-        // Only read system bundles once (all bundles should give the same results for this). We assume there is
-        // only one separate Equinox instance on the classpath.
+        // Only read system bundles once (all bundles should give the same results for this).
         if (!alreadyReadSystemBundles) {
             // type BundleLoader
             final Object delegate = ReflectionUtils.getFieldVal(classLoader, "delegate", false);
@@ -209,7 +219,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         final int fileIdx = location.indexOf("file:");
                         if (fileIdx >= 0) {
                             location = location.substring(fileIdx);
-                            classpathOrderOut.addClasspathEntry(location, classLoader, scanSpec, log);
+                            classpathOrder.addClasspathEntry(location, classLoader, scanSpec, log);
                         }
                     }
                 }

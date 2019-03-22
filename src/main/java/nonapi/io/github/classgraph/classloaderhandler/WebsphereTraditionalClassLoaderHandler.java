@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
@@ -39,44 +40,48 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author lukehutch
  */
 class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    @Override
-    public String[] handledClassLoaders() {
-        // All three class loaders implement the getClassPath method call.
-        return new String[] { //
-                "com.ibm.ws.classloader.CompoundClassLoader", //
-                "com.ibm.ws.classloader.ProtectionClassLoader", //
-                "com.ibm.ws.bootstrap.ExtClassLoader" };
+    public static boolean canHandle(final ClassLoader classLoader) {
+        return "com.ibm.ws.classloader.CompoundClassLoader".equals(classLoader.getClass().getName())
+                || "com.ibm.ws.classloader.ProtectionClassLoader".equals(classLoader.getClass().getName())
+                || "com.ibm.ws.bootstrap.ExtClassLoader".equals(classLoader.getClass().getName());
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
      */
-    @Override
-    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
-        return null;
+    public static void findClassLoaderOrder(final ClassLoader classLoader,
+            final ClassLoaderOrder classLoaderOrder) {
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+        classLoaderOrder.add(classLoader);
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
      */
-    @Override
-    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
-        // TODO: Read correct delegation order from ClassLoader
-        return DelegationOrder.PARENT_FIRST;
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
-     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
-     */
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classloader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
-        final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath", false);
-        classpathOrderOut.addClasspathEntries(classpath, classloader, scanSpec, log);
+    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+            final ScanSpec scanSpec, final LogNode log) {
+        final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath", false);
+        classpathOrder.addClasspathEntries(classpath, classLoader, scanSpec, log);
     }
 }

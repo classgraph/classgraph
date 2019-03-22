@@ -131,7 +131,8 @@ public class ClasspathOrder {
      *            the scan spec
      * @return true, if added and unique
      */
-    private boolean addClasspathEntry(final String pathEntry, final ClassLoader classLoader, ScanSpec scanSpec) {
+    private boolean addClasspathEntry(final String pathEntry, final ClassLoader classLoader,
+            final ScanSpec scanSpec) {
         if (scanSpec.overrideClasspath != null //
                 && (SystemJarFinder.getJreLibOrExtJars().contains(pathEntry)
                         || pathEntry.equals(SystemJarFinder.getJreRtJarPath()))) {
@@ -161,8 +162,8 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
-    public boolean addClasspathEntry(final String pathElement, final ClassLoader classLoader, ScanSpec scanSpec,
-            final LogNode log) {
+    public boolean addClasspathEntry(final String pathElement, final ClassLoader classLoader,
+            final ScanSpec scanSpec, final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
         }
@@ -284,7 +285,7 @@ public class ClasspathOrder {
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathEntries(final String pathStr, final ClassLoader classLoader, ScanSpec scanSpec,
+    public boolean addClasspathEntries(final String pathStr, final ClassLoader classLoader, final ScanSpec scanSpec,
             final LogNode log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
@@ -318,7 +319,7 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
      */
     public boolean addClasspathEntryObject(final Object pathObject, final ClassLoader classLoader,
-            ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final LogNode log) {
         boolean valid = false;
         if (pathObject != null) {
             if (pathObject instanceof String) {

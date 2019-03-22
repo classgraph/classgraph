@@ -28,55 +28,54 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import java.util.ArrayList;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import io.github.classgraph.ClassGraphException;
+import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
     /**
-     * Default ClassLoaderHandlers.
+     * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
      */
-    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS;
+    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = //
+            Collections.unmodifiableList(Arrays.asList(
+                    // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
+                    new ClassLoaderHandlerRegistryEntry(AntClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(EquinoxContextFinderClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(SpringBootRestartClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(TomcatWebappClassLoaderBaseHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(PlexusClassWorldsClassRealmClassLoaderHandler.class),
 
-    static {
-        //  If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
-        final List<ClassLoaderHandlerRegistryEntry> builtInHandlers = Arrays.asList(
-                // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
-                new ClassLoaderHandlerRegistryEntry(AntClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(EquinoxContextFinderClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(SpringBootRestartClassLoaderHandler.class),
-                new ClassLoaderHandlerRegistryEntry(TomcatWebappClassLoaderBaseHandler.class),
-                // new ClassLoaderHandlerRegistryEntry(PlexusClassWorldsClassRealmClassLoaderHandler.class),
+                    // For unit testing of PARENT_LAST delegation order
+                    new ClassLoaderHandlerRegistryEntry(ParentLastDelegationOrderTestClassLoaderHandler.class),
 
-                // For unit testing of PARENT_LAST delegation order
-                new ClassLoaderHandlerRegistryEntry(ParentLastDelegationOrderTestClassLoaderHandler.class),
+                    // JPMS support (this handler does nothing, since modules are handled separately)
+                    new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
 
-                // JPMS support
-                new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
+                    // Java 7/8 URLClassLoader support (should be second-to-last, so that subclasses of
+                    // URLClassLoader are handled by more specific handlers above)
+                    new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class)));
 
-                // Java 7/8 support (list last, as fallback)
-                new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
+    /** Fallback ClassLoaderHandler. */
+    public static final ClassLoaderHandlerRegistryEntry FALLBACK_HANDLER = new ClassLoaderHandlerRegistryEntry(
+            FallbackClassLoaderHandler.class);
 
-        final List<ClassLoaderHandlerRegistryEntry> registeredHandlers = new ArrayList<>(builtInHandlers);
-
-        CLASS_LOADER_HANDLERS = Collections.unmodifiableList(registeredHandlers);
-    }
-
-    /** The fallback ClassLoaderHandler. Do not need to add FallbackClassLoaderHandler to the above list. */
-    public static final ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
-            new ClassLoaderHandlerRegistryEntry(FallbackClassLoaderHandler.class);
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Lib dirs whose jars should be added to the classpath automatically (to compensate for some classloaders not
@@ -108,6 +107,8 @@ public class ClassLoaderHandlerRegistry {
             "WEB-INF/classes/" // 
     };
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Constructor.
      */
@@ -119,9 +120,16 @@ public class ClassLoaderHandlerRegistry {
      * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
      */
     public static class ClassLoaderHandlerRegistryEntry {
-        /** The names of handled ClassLoaders. */
-        public final String[] handledClassLoaderNames;
-        /** The ClassLoader class.. */
+        /** canHandle method handle. */
+        private final MethodHandle canHandle;
+
+        /** findClassLoaderOrder method handle. */
+        private final MethodHandle findClassLoaderOrder;
+
+        /** findClasspathOrder method handle. */
+        private final MethodHandle findClasspathOrder;
+
+        /** The ClassLoaderHandler class. */
         public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
 
         /**
@@ -133,32 +141,86 @@ public class ClassLoaderHandlerRegistry {
         private ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
             this.classLoaderHandlerClass = classLoaderHandlerClass;
             try {
-                // Instantiate each ClassLoaderHandler in order to call the handledClassLoaders() method (this is
-                // needed because Java doesn't support inherited static interface methods)
-                this.handledClassLoaderNames = classLoaderHandlerClass.getDeclaredConstructor().newInstance()
-                        .handledClassLoaders();
-            } catch (final ReflectiveOperationException | ExceptionInInitializerError e) {
-                throw ClassGraphException
-                        .newClassGraphException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+                final Method canHandleMethod = classLoaderHandlerClass.getDeclaredMethod("canHandle",
+                        ClassLoader.class);
+                canHandle = MethodHandles.lookup().unreflect(canHandleMethod);
+            } catch (final Exception e) {
+                throw new RuntimeException(
+                        "Could not find canHandle method for " + classLoaderHandlerClass.getName(), e);
+            }
+            try {
+                final Method findClassLoaderOrderMethod = classLoaderHandlerClass
+                        .getDeclaredMethod("findClassLoaderOrder", ClassLoader.class, ClassLoaderOrder.class);
+                findClassLoaderOrder = MethodHandles.lookup().unreflect(findClassLoaderOrderMethod);
+            } catch (final Exception e) {
+                throw new RuntimeException(
+                        "Could not find findClassLoaderOrder method for " + classLoaderHandlerClass.getName(), e);
+            }
+            try {
+                final Method findClasspathOrderMethod = classLoaderHandlerClass.getDeclaredMethod(
+                        "findClasspathOrder", ClassLoader.class, ClasspathOrder.class, ScanSpec.class,
+                        LogNode.class);
+                findClasspathOrder = MethodHandles.lookup().unreflect(findClasspathOrderMethod);
+            } catch (final Exception e) {
+                throw new RuntimeException(
+                        "Could not find findClasspathOrder method for " + classLoaderHandlerClass.getName(), e);
             }
         }
 
         /**
-         * Instantiate a ClassLoaderHandler, or return null if the class could not be instantiated.
+         * Call the static method canHandle(ClassLoader) for the associated {@link ClassLoaderHandler}.
          *
-         * @param log
-         *            The log.
-         * @return The ClassLoaderHandler instance.
+         * @param classLoader
+         *            the {@link ClassLoader}.
+         * @return true, if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
          */
-        public ClassLoaderHandler instantiate(final LogNode log) {
+        public boolean canHandle(final ClassLoader classLoader) {
             try {
-                // Instantiate a ClassLoaderHandler
-                return classLoaderHandlerClass.getDeclaredConstructor().newInstance();
-            } catch (final ReflectiveOperationException | ExceptionInInitializerError e) {
-                if (log != null) {
-                    log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
-                }
-                return null;
+                return (boolean) canHandle.invokeExact(classLoader);
+            } catch (final Throwable e) {
+                throw new RuntimeException(
+                        "Exception while calling canHandle for " + classLoaderHandlerClass.getName(), e);
+            }
+        }
+
+        /**
+         * Call the static method findClassLoaderOrder(ClassLoader, ClassLoaderOrder) for the associated
+         * {@link ClassLoaderHandler}.
+         *
+         * @param classLoader
+         *            the {@link ClassLoader}.
+         * @param classLoaderOrder
+         *            a {@link ClassLoaderOrder} object.
+         */
+        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder) {
+            try {
+                findClassLoaderOrder.invokeExact(classLoader, classLoaderOrder);
+            } catch (final Throwable e) {
+                throw new RuntimeException(
+                        "Exception while calling findClassLoaderOrder for " + classLoaderHandlerClass.getName(), e);
+            }
+        }
+
+        /**
+         * Call the static method findClasspathOrder(ClassLoader, ClasspathOrder) for the associated
+         * {@link ClassLoaderHandler}.
+         *
+         * @param classLoader
+         *            the {@link ClassLoader}.
+         * @param classpathOrder
+         *            a {@link ClasspathOrder} object.
+         * @param scanSpec
+         *            the {@link ScanSpec}.
+         * @param log
+         *            the log.
+         */
+        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                final ScanSpec scanSpec, final LogNode log) {
+            try {
+                findClasspathOrder.invokeExact(classLoader, classpathOrder, scanSpec, log);
+            } catch (final Throwable e) {
+                throw new RuntimeException(
+                        "Exception while calling findClassLoaderOrder for " + classLoaderHandlerClass.getName(), e);
             }
         }
     }

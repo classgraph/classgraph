@@ -28,7 +28,9 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -40,32 +42,38 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
-
     /**
-     * The handler delegate. Spring Boot's devtools class loader is an extension of URLClassLoader, so there's no
-     * need to use reflection to access the supported URLs, and we can delegate the handling to an internal instance
-     * of URLClassLoaderHandler.
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    private final URLClassLoaderHandler handlerDelegate = new URLClassLoaderHandler();
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
-     */
-    @Override
-    public String[] handledClassLoaders() {
-        return new String[] { //
-                "org.springframework.boot.devtools.restart.classloader.RestartClassLoader" };
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
-     */
-    @Override
-    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
-        return null;
+    public static boolean canHandle(final ClassLoader classLoader) {
+        return "org.springframework.boot.devtools.restart.classloader.RestartClassLoader"
+                .equals(classLoader.getClass().getName());
     }
 
     /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
+     */
+    public static void findClassLoaderOrder(final ClassLoader classLoader,
+            final ClassLoaderOrder classLoaderOrder) {
+        // The Restart classloader is a parent-last classloader, so need to delegate to the context
+        // classloader(s) before the parent.
+        classLoaderOrder.delegateTo(Thread.currentThread().getContextClassLoader(), /* isParent = */ false);
+        classLoaderOrder.delegateTo(ClassGraph.class.getClassLoader(), /* isParent = */ false);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+    }
+
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     * 
      * Spring Boot's RestartClassLoader sits in front of the parent class loader and watches a given set of
      * directories for changes. While those classes are reachable from the parent class loader directly, they should
      * always be loaded through direct access from the RestartClassLoader until it's completely turned of by means
@@ -77,21 +85,17 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      * See: <a href="https://github.com/classgraph/classgraph/issues/267">#267</a>,
      * <a href="https://github.com/classgraph/classgraph/issues/268">#268</a>
      *
-     * @param classLoaderInstance
-     *            the class loader instance
-     * @return the delegation order
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
      */
-    @Override
-    public ClassLoaderHandler.DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
-        return DelegationOrder.PARENT_LAST;
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
-     */
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
-        handlerDelegate.handle(scanSpec, classLoader, classpathOrderOut, log);
+    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+            final ScanSpec scanSpec, final LogNode log) {
+        // The Restart classloader doesn't itself store any URLs
     }
 }
