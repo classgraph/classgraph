@@ -103,10 +103,6 @@ In particular, the Maven group id has changed from `io.github.lukehutch.fast-cla
 
 ClassGraph was written by Luke Hutchison ([@LH](http://twitter.com/LH) on Twitter).
 
-Please donate if this library makes your life easier:
-
-[![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=luke.hutch@gmail.com&lc=US&item_name=Luke%20Hutchison&item_number=ClassGraph&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHostedGuest)
-
 ### Acknowledgments
 
 ClassGraph would not be possible without contributions from numerous users, including in the form of bug reports, feature requests, code contributions, and assistance with testing.
