@@ -42,11 +42,12 @@ import com.xyz.meta.A;
  * ClassLoadingWorksWithParentLastLoadersStub.
  */
 public class ClassLoadingWorksWithParentLastLoadersStub {
+
     /**
      * Same class loader that found A class should load it.
      *
-     * @throws Exception
-     *             the exception
+     * @throws Throwable
+     *             the throwable
      */
     @Test
     public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Throwable {

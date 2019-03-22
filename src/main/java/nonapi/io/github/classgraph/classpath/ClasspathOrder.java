@@ -127,11 +127,14 @@ public class ClasspathOrder {
      *            FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path)
      * @param classLoader
      *            the classloader
+     * @param scanSpec
+     *            the scan spec
      * @return true, if added and unique
      */
-    private boolean addClasspathEntry(final String pathEntry, final ClassLoader classLoader) {
-        if (SystemJarFinder.getJreLibOrExtJars().contains(pathEntry)
-                || pathEntry.equals(SystemJarFinder.getJreRtJarPath())) {
+    private boolean addClasspathEntry(final String pathEntry, final ClassLoader classLoader, ScanSpec scanSpec) {
+        if (scanSpec.overrideClasspath != null //
+                && (SystemJarFinder.getJreLibOrExtJars().contains(pathEntry)
+                        || pathEntry.equals(SystemJarFinder.getJreRtJarPath()))) {
             // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
             // returned by a system classloader
             return false;
@@ -151,12 +154,15 @@ public class ClasspathOrder {
      *            the URL or path of the classpath element.
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
-    public boolean addClasspathEntry(final String pathElement, final ClassLoader classLoader, final LogNode log) {
+    public boolean addClasspathEntry(final String pathElement, final ClassLoader classLoader, ScanSpec scanSpec,
+            final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
         }
@@ -212,7 +218,7 @@ public class ClasspathOrder {
                             final String fileInDirPath = fileInDir.getPath();
                             final String fileInDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                                     fileInDirPath);
-                            if (addClasspathEntry(fileInDirPathResolved, classLoader)) {
+                            if (addClasspathEntry(fileInDirPathResolved, classLoader, scanSpec)) {
                                 if (dirLog != null) {
                                     dirLog.log("Found classpath element: " + fileInDirPath
                                             + (fileInDirPath.equals(fileInDirPathResolved) ? ""
@@ -249,7 +255,7 @@ public class ClasspathOrder {
                 }
                 return false;
             }
-            if (addClasspathEntry(pathElementResolved, classLoader)) {
+            if (addClasspathEntry(pathElementResolved, classLoader, scanSpec)) {
                 if (log != null) {
                     log.log("Found classpath element: " + pathElement
                             + (pathElement.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
@@ -272,11 +278,14 @@ public class ClasspathOrder {
      *            the delimited string of URLs or paths of the classpath.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathEntries(final String pathStr, final ClassLoader classLoader, final LogNode log) {
+    public boolean addClasspathEntries(final String pathStr, final ClassLoader classLoader, ScanSpec scanSpec,
+            final LogNode log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
@@ -285,7 +294,7 @@ public class ClasspathOrder {
                 return false;
             } else {
                 for (final String pathElement : parts) {
-                    addClasspathEntry(pathElement, classLoader, log);
+                    addClasspathEntry(pathElement, classLoader, scanSpec, log);
                 }
                 return true;
             }
@@ -302,20 +311,22 @@ public class ClasspathOrder {
      *            the object containing a classpath string or strings.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
      */
     public boolean addClasspathEntryObject(final Object pathObject, final ClassLoader classLoader,
-            final LogNode log) {
+            ScanSpec scanSpec, final LogNode log) {
         boolean valid = false;
         if (pathObject != null) {
             if (pathObject instanceof String) {
-                valid |= addClasspathEntries((String) pathObject, classLoader, log);
+                valid |= addClasspathEntries((String) pathObject, classLoader, scanSpec, log);
             } else if (pathObject instanceof Iterable) {
                 for (final Object p : (Iterable<?>) pathObject) {
                     if (p != null) {
-                        valid |= addClasspathEntries(p.toString(), classLoader, log);
+                        valid |= addClasspathEntries(p.toString(), classLoader, scanSpec, log);
                     }
                 }
             } else {
@@ -324,12 +335,12 @@ public class ClasspathOrder {
                     for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
                         final Object elt = Array.get(pathObject, j);
                         if (elt != null) {
-                            valid |= addClasspathEntryObject(elt, classLoader, log);
+                            valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
                         }
                     }
                 } else {
                     // Try simply calling toString() as a final fallback, in case this returns something sensible
-                    valid |= addClasspathEntries(pathObject.toString(), classLoader, log);
+                    valid |= addClasspathEntries(pathObject.toString(), classLoader, scanSpec, log);
                 }
             }
         }

@@ -87,11 +87,13 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrderOut
      *            the classpath order
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the log
      */
     private void addBundleFile(final Object bundlefile, final Set<Object> path, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
@@ -104,21 +106,21 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                     if (foundClassPathElement) {
                         // We found the base file and a classpath element, e.g. "bin/"
                         classpathOrderOut.addClasspathEntry(basefile.toString() + "/" + fieldVal.toString(),
-                                classLoader, log);
+                                classLoader, scanSpec, log);
                         break;
                     }
                 }
 
                 if (!foundClassPathElement) {
                     // No classpath element found, just use basefile
-                    classpathOrderOut.addClasspathEntry(basefile.toString(), classLoader, log);
+                    classpathOrderOut.addClasspathEntry(basefile.toString(), classLoader, scanSpec, log);
                 }
 
             }
             addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "wrapped", false), path, classLoader,
-                    classpathOrderOut, log);
+                    classpathOrderOut, scanSpec, log);
             addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "next", false), path, classLoader,
-                    classpathOrderOut, log);
+                    classpathOrderOut, scanSpec, log);
         }
     }
 
@@ -131,11 +133,13 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      *            the class loader
      * @param classpathOrderOut
      *            the classpath order out
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the log
      */
     private void addClasspathEntries(final Object owner, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
         // type ClasspathEntry[]
         final Object entries = ReflectionUtils.getFieldVal(owner, "entries", false);
         if (entries != null) {
@@ -144,21 +148,22 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 final Object entry = Array.get(entries, i);
                 // type BundleFile
                 final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile", false);
-                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
+                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, scanSpec, log);
             }
         }
     }
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(
-     * nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader,
+     * nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         // type ClasspathManager
         final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager", false);
-        addClasspathEntries(manager, classLoader, classpathOrderOut, log);
+        addClasspathEntries(manager, classLoader, classpathOrderOut, scanSpec, log);
 
         // type FragmentClasspath[]
         final Object fragments = ReflectionUtils.getFieldVal(manager, "fragments", false);
@@ -166,7 +171,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             for (int f = 0, fragLength = Array.getLength(fragments); f < fragLength; f++) {
                 // type FragmentClasspath
                 final Object fragment = Array.get(fragments, f);
-                addClasspathEntries(fragment, classLoader, classpathOrderOut, log);
+                addClasspathEntries(fragment, classLoader, classpathOrderOut, scanSpec, log);
             }
         }
         // Only read system bundles once (all bundles should give the same results for this). We assume there is
@@ -204,7 +209,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         final int fileIdx = location.indexOf("file:");
                         if (fileIdx >= 0) {
                             location = location.substring(fileIdx);
-                            classpathOrderOut.addClasspathEntry(location, classLoader, log);
+                            classpathOrderOut.addClasspathEntry(location, classLoader, scanSpec, log);
                         }
                     }
                 }

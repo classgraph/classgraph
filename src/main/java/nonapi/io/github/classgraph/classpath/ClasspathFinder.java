@@ -341,7 +341,8 @@ public class ClasspathFinder {
             }
             final LogNode overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
-            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath, defaultClassLoader, overrideLog);
+            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath, defaultClassLoader, scanSpec,
+                    overrideLog);
             if (overrideLog != null) {
                 overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                         + "found by classpath scanning will be the same as the classes loaded by the "
@@ -451,7 +452,7 @@ public class ClasspathFinder {
                         if (!ignoredClasspathOrder.getClasspathEntryUniqueResolvedPaths()
                                 .contains(pathElementResolved)) {
                             // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathEntry(pathElement, defaultClassLoader, sysPropLog);
+                            classpathOrder.addClasspathEntry(pathElement, defaultClassLoader, scanSpec, sysPropLog);
                         } else {
                             // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {

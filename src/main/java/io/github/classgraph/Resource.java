@@ -309,6 +309,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Convert a URI to URL, catching "jrt:" URIs as invalid.
      *
+     * @param uri
+     *            the uri
      * @return the URL.
      * @throws IllegalArgumentException
      *             if the URI could not be converted to a URL, or the URI had "jrt:" scheme.

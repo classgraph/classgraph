@@ -118,7 +118,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
+     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
@@ -137,7 +138,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 for (final Object classpath : classPathElements) {
                     final String path = getPath(classpath);
                     if (path != null && path.length() > 0) {
-                        classpathOrderOut.addClasspathEntry(path, classLoader, log);
+                        classpathOrderOut.addClasspathEntry(path, classLoader, scanSpec, log);
                     }
                 }
             }

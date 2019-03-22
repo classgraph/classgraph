@@ -66,7 +66,8 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
+     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
@@ -75,7 +76,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         final Object resources = ReflectionUtils.invokeMethod(classLoader, "getResources", false);
         // type List<URL>
         final Object baseURLs = ReflectionUtils.invokeMethod(resources, "getBaseUrls", false);
-        classpathOrderOut.addClasspathEntryObject(baseURLs, classLoader, log);
+        classpathOrderOut.addClasspathEntryObject(baseURLs, classLoader, scanSpec, log);
         // type List<List<WebResourceSet>>
         // members: preResources, mainResources, classResources, jarResources, postResources
         @SuppressWarnings("unchecked")
@@ -119,9 +120,9 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                             classpathOrderOut.addClasspathEntryObject(
                                     base + (isJar ? "!" : "")
                                             + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
-                                    classLoader, log);
+                                    classLoader, scanSpec, log);
                         } else {
-                            classpathOrderOut.addClasspathEntryObject(base, classLoader, log);
+                            classpathOrderOut.addClasspathEntryObject(base, classLoader, scanSpec, log);
                         }
                     }
                 }
@@ -129,6 +130,6 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         }
         // This may or may not duplicate the above
         final Object urls = ReflectionUtils.invokeMethod(classLoader, "getURLs", false);
-        classpathOrderOut.addClasspathEntryObject(urls, classLoader, log);
+        classpathOrderOut.addClasspathEntryObject(urls, classLoader, scanSpec, log);
     }
 }

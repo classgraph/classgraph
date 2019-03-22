@@ -905,6 +905,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * the whole string if the class is in the root package. (Note that this is not the same as the result of
      * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
+     * @param className
+     *            the class name
      * @return The simple name of the class.
      */
     static String getSimpleName(final String className) {

@@ -32,6 +32,13 @@ public class MethodParameterAnnotations {
      * The Class Y.
      */
     private abstract static class Y {
+
+        /**
+         * W.
+         *
+         * @param w
+         *            the w
+         */
         abstract void w(@W int w);
     }
 
@@ -39,6 +46,13 @@ public class MethodParameterAnnotations {
      * The Class Z.
      */
     private abstract static class Z {
+
+        /**
+         * X.
+         *
+         * @param x
+         *            the x
+         */
         abstract void x(@X int x);
     }
 

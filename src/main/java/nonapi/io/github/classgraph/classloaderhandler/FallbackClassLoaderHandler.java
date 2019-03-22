@@ -64,92 +64,94 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(
+     * nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader,
+     * nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         boolean valid = false;
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getClassPath", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getClassPath", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "classpath", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "classpath", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "classPath", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "classPath", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "cp", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.getFieldVal(classLoader, "classpath", false), classLoader, log);
+                ReflectionUtils.getFieldVal(classLoader, "classpath", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.getFieldVal(classLoader, "classPath", false), classLoader, log);
+                ReflectionUtils.getFieldVal(classLoader, "classPath", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "cp", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getPath", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getPath", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getPaths", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getPaths", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "path", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "paths", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "paths", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "paths", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "paths", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getDir", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getDir", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getDirs", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getDirs", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "dir", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "dirs", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "dir", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "dirs", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getFile", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getFile", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getFiles", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getFiles", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "file", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "files", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "files", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "file", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "files", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getJar", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getJar", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getJars", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getJars", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "jar", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "jars", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "jar", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "jars", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getURL", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getURL", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getURLs", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getURLs", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getUrl", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getUrl", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(
-                ReflectionUtils.invokeMethod(classLoader, "getUrls", false), classLoader, log);
+                ReflectionUtils.invokeMethod(classLoader, "getUrls", false), classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "url", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.invokeMethod(classLoader, "urls", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "url", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         valid |= classpathOrderOut.addClasspathEntryObject(ReflectionUtils.getFieldVal(classLoader, "urls", false),
-                classLoader, log);
+                classLoader, scanSpec, log);
         if (log != null) {
             log.log("FallbackClassLoaderHandler " + (valid ? "found" : "did not find")
                     + " classpath entries in unknown ClassLoader " + classLoader);

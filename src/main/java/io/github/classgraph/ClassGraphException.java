@@ -81,6 +81,8 @@ public class ClassGraphException extends IllegalArgumentException {
      * @param cause
      *            the cause
      * @return the ClassGraphException
+     * @throws ClassGraphException
+     *             the class graph exception
      */
     public static ClassGraphException newClassGraphException(final String message, final Throwable cause)
             throws ClassGraphException {

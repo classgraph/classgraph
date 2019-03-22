@@ -98,11 +98,13 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrderOut
      *            the classpath order out
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the log
      */
     private void addBundle(final Object bundleWiring, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
@@ -113,7 +115,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         final String location = content != null ? getContentLocation(content) : null;
         if (location != null) {
             // Add the bundle object
-            classpathOrderOut.addClasspathEntry(location, classLoader, log);
+            classpathOrderOut.addClasspathEntry(location, classLoader, scanSpec, log);
 
             // And any embedded content
             final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(revision, "getContentPath",
@@ -123,7 +125,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
                     if (embedded != content) {
                         final String embeddedLocation = embedded != null ? getContentLocation(embedded) : null;
                         if (embeddedLocation != null) {
-                            classpathOrderOut.addClasspathEntry(embeddedLocation, classLoader, log);
+                            classpathOrderOut.addClasspathEntry(embeddedLocation, classLoader, scanSpec, log);
                         }
                     }
                 }
@@ -132,7 +134,8 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
+     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
@@ -140,7 +143,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
 
         // Get the wiring for the ClassLoader's bundle
         final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring", false);
-        addBundle(bundleWiring, classLoader, classpathOrderOut, log);
+        addBundle(bundleWiring, classLoader, classpathOrderOut, scanSpec, log);
 
         // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to narrow down the list of wires
         // that we follow.
@@ -151,7 +154,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             for (final Object wire : requiredWires) {
                 final Object provider = ReflectionUtils.invokeMethod(wire, "getProviderWiring", false);
                 if (!bundles.contains(provider)) {
-                    addBundle(provider, classLoader, classpathOrderOut, log);
+                    addBundle(provider, classLoader, classpathOrderOut, scanSpec, log);
                 }
             }
         }

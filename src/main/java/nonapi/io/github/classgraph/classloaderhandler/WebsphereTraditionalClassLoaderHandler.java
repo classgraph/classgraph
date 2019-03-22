@@ -70,12 +70,13 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
+     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classloader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath", false);
-        classpathOrderOut.addClasspathEntries(classpath, classloader, log);
+        classpathOrderOut.addClasspathEntries(classpath, classloader, scanSpec, log);
     }
 }

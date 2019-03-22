@@ -61,13 +61,14 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
+     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath",
                 /* throwException = */ true);
-        classpathOrderOut.addClasspathEntry(classpath, classLoader, log);
+        classpathOrderOut.addClasspathEntry(classpath, classLoader, scanSpec, log);
     }
 }

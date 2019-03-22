@@ -567,6 +567,14 @@ public abstract class WhiteBlackList {
         }
     }
 
+    /**
+     * Quote list.
+     *
+     * @param coll
+     *            the coll
+     * @param buf
+     *            the buf
+     */
     private static void quoteList(final Collection<String> coll, final StringBuilder buf) {
         buf.append('[');
         boolean first = true;

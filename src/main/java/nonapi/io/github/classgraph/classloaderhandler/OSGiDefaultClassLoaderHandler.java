@@ -67,7 +67,8 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
+     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classloader,
@@ -79,7 +80,7 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
                 final Object bundleFile = ReflectionUtils.invokeMethod(entry, "getBundleFile", false);
                 final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile", false);
                 if (baseFile != null) {
-                    classpathOrderOut.addClasspathEntry(baseFile.getPath(), classloader, log);
+                    classpathOrderOut.addClasspathEntry(baseFile.getPath(), classloader, scanSpec, log);
                 }
             }
         }

@@ -26,6 +26,9 @@ public class MultiReleaseJar {
 
     /**
      * Multi release jar.
+     *
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void multiReleaseJar() throws Exception {
@@ -64,6 +67,9 @@ public class MultiReleaseJar {
 
     /**
      * Multi release versioning of resources.
+     *
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void multiReleaseVersioningOfResources() throws Exception {

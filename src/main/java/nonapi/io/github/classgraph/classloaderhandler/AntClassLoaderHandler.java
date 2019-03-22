@@ -61,12 +61,15 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(
+     * nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, 
+     * nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
         classpathOrderOut.addClasspathEntries( //
-                (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, log);
+                (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, scanSpec,
+                log);
     }
 }

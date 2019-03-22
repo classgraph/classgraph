@@ -391,6 +391,9 @@ public class ClassGraphTest {
 
     /**
      * Scan static final field name ignore visibility.
+     *
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void scanStaticFinalFieldNameIgnoreVisibility() throws Exception {

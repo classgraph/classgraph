@@ -19,7 +19,13 @@ import io.github.classgraph.ScanResult;
  * Issue305.
  */
 public class Issue305 {
-    /** Test that multi-line continuations in manifest file values are correctly assembled into a string. */
+
+    /**
+     * Test that multi-line continuations in manifest file values are correctly assembled into a string.
+     *
+     * @throws Exception
+     *             the exception
+     */
     @Test
     public void issue305() throws Exception {
         ConsoleHandler errPrintStreamHandler = null;

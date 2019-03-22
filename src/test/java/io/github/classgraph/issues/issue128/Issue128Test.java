@@ -59,8 +59,8 @@ public class Issue128Test {
     /**
      * Issue 128 test.
      *
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void issue128Test() throws Exception {

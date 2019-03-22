@@ -84,11 +84,13 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrderOut
      *            the classpath order
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the log
      */
     private void handleResourceLoader(final Object resourceLoader, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
+            final ClasspathOrder classpathOrderOut, ScanSpec scanSpec, final LogNode log) {
         if (resourceLoader == null) {
             return;
         }
@@ -129,7 +131,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             }
         }
         if (path != null) {
-            classpathOrderOut.addClasspathEntry(path, classLoader, log);
+            classpathOrderOut.addClasspathEntry(path, classLoader, scanSpec, log);
         } else {
             if (log != null) {
                 log.log("Could not determine classpath for ResourceLoader: " + resourceLoader);
@@ -148,11 +150,14 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrderOut
      *            the classpath order
+     * @param scanSpec
+     *            the scan spec
      * @param log
      *            the log
      */
     private void handleRealModule(final Object module, final Set<Object> visitedModules,
-            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final LogNode log) {
+            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, ScanSpec scanSpec,
+            final LogNode log) {
         if (!visitedModules.add(module)) {
             // Avoid extracting paths from the same module more than once
             return;
@@ -172,14 +177,15 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 // Could skip NativeLibraryResourceLoader instances altogether, but testing for their existence
                 // only seems to add about 3% to the total scan time.
                 // if (!resourceLoader.getClass().getSimpleName().equals("NativeLibraryResourceLoader")) {
-                handleResourceLoader(resourceLoader, moduleLoader, classpathOrderOut, log);
+                handleResourceLoader(resourceLoader, moduleLoader, classpathOrderOut, scanSpec, log);
                 //}
             }
         }
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(nonapi.io.github.classgraph.ScanSpec,
+     * java.lang.ClassLoader, nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
@@ -195,7 +201,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             final Object val = ent.getValue();
             // type Module
             final Object realModule = ReflectionUtils.invokeMethod(val, "getModule", false);
-            handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, log);
+            handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, scanSpec, log);
         }
         // type Map<String, List<LocalLoader>>
         @SuppressWarnings("unchecked")
@@ -207,7 +213,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 final Object moduleClassLoader = ReflectionUtils.getFieldVal(localLoader, "this$0", false);
                 // type Module
                 final Object realModule = ReflectionUtils.getFieldVal(moduleClassLoader, "module", false);
-                handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, log);
+                handleRealModule(realModule, visitedModules, classLoader, classpathOrderOut, scanSpec, log);
             }
         }
     }

@@ -41,11 +41,13 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * A map from keys to singleton instances. Allows you to create object instance singletons and add them to a
  * {@link ConcurrentMap} on demand, based on a key value. Works the same as
  * {@code concurrentMap.computeIfAbsent(key, key -> newInstance(key))}, except that it also works on JDK 7.
- * 
+ *
  * @param <K>
  *            The key type.
  * @param <V>
  *            The value type.
+ * @param <E>
+ *            the element type
  */
 public abstract class SingletonMap<K, V, E extends Exception> {
     /** The map. */
