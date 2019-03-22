@@ -60,6 +60,10 @@ class ClassGraphClassLoader extends ClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
+        final Class<?> loadedClass = findLoadedClass(className);
+        if (loadedClass != null) {
+            return loadedClass;
+        }
 
         // Get ClassInfo for named class
         final ClassInfo classInfo = scanResult.getClassInfo(className);
