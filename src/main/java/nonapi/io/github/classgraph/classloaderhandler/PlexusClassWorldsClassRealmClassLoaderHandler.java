@@ -28,13 +28,10 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import java.io.File;
-import java.util.LinkedHashSet;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.SortedSet;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
@@ -45,95 +42,99 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * @author lukehutch
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandler {
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handledClassLoaders()
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    @Override
-    public String[] handledClassLoaders() {
-        return new String[] { "org.codehaus.plexus.classworlds.realm.ClassRealm" };
+    public static boolean canHandle(final ClassLoader classLoader) {
+        return "org.codehaus.plexus.classworlds.realm.ClassRealm".equals(classLoader.getClass().getName());
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getEmbeddedClassLoader(java.lang.ClassLoader)
+    /**
+     * Checks if is this classloader uses a parent-first strategy.
+     *
+     * @param classRealmInstance
+     *            the ClassRealm instance
+     * @return true if classloader uses a parent-first strategy
      */
-    @Override
-    public ClassLoader getEmbeddedClassLoader(final ClassLoader classRealmInstance) {
-        //        Set<ClassLoader> classLoaderOrder = new LinkedHashSet<>();
-        //
-        //        // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
-        //        final Object foreignImports = ReflectionUtils.getFieldVal(classRealmInstance, "foreignImports", false);
-        //        if (foreignImports != null) {
-        //            @SuppressWarnings("unchecked")
-        //            SortedSet<Object> foreignImportEntries = (SortedSet<Object>) foreignImports;
-        //            for (Object entry : foreignImportEntries) {
-        //                final Object classLoader = ReflectionUtils.invokeMethod(entry, "getClassLoader", false);
-        //                if (classLoader instanceof ClassLoader) {
-        //                    classLoaderOrder.add((ClassLoader) classLoader);
-        //                }
-        //            }
-        //        }
-        //
-        //        // Get delegation order -- different strategies have different delegation orders
-        //        DelegationOrder delegationOrder = getDelegationOrder(classRealmInstance);
-        //
-        //        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for self-first strategy
-        //        if (delegationOrder == DelegationOrder.PARENT_LAST) {
-        //            classLoaderOrder.add(classRealmInstance);
-        //        }
-        //
-        //        // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter
-        //        // a class name before deciding whether or not to call the parent classloader (so ClassGraph will be
-        //        // able to load classes by name that are not imported from the parent classloader).
-        //        final Object parentClassLoader = ReflectionUtils.invokeMethod(classRealmInstance, "getParentClassLoader",
-        //                false);
-        //        if (parentClassLoader instanceof ClassLoader) {
-        //            classLoaderOrder.add((ClassLoader) parentClassLoader);
-        //        }
-        //
-        //        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for parent-first strategy
-        //        if (delegationOrder == DelegationOrder.PARENT_FIRST) {
-        //            classLoaderOrder.add(classRealmInstance);
-        //        }
-        //
-        //        return classLoaderOrder;
-        return null;
-    }
-
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#getDelegationOrder(java.lang.ClassLoader)
-     */
-    @Override
-    public DelegationOrder getDelegationOrder(final ClassLoader classRealmInstance) {
+    private static boolean isParentFirstStrategy(final ClassLoader classRealmInstance) {
         final Object strategy = ReflectionUtils.getFieldVal(classRealmInstance, "strategy", false);
         if (strategy != null) {
-            String strategyClassName = strategy.getClass().getName();
+            final String strategyClassName = strategy.getClass().getName();
             if (strategyClassName.equals("org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy")
                     || strategyClassName.equals("org.codehaus.plexus.classworlds.strategy.OsgiBundleStrategy")) {
-                return DelegationOrder.PARENT_LAST;
+                // Strategy is self-first
+                return false;
             }
         }
-        // org.codehaus.plexus.classworlds.strategy.ParentFirstStrategy (or failed to find strategy)
-        return DelegationOrder.PARENT_FIRST;
+        // Strategy is org.codehaus.plexus.classworlds.strategy.ParentFirstStrategy (or failed to find strategy)
+        return true;
     }
 
-    /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler#handle(
-     * nonapi.io.github.classgraph.ScanSpec, java.lang.ClassLoader,
-     * nonapi.io.github.classgraph.classpath.ClasspathOrder, nonapi.io.github.classgraph.utils.LogNode)
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classRealm
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
      */
-    @Override
-    public void handle(final ScanSpec scanSpec, final ClassLoader classloader,
-            final ClasspathOrder classpathOrderOut, final LogNode log) {
-        //        final Object[] entries = (Object[]) ReflectionUtils.getFieldVal(classpathManager, "entries", false);
-        //        if (entries != null) {
-        //            for (final Object entry : entries) {
-        //                final Object bundleFile = ReflectionUtils.invokeMethod(entry, "getBundleFile", false);
-        //                final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile", false);
-        //                if (baseFile != null) {
-        //                    classpathOrderOut.addClasspathEntry(baseFile.getPath(), classloader, log);
-        //                }
-        //            }
-        //        }
+    public static void findClassLoaderOrder(final ClassLoader classRealm, final ClassLoaderOrder classLoaderOrder) {
+        // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
+        final Object foreignImports = ReflectionUtils.getFieldVal(classRealm, "foreignImports", false);
+        if (foreignImports != null) {
+            @SuppressWarnings("unchecked")
+            final SortedSet<Object> foreignImportEntries = (SortedSet<Object>) foreignImports;
+            for (final Object entry : foreignImportEntries) {
+                final ClassLoader foreignImportClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(entry,
+                        "getClassLoader", false);
+                // Treat foreign import classloader as if it is a parent classloader
+                classLoaderOrder.delegateTo(foreignImportClassLoader, /* isParent = */ true);
+            }
+        }
+
+        // Get delegation order -- different strategies have different delegation orders
+        final boolean isParentFirst = isParentFirstStrategy(classRealm);
+
+        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for self-first strategy
+        if (!isParentFirst) {
+            // Add self before parent
+            classLoaderOrder.add(classRealm);
+        }
+
+        // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter
+        // a class name before deciding whether or not to call the parent classloader (so ClassGraph will be
+        // able to load classes by name that are not imported from the parent classloader).
+        final ClassLoader parentClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(classRealm,
+                "getParentClassLoader", false);
+        classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true);
+        classLoaderOrder.delegateTo(classRealm.getParent(), /* isParent = */ true);
+
+        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for parent-first strategy
+        if (isParentFirst) {
+            // Add self after parent
+            classLoaderOrder.add(classRealm);
+        }
+    }
+
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
+     */
+    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+            final ScanSpec scanSpec, final LogNode log) {
+        // ClassRealm extends URLClassLoader
+        URLClassLoaderHandler.findClasspathOrder(classLoader, classpathOrder, scanSpec, log);
     }
 }
