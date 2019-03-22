@@ -28,8 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
@@ -120,14 +118,14 @@ public class ClassLoaderHandlerRegistry {
      * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
      */
     public static class ClassLoaderHandlerRegistryEntry {
-        /** canHandle method handle. */
-        private final MethodHandle canHandle;
+        /** canHandle method. */
+        private final Method canHandleMethod;
 
-        /** findClassLoaderOrder method handle. */
-        private final MethodHandle findClassLoaderOrder;
+        /** findClassLoaderOrder method. */
+        private final Method findClassLoaderOrderMethod;
 
-        /** findClasspathOrder method handle. */
-        private final MethodHandle findClasspathOrder;
+        /** findClasspathOrder method. */
+        private final Method findClasspathOrderMethod;
 
         /** The ClassLoaderHandler class. */
         public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
@@ -141,26 +139,21 @@ public class ClassLoaderHandlerRegistry {
         private ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
             this.classLoaderHandlerClass = classLoaderHandlerClass;
             try {
-                final Method canHandleMethod = classLoaderHandlerClass.getDeclaredMethod("canHandle",
-                        ClassLoader.class);
-                canHandle = MethodHandles.lookup().unreflect(canHandleMethod);
+                canHandleMethod = classLoaderHandlerClass.getDeclaredMethod("canHandle", ClassLoader.class);
             } catch (final Exception e) {
                 throw new RuntimeException(
                         "Could not find canHandle method for " + classLoaderHandlerClass.getName(), e);
             }
             try {
-                final Method findClassLoaderOrderMethod = classLoaderHandlerClass
-                        .getDeclaredMethod("findClassLoaderOrder", ClassLoader.class, ClassLoaderOrder.class);
-                findClassLoaderOrder = MethodHandles.lookup().unreflect(findClassLoaderOrderMethod);
+                findClassLoaderOrderMethod = classLoaderHandlerClass.getDeclaredMethod("findClassLoaderOrder",
+                        ClassLoader.class, ClassLoaderOrder.class);
             } catch (final Exception e) {
                 throw new RuntimeException(
                         "Could not find findClassLoaderOrder method for " + classLoaderHandlerClass.getName(), e);
             }
             try {
-                final Method findClasspathOrderMethod = classLoaderHandlerClass.getDeclaredMethod(
-                        "findClasspathOrder", ClassLoader.class, ClasspathOrder.class, ScanSpec.class,
-                        LogNode.class);
-                findClasspathOrder = MethodHandles.lookup().unreflect(findClasspathOrderMethod);
+                findClasspathOrderMethod = classLoaderHandlerClass.getDeclaredMethod("findClasspathOrder",
+                        ClassLoader.class, ClasspathOrder.class, ScanSpec.class, LogNode.class);
             } catch (final Exception e) {
                 throw new RuntimeException(
                         "Could not find findClasspathOrder method for " + classLoaderHandlerClass.getName(), e);
@@ -176,7 +169,7 @@ public class ClassLoaderHandlerRegistry {
          */
         public boolean canHandle(final ClassLoader classLoader) {
             try {
-                return (boolean) canHandle.invokeExact(classLoader);
+                return (boolean) canHandleMethod.invoke(null, classLoader);
             } catch (final Throwable e) {
                 throw new RuntimeException(
                         "Exception while calling canHandle for " + classLoaderHandlerClass.getName(), e);
@@ -194,7 +187,7 @@ public class ClassLoaderHandlerRegistry {
          */
         public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder) {
             try {
-                findClassLoaderOrder.invokeExact(classLoader, classLoaderOrder);
+                findClassLoaderOrderMethod.invoke(null, classLoader, classLoaderOrder);
             } catch (final Throwable e) {
                 throw new RuntimeException(
                         "Exception while calling findClassLoaderOrder for " + classLoaderHandlerClass.getName(), e);
@@ -217,7 +210,7 @@ public class ClassLoaderHandlerRegistry {
         public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
                 final ScanSpec scanSpec, final LogNode log) {
             try {
-                findClasspathOrder.invokeExact(classLoader, classpathOrder, scanSpec, log);
+                findClasspathOrderMethod.invoke(null, classLoader, classpathOrder, scanSpec, log);
             } catch (final Throwable e) {
                 throw new RuntimeException(
                         "Exception while calling findClassLoaderOrder for " + classLoaderHandlerClass.getName(), e);
