@@ -53,8 +53,8 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
                 || "weblogic.utils.classloaders.FilteringClassLoader".equals(classLoader.getClass().getName())
                 // TODO: The following two known classloader names have not been tested, and the fields/methods
                 // may not match those of the above classloaders.
-                || "weblogic.utils.classloaders.GenericClassLoader".equals(classLoader.getClass().getName())
-                || "weblogic.utils.classloaders.FilteringClassLoader".equals(classLoader.getClass().getName());
+                || "weblogic.servlet.jsp.JspClassLoader".equals(classLoader.getClass().getName())
+                || "weblogic.servlet.jsp.TagFileClassLoader".equals(classLoader.getClass().getName());
     }
 
     /**
