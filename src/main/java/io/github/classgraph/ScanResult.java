@@ -30,10 +30,17 @@ package io.github.classgraph;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -206,6 +213,64 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 }
             }
         });
+
+        // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
+        // to be loaded to close resources are already loaded and cached. Otherwise, the classloader may be
+        // closed by its own shutdown hook before ClassGraph's shutdown hook can run, and classloading can
+        // fail, which will throw an exception and leave resources open (#331).
+        // We achieve this by mmap'ing a file and then closing it, since the only problematic classes are
+        // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
+        File tempFile = null;
+        boolean createdTempFile = false;
+        try {
+            tempFile = Files.createTempFile("ClassGraph", "").toFile();
+            tempFile.deleteOnExit();
+            try (PrintWriter printWriter = new PrintWriter(tempFile.getName())) {
+                printWriter.print("temp");
+                createdTempFile = true;
+            }
+        } catch (final IOException e1) {
+            // Could not create temp file
+        }
+        if (!createdTempFile) {
+            // Could not create temp file (system does not have a writeable filesystem?).
+            // Instead, try opening items on java.class.path until one is found that can be opened.
+            final String classpath = System.getProperty("java.class.path");
+            if (classpath == null) {
+                // Should not happen -- one of these options should work
+                throw new RuntimeException("Could not create temp file, and could not read java.class.path");
+            }
+            boolean foundReadableClasspathEntry = false;
+            for (final String classpathEntry : JarUtils.smartPathSplit(classpath)) {
+                try {
+                    tempFile = new File(new URI(classpathEntry));
+                } catch (final URISyntaxException e2) {
+                    continue;
+                }
+                if (FileUtils.canRead(tempFile)) {
+                    // Found a readable file
+                    foundReadableClasspathEntry = true;
+                    break;
+                }
+            }
+            if (!foundReadableClasspathEntry) {
+                // Should not happen -- one of these options should work
+                throw new RuntimeException(
+                        "Could not create temp file, and could not read a file from java.class.path");
+            }
+        }
+        MappedByteBuffer buffer = null;
+        try (RandomAccessFile raf = new RandomAccessFile(tempFile, "r");
+                FileChannel fileChannel = raf.getChannel()) {
+            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+        } catch (final IOException | OutOfMemoryError e) {
+            throw new RuntimeException("Could not open file", e);
+        }
+        // Preload classes needed by shutdown hook
+        FileUtils.closeDirectByteBuffer(buffer, /* log = */ null);
+        if (createdTempFile) {
+            tempFile.delete();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
