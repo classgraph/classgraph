@@ -133,7 +133,7 @@ public class ClasspathOrder {
      */
     private boolean addClasspathEntry(final String pathEntry, final ClassLoader classLoader,
             final ScanSpec scanSpec) {
-        if (scanSpec.overrideClasspath != null //
+        if (scanSpec.overrideClasspath == null //
                 && (SystemJarFinder.getJreLibOrExtJars().contains(pathEntry)
                         || pathEntry.equals(SystemJarFinder.getJreRtJarPath()))) {
             // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
