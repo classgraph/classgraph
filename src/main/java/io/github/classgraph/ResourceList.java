@@ -35,12 +35,13 @@ import java.nio.ByteBuffer;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
@@ -249,7 +250,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
                 duplicatePaths.add(new SimpleEntry<>(pathAndResourceList.getKey(), pathAndResourceList.getValue()));
             }
         }
-        Collections.sort(duplicatePaths, new Comparator<Entry<String, ResourceList>>() {
+        CollectionUtils.sortIfNotEmpty(duplicatePaths, new Comparator<Entry<String, ResourceList>>() {
             @Override
             public int compare(final Entry<String, ResourceList> o1, final Entry<String, ResourceList> o2) {
                 // Sort in lexicographic order of path

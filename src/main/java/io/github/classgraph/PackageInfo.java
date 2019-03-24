@@ -28,12 +28,13 @@
  */
 package io.github.classgraph;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** Holds metadata about a package encountered during a scan. */
 public class PackageInfo implements Comparable<PackageInfo>, HasName {
@@ -168,7 +169,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         }
         final PackageInfoList childrenSorted = new PackageInfoList(children);
         // Ensure children are sorted
-        Collections.sort(childrenSorted, new Comparator<PackageInfo>() {
+        CollectionUtils.sortIfNotEmpty(childrenSorted, new Comparator<PackageInfo>() {
             @Override
             public int compare(final PackageInfo o1, final PackageInfo o2) {
                 return o1.name.compareTo(o2.name);

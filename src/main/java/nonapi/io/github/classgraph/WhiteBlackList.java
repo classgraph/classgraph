@@ -30,12 +30,12 @@ package nonapi.io.github.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 
@@ -560,10 +560,10 @@ public abstract class WhiteBlackList {
     /** Need to sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
     void sortPrefixes() {
         if (whitelistPrefixes != null) {
-            Collections.sort(whitelistPrefixes);
+            CollectionUtils.sortIfNotEmpty(whitelistPrefixes);
         }
         if (blacklistPrefixes != null) {
-            Collections.sort(blacklistPrefixes);
+            CollectionUtils.sortIfNotEmpty(blacklistPrefixes);
         }
     }
 

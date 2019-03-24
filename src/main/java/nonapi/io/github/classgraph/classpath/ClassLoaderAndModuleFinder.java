@@ -39,6 +39,7 @@ import java.util.Set;
 
 import io.github.classgraph.ModuleRef;
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
@@ -190,7 +191,7 @@ public class ClassLoaderAndModuleFinder {
                         }
                     }
                     // Sort modules in layer by name
-                    Collections.sort(modulesInLayer);
+                    CollectionUtils.sortIfNotEmpty(modulesInLayer);
                     moduleRefOrder.addAll(modulesInLayer);
                 }
             }

@@ -31,12 +31,12 @@ package io.github.classgraph;
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
@@ -333,10 +333,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         final AnnotationInfoList directAnnotationInfoSorted = directAnnotationInfo == null
                 ? AnnotationInfoList.EMPTY_LIST
                 : new AnnotationInfoList(directAnnotationInfo);
-        Collections.sort(directAnnotationInfoSorted);
+        CollectionUtils.sortIfNotEmpty(directAnnotationInfoSorted);
         final AnnotationInfoList annotationInfoList = new AnnotationInfoList(reachableAnnotationInfo,
                 directAnnotationInfoSorted);
-        Collections.sort(annotationInfoList);
+        CollectionUtils.sortIfNotEmpty(annotationInfoList);
         return annotationInfoList;
     }
 

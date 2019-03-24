@@ -34,7 +34,6 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.classgraph.ClassGraphException;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
@@ -285,7 +285,7 @@ public final class JSONSerializer {
                 firstNonNullKey = keys.get(i);
             }
             if (firstNonNullKey != null && Comparable.class.isAssignableFrom(firstNonNullKey.getClass())) {
-                Collections.sort((ArrayList<Comparable>) keys);
+                CollectionUtils.sortIfNotEmpty((ArrayList<Comparable>) keys);
                 keysComparable = true;
             }
 
@@ -344,7 +344,7 @@ public final class JSONSerializer {
             // If collection is a set, need to sort values into some sort of consistent order 
             final List<Object> convertedValsList = new ArrayList<>(collection);
             if (Set.class.isAssignableFrom(cls)) {
-                Collections.sort(convertedValsList, SET_COMPARATOR);
+                CollectionUtils.sortIfNotEmpty(convertedValsList, SET_COMPARATOR);
             }
 
             // Convert items to JSON values

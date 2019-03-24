@@ -59,6 +59,7 @@ import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -1381,11 +1382,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
         final List<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
-        Collections.sort(allClassInfo);
+        CollectionUtils.sortIfNotEmpty(allClassInfo);
         final List<PackageInfo> allPackageInfo = new ArrayList<>(packageNameToPackageInfo.values());
-        Collections.sort(allPackageInfo);
+        CollectionUtils.sortIfNotEmpty(allPackageInfo);
         final List<ModuleInfo> allModuleInfo = new ArrayList<>(moduleNameToModuleInfo.values());
-        Collections.sort(allModuleInfo);
+        CollectionUtils.sortIfNotEmpty(allModuleInfo);
         return JSONSerializer.serializeObject(new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec,
                 allClassInfo, allPackageInfo, allModuleInfo, rawClasspathEltOrderStrs), indentWidth, false);
     }

@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,6 +45,7 @@ import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -257,7 +257,7 @@ class ClasspathElementModule extends ClasspathElement {
                 }
                 return;
             }
-            Collections.sort(resourceRelativePaths);
+            CollectionUtils.sortIfNotEmpty(resourceRelativePaths);
 
             String prevParentRelativePath = null;
             ScanSpecPathMatch prevParentMatchStatus = null;

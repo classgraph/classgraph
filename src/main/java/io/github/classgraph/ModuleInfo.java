@@ -29,9 +29,10 @@
 package io.github.classgraph;
 
 import java.net.URI;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** Holds metadata about a package encountered during a scan. */
 public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
@@ -201,7 +202,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
             return new PackageInfoList(1);
         }
         final PackageInfoList packageInfoList = new PackageInfoList(packageInfoSet);
-        Collections.sort(packageInfoList);
+        CollectionUtils.sortIfNotEmpty(packageInfoList);
         return packageInfoList;
     }
 

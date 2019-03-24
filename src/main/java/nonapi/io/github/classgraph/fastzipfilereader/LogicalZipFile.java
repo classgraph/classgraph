@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -696,12 +697,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                         }
                     }
                     final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
-                    Collections.sort(versionsFoundSorted);
+                    CollectionUtils.sortIfNotEmpty(versionsFoundSorted);
                     log.log("This is a multi-release jar, with versions: " + Join.join(", ", versionsFoundSorted));
                 }
 
                 // Sort in decreasing order of version in preparation for version masking
-                Collections.sort(entries);
+                CollectionUtils.sortIfNotEmpty(entries);
 
                 // Mask files that appear in multiple version sections, so that there is only one entry
                 // for each unversioned path, i.e. the versioned path with the highest version number

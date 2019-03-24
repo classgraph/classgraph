@@ -64,6 +64,7 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonExcepti
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -278,7 +279,7 @@ class Scanner implements Callable<ScanResult> {
             final Collection<Entry<Integer, ClasspathElement>> classpathEltsIndexed) {
         final List<Entry<Integer, ClasspathElement>> classpathEltsIndexedOrdered = new ArrayList<>(
                 classpathEltsIndexed);
-        Collections.sort(classpathEltsIndexedOrdered, INDEXED_CLASSPATH_ELEMENT_COMPARATOR);
+        CollectionUtils.sortIfNotEmpty(classpathEltsIndexedOrdered, INDEXED_CLASSPATH_ELEMENT_COMPARATOR);
         final List<ClasspathElement> classpathEltsOrdered = new ArrayList<>(classpathEltsIndexedOrdered.size());
         for (final Entry<Integer, ClasspathElement> ent : classpathEltsIndexedOrdered) {
             classpathEltsOrdered.add(ent.getValue());
@@ -633,7 +634,7 @@ class Scanner implements Callable<ScanResult> {
     private void findNestedClasspathElements(final List<SimpleEntry<String, ClasspathElement>> classpathElts,
             final LogNode log) {
         // Sort classpath elements into lexicographic order
-        Collections.sort(classpathElts, new Comparator<SimpleEntry<String, ClasspathElement>>() {
+        CollectionUtils.sortIfNotEmpty(classpathElts, new Comparator<SimpleEntry<String, ClasspathElement>>() {
             @Override
             public int compare(final SimpleEntry<String, ClasspathElement> o1,
                     final SimpleEntry<String, ClasspathElement> o2) {

@@ -33,7 +33,6 @@ import java.lang.reflect.Modifier;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +42,7 @@ import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.types.ParseException;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.Join;
@@ -1531,7 +1531,7 @@ class Classfile {
             }
             if (refdClassNames != null) {
                 final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
-                Collections.sort(refdClassNamesSorted);
+                CollectionUtils.sortIfNotEmpty(refdClassNamesSorted);
                 subLog.log("Referenced class names: " + Join.join(", ", refdClassNamesSorted));
             }
         }

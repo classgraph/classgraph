@@ -29,11 +29,11 @@
 package io.github.classgraph;
 
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** Builds a class graph visualization in Graphviz .dot file format. */
 final class GraphvizDotfileGenerator {
@@ -269,7 +269,7 @@ final class GraphvizDotfileGenerator {
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
                     .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
             final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo);
-            Collections.sort(annotationInfoSorted);
+            CollectionUtils.sortIfNotEmpty(annotationInfoSorted);
             for (final AnnotationInfo ai : annotationInfoSorted) {
                 final String annotationName = ai.getName();
                 if (!annotationName.startsWith("java.lang.annotation.")) {
@@ -285,7 +285,7 @@ final class GraphvizDotfileGenerator {
         final FieldInfoList fieldInfo = ci.fieldInfo;
         if (showFields && fieldInfo != null && !fieldInfo.isEmpty()) {
             final FieldInfoList fieldInfoSorted = new FieldInfoList(fieldInfo);
-            Collections.sort(fieldInfoSorted);
+            CollectionUtils.sortIfNotEmpty(fieldInfoSorted);
             for (int i = fieldInfoSorted.size() - 1; i >= 0; --i) {
                 // Remove serialVersionUID field
                 if (fieldInfoSorted.get(i).getName().equals("serialVersionUID")) {
@@ -345,7 +345,7 @@ final class GraphvizDotfileGenerator {
         final MethodInfoList methodInfo = ci.methodInfo;
         if (showMethods && methodInfo != null) {
             final MethodInfoList methodInfoSorted = new MethodInfoList(methodInfo);
-            Collections.sort(methodInfoSorted);
+            CollectionUtils.sortIfNotEmpty(methodInfoSorted);
             for (int i = methodInfoSorted.size() - 1; i >= 0; --i) {
                 // Don't list static initializer blocks or methods of Object
                 final MethodInfo mi = methodInfoSorted.get(i);

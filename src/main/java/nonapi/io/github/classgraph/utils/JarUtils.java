@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -162,7 +161,7 @@ public final class JarUtils {
                 }
             }
             final List<Integer> splitPointsSorted = new ArrayList<>(splitPoints);
-            Collections.sort(splitPointsSorted);
+            CollectionUtils.sortIfNotEmpty(splitPointsSorted);
             final List<String> parts = new ArrayList<>();
             for (int i = 1; i < splitPointsSorted.size(); i++) {
                 final int idx0 = splitPointsSorted.get(i - 1);

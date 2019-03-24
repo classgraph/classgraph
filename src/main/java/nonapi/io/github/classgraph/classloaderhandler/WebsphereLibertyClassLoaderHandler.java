@@ -58,7 +58,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     /** Class cannot be constructed. */
     private WebsphereLibertyClassLoaderHandler() {
     }
-    
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *

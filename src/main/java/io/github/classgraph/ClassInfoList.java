@@ -42,6 +42,7 @@ import java.util.Set;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
 import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /**
  * A list of {@link ClassInfo} objects, which stores both reachable classes (obtained through a given class
@@ -79,9 +80,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         super(reachableClasses);
         this.sortByName = sortByName;
         if (sortByName) {
-            // It's a bit dicey calling Collections.sort(this) from within a constructor, but the super-constructor
+            // It's a bit dicey calling CollectionUtils.sortIfNotEmpty(this) from within a constructor, but the super-constructor
             // has been called, so it should be fine :-)
-            Collections.sort(this);
+            CollectionUtils.sortIfNotEmpty(this);
         }
         // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
         this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;

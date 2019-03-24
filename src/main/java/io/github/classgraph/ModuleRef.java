@@ -32,10 +32,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A ModuleReference proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
@@ -104,7 +104,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
             throw new IllegalArgumentException("moduleReference.descriptor().packages() should not return null");
         }
         this.packages = new ArrayList<>(modulePackages);
-        Collections.sort(this.packages);
+        CollectionUtils.sortIfNotEmpty(this.packages);
         final Object optionalRawVersion = ReflectionUtils.invokeMethod(this.descriptor, "rawVersion",
                 /* throwException = */ true);
         if (optionalRawVersion != null) {
