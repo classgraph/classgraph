@@ -116,7 +116,7 @@ public class ClassLoaderOrder {
     }
 
     /**
-     * Adds the.
+     * Add a {@link ClassLoader} to the {@link ClassLoader} order at the current position.
      *
      * @param classLoader
      *            the class loader
@@ -134,7 +134,7 @@ public class ClassLoaderOrder {
     }
 
     /**
-     * Delegate to.
+     * Recursively delegate to another {@link ClassLoader}.
      *
      * @param classLoader
      *            the class loader
@@ -150,11 +150,10 @@ public class ClassLoaderOrder {
             allParentClassLoaders.add(classLoader);
         }
         if (delegatedTo.add(classLoader)) {
+            // Find ClassLoaderHandlerRegistryEntry for this classloader
             final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader);
-            if (entry != null) {
-                // Delegate to the named classloader, by recursing to that classloader to get its classloader order
-                entry.findClassLoaderOrder(classLoader, this);
-            }
+            // Delegate to this classloader, by recursing to that classloader to get its classloader order
+            entry.findClassLoaderOrder(classLoader, this);
         }
     }
 }
