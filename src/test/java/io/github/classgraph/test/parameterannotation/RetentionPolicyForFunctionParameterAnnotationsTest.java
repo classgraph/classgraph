@@ -97,7 +97,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     }
 
     public void twoAnnotations_WithRuntimeRetention_ForSingleParam(
-            @ParamAnnoRuntime @SecondParamAnnoRuntime int arg1) {
+            @ParamAnnoRuntime @SecondParamAnnoRuntime int input) {
     }
 
     /*------------------------------------------------------------------------*/
@@ -116,6 +116,27 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     }
 
     public void oneRuntimeRetention_OneClassRetention(@ParamAnnoRuntime @ParamAnnoClass int input) {
+    }
+
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * Annotations with CLASS retention does not need to be retained by vm at run
+     * time, but annotations with RUNTIME retention should still be detectable.
+     *
+     * This tests a changed ordering of the annotations with different retention
+     * policies.
+     */
+    @Test
+    public void canDetect_ParameterAnnotation_OneRuntimeRetention_OneClassRetention_ChangedAnnotationOrder() {
+        MethodInfo methodInfo = classInfo.getMethodInfo()
+                .getSingleMethod("oneRuntimeRetention_OneClassRetention_ChangedAnnotationOrder");
+
+        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName()))
+                .isTrue();
+    }
+
+    public void oneRuntimeRetention_OneClassRetention_ChangedAnnotationOrder(@ParamAnnoClass @ParamAnnoRuntime int input) {
     }
 
     /*------------------------------------------------------------------------*/
