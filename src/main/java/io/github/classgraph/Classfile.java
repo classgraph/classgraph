@@ -1167,10 +1167,10 @@ class Classfile {
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                         // Read annotation names
                         final int fieldAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
-                        if (fieldAnnotationInfo == null && fieldAnnotationCount > 0) {
-                            fieldAnnotationInfo = new AnnotationInfoList(1);
-                        }
-                        if (fieldAnnotationInfo != null) {
+                        if (fieldAnnotationCount > 0) {
+                            if (fieldAnnotationInfo == null) {
+                                fieldAnnotationInfo = new AnnotationInfoList(1);
+                            }
                             for (int k = 0; k < fieldAnnotationCount; k++) {
                                 final AnnotationInfo fieldAnnotation = readAnnotation();
                                 fieldAnnotationInfo.add(fieldAnnotation);
@@ -1247,10 +1247,10 @@ class Classfile {
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                         final int methodAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
-                        if (methodAnnotationInfo == null && methodAnnotationCount > 0) {
-                            methodAnnotationInfo = new AnnotationInfoList(1);
-                        }
-                        if (methodAnnotationInfo != null) {
+                        if (methodAnnotationCount > 0) {
+                            if (methodAnnotationInfo == null) {
+                                methodAnnotationInfo = new AnnotationInfoList(1);
+                            }
                             for (int k = 0; k < methodAnnotationCount; k++) {
                                 final AnnotationInfo annotationInfo = readAnnotation();
                                 methodAnnotationInfo.add(annotationInfo);
@@ -1260,14 +1260,35 @@ class Classfile {
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleParameterAnnotations")))) {
-                        final int paramCount = inputStreamOrByteBuffer.readUnsignedByte();
-                        methodParameterAnnotations = new AnnotationInfo[paramCount][];
-                        for (int k = 0; k < paramCount; k++) {
+                        // Merge together runtime visible and runtime invisible annotations into a single array
+                        // of annotations for each method parameter (runtime visible and runtime invisible
+                        // annotations are given in separate attributes, so if both attributes are present,
+                        // have to make the parameter annotation arrays larger when the second attribute is
+                        // encountered).
+                        final int numParams = inputStreamOrByteBuffer.readUnsignedByte();
+                        if (methodParameterAnnotations == null) {
+                            methodParameterAnnotations = new AnnotationInfo[numParams][];
+                        } else if (methodParameterAnnotations.length != numParams) {
+                            throw new ClassfileFormatException(
+                                    "Mismatch in number of parameters between RuntimeVisibleParameterAnnotations "
+                                            + "and RuntimeInvisibleParameterAnnotations");
+                        }
+                        for (int paramIdx = 0; paramIdx < numParams; paramIdx++) {
                             final int numAnnotations = inputStreamOrByteBuffer.readUnsignedShort();
-                            methodParameterAnnotations[k] = numAnnotations == 0 ? NO_ANNOTATIONS
-                                    : new AnnotationInfo[numAnnotations];
-                            for (int l = 0; l < numAnnotations; l++) {
-                                methodParameterAnnotations[k][l] = readAnnotation();
+                            if (numAnnotations > 0) {
+                                int annStartIdx = 0;
+                                if (methodParameterAnnotations[paramIdx] != null) {
+                                    annStartIdx = methodParameterAnnotations[paramIdx].length;
+                                    methodParameterAnnotations[paramIdx] = Arrays.copyOf(
+                                            methodParameterAnnotations[paramIdx], annStartIdx + numAnnotations);
+                                } else {
+                                    methodParameterAnnotations[paramIdx] = new AnnotationInfo[numAnnotations];
+                                }
+                                for (int annIdx = 0; annIdx < numAnnotations; annIdx++) {
+                                    methodParameterAnnotations[paramIdx][annStartIdx + annIdx] = readAnnotation();
+                                }
+                            } else if (methodParameterAnnotations[paramIdx] == null) {
+                                methodParameterAnnotations[paramIdx] = NO_ANNOTATIONS;
                             }
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
@@ -1333,11 +1354,13 @@ class Classfile {
                             || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                     attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                 final int annotationCount = inputStreamOrByteBuffer.readUnsignedShort();
-                for (int m = 0; m < annotationCount; m++) {
+                if (annotationCount > 0) {
                     if (classAnnotations == null) {
                         classAnnotations = new AnnotationInfoList();
                     }
-                    classAnnotations.add(readAnnotation());
+                    for (int m = 0; m < annotationCount; m++) {
+                        classAnnotations.add(readAnnotation());
+                    }
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 final int numInnerClasses = inputStreamOrByteBuffer.readUnsignedShort();
