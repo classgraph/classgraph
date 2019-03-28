@@ -483,6 +483,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     void addFieldInfo(final FieldInfoList fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final FieldInfo fi : fieldInfoList) {
+            // Index field annotations
             addFieldOrMethodAnnotationInfo(fi.annotationInfo, /* isField = */ true, classNameToClassInfo);
         }
         if (this.fieldInfo == null) {
@@ -502,9 +503,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     void addMethodInfo(final MethodInfoList methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final MethodInfo mi : methodInfoList) {
+            // Index method annotations
             addFieldOrMethodAnnotationInfo(mi.annotationInfo, /* isField = */ false, classNameToClassInfo);
 
-            // Currently it is not possible to find methods by method parameter annotation
+            // Index method parameter annotations
             if (mi.parameterAnnotationInfo != null) {
                 for (int i = 0; i < mi.parameterAnnotationInfo.length; i++) {
                     final AnnotationInfo[] paramAnnotationInfoArr = mi.parameterAnnotationInfo[i];
