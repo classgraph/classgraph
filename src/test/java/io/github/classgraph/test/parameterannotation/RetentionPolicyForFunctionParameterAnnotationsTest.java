@@ -26,43 +26,81 @@ import io.github.classgraph.ScanResult;
  *      RetentionPolicy</a>
  */
 public class RetentionPolicyForFunctionParameterAnnotationsTest {
+    /** The scan result. */
     private static ScanResult scanResult;
+
+    /** The class info. */
     private static ClassInfo classInfo;
 
+    /** The Constant RETENTION_CLASS. */
     private final static String RETENTION_CLASS = "retention_class";
+
+    /** The Constant RETENTION_RUNTIME. */
     private final static String RETENTION_RUNTIME = "retention_runtime";
+
+    /** The Constant RETENTION_SOURCE. */
     private final static String RETENTION_SOURCE = "retention_source";
 
+    /**
+     * The Interface ParamAnnoRuntime.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
     public @interface ParamAnnoRuntime {
+        /**
+         * Value.
+         *
+         * @return the string
+         */
         String value() default RETENTION_RUNTIME;
     }
 
+    /**
+     * The Interface ParamAnnoClass.
+     */
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
     public @interface ParamAnnoClass {
+        /**
+         * Value.
+         *
+         * @return the string
+         */
         String value() default RETENTION_CLASS;
     }
 
+    /**
+     * The Interface ParamAnnoSource.
+     */
     @Retention(RetentionPolicy.SOURCE)
     @Target(ElementType.PARAMETER)
     public @interface ParamAnnoSource {
+        /**
+         * Value.
+         *
+         * @return the string
+         */
         String value() default RETENTION_SOURCE;
     }
 
+    /**
+     * Generate ScanResult before running tests.
+     */
     @BeforeClass
     public static void beforeClass() {
         scanResult = new ClassGraph().enableAllInfo().scan();
         classInfo = scanResult.getClassInfo(RetentionPolicyForFunctionParameterAnnotationsTest.class.getName());
     }
 
+    /**
+     * Close ScanResult after running tests.
+     */
     @AfterClass
     public static void afterClass() {
         scanResult.close();
     }
 
-    /*------------------------------------------------------------------------*/
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Must be able to detect parameter annotation with RUNTIME retention.
@@ -75,11 +113,20 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
     }
 
+    /**
+     * Parameter annotation with runtime retention.
+     *
+     * @param input
+     *            the input
+     */
     public void parameterAnnotation_WithRuntimeRetention(@ParamAnnoRuntime final int input) {
     }
 
-    /*------------------------------------------------------------------------*/
+    // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * The Interface SecondParamAnnoRuntime.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
     public @interface SecondParamAnnoRuntime {
@@ -98,11 +145,17 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         assertThat(methodInfo.hasParameterAnnotation(SecondParamAnnoRuntime.class.getName())).isTrue();
     }
 
+    /**
+     * Two annotations with runtime retention for single param.
+     *
+     * @param input
+     *            the input
+     */
     public void twoAnnotations_WithRuntimeRetention_ForSingleParam(
             @ParamAnnoRuntime @SecondParamAnnoRuntime final int input) {
     }
 
-    /*------------------------------------------------------------------------*/
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Annotations with CLASS retention does not need to be retained by vm at run time, but annotations with RUNTIME
@@ -116,10 +169,16 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
     }
 
+    /**
+     * One runtime retention annotation, one class retention annotation.
+     *
+     * @param input
+     *            the input
+     */
     public void oneRuntimeRetention_OneClassRetention(@ParamAnnoRuntime @ParamAnnoClass final int input) {
     }
 
-    /*------------------------------------------------------------------------*/
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Annotations with CLASS retention does not need to be retained by vm at run time, but annotations with RUNTIME
@@ -135,11 +194,17 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
     }
 
+    /**
+     * One runtime retention annotation, one class retention annotation, in reverse order.
+     *
+     * @param input
+     *            the input
+     */
     public void oneRuntimeRetention_OneClassRetention_ChangedAnnotationOrder(
             @ParamAnnoClass @ParamAnnoRuntime final int input) {
     }
 
-    /*------------------------------------------------------------------------*/
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Annotations with SOURCE retention are discarded on compilation, but annotations with RUNTIME retention should
@@ -153,6 +218,12 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
     }
 
+    /**
+     * One runtime retention annotation, one source retention annotation.
+     *
+     * @param input
+     *            the input
+     */
     public void oneRuntimeRetention_OneSourceRetention(@ParamAnnoRuntime @ParamAnnoSource final int input) {
     }
 }
