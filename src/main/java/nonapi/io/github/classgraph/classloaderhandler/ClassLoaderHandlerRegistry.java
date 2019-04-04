@@ -84,6 +84,8 @@ public class ClassLoaderHandlerRegistry {
             "BOOT-INF/lib/", "BOOT-INF/lib-provided/",
             // Tomcat
             "WEB-INF/lib/", "WEB-INF/lib-provided/",
+            // OSGi
+            "META-INF/lib/",
             // Tomcat and others
             "lib/",
             // Extension dir

@@ -68,6 +68,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
     /** The value of the "Class-Path" manifest entry, if present in the manifest, else null. */
     public String classPathManifestEntryValue;
 
+    /** The value of the "Bundle-ClassPath" manifest entry, if present in the manifest, else null. */
+    public String bundleClassPathManifestEntryValue;
+
     /** The value of the "Add-Exports" manifest entry, if present in the manifest, else null. */
     public String addExportsManifestEntryValue;
 
@@ -99,6 +102,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
     /** The {@code "Class-Path"} manifest key. */
     private static final byte[] CLASS_PATH_KEY = manifestKeyToBytes("Class-Path");
+
+    /** The {@code "Bundle-ClassPath"} manifest key. */
+    private static final byte[] BUNDLE_CLASSPATH_KEY = manifestKeyToBytes("Bundle-ClassPath");
 
     /** The {@code "Spring-Boot-Classes"} manifest key. */
     private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
@@ -311,6 +317,16 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 classPathManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Class-Path entry in manifest file: " + classPathManifestEntryValue);
+                }
+                i = manifestValueAndEndIdx.getValue();
+
+            } else if (keyMatchesAtPosition(manifest, BUNDLE_CLASSPATH_KEY, i)) {
+                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + BUNDLE_CLASSPATH_KEY.length + 1);
+                // Add Bundle-ClassPath manifest entry values to classpath
+                bundleClassPathManifestEntryValue = manifestValueAndEndIdx.getKey();
+                if (log != null) {
+                    log.log("Found Bundle-ClassPath entry in manifest file: " + bundleClassPathManifestEntryValue);
                 }
                 i = manifestValueAndEndIdx.getValue();
 
