@@ -196,15 +196,15 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
 
-        // Create child classpath elements from values obtained from Class-Path entry in manifest
+        // Create child classpath elements from values obtained from Class-Path entry in manifest, resolving
+        // the paths relative to the dir or parent jarfile that the jarfile is contained in
         if (logicalZipFile.classPathManifestEntryValue != null) {
-            // Class-Path entries in the manifest file are resolved relative to the dir that
-            // the manifest's jarfile is contained in -- get parent dir of logical zipfile
+            // Get path of parent dir, or parent jarfile if this is a nested jar.
+            // (If there is a Class-Path entry in a nested jar, probably the intent is that the Class-Path path
+            // is relative to the root of the parent jar, although it is unlikely that Class-Path will be used
+            // this way.)
             final int lastPlingIdx = zipFilePath.lastIndexOf('!');
             final int lastSlashIdx = Math.max(zipFilePath.lastIndexOf('/'), lastPlingIdx);
-            // Get path of parent jarfile, if this is a nested jar. If there is a Class-Path entry in a nested
-            // jar, probably the intent is that the Class-Path path is relative to the root of the parent jar
-            // (although this is an unlikely scenario).
             final String parentZipPrefix = lastPlingIdx < 0 ? "" : zipFilePath.substring(0, lastPlingIdx + 1);
             String parentPathPrefix = lastSlashIdx < 0 ? ""
                     : zipFilePath.substring(lastPlingIdx + 1, lastSlashIdx + 1);
