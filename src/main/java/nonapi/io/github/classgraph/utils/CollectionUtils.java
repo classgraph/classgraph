@@ -37,6 +37,11 @@ import java.util.List;
  * Collection utilities.
  */
 public final class CollectionUtils {
+    /** Class can't be constructed. */
+    private CollectionUtils() {
+        // Empty
+    }
+    
     /**
      * Sort a collection if it is not empty (to prevent {@link ConcurrentModificationException} if an immutable
      * empty list that has been returned more than once is being sorted in one thread and iterated through in
