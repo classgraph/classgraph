@@ -301,6 +301,15 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Returns true if this method is synthetic.
+     * 
+     * @return True if this is synthetic.
+     */
+    public boolean isSynthetic() {
+        return (modifiers & 0x1000) != 0;
+    }
+
+    /**
      * Returns true if this method is a varargs method.
      * 
      * @return True if this is a varargs method.

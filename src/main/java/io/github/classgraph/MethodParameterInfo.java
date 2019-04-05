@@ -239,6 +239,33 @@ public class MethodParameterInfo {
         }
     }
 
+    /**
+     * Returns true if this method parameter is final.
+     * 
+     * @return True if this method parameter is final.
+     */
+    public boolean isFinal() {
+        return Modifier.isFinal(modifiers);
+    }
+
+    /**
+     * Returns true if this method parameter is synthetic.
+     * 
+     * @return True if this method parameter is synthetic.
+     */
+    public boolean isSynthetic() {
+        return (modifiers & 0x1000) != 0;
+    }
+
+    /**
+     * Returns true if this method parameter is mandated.
+     * 
+     * @return True if this method parameter is mandated.
+     */
+    public boolean isMandated() {
+        return (modifiers & 0x8000) != 0;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /* (non-Javadoc)
