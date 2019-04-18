@@ -244,7 +244,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
-        return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
+        return ((buf[offset] & 0xff) << 8) //
+                | (buf[offset + 1] & 0xff);
     }
 
     /**
@@ -274,7 +275,9 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
-        return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
+        return ((buf[offset] & 0xff) << 24) //
+                | ((buf[offset + 1] & 0xff) << 16) //
+                | ((buf[offset + 2] & 0xff) << 8) //
                 | (buf[offset + 3] & 0xff);
     }
 
@@ -305,10 +308,14 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
-        return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
-                | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
-                | ((buf[offset + 4] & 0xff) << 24) | ((buf[offset + 5] & 0xff) << 16)
-                | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff);
+        return ((buf[offset] & 0xffL) << 56) //
+                | ((buf[offset + 1] & 0xffL) << 48) //
+                | ((buf[offset + 2] & 0xffL) << 40) //
+                | ((buf[offset + 3] & 0xffL) << 32) //
+                | ((buf[offset + 4] & 0xffL) << 24) //
+                | ((buf[offset + 5] & 0xffL) << 16) //
+                | ((buf[offset + 6] & 0xffL) << 8) //
+                | (buf[offset + 7] & 0xffL);
     }
 
     /**

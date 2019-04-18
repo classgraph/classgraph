@@ -242,16 +242,14 @@ class ZipFileSliceReader implements AutoCloseable {
         if (ioff < 0 || ioff > arr.length - 8) {
             throw new IndexOutOfBoundsException();
         }
-        return //
-        (((long) (((arr[ioff + 7] & 0xff) << 24) //
-                | ((arr[ioff + 6] & 0xff) << 16) //
-                | ((arr[ioff + 5] & 0xff) << 8) //
-                | (arr[ioff + 4] & 0xff))) //
-        << 32) //
-                | (((arr[ioff + 3] & 0xff) << 24) //
-                        | ((arr[ioff + 2] & 0xff) << 16) //
-                        | ((arr[ioff + 1] & 0xff) << 8) //
-                        | (arr[ioff] & 0xff));
+        return ((arr[ioff + 7] & 0xffL) << 56) //
+                | ((arr[ioff + 6] & 0xffL) << 48) //
+                | ((arr[ioff + 5] & 0xffL) << 40) //
+                | ((arr[ioff + 4] & 0xffL) << 32) //
+                | ((arr[ioff + 3] & 0xffL) << 24) //
+                | ((arr[ioff + 2] & 0xffL) << 16) //
+                | ((arr[ioff + 1] & 0xffL) << 8) //
+                | (arr[ioff] & 0xffL);
     }
 
     /**
@@ -272,16 +270,14 @@ class ZipFileSliceReader implements AutoCloseable {
         if (read(off, scratch, 0, 8) < 8) {
             throw new EOFException("Unexpected EOF");
         }
-        return //
-        (((long) (((scratch[7] & 0xff) << 24) //
-                | ((scratch[6] & 0xff) << 16) //
-                | ((scratch[5] & 0xff) << 8) //
-                | (scratch[4] & 0xff))) //
-        << 32) //
-                | (((scratch[3] & 0xff) << 24) //
-                        | ((scratch[2] & 0xff) << 16) //
-                        | ((scratch[1] & 0xff) << 8) //
-                        | (scratch[0] & 0xff));
+        return ((scratch[7] & 0xffL) << 56) //
+                | ((scratch[6] & 0xffL) << 48) //
+                | ((scratch[5] & 0xffL) << 40) //
+                | ((scratch[4] & 0xffL) << 32) //
+                | ((scratch[3] & 0xffL) << 24) //
+                | ((scratch[2] & 0xffL) << 16) //
+                | ((scratch[1] & 0xffL) << 8) //
+                | (scratch[0] & 0xffL);
     }
 
     /**
