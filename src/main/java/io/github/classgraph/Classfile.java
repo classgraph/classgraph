@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import nonapi.io.github.classgraph.ScanSpec;
@@ -68,6 +69,9 @@ class Classfile {
 
     /** The classfile resource. */
     private final Resource classfileResource;
+
+    /** The string intern map. */
+    private final ConcurrentHashMap<String, String> stringInternMap;
 
     /** The name of the class. */
     private String className;
@@ -437,6 +441,24 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Intern a string.
+     */
+    private String intern(final String str) {
+        if (str == null) {
+            return null;
+        }
+        final String interned = stringInternMap.get(str);
+        if (interned != null) {
+            return interned;
+        }
+        final String interned1 = stringInternMap.putIfAbsent(str, str);
+        if (interned1 != null) {
+            return interned1;
+        }
+        return str;
+    }
+
+    /**
      * Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string.
      *
      * @param cpIdx
@@ -530,8 +552,8 @@ class Classfile {
             final boolean stripLSemicolon) throws ClassfileFormatException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         return constantPoolStringOffset == 0 ? null
-                : inputStreamOrByteBuffer.readString(constantPoolStringOffset, replaceSlashWithDot,
-                        stripLSemicolon);
+                : intern(inputStreamOrByteBuffer.readString(constantPoolStringOffset, replaceSlashWithDot,
+                        stripLSemicolon));
     }
 
     /**
@@ -552,8 +574,8 @@ class Classfile {
             throws ClassfileFormatException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
         return constantPoolStringOffset == 0 ? null
-                : inputStreamOrByteBuffer.readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false,
-                        /* stripLSemicolon = */ false);
+                : intern(inputStreamOrByteBuffer.readString(constantPoolStringOffset,
+                        /* replaceSlashWithDot = */ false, /* stripLSemicolon = */ false));
     }
 
     /**
@@ -627,34 +649,35 @@ class Classfile {
     }
 
     /**
-     * Compare a string in the constant pool with a given constant, without constructing the String object.
+     * Compare a string in the constant pool with a given ASCII string, without constructing the constant pool
+     * String object.
      *
      * @param cpIdx
      *            the constant pool index
-     * @param otherString
-     *            the other string
+     * @param asciiString
+     *            the ASCII string to compare to
      * @return true, if successful
      * @throws ClassfileFormatException
      *             If a problem occurs.
      * @throws IOException
      *             If an IO exception occurs.
      */
-    private boolean constantPoolStringEquals(final int cpIdx, final String otherString)
+    private boolean constantPoolStringEquals(final int cpIdx, final String asciiString)
             throws ClassfileFormatException, IOException {
         final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (strOffset == 0) {
-            return otherString == null;
-        } else if (otherString == null) {
+            return asciiString == null;
+        } else if (asciiString == null) {
             return false;
         }
         final int strLen = inputStreamOrByteBuffer.readUnsignedShort(strOffset);
-        final int otherLen = otherString.length();
+        final int otherLen = asciiString.length();
         if (strLen != otherLen) {
             return false;
         }
         final int strStart = strOffset + 2;
         for (int i = 0; i < strLen; i++) {
-            if ((char) (inputStreamOrByteBuffer.buf[strStart + i] & 0xff) != otherString.charAt(i)) {
+            if ((char) (inputStreamOrByteBuffer.buf[strStart + i] & 0xff) != asciiString.charAt(i)) {
                 return false;
             }
         }
@@ -1432,6 +1455,8 @@ class Classfile {
      *            the classfile resource
      * @param isExternalClass
      *            if this is an external class
+     * @param stringInternMap
+     *            the string intern map
      * @param workQueue
      *            the work queue
      * @param scanSpec
@@ -1449,6 +1474,7 @@ class Classfile {
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
             final Set<String> classNamesScheduledForScanning, final String relativePath,
             final Resource classfileResource, final boolean isExternalClass,
+            final ConcurrentHashMap<String, String> stringInternMap,
             final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final LogNode log)
             throws IOException, ClassfileFormatException, SkipClassException {
         this.classpathElement = classpathElement;
@@ -1457,6 +1483,7 @@ class Classfile {
         this.classNamesScheduledForScanning = classNamesScheduledForScanning;
         this.classfileResource = classfileResource;
         this.isExternalClass = isExternalClass;
+        this.stringInternMap = stringInternMap;
         this.scanSpec = scanSpec;
         this.log = log;
 

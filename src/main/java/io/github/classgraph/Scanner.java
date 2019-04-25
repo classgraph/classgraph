@@ -557,6 +557,9 @@ class Scanner implements Callable<ScanResult> {
         /** The valid {@link Classfile} objects created by scanning classfiles. */
         private final Queue<Classfile> scannedClassfiles;
 
+        /** The string intern map. */
+        private final ConcurrentHashMap<String, String> stringInternMap;
+
         /**
          * Constructor.
          *
@@ -571,11 +574,12 @@ class Scanner implements Callable<ScanResult> {
          */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
                 final List<ClasspathElement> classpathOrder, final Set<String> classNamesScheduledForScanning,
-                final Queue<Classfile> scannedClassfiles) {
+                final Queue<Classfile> scannedClassfiles, final ConcurrentHashMap<String, String> stringInternMap) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
             this.classNamesScheduledForScanning = classNamesScheduledForScanning;
             this.scannedClassfiles = scannedClassfiles;
+            this.stringInternMap = stringInternMap;
         }
 
         /* (non-Javadoc)
@@ -596,7 +600,8 @@ class Scanner implements Callable<ScanResult> {
                 // Parse classfile binary format, creating a Classfile object
                 final Classfile classfile = new Classfile(workUnit.classpathElement, classpathOrder,
                         classNamesScheduledForScanning, workUnit.classfileResource.getPath(),
-                        workUnit.classfileResource, workUnit.isExternalClass, workQueue, scanSpec, subLog);
+                        workUnit.classfileResource, workUnit.isExternalClass, stringInternMap, workQueue, scanSpec,
+                        subLog);
 
                 // Enqueue the classfile for linking
                 scannedClassfiles.add(classfile);
@@ -823,10 +828,12 @@ class Scanner implements Callable<ScanResult> {
 
             // Scan classfiles in parallel.
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
+            final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
             processWorkUnits(classfileScanWorkItems,
                     topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"),
                     new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
-                            classNamesScheduledForScanning, scannedClassfiles));
+                            classNamesScheduledForScanning, scannedClassfiles, stringInternMap));
+            stringInternMap.clear();
 
             // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
             final LogNode linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
