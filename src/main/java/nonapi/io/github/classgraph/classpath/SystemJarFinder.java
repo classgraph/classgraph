@@ -43,6 +43,9 @@ public final class SystemJarFinder {
     /** The paths of any "rt.jar" files found in the JRE. */
     private static final Set<String> RT_JARS = new LinkedHashSet<>();
 
+    /** The path of the first "rt.jar" found. */
+    private static final String RT_JAR;
+
     /** The paths of any "lib/" or "ext/" jars found in the JRE. */
     private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
 
@@ -163,6 +166,8 @@ public final class SystemJarFinder {
         default:
             break;
         }
+
+        RT_JAR = RT_JARS.isEmpty() ? null : FastPathResolver.resolve(RT_JARS.iterator().next());
     }
 
     /**
@@ -172,7 +177,7 @@ public final class SystemJarFinder {
      */
     public static String getJreRtJarPath() {
         // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
-        return !RT_JARS.isEmpty() ? FastPathResolver.resolve(RT_JARS.iterator().next()) : null;
+        return RT_JAR;
     }
 
     /**

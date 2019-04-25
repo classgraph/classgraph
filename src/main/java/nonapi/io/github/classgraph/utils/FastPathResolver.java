@@ -281,19 +281,17 @@ public final class FastPathResolver {
             }
         }
 
-        final String resolveBasePathSanitized = isAbsolutePath || resolveBasePath == null
-                || resolveBasePath.isEmpty() ? null
-                        : FileUtils.sanitizeEntryPath(resolveBasePath, /* removeInitialSlash = */ false);
-        final String pathStrSanitized = FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false);
+        // Sanitize path (resolve ".." sections, collapse "//" double separators, etc.)
         String pathResolved;
-        if (resolveBasePathSanitized == null || resolveBasePathSanitized.isEmpty()) {
+        if (isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
             // There is no base path to resolve against, or path is an absolute path or http(s):// URL
             // (ignore the base path)
-            pathResolved = pathStrSanitized;
+            pathResolved = FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false);
         } else {
             // Path is a relative path -- resolve it relative to the base path
-            pathResolved = resolveBasePath
-                    + (resolveBasePath.endsWith("/") || pathStrSanitized.isEmpty() ? "" : "/") + pathStrSanitized;
+            pathResolved = FileUtils.sanitizeEntryPath(
+                    resolveBasePath + (resolveBasePath.endsWith("/") ? "" : "/") + pathStr,
+                    /* removeInitialSlash = */ false);
         }
 
         // Add any prefix back, e.g. "https://"

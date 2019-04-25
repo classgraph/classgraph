@@ -35,7 +35,7 @@ import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
 import nonapi.io.github.classgraph.recycler.Recycler;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
-class ZipFileSlice {
+public class ZipFileSlice {
     /** The parent slice, or null if this is the toplevel slice (the whole zipfile). */
     private final ZipFileSlice parentZipFileSlice;
     /** The underlying physical zipfile. */
@@ -44,8 +44,8 @@ class ZipFileSlice {
     final long startOffsetWithinPhysicalZipFile;
     /** The compressed or stored size of the zipfile slice or entry. */
     final long len;
-    /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name of the zipfile entry. */
-    private final String name;
+    /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name/path of the zipfile entry. */
+    private final String pathWithinParentZipFileSlice;
     /** A {@link Recycler} for {@link ZipFileSliceReader} instances. */
     final Recycler<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycler;
     // N.B. if any fields are added, make sure the clone constructor below is updated
@@ -78,7 +78,7 @@ class ZipFileSlice {
         this.physicalZipFile = physicalZipFile;
         this.startOffsetWithinPhysicalZipFile = 0;
         this.len = physicalZipFile.fileLen;
-        this.name = physicalZipFile.getPath();
+        this.pathWithinParentZipFileSlice = physicalZipFile.getPath();
         this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
@@ -95,7 +95,7 @@ class ZipFileSlice {
         this.physicalZipFile = physicalZipFileInRam;
         this.startOffsetWithinPhysicalZipFile = 0;
         this.len = physicalZipFile.fileLen;
-        this.name = zipEntry.entryName;
+        this.pathWithinParentZipFileSlice = zipEntry.entryName;
         this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
@@ -114,7 +114,7 @@ class ZipFileSlice {
         this.physicalZipFile = zipEntry.parentLogicalZipFile.physicalZipFile;
         this.startOffsetWithinPhysicalZipFile = zipEntry.getEntryDataStartOffsetWithinPhysicalZipFile();
         this.len = zipEntry.compressedSize;
-        this.name = zipEntry.entryName;
+        this.pathWithinParentZipFileSlice = zipEntry.entryName;
         this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
@@ -129,7 +129,7 @@ class ZipFileSlice {
         this.physicalZipFile = other.physicalZipFile;
         this.startOffsetWithinPhysicalZipFile = other.startOffsetWithinPhysicalZipFile;
         this.len = other.len;
-        this.name = other.name;
+        this.pathWithinParentZipFileSlice = other.pathWithinParentZipFileSlice;
         // Reuse the recycler for clones
         this.zipFileSliceReaderRecycler = other.zipFileSliceReaderRecycler;
     }
@@ -144,9 +144,29 @@ class ZipFileSlice {
      *         jarfile white/blacklist.
      */
     public boolean isWhitelistedAndNotBlacklisted(final WhiteBlackListLeafname jarWhiteBlackList) {
-        return jarWhiteBlackList.isWhitelistedAndNotBlacklisted(name) //
+        return jarWhiteBlackList.isWhitelistedAndNotBlacklisted(pathWithinParentZipFileSlice) //
                 && (parentZipFileSlice == null
                         || parentZipFileSlice.isWhitelistedAndNotBlacklisted(jarWhiteBlackList));
+    }
+
+    /**
+     * Get the parent ZipFileslice, or return null if this is a toplevel slice (i.e. if this slice wraps an entire
+     * physical zipfile).
+     * 
+     * @return the parent ZipFileslice, or null if this is a toplevel slice.
+     */
+    public ZipFileSlice getParentZipFileSlice() {
+        return parentZipFileSlice;
+    }
+
+    /**
+     * Get the name of the slice (either the entry name/path within the parent zipfile slice, or the path of the
+     * physical zipfile if this slice is a toplevel slice (i.e. if this slice wraps an entire physical zipfile).
+     * 
+     * @return the name of the slice.
+     */
+    public String getPathWithinParentZipFileSlice() {
+        return pathWithinParentZipFileSlice;
     }
 
     /**
@@ -158,31 +178,19 @@ class ZipFileSlice {
     private void appendPath(final StringBuilder buf) {
         if (parentZipFileSlice != null) {
             parentZipFileSlice.appendPath(buf);
+            if (buf.length() > 0) {
+                buf.append("!/");
+            }
         }
-        if (buf.length() > 0) {
-            buf.append("!/");
-        }
-        buf.append(name);
+        buf.append(pathWithinParentZipFileSlice);
     }
 
     /**
-     * Get the path of this zipfile slice, e.g. "/path/to/jarfile.jar!/nestedjar1.jar!/nestedfile".
+     * Get the path of this zipfile slice, e.g. "/path/to/jarfile.jar!/nestedjar1.jar".
      *
      * @return the path of this zipfile slice.
      */
     public String getPath() {
-        final StringBuilder buf = new StringBuilder();
-        appendPath(buf);
-        return buf.toString();
-    }
-
-    /**
-     * Get the path of the parent of this zipfile slice. If this is a toplevel slice (i.e. if this slice corresponds
-     * to a whole physical zipfile), then the returned path is the directory of the containing dir.
-     *
-     * @return the path of this zipfile slice.
-     */
-    public String getParentPath() {
         final StringBuilder buf = new StringBuilder();
         appendPath(buf);
         return buf.toString();

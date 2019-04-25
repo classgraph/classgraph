@@ -49,6 +49,7 @@ import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
@@ -196,42 +197,42 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
 
+        // Don't add child classpath elements that are identical to this classpath element, or that are duplicates
+        final Set<String> scheduledChildClasspathElements = new HashSet<>();
+        scheduledChildClasspathElements.add(rawPath);
+
         // Create child classpath elements from values obtained from Class-Path entry in manifest, resolving
         // the paths relative to the dir or parent jarfile that the jarfile is contained in
         if (logicalZipFile.classPathManifestEntryValue != null) {
-            // Get path of parent dir, or parent jarfile if this is a nested jar.
-            // (If there is a Class-Path entry in a nested jar, probably the intent is that the Class-Path path
-            // is relative to the root of the parent jar, although it is unlikely that Class-Path will be used
-            // this way.)
-            final int lastPlingIdx = zipFilePath.lastIndexOf('!');
-            final int lastSlashIdx = Math.max(zipFilePath.lastIndexOf('/'), lastPlingIdx);
-            final String parentZipPrefix = lastPlingIdx < 0 ? "" : zipFilePath.substring(0, lastPlingIdx + 1);
-            String parentPathPrefix = lastSlashIdx < 0 ? ""
-                    : zipFilePath.substring(lastPlingIdx + 1, lastSlashIdx + 1);
-            if (parentZipPrefix.isEmpty() && parentPathPrefix.isEmpty()) {
-                parentPathPrefix = FileUtils.CURR_DIR_PATH;
-            }
+            // Get parent dir of logical zipfile within grandparent slice,
+            // e.g. for a zipfile slice path of "/path/to/jar1.jar!/lib/jar2.jar", this is "lib",
+            // or for "/path/to/jar1.jar", this is "/path/to", or "" if the jar is in the toplevel dir.
+            final String jarParentDir = FileUtils
+                    .getParentDirPath(logicalZipFile.getPathWithinParentZipFileSlice());
             // Add paths in manifest file's "Class-Path" entry to the classpath, resolving paths relative to
             // the parent directory or jar
-            for (final String childClassPathEltPath : logicalZipFile.classPathManifestEntryValue.split(" ")) {
-                if (!childClassPathEltPath.isEmpty()) {
+            for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue
+                    .split(" ")) {
+                if (!childClassPathEltPathRelative.isEmpty()) {
                     // Resolve Class-Path entry relative to containing dir
-                    String childClassPathEltPathResolved = FastPathResolver.resolve(parentPathPrefix,
-                            childClassPathEltPath);
-                    if (!parentZipPrefix.isEmpty()) {
-                        childClassPathEltPathResolved = parentZipPrefix
-                                + (childClassPathEltPathResolved.startsWith("/") ? childClassPathEltPathResolved
-                                        : "/" + childClassPathEltPathResolved);
+                    String childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
+                            childClassPathEltPathRelative);
+                    // If this is a nested jar, prepend outer jar prefix
+                    final ZipFileSlice parentZipFileSlice = logicalZipFile.getParentZipFileSlice();
+                    if (parentZipFileSlice != null) {
+                        childClassPathEltPath = parentZipFileSlice.getPath()
+                                + (childClassPathEltPath.startsWith("/") ? "!" : "!/") + childClassPathEltPath;
                     }
                     // Only add child classpath elements once
-                    if (!childClassPathEltPathResolved.equals(rawPath)) {
+                    if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
                         // Schedule child classpath element for scanning
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPathResolved,
-                                        classLoader),
-                                /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */
-                                childClasspathEntryIdx++));
+                        workQueue.addWorkUnit( //
+                                new ClasspathEntryWorkUnit(
+                                        /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPath,
+                                                classLoader),
+                                        /* parentClasspathElement = */ this,
+                                        /* orderWithinParentClasspathElement = */
+                                        childClasspathEntryIdx++));
                     }
                 }
             }
@@ -239,26 +240,30 @@ class ClasspathElementZip extends ClasspathElement {
         // Add paths in an OSGi bundle jar manifest's "Bundle-ClassPath" entry to the classpath, resolving 
         // the paths relative to the root of the jarfile
         if (logicalZipFile.bundleClassPathManifestEntryValue != null) {
-            final String zipFilePathPrefix = zipFilePath + "!";
-            for (String childClassPathEltPath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
+            final String zipFilePathPrefix = zipFilePath + "!/";
+            for (String childBundlePath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
                 // Assume that Bundle-ClassPath paths have to be given relative to jarfile root
-                while (childClassPathEltPath.startsWith("/")) {
-                    childClassPathEltPath = childClassPathEltPath.substring(1);
+                while (childBundlePath.startsWith("/")) {
+                    childBundlePath = childBundlePath.substring(1);
                 }
                 // Currently the position of "." relative to child classpath entries is ignored (the
                 // Bundle-ClassPath path is treated as if "." is in the first position, since child
                 // classpath entries are always added to the classpath after the parent classpath
                 // entry that they were obtained from).
-                if (!childClassPathEltPath.isEmpty() && !childClassPathEltPath.equals(".")) {
+                if (!childBundlePath.isEmpty() && !childBundlePath.equals(".")) {
                     // Resolve Bundle-ClassPath entry within jar
-                    final String childClassPathEltPathResolved = FastPathResolver.resolve(zipFilePathPrefix,
-                            childClassPathEltPath);
-                    workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                            /* rawClasspathEntry = */ //
-                            new SimpleEntry<>(childClassPathEltPathResolved, classLoader),
-                            /* parentClasspathElement = */ this,
-                            /* orderWithinParentClasspathElement = */
-                            childClasspathEntryIdx++));
+                    final String childClassPathEltPath = zipFilePathPrefix
+                            + FileUtils.sanitizeEntryPath(childBundlePath, /* removeInitialSlash = */ true);
+                    // Only add child classpath elements once
+                    if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
+                        // Schedule child classpath element for scanning
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                /* rawClasspathEntry = */ //
+                                new SimpleEntry<>(childClassPathEltPath, classLoader),
+                                /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */
+                                childClasspathEntryIdx++));
+                    }
                 }
             }
         }

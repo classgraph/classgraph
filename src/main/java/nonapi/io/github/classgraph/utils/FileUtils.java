@@ -420,6 +420,23 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the parent dir path.
+     *
+     * @param path
+     *            the path
+     * @return the parent dir path
+     */
+    public static String getParentDirPath(final String path) {
+        final int lastSlashIdx = path.lastIndexOf('/');
+        if (lastSlashIdx == 0) {
+            return "";
+        }
+        return path.substring(0, lastSlashIdx);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
      */
     private static void lookupCleanMethodPrivileged() {
