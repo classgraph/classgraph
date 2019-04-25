@@ -241,6 +241,7 @@ class ClasspathElementZip extends ClasspathElement {
         // the paths relative to the root of the jarfile
         if (logicalZipFile.bundleClassPathManifestEntryValue != null) {
             final String zipFilePathPrefix = zipFilePath + "!/";
+            // Class-Path is split on " ", but Bundle-ClassPath is split on ","
             for (String childBundlePath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
                 // Assume that Bundle-ClassPath paths have to be given relative to jarfile root
                 while (childBundlePath.startsWith("/")) {
