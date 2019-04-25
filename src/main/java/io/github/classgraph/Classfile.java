@@ -447,13 +447,9 @@ class Classfile {
         if (str == null) {
             return null;
         }
-        final String interned = stringInternMap.get(str);
+        final String interned = stringInternMap.putIfAbsent(str, str);
         if (interned != null) {
             return interned;
-        }
-        final String interned1 = stringInternMap.putIfAbsent(str, str);
-        if (interned1 != null) {
-            return interned1;
         }
         return str;
     }
