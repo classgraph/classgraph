@@ -647,7 +647,6 @@ class Scanner implements Callable<ScanResult> {
             }
         });
         // Find any nesting of elements within other elements
-        LogNode nestedClasspathRootNode = null;
         for (int i = 0; i < classpathElts.size(); i++) {
             // See if each classpath element is a prefix of any others (if so, they will immediately follow
             // in lexicographic order)
@@ -677,11 +676,7 @@ class Scanner implements Callable<ScanResult> {
                             }
                             baseElement.nestedClasspathRootPrefixes.add(nestedClasspathRelativePath + "/");
                             if (log != null) {
-                                if (nestedClasspathRootNode == null) {
-                                    nestedClasspathRootNode = log.log("Found nested classpath elements");
-                                }
-                                nestedClasspathRootNode
-                                        .log(basePath + " is a prefix of the nested element " + comparePath);
+                                log.log(basePath + " is a prefix of the nested element " + comparePath);
                             }
                         }
                     }
@@ -892,8 +887,6 @@ class Scanner implements Callable<ScanResult> {
      *             if a worker threw an uncaught exception
      */
     private ScanResult openClasspathElementsThenScan() throws InterruptedException, ExecutionException {
-        final LogNode log = topLevelLog == null ? null : topLevelLog.log("Finding nested classpath elements");
-
         // Get order of elements in traditional classpath
         final List<ClasspathEntryWorkUnit> rawClasspathEntryWorkUnits = new ArrayList<>();
         for (final Entry<String, ClassLoader> rawClasspathEntry : classpathFinder.getClasspathOrder().getOrder()) {
@@ -919,10 +912,12 @@ class Scanner implements Callable<ScanResult> {
 
         // Find classpath elements that are path prefixes of other classpath elements, and for
         // ClasspathElementZip, get module-related manifest entry values
-        preprocessClasspathElementsByType(classpathEltOrder, log);
+        preprocessClasspathElementsByType(classpathEltOrder,
+                topLevelLog == null ? null : topLevelLog.log("Finding nested classpath elements"));
 
         // Order modules before classpath elements from traditional classpath 
-        final LogNode classpathOrderLog = log == null ? null : log.log("Final classpath element order:");
+        final LogNode classpathOrderLog = topLevelLog == null ? null
+                : topLevelLog.log("Final classpath element order:");
         final int numElts = moduleClasspathEltOrder.size() + classpathEltOrder.size();
         final List<ClasspathElement> finalClasspathEltOrder = new ArrayList<>(numElts);
         final List<String> finalClasspathEltOrderStrs = new ArrayList<>(numElts);
