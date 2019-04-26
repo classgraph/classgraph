@@ -641,6 +641,8 @@ public abstract class WhiteBlackList {
     void sortPrefixes() {
         if (whitelistPrefixesSet != null) {
             whitelistPrefixes = new ArrayList<>(whitelistPrefixesSet);
+        }
+        if (whitelistPrefixes != null) {
             CollectionUtils.sortIfNotEmpty(whitelistPrefixes);
         }
         if (blacklistPrefixes != null) {
