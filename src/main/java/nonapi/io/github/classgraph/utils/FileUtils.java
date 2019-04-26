@@ -424,14 +424,27 @@ public final class FileUtils {
      *
      * @param path
      *            the path
+     * @param separator
+     *            the separator
      * @return the parent dir path
      */
-    public static String getParentDirPath(final String path) {
-        final int lastSlashIdx = path.lastIndexOf('/');
-        if (lastSlashIdx == 0) {
+    public static String getParentDirPath(final String path, final char separator) {
+        final int lastSlashIdx = path.lastIndexOf(separator);
+        if (lastSlashIdx <= 0) {
             return "";
         }
         return path.substring(0, lastSlashIdx);
+    }
+
+    /**
+     * Get the parent dir path.
+     *
+     * @param path
+     *            the path
+     * @return the parent dir path
+     */
+    public static String getParentDirPath(final String path) {
+        return getParentDirPath(path, '/');
     }
 
     // -------------------------------------------------------------------------------------------------------------

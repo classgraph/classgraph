@@ -45,7 +45,9 @@ public abstract class WhiteBlackList {
     protected Set<String> whitelist;
     /** Blacklisted items (whole-string match). */
     protected Set<String> blacklist;
-    /** Whitelisted items (prefix match). */
+    /** Whitelisted items (prefix match), as a set. */
+    protected Set<String> whitelistPrefixesSet;
+    /** Whitelisted items (prefix match), as a sorted list. */
     protected List<String> whitelistPrefixes;
     /** Blacklisted items (prefix match). */
     protected List<String> blacklistPrefixes;
@@ -57,14 +59,40 @@ public abstract class WhiteBlackList {
     protected transient List<Pattern> whitelistPatterns;
     /** Blacklist regexp patterns. (Not serialized to JSON.) */
     protected transient List<Pattern> blacklistPatterns;
+    /** The separator character. */
+    protected char separatorChar;
 
-    /** Constructor for deserialization. */
+    /** Deserialization constructor. */
     public WhiteBlackList() {
-        // Empty
+    }
+
+    /**
+     * Constructor for deserialization.
+     *
+     * @param separatorChar
+     *            the separator char
+     */
+    public WhiteBlackList(final char separatorChar) {
+        this.separatorChar = separatorChar;
     }
 
     /** Whitelist/blacklist for prefix strings. */
     public static class WhiteBlackListPrefix extends WhiteBlackList {
+        /** Deserialization constructor. */
+        public WhiteBlackListPrefix() {
+            super();
+        }
+
+        /**
+         * Instantiate a new whitelist/blacklist for prefix strings.
+         *
+         * @param separatorChar
+         *            the separator char
+         */
+        public WhiteBlackListPrefix(final char separatorChar) {
+            super(separatorChar);
+        }
+
         /**
          * Add to the whitelist.
          *
@@ -76,10 +104,10 @@ public abstract class WhiteBlackList {
             if (str.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
             }
-            if (this.whitelistPrefixes == null) {
-                this.whitelistPrefixes = new ArrayList<>();
+            if (this.whitelistPrefixesSet == null) {
+                this.whitelistPrefixesSet = new HashSet<>();
             }
-            this.whitelistPrefixes.add(str);
+            this.whitelistPrefixesSet.add(str);
         }
 
         /**
@@ -187,6 +215,21 @@ public abstract class WhiteBlackList {
 
     /** Whitelist/blacklist for whole-strings matches. */
     public static class WhiteBlackListWholeString extends WhiteBlackList {
+        /** Deserialization constructor. */
+        public WhiteBlackListWholeString() {
+            super();
+        }
+
+        /**
+         * Instantiate a new whitelist/blacklist for whole-string matches.
+         *
+         * @param separatorChar
+         *            the separator char
+         */
+        public WhiteBlackListWholeString(final char separatorChar) {
+            super(separatorChar);
+        }
+
         /**
          * Add to the whitelist.
          *
@@ -207,6 +250,29 @@ public abstract class WhiteBlackList {
                     this.whitelist = new HashSet<>();
                 }
                 this.whitelist.add(str);
+            }
+
+            // For WhiteBlackListWholeString, which doesn't perform prefix matches like WhiteBlackListPrefix,
+            // use whitelistPrefixes to store all parent prefixes of a whitelisted path, so that
+            // whitelistHasPrefix() can operate efficiently on very large whitelists (#338),
+            // in particular where the size of the whitelist is much larger than the maximum path depth.
+            if (this.whitelistPrefixesSet == null) {
+                this.whitelistPrefixesSet = new HashSet<>();
+                whitelistPrefixesSet.add("");
+                whitelistPrefixesSet.add("/");
+            }
+            String prefix = str;
+            if (prefix.contains("*")) {
+                // Stop performing prefix search at first '*'
+                prefix = prefix.substring(prefix.indexOf('*'));
+                if (!prefix.isEmpty() && !prefix.endsWith(Character.toString(separatorChar))) {
+                    // /path/to/wildcard* -> /path/to
+                    prefix = prefix.substring(prefix.lastIndexOf(separatorChar));
+                }
+            }
+            // Add str itself as a prefix (this will only match a parent dir for 
+            for (; !prefix.isEmpty(); prefix = FileUtils.getParentDirPath(prefix, separatorChar)) {
+                whitelistPrefixesSet.add(prefix + separatorChar);
             }
         }
 
@@ -267,15 +333,10 @@ public abstract class WhiteBlackList {
          */
         @Override
         public boolean whitelistHasPrefix(final String str) {
-            if (whitelist == null) {
+            if (whitelistPrefixesSet == null) {
                 return false;
             }
-            for (final String w : whitelist) {
-                if (w.startsWith(str)) {
-                    return true;
-                }
-            }
-            return false;
+            return whitelistPrefixesSet.contains(str);
         }
 
         /**
@@ -291,8 +352,22 @@ public abstract class WhiteBlackList {
         }
     }
 
-    /** Whitelist/blacklist for prefix strings. */
+    /** Whitelist/blacklist for leaf matches. */
     public static class WhiteBlackListLeafname extends WhiteBlackListWholeString {
+        /** Deserialization constructor. */
+        public WhiteBlackListLeafname() {
+            super();
+        }
+
+        /**
+         * Instantiates a new whitelist/blacklist for leaf matches.
+         *
+         * @param separatorChar
+         *            the separator char
+         */
+        public WhiteBlackListLeafname(final char separatorChar) {
+            super(separatorChar);
+        }
 
         /**
          * Add to the whitelist.
@@ -559,7 +634,8 @@ public abstract class WhiteBlackList {
 
     /** Need to sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
     void sortPrefixes() {
-        if (whitelistPrefixes != null) {
+        if (whitelistPrefixesSet != null) {
+            whitelistPrefixes = new ArrayList<>(whitelistPrefixesSet);
             CollectionUtils.sortIfNotEmpty(whitelistPrefixes);
         }
         if (blacklistPrefixes != null) {
