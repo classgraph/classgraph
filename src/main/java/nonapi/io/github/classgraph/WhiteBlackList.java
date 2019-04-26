@@ -261,14 +261,19 @@ public abstract class WhiteBlackList {
                 whitelistPrefixesSet.add("");
                 whitelistPrefixesSet.add("/");
             }
+            final String separator = Character.toString(separatorChar);
             String prefix = str;
             if (prefix.contains("*")) {
                 // Stop performing prefix search at first '*'
                 prefix = prefix.substring(prefix.indexOf('*'));
-                if (!prefix.isEmpty() && !prefix.endsWith(Character.toString(separatorChar))) {
+                if (!prefix.isEmpty() && !prefix.endsWith(separator)) {
                     // /path/to/wildcard* -> /path/to
                     prefix = prefix.substring(prefix.lastIndexOf(separatorChar));
                 }
+            }
+            // Strip off any final separator
+            while (prefix.endsWith(separator)) {
+                prefix = prefix.substring(0, prefix.length() - 1);
             }
             // Add str itself as a prefix (this will only match a parent dir for 
             for (; !prefix.isEmpty(); prefix = FileUtils.getParentDirPath(prefix, separatorChar)) {
