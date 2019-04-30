@@ -141,9 +141,19 @@ class CallStackReader {
      * @return The classes in the call stack.
      */
     static Class<?>[] getClassContext(final LogNode log) {
-        // For JRE 9+, use StackWalker to get call stack
+        // For JRE 9+, use StackWalker to get call stack.
+        // N.B. need to work around StackWalker bug fixed in JDK 13, and backported to 12.0.2 and 11.0.4
+        // (probably introduced in JDK 9, when StackWalker was introduced):
+        // https://github.com/classgraph/classgraph/issues/341
+        // https://bugs.openjdk.java.net/browse/JDK-8210457
         Class<?>[] stackClasses = null;
-        if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
+        if ((VersionFinder.JAVA_MAJOR_VERSION == 11
+                && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 4)
+                && !VersionFinder.JAVA_IS_EA_VERSION)
+                || (VersionFinder.JAVA_MAJOR_VERSION == 12
+                        && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 2)
+                        && !VersionFinder.JAVA_IS_EA_VERSION)
+                || VersionFinder.JAVA_MAJOR_VERSION >= 13) {
             // Invoke with doPrivileged -- see:
             // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
             stackClasses = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
