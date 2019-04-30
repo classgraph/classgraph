@@ -153,7 +153,8 @@ class CallStackReader {
                 || (VersionFinder.JAVA_MAJOR_VERSION == 12
                         && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 2)
                         && !VersionFinder.JAVA_IS_EA_VERSION)
-                || VersionFinder.JAVA_MAJOR_VERSION >= 13) {
+                || (VersionFinder.JAVA_MAJOR_VERSION == 13 && !VersionFinder.JAVA_IS_EA_VERSION)
+                || VersionFinder.JAVA_MAJOR_VERSION > 13) {
             // Invoke with doPrivileged -- see:
             // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
             stackClasses = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
