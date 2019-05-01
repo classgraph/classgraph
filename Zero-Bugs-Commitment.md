@@ -39,8 +39,9 @@ a request until the issue becomes forgotten or obsolete. This is the unfortunate
 end state of a significant proportion of bug reports filed across the open
 source ecosystem.)* 
 
-💡 We pledge to be responsive to bug reports and requests currently open in our
-project's bug tracker.
+💡 We pledge to be responsive to bug reports, comments and requests currently
+open in our project's bug tracker, and to be proactive in resolving problems
+as quickly as practical.
 
 ## 4. We will be respectful and inclusive.
 
