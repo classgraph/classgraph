@@ -38,9 +38,8 @@ about who has *official maintainership* for a project or piece of code.
 the bug or request becomes forgotten or obsolete. This is the unfortunate state
 of the vast majority of bug reports across the entire open source ecosystem.)* 
 
-💡 We pledge to endeavor to be responsive to any bug report or request we
-receive, whether in our own bug tracker or the bug tracker of another
-project.
+💡 We pledge to be responsive to bug reports or requests we receive through
+our project's bug tracker.
 
 ## 4. We will be respectful and inclusive.
 
