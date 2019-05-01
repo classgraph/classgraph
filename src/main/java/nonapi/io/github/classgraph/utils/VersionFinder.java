@@ -105,7 +105,7 @@ public final class VersionFinder {
         JAVA_MAJOR_VERSION = javaMajorVersion;
         JAVA_MINOR_VERSION = javaMinorVersion;
         JAVA_SUB_VERSION = javaSubVersion;
-        JAVA_IS_EA_VERSION = JAVA_VERSION.endsWith("-ea");
+        JAVA_IS_EA_VERSION = JAVA_VERSION != null && JAVA_VERSION.endsWith("-ea");
     }
 
     /** The operating system type. */
