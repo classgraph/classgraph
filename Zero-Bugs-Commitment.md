@@ -32,7 +32,7 @@ find someone else who can assume the responsibility for our code.*
 Note that this is about taking *personal responsibility* for our own work, not
 about who has *official maintainership* for a project or piece of code.
 
-## 3. We will be responsive during the bugfixing process
+## 3. We will be responsive during the bugfixing process.
 
 It is easy to delay responding to a bug report or a request until the bug or
 request becomes forgotten or obsolete. This is the unfortunate state of the vast
@@ -42,7 +42,7 @@ majority of bug reports across the entire open source ecosystem.
 receive, whether in our own bug tracker or the bug tracker of another
 project.*
 
-## 4. We will be respectful and inclusive
+## 4. We will be respectful and inclusive.
 
 Open source communities have been known to reject halting but earnest efforts
 of new contributors. Bug trackers are also full of pet complaints and bugs
