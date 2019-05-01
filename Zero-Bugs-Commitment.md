@@ -60,8 +60,9 @@ You are strongly encouraged to share this commitment, to make this commitment
 yourself for software that you develop or maintain, and to encourage others to
 do the same.
 
-You can add the following wording to your homepage, linking to this document,
-or to your own copy or your own version of this document:
+To sign this pledge, you can add the following wording to your project homepage,
+linking to this document, or to your own copy or your own version of this
+document:
 
 | **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).** |
 |-----------------------------|
