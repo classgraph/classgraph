@@ -63,7 +63,8 @@ do the same.
 You can add the following wording to your homepage, linking to this document,
 or to your own copy or your own version of this document:
 
-  **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).**
+| **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).** |
+|-----------------------------|
 
 
 #### Version history:
