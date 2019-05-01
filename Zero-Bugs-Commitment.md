@@ -4,7 +4,7 @@
 This project adheres to the **Zero Bugs Commitment** (`#ZeroBugs`).
 This is a commitment to engage in *responsible software engineering* and
 *proactive community participation*, with a goal of keeping the count of
-open or known bugs at zero. It is also a commitment of *positive community
+open or known bugs at zero. It is also a commitment to *positive community
 engagement*.
 
 As developers of this project, we pledge that:
@@ -48,8 +48,8 @@ Open source bug trackers have long been used to complain about pet issues,
 and/or make demands that are not in line with the developers' priorities.
 Developers of a codebase have been known to push back against these demands
 by closing bugs as `#WONTFIX` without trying to understand the core issues,
-or trying to find a compromise or solution. Maintainers have also been known
-to reject the earnest but halting efforts of new contributors.
+and without trying to find a compromise or solution. Maintainers have also
+been known to reject the earnest but halting efforts of new contributors.
 
 *We pledge to cultivate contributions and growth among our community by
 striving to always listen to the needs and requests of community members,
