@@ -1,10 +1,11 @@
 
 # The Zero Bugs Commitment
 
-This software is developed and maintained under the *Zero Bugs Commitment*
-(`#ZeroBugs`). This is a commitment to engage in *responsible software
-engineering*, *proactive community participation*, and *positive community
-engagement*, by abiding by the principles below.
+This project adheres to the **Zero Bugs Commitment** (`#ZeroBugs`).
+This is a commitment to engage in *responsible software engineering* and
+*proactive community participation*, with a goal of keeping the count of
+open or known bugs at zero. It is also a commitment of *positive community
+engagement*.
 
 ## 1. We will prioritize fixing bugs over implementing new features.
 
