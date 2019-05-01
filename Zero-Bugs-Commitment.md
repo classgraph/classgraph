@@ -7,6 +7,8 @@ This is a commitment to engage in *responsible software engineering* and
 open or known bugs at zero. It is also a commitment of *positive community
 engagement*.
 
+As developers of this project, we pledge that:
+
 ## 1. We will prioritize fixing bugs over implementing new features.
 
 It is human nature to be much more interested in building new things than doing
