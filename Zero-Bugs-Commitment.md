@@ -55,6 +55,8 @@ by striving to listen to the needs and requests of community members;
 and by trying to find a reasonable solution or middle ground when there is
 a disagreement.*
 
+---
+
 #### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
 
 You are strongly encouraged to share this commitment, to make this commitment
