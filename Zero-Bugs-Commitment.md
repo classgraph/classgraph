@@ -11,20 +11,20 @@ respecting and cultivating contributions.
 
 ## 1. We will prioritize fixing bugs over implementing new features.
 
-It is human nature to be much more interested in building new things than doing
-the hard work to fix old, broken things.
+> It is human nature to be much more interested in building new things than
+doing the hard work to fix old, broken things.
 
-> *We pledge, wherever reasonable, to prioritize fixing known bugs above
+💡 *We pledge, wherever reasonable, to prioritize fixing known bugs above
 implementing new features, with the goal of **keeping the count of known or
 open bugs at zero**.*
 
 
 ## 2. We will take responsibility for code we have written or contributed to.
 
-As attention shifts between projects, it is difficult to return to work on old
+> As attention shifts between projects, it is difficult to return to work on old
 code. This can lead to bit rot.
 
-> *We pledge to take long-term responsibility for any significant code we
+💡 *We pledge to take long-term responsibility for any significant code we
 create or contribute to, fixing problems and updating code as necessary to
 prevent bit rot. If we can no longer fulfill this responsibility, we will
 find someone else who can assume the responsibility for our code.*
@@ -34,22 +34,22 @@ about who has *official maintainership* for a project or piece of code.
 
 ## 3. We will be responsive during the bugfixing process.
 
-It is easy to delay responding to a bug report or a request until the bug or
+> It is easy to delay responding to a bug report or a request until the bug or
 request becomes forgotten or obsolete. This is the unfortunate state of the vast
 majority of bug reports across the entire open source ecosystem. 
 
-> *We pledge to endeavor to be responsive to any bug report or request we
+💡 *We pledge to endeavor to be responsive to any bug report or request we
 receive, whether in our own bug tracker or the bug tracker of another
 project.*
 
 ## 4. We will be respectful and inclusive.
 
-Open source communities have been known to reject halting but earnest efforts
+> Open source communities have been known to reject halting but earnest efforts
 of new contributors. Bug trackers are also full of pet complaints and bugs
 closed as `#WONTFIX`, without a significant attempt to understand core issues,
 or to find a solution or compromise.
 
-> *We pledge to cultivate contributions and growth in our community by
+💡 *We pledge to cultivate contributions and growth in our community by
 welcoming, encouraging, and helping users who offer contributions;
 by striving to listen to the needs and requests of community members;
 and by trying to find a reasonable solution or middle ground when there is
@@ -61,9 +61,9 @@ You are strongly encouraged to share this commitment, to make this commitment
 yourself for software that you develop or maintain, and to encourage others to
 do the same.
 
-To sign this pledge, you can add the following wording to your project homepage,
-linking to this document, or to your own copy or your own version of this
-document:
+**To sign this pledge**, you can add the following wording to your project
+homepage, linking to this document, or to your own copy or your own version of
+this document:
 
 | **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).** |
 |-----------------------------|
