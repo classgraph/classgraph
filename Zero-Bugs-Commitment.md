@@ -18,7 +18,7 @@ bugs at zero**.*
 ## 2. We will take responsibility for code we have written or contributed to.
 
 As attention shifts between projects, it is difficult to return to work on old
-code. This can lead to [bit rot](https://en.wikipedia.org/wiki/Software_rot).
+code. This can lead to bit rot.
 
 *We pledge to take long-term responsibility for any significant code we create
 or contribute to, fixing problems and updating code as necessary to prevent bit
@@ -41,18 +41,17 @@ another project.*
 
 ## 4. We will be respectful and inclusive
 
-Users have been known to use bug trackers to complain about pet issues, acting
-with a sense of entitlement, and/or making demands of the developers or
-maintainers of a codebase. Maintainers have been known to push back against
-these demands by closing bugs as `#WONTFIX`, without trying to understand the
-heart of a complaint, or trying to find a compromise. Maintainers have also been
-known to reject the earnest but halting efforts of new contributors.
+Open source bug trackers have long been used to complain about pet issues,
+and/or make demands that are not in line with the developers' priorities.
+Developers of a codebase have been known to push back against these demands
+by closing bugs as `#WONTFIX` without trying to understand the core issues,
+or trying to find a compromise or solution. Maintainers have also been known
+to reject the earnest but halting efforts of new contributors.
 
-*We pledge to cultivate contributions and growth among our community of by
-striving to always listen to the needs and requests of our community members;
-by trying to find a good solution or middle ground when there is a disagreement;
-and by welcoming, encouraging, and helping users who step forward to offer
-contributions.
+*We pledge to cultivate contributions and growth among our community by
+striving to always listen to the needs and requests of community members,
+by trying to find a good solution or middle ground when there is a disagreement,
+and by welcoming, encouraging, and helping users who offer contributions.*
 
 
 ### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
