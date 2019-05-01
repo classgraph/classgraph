@@ -5,7 +5,7 @@ This project adheres to the **Zero Bugs Commitment** (`#ZeroBugs`).
 This is a commitment to practice *responsible software engineering*,
 *proactive community participation*, and *positive community engagement*,
 with a goal of keeping the count of known or open bugs at zero, while
-respecting and cultivating community participation.
+respecting and cultivating contributions.
 
 **As developers of this project, we pledge that:**
 
