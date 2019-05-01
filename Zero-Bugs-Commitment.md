@@ -56,15 +56,17 @@ and by welcoming, encouraging, and helping users who offer contributions.*
 
 ### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
 
-* Please share freely, and encourage others to share.
-* You are strongly encouraged to make this commitment yourself for software
-that you develop or maintain, and to encourage others to do the same.
-* You can add the following wording to your homepage, linking to this document,
+You are strongly encouraged to share this commitment, to make this commitment
+yourself for software that you develop or maintain, and to encourage others to
+do the same.
+
+You can add the following wording to your homepage, linking to this document,
 or to your own copy or your own version of this document:
-    This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**.
+
+    **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).**
 
 
-### Version history:
+#### Version history:
 
 0.1: Original version (author: Luke Hutchison -- http://twitter.com/LH )
 
