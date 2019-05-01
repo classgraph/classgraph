@@ -17,7 +17,7 @@ the hard work to fix old, broken things.
 | *We pledge, wherever reasonable, to prioritize fixing known bugs above
 implementing new features, with the goal of **keeping the count of known or open
 bugs at zero**.* |
-|-----|
+|-----------------------------|
 
 
 ## 2. We will take responsibility for code we have written or contributed to.
@@ -29,7 +29,7 @@ code. This can lead to bit rot.
 or contribute to, fixing problems and updating code as necessary to prevent bit
 rot. If we can no longer fulfill this responsibility, we will find someone else
 who can assume the responsibility for our code.* |
-|-----| 
+|-----------------------------| 
 
 Note that this is about taking *personal responsibility* for our own work, not
 about who has *official maintainership* for a project or piece of code.
@@ -43,7 +43,7 @@ majority of bug reports across the entire open source ecosystem.
 | *We pledge to endeavor to be responsive to any bug report or request we
 receive, whether in our own bug tracker or the bug tracker of another
 project.* | 
-|-----|
+|-----------------------------|
 
 ## 4. We will be respectful and inclusive
 
@@ -56,7 +56,7 @@ been known to reject earnest but halting efforts of new contributors.
 striving to always listen to the needs and requests of community members;
 by trying to find a good solution or middle ground when there is a disagreement;
 and by welcoming, encouraging, and helping users who offer contributions.* |
-|-----|
+|-----------------------------|
 
 
 ### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
@@ -70,7 +70,7 @@ linking to this document, or to your own copy or your own version of this
 document:
 
 | **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).** |
-|-----|
+|-----------------------------|
 
 
 #### Version history:
