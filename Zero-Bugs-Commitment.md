@@ -14,9 +14,9 @@ respecting and cultivating community participation.
 It is human nature to be much more interested in building new things than doing
 the hard work to fix old, broken things.
 
-| *We pledge, wherever reasonable, to prioritize fixing known bugs above |
-| implementing new features, with the goal of **keeping the count of known or |
-| open bugs at zero**.* |
+| *We pledge, wherever reasonable, to prioritize fixing known bugs above <br>
+implementing new features, with the goal of **keeping the count of known or <br>
+open bugs at zero**.* |
 |-----------------------------|
 
 
@@ -25,11 +25,10 @@ the hard work to fix old, broken things.
 As attention shifts between projects, it is difficult to return to work on old
 code. This can lead to bit rot.
 
-| *We pledge to take long-term responsibility for any significant code we |
-| create |
-| or contribute to, fixing problems and updating code as necessary to prevent |
-| bit rot. If we can no longer fulfill this responsibility, we will find |
-| someone else who can assume the responsibility for our code.* |
+| *We pledge to take long-term responsibility for any significant code we <br>
+create or contribute to, fixing problems and updating code as necessary to <br>
+prevent bit rot. If we can no longer fulfill this responsibility, we will <br>
+find someone else who can assume the responsibility for our code.* |
 |-----------------------------| 
 
 Note that this is about taking *personal responsibility* for our own work, not
@@ -41,9 +40,9 @@ It is easy to delay responding to a bug report or a request until the bug or
 request becomes forgotten or obsolete. This is the unfortunate state of the vast
 majority of bug reports across the entire open source ecosystem. 
 
-| *We pledge to endeavor to be responsive to any bug report or request we |
-| receive, whether in our own bug tracker or the bug tracker of another |
-| project.* | 
+| *We pledge to endeavor to be responsive to any bug report or request we <br>
+receive, whether in our own bug tracker or the bug tracker of another <br>
+project.* | 
 |-----------------------------|
 
 ## 4. We will be respectful and inclusive
@@ -53,11 +52,11 @@ Open source bug trackers are full of pet complaints and bugs closed as
 or to find a solution or compromise. Some development communities have
 been known to reject earnest but halting efforts of new contributors.
 
-| *We pledge to cultivate contributions and growth among our community by |
-| striving to always listen to the needs and requests of community members; |
-| by trying to find a good solution or middle ground when there is a |
-| disagreement; |
-| and by welcoming, encouraging, and helping users who offer contributions.* |
+| *We pledge to cultivate contributions and growth among our community by <br>
+striving to always listen to the needs and requests of community members; <br>
+by trying to find a good solution or middle ground when there is a <br>
+disagreement; <br>
+and by welcoming, encouraging, and helping users who offer contributions.* |
 |-----------------------------|
 
 
@@ -71,7 +70,8 @@ To sign this pledge, you can add the following wording to your project homepage,
 linking to this document, or to your own copy or your own version of this
 document:
 
-| **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).** |
+| **This project adheres to the <br>
+[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).** |
 |-----------------------------|
 
 
