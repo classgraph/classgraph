@@ -45,14 +45,14 @@ project.*
 ## 4. We will be respectful and inclusive
 
 Open source communities have been known to reject halting but earnest efforts
-of new contributors. Bug trackers are full of pet complaints and bugs closed
-as `#WONTFIX`, without a significant attempt to understand core issues,
+of new contributors. Bug trackers are also full of pet complaints and bugs
+closed as `#WONTFIX`, without a significant attempt to understand core issues,
 or to find a solution or compromise.
 
 > *We pledge to cultivate contributions and growth in our community by
 welcoming, encouraging, and helping users who offer contributions;
-striving to listen to the needs and requests of community members;
-and trying to find a good solution or middle ground when there is a
+by striving to listen to the needs and requests of community members;
+and by trying to find a good solution or middle ground when there is a
 disagreement.*
 
 #### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
