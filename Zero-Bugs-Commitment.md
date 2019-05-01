@@ -52,8 +52,8 @@ or to find a solution or compromise.
 > *We pledge to cultivate contributions and growth in our community by
 welcoming, encouraging, and helping users who offer contributions;
 by striving to listen to the needs and requests of community members;
-and by trying to find a good solution or middle ground when there is a
-disagreement.*
+and by trying to find a reasonable solution or middle ground when there is
+a disagreement.*
 
 #### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
 
