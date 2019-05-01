@@ -26,6 +26,8 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-yellow.svg)](https://seladb.github.io/StarTrack-js/?u=classgraph&r=classgraph)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-yellow.svg)](https://gitter.im/classgraph/Lobby)
 
+ClassGraph is now fully stable. This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**.
+
 ### ClassGraph vs. Java Introspection
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API, or has the ability to index classes and resources. For example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**. The Java API can load the content of a resource file with a specific path in a specific ClassLoader, but ClassGraph can find and load **all resources in all classloaders with paths matching a given pattern**.
@@ -86,13 +88,7 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
 [See the wiki for complete documentation and usage information.](https://github.com/classgraph/classgraph/wiki)
 
-## Status
-
-**FastClasspathScanner was renamed to ClassGraph, and released as version 4**.
-
-ClassGraph has a completely revamped API. See the [porting notes](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph) for information on porting from the older FastClasspathScanner version 3 API.
-
-In particular, the Maven group id has changed from `io.github.lukehutch.fast-classpath-scanner` to **`io.github.classgraph`** in version 4. Please see the new [Maven dependency rule](https://github.com/classgraph/classgraph/wiki) and module "requires" line in the Wiki documentation.
+**ClassGraph was known as FastClasspathScanner prior to version 4**.  See the [porting notes](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph) for information on porting from the older FastClasspathScanner API.
 
 ## Mailing List
 
