@@ -26,7 +26,9 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-yellow.svg)](https://seladb.github.io/StarTrack-js/?u=classgraph&r=classgraph)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-yellow.svg)](https://gitter.im/classgraph/Lobby)
 
-ClassGraph is now fully stable. This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**.
+| ClassGraph is now fully stable. This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**. |
+|-----------------------------|
+
 
 ### ClassGraph vs. Java Introspection
 
