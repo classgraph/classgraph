@@ -55,7 +55,7 @@ by trying to find a good solution or middle ground when there is a
 disagreement; and by welcoming, encouraging, and helping users who offer
 contributions.*
 
-### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
+#### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
 
 You are strongly encouraged to share this commitment, to make this commitment
 yourself for software that you develop or maintain, and to encourage others to
