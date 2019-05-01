@@ -68,6 +68,9 @@ this document:
 | **This project adheres to the [Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md).** |
 |-----------------------------|
 
+You may modify or redistribute this document at will without restriction.
+However, please leave a record of your changes below.
+
 #### Version history:
 
 0.1: Original version (author: Luke Hutchison -- http://twitter.com/LH )
