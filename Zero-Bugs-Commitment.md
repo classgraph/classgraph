@@ -36,7 +36,7 @@ about who has *official maintainership* for a project or piece of code.
 
 *(Motivation: It is easy to delay responding to a bug report, a bug comment or
 a request until the bug or request becomes forgotten or obsolete. This is the
-unfortunate end of the vast majority of bug reports filed across the entire open
+unfortunate end of significant proportion of bug reports filed across the open
 source ecosystem.)* 
 
 💡 We pledge to be responsive to bug reports and requests currently open in our
