@@ -558,7 +558,7 @@ class Scanner implements Callable<ScanResult> {
         private final Queue<Classfile> scannedClassfiles;
 
         /** The string intern map. */
-        private final ConcurrentHashMap<String, String> stringInternMap;
+        private final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
 
         /**
          * Constructor.
@@ -574,12 +574,11 @@ class Scanner implements Callable<ScanResult> {
          */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
                 final List<ClasspathElement> classpathOrder, final Set<String> classNamesScheduledForScanning,
-                final Queue<Classfile> scannedClassfiles, final ConcurrentHashMap<String, String> stringInternMap) {
+                final Queue<Classfile> scannedClassfiles) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
             this.classNamesScheduledForScanning = classNamesScheduledForScanning;
             this.scannedClassfiles = scannedClassfiles;
-            this.stringInternMap = stringInternMap;
         }
 
         /* (non-Javadoc)
@@ -823,12 +822,10 @@ class Scanner implements Callable<ScanResult> {
 
             // Scan classfiles in parallel.
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
-            final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
             processWorkUnits(classfileScanWorkItems,
                     topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"),
                     new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
-                            classNamesScheduledForScanning, scannedClassfiles, stringInternMap));
-            stringInternMap.clear();
+                            classNamesScheduledForScanning, scannedClassfiles));
 
             // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
             final LogNode linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
