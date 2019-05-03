@@ -77,7 +77,7 @@ class ClassGraphClassLoader extends ClassLoader {
             for (final ClassLoader jpmsClassLoader : JPMSClassLoaderHandler.jpmsClassLoaders) {
                 try {
                     return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, jpmsClassLoader);
-                } catch (ReflectiveOperationException | LinkageError e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // Ignore
                 }
                 if (classInfo != null && jpmsClassLoader == classInfo.classLoader) {
@@ -91,7 +91,7 @@ class ClassGraphClassLoader extends ClassLoader {
             for (final ClassLoader envClassLoader : classLoaderOrder) {
                 try {
                     return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, envClassLoader);
-                } catch (ReflectiveOperationException | LinkageError e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // Ignore
                 }
                 if (classInfo != null && envClassLoader == classInfo.classLoader) {
@@ -104,7 +104,7 @@ class ClassGraphClassLoader extends ClassLoader {
         if (!triedClassInfoLoader && classInfo != null && classInfo.classLoader != null) {
             try {
                 return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, classInfo.classLoader);
-            } catch (final ReflectiveOperationException | LinkageError e) {
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 // Ignore
             }
         }
