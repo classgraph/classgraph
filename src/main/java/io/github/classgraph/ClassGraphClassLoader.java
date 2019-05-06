@@ -34,7 +34,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Enumeration;
 
-import nonapi.io.github.classgraph.classloaderhandler.JPMSClassLoaderHandler;
 import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
@@ -71,20 +70,6 @@ class ClassGraphClassLoader extends ClassLoader {
 
         // Try environment classloaders first
         boolean triedClassInfoLoader = false;
-        if (!JPMSClassLoaderHandler.jpmsClassLoaders.isEmpty()) {
-            // If JPMS classloaders were found, try these first (they are separated out from regular
-            // classloaders, since it is not possible to get classpath entries from them) 
-            for (final ClassLoader jpmsClassLoader : JPMSClassLoaderHandler.jpmsClassLoaders) {
-                try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, jpmsClassLoader);
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    // Ignore
-                }
-                if (classInfo != null && jpmsClassLoader == classInfo.classLoader) {
-                    triedClassInfoLoader = true;
-                }
-            }
-        }
         final ClassLoader[] classLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
         if (classLoaderOrder != null) {
             // Try environment classloaders

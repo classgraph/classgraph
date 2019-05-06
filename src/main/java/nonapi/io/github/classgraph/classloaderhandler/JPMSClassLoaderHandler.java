@@ -28,9 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-
 import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
@@ -40,10 +37,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does not attempt to extract URLs from
  * them (module scanning uses a different mechanism from classpath scanning).
  */
-public class JPMSClassLoaderHandler implements ClassLoaderHandler {
-    /** The JPMS classloaders, for use by ClassGraphClassLoader. */
-    public static final Set<ClassLoader> jpmsClassLoaders = new LinkedHashSet<>();
-
+class JPMSClassLoaderHandler implements ClassLoaderHandler {
     /** Class cannot be constructed. */
     private JPMSClassLoaderHandler() {
     }
@@ -70,11 +64,11 @@ public class JPMSClassLoaderHandler implements ClassLoaderHandler {
      */
     public static void findClassLoaderOrder(final ClassLoader classLoader,
             final ClassLoaderOrder classLoaderOrder) {
-        // Delegate to parent
+        // Add JPMS classloaders into classloader order, so that they can be used for classloading
+        // (e.g. by ClassInfo#loadClass()). However, findClasspathOrder() below cannot actually find
+        // classpath element locations from JPMS classloaders, so the method body is blank.
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
-        // Record JPMS classloaders for use by ClassGraphClassLoader
-        jpmsClassLoaders.add(classLoader);
-        // Don't add this classLoader or its parents to the classLoaderOrder -- modules are handled separately
+        classLoaderOrder.add(classLoader);
     }
 
     /**
@@ -91,7 +85,7 @@ public class JPMSClassLoaderHandler implements ClassLoaderHandler {
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        // The JDK9 classloaders have a field, URLClassPath ucp, containing URLs for unnamed modules,
-        // but it is not visible.
+        // The JDK9 classloaders have a field, `URLClassPath ucp`, containing URLs for unnamed modules,
+        // but it is not visible. Modules therefore have to be scanned using the JPMS API.
     }
 }
