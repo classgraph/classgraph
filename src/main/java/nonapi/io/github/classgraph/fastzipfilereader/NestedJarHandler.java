@@ -77,6 +77,12 @@ public class NestedJarHandler {
                 throw ClassGraphException
                         .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
+            if (!FileUtils.canRead(canonicalFile)) {
+                throw new FileNotFoundException("Cannot read " + canonicalFile);
+            }
+            if (!canonicalFile.isFile()) {
+                throw new IOException("Not a file (expected a jarfile): " + canonicalFile);
+            }
             return new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
         }
     };
@@ -126,12 +132,7 @@ public class NestedJarHandler {
                         }
 
                         // Get or create a PhysicalZipFile instance for the new temp file
-                        PhysicalZipFile physicalZipFile;
-                        try {
-                            physicalZipFile = canonicalFileToPhysicalZipFileMap.get(tempFile, log);
-                        } catch (final NullSingletonException e) {
-                            throw new IOException("Could not get physical zipfile " + tempFile + " : " + e);
-                        }
+                        final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFile(tempFile, log);
                         additionalAllocatedPhysicalZipFiles.add(physicalZipFile);
 
                         // Create a new logical slice of the whole physical zipfile
@@ -234,39 +235,23 @@ public class NestedJarHandler {
                         // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
                         // This is also the last frame of recursion for the 'else' clause below.
 
-                        // If the path starts with "http(s)://", download the jar to a temp file
+                        // If the path starts with "http://" or "https://", download the jar to a temp file
+                        // or to a ByteBuffer in RAM
                         final boolean isRemote = nestedJarPath.startsWith("http://")
                                 || nestedJarPath.startsWith("https://");
                         PhysicalZipFile physicalZipFile;
                         if (isRemote) {
-                            // Jarfile is at http(s) URL
+                            // Jarfile is at an http:// or https:// URL
                             if (scanSpec.enableRemoteJarScanning) {
-                                try {
-                                    final File canonicalFile = downloadJarFromURLToTempFile(nestedJarPath, log);
-                                    if (canonicalFile == null) {
-                                        throw new IOException("Could not download jarfile " + nestedJarPath);
-                                    }
-                                    physicalZipFile = canonicalFileToPhysicalZipFile(canonicalFile, log);
-                                } catch (final IllegalArgumentException e) {
-                                    // Temp file could not be written, so this is a read-only filesystem,
-                                    // or temp dir does not exist, or temp dir has run out of space.
-                                    // Download the jar to a ByteBuffer in RAM instead.
-                                    if (log != null) {
-                                        log.log("Could not download jar to temp file, attempting to download "
-                                                + "to RAM instead: " + e);
-                                    }
-                                    final ByteBuffer byteBuffer = downloadJarFromURLToByteBuffer(nestedJarPath,
-                                            log);
-                                    physicalZipFile = new PhysicalZipFile(byteBuffer, /* outermostFile = */ null,
-                                            nestedJarPath, NestedJarHandler.this);
-                                }
+                                // Download jar to a temp file, or if not possible, to a ByteBuffer in RAM
+                                physicalZipFile = downloadJarFromURL(nestedJarPath, log);
                             } else {
                                 throw new IOException(
                                         "Remote jar scanning has not been enabled, cannot scan classpath element: "
                                                 + nestedJarPath);
                             }
                         } else {
-                            // Jarfile should be local
+                            // Jarfile should be a local file
                             try {
                                 final File canonicalFile = new File(nestedJarPath).getCanonicalFile();
                                 physicalZipFile = canonicalFileToPhysicalZipFile(canonicalFile, log);
@@ -487,12 +472,6 @@ public class NestedJarHandler {
      */
     private PhysicalZipFile canonicalFileToPhysicalZipFile(final File canonicalFile, final LogNode log)
             throws IOException, InterruptedException {
-        if (!FileUtils.canRead(canonicalFile)) {
-            throw new FileNotFoundException("Cannot read " + canonicalFile);
-        }
-        if (!canonicalFile.isFile()) {
-            throw new IOException("Not a file (expected a jarfile): " + canonicalFile);
-        }
         try {
             // Get or create a PhysicalZipFile instance for the canonical file
             return canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
@@ -546,13 +525,15 @@ public class NestedJarHandler {
     }
 
     /**
-     * Download a jar from a URL to a temporary file.
+     * Download a jar from a URL to a temporary file, or to a ByteBuffer if the temporary directory is not writeable
+     * or full. The downloaded jar is returned wrapped in a {@link PhysicalZipFile} instance.
      *
      * @param jarURL
      *            the jar URL
      * @param log
      *            the log
-     * @return the temporary file the jar was downloaded to
+     * @return the temporary file or {@link ByteBuffer} the jar was downloaded to, wrapped in a
+     *         {@link PhysicalZipFile} instance.
      * @throws IOException
      *             If the jar could not be downloaded, or the jar URL is malformed.
      * @throws IllegalArgumentException
@@ -560,7 +541,8 @@ public class NestedJarHandler {
      *             as a separate exception from IOException, so that the case of an unwriteable temp dir can be
      *             handled separately, by downloading the jar to a ByteBuffer in RAM.)
      */
-    private File downloadJarFromURLToTempFile(final String jarURL, final LogNode log) throws IOException {
+    private PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
+            throws IOException, InterruptedException {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading jar from URL " + jarURL);
         final URL url;
         try {
@@ -568,52 +550,38 @@ public class NestedJarHandler {
         } catch (final MalformedURLException e) {
             throw new IOException("Malformed URL: " + jarURL);
         }
-        final InputStream inputStream = url.openStream(); // Will throw IOException if URL can't be opened
-        File tempFile = null;
-        try {
-            tempFile = makeTempFile(jarURL, /* onlyUseLeafname = */ true);
-            Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        } catch (final SecurityException | UnsupportedOperationException | IOException e) {
-            // Re-throw as IllegalArgumentException if the jar can't be copied to a temp file 
-            throw new IllegalArgumentException(
-                    "Could not download " + jarURL + (tempFile == null ? "" : " to file " + tempFile) + " : " + e);
-        } finally {
-            if (inputStream != null) {
-                inputStream.close();
-            }
-            if (subLog != null) {
-                subLog.addElapsedTime();
-                subLog.log("Downloaded jar to temporary file " + tempFile);
-                subLog.log("***** Note that it is time-consuming to scan jars at http(s) addresses, "
-                        + "they must be downloaded for every scan, and the same jars must also be "
-                        + "separately downloaded by the ClassLoader *****");
-            }
-        }
-        return tempFile;
-    }
-
-    /**
-     * Download a jar from a URL to a ByteBuffer.
-     *
-     * @param jarURL
-     *            the jar URL
-     * @param log
-     *            the log
-     * @return the {@link ByteBuffer} the jar was downloaded to
-     * @throws IOException
-     *             If the jar could not be downloaded, or the jar URL is malformed.
-     */
-    private ByteBuffer downloadJarFromURLToByteBuffer(final String jarURL, final LogNode log) throws IOException {
-        final LogNode subLog = log == null ? null
-                : log.log(jarURL, "Downloading jar from URL " + jarURL + " to ByteBuffer");
-        final URL url;
-        try {
-            url = new URL(jarURL);
-        } catch (final MalformedURLException e) {
-            throw new IOException("Malformed URL: " + jarURL);
-        }
         try (final InputStream inputStream = url.openStream()) {
-            return FileUtils.readAllBytesAsByteBuffer(inputStream, -1L);
+            PhysicalZipFile physicalZipFile = null;
+            try {
+                // Download jar from inputStream to a temporary file
+                final File tempFile = makeTempFile(jarURL, /* onlyUseLeafname = */ true);
+                Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                if (subLog != null) {
+                    subLog.log("Downloaded jar to temporary file " + tempFile);
+                }
+                // Wrap temp file in a PhysicalZipFile
+                physicalZipFile = canonicalFileToPhysicalZipFile(tempFile, log);
+                // Add temp file to queue of physical zipfiles that have to be unmapped on close
+                additionalAllocatedPhysicalZipFiles.add(physicalZipFile);
+            } catch (final SecurityException | UnsupportedOperationException | IOException e) {
+                // Temp file could not be written, so this is a read-only filesystem, or temp dir does not exist,
+                // or temp dir has run out of space. Download the jar to a ByteBuffer in RAM instead.
+                if (log != null) {
+                    log.log("Could not download jar to temp file (" + e + "), downloading to ByteBuffer instead");
+                }
+                // Read inputStream into a ByteBuffer
+                final ByteBuffer byteBuffer = FileUtils.readAllBytesAsByteBuffer(inputStream, -1L);
+                // Wrap ByteBuffer in a PhysicalZipFile. (No need to add to additionalAllocatedPhysicalZipFiles,
+                // since byteBuffer is not a DirectByteBuffer, it just wraps a standard Java byte array, so the
+                // DirectByteBuffer cleaner does not need to be called on close.)
+                physicalZipFile = new PhysicalZipFile(byteBuffer, /* outermostFile = */ null, jarURL,
+                        NestedJarHandler.this);
+            }
+            if (physicalZipFile == null) {
+                // Should not happen
+                throw new RuntimeException("physicalZipFile should not be null");
+            }
+            return physicalZipFile;
         } finally {
             if (subLog != null) {
                 subLog.addElapsedTime();
