@@ -243,12 +243,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
             boolean foundReadableClasspathEntry = false;
             for (final String classpathEntry : JarUtils.smartPathSplit(classpath)) {
-                try {
-                    tempFile = new File(new URI(classpathEntry));
-                } catch (final URISyntaxException e2) {
-                    continue;
-                }
-                if (FileUtils.canRead(tempFile)) {
+                tempFile = new File(classpathEntry);
+                if (FileUtils.canRead(tempFile) && tempFile.isFile()) {
                     // Found a readable file
                     foundReadableClasspathEntry = true;
                     break;
