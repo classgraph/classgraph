@@ -2391,7 +2391,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * null if this class was found in a module. (See also {@link #getModuleRef}.)
      *
      * @return The {@link File} for the classpath element package root dir or jar that this class was found within,
-     *         or null if this class was found in a module. (See also {@link #getModuleRef}.)
+     *         or null if this class was found in a module (see {@link #getModuleRef}). May also return null if the
+     *         classpath element was an http/https URL, and the jar was downloaded directly to RAM, rather than to a
+     *         temp file on disk (e.g. if the temp dir is not writeable).
      */
     public File getClasspathElementFile() {
         return classpathElement.getFile();

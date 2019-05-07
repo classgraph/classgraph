@@ -36,6 +36,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -220,7 +221,8 @@ class PhysicalZipFile implements Closeable {
     /**
      * Get the {@link File} for the outermost jar file of this PhysicalZipFile.
      *
-     * @return the {@link File} for the outermost jar file of this PhysicalZipFile.
+     * @return the {@link File} for the outermost jar file of this PhysicalZipFile, or null if this file was
+     *         downloaded from a URL directly to RAM.
      */
     public File getFile() {
         return file;
@@ -242,7 +244,7 @@ class PhysicalZipFile implements Closeable {
      */
     @Override
     public int hashCode() {
-        return file.hashCode();
+        return file == null ? 0 : file.hashCode();
     }
 
     /* (non-Javadoc)
@@ -255,7 +257,7 @@ class PhysicalZipFile implements Closeable {
         } else if (!(obj instanceof PhysicalZipFile)) {
             return false;
         }
-        return file.equals(((PhysicalZipFile) obj).file);
+        return Objects.equals(file, ((PhysicalZipFile) obj).file);
     }
 
     /* (non-Javadoc)

@@ -228,19 +228,35 @@ public final class FileUtils {
     }
 
     /**
+     * Read all the bytes in an {@link InputStream} as a {@link ByteBuffer}.
+     * 
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param fileSizeHint
+     *            The file size, if known, otherwise -1L.
+     * @return The contents of the {@link InputStream} as a {@link ByteBuffer}.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public static ByteBuffer readAllBytesAsByteBuffer(final InputStream inputStream, final long fileSizeHint)
+            throws IOException {
+        return ByteBuffer.wrap(readAllBytesAsArray(inputStream, fileSizeHint));
+    }
+
+    /**
      * Read all the bytes in an {@link InputStream} as a String.
      * 
      * @param inputStream
      *            The {@link InputStream}.
-     * @param fileSize
+     * @param fileSizeHint
      *            The file size, if known, otherwise -1L.
      * @return The contents of the {@link InputStream} as a String.
      * @throws IOException
      *             If the contents could not be read.
      */
-    public static String readAllBytesAsString(final InputStream inputStream, final long fileSize)
+    public static String readAllBytesAsString(final InputStream inputStream, final long fileSizeHint)
             throws IOException {
-        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize);
+        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSizeHint);
         final byte[] buf = ent.getKey();
         final int bufBytesUsed = ent.getValue();
         return new String(buf, 0, bufBytesUsed, StandardCharsets.UTF_8);

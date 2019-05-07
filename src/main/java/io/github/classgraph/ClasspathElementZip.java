@@ -499,7 +499,9 @@ class ClasspathElementZip extends ClasspathElement {
 
         // Save the last modified time for the zipfile
         final File zipfile = getFile();
-        fileToLastModified.put(zipfile, zipfile.lastModified());
+        if (zipfile != null) {
+            fileToLastModified.put(zipfile, zipfile.lastModified());
+        }
 
         finishScanPaths(subLog);
     }
@@ -550,7 +552,8 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Get the {@link File} for the outermost zipfile of this classpath element.
      *
-     * @return The {@link File} for the outermost zipfile of this classpath element.
+     * @return The {@link File} for the outermost zipfile of this classpath element, or null if this file was
+     *         downloaded from a URL directly to RAM.
      */
     @Override
     File getFile() {

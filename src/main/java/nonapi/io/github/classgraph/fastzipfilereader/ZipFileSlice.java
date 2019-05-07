@@ -199,7 +199,8 @@ public class ZipFileSlice {
     /**
      * Get the physical {@link File} that this ZipFileSlice is a slice of.
      *
-     * @return the physical {@link File} that this ZipFileSlice is a slice of.
+     * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if this file was downloaded
+     *         from a URL directly to RAM.
      */
     public File getPhysicalFile() {
         return physicalZipFile.getFile();
@@ -233,8 +234,11 @@ public class ZipFileSlice {
      */
     @Override
     public String toString() {
-        return (physicalZipFile.isDeflatedToRam ? "[ByteBuffer deflated to RAM from " + getPath() + "]"
-                : physicalZipFile.getFile()) + " [byte range " + startOffsetWithinPhysicalZipFile + ".."
+        return "["
+                + (physicalZipFile.isDeflatedToRam ? "ByteBuffer deflated to RAM from " + getPath()
+                        : physicalZipFile.getFile() == null ? "ByteBuffer downloaded to RAM from " + getPath()
+                                : physicalZipFile.getFile())
+                + " ; byte range: " + startOffsetWithinPhysicalZipFile + ".."
                 + (startOffsetWithinPhysicalZipFile + len) + " / " + physicalZipFile.fileLen + "]";
     }
 }
