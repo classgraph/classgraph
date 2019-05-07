@@ -30,9 +30,9 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.util.SortedSet;
 
-import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 

@@ -31,9 +31,9 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */

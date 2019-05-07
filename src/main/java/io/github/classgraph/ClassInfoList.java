@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
-import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /**

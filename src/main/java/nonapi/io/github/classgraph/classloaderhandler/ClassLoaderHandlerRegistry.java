@@ -33,9 +33,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */

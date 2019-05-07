@@ -41,11 +41,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
-import nonapi.io.github.classgraph.ScanSpec;
-import nonapi.io.github.classgraph.WhiteBlackList;
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.scanspec.WhiteBlackList;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;

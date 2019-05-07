@@ -47,8 +47,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.json.Id;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;

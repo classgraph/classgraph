@@ -31,8 +31,8 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 import java.io.File;
 import java.io.IOException;
 
-import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
 import nonapi.io.github.classgraph.recycler.Recycler;
+import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListLeafname;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
 public class ZipFileSlice {

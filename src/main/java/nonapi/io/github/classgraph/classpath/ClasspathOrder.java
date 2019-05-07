@@ -38,7 +38,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
-import nonapi.io.github.classgraph.ScanSpec;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;

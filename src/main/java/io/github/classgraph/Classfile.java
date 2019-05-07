@@ -40,8 +40,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
-import nonapi.io.github.classgraph.ScanSpec;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;

@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph;
+package nonapi.io.github.classgraph.scanspec;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -38,9 +38,9 @@ import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ModulePathInfo;
 import io.github.classgraph.ScanResult;
-import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListLeafname;
-import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListPrefix;
-import nonapi.io.github.classgraph.WhiteBlackList.WhiteBlackListWholeString;
+import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListLeafname;
+import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListPrefix;
+import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListWholeString;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
