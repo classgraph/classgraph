@@ -29,7 +29,9 @@
 package io.github.classgraph.test.methodinfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import org.junit.Test;
@@ -103,7 +105,7 @@ public class MethodInfoTest {
                         @Override
                         public boolean accept(final MethodInfo methodInfo) {
                             // JDK 10 fix
-                            return !methodInfo.getName().equals("$closeResource");
+                            return !methodInfo.getName().equals("$closeResource") && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
                         }
                     }).getAsStrings()).containsExactlyInAnyOrder( //
                             "@" + ExternalAnnotation.class.getName() //
@@ -118,7 +120,10 @@ public class MethodInfoTest {
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
                                     + "public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetMethodInfoIgnoringVisibility()");
+                                    + "public void testGetMethodInfoIgnoringVisibility()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testMethodInfoLoadMethodForArrayArg()"
+                            );
         }
     }
 
@@ -146,7 +151,7 @@ public class MethodInfoTest {
                         @Override
                         public boolean accept(final MethodInfo methodInfo) {
                             // JDK 10 fix
-                            return !methodInfo.getName().equals("$closeResource");
+                            return !methodInfo.getName().equals("$closeResource") && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
                         }
                     }).getAsStrings()).containsExactlyInAnyOrder( //
                             "@" + ExternalAnnotation.class.getName() //
@@ -162,7 +167,27 @@ public class MethodInfoTest {
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
                                     + "public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetMethodInfoIgnoringVisibility()");
+                                    + "public void testGetMethodInfoIgnoringVisibility()",
+                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                                    + "public void testMethodInfoLoadMethodForArrayArg()"
+                            );
+        }
+    }
+    
+    /**
+     * MethodInfo.loadClassAndGetMethod for arrays argument
+     */
+    @Test
+    public void testMethodInfoLoadMethodForArrayArg() {
+    	try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+    		MethodInfo mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+    				.getSingleMethod("publicMethodWithArgs");
+    		assertThat(mi).isNotNull();
+    		assertThatCode(() -> {
+    			mi.loadClassAndGetMethod();
+    			}).doesNotThrowAnyException();
+    		assertThat(mi.loadClassAndGetMethod()).isNotNull(); 
         }
     }
 }

@@ -842,7 +842,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                             "Got a zero-dimension array type for last parameter of varargs method " + name);
                 }
                 buf.append(new ArrayTypeSignature(arrayType.getElementTypeSignature(),
-                        arrayType.getNumDimensions() - 1).toString());
+                        arrayType.getNumDimensions() - 1, arrayType.getClassName()).toString());
                 buf.append("...");
             } else {
                 buf.append(paramType.toString());

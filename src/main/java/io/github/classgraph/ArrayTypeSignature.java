@@ -40,6 +40,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     /** The number of array dimensions. */
     private final int numDims;
+    
+    /** Class name. */
+    private final String className;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -50,11 +53,14 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *            The type signature of the array elements.
      * @param numDims
      *            The number of array dimensions.
+     * @param className
+     *            Raw name of array type (like "[[B")
      */
-    ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims) {
+    ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims, final String className) {
         super();
         this.elementTypeSignature = elementTypeSignature;
         this.numDims = numDims;
+        this.className = className;
     }
 
     /**
@@ -82,8 +88,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
+    	return className;
     }
 
     /* (non-Javadoc)
@@ -180,6 +185,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     static ArrayTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         int numArrayDims = 0;
+        int begin = parser.getPosition();
         while (parser.peek() == '[') {
             numArrayDims++;
             parser.next();
@@ -189,7 +195,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             if (elementTypeSignature == null) {
                 throw new ParseException(parser, "elementTypeSignature == null");
             }
-            return new ArrayTypeSignature(elementTypeSignature, numArrayDims);
+            CharSequence cn = parser.getSubsequence(begin, parser.getPosition());
+            return new ArrayTypeSignature(elementTypeSignature, numArrayDims, cn.toString());
         } else {
             return null;
         }
