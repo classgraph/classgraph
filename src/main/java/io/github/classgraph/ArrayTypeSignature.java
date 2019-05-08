@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.reflect.Array;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.types.ParseException;
@@ -40,9 +41,18 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     /** The number of array dimensions. */
     private final int numDims;
-    
-    /** Class name. */
-    private final String className;
+
+    /** The raw type signature string for the array type. */
+    private final String typeSignatureStr;
+
+    /** Human-readable class name, e.g. "java.lang.String[]". */
+    private String className;
+
+    /** Array class info. */
+    private ArrayClassInfo arrayClassInfo;
+
+    /** The element class. */
+    private Class<?> elementClassRef;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -53,18 +63,27 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *            The type signature of the array elements.
      * @param numDims
      *            The number of array dimensions.
-     * @param className
-     *            Raw name of array type (like "[[B")
+     * @param typeSignatureStr
+     *            Raw array type signature string (e.g. "[[I")
      */
-    ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims, final String className) {
+    ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims, final String typeSignatureStr) {
         super();
         this.elementTypeSignature = elementTypeSignature;
         this.numDims = numDims;
-        this.className = className;
+        this.typeSignatureStr = typeSignatureStr;
     }
 
     /**
-     * Get the element type signature.
+     * Get the raw array type signature string, e.g. "[[I".
+     * 
+     * @return the raw array type signature string.
+     */
+    public String getTypeSignatureStr() {
+        return typeSignatureStr;
+    }
+
+    /**
+     * Get the type signature of the array elements.
      *
      * @return The type signature of the array elements.
      */
@@ -73,7 +92,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Get the number of dimensions.
+     * Get the number of dimensions of the array.
      *
      * @return The number of dimensions of the array.
      */
@@ -88,7 +107,10 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     protected String getClassName() {
-    	return className;
+        if (className == null) {
+            className = toStringInternal(/* useSimpleNames = */ false);
+        }
+        return className;
     }
 
     /* (non-Javadoc)
@@ -96,7 +118,19 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+        return getArrayClassInfo();
+    }
+
+    /**
+     * Return an {@link ArrayClassInfo} instance for the array class, cast to its superclass.
+     *
+     * @return the {@link ArrayClassInfo} instance.
+     */
+    public ArrayClassInfo getArrayClassInfo() {
+        if (arrayClassInfo == null && scanResult != null) {
+            arrayClassInfo = new ArrayClassInfo(this, scanResult);
+        }
+        return arrayClassInfo;
     }
 
     /* (non-Javadoc)
@@ -116,6 +150,103 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     @Override
     void findReferencedClassNames(final Set<String> referencedClassNames) {
         elementTypeSignature.findReferencedClassNames(referencedClassNames);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get a {@code Class<?>} reference for the array element type. Causes the ClassLoader to load the element
+     * class, if it is not already loaded.
+     *
+     * @param ignoreExceptions
+     *            Whether or not to ignore exceptions.
+     * @return a {@code Class<?>} reference for the array element type. Also works for arrays of primitive element
+     *         type.
+     */
+    public Class<?> loadElementClass(final boolean ignoreExceptions) {
+        if (elementClassRef == null) {
+            // Try resolving element type against base types (int, etc.)
+            if (elementTypeSignature instanceof BaseTypeSignature) {
+                elementClassRef = ((BaseTypeSignature) elementTypeSignature).getType();
+            } else {
+                if (scanResult != null) {
+                    elementClassRef = elementTypeSignature.loadClass(ignoreExceptions);
+                } else {
+                    // Fallback, if scanResult is not set
+                    final String elementTypeName = ((ClassRefTypeSignature) elementTypeSignature)
+                            .getFullyQualifiedClassName();
+                    try {
+                        elementClassRef = Class.forName(elementTypeName);
+                    } catch (final Throwable t) {
+                        if (!ignoreExceptions) {
+                            throw new IllegalArgumentException(
+                                    "Could not load array element class " + elementTypeName, t);
+                        }
+                    }
+                }
+            }
+        }
+        return elementClassRef;
+    }
+
+    /**
+     * Get a {@code Class<?>} reference for the array element type. Causes the ClassLoader to load the element
+     * class, if it is not already loaded.
+     *
+     * @return a {@code Class<?>} reference for the array element type. Also works for arrays of primitive element
+     *         type.
+     */
+    public Class<?> loadElementClass() {
+        return loadElementClass(/* ignoreExceptions = */ false);
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the array class named by this {@link ArrayClassInfo} object. Causes
+     * the ClassLoader to load the element class, if it is not already loaded.
+     *
+     * @param ignoreExceptions
+     *            Whether or not to ignore exceptions.
+     * @return The class reference, or null, if ignoreExceptions is true and there was an exception or error loading
+     *         the class.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and there were problems loading the class.
+     */
+    @Override
+    public Class<?> loadClass(final boolean ignoreExceptions) {
+        if (classRef == null) {
+            // Get the element type
+            Class<?> eltClassRef = null;
+            if (ignoreExceptions) {
+                try {
+                    eltClassRef = loadElementClass();
+                } catch (final IllegalArgumentException e) {
+                    return null;
+                }
+            } else {
+                eltClassRef = loadElementClass();
+            }
+            if (eltClassRef == null) {
+                throw new IllegalArgumentException("Could not load array element class " + elementTypeSignature);
+            }
+            // Create an array of the target number of dimensions, with size zero in each dimension
+            final Object eltArrayInstance = Array.newInstance(eltClassRef, new int[numDims]);
+            // Get the class reference from the array instance
+            classRef = eltArrayInstance.getClass();
+        }
+        return classRef;
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the array class named by this {@link ArrayClassInfo} object. Causes
+     * the ClassLoader to load the element class, if it is not already loaded.
+     * 
+     * @return The class reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the class.
+     */
+    @Override
+    public Class<?> loadClass() {
+        return loadClass(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -185,7 +316,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     static ArrayTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         int numArrayDims = 0;
-        int begin = parser.getPosition();
+        final int begin = parser.getPosition();
         while (parser.peek() == '[') {
             numArrayDims++;
             parser.next();
@@ -195,8 +326,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             if (elementTypeSignature == null) {
                 throw new ParseException(parser, "elementTypeSignature == null");
             }
-            CharSequence cn = parser.getSubsequence(begin, parser.getPosition());
-            return new ArrayTypeSignature(elementTypeSignature, numArrayDims, cn.toString());
+            final String typeSignatureStr = parser.getSubsequence(begin, parser.getPosition()).toString();
+            return new ArrayTypeSignature(elementTypeSignature, numArrayDims, typeSignatureStr);
         } else {
             return null;
         }

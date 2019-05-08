@@ -56,7 +56,8 @@ import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
     /** The name of the class. */
-    private @Id String name;
+    @Id
+    protected String name;
 
     /** Class modifier flags, e.g. Modifier.PUBLIC */
     private int modifiers;
@@ -74,7 +75,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     boolean isInherited;
 
     /** The class type signature string. */
-    private String typeSignatureStr;
+    protected String typeSignatureStr;
 
     /** The class type signature, parsed. */
     private transient ClassTypeSignature typeSignature;
@@ -90,19 +91,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
      * whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
      */
-    private boolean isExternalClass = true;
+    protected boolean isExternalClass = true;
 
     /**
      * Set to true when the class is actually scanned (as opposed to just referenced as a superclass, interface or
      * annotation of a scanned class).
      */
-    private boolean isScannedClass;
+    protected boolean isScannedClass;
 
     /** The classpath element that this class was found within. */
     transient ClasspathElement classpathElement;
 
     /** The {@link Resource} for the classfile of this class. */
-    private transient Resource classfileResource;
+    protected transient Resource classfileResource;
 
     /** The classloader this class was obtained from. */
     transient ClassLoader classLoader;
@@ -176,7 +177,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classfileResource
      *            the classfile resource
      */
-    private ClassInfo(final String name, final int classModifiers, final Resource classfileResource) {
+    protected ClassInfo(final String name, final int classModifiers, final Resource classfileResource) {
         super();
         this.name = name;
         if (name.endsWith(";")) {
@@ -1074,6 +1075,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean isStandardClass() {
         return !(isAnnotation || isInterface);
+    }
+
+    /**
+     * Checks if this class is an array class. Returns false unless this {@link ClassInfo} is an instance of
+     * {@link ArrayClassInfo}.
+     *
+     * @return true if this is an array class.
+     */
+    public boolean isArrayClass() {
+        return this instanceof ArrayClassInfo;
     }
 
     /**
@@ -2379,6 +2390,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return The {@link URL} of the classpath element that this class was found within.
      */
     public URL getClasspathElementURL() {
+        if (classpathElement == null) {
+            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
+        }
         try {
             return classpathElement.getURI().toURL();
         } catch (final MalformedURLException e) {
@@ -2396,6 +2410,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         temp file on disk (e.g. if the temp dir is not writeable).
      */
     public File getClasspathElementFile() {
+        if (classpathElement == null) {
+            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
+        }
         return classpathElement.getFile();
     }
 
@@ -2407,6 +2424,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
      */
     public ModuleRef getModuleRef() {
+        if (classpathElement == null) {
+            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
+        }
         return classpathElement instanceof ClasspathElementModule
                 ? ((ClasspathElementModule) classpathElement).getModuleRef()
                 : null;
@@ -2701,7 +2721,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            if true, convert type name to string only.
      * @return the string
      */
-    private String toString(final boolean typeNameOnly) {
+    protected String toString(final boolean typeNameOnly) {
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
             // Generic classes

@@ -31,21 +31,36 @@ package io.github.classgraph.test.methodinfo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
 
+import io.github.classgraph.ArrayClassInfo;
+import io.github.classgraph.ArrayTypeSignature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.MethodInfoList.MethodInfoFilter;
+import io.github.classgraph.MethodParameterInfo;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.TypeSignature;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
  * MethodInfoTest.
  */
 public class MethodInfoTest {
+    /**
+     * The Class X.
+     */
+    public static class X {
+        /**
+         * Method.
+         */
+        public void xMethod() {
+        }
+    }
+
     /**
      * Public method with args.
      *
@@ -67,7 +82,7 @@ public class MethodInfoTest {
      */
     @ExternalAnnotation
     public final int publicMethodWithArgs(final String str, final char c, final long j, final float[] f,
-            final byte[][] b, final List<Float> l, final int[]... varargs) {
+            final byte[][] b, final List<Float> l, final X[][][] xArray, final String[]... varargs) {
         return 0;
     }
 
@@ -105,13 +120,15 @@ public class MethodInfoTest {
                         @Override
                         public boolean accept(final MethodInfo methodInfo) {
                             // JDK 10 fix
-                            return !methodInfo.getName().equals("$closeResource") && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
+                            return !methodInfo.getName().equals("$closeResource")
+                                    && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
                         }
                     }).getAsStrings()).containsExactlyInAnyOrder( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
-                                    + "java.util.List<java.lang.Float>, int[]...)",
+                                    + "java.util.List<java.lang.Float>, " + X.class.getName()
+                                    + "[][][], java.lang.String[]...)",
                             "@" + Test.class.getName()
                                     + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
                                     + "public void methodInfoNotEnabled()",
@@ -122,8 +139,7 @@ public class MethodInfoTest {
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
                                     + "public void testGetMethodInfoIgnoringVisibility()",
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testMethodInfoLoadMethodForArrayArg()"
-                            );
+                                    + "public void testMethodInfoLoadMethodForArrayArg()");
         }
     }
 
@@ -151,13 +167,15 @@ public class MethodInfoTest {
                         @Override
                         public boolean accept(final MethodInfo methodInfo) {
                             // JDK 10 fix
-                            return !methodInfo.getName().equals("$closeResource") && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
+                            return !methodInfo.getName().equals("$closeResource")
+                                    && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
                         }
                     }).getAsStrings()).containsExactlyInAnyOrder( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
-                                    + "java.util.List<java.lang.Float>, int[]...)",
+                                    + "java.util.List<java.lang.Float>, " + X.class.getName()
+                                    + "[][][], java.lang.String[]...)",
                             "private static java.lang.String[] privateMethod()",
                             "@" + Test.class.getName()
                                     + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
@@ -169,25 +187,49 @@ public class MethodInfoTest {
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
                                     + "public void testGetMethodInfoIgnoringVisibility()",
                             "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testMethodInfoLoadMethodForArrayArg()"
-                            );
+                                    + "public void testMethodInfoLoadMethodForArrayArg()");
         }
     }
-    
+
     /**
-     * MethodInfo.loadClassAndGetMethod for arrays argument
+     * MethodInfo.loadClassAndGetMethod for arrays argument (#344)
      */
     @Test
     public void testMethodInfoLoadMethodForArrayArg() {
-    	try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
-    		MethodInfo mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
-    				.getSingleMethod("publicMethodWithArgs");
-    		assertThat(mi).isNotNull();
-    		assertThatCode(() -> {
-    			mi.loadClassAndGetMethod();
-    			}).doesNotThrowAnyException();
-    		assertThat(mi.loadClassAndGetMethod()).isNotNull(); 
+            final MethodInfo mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+                    .getSingleMethod("publicMethodWithArgs");
+            assertThat(mi).isNotNull();
+            assertThatCode(() -> {
+                mi.loadClassAndGetMethod();
+            }).doesNotThrowAnyException();
+            assertThat(mi.loadClassAndGetMethod()).isNotNull();
+
+            // Extract array-typed params from method params
+            final List<ArrayClassInfo> arrayClassInfoList = new ArrayList<>();
+            for (final MethodParameterInfo mpi : mi.getParameterInfo()) {
+                final TypeSignature paramTypeSig = mpi.getTypeSignatureOrTypeDescriptor();
+                if (paramTypeSig instanceof ArrayTypeSignature) {
+                    arrayClassInfoList.add(((ArrayTypeSignature) paramTypeSig).getArrayClassInfo());
+                }
+            }
+            assertThat(arrayClassInfoList.toString()).isEqualTo("[class float[], class byte[][], "
+                    + "class io.github.classgraph.test.methodinfo.MethodInfoTest$X[][][], "
+                    + "class java.lang.String[][]]");
+            final ArrayClassInfo p1 = arrayClassInfoList.get(1);
+            assertThat(p1.loadElementClass()).isEqualTo(byte.class);
+            assertThat(p1.getElementClassInfo()).isNull();
+            assertThat(p1.getNumDimensions()).isEqualTo(2);
+            final ArrayClassInfo p2 = arrayClassInfoList.get(2);
+            assertThat(p2.loadElementClass()).isEqualTo(X.class);
+            assertThat(p2.getElementClassInfo().getName()).isEqualTo(X.class.getName());
+            assertThat(p2.getElementClassInfo().getMethodInfo().get(0).getName()).isEqualTo("xMethod");
+            assertThat(p2.getNumDimensions()).isEqualTo(3);
+            final ArrayClassInfo p3 = arrayClassInfoList.get(3);
+            assertThat(p3.loadElementClass()).isEqualTo(String.class);
+            assertThat(p3.getElementClassInfo()).isNull();
+            assertThat(p3.getNumDimensions()).isEqualTo(2);
         }
     }
 }

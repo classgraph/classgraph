@@ -43,7 +43,7 @@ abstract class ScanResultObject {
     private transient ClassInfo classInfo;
 
     /** The class ref, once the class is loaded. */
-    private transient Class<?> classRef;
+    protected transient Class<?> classRef;
 
     /**
      * Set ScanResult backreferences in info objects after scan has completed.
@@ -112,11 +112,11 @@ abstract class ScanResultObject {
     private String getClassInfoNameOrClassName() {
         String className;
         ClassInfo ci = null;
-		try {
-			ci = getClassInfo();
-		} catch(IllegalArgumentException e) {
-			// Just ignore wrong access to array classInfo
-		}
+        try {
+            ci = getClassInfo();
+        } catch (final IllegalArgumentException e) {
+            // Just ignore wrong access to array classInfo
+        }
         if (ci == null) {
             ci = classInfo;
         }
@@ -151,8 +151,19 @@ abstract class ScanResultObject {
      */
     <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
         if (classRef == null) {
-            classRef = scanResult.loadClass(getClassInfoNameOrClassName(), superclassOrInterfaceType,
-                    ignoreExceptions);
+            final String className = getClassInfoNameOrClassName();
+            if (scanResult != null) {
+                classRef = scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions);
+            } else {
+                // Fallback, if scanResult is not set
+                try {
+                    classRef = Class.forName(className);
+                } catch (final Throwable t) {
+                    if (!ignoreExceptions) {
+                        throw new IllegalArgumentException("Could not load class " + className, t);
+                    }
+                }
+            }
         }
         @SuppressWarnings("unchecked")
         final Class<T> classT = (Class<T>) classRef;
@@ -190,7 +201,19 @@ abstract class ScanResultObject {
      */
     Class<?> loadClass(final boolean ignoreExceptions) {
         if (classRef == null) {
-            classRef = scanResult.loadClass(getClassInfoNameOrClassName(), ignoreExceptions);
+            final String className = getClassInfoNameOrClassName();
+            if (scanResult != null) {
+                classRef = scanResult.loadClass(className, ignoreExceptions);
+            } else {
+                // Fallback, if scanResult is not set
+                try {
+                    classRef = Class.forName(className);
+                } catch (final Throwable t) {
+                    if (!ignoreExceptions) {
+                        throw new IllegalArgumentException("Could not load class " + className, t);
+                    }
+                }
+            }
         }
         return classRef;
     }
