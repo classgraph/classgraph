@@ -219,15 +219,18 @@ public class MethodInfoTest {
                     + "class java.lang.String[][]]");
             final ArrayClassInfo p1 = arrayClassInfoList.get(1);
             assertThat(p1.loadElementClass()).isEqualTo(byte.class);
+            assertThat(p1.loadClass()).isEqualTo(byte[][].class);
             assertThat(p1.getElementClassInfo()).isNull();
             assertThat(p1.getNumDimensions()).isEqualTo(2);
             final ArrayClassInfo p2 = arrayClassInfoList.get(2);
             assertThat(p2.loadElementClass()).isEqualTo(X.class);
             assertThat(p2.getElementClassInfo().getName()).isEqualTo(X.class.getName());
+            assertThat(p2.loadClass()).isEqualTo(X[][][].class);
             assertThat(p2.getElementClassInfo().getMethodInfo().get(0).getName()).isEqualTo("xMethod");
             assertThat(p2.getNumDimensions()).isEqualTo(3);
             final ArrayClassInfo p3 = arrayClassInfoList.get(3);
             assertThat(p3.loadElementClass()).isEqualTo(String.class);
+            assertThat(p3.loadClass()).isEqualTo(String[][].class);
             assertThat(p3.getElementClassInfo()).isNull();
             assertThat(p3.getNumDimensions()).isEqualTo(2);
         }
