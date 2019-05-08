@@ -111,7 +111,12 @@ abstract class ScanResultObject {
      */
     private String getClassInfoNameOrClassName() {
         String className;
-        ClassInfo ci = getClassInfo();
+        ClassInfo ci = null;
+		try {
+			ci = getClassInfo();
+		} catch(IllegalArgumentException e) {
+			// Just ignore wrong access to array classInfo
+		}
         if (ci == null) {
             ci = classInfo;
         }
