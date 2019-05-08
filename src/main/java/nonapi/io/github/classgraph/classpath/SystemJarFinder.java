@@ -64,7 +64,7 @@ public final class SystemJarFinder {
      * @return true if the directory was readable.
      */
     private static boolean addJREPath(final File dir) {
-        if (dir != null && !dir.getPath().isEmpty() && FileUtils.canRead(dir) && dir.isDirectory()) {
+        if (dir != null && !dir.getPath().isEmpty() && FileUtils.canReadAndIsDir(dir)) {
             final File[] dirFiles = dir.listFiles();
             if (dirFiles != null) {
                 for (final File file : dirFiles) {

@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -419,7 +420,7 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check if the file exists and can be read.
+     * Check if a {@link File} exists and can be read.
      *
      * @param file
      *            A {@link File}.
@@ -430,6 +431,88 @@ public final class FileUtils {
             return file.canRead();
         } catch (final SecurityException e) {
             return false;
+        }
+    }
+
+    /**
+     * Check if a {@link File} exists, is a regular file, and can be read.
+     *
+     * @param file
+     *            A {@link File}.
+     * @return true if the file exists, is a regular file, and can be read.
+     */
+    public static boolean canReadAndIsFile(final File file) {
+        try {
+            if (!file.canRead()) {
+                return false;
+            }
+        } catch (final SecurityException e) {
+            return false;
+        }
+        if (!file.isFile()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Check if a {@link File} exists, is a regular file, and can be read.
+     *
+     * @param file
+     *            A {@link File}.
+     * @throw IOException if the file does not exist, is not a regular file, or cannot be read.
+     */
+    public static void checkCanReadAndIsFile(final File file) throws IOException {
+        try {
+            if (!file.canRead()) {
+                throw new FileNotFoundException("File does not exist or cannot be read: " + file);
+            }
+        } catch (final SecurityException e) {
+            throw new FileNotFoundException("File " + file + " cannot be accessed: " + e);
+        }
+        if (!file.isFile()) {
+            throw new IOException("Not a regular file: " + file);
+        }
+    }
+
+    /**
+     * Check if a {@link File} exists, is a directory, and can be read.
+     *
+     * @param file
+     *            A {@link File}.
+     * @return true if the file exists, is a directory, and can be read.
+     */
+    public static boolean canReadAndIsDir(final File file) {
+        try {
+            if (!file.canRead()) {
+                return false;
+            }
+        } catch (final SecurityException e) {
+            return false;
+        }
+        if (!file.isDirectory()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Check if a {@link File} exists, is a directory, and can be read.
+     *
+     * @param file
+     *            A {@link File}.
+     * @throw IOException if the file does not exist, is not a directory, or cannot be read.
+     */
+    public static void checkCanReadAndIsDir(final File file) throws IOException {
+        try {
+            if (!file.canRead()) {
+                throw new FileNotFoundException("Directory does not exist or cannot be read: " + file);
+            }
+        } catch (final SecurityException e) {
+            throw new FileNotFoundException("File " + file + " cannot be accessed: " + e);
+        }
+        if (!file.isDirectory()) {
+            throw new IOException("Not a directory: " + file);
         }
     }
 

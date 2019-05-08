@@ -97,7 +97,7 @@ class ClasspathElementDir extends ClasspathElement {
             int childClasspathEntryIdx = 0;
             for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
                 final File libDir = new File(classpathEltDir, libDirPrefix);
-                if (libDir.exists() && libDir.isDirectory()) {
+                if (FileUtils.canReadAndIsDir(libDir)) {
                     // Sort directory entries for consistency
                     final File[] listFiles = libDir.listFiles();
                     if (listFiles != null) {
@@ -120,7 +120,7 @@ class ClasspathElementDir extends ClasspathElement {
             }
             for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
                 final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
-                if (packageRootDir.exists() && packageRootDir.isDirectory()) {
+                if (FileUtils.canReadAndIsDir(packageRootDir)) {
                     if (log != null) {
                         log.log("Found package root: " + packageRootDir);
                     }
@@ -284,7 +284,7 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     Resource getResource(final String relativePath) {
         final File resourceFile = new File(classpathEltDir, relativePath);
-        return resourceFile.canRead() && resourceFile.isFile() ? newResource(relativePath, resourceFile) : null;
+        return FileUtils.canReadAndIsFile(resourceFile) ? newResource(relativePath, resourceFile) : null;
     }
 
     /**

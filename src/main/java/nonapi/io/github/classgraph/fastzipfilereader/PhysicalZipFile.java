@@ -91,18 +91,14 @@ class PhysicalZipFile implements Closeable {
      *             if an I/O exception occurs.
      */
     PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler) throws IOException {
+        // Make sure the File is readable and is a regular file
+        FileUtils.checkCanReadAndIsFile(file);
+
         this.file = file;
         this.nestedJarHandler = nestedJarHandler;
+        this.path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
 
-        path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
-
-        if (!FileUtils.canRead(file)) {
-            throw new FileNotFoundException("File does not exist or cannot be read: " + file);
-        }
-        if (!file.isFile()) {
-            throw new IOException("Is not a file: " + file);
-        }
-
+        // Open the File as a RandomAccessFile, and open a FileChannel on the RandomAccessFile
         try {
             raf = new RandomAccessFile(file, "r");
             fileLen = raf.length();
