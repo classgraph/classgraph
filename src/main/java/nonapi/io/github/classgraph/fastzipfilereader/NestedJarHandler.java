@@ -572,7 +572,7 @@ public class NestedJarHandler {
             }
             if (physicalZipFile == null) {
                 // Should not happen
-                throw new RuntimeException("physicalZipFile should not be null");
+                throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
             }
             return physicalZipFile;
         } finally {

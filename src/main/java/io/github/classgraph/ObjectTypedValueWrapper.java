@@ -39,10 +39,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     // works properly (can't properly serialize a field of Object type, since the concrete type is not
     /** Enum value. */
     // stored in JSON).
-    private AnnotationEnumValue enumValue;
+    private AnnotationEnumValue annotationEnumValue;
 
     /** Class ref. */
-    private AnnotationClassRef classRef;
+    private AnnotationClassRef annotationClassRef;
 
     /** AnnotationInfo. */
     private AnnotationInfo annotationInfo;
@@ -152,9 +152,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     }
                 }
             } else if (annotationParamValue instanceof AnnotationEnumValue) {
-                enumValue = (AnnotationEnumValue) annotationParamValue;
+                annotationEnumValue = (AnnotationEnumValue) annotationParamValue;
             } else if (annotationParamValue instanceof AnnotationClassRef) {
-                classRef = (AnnotationClassRef) annotationParamValue;
+                annotationClassRef = (AnnotationClassRef) annotationParamValue;
             } else if (annotationParamValue instanceof AnnotationInfo) {
                 annotationInfo = (AnnotationInfo) annotationParamValue;
             } else if (annotationParamValue instanceof String) {
@@ -195,10 +195,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      */
     Object instantiateOrGet(final ClassInfo annotationClassInfo, final String paramName) {
         final boolean instantiate = annotationClassInfo != null;
-        if (enumValue != null) {
-            return instantiate ? enumValue.loadClassAndReturnEnumValue() : enumValue;
-        } else if (classRef != null) {
-            return instantiate ? classRef.loadClass() : classRef;
+        if (annotationEnumValue != null) {
+            return instantiate ? annotationEnumValue.loadClassAndReturnEnumValue() : annotationEnumValue;
+        } else if (annotationClassRef != null) {
+            return instantiate ? annotationClassRef.loadClass() : annotationClassRef;
         } else if (annotationInfo != null) {
             return instantiate ? annotationInfo.loadClassAndInstantiate() : annotationInfo;
         } else if (stringValue != null) {
@@ -517,10 +517,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (enumValue != null) {
-            enumValue.setScanResult(scanResult);
-        } else if (classRef != null) {
-            classRef.setScanResult(scanResult);
+        if (annotationEnumValue != null) {
+            annotationEnumValue.setScanResult(scanResult);
+        } else if (annotationClassRef != null) {
+            annotationClassRef.setScanResult(scanResult);
         } else if (annotationInfo != null) {
             annotationInfo.setScanResult(scanResult);
         } else if (objectArrayValue != null) {
@@ -540,10 +540,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      */
     @Override
     void findReferencedClassNames(final Set<String> referencedClassNames) {
-        if (enumValue != null) {
-            enumValue.findReferencedClassNames(referencedClassNames);
-        } else if (classRef != null) {
-            referencedClassNames.add(classRef.getClassName());
+        if (annotationEnumValue != null) {
+            annotationEnumValue.findReferencedClassNames(referencedClassNames);
+        } else if (annotationClassRef != null) {
+            referencedClassNames.add(annotationClassRef.getClassName());
         } else if (annotationInfo != null) {
             annotationInfo.findReferencedClassNames(referencedClassNames);
         } else if (objectArrayValue != null) {
@@ -560,12 +560,13 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(enumValue, classRef, annotationInfo, stringValue, integerValue, longValue, shortValue,
-                booleanValue, characterValue, floatValue, doubleValue, byteValue, Arrays.hashCode(stringArrayValue),
-                Arrays.hashCode(intArrayValue), Arrays.hashCode(longArrayValue), Arrays.hashCode(shortArrayValue),
-                Arrays.hashCode(booleanArrayValue), Arrays.hashCode(charArrayValue),
-                Arrays.hashCode(floatArrayValue), Arrays.hashCode(doubleArrayValue),
-                Arrays.hashCode(byteArrayValue), Arrays.hashCode(objectArrayValue));
+        return Objects.hash(annotationEnumValue, annotationClassRef, annotationInfo, stringValue, integerValue,
+                longValue, shortValue, booleanValue, characterValue, floatValue, doubleValue, byteValue,
+                Arrays.hashCode(stringArrayValue), Arrays.hashCode(intArrayValue), Arrays.hashCode(longArrayValue),
+                Arrays.hashCode(shortArrayValue), Arrays.hashCode(booleanArrayValue),
+                Arrays.hashCode(charArrayValue), Arrays.hashCode(floatArrayValue),
+                Arrays.hashCode(doubleArrayValue), Arrays.hashCode(byteArrayValue),
+                Arrays.hashCode(objectArrayValue));
     }
 
     /* (non-Javadoc)
@@ -579,7 +580,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             return false;
         }
         final ObjectTypedValueWrapper o = (ObjectTypedValueWrapper) other;
-        return Objects.equals(enumValue, o.enumValue) && Objects.equals(classRef, o.classRef)
+        return Objects.equals(annotationEnumValue, o.annotationEnumValue)
+                && Objects.equals(annotationClassRef, o.annotationClassRef)
                 && Objects.equals(annotationInfo, o.annotationInfo) && Objects.equals(stringValue, o.stringValue)
                 && Objects.equals(integerValue, o.integerValue) && Objects.equals(longValue, o.longValue)
                 && Objects.equals(shortValue, o.shortValue) && Objects.equals(booleanValue, o.booleanValue)

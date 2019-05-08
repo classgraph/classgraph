@@ -220,4 +220,22 @@ public class ArrayClassInfo extends ClassInfo {
         super.findReferencedClassNames(referencedClassNames);
         arrayTypeSignature.findReferencedClassNames(referencedClassNames);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClassInfo#equals(java.lang.Object)
+     */
+    @Override
+    public boolean equals(final Object obj) {
+        return super.equals(obj);
+    }
+
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClassInfo#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
 }

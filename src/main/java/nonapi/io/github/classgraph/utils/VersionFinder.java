@@ -87,11 +87,11 @@ public final class VersionFinder {
                     // Skip
                 }
             }
-            if (versionParts.size() > 0 && versionParts.get(0) == 1) {
+            if (!versionParts.isEmpty() && versionParts.get(0) == 1) {
                 // 1.7 or 1.8 -> 7 or 8
                 versionParts.remove(0);
             }
-            if (versionParts.size() == 0) {
+            if (versionParts.isEmpty()) {
                 throw new RuntimeException("Could not determine Java version: " + JAVA_VERSION);
             }
             javaMajorVersion = versionParts.get(0);
