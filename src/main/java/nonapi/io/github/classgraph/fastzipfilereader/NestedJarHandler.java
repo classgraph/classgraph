@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -76,12 +75,6 @@ public class NestedJarHandler {
             if (closed.get()) {
                 throw ClassGraphException
                         .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
-            }
-            if (!FileUtils.canRead(canonicalFile)) {
-                throw new FileNotFoundException("Cannot read " + canonicalFile);
-            }
-            if (!canonicalFile.isFile()) {
-                throw new IOException("Not a file (expected a jarfile): " + canonicalFile);
             }
             return new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
         }

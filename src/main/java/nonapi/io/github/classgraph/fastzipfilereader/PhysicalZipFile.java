@@ -96,11 +96,8 @@ class PhysicalZipFile implements Closeable {
 
         path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
 
-        if (!file.exists()) {
-            throw new IOException("File does not exist: " + file);
-        }
         if (!FileUtils.canRead(file)) {
-            throw new IOException("Cannot read file: " + file);
+            throw new FileNotFoundException("File does not exist or cannot be read: " + file);
         }
         if (!file.isFile()) {
             throw new IOException("Is not a file: " + file);
