@@ -33,6 +33,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -2385,9 +2386,29 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link URL} of the classpath element that this class was found within.
+     * Get the {@link URI} of the classpath element that this class was found within.
+     *
+     * @return The {@link URI} of the classpath element that this class was found within.
+     * @throws IllegalArgumentException
+     *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
+     */
+    public URI getClasspathElementURI() {
+        if (classpathElement == null) {
+            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
+        }
+        return classpathElement.getURI();
+    }
+
+    /**
+     * Get the {@link URL} of the classpath element or module that this class was found within. Use
+     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
+     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
+     * suppored by {@link URL}, and this will cause {@link IllegalArgumentException} to be thrown.
      *
      * @return The {@link URL} of the classpath element that this class was found within.
+     * @throws IllegalArgumentException
+     *             if the classpath element URI cannot be converted to a {@link URL} (in particular, if the URI has
+     *             a {@code jrt:/} scheme).
      */
     public URL getClasspathElementURL() {
         if (classpathElement == null) {

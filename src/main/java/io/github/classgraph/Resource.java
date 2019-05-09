@@ -369,7 +369,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *
      * @return The {@link URL} of the classpath element or module that this resource was found within.
      * @throws IllegalArgumentException
-     *             if the resource was obtained from a module and the module's location URI is null.
+     *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
      */
     public URI getClasspathElementURI() {
         return classpathElement.getURI();
