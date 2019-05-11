@@ -63,12 +63,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** Class modifier flags, e.g. Modifier.PUBLIC */
     private int modifiers;
 
-    /** True if the classfile indicated this is an interface (or an annotation, which is an interface). */
-    private boolean isInterface;
-
-    /** True if the classfile indicated this is an annotation. */
-    private boolean isAnnotation;
-
     /**
      * This annotation has the {@link Inherited} meta-annotation, which means that any class that this annotation is
      * applied to also implicitly causes the annotation to annotate all subclasses too.
@@ -186,12 +180,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Bad class name");
         }
         setModifiers(classModifiers);
-        if ((classModifiers & ANNOTATION_CLASS_MODIFIER) != 0) {
-            isAnnotation = true;
-        }
-        if ((classModifiers & Modifier.INTERFACE) != 0) {
-            isInterface = true;
-        }
         this.classfileResource = classfileResource;
         this.relatedClasses = new EnumMap<>(RelType.class);
     }
@@ -327,12 +315,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     void setModifiers(final int modifiers) {
         this.modifiers |= modifiers;
-        if ((modifiers & ANNOTATION_CLASS_MODIFIER) != 0) {
-            this.isAnnotation = true;
-        }
-        if ((modifiers & Modifier.INTERFACE) != 0) {
-            this.isInterface = true;
-        }
     }
 
     /**
@@ -342,7 +324,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            true if this is an interface
      */
     void setIsInterface(final boolean isInterface) {
-        this.isInterface |= isInterface;
+        if (isInterface) {
+            this.modifiers |= Modifier.INTERFACE;
+        }
     }
 
     /**
@@ -352,7 +336,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            true if this is an annotation
      */
     void setIsAnnotation(final boolean isAnnotation) {
-        this.isAnnotation |= isAnnotation;
+        if (isAnnotation) {
+            this.modifiers |= ANNOTATION_CLASS_MODIFIER;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -385,7 +371,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo interfaceClassInfo = getOrCreateClassInfo(interfaceName,
                 /* classModifiers = */ Modifier.INTERFACE, classNameToClassInfo);
-        interfaceClassInfo.isInterface = true;
+        interfaceClassInfo.setIsInterface(true);
         interfaceClassInfo.modifiers |= Modifier.INTERFACE;
         this.addRelatedClass(RelType.IMPLEMENTED_INTERFACES, interfaceClassInfo);
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
@@ -551,6 +537,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the default param names and values, if this is an annotation
      */
     void addAnnotationParamDefaultValues(final AnnotationParameterValueList paramNamesAndValues) {
+        setIsAnnotation(true);
         if (this.annotationDefaultParamValues == null) {
             this.annotationDefaultParamValues = paramNamesAndValues;
         } else {
@@ -1043,7 +1030,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class is an annotation class.
      */
     public boolean isAnnotation() {
-        return isAnnotation;
+        return (modifiers & ANNOTATION_CLASS_MODIFIER) != 0;
     }
 
     /**
@@ -1053,7 +1040,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         implemented).
      */
     public boolean isInterface() {
-        return isInterface && !isAnnotation;
+        return isInterfaceOrAnnotation() && !isAnnotation();
     }
 
     /**
@@ -1063,7 +1050,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         implemented).
      */
     public boolean isInterfaceOrAnnotation() {
-        return isInterface;
+        return (modifiers & Modifier.INTERFACE) != 0;
     }
 
     /**
@@ -1081,7 +1068,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class is a standard class (i.e. is not an annotation or interface).
      */
     public boolean isStandardClass() {
-        return !(isAnnotation || isInterface);
+        return !(isAnnotation() || isInterface());
     }
 
     /**
@@ -1147,7 +1134,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class is an implemented interface.
      */
     public boolean isImplementedInterface() {
-        return relatedClasses.get(RelType.CLASSES_IMPLEMENTING) != null || (isInterface && !isAnnotation);
+        return relatedClasses.get(RelType.CLASSES_IMPLEMENTING) != null || isInterface();
     }
 
     /**
@@ -1482,7 +1469,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         interface, otherwise returns the empty list.
      */
     public ClassInfoList getClassesImplementing() {
-        if (!isInterface) {
+        if (!isInterface()) {
             throw new IllegalArgumentException("Class is not an interface: " + getName());
         }
         // Subclasses of implementing classes also implement the interface
@@ -1686,7 +1673,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
-        if (!isAnnotation) {
+        if (!isAnnotation()) {
             throw new IllegalArgumentException("Class is not an annotation: " + getName());
         }
         if (annotationDefaultParamValues == null) {
@@ -1710,7 +1697,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
-        if (!isAnnotation) {
+        if (!isAnnotation()) {
             throw new IllegalArgumentException("Class is not an annotation: " + getName());
         }
 
@@ -2752,7 +2739,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
             // Generic classes
-            return typeSig.toString(name, typeNameOnly, modifiers, isAnnotation, isInterface);
+            return typeSig.toString(name, typeNameOnly, modifiers, isAnnotation(), isInterface());
         } else {
             // Non-generic classes
             final StringBuilder buf = new StringBuilder();
@@ -2763,8 +2750,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append(isAnnotation ? "@interface "
-                        : isInterface ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
+                buf.append(isAnnotation() ? "@interface "
+                        : isInterface() ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
                 buf.append(name);
                 final ClassInfo superclass = getSuperclass();
                 if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
@@ -2773,7 +2760,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 final Set<ClassInfo> interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
                         /* strictWhitelist = */ false).directlyRelatedClasses;
                 if (!interfaces.isEmpty()) {
-                    buf.append(isInterface ? " extends " : " implements ");
+                    buf.append(isInterface() ? " extends " : " implements ");
                     boolean first = true;
                     for (final ClassInfo iface : interfaces) {
                         if (first) {
