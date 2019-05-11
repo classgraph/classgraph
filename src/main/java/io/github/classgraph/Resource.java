@@ -337,14 +337,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      */
     public URI getURI() {
         final URI locationURI = getClasspathElementURI();
-        final String resourcePath = getPathRelativeToClasspathElement();
         final String locationURIStr = locationURI.toString();
+        final String resourcePath = getPathRelativeToClasspathElement();
         // Check if this is a directory-based module (location URI will end in "/")
         final boolean isDir = locationURIStr.endsWith("/");
         try {
-            return new URI(
-                    URLPathEncoder.normalizeURLPath((isDir || locationURIStr.startsWith("jar:") ? "" : "jar:")
-                            + locationURIStr + (isDir ? "" : "!/") + resourcePath));
+            return new URI((isDir || locationURIStr.startsWith("jar:") ? "" : "jar:") + locationURIStr
+                    + (isDir ? "" : "!/") + URLPathEncoder.normalizeURLPath(resourcePath));
         } catch (final URISyntaxException e) {
             throw new IllegalArgumentException("Could not form URL for classpath element: " + locationURIStr
                     + " ; path: " + resourcePath + " : " + e);
