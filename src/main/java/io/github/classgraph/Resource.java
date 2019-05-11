@@ -43,6 +43,7 @@ import java.util.zip.ZipEntry;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
@@ -341,8 +342,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         // Check if this is a directory-based module (location URI will end in "/")
         final boolean isDir = locationURIStr.endsWith("/");
         try {
-            return new URI((isDir || locationURIStr.startsWith("jar:") ? "" : "jar:") + locationURIStr
-                    + (isDir ? "" : "!/") + resourcePath);
+            return new URI(
+                    URLPathEncoder.normalizeURLPath((isDir || locationURIStr.startsWith("jar:") ? "" : "jar:")
+                            + locationURIStr + (isDir ? "" : "!/") + resourcePath));
         } catch (final URISyntaxException e) {
             throw new IllegalArgumentException("Could not form URL for classpath element: " + locationURIStr
                     + " ; path: " + resourcePath + " : " + e);
