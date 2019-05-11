@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap.SimpleEntry;
@@ -160,6 +161,9 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
 
     /**
      * Get the URLs of all resources in this list, by calling {@link Resource#getURL()} for each item in the list.
+     * Note that any resource with a {@code jrt:} URI (e.g. a system resource, or a resource from a jlink'd image)
+     * will cause {@link IllegalArgumentException} to be thrown, since {@link URL} does not support this scheme, so
+     * {@link #getURIs()} is strongly preferred over {@link #getURLs()}.
      *
      * @return The URLs of all resources in this list.
      */
@@ -167,6 +171,19 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
         final List<URL> resourceURLs = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourceURLs.add(resource.getURL());
+        }
+        return resourceURLs;
+    }
+
+    /**
+     * Get the URIs of all resources in this list, by calling {@link Resource#getURI()} for each item in the list.
+     *
+     * @return The URIs of all resources in this list.
+     */
+    public List<URI> getURIs() {
+        final List<URI> resourceURLs = new ArrayList<>(this.size());
+        for (final Resource resource : this) {
+            resourceURLs.add(resource.getURI());
         }
         return resourceURLs;
     }
