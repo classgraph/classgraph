@@ -596,10 +596,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                         + " should not have been encountered more than once due to classpath masking --"
                         + " please report this bug at: https://github.com/classgraph/classgraph/issues");
             }
-            
+
             // Set the classfileResource for the placeholder class
             classInfo.classfileResource = classfileResource;
-            
+
             // Add any additional modifier bits
             classInfo.modifiers |= classModifiers;
         }
