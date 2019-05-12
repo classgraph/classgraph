@@ -102,6 +102,9 @@ public class Issue345 {
 
     /**
      * Test that overriding classloaders does not allow other classloaders to be scanned.
+     *
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void issue345b() throws Exception {
@@ -113,11 +116,45 @@ public class Issue345 {
         // Use this to create an override URLClassLoader
         try (ScanResult scanResult = new ClassGraph().enableClassInfo()
                 .overrideClassLoaders(new URLClassLoader(new URL[] { classpathURL })).ignoreParentClassLoaders()
-                .verbose().scan()) {
+                .scan()) {
             // Assert that this class is found in its own classloader
             assertThat(scanResult.getClassInfo(Issue345.class.getName())).isNotNull();
             // But that other classpath elements on the classpath are not found
             assertThat(scanResult.getClassInfo(Test.class.getName())).isNull();
+        }
+    }
+
+    /**
+     * A.
+     */
+    private static class A {
+    }
+
+    /**
+     * B.
+     */
+    abstract static class B extends A {
+    }
+
+    /**
+     * C.
+     */
+    public static class C extends B {
+    }
+
+    /**
+     * Test inner class modifiers are picked up from the InnerClasses attribute of classfiles.
+     */
+    @Test
+    public void issue345c() {
+        try (ScanResult scanResult = new ClassGraph().enableClassInfo()
+                .whitelistPackages(Issue345.class.getPackage().getName()).ignoreClassVisibility().scan()) {
+            final ClassInfo ciA = scanResult.getClassInfo(A.class.getName());
+            assertThat(ciA.getModifiersStr()).isEqualTo("private static");
+            final ClassInfo ciB = scanResult.getClassInfo(B.class.getName());
+            assertThat(ciB.getModifiersStr()).isEqualTo("abstract static");
+            final ClassInfo ciC = scanResult.getClassInfo(C.class.getName());
+            assertThat(ciC.getModifiersStr()).isEqualTo("public static");
         }
     }
 }

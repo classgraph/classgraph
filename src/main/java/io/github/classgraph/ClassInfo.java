@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.ClassContainment;
 import nonapi.io.github.classgraph.json.Id;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
@@ -385,14 +386,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
-    static void addClassContainment(final List<SimpleEntry<String, String>> classContainmentEntries,
+    static void addClassContainment(final List<ClassContainment> classContainmentEntries,
             final Map<String, ClassInfo> classNameToClassInfo) {
-        for (final SimpleEntry<String, String> ent : classContainmentEntries) {
-            final String innerClassName = ent.getKey();
-            final ClassInfo innerClassInfo = ClassInfo.getOrCreateClassInfo(innerClassName,
-                    /* classModifiers = */ 0, classNameToClassInfo);
-            final String outerClassName = ent.getValue();
-            final ClassInfo outerClassInfo = ClassInfo.getOrCreateClassInfo(outerClassName,
+        for (final ClassContainment classContainment : classContainmentEntries) {
+            final ClassInfo innerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.innerClassName,
+                    /* classModifiers = */ classContainment.innerClassModifierBits, classNameToClassInfo);
+            final ClassInfo outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName,
                     /* classModifiers = */ 0, classNameToClassInfo);
             innerClassInfo.addRelatedClass(RelType.CONTAINED_WITHIN_OUTER_CLASS, outerClassInfo);
             outerClassInfo.addRelatedClass(RelType.CONTAINS_INNER_CLASS, innerClassInfo);

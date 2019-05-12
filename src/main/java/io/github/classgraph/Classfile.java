@@ -30,7 +30,6 @@ package io.github.classgraph;
 
 import java.io.IOException;
 import java.lang.reflect.Modifier;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -100,8 +99,39 @@ class Classfile {
     /** The fully qualified name of the defining method. */
     private String fullyQualifiedDefiningMethodName;
 
-    /** Class containment entries -- tuples of (inner class name, outer class name). */
-    private List<SimpleEntry<String, String>> classContainmentEntries;
+    /**
+     * Class containment.
+     */
+    static class ClassContainment {
+        /** The inner class name. */
+        public final String innerClassName;
+
+        /** The inner class modifier bits. */
+        public final int innerClassModifierBits;
+
+        /** The outer class name. */
+        public final String outerClassName;
+
+        /**
+         * Constructor.
+         *
+         * @param innerClassName
+         *            the inner class name.
+         * @param innerClassModifierBits
+         *            the inner class modifier bits.
+         * @param outerClassName
+         *            the outer class name.
+         */
+        public ClassContainment(final String innerClassName, final int innerClassModifierBits,
+                final String outerClassName) {
+            this.innerClassName = innerClassName;
+            this.innerClassModifierBits = innerClassModifierBits;
+            this.outerClassName = outerClassName;
+        }
+    }
+
+    /** Class containment entries. */
+    private List<ClassContainment> classContainmentEntries;
 
     /** Annotation default parameter values. */
     private AnnotationParameterValueList annotationParamDefaultValues;
@@ -349,9 +379,9 @@ class Classfile {
         }
         // Check if this class is an inner class, and if so, extend scanning to outer class
         if (classContainmentEntries != null) {
-            for (final SimpleEntry<String, String> classContainmentEntry : classContainmentEntries) {
-                if (classContainmentEntry.getKey().equals(className)) {
-                    scheduleScanningIfExternalClass(classContainmentEntry.getValue(), "outer class", log);
+            for (final ClassContainment classContainmentEntry : classContainmentEntries) {
+                if (classContainmentEntry.innerClassName.equals(className)) {
+                    scheduleScanningIfExternalClass(classContainmentEntry.outerClassName, "outer class", log);
                 }
             }
         }
@@ -470,6 +500,10 @@ class Classfile {
 
     /**
      * Intern a string.
+     *
+     * @param str
+     *            the str
+     * @return the string
      */
     private String intern(final String str) {
         if (str == null) {
@@ -1084,6 +1118,7 @@ class Classfile {
     private void readBasicClassInfo() throws IOException, ClassfileFormatException, SkipClassException {
         // Modifier flags
         classModifiers = inputStreamOrByteBuffer.readUnsignedShort();
+
         isInterface = (classModifiers & 0x0200) != 0;
         isAnnotation = (classModifiers & 0x2000) != 0;
 
@@ -1414,15 +1449,17 @@ class Classfile {
                 for (int j = 0; j < numInnerClasses; j++) {
                     final int innerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                     final int outerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                    inputStreamOrByteBuffer.skip(2); // inner_name_idx
+                    final int innerClassAccessFlags = inputStreamOrByteBuffer.readUnsignedShort();
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
+                        final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
+                        final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
                         if (classContainmentEntries == null) {
                             classContainmentEntries = new ArrayList<>();
                         }
-                        classContainmentEntries.add(new SimpleEntry<>(getConstantPoolClassName(innerClassInfoCpIdx),
-                                getConstantPoolClassName(outerClassInfoCpIdx)));
+                        classContainmentEntries
+                                .add(new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
                     }
-                    inputStreamOrByteBuffer.skip(2); // inner_name_idx
-                    inputStreamOrByteBuffer.skip(2); // inner_class_access_flags
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 // Get class type signature, including type variables
@@ -1444,7 +1481,8 @@ class Classfile {
                 if (classContainmentEntries == null) {
                     classContainmentEntries = new ArrayList<>();
                 }
-                classContainmentEntries.add(new SimpleEntry<>(className, innermostEnclosingClassName));
+                classContainmentEntries
+                        .add(new ClassContainment(className, classModifiers, innermostEnclosingClassName));
                 // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
                 // class
                 this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
