@@ -118,11 +118,14 @@ class Classfile {
     /** The type signature. */
     private String typeSignature;
 
+    /** The names of whitelisted classes found in the classpath while scanning paths within classpath elements. */
+    private final Set<String> whitelistedClassNamesFound;
+
     /**
-     * Class names already scheduled for scanning. If a class name is not in this list, the class is external, and
-     * has not yet been scheduled for scanning.
+     * The names of external (non-whitelisted) classes scheduled for extended scanning (where scanning is extended
+     * upwards to superclasses, interfaces and annotations).
      */
-    private final Set<String> classNamesScheduledForScanning;
+    private final Set<String> classNamesScheduledForExtendedScanning;
 
     /** Any additional work units scheduled for scanning. */
     private List<ClassfileScanWorkUnit> additionalWorkUnits;
@@ -231,8 +234,10 @@ class Classfile {
             final LogNode log) {
         // Don't scan Object
         if (className != null && !className.equals("java.lang.Object")
-        // Only schedule each external class once for scanning, across all threads
-                && classNamesScheduledForScanning.add(className)) {
+        // Don't schedule a class for scanning that was already found to be whitelisted
+                && !whitelistedClassNamesFound.contains(className)
+                // Only schedule each external class once for scanning, across all threads
+                && classNamesScheduledForExtendedScanning.add(className)) {
             // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
             // for each class, but there shouldn't be too many cases of extending scanning upwards)
             final String classfilePath = JarUtils.classNameToClassfilePath(className);
@@ -257,9 +262,13 @@ class Classfile {
             if (classResource != null) {
                 // Found class resource 
                 if (log != null) {
-                    log.log("Scheduling external class for scanning: " + relationship + " " + className
-                            + (foundInClasspathElt == classpathElement ? ""
+                    // Log the extended scan as a child LogNode of the current class' scan log, since the
+                    // external class is not scanned at the regular place in the classpath element hierarchy
+                    // traversal
+                    classResource.scanLog = log.log("Extending scanning to external (non-whitelisted) "
+                            + relationship + " " + className + (foundInClasspathElt == classpathElement ? ""
                                     : " -- found in classpath element " + foundInClasspathElt));
+
                 }
                 if (additionalWorkUnits == null) {
                     additionalWorkUnits = new ArrayList<>();
@@ -1446,8 +1455,12 @@ class Classfile {
      *            the classpath element
      * @param classpathOrder
      *            the classpath order
-     * @param classNamesScheduledForScanning
-     *            the class names scheduled for scanning
+     * @param whitelistedClassNamesFound
+     *            the names of whitelisted classes found in the classpath while scanning paths within classpath
+     *            elements.
+     * @param classNamesScheduledForExtendedScanning
+     *            the names of external (non-whitelisted) classes scheduled for extended scanning (where scanning is
+     *            extended upwards to superclasses, interfaces and annotations).
      * @param relativePath
      *            the relative path
      * @param classfileResource
@@ -1471,15 +1484,16 @@ class Classfile {
      *             false)
      */
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
-            final Set<String> classNamesScheduledForScanning, final String relativePath,
-            final Resource classfileResource, final boolean isExternalClass,
+            final Set<String> whitelistedClassNamesFound, final Set<String> classNamesScheduledForExtendedScanning,
+            final String relativePath, final Resource classfileResource, final boolean isExternalClass,
             final ConcurrentHashMap<String, String> stringInternMap,
             final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final LogNode log)
             throws IOException, ClassfileFormatException, SkipClassException {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
         this.relativePath = relativePath;
-        this.classNamesScheduledForScanning = classNamesScheduledForScanning;
+        this.whitelistedClassNamesFound = whitelistedClassNamesFound;
+        this.classNamesScheduledForExtendedScanning = classNamesScheduledForExtendedScanning;
         this.classfileResource = classfileResource;
         this.isExternalClass = isExternalClass;
         this.stringInternMap = stringInternMap;

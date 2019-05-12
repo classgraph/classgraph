@@ -551,8 +551,16 @@ class Scanner implements Callable<ScanResult> {
         /** The classpath order. */
         private final List<ClasspathElement> classpathOrder;
 
-        /** The class names scheduled for scanning. */
-        private final Set<String> classNamesScheduledForScanning;
+        /**
+         * The names of whitelisted classes found in the classpath while scanning paths within classpath elements.
+         */
+        private final Set<String> whitelistedClassNamesFound;
+
+        /**
+         * The names of external (non-whitelisted) classes scheduled for extended scanning (where scanning is
+         * extended upwards to superclasses, interfaces and annotations).
+         */
+        private final Set<String> classNamesScheduledForExtendedScanning = new HashSet<>();
 
         /** The valid {@link Classfile} objects created by scanning classfiles. */
         private final Queue<Classfile> scannedClassfiles;
@@ -567,17 +575,18 @@ class Scanner implements Callable<ScanResult> {
          *            the scan spec
          * @param classpathOrder
          *            the classpath order
-         * @param classNamesScheduledForScanning
-         *            the class names scheduled for scanning
+         * @param whitelistedClassNamesFound
+         *            the names of whitelisted classes found in the classpath while scanning paths within classpath
+         *            elements.
          * @param scannedClassfiles
          *            the {@link Classfile} objects created by scanning classfiles
          */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
-                final List<ClasspathElement> classpathOrder, final Set<String> classNamesScheduledForScanning,
+                final List<ClasspathElement> classpathOrder, final Set<String> whitelistedClassNamesFound,
                 final Queue<Classfile> scannedClassfiles) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
-            this.classNamesScheduledForScanning = classNamesScheduledForScanning;
+            this.whitelistedClassNamesFound = whitelistedClassNamesFound;
             this.scannedClassfiles = scannedClassfiles;
         }
 
@@ -598,9 +607,9 @@ class Scanner implements Callable<ScanResult> {
             try {
                 // Parse classfile binary format, creating a Classfile object
                 final Classfile classfile = new Classfile(workUnit.classpathElement, classpathOrder,
-                        classNamesScheduledForScanning, workUnit.classfileResource.getPath(),
-                        workUnit.classfileResource, workUnit.isExternalClass, stringInternMap, workQueue, scanSpec,
-                        subLog);
+                        whitelistedClassNamesFound, classNamesScheduledForExtendedScanning,
+                        workUnit.classfileResource.getPath(), workUnit.classfileResource, workUnit.isExternalClass,
+                        stringInternMap, workQueue, scanSpec, subLog);
 
                 // Enqueue the classfile for linking
                 scannedClassfiles.add(classfile);
@@ -807,16 +816,15 @@ class Scanner implements Callable<ScanResult> {
         if (scanSpec.enableClassInfo) {
             // Get whitelisted classfile order
             final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-            final Set<String> classNamesScheduledForScanning = Collections
+            final Set<String> whitelistedClassNamesFound = Collections
                     .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
             for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
                 // Get classfile scan order across all classpath elements
                 for (final Resource resource : classpathElement.whitelistedClassfileResources) {
                     classfileScanWorkItems
                             .add(new ClassfileScanWorkUnit(classpathElement, resource, /* isExternal = */ false));
-                    // Pre-seed scanned class names with all whitelisted classes (since these will
-                    // be scanned for sure)
-                    classNamesScheduledForScanning.add(JarUtils.classfilePathToClassName(resource.getPath()));
+                    // Create a set of all names of classes found to be whitelisted among classpath element paths
+                    whitelistedClassNamesFound.add(JarUtils.classfilePathToClassName(resource.getPath()));
                 }
             }
 
@@ -825,11 +833,12 @@ class Scanner implements Callable<ScanResult> {
             processWorkUnits(classfileScanWorkItems,
                     topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"),
                     new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
-                            classNamesScheduledForScanning, scannedClassfiles));
+                            whitelistedClassNamesFound, scannedClassfiles));
 
             // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
             final LogNode linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
-            for (final Classfile c : scannedClassfiles) {
+            while (!scannedClassfiles.isEmpty()) {
+                final Classfile c = scannedClassfiles.remove();
                 c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo);
             }
 

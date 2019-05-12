@@ -2449,9 +2449,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * The {@link Resource} for the classfile of this class.
      *
-     * @return The {@link Resource} for the classfile of this class, or null if this is an "external" class (a
-     *         blacklisted class, or a class in a blacklisted package, or a class that was referenced as a
-     *         superclass, interface or annotation, but that wasn't in the scanned path).
+     * @return The {@link Resource} for the classfile of this class. Returns null if the classfile for this class
+     *         was not actually read during the scan, because this class was not in the whitelist, but was
+     *         referenced by a whitelisted class.
      */
     public Resource getResource() {
         return classfileResource;
