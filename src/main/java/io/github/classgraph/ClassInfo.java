@@ -2450,7 +2450,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * The {@link Resource} for the classfile of this class.
      *
      * @return The {@link Resource} for the classfile of this class. Returns null if the classfile for this class
-     *         was not actually read during the scan, because this class was not in the whitelist, but was
+     *         was not actually read during the scan, e.g. because this class was not itself whitelisted, but was
      *         referenced by a whitelisted class.
      */
     public Resource getResource() {

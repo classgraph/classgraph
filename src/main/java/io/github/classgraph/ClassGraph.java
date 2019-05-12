@@ -470,7 +470,9 @@ public class ClassGraph {
 
     /**
      * Completely override (and ignore) system ClassLoaders and the java.class.path system property. Also causes
-     * modules not to be scanned.
+     * modules not to be scanned. Note that you may want to use this together with
+     * {@link #ignoreParentClassLoaders()} to extract classpath URLs from only the classloaders you specified in the
+     * parameter to `overrideClassLoaders`, and not their parent classloaders.
      *
      * <p>
      * This call is ignored if {@link #overrideClasspath(String)} is called.
