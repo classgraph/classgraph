@@ -75,7 +75,7 @@ public final class URLPathEncoder {
      *            The path to encode.
      * @return The encoded path.
      */
-    private static String encodePath(final String path) {
+    public static String encodePath(final String path) {
         // Accept ':' if it is part of a scheme prefix
         int validColonPrefixLen = 0;
         for (final String scheme : SCHEME_PREFIXES) {
