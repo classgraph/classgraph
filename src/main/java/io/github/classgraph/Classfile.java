@@ -238,47 +238,54 @@ class Classfile {
                 && !whitelistedClassNamesFound.contains(className)
                 // Only schedule each external class once for scanning, across all threads
                 && classNamesScheduledForExtendedScanning.add(className)) {
-            // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
-            // for each class, but there shouldn't be too many cases of extending scanning upwards)
-            final String classfilePath = JarUtils.classNameToClassfilePath(className);
-            // First check current classpath element, to avoid iterating through other classpath elements
-            Resource classResource = classpathElement.getResource(classfilePath);
-            ClasspathElement foundInClasspathElt = null;
-            if (classResource != null) {
-                // Found the classfile in the current classpath element
-                foundInClasspathElt = classpathElement;
+            if (scanSpec.classWhiteBlackList.isBlacklisted(className)) {
+                if (log != null) {
+                    log.log("Cannot extend scanning upwards to external " + relationship + " " + className
+                            + ", since it is blacklisted");
+                }
             } else {
-                // Didn't find the classfile in the current classpath element -- iterate through other elements
-                for (final ClasspathElement classpathOrderElt : classpathOrder) {
-                    if (classpathOrderElt != classpathElement) {
-                        classResource = classpathOrderElt.getResource(classfilePath);
-                        if (classResource != null) {
-                            foundInClasspathElt = classpathOrderElt;
-                            break;
+                // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
+                // for each class, but there shouldn't be too many cases of extending scanning upwards)
+                final String classfilePath = JarUtils.classNameToClassfilePath(className);
+                // First check current classpath element, to avoid iterating through other classpath elements
+                Resource classResource = classpathElement.getResource(classfilePath);
+                ClasspathElement foundInClasspathElt = null;
+                if (classResource != null) {
+                    // Found the classfile in the current classpath element
+                    foundInClasspathElt = classpathElement;
+                } else {
+                    // Didn't find the classfile in the current classpath element -- iterate through other elements
+                    for (final ClasspathElement classpathOrderElt : classpathOrder) {
+                        if (classpathOrderElt != classpathElement) {
+                            classResource = classpathOrderElt.getResource(classfilePath);
+                            if (classResource != null) {
+                                foundInClasspathElt = classpathOrderElt;
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            if (classResource != null) {
-                // Found class resource 
-                if (log != null) {
-                    // Log the extended scan as a child LogNode of the current class' scan log, since the
-                    // external class is not scanned at the regular place in the classpath element hierarchy
-                    // traversal
-                    classResource.scanLog = log.log("Extending scanning to external (non-whitelisted) "
-                            + relationship + " " + className + (foundInClasspathElt == classpathElement ? ""
-                                    : " -- found in classpath element " + foundInClasspathElt));
-                }
-                if (additionalWorkUnits == null) {
-                    additionalWorkUnits = new ArrayList<>();
-                }
-                // Schedule class resource for scanning
-                additionalWorkUnits.add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource,
-                        /* isExternalClass = */ true));
-            } else {
-                if (log != null) {
-                    log.log("External " + relationship + " " + className + " was not found in "
-                            + "non-blacklisted packages -- cannot extend scanning to this class");
+                if (classResource != null) {
+                    // Found class resource 
+                    if (log != null) {
+                        // Log the extended scan as a child LogNode of the current class' scan log, since the
+                        // external class is not scanned at the regular place in the classpath element hierarchy
+                        // traversal
+                        classResource.scanLog = log.log("Extending scanning to external (non-whitelisted) "
+                                + relationship + " " + className + (foundInClasspathElt == classpathElement ? ""
+                                        : " -- found in classpath element " + foundInClasspathElt));
+                    }
+                    if (additionalWorkUnits == null) {
+                        additionalWorkUnits = new ArrayList<>();
+                    }
+                    // Schedule class resource for scanning
+                    additionalWorkUnits.add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource,
+                            /* isExternalClass = */ true));
+                } else {
+                    if (log != null) {
+                        log.log("External " + relationship + " " + className + " was not found in "
+                                + "non-blacklisted packages -- cannot extend scanning to this class");
+                    }
                 }
             }
         }
