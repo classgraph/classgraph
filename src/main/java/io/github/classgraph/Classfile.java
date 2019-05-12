@@ -268,7 +268,6 @@ class Classfile {
                     classResource.scanLog = log.log("Extending scanning to external (non-whitelisted) "
                             + relationship + " " + className + (foundInClasspathElt == classpathElement ? ""
                                     : " -- found in classpath element " + foundInClasspathElt));
-
                 }
                 if (additionalWorkUnits == null) {
                     additionalWorkUnits = new ArrayList<>();

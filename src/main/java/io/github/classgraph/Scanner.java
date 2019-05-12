@@ -560,7 +560,8 @@ class Scanner implements Callable<ScanResult> {
          * The names of external (non-whitelisted) classes scheduled for extended scanning (where scanning is
          * extended upwards to superclasses, interfaces and annotations).
          */
-        private final Set<String> classNamesScheduledForExtendedScanning = new HashSet<>();
+        private final Set<String> classNamesScheduledForExtendedScanning = Collections
+                .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
         /** The valid {@link Classfile} objects created by scanning classfiles. */
         private final Queue<Classfile> scannedClassfiles;
@@ -816,24 +817,36 @@ class Scanner implements Callable<ScanResult> {
         if (scanSpec.enableClassInfo) {
             // Get whitelisted classfile order
             final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-            final Set<String> whitelistedClassNamesFound = Collections
-                    .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+            final Set<String> whitelistedClassNamesFound = new HashSet<String>();
             for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
                 // Get classfile scan order across all classpath elements
                 for (final Resource resource : classpathElement.whitelistedClassfileResources) {
+                    // Create a set of names of all whitelisted classes found in classpath element paths,
+                    // and double-check that a class is not going to be scanned twice
+                    final String className = JarUtils.classfilePathToClassName(resource.getPath());
+                    if (!whitelistedClassNamesFound.add(className) && !className.equals("module-info")
+                            && !className.equals("package-info")) {
+                        // The class should not be scheduled more than once for scanning, since classpath
+                        // masking was already applied
+                        throw new IllegalArgumentException("Class " + className
+                                + " should not have been scheduled more than once for scanning due to classpath"
+                                + " masking -- please report this bug at:"
+                                + " https://github.com/classgraph/classgraph/issues");
+                    }
+                    // Schedule class for scanning
                     classfileScanWorkItems
                             .add(new ClassfileScanWorkUnit(classpathElement, resource, /* isExternal = */ false));
-                    // Create a set of all names of classes found to be whitelisted among classpath element paths
-                    whitelistedClassNamesFound.add(JarUtils.classfilePathToClassName(resource.getPath()));
                 }
             }
 
-            // Scan classfiles in parallel.
+            // Scan classfiles in parallel
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
+            final ClassfileScannerWorkUnitProcessor classfileWorkUnitProcessor = //
+                    new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
+                            Collections.unmodifiableSet(whitelistedClassNamesFound), scannedClassfiles);
             processWorkUnits(classfileScanWorkItems,
                     topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"),
-                    new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
-                            whitelistedClassNamesFound, scannedClassfiles));
+                    classfileWorkUnitProcessor);
 
             // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
             final LogNode linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
