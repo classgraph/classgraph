@@ -158,22 +158,8 @@ class Scanner implements Callable<ScanResult> {
         this.moduleFinder = new ModuleFinder(classpathFinder.getCallStack(), scanSpec, classpathFinderLog);
         this.classLoaderOrderRespectingParentDelegation = classpathFinder
                 .getClassLoaderOrderRespectingParentDelegation();
-        this.moduleOrder = getModuleOrder(classpathFinderLog);
-    }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the module order.
-     *
-     * @param log
-     *            the log
-     * @return the module order
-     * @throws InterruptedException
-     *             if interrupted
-     */
-    private List<ClasspathElementModule> getModuleOrder(final LogNode log) throws InterruptedException {
-        final List<ClasspathElementModule> moduleOrder = new ArrayList<>();
+        this.moduleOrder = new ArrayList<>();
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
             // Add modules to start of classpath order, before traditional classpath
             final List<ModuleRef> systemModuleRefs = moduleFinder.getSystemModuleRefs();
@@ -197,10 +183,11 @@ class Scanner implements Callable<ScanResult> {
                                 systemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
                         moduleOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, log);
+                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                     } else {
-                        if (log != null) {
-                            log.log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
+                        if (classpathFinderLog != null) {
+                            classpathFinderLog
+                                    .log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
                         }
                     }
                 }
@@ -218,16 +205,15 @@ class Scanner implements Callable<ScanResult> {
                                 nonSystemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
                         moduleOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, log);
+                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                     } else {
-                        if (log != null) {
-                            log.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
+                        if (classpathFinderLog != null) {
+                            classpathFinderLog.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
                         }
                     }
                 }
             }
         }
-        return moduleOrder;
     }
 
     // -------------------------------------------------------------------------------------------------------------
