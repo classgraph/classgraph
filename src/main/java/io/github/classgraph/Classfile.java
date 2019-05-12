@@ -271,9 +271,11 @@ class Classfile {
                         // Log the extended scan as a child LogNode of the current class' scan log, since the
                         // external class is not scanned at the regular place in the classpath element hierarchy
                         // traversal
-                        classResource.scanLog = log.log("Extending scanning to external (non-whitelisted) "
-                                + relationship + " " + className + (foundInClasspathElt == classpathElement ? ""
-                                        : " -- found in classpath element " + foundInClasspathElt));
+                        classResource.scanLog = log
+                                .log("Extending scanning to external " + relationship
+                                        + (foundInClasspathElt == classpathElement ? " in same classpath element"
+                                                : " in classpath element " + foundInClasspathElt)
+                                        + ": " + className);
                     }
                     if (additionalWorkUnits == null) {
                         additionalWorkUnits = new ArrayList<>();
