@@ -104,7 +104,7 @@ class Scanner implements Callable<ScanResult> {
     private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
     /** The module order. */
-    private final List<ClasspathElementModule> moduleClasspathEltOrder;
+    private final List<ClasspathElementModule> moduleOrder;
 
     /** The environment classloader order, respecting parent-first or parent-last delegation order. */
     private final ClassLoader[] classLoaderOrderRespectingParentDelegation;
@@ -158,7 +158,7 @@ class Scanner implements Callable<ScanResult> {
         this.classLoaderAndModuleFinder = classpathFinder.getClassLoaderAndModuleFinder();
         this.classLoaderOrderRespectingParentDelegation = classpathFinder
                 .getClassLoaderOrderRespectingParentDelegation();
-        this.moduleClasspathEltOrder = getModuleOrder(classpathFinderLog);
+        this.moduleOrder = getModuleOrder(classpathFinderLog);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -173,7 +173,7 @@ class Scanner implements Callable<ScanResult> {
      *             if interrupted
      */
     private List<ClasspathElementModule> getModuleOrder(final LogNode log) throws InterruptedException {
-        final List<ClasspathElementModule> moduleCpEltOrder = new ArrayList<>();
+        final List<ClasspathElementModule> moduleOrder = new ArrayList<>();
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
             // Add modules to start of classpath order, before traditional classpath
             final List<ModuleRef> systemModuleRefs = classLoaderAndModuleFinder.getSystemModuleRefs();
@@ -195,7 +195,7 @@ class Scanner implements Callable<ScanResult> {
                         // Create a new ClasspathElementModule
                         final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                 systemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
-                        moduleCpEltOrder.add(classpathElementModule);
+                        moduleOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
                         classpathElementModule.open(/* ignored */ null, log);
                     } else {
@@ -216,7 +216,7 @@ class Scanner implements Callable<ScanResult> {
                         // Create a new ClasspathElementModule
                         final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                 nonSystemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
-                        moduleCpEltOrder.add(classpathElementModule);
+                        moduleOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
                         classpathElementModule.open(/* ignored */ null, log);
                     } else {
@@ -227,7 +227,7 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
         }
-        return moduleCpEltOrder;
+        return moduleOrder;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -937,10 +937,10 @@ class Scanner implements Callable<ScanResult> {
         // Order modules before classpath elements from traditional classpath 
         final LogNode classpathOrderLog = topLevelLog == null ? null
                 : topLevelLog.log("Final classpath element order:");
-        final int numElts = moduleClasspathEltOrder.size() + classpathEltOrder.size();
+        final int numElts = moduleOrder.size() + classpathEltOrder.size();
         final List<ClasspathElement> finalClasspathEltOrder = new ArrayList<>(numElts);
         final List<String> finalClasspathEltOrderStrs = new ArrayList<>(numElts);
-        for (final ClasspathElementModule classpathElt : moduleClasspathEltOrder) {
+        for (final ClasspathElementModule classpathElt : moduleOrder) {
             finalClasspathEltOrder.add(classpathElt);
             finalClasspathEltOrderStrs.add(classpathElt.toString());
             if (classpathOrderLog != null) {

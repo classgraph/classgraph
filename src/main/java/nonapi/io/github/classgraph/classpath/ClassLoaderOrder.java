@@ -147,6 +147,8 @@ public class ClassLoaderOrder {
      *
      * @param classLoader
      *            the class loader
+     * @param isParent
+     *            true if this is a parent of another classloader
      */
     public void delegateTo(final ClassLoader classLoader, final boolean isParent) {
         if (classLoader == null) {

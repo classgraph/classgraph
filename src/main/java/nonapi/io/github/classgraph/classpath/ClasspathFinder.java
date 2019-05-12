@@ -165,18 +165,12 @@ public class ClasspathFinder {
 
             // Find all unique classloaders, in delegation order
             final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder();
-            if (contextClassLoaders != null) {
-                for (final ClassLoader classLoader : contextClassLoaders) {
+            final ClassLoader[] origClassLoaderOrder = scanSpec.overrideClassLoaders != null
+                    ? scanSpec.overrideClassLoaders.toArray(new ClassLoader[0])
+                    : contextClassLoaders;
+            if (origClassLoaderOrder != null) {
+                for (final ClassLoader classLoader : origClassLoaderOrder) {
                     classLoaderOrder.delegateTo(classLoader, /* isParent = */ false);
-                }
-            }
-
-            if (classpathFinderLog != null) {
-                final LogNode classloaderOrderLog = classpathFinderLog.log("ClassLoader delegation order:");
-                for (final Entry<ClassLoader, ClassLoaderHandlerRegistryEntry> cl : classLoaderOrder
-                        .getClassLoaderOrder()) {
-                    classloaderOrderLog.log(cl.getKey().toString())
-                            .log("Handled by " + cl.getValue().classLoaderHandlerClass.getName());
                 }
             }
 
@@ -184,6 +178,8 @@ public class ClasspathFinder {
             final Set<ClassLoader> allParentClassLoaders = classLoaderOrder.getAllParentClassLoaders();
 
             // Get the classpath URLs from each ClassLoader
+            final LogNode classloaderOrderLog = classpathFinderLog == null ? null
+                    : classpathFinderLog.log("Obtaining URLs from classloaders in delegation order:");
             final List<ClassLoader> finalClassLoaderOrder = new ArrayList<>();
             for (final Entry<ClassLoader, ClassLoaderHandlerRegistryEntry> ent : classLoaderOrder
                     .getClassLoaderOrder()) {
@@ -193,13 +189,20 @@ public class ClasspathFinder {
                 if (scanSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
                     // If this is a parent and parent classloaders are being ignored, add classpath entries
                     // to ignoredClasspathOrder
+                    final LogNode classloaderURLLog = classloaderOrderLog == null ? null
+                            : classloaderOrderLog
+                                    .log("Ignoring parent classloader " + classLoader + ", normally handled by "
+                                            + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
                     classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, ignoredClasspathOrder, scanSpec,
-                            classpathFinderLog);
+                            classloaderURLLog);
                 } else {
                     // Otherwise add classpath entries to classpathOrder, and add the classloader to the
                     // final classloader ordering
+                    final LogNode classloaderURLLog = classloaderOrderLog == null ? null
+                            : classloaderOrderLog.log("Classloader " + classLoader + " is handled by "
+                                    + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
                     classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
-                            classpathFinderLog);
+                            classloaderURLLog);
                     finalClassLoaderOrder.add(classLoader);
                 }
             }
