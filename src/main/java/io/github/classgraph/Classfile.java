@@ -130,9 +130,6 @@ class Classfile {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
-    /** The log. */
-    private final LogNode log;
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** The number of constant pool entries plus one. */
@@ -227,8 +224,11 @@ class Classfile {
      *            the class name
      * @param relationship
      *            the relationship type
+     * @param log
+     *            the log
      */
-    private void scheduleScanningIfExternalClass(final String className, final String relationship) {
+    private void scheduleScanningIfExternalClass(final String className, final String relationship,
+            final LogNode log) {
         // Don't scan Object
         if (className != null && !className.equals("java.lang.Object")
         // Only schedule each external class once for scanning, across all threads
@@ -278,22 +278,25 @@ class Classfile {
 
     /**
      * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
+     *
+     * @param log
+     *            the log
      */
-    private void extendScanningUpwards() {
+    private void extendScanningUpwards(final LogNode log) {
         // Check superclass
         if (superclassName != null) {
-            scheduleScanningIfExternalClass(superclassName, "superclass");
+            scheduleScanningIfExternalClass(superclassName, "superclass", log);
         }
         // Check implemented interfaces
         if (implementedInterfaces != null) {
             for (final String interfaceName : implementedInterfaces) {
-                scheduleScanningIfExternalClass(interfaceName, "interface");
+                scheduleScanningIfExternalClass(interfaceName, "interface", log);
             }
         }
         // Check class annotations
         if (classAnnotations != null) {
             for (final AnnotationInfo annotationInfo : classAnnotations) {
-                scheduleScanningIfExternalClass(annotationInfo.getName(), "class annotation");
+                scheduleScanningIfExternalClass(annotationInfo.getName(), "class annotation", log);
             }
         }
         // Check method annotations and method parameter annotations
@@ -301,7 +304,7 @@ class Classfile {
             for (final MethodInfo methodInfo : methodInfoList) {
                 if (methodInfo.annotationInfo != null) {
                     for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
-                        scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation");
+                        scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
                     }
                     if (methodInfo.parameterAnnotationInfo != null
                             && methodInfo.parameterAnnotationInfo.length > 0) {
@@ -309,7 +312,7 @@ class Classfile {
                             if (paramAnns != null && paramAnns.length > 0) {
                                 for (final AnnotationInfo paramAnn : paramAnns) {
                                     scheduleScanningIfExternalClass(paramAnn.getName(),
-                                            "method parameter annotation");
+                                            "method parameter annotation", log);
                                 }
                             }
                         }
@@ -322,7 +325,7 @@ class Classfile {
             for (final FieldInfo fieldInfo : fieldInfoList) {
                 if (fieldInfo.annotationInfo != null) {
                     for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
-                        scheduleScanningIfExternalClass(fieldAnnotationInfo.getName(), "field annotation");
+                        scheduleScanningIfExternalClass(fieldAnnotationInfo.getName(), "field annotation", log);
                     }
                 }
             }
@@ -1481,7 +1484,6 @@ class Classfile {
         this.isExternalClass = isExternalClass;
         this.stringInternMap = stringInternMap;
         this.scanSpec = scanSpec;
-        this.log = log;
 
         try {
             // Open classfile as a ByteBuffer or InputStream
@@ -1522,23 +1524,12 @@ class Classfile {
             inputStreamOrByteBuffer = null;
         }
 
-        // Check if any superclasses, interfaces or annotations are external (non-whitelisted) classes
-        // that need to be scheduled for scanning, so that all of the "upwards" direction of the class
-        // graph is scanned for any whitelisted class, even if the superclasses / interfaces / annotations
-        // are not themselves whitelisted.
-        if (scanSpec.extendScanningUpwardsToExternalClasses) {
-            extendScanningUpwards();
-            // If any external classes were found, schedule them for scanning
-            if (additionalWorkUnits != null) {
-                workQueue.addWorkUnits(additionalWorkUnits);
-            }
-        }
-
         // Write class info to log 
+        final LogNode subLog = log == null ? null
+                : log.log("Found " //
+                        + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
+                        + " " + className);
         if (log != null) {
-            final LogNode subLog = log.log("Found " //
-                    + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
-                    + " " + className);
             if (superclassName != null) {
                 subLog.log(
                         "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
@@ -1579,6 +1570,18 @@ class Classfile {
                 final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
                 CollectionUtils.sortIfNotEmpty(refdClassNamesSorted);
                 subLog.log("Referenced class names: " + Join.join(", ", refdClassNamesSorted));
+            }
+        }
+
+        // Check if any superclasses, interfaces or annotations are external (non-whitelisted) classes
+        // that need to be scheduled for scanning, so that all of the "upwards" direction of the class
+        // graph is scanned for any whitelisted class, even if the superclasses / interfaces / annotations
+        // are not themselves whitelisted.
+        if (scanSpec.extendScanningUpwardsToExternalClasses) {
+            extendScanningUpwards(subLog);
+            // If any external classes were found, schedule them for scanning
+            if (additionalWorkUnits != null) {
+                workQueue.addWorkUnits(additionalWorkUnits);
             }
         }
     }
