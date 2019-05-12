@@ -46,8 +46,8 @@ public class ClasspathFinder {
     /** The classpath order. */
     private final ClasspathOrder classpathOrder;
 
-    /** The classloader and module finder. */
-    private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
+    /** The classloader finder. */
+    private final ClassLoaderFinder classLoaderFinder;
 
     /**
      * The default order in which ClassLoaders are called to load classes, respecting parent-first/parent-last
@@ -67,12 +67,12 @@ public class ClasspathFinder {
     }
 
     /**
-     * Get the classloader and module finder.
+     * Get the callstack.
      *
-     * @return The {@link ClassLoaderAndModuleFinder}.
+     * @return The callstack.
      */
-    public ClassLoaderAndModuleFinder getClassLoaderAndModuleFinder() {
-        return classLoaderAndModuleFinder;
+    public Class<?>[] getCallStack() {
+        return classLoaderFinder.getCallStack();
     }
 
     /**
@@ -101,12 +101,12 @@ public class ClasspathFinder {
         final String jreRtJar = SystemJarFinder.getJreRtJarPath();
         final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
 
-        classLoaderAndModuleFinder = new ClassLoaderAndModuleFinder(scanSpec, classpathFinderLog);
+        classLoaderFinder = new ClassLoaderFinder(scanSpec, classpathFinderLog);
 
         classpathOrder = new ClasspathOrder(scanSpec);
         final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec);
 
-        final ClassLoader[] contextClassLoaders = classLoaderAndModuleFinder.getContextClassLoaders();
+        final ClassLoader[] contextClassLoaders = classLoaderFinder.getContextClassLoaders();
         final ClassLoader defaultClassLoader = contextClassLoaders != null && contextClassLoaders.length > 0
                 ? contextClassLoaders[0]
                 : null;

@@ -43,11 +43,8 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
-/** A class to find the unique ordered classpath elements. */
-public class ClassLoaderAndModuleFinder {
-    /** The context class loaders. */
-    private final ClassLoader[] contextClassLoaders;
-
+/** A class to find the visible modules. */
+public class ModuleFinder {
     /** The system module refs. */
     private List<ModuleRef> systemModuleRefs;
 
@@ -55,15 +52,6 @@ public class ClassLoaderAndModuleFinder {
     private List<ModuleRef> nonSystemModuleRefs;
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the context class loaders.
-     *
-     * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
-     */
-    public ClassLoader[] getContextClassLoaders() {
-        return contextClassLoaders;
-    }
 
     /**
      * Get the system modules as {@link ModuleRef} wrappers.
@@ -247,122 +235,50 @@ public class ClassLoaderAndModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A class to find the unique ordered classpath elements.
-     * 
+     * A class to find the visible modules.
+     *
+     * @param callStack
+     *            the callstack.
      * @param scanSpec
-     *            The scan spec, or null if none available.
+     *            The scan spec.
      * @param log
      *            The log.
      */
-    ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
+    public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final LogNode log) {
         final boolean disableModules = scanSpec.overrideClassLoaders != null || scanSpec.overrideClasspath != null;
-        LinkedHashSet<ClassLoader> classLoadersUnique;
-        LogNode classLoadersFoundLog;
-        if (scanSpec.overrideClassLoaders == null) {
-            // ClassLoaders were not overridden
 
-            // There's some advice here about choosing the best or the right classloader, but it is not complete
-            // (e.g. it doesn't cover parent delegation modes):
-            // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
-
-            // Get thread context classloader (this is the first classloader to try, since a context classloader
-            // can be set as an override on a per-thread basis)
-            classLoadersUnique = new LinkedHashSet<>();
-            final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
-            if (threadClassLoader != null) {
-                classLoadersUnique.add(threadClassLoader);
-            }
-
-            // Get classloader for this class, which will generally be the classloader of the class that
-            // called ClassGraph (the classloader of the caller is used by Class.forName(className), when
-            // no classloader is provided)
-            final ClassLoader currClassClassLoader = getClass().getClassLoader();
-            if (currClassClassLoader != null) {
-                classLoadersUnique.add(currClassClassLoader);
-            }
-
-            // Get system classloader (this is a fallback if one of the above do not work)
-            final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
-            if (systemClassLoader != null) {
-                classLoadersUnique.add(systemClassLoader);
-            }
-
-            // There is one more classloader in JDK9+, the platform classloader (used for handling extensions),
-            // see: http://openjdk.java.net/jeps/261#Class-loaders
-            // The method call to get it is ClassLoader.getPlatformClassLoader()
-            // However, since it's not possible to get URLs from this classloader, and it is the parent of
-            // the application classloader returned by ClassLoader.getSystemClassLoader() (so is delegated to
-            // by the application classloader), there is no point adding it here. Modules are scanned
-            // directly anyway, so we don't need to get module path entries from the platform classloader. 
-
-            // Find classloaders for classes on callstack, in case any were missed
-            Class<?>[] callStack = null;
-            try {
-                callStack = CallStackReader.getClassContext(log);
-                for (int i = callStack.length - 1; i >= 0; --i) {
-                    final ClassLoader callerClassLoader = callStack[i].getClassLoader();
-                    if (callerClassLoader != null) {
-                        classLoadersUnique.add(callerClassLoader);
-                    }
-                }
-            } catch (final IllegalArgumentException e) {
-                if (log != null) {
-                    log.log("Could not get call stack", e);
-                }
-            }
-
-            if (!disableModules) {
-                // Get the module resolution order
-                List<ModuleRef> allModuleRefsList = null;
-                if (scanSpec.overrideModuleLayers == null) {
-                    // Find module references for classes on callstack, and from system (for JDK9+)
+        if (!disableModules) {
+            // Get the module resolution order
+            List<ModuleRef> allModuleRefsList = null;
+            if (scanSpec.overrideModuleLayers == null) {
+                // Find module references for classes on callstack, and from system (for JDK9+)
+                if (callStack != null && callStack.length > 0) {
                     allModuleRefsList = findModuleRefsFromCallstack(callStack, scanSpec, log);
-                } else {
-                    if (log != null) {
-                        final LogNode subLog = log.log("Overriding module layers");
-                        for (final Object moduleLayer : scanSpec.overrideModuleLayers) {
-                            subLog.log(moduleLayer.toString());
-                        }
-                    }
-                    allModuleRefsList = findModuleRefs(new LinkedHashSet<>(scanSpec.overrideModuleLayers), scanSpec,
-                            log);
                 }
-                if (allModuleRefsList != null) {
-                    // Split modules into system modules and non-system modules
-                    systemModuleRefs = new ArrayList<>();
-                    nonSystemModuleRefs = new ArrayList<>();
-                    for (final ModuleRef moduleRef : allModuleRefsList) {
-                        if (moduleRef.isSystemModule()) {
-                            systemModuleRefs.add(moduleRef);
-                        } else {
-                            nonSystemModuleRefs.add(moduleRef);
-                        }
+            } else {
+                if (log != null) {
+                    final LogNode subLog = log.log("Overriding module layers");
+                    for (final Object moduleLayer : scanSpec.overrideModuleLayers) {
+                        subLog.log(moduleLayer.toString());
                     }
                 }
+                allModuleRefsList = findModuleRefs(new LinkedHashSet<>(scanSpec.overrideModuleLayers), scanSpec,
+                        log);
             }
-
-            // Add any custom-added classloaders after system/context/module classloaders
-            if (scanSpec.addedClassLoaders != null) {
-                classLoadersUnique.addAll(scanSpec.addedClassLoaders);
+            if (allModuleRefsList != null) {
+                // Split modules into system modules and non-system modules
+                systemModuleRefs = new ArrayList<>();
+                nonSystemModuleRefs = new ArrayList<>();
+                for (final ModuleRef moduleRef : allModuleRefsList) {
+                    if (moduleRef.isSystemModule()) {
+                        systemModuleRefs.add(moduleRef);
+                    } else {
+                        nonSystemModuleRefs.add(moduleRef);
+                    }
+                }
             }
-            classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");
-
-        } else {
-            // ClassLoaders were overridden
-            classLoadersUnique = new LinkedHashSet<>(scanSpec.overrideClassLoaders);
-            classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
-        }
-
-        // Log all identified ClassLoaders
-        if (classLoadersFoundLog != null) {
-            for (final ClassLoader classLoader : classLoadersUnique) {
-                classLoadersFoundLog.log(classLoader.getClass().getName());
-            }
-        }
-
-        // Log any identified modules
-        if (log != null) {
-            if (!disableModules) {
+            // Log any identified modules
+            if (log != null) {
                 final LogNode sysSubLog = log.log("Found system modules:");
                 if (systemModuleRefs != null && !systemModuleRefs.isEmpty()) {
                     for (final ModuleRef moduleRef : systemModuleRefs) {
@@ -379,11 +295,11 @@ public class ClassLoaderAndModuleFinder {
                 } else {
                     nonSysSubLog.log("[None]");
                 }
-            } else {
+            }
+        } else {
+            if (log != null) {
                 log.log("Module scanning is disabled, because classloaders or classpath was overridden");
             }
         }
-
-        this.contextClassLoaders = classLoadersUnique.toArray(new ClassLoader[0]);
     }
 }

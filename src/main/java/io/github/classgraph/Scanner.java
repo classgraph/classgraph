@@ -54,8 +54,8 @@ import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
-import nonapi.io.github.classgraph.classpath.ClassLoaderAndModuleFinder;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
+import nonapi.io.github.classgraph.classpath.ModuleFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -100,8 +100,8 @@ class Scanner implements Callable<ScanResult> {
     /** The classpath finder. */
     private final ClasspathFinder classpathFinder;
 
-    /** The classloader and module finder. */
-    private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
+    /** The module finder. */
+    private final ModuleFinder moduleFinder;
 
     /** The module order. */
     private final List<ClasspathElementModule> moduleOrder;
@@ -155,7 +155,7 @@ class Scanner implements Callable<ScanResult> {
 
         final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
         this.classpathFinder = new ClasspathFinder(scanSpec, classpathFinderLog);
-        this.classLoaderAndModuleFinder = classpathFinder.getClassLoaderAndModuleFinder();
+        this.moduleFinder = new ModuleFinder(classpathFinder.getCallStack(), scanSpec, classpathFinderLog);
         this.classLoaderOrderRespectingParentDelegation = classpathFinder
                 .getClassLoaderOrderRespectingParentDelegation();
         this.moduleOrder = getModuleOrder(classpathFinderLog);
@@ -176,7 +176,7 @@ class Scanner implements Callable<ScanResult> {
         final List<ClasspathElementModule> moduleOrder = new ArrayList<>();
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {
             // Add modules to start of classpath order, before traditional classpath
-            final List<ModuleRef> systemModuleRefs = classLoaderAndModuleFinder.getSystemModuleRefs();
+            final List<ModuleRef> systemModuleRefs = moduleFinder.getSystemModuleRefs();
             final ClassLoader defaultClassLoader = classLoaderOrderRespectingParentDelegation != null
                     && classLoaderOrderRespectingParentDelegation.length != 0
                             ? classLoaderOrderRespectingParentDelegation[0]
@@ -205,7 +205,7 @@ class Scanner implements Callable<ScanResult> {
                     }
                 }
             }
-            final List<ModuleRef> nonSystemModuleRefs = classLoaderAndModuleFinder.getNonSystemModuleRefs();
+            final List<ModuleRef> nonSystemModuleRefs = moduleFinder.getNonSystemModuleRefs();
             if (nonSystemModuleRefs != null) {
                 for (final ModuleRef nonSystemModuleRef : nonSystemModuleRefs) {
                     String moduleName = nonSystemModuleRef.getName();
