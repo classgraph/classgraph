@@ -43,12 +43,12 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *
-     * @param classLoader
-     *            the {@link ClassLoader}.
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class or one of its superclasses.
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final ClassLoader classLoader) {
-        return "org.eclipse.osgi.internal.framework.ContextFinder".equals(classLoader.getClass().getName());
+    public static boolean canHandle(final Class<?> classLoaderClass) {
+        return "org.eclipse.osgi.internal.framework.ContextFinder".equals(classLoaderClass.getName());
     }
 
     /**

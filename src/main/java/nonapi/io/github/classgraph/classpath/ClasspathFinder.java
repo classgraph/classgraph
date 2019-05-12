@@ -100,7 +100,6 @@ public class ClasspathFinder {
         // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
         final String jreRtJar = SystemJarFinder.getJreRtJarPath();
         final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
-        final LogNode systemJarsLog = classpathFinderLog == null ? null : classpathFinderLog.log("System jars:");
 
         classLoaderAndModuleFinder = new ClassLoaderAndModuleFinder(scanSpec, classpathFinderLog);
 
@@ -130,6 +129,8 @@ public class ClasspathFinder {
 
         } else {
             // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
+            final LogNode systemJarsLog = classpathFinderLog == null ? null
+                    : classpathFinderLog.log("System jars:");
             if (jreRtJar != null) {
                 if (scanSpec.enableSystemJarsAndModules) {
                     classpathOrder.addSystemClasspathEntry(jreRtJar, defaultClassLoader);
@@ -167,6 +168,15 @@ public class ClasspathFinder {
             if (contextClassLoaders != null) {
                 for (final ClassLoader classLoader : contextClassLoaders) {
                     classLoaderOrder.delegateTo(classLoader, /* isParent = */ false);
+                }
+            }
+
+            if (classpathFinderLog != null) {
+                final LogNode classloaderOrderLog = classpathFinderLog.log("ClassLoader delegation order:");
+                for (final Entry<ClassLoader, ClassLoaderHandlerRegistryEntry> cl : classLoaderOrder
+                        .getClassLoaderOrder()) {
+                    classloaderOrderLog.log(cl.getKey().toString())
+                            .log("Handled by " + cl.getValue().classLoaderHandlerClass.getName());
                 }
             }
 

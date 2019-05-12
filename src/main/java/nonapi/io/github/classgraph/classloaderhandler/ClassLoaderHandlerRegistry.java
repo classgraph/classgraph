@@ -141,7 +141,7 @@ public class ClassLoaderHandlerRegistry {
         private ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
             this.classLoaderHandlerClass = classLoaderHandlerClass;
             try {
-                canHandleMethod = classLoaderHandlerClass.getDeclaredMethod("canHandle", ClassLoader.class);
+                canHandleMethod = classLoaderHandlerClass.getDeclaredMethod("canHandle", Class.class);
             } catch (final Exception e) {
                 throw new RuntimeException(
                         "Could not find canHandle method for " + classLoaderHandlerClass.getName(), e);
@@ -169,7 +169,7 @@ public class ClassLoaderHandlerRegistry {
          *            the {@link ClassLoader}.
          * @return true, if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
          */
-        public boolean canHandle(final ClassLoader classLoader) {
+        public boolean canHandle(final Class<?> classLoader) {
             try {
                 return (boolean) canHandleMethod.invoke(null, classLoader);
             } catch (final Throwable e) {

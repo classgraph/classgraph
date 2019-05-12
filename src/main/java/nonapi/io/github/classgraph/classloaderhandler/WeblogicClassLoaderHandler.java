@@ -43,18 +43,18 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *
-     * @param classLoader
-     *            the {@link ClassLoader}.
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class or one of its superclasses.
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final ClassLoader classLoader) {
-        return "weblogic.utils.classloaders.ChangeAwareClassLoader".equals(classLoader.getClass().getName())
-                || "weblogic.utils.classloaders.GenericClassLoader".equals(classLoader.getClass().getName())
-                || "weblogic.utils.classloaders.FilteringClassLoader".equals(classLoader.getClass().getName())
+    public static boolean canHandle(final Class<?> classLoaderClass) {
+        return "weblogic.utils.classloaders.ChangeAwareClassLoader".equals(classLoaderClass.getName())
+                || "weblogic.utils.classloaders.GenericClassLoader".equals(classLoaderClass.getName())
+                || "weblogic.utils.classloaders.FilteringClassLoader".equals(classLoaderClass.getName())
                 // TODO: The following two known classloader names have not been tested, and the fields/methods
                 // may not match those of the above classloaders.
-                || "weblogic.servlet.jsp.JspClassLoader".equals(classLoader.getClass().getName())
-                || "weblogic.servlet.jsp.TagFileClassLoader".equals(classLoader.getClass().getName());
+                || "weblogic.servlet.jsp.JspClassLoader".equals(classLoaderClass.getName())
+                || "weblogic.servlet.jsp.TagFileClassLoader".equals(classLoaderClass.getName());
     }
 
     /**

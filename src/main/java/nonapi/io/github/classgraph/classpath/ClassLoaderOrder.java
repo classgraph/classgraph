@@ -98,11 +98,20 @@ public class ClassLoaderOrder {
     private ClassLoaderHandlerRegistryEntry getRegistryEntry(final ClassLoader classLoader) {
         ClassLoaderHandlerRegistryEntry entry = classLoaderToClassLoaderHandlerRegistryEntry.get(classLoader);
         if (entry == null) {
-            // Find a ClassLoaderHandler that can handle the ClassLoader
-            for (final ClassLoaderHandlerRegistryEntry handler : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-                if (handler.canHandle(classLoader)) {
-                    // This ClassLoaderHandler can handle the ClassLoader
-                    entry = handler;
+            // Try all superclasses of classloader in turn
+            for (Class<?> currClassLoaderClass = classLoader.getClass(); // 
+                    currClassLoaderClass != Object.class && currClassLoaderClass != null; //
+                    currClassLoaderClass = currClassLoaderClass.getSuperclass()) {
+                // Find a ClassLoaderHandler that can handle the ClassLoader
+                for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
+                    if (ent.canHandle(currClassLoaderClass)) {
+                        // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
+                        entry = ent;
+                        break;
+                    }
+                }
+                if (entry != null) {
+                    // Don't iterate to next superclass if a matching ClassLoaderHandler was found
                     break;
                 }
             }

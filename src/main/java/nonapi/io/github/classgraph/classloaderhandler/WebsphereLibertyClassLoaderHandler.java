@@ -62,13 +62,13 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *
-     * @param classLoader
-     *            the {@link ClassLoader}.
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class or one of its superclasses.
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final ClassLoader classLoader) {
-        return IBM_APP_CLASS_LOADER.equals(classLoader.getClass().getName())
-                || IBM_THREAD_CONTEXT_CLASS_LOADER.equals(classLoader.getClass().getName());
+    public static boolean canHandle(final Class<?> classLoaderClass) {
+        return IBM_APP_CLASS_LOADER.equals(classLoaderClass.getName())
+                || IBM_THREAD_CONTEXT_CLASS_LOADER.equals(classLoaderClass.getName());
     }
 
     /**
