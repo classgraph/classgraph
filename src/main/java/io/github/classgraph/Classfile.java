@@ -100,7 +100,7 @@ class Classfile {
     /** The fully qualified name of the defining method. */
     private String fullyQualifiedDefiningMethodName;
 
-    /** Class containment entries. */
+    /** Class containment entries -- tuples of (inner class name, outer class name). */
     private List<SimpleEntry<String, String>> classContainmentEntries;
 
     /** Annotation default parameter values. */
@@ -335,6 +335,14 @@ class Classfile {
                     for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
                         scheduleScanningIfExternalClass(fieldAnnotationInfo.getName(), "field annotation", log);
                     }
+                }
+            }
+        }
+        // Check if this class is an inner class, and if so, extend scanning to outer class
+        if (classContainmentEntries != null) {
+            for (final SimpleEntry<String, String> classContainmentEntry : classContainmentEntries) {
+                if (classContainmentEntry.getKey().equals(className)) {
+                    scheduleScanningIfExternalClass(classContainmentEntry.getValue(), "outer class", log);
                 }
             }
         }
