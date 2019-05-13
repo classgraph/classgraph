@@ -100,9 +100,6 @@ class Scanner implements Callable<ScanResult> {
     /** The classpath finder. */
     private final ClasspathFinder classpathFinder;
 
-    /** The module finder. */
-    private final ModuleFinder moduleFinder;
-
     /** The module order. */
     private final List<ClasspathElementModule> moduleOrder;
 
@@ -155,9 +152,10 @@ class Scanner implements Callable<ScanResult> {
 
         final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
         this.classpathFinder = new ClasspathFinder(scanSpec, classpathFinderLog);
-        this.moduleFinder = new ModuleFinder(classpathFinder.getCallStack(), scanSpec, classpathFinderLog);
         this.classLoaderOrderRespectingParentDelegation = classpathFinder
                 .getClassLoaderOrderRespectingParentDelegation();
+        final ModuleFinder moduleFinder = new ModuleFinder(classpathFinder.getCallStack(), scanSpec,
+                classpathFinderLog);
 
         this.moduleOrder = new ArrayList<>();
         if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null && scanSpec.scanModules) {

@@ -45,6 +45,12 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
  * Extract classpath entries from the Eclipse Equinox ClassLoader.
  */
 class EquinoxClassLoaderHandler implements ClassLoaderHandler {
+    /**
+     * True if system bundles have been read. We assume there is only one system bundle on the classpath, so this is
+     * static.
+     */
+    private static boolean alreadyReadSystemBundles;
+
     /** Field names. */
     private static final List<String> FIELD_NAMES = Collections
             .unmodifiableList(Arrays.asList("cp", "nestedDirName"));
@@ -52,12 +58,6 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     /** Class cannot be constructed. */
     private EquinoxClassLoaderHandler() {
     }
-
-    /**
-     * True if system bundles have been read. We assume there is only one system bundle on the classpath, so this is
-     * static.
-     */
-    private static boolean alreadyReadSystemBundles;
 
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.

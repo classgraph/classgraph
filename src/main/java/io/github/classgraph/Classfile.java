@@ -99,37 +99,6 @@ class Classfile {
     /** The fully qualified name of the defining method. */
     private String fullyQualifiedDefiningMethodName;
 
-    /**
-     * Class containment.
-     */
-    static class ClassContainment {
-        /** The inner class name. */
-        public final String innerClassName;
-
-        /** The inner class modifier bits. */
-        public final int innerClassModifierBits;
-
-        /** The outer class name. */
-        public final String outerClassName;
-
-        /**
-         * Constructor.
-         *
-         * @param innerClassName
-         *            the inner class name.
-         * @param innerClassModifierBits
-         *            the inner class modifier bits.
-         * @param outerClassName
-         *            the outer class name.
-         */
-        public ClassContainment(final String innerClassName, final int innerClassModifierBits,
-                final String outerClassName) {
-            this.innerClassName = innerClassName;
-            this.innerClassModifierBits = innerClassModifierBits;
-            this.outerClassName = outerClassName;
-        }
-    }
-
     /** Class containment entries. */
     private List<ClassContainment> classContainmentEntries;
 
@@ -184,8 +153,41 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Class containment.
+     */
+    static class ClassContainment {
+        /** The inner class name. */
+        public final String innerClassName;
+
+        /** The inner class modifier bits. */
+        public final int innerClassModifierBits;
+
+        /** The outer class name. */
+        public final String outerClassName;
+
+        /**
+         * Constructor.
+         *
+         * @param innerClassName
+         *            the inner class name.
+         * @param innerClassModifierBits
+         *            the inner class modifier bits.
+         * @param outerClassName
+         *            the outer class name.
+         */
+        public ClassContainment(final String innerClassName, final int innerClassModifierBits,
+                final String outerClassName) {
+            this.innerClassName = innerClassName;
+            this.innerClassModifierBits = innerClassModifierBits;
+            this.outerClassName = outerClassName;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Thrown when a classfile's contents are not in the correct format. */
-    class ClassfileFormatException extends IOException {
+    static class ClassfileFormatException extends IOException {
         /** serialVersionUID. */
         static final long serialVersionUID = 1L;
 
@@ -223,7 +225,7 @@ class Classfile {
     }
 
     /** Thrown when a classfile needs to be skipped. */
-    class SkipClassException extends IOException {
+    static class SkipClassException extends IOException {
         /** serialVersionUID. */
         static final long serialVersionUID = 1L;
 

@@ -449,10 +449,7 @@ public final class FileUtils {
         } catch (final SecurityException e) {
             return false;
         }
-        if (!file.isFile()) {
-            return false;
-        }
-        return true;
+        return file.isFile();
     }
 
     /**
@@ -490,10 +487,7 @@ public final class FileUtils {
         } catch (final SecurityException e) {
             return false;
         }
-        if (!file.isDirectory()) {
-            return false;
-        }
-        return true;
+        return file.isDirectory();
     }
 
     /**
