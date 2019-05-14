@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -40,6 +41,12 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /** Name of the package. */
     private String name;
+
+    /**
+     * Unique {@link AnnotationInfo} objects for any annotations on the package-info.class file, if present, else
+     * null.
+     */
+    private Set<AnnotationInfo> annotationInfoSet;
 
     /** {@link AnnotationInfo} for any annotations on the package-info.class file, if present, else null. */
     private AnnotationInfoList annotationInfo;
@@ -89,13 +96,12 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *            the package annotations
      */
     void addAnnotations(final AnnotationInfoList packageAnnotations) {
-        // Currently only class annotations are used in the package-info.class file
+        // Add class annotations from the package-info.class file
         if (packageAnnotations != null && !packageAnnotations.isEmpty()) {
-            if (this.annotationInfo == null) {
-                this.annotationInfo = new AnnotationInfoList(packageAnnotations);
-            } else {
-                this.annotationInfo.addAll(packageAnnotations);
+            if (annotationInfoSet == null) {
+                annotationInfoSet = new LinkedHashSet<>();
             }
+            annotationInfoSet.addAll(packageAnnotations);
         }
     }
 
@@ -133,7 +139,15 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return the annotations on the {@code package-info.class} file.
      */
     public AnnotationInfoList getAnnotationInfo() {
-        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+        if (annotationInfo == null) {
+            if (annotationInfoSet == null) {
+                annotationInfo = AnnotationInfoList.EMPTY_LIST;
+            } else {
+                annotationInfo = new AnnotationInfoList();
+                annotationInfo.addAll(annotationInfoSet);
+            }
+        }
+        return annotationInfo;
     }
 
     /**

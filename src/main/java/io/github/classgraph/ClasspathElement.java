@@ -198,9 +198,11 @@ abstract class ClasspathElement {
         boolean foundMasked = false;
         for (final Resource res : whitelistedClassfileResources) {
             final String pathRelativeToPackageRoot = res.getPath();
-            // Don't mask module-info.class or package-info.class, these are read for every module/package
+            // Don't mask module-info.class or package-info.class, these are read for every module/package,
+            // and they don't result in a ClassInfo object, so there will be no duplicate ClassInfo objects
+            // created, even if they are encountered multiple times. Instead, any annotations on modules or
+            // packages are merged into the appropriate ModuleInfo / PackageInfo object.
             if (!pathRelativeToPackageRoot.equals("module-info.class")
-                    && !pathRelativeToPackageRoot.endsWith("/module-info.class")
                     && !pathRelativeToPackageRoot.equals("package-info.class")
                     && !pathRelativeToPackageRoot.endsWith("/package-info.class")
                     // Check if pathRelativeToPackageRoot has been seen before

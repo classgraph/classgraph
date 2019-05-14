@@ -460,8 +460,8 @@ class Classfile {
         PackageInfo packageInfo = null;
         if (!isModuleDescriptor) {
             // Get package for this class or package descriptor
-            packageInfo = PackageInfo.getOrCreatePackage(PackageInfo.getParentPackageName(className),
-                    packageNameToPackageInfo);
+            final String packageName = PackageInfo.getParentPackageName(className);
+            packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo);
             if (isPackageDescriptor) {
                 // Add any class annotations on the package-info.class file to the ModuleInfo
                 packageInfo.addAnnotations(classAnnotations);
@@ -495,7 +495,6 @@ class Classfile {
                 moduleInfo.addPackageInfo(packageInfo);
             }
         }
-
     }
 
     // -------------------------------------------------------------------------------------------------------------

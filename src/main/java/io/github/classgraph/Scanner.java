@@ -809,7 +809,7 @@ class Scanner implements Callable<ScanResult> {
                     // and double-check that a class is not going to be scanned twice
                     final String className = JarUtils.classfilePathToClassName(resource.getPath());
                     if (!whitelistedClassNamesFound.add(className) && !className.equals("module-info")
-                            && !className.equals("package-info")) {
+                            && !className.equals("package-info") && !className.endsWith(".package-info")) {
                         // The class should not be scheduled more than once for scanning, since classpath
                         // masking was already applied
                         throw new IllegalArgumentException("Class " + className
