@@ -40,6 +40,7 @@ import java.util.Set;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
@@ -271,6 +272,19 @@ class ClasspathElementModule extends ClasspathElement {
                 // they are found, but if they are not able to be skipped, we will have to settle for having
                 // some IOExceptions thrown when directories are mistaken for resource files.
                 if (relativePath.endsWith("/")) {
+                    continue;
+                }
+
+                // Paths in modules should never start with "META-INF/versions/{version}/", because the module
+                // system should already strip these prefixes away. If they are found, then the jarfile must
+                // contain a path like "META-INF/versions/{version}/META-INF/versions/{version}/", which cannot
+                // be valid (META-INF should only ever exist in the module root), and the nested versioned section
+                // should be ignored.
+                if (relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+                    if (subLog != null) {
+                        subLog.log(
+                                "Found unexpected nested versioned entry in module -- skipping: " + relativePath);
+                    }
                     continue;
                 }
 

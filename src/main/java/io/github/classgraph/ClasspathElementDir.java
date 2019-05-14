@@ -46,6 +46,7 @@ import java.util.Set;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -324,6 +325,17 @@ class ClasspathElementDir extends ClasspathElement {
         if (nestedClasspathRootPrefixes != null && nestedClasspathRootPrefixes.contains(dirRelativePath)) {
             if (log != null) {
                 log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
+                        + dirRelativePath);
+            }
+            return;
+        }
+
+        // Ignore versioned sections in exploded jars -- they are only supposed to be used in jars.
+        // TODO: is it necessary to support multi-versioned exploded jars anyway? If so, all the paths in a
+        // directory classpath entry will have to be pre-scanned and masked, as happens in ClasspathElementZip.
+        if (dirRelativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+            if (log != null) {
+                log.log("Found unexpected nested versioned entry in directory classpath element -- skipping: "
                         + dirRelativePath);
             }
             return;

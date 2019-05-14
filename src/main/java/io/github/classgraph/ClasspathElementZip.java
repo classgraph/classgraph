@@ -414,6 +414,18 @@ class ClasspathElementZip extends ClasspathElement {
         for (final FastZipEntry zipEntry : logicalZipFile.entries) {
             String relativePath = zipEntry.entryNameUnversioned;
 
+            // Paths should never start with "META-INF/versions/{version}/", because either this is a versioned
+            // jar, in which case zipEntry.entryNameUnversioned has the version prefix stripped, or this is an
+            // unversioned jar (e.g. the multi-version flag is not set in the manifest file) and there are some
+            // spurious files in a multi-version path (in which case, they should be ignored).
+            if (relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+                if (subLog != null) {
+                    subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
+                            + "the \"Multi-Release\" key) -- skipping: " + relativePath);
+                }
+                continue;
+            }
+
             // Check if the relative path is within a nested classpath root
             if (nestedClasspathRootPrefixes != null) {
                 // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
