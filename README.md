@@ -86,6 +86,39 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
   <a href="https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png"><img src="https://github.com/classgraph/classgraph/blob/master/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
 </p>
 
+## Downloading
+
+### Maven dependency
+
+```xml
+<dependency>
+    <groupId>io.github.classgraph</groupId>
+    <artifactId>classgraph</artifactId>
+    <version>LATEST</version>
+</dependency>
+```
+
+### Pre-built JARs
+
+You can get pre-built JARs (usable on JRE 7 or newer) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~io.github.classgraph).
+
+### Building from source
+
+ClassGraph must be built on JDK 8 or newer (due to the presence of `@FunctionalInterface` annotations on some interfaces), but is built using `-target 1.7` for backwards compatibility with JRE 7.
+
+The following commands will build the most recent version of ClassGraph from git master. The compiled package will then be in the "classgraph/target" directory.
+
+```
+git clone https://github.com/classgraph/classgraph.git
+cd classgraph
+export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
+mvn -Dmaven.test.skip=true package
+```
+
+This will allow you to build a local SNAPSHOT jar in `target/`. Alternatively, use `mvn -Dmaven.test.skip=true install` to build a SNAPSHOT jar and then copy it into your local repository, so that you can use it in your Maven projects. Note that may need to do `mvn dependency:resolve` in your project if you overwrite an older snapshot with a newer one.
+
+`mvn -U` updates from remote repositories an may overwrite your local artifact. But you can always change the `artifactId` or the `groupId` of your local ClassGraph build to place your local build artifact in another location within your local repository.
+
 ## Documentation
 
 [See the wiki for complete documentation and usage information.](https://github.com/classgraph/classgraph/wiki)
