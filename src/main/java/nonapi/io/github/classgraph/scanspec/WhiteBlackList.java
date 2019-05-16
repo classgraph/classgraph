@@ -264,11 +264,16 @@ public abstract class WhiteBlackList {
             final String separator = Character.toString(separatorChar);
             String prefix = str;
             if (prefix.contains("*")) {
-                // Stop performing prefix search at first '*'
-                prefix = prefix.substring(prefix.indexOf('*'));
-                if (!prefix.isEmpty() && !prefix.endsWith(separator)) {
-                    // /path/to/wildcard* -> /path/to
-                    prefix = prefix.substring(prefix.lastIndexOf(separatorChar));
+                // Stop performing prefix search at first '*' -- this means prefix matching will
+                // break if there is more than one '*' in the path
+                prefix = prefix.substring(0, prefix.indexOf('*'));
+                // /path/to/wildcard*.jar -> /path/to
+                // /path/to/*.jar -> /path/to
+                final int sepIdx = prefix.lastIndexOf(separatorChar);
+                if (sepIdx < 0) {
+                    prefix = "";
+                } else {
+                    prefix = prefix.substring(0, prefix.lastIndexOf(separatorChar));
                 }
             }
             // Strip off any final separator
