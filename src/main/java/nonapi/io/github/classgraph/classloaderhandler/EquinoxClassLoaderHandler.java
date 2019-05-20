@@ -29,10 +29,7 @@
 package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.lang.reflect.Array;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
@@ -52,8 +49,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private static boolean alreadyReadSystemBundles;
 
     /** Field names. */
-    private static final List<String> FIELD_NAMES = Collections
-            .unmodifiableList(Arrays.asList("cp", "nestedDirName"));
+    private static final String[] FIELD_NAMES = { "cp", "nestedDirName" };
 
     /** Class cannot be constructed. */
     private EquinoxClassLoaderHandler() {
@@ -106,26 +102,28 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
-            final Object basefile = ReflectionUtils.getFieldVal(bundlefile, "basefile", false);
-            if (basefile != null) {
+            final Object baseFile = ReflectionUtils.getFieldVal(bundlefile, "basefile", false);
+            if (baseFile != null) {
                 boolean foundClassPathElement = false;
                 for (final String fieldName : FIELD_NAMES) {
                     final Object fieldVal = ReflectionUtils.getFieldVal(bundlefile, fieldName, false);
                     foundClassPathElement = fieldVal != null;
                     if (foundClassPathElement) {
                         // We found the base file and a classpath element, e.g. "bin/"
-                        String pathElement = basefile.toString() + "/" + fieldVal.toString();
-
+                        Object base = baseFile;
+                        String sep = "/";
                         if (bundlefile.getClass().getName()
                                 .equals("org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile")) {
+                            // Handle nested ZipBundleFile with "!/" separator
                             final Object baseBundleFile = ReflectionUtils.getFieldVal(bundlefile, "baseBundleFile",
                                     false);
                             if (baseBundleFile != null && baseBundleFile.getClass().getName()
                                     .equals("org.eclipse.osgi.storage.bundlefile.ZipBundleFile")) {
-                                pathElement = baseBundleFile.toString() + "!/" + fieldVal.toString();
+                                base = baseBundleFile;
+                                sep = "!/";
                             }
                         }
-
+                        final String pathElement = base.toString() + sep + fieldVal.toString();
                         classpathOrderOut.addClasspathEntry(pathElement, classLoader, scanSpec, log);
                         break;
                     }
@@ -133,7 +131,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
                 if (!foundClassPathElement) {
                     // No classpath element found, just use basefile
-                    classpathOrderOut.addClasspathEntry(basefile.toString(), classLoader, scanSpec, log);
+                    classpathOrderOut.addClasspathEntry(baseFile.toString(), classLoader, scanSpec, log);
                 }
 
             }
