@@ -28,14 +28,18 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import java.lang.reflect.Array;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
-
-import java.lang.reflect.Array;
-import java.util.*;
 
 /**
  * Extract classpath entries from the Eclipse Equinox ClassLoader.
@@ -112,15 +116,17 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         // We found the base file and a classpath element, e.g. "bin/"
                         String pathElement = basefile.toString() + "/" + fieldVal.toString();
 
-                        if (bundlefile.getClass().getName().equals("org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile")) {
-                            Object baseBundleFile = ReflectionUtils.getFieldVal(bundlefile, "baseBundleFile", false);
-                            if (baseBundleFile != null && baseBundleFile.getClass().getName().equals("org.eclipse.osgi.storage.bundlefile.ZipBundleFile")) {
+                        if (bundlefile.getClass().getName()
+                                .equals("org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile")) {
+                            final Object baseBundleFile = ReflectionUtils.getFieldVal(bundlefile, "baseBundleFile",
+                                    false);
+                            if (baseBundleFile != null && baseBundleFile.getClass().getName()
+                                    .equals("org.eclipse.osgi.storage.bundlefile.ZipBundleFile")) {
                                 pathElement = baseBundleFile.toString() + "!/" + fieldVal.toString();
                             }
                         }
 
-                        classpathOrderOut.addClasspathEntry(pathElement,
-                                classLoader, scanSpec, log);
+                        classpathOrderOut.addClasspathEntry(pathElement, classLoader, scanSpec, log);
                         break;
                     }
                 }
