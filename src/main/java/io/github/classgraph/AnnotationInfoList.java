@@ -205,11 +205,14 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *            the containing class
      * @param forwardRelType
      *            the forward relationship type for linking (or null for none)
-     * @param reverseRelType
-     *            the reverse relationship type for linking (or null for none)
+     * @param reverseRelType0
+     *            the first reverse relationship type for linking (or null for none)
+     * @param reverseRelType1
+     *            the second reverse relationship type for linking (or null for none)
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames,
-            final ClassInfo containingClassInfo, final RelType forwardRelType, final RelType reverseRelType) {
+            final ClassInfo containingClassInfo, final RelType forwardRelType, final RelType reverseRelType0,
+            final RelType reverseRelType1) {
         List<AnnotationInfo> repeatableAnnotations = null;
         for (int i = size() - 1; i >= 0; --i) {
             final AnnotationInfo ai = get(i);
@@ -237,11 +240,19 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                                     add(ai);
 
                                     // Link annotation, if necessary
-                                    if (forwardRelType != null && reverseRelType != null) {
+                                    if (forwardRelType != null
+                                            && (reverseRelType0 != null || reverseRelType1 != null)) {
                                         final ClassInfo annotationClass = ai.getClassInfo();
                                         if (annotationClass != null) {
                                             containingClassInfo.addRelatedClass(forwardRelType, annotationClass);
-                                            annotationClass.addRelatedClass(reverseRelType, containingClassInfo);
+                                            if (reverseRelType0 != null) {
+                                                annotationClass.addRelatedClass(reverseRelType0,
+                                                        containingClassInfo);
+                                            }
+                                            if (reverseRelType1 != null) {
+                                                annotationClass.addRelatedClass(reverseRelType1,
+                                                        containingClassInfo);
+                                            }
                                         }
                                     }
                                 }

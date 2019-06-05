@@ -350,7 +350,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
             annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
-                    RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION);
+                    RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION,
+                    RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION);
         }
     }
 

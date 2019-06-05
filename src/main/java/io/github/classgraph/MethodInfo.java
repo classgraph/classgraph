@@ -570,7 +570,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
             annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
-                    RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION);
+                    RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION,
+                    RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION);
         }
         if (parameterAnnotationInfo != null) {
             for (int i = 0; i < parameterAnnotationInfo.length; i++) {
@@ -588,10 +589,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                         for (final AnnotationInfo ai : pai) {
                             aiList.add(ai);
                         }
-                        // There is currently no RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION, so set
-                        // RelType values to null
-                        aiList.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(), null,
-                                null);
+                        aiList.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
+                                RelType.METHOD_PARAMETER_ANNOTATIONS,
+                                RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
+                                RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
                         parameterAnnotationInfo[i] = aiList.toArray(new AnnotationInfo[0]);
                     }
                 }
