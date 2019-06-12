@@ -36,9 +36,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.function.Consumer;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -174,8 +178,101 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         public ClassInfo set(final int index, final ClassInfo element) {
             throw new IllegalArgumentException("List is immutable");
         }
+
+        // Provide replacement iterators so that there is no chance of a thread that
+        // is trying to sort the empty list causing a ConcurrentModificationException
+        // in another thread that is iterating over the empty list (#334)
+        @Override
+        public Iterator<ClassInfo> iterator() {
+            return new Iterator<ClassInfo>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public ClassInfo next() {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public Spliterator<ClassInfo> spliterator() {
+            return new Spliterator<ClassInfo>() {
+                @Override
+                public boolean tryAdvance(Consumer<? super ClassInfo> action) {
+                    return false;
+                }
+
+                @Override
+                public Spliterator<ClassInfo> trySplit() {
+                    return null;
+                }
+
+                @Override
+                public long estimateSize() {
+                    return 0;
+                }
+
+                @Override
+                public int characteristics() {
+                    return 0;
+                }
+            };
+        }
+
+        @Override
+        public ListIterator<ClassInfo> listIterator() {
+            return new ListIterator<ClassInfo>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public ClassInfo next() {
+                    return null;
+                }
+
+                @Override
+                public boolean hasPrevious() {
+                    return false;
+                }
+
+                @Override
+                public ClassInfo previous() {
+                    return null;
+                }
+
+                @Override
+                public int nextIndex() {
+                    return 0;
+                }
+
+                @Override
+                public int previousIndex() {
+                    return 0;
+                }
+
+                @Override
+                public void remove() {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void set(ClassInfo e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void add(ClassInfo e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+            };
+        }
     };
-    
+
     /**
      * Return an unmodifiable empty {@link ClassInfoList}.
      *

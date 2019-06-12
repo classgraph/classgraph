@@ -38,9 +38,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
+import java.util.Spliterator;
 import java.util.Map.Entry;
+import java.util.function.Consumer;
 
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
@@ -100,8 +104,101 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
         public Resource set(final int index, final Resource element) {
             throw new IllegalArgumentException("List is immutable");
         }
+
+        // Provide replacement iterators so that there is no chance of a thread that
+        // is trying to sort the empty list causing a ConcurrentModificationException
+        // in another thread that is iterating over the empty list (#334)
+        @Override
+        public Iterator<Resource> iterator() {
+            return new Iterator<Resource>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public Resource next() {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public Spliterator<Resource> spliterator() {
+            return new Spliterator<Resource>() {
+                @Override
+                public boolean tryAdvance(Consumer<? super Resource> action) {
+                    return false;
+                }
+
+                @Override
+                public Spliterator<Resource> trySplit() {
+                    return null;
+                }
+
+                @Override
+                public long estimateSize() {
+                    return 0;
+                }
+
+                @Override
+                public int characteristics() {
+                    return 0;
+                }
+            };
+        }
+
+        @Override
+        public ListIterator<Resource> listIterator() {
+            return new ListIterator<Resource>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public Resource next() {
+                    return null;
+                }
+
+                @Override
+                public boolean hasPrevious() {
+                    return false;
+                }
+
+                @Override
+                public Resource previous() {
+                    return null;
+                }
+
+                @Override
+                public int nextIndex() {
+                    return 0;
+                }
+
+                @Override
+                public int previousIndex() {
+                    return 0;
+                }
+
+                @Override
+                public void remove() {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void set(Resource e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void add(Resource e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+            };
+        }
     };
-    
+
     /**
      * Return an unmodifiable empty {@link ResourceList}.
      *

@@ -29,7 +29,11 @@
 package io.github.classgraph;
 
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.ListIterator;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.function.Consumer;
 
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
@@ -111,8 +115,101 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
         public FieldInfo set(final int index, final FieldInfo element) {
             throw new IllegalArgumentException("List is immutable");
         }
+
+        // Provide replacement iterators so that there is no chance of a thread that
+        // is trying to sort the empty list causing a ConcurrentModificationException
+        // in another thread that is iterating over the empty list (#334)
+        @Override
+        public Iterator<FieldInfo> iterator() {
+            return new Iterator<FieldInfo>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public FieldInfo next() {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public Spliterator<FieldInfo> spliterator() {
+            return new Spliterator<FieldInfo>() {
+                @Override
+                public boolean tryAdvance(Consumer<? super FieldInfo> action) {
+                    return false;
+                }
+
+                @Override
+                public Spliterator<FieldInfo> trySplit() {
+                    return null;
+                }
+
+                @Override
+                public long estimateSize() {
+                    return 0;
+                }
+
+                @Override
+                public int characteristics() {
+                    return 0;
+                }
+            };
+        }
+
+        @Override
+        public ListIterator<FieldInfo> listIterator() {
+            return new ListIterator<FieldInfo>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public FieldInfo next() {
+                    return null;
+                }
+
+                @Override
+                public boolean hasPrevious() {
+                    return false;
+                }
+
+                @Override
+                public FieldInfo previous() {
+                    return null;
+                }
+
+                @Override
+                public int nextIndex() {
+                    return 0;
+                }
+
+                @Override
+                public int previousIndex() {
+                    return 0;
+                }
+
+                @Override
+                public void remove() {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void set(FieldInfo e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void add(FieldInfo e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+            };
+        }
     };
-    
+
     /**
      * Return an unmodifiable empty {@link FieldInfoList}.
      *

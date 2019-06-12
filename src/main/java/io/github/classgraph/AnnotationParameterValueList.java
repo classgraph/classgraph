@@ -29,7 +29,11 @@
 package io.github.classgraph;
 
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.ListIterator;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.function.Consumer;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
@@ -111,8 +115,101 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
         public AnnotationParameterValue set(final int index, final AnnotationParameterValue element) {
             throw new IllegalArgumentException("List is immutable");
         }
+
+        // Provide replacement iterators so that there is no chance of a thread that
+        // is trying to sort the empty list causing a ConcurrentModificationException
+        // in another thread that is iterating over the empty list (#334)
+        @Override
+        public Iterator<AnnotationParameterValue> iterator() {
+            return new Iterator<AnnotationParameterValue>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public AnnotationParameterValue next() {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public Spliterator<AnnotationParameterValue> spliterator() {
+            return new Spliterator<AnnotationParameterValue>() {
+                @Override
+                public boolean tryAdvance(Consumer<? super AnnotationParameterValue> action) {
+                    return false;
+                }
+
+                @Override
+                public Spliterator<AnnotationParameterValue> trySplit() {
+                    return null;
+                }
+
+                @Override
+                public long estimateSize() {
+                    return 0;
+                }
+
+                @Override
+                public int characteristics() {
+                    return 0;
+                }
+            };
+        }
+
+        @Override
+        public ListIterator<AnnotationParameterValue> listIterator() {
+            return new ListIterator<AnnotationParameterValue>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+
+                @Override
+                public AnnotationParameterValue next() {
+                    return null;
+                }
+
+                @Override
+                public boolean hasPrevious() {
+                    return false;
+                }
+
+                @Override
+                public AnnotationParameterValue previous() {
+                    return null;
+                }
+
+                @Override
+                public int nextIndex() {
+                    return 0;
+                }
+
+                @Override
+                public int previousIndex() {
+                    return 0;
+                }
+
+                @Override
+                public void remove() {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void set(AnnotationParameterValue e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+
+                @Override
+                public void add(AnnotationParameterValue e) {
+                    throw new IllegalArgumentException("List is immutable");
+                }
+            };
+        }
     };
-    
+
     /**
      * Return an unmodifiable empty {@link AnnotationParameterValueList}.
      *
