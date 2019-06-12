@@ -124,7 +124,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /** An unmodifiable empty {@link ClassInfoList}. */
-    static final ClassInfoList EMPTY_LIST = new ClassInfoList() {
+    public static final ClassInfoList EMPTY_LIST = new ClassInfoList() {
         @Override
         public boolean add(final ClassInfo e) {
             throw new IllegalArgumentException("List is immutable");
