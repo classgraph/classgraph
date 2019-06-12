@@ -49,13 +49,16 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /**
- * A list of {@link ClassInfo} objects, which stores both reachable classes (obtained through a given class
- * relationship, either by direct relationship or through an indirect path), and directly related classes (classes
- * reachable through a direct relationship only).
+ * A <i>uniquified</i> (deduplicated) list of {@link ClassInfo} objects, which stores both reachable classes
+ * (obtained through a given class relationship, either by direct relationship or through an indirect path), and
+ * directly related classes (classes reachable through a direct relationship only). (By default, accessing a
+ * {@link ClassInfoList} as a {@link List} returns only reachable classes; by calling {@link #directOnly()}, you can
+ * get the directly related classes.)
  * 
  * <p>
- * By default, this list returns reachable classes. By calling {@link #directOnly()}, you can get the directly
- * related classes.
+ * Most {@link ClassInfoList} objects returned by ClassGraph are sorted into lexicographical order by the value of
+ * {@link ClassInfo#getName()}. One exception to this is the classes returned by
+ * {@link ClassInfo#getSuperclasses()}, which are in ascending order of the class hierarchy.
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
