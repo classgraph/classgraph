@@ -101,6 +101,15 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
             throw new IllegalArgumentException("List is immutable");
         }
     };
+    
+    /**
+     * Return an unmodifiable empty {@link ResourceList}.
+     *
+     * @return the unmodifiable empty {@link ResourceList}.
+     */
+    public static ResourceList emptyList() {
+        return EMPTY_LIST;
+    }
 
     /**
      * Constructor.

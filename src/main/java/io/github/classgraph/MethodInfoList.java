@@ -112,6 +112,15 @@ public class MethodInfoList extends InfoList<MethodInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
+    
+    /**
+     * Return an unmodifiable empty {@link MethodInfoList}.
+     *
+     * @return the unmodifiable empty {@link MethodInfoList}.
+     */
+    public static MethodInfoList emptyList() {
+        return EMPTY_LIST;
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

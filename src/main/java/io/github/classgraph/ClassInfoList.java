@@ -175,6 +175,15 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
+    
+    /**
+     * Return an unmodifiable empty {@link ClassInfoList}.
+     *
+     * @return the unmodifiable empty {@link ClassInfoList}.
+     */
+    public static ClassInfoList emptyList() {
+        return EMPTY_LIST;
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

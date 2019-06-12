@@ -112,6 +112,15 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
+    
+    /**
+     * Return an unmodifiable empty {@link FieldInfoList}.
+     *
+     * @return the unmodifiable empty {@link FieldInfoList}.
+     */
+    public static FieldInfoList emptyList() {
+        return EMPTY_LIST;
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

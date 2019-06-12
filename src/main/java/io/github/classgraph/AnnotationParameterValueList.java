@@ -112,6 +112,15 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
             throw new IllegalArgumentException("List is immutable");
         }
     };
+    
+    /**
+     * Return an unmodifiable empty {@link AnnotationParameterValueList}.
+     *
+     * @return the unmodifiable empty {@link AnnotationParameterValueList}.
+     */
+    public static AnnotationParameterValueList emptyList() {
+        return EMPTY_LIST;
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

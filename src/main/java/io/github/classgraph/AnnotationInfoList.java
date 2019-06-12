@@ -141,6 +141,15 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             throw new IllegalArgumentException("List is immutable");
         }
     };
+    
+    /**
+     * Return an unmodifiable empty {@link AnnotationInfoList}.
+     *
+     * @return the unmodifiable empty {@link AnnotationInfoList}.
+     */
+    public static AnnotationInfoList emptyList() {
+        return EMPTY_LIST;
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
