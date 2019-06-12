@@ -39,30 +39,6 @@ import java.util.function.Consumer;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
-    /** Construct a list of {@link MethodInfo} objects. */
-    MethodInfoList() {
-        super();
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param sizeHint
-     *            the size hint
-     */
-    MethodInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param methodInfoCollection
-     *            the method info collection
-     */
-    MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
-        super(methodInfoCollection);
-    }
 
     /** An unmodifiable empty {@link MethodInfoList}. */
     static final MethodInfoList EMPTY_LIST = new MethodInfoList() {
@@ -138,7 +114,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
         public Spliterator<MethodInfo> spliterator() {
             return new Spliterator<MethodInfo>() {
                 @Override
-                public boolean tryAdvance(Consumer<? super MethodInfo> action) {
+                public boolean tryAdvance(final Consumer<? super MethodInfo> action) {
                     return false;
                 }
 
@@ -198,12 +174,12 @@ public class MethodInfoList extends InfoList<MethodInfo> {
                 }
 
                 @Override
-                public void set(MethodInfo e) {
+                public void set(final MethodInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
 
                 @Override
-                public void add(MethodInfo e) {
+                public void add(final MethodInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
             };
@@ -217,6 +193,32 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      */
     public static MethodInfoList emptyList() {
         return EMPTY_LIST;
+    }
+
+    /** Construct a new modifiable empty list of {@link MethodInfo} objects. */
+    public MethodInfoList() {
+        super();
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link MethodInfo} objects, given a size hint.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
+    public MethodInfoList(final int sizeHint) {
+        super(sizeHint);
+    }
+
+    /**
+     * Construct a new modifiable empty {@link MethodInfoList}, given an initial collection of {@link MethodInfo}
+     * objects.
+     *
+     * @param methodInfoCollection
+     *            the collection of {@link MethodInfo} objects.
+     */
+    public MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
+        super(methodInfoCollection);
     }
 
     // -------------------------------------------------------------------------------------------------------------

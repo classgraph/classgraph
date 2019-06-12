@@ -37,32 +37,6 @@ import java.util.function.Consumer;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
-    /**
-     * Constructor.
-     */
-    AnnotationParameterValueList() {
-        super();
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param sizeHint
-     *            the size hint
-     */
-    AnnotationParameterValueList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param annotationParameterValueCollection
-     *            the annotation parameter value collection
-     */
-    AnnotationParameterValueList(final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
-        super(annotationParameterValueCollection);
-    }
 
     /** An unmodifiable empty {@link AnnotationParameterValueList}. */
     static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList() {
@@ -138,7 +112,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
         public Spliterator<AnnotationParameterValue> spliterator() {
             return new Spliterator<AnnotationParameterValue>() {
                 @Override
-                public boolean tryAdvance(Consumer<? super AnnotationParameterValue> action) {
+                public boolean tryAdvance(final Consumer<? super AnnotationParameterValue> action) {
                     return false;
                 }
 
@@ -198,12 +172,12 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
                 }
 
                 @Override
-                public void set(AnnotationParameterValue e) {
+                public void set(final AnnotationParameterValue e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
 
                 @Override
-                public void add(AnnotationParameterValue e) {
+                public void add(final AnnotationParameterValue e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
             };
@@ -217,6 +191,35 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      */
     public static AnnotationParameterValueList emptyList() {
         return EMPTY_LIST;
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link AnnotationParameterValue} objects.
+     */
+    public AnnotationParameterValueList() {
+        super();
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link AnnotationParameterValue} objects, given a size hint.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
+    public AnnotationParameterValueList(final int sizeHint) {
+        super(sizeHint);
+    }
+
+    /**
+     * Construct a new modifiable empty {@link AnnotationParameterValueList}, given an initial list of
+     * {@link AnnotationParameterValue} objects.
+     *
+     * @param annotationParameterValueCollection
+     *            the collection of {@link AnnotationParameterValue} objects.
+     */
+    public AnnotationParameterValueList(
+            final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
+        super(annotationParameterValueCollection);
     }
 
     // -------------------------------------------------------------------------------------------------------------

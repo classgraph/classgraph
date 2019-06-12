@@ -51,48 +51,6 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     private AnnotationInfoList directlyRelatedAnnotations;
 
-    /**
-     * Constructor.
-     */
-    AnnotationInfoList() {
-        super();
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param sizeHint
-     *            the size hint
-     */
-    AnnotationInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param reachableAnnotations
-     *            the reachable annotations
-     */
-    AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
-        // If only reachable annotations are given, treat all of them as direct
-        this(reachableAnnotations, reachableAnnotations);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param reachableAnnotations
-     *            the reachable annotations
-     * @param directlyRelatedAnnotations
-     *            the directly related annotations
-     */
-    AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
-            final AnnotationInfoList directlyRelatedAnnotations) {
-        super(reachableAnnotations);
-        this.directlyRelatedAnnotations = directlyRelatedAnnotations;
-    }
-
     /** An unmodifiable empty {@link AnnotationInfoList}. */
     static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList() {
         @Override
@@ -167,7 +125,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         public Spliterator<AnnotationInfo> spliterator() {
             return new Spliterator<AnnotationInfo>() {
                 @Override
-                public boolean tryAdvance(Consumer<? super AnnotationInfo> action) {
+                public boolean tryAdvance(final Consumer<? super AnnotationInfo> action) {
                     return false;
                 }
 
@@ -227,12 +185,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 }
 
                 @Override
-                public void set(AnnotationInfo e) {
+                public void set(final AnnotationInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
 
                 @Override
-                public void add(AnnotationInfo e) {
+                public void add(final AnnotationInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
             };
@@ -246,6 +204,49 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     public static AnnotationInfoList emptyList() {
         return EMPTY_LIST;
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link AnnotationInfo} objects.
+     */
+    public AnnotationInfoList() {
+        super();
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link AnnotationInfo} objects, given a size hint.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
+    public AnnotationInfoList(final int sizeHint) {
+        super(sizeHint);
+    }
+
+    /**
+     * Construct a new modifiable empty {@link AnnotationInfoList}, given an initial list of {@link AnnotationInfo}
+     * objects.
+     *
+     * @param reachableAnnotations
+     *            the reachable annotations
+     */
+    public AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
+        // If only reachable annotations are given, treat all of them as direct
+        this(reachableAnnotations, reachableAnnotations);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param reachableAnnotations
+     *            the reachable annotations
+     * @param directlyRelatedAnnotations
+     *            the directly related annotations
+     */
+    AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
+            final AnnotationInfoList directlyRelatedAnnotations) {
+        super(reachableAnnotations);
+        this.directlyRelatedAnnotations = directlyRelatedAnnotations;
     }
 
     // -------------------------------------------------------------------------------------------------------------

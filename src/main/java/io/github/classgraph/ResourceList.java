@@ -42,8 +42,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.Spliterator;
 import java.util.Map.Entry;
+import java.util.Spliterator;
 import java.util.function.Consumer;
 
 import nonapi.io.github.classgraph.utils.CollectionUtils;
@@ -127,7 +127,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
         public Spliterator<Resource> spliterator() {
             return new Spliterator<Resource>() {
                 @Override
-                public boolean tryAdvance(Consumer<? super Resource> action) {
+                public boolean tryAdvance(final Consumer<? super Resource> action) {
                     return false;
                 }
 
@@ -187,12 +187,12 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
                 }
 
                 @Override
-                public void set(Resource e) {
+                public void set(final Resource e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
 
                 @Override
-                public void add(Resource e) {
+                public void add(final Resource e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
             };
@@ -209,30 +209,30 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
-     * Constructor.
+     * Create a new modifiable empty list of {@link Resource} objects.
      */
-    ResourceList() {
+    public ResourceList() {
         super();
     }
 
     /**
-     * Constructor.
+     * Create a new modifiable empty list of {@link Resource} objects, given a size hint.
      *
      * @param sizeHint
      *            the size hint
      */
-    ResourceList(final int sizeHint) {
+    public ResourceList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Constructor.
+     * Create a new modifiable empty {@link ResourceList}, given an initial collection of {@link Resource} objects.
      *
-     * @param collection
-     *            the collection
+     * @param resourceCollection
+     *            the collection of {@link Resource} objects.
      */
-    ResourceList(final Collection<Resource> collection) {
-        super(collection);
+    public ResourceList(final Collection<Resource> resourceCollection) {
+        super(resourceCollection);
     }
 
     // -------------------------------------------------------------------------------------------------------------

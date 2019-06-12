@@ -37,32 +37,6 @@ import java.util.function.Consumer;
 
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
-    /**
-     * Constructor.
-     */
-    FieldInfoList() {
-        super();
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param sizeHint
-     *            the size hint
-     */
-    FieldInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param fieldInfoCollection
-     *            the field info collection
-     */
-    FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
-        super(fieldInfoCollection);
-    }
 
     /** An unmodifiable empty {@link FieldInfoList}. */
     static final FieldInfoList EMPTY_LIST = new FieldInfoList() {
@@ -138,7 +112,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
         public Spliterator<FieldInfo> spliterator() {
             return new Spliterator<FieldInfo>() {
                 @Override
-                public boolean tryAdvance(Consumer<? super FieldInfo> action) {
+                public boolean tryAdvance(final Consumer<? super FieldInfo> action) {
                     return false;
                 }
 
@@ -198,12 +172,12 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
                 }
 
                 @Override
-                public void set(FieldInfo e) {
+                public void set(final FieldInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
 
                 @Override
-                public void add(FieldInfo e) {
+                public void add(final FieldInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
             };
@@ -217,6 +191,33 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      */
     public static FieldInfoList emptyList() {
         return EMPTY_LIST;
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link FieldInfo} objects.
+     */
+    public FieldInfoList() {
+        super();
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link FieldInfo} objects, given a size hint.
+     *
+     * @param sizeHint
+     *            the size hint
+     */
+    public FieldInfoList(final int sizeHint) {
+        super(sizeHint);
+    }
+
+    /**
+     * Construct a new modifiable empty {@link FieldInfoList}, given an initial list of {@link FieldInfo} objects.
+     *
+     * @param fieldInfoCollection
+     *            the collection of {@link FieldInfo} objects.
+     */
+    public FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
+        super(fieldInfoCollection);
     }
 
     // -------------------------------------------------------------------------------------------------------------

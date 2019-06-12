@@ -68,65 +68,6 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Whether to sort by name. */
     private final boolean sortByName;
 
-    /**
-     * Construct a list of {@link ClassInfo} objects, consisting of reachable classes (obtained through the
-     * transitive closure) and directly related classes (one step away in the graph).
-     *
-     * @param reachableClasses
-     *            reachable classes
-     * @param directlyRelatedClasses
-     *            directly related classes
-     * @param sortByName
-     *            whether to sort by name
-     */
-    ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses,
-            final boolean sortByName) {
-        super(reachableClasses);
-        this.sortByName = sortByName;
-        if (sortByName) {
-            // It's a bit dicey calling CollectionUtils.sortIfNotEmpty(this) from within a constructor, but the super-constructor
-            // has been called, so it should be fine :-)
-            CollectionUtils.sortIfNotEmpty(this);
-        }
-        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
-        this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
-    }
-
-    /**
-     * Construct a list of {@link ClassInfo} objects.
-     *
-     * @param reachableAndDirectlyRelatedClasses
-     *            reachable and directly related classes
-     * @param sortByName
-     *            whether to sort by name
-     */
-    ClassInfoList(final ReachableAndDirectlyRelatedClasses reachableAndDirectlyRelatedClasses,
-            final boolean sortByName) {
-        this(reachableAndDirectlyRelatedClasses.reachableClasses,
-                reachableAndDirectlyRelatedClasses.directlyRelatedClasses, sortByName);
-    }
-
-    /**
-     * Construct a list of {@link ClassInfo} objects, where each class is directly related.
-     *
-     * @param reachableClasses
-     *            reachable classes
-     * @param sortByName
-     *            whether to sort by name
-     */
-    ClassInfoList(final Set<ClassInfo> reachableClasses, final boolean sortByName) {
-        this(reachableClasses, null, sortByName);
-    }
-
-    /**
-     * Constructor.
-     */
-    private ClassInfoList() {
-        super(1);
-        this.sortByName = false;
-        directlyRelatedClasses = Collections.emptySet();
-    }
-
     /** An unmodifiable empty {@link ClassInfoList}. */
     static final ClassInfoList EMPTY_LIST = new ClassInfoList() {
         @Override
@@ -201,7 +142,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         public Spliterator<ClassInfo> spliterator() {
             return new Spliterator<ClassInfo>() {
                 @Override
-                public boolean tryAdvance(Consumer<? super ClassInfo> action) {
+                public boolean tryAdvance(final Consumer<? super ClassInfo> action) {
                     return false;
                 }
 
@@ -261,12 +202,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                 }
 
                 @Override
-                public void set(ClassInfo e) {
+                public void set(final ClassInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
 
                 @Override
-                public void add(ClassInfo e) {
+                public void add(final ClassInfo e) {
                     throw new IllegalArgumentException("List is immutable");
                 }
             };
@@ -280,6 +221,95 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     public static ClassInfoList emptyList() {
         return EMPTY_LIST;
+    }
+
+    /**
+     * Construct a modifiable list of {@link ClassInfo} objects, consisting of reachable classes (obtained through
+     * the transitive closure) and directly related classes (one step away in the graph).
+     *
+     * @param reachableClasses
+     *            reachable classes
+     * @param directlyRelatedClasses
+     *            directly related classes
+     * @param sortByName
+     *            whether to sort by name
+     */
+    ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses,
+            final boolean sortByName) {
+        super(reachableClasses);
+        this.sortByName = sortByName;
+        if (sortByName) {
+            // It's a bit dicey calling CollectionUtils.sortIfNotEmpty(this) from within a constructor,
+            // but the super-constructor has been called, so it should be fine :-)
+            CollectionUtils.sortIfNotEmpty(this);
+        }
+        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
+        this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
+    }
+
+    /**
+     * Construct a modifiable list of {@link ClassInfo} objects.
+     *
+     * @param reachableAndDirectlyRelatedClasses
+     *            reachable and directly related classes
+     * @param sortByName
+     *            whether to sort by name
+     */
+    ClassInfoList(final ReachableAndDirectlyRelatedClasses reachableAndDirectlyRelatedClasses,
+            final boolean sortByName) {
+        this(reachableAndDirectlyRelatedClasses.reachableClasses,
+                reachableAndDirectlyRelatedClasses.directlyRelatedClasses, sortByName);
+    }
+
+    /**
+     * Construct a modifiable list of {@link ClassInfo} objects, where each class is directly related.
+     *
+     * @param reachableClasses
+     *            reachable classes
+     * @param sortByName
+     *            whether to sort by name
+     */
+    ClassInfoList(final Set<ClassInfo> reachableClasses, final boolean sortByName) {
+        this(reachableClasses, /* directlyRelatedClasses = */ null, sortByName);
+    }
+
+    /**
+     * Construct a new empty modifiable list of {@link ClassInfo} objects.
+     */
+    public ClassInfoList() {
+        super(1);
+        this.sortByName = false;
+        directlyRelatedClasses = new HashSet<>(2);
+    }
+
+    /**
+     * Construct a new empty modifiable list of {@link ClassInfo} objects, given a size hint.
+     *
+     * @param sizeHint
+     *            the size hint.
+     */
+    public ClassInfoList(final int sizeHint) {
+        super(sizeHint);
+        this.sortByName = false;
+        directlyRelatedClasses = new HashSet<>(2);
+    }
+
+    /**
+     * Construct a new modifiable empty {@link ClassInfoList}, given an initial list of {@link ClassInfo} objects.
+     * 
+     * <p>
+     * If the passed {@link Collection} is not a {@link Set}, then the {@link ClassInfo} objects will be uniquified
+     * (by adding them to a set) before they are added to the returned list. {@link ClassInfo} objects in the
+     * returned list will be sorted by name.
+     *
+     * @param classInfoCollection
+     *            the initial collection of {@link ClassInfo} objects to add to the {@link ClassInfoList}.
+     */
+    public ClassInfoList(final Collection<ClassInfo> classInfoCollection) {
+        this(classInfoCollection instanceof Set //
+                ? (Set<ClassInfo>) classInfoCollection
+                : new HashSet<ClassInfo>(classInfoCollection), //
+                /* directlyRelatedClasses = */ null, /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
