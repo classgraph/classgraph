@@ -86,7 +86,7 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // Try null classloader (ClassGraph's classloader)
+        // Try null classloader (the classloader that loaded this class, as the caller of Class.forName())
         try {
             return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, null);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
