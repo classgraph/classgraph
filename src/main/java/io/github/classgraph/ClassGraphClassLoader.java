@@ -60,6 +60,7 @@ class ClassGraphClassLoader extends ClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
+        // Use cached class, if it is already loaded
         final Class<?> loadedClass = findLoadedClass(className);
         if (loadedClass != null) {
             return loadedClass;
@@ -83,6 +84,13 @@ class ClassGraphClassLoader extends ClassLoader {
                     triedClassInfoLoader = true;
                 }
             }
+        }
+
+        // Try null classloader (ClassGraph's classloader)
+        try {
+            return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, null);
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+            // Ignore
         }
 
         // Try specific classloader for the classpath element that the classfile was obtained from
