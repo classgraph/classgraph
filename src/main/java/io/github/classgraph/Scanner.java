@@ -133,7 +133,8 @@ class Scanner implements Callable<ScanResult> {
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
         if (topLevelLog != null) {
-            if (scanSpec.pathWhiteBlackList != null && scanSpec.pathWhiteBlackList.isSpecificallyWhitelisted("")) {
+            if (scanSpec.pathWhiteBlackList != null
+                    && scanSpec.packagePrefixWhiteBlackList.isSpecificallyWhitelisted("")) {
                 topLevelLog.log("Note: There is no need to whitelist the root package (\"\") -- not whitelisting "
                         + "anything will have the same effect of causing all packages to be scanned");
             }
