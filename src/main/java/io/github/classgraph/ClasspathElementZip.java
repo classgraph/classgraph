@@ -56,6 +56,7 @@ import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
@@ -420,8 +421,14 @@ class ClasspathElementZip extends ClasspathElement {
             // spurious files in a multi-version path (in which case, they should be ignored).
             if (relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                 if (subLog != null) {
-                    subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
-                            + "the \"Multi-Release\" key) -- skipping: " + relativePath);
+                    if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                        subLog.log("Skipping versioned entry in jar, because JRE version "
+                                + VersionFinder.JAVA_MAJOR_VERSION + " does not support this: " + relativePath);
+                    } else {
+                        subLog.log(
+                                "Found unexpected versioned entry in jar (the jar's manifest file may be missing "
+                                        + "the \"Multi-Release\" key) -- skipping: " + relativePath);
+                    }
                 }
                 continue;
             }
