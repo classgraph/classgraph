@@ -316,16 +316,22 @@ class ClasspathElementModule extends ClasspathElement {
                 }
 
                 // Found non-blacklisted relative path
-                if (allResourcePaths.add(relativePath)
-                        // If resource is whitelisted
-                        && (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                                || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                                || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                        && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
-                                || (scanSpec.enableClassInfo && relativePath.equals("module-info.class")))) {
-                    // Add whitelisted resource
-                    final Resource resource = newResource(relativePath);
-                    addWhitelistedResource(resource, parentMatchStatus, subLog);
+                if (allResourcePaths.add(relativePath)) {
+                    // If resource is whitelisted
+                    if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                            || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                            || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                    && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
+                        // Add whitelisted resource
+                        addWhitelistedResource(newResource(relativePath), parentMatchStatus,
+                                /* isClassfileOnly = */ false, subLog);
+                    } else if (scanSpec.enableClassInfo && relativePath.equals("module-info.class")) {
+                        // Add module descriptor as a whitelisted classfile resource, so that it is scanned,
+                        // but don't add it to the list of resources in the ScanResult, since it is not
+                        // in a whitelisted package (#352)
+                        addWhitelistedResource(newResource(relativePath), parentMatchStatus,
+                                /* isClassfileOnly = */ true, subLog);
+                    }
                 }
             }
 

@@ -504,15 +504,20 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Add the ZipEntry path as a Resource
             final Resource resource = newResource(zipEntry, relativePath);
-            if (relativePathToResource.putIfAbsent(relativePath, resource) == null
-                    // If resource is whitelisted
-                    && (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                            || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                            || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                    && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))
-                            || (scanSpec.enableClassInfo && relativePath.equals("module-info.class")))) {
-                // Resource is whitelisted
-                addWhitelistedResource(resource, parentMatchStatus, subLog);
+            if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
+                // If resource is whitelisted
+                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
+                    // Resource is whitelisted
+                    addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
+                } else if (scanSpec.enableClassInfo && relativePath.equals("module-info.class")) {
+                    // Add module descriptor as a whitelisted classfile resource, so that it is scanned,
+                    // but don't add it to the list of resources in the ScanResult, since it is not
+                    // in a whitelisted package (#352)
+                    addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
+                }
             }
         }
 

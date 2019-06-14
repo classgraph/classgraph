@@ -235,11 +235,14 @@ abstract class ClasspathElement {
      *            the resource
      * @param parentMatchStatus
      *            the parent match status
+     * @param isClassfileOnly
+     *            if true, only add the resource to the list of classfile resources, not to the list of
+     *            non-classfile resources
      * @param log
      *            the log
      */
     protected void addWhitelistedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
-            final LogNode log) {
+            final boolean isClassfileOnly, final LogNode log) {
         final String path = resource.getPath();
         final boolean isClassFile = FileUtils.isClassfile(path);
         boolean isWhitelisted = false;
@@ -255,8 +258,10 @@ abstract class ClasspathElement {
             isWhitelisted = true;
         }
 
-        // Add resource to whitelistedResources, whether for a classfile or non-classfile resource
-        whitelistedResources.add(resource);
+        if (!isClassfileOnly) {
+            // Add resource to whitelistedResources, whether for a classfile or non-classfile resource
+            whitelistedResources.add(resource);
+        }
 
         // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not
         // a blacklisted classfile

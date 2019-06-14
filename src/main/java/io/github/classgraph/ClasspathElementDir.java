@@ -396,7 +396,7 @@ class ClasspathElementDir extends ClasspathElement {
                                     && scanSpec.classfileIsSpecificallyWhitelisted(fileInDirRelativePath))) {
                         // Resource is whitelisted
                         final Resource resource = newResource(fileInDirRelativePath, fileInDir);
-                        addWhitelistedResource(resource, parentMatchStatus, subLog);
+                        addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
 
                         // Save last modified time  
                         fileToLastModified.put(fileInDir, fileInDir.lastModified());
@@ -412,7 +412,7 @@ class ClasspathElementDir extends ClasspathElement {
             for (final File fileInDir : filesInDir) {
                 if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
                     final Resource resource = newResource("module-info.class", fileInDir);
-                    addWhitelistedResource(resource, parentMatchStatus, subLog);
+                    addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
                 }
             }
