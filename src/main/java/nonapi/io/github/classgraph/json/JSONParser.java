@@ -248,7 +248,7 @@ final class JSONParser extends Parser {
                 throw new ParseException(this, "Expected digits after decimal point");
             }
         }
-        final boolean hasExponentPart = peek() == '.';
+        final boolean hasExponentPart = peek() == 'e' || peek() == 'E';
         if (hasExponentPart) {
             next();
             final char sign = peek();

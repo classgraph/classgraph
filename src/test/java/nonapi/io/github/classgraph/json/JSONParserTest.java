@@ -1,19 +1,20 @@
 package nonapi.io.github.classgraph.json;
 
-import nonapi.io.github.classgraph.types.ParseException;
 import org.junit.Test;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
+import nonapi.io.github.classgraph.types.ParseException;
 
-import static org.junit.Assert.*;
-
+/**
+ * Unit test.
+ */
 public class JSONParserTest {
+    /** Test double value. */
     @Test
     public void test1() throws ParseException {
         JSONParser.parseJSON("{\"doubleValue\":-2.147483648}");
     }
 
+    /** Test double value with exponent. */
     @Test
     public void test2() throws ParseException {
         JSONParser.parseJSON("{\"doubleValue\":-2.147483648E9}");
