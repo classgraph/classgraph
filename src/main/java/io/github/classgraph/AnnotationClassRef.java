@@ -77,14 +77,14 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Get the type signature.
      *
-     * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature} or
-     *         a {@link BaseTypeSignature}.
+     * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature}, a
+     *         {@link BaseTypeSignature}, or an {@link ArrayTypeSignature}.
      */
     private TypeSignature getTypeSignature() {
         if (typeSignature == null) {
             try {
-                // There can't be any type variables to resolve in either ClassRefTypeSignature or
-                // BaseTypeSignature, so just set definingClassName to null
+                // There can't be any type variables to resolve in ClassRefTypeSignature,
+                // BaseTypeSignature or ArrayTypeSignature, so just set definingClassName to null
                 typeSignature = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
                 typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
@@ -110,6 +110,8 @@ public class AnnotationClassRef extends ScanResultObject {
             return ((BaseTypeSignature) typeSignature).getType();
         } else if (typeSignature instanceof ClassRefTypeSignature) {
             return ((ClassRefTypeSignature) typeSignature).loadClass(ignoreExceptions);
+        } else if (typeSignature instanceof ArrayTypeSignature) {
+            return ((ArrayTypeSignature) typeSignature).loadClass(ignoreExceptions);
         } else {
             throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
                     + " for ref type signature: " + typeDescriptorStr);
@@ -138,9 +140,11 @@ public class AnnotationClassRef extends ScanResultObject {
         if (className == null) {
             getTypeSignature();
             if (typeSignature instanceof BaseTypeSignature) {
-                className = ((BaseTypeSignature) typeSignature).getType().getName();
+                className = ((BaseTypeSignature) typeSignature).getTypeStr();
             } else if (typeSignature instanceof ClassRefTypeSignature) {
                 className = ((ClassRefTypeSignature) typeSignature).getFullyQualifiedClassName();
+            } else if (typeSignature instanceof ArrayTypeSignature) {
+                className = ((ArrayTypeSignature) typeSignature).getClassName();
             } else {
                 throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
                         + " for ref type signature: " + typeDescriptorStr);
