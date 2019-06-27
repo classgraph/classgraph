@@ -109,7 +109,7 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The classpath scanner.
+     * The classpath scanner. Scanning is started by calling {@link #call()} on this object.
      *
      * @param scanSpec
      *            the scan spec
@@ -998,8 +998,8 @@ class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         ScanResult scanResult = null;
-        Exception exception = null;
         final long scanStart = System.currentTimeMillis();
+        boolean removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;
         try {
             // Perform the scan
             scanResult = openClasspathElementsThenScan();
@@ -1020,78 +1020,54 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
 
-        } catch (final InterruptedException e) {
+        } catch (final InterruptedException | ExecutionException | RuntimeException e) {
             if (topLevelLog != null) {
-                topLevelLog.log("~", "Scan interrupted");
-            }
-            exception = e;
-            interruptionChecker.interrupt();
-            if (failureHandler == null) {
-                // Re-throw
-                throw e;
-            }
-        } catch (final CancellationException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("~", "Scan cancelled");
-            }
-            exception = e;
-            if (failureHandler == null) {
-                // Re-throw
-                throw e;
-            }
-        } catch (final ExecutionException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("~", "Uncaught exception during scan", InterruptionChecker.getCause(e));
-            }
-            exception = e;
-            if (failureHandler == null) {
-                // Re-throw
-                throw e;
-            }
-        } catch (final RuntimeException e) {
-            if (topLevelLog != null) {
-                topLevelLog.log("~", "Uncaught exception during scan", e);
-            }
-            exception = e;
-            if (failureHandler == null) {
-                // Wrap unchecked exceptions in a new ExecutionException
-                throw new ExecutionException("Exception while scanning", e);
-            }
-
-        } finally {
-            if (exception != null || scanSpec.removeTemporaryFilesAfterScan) {
-                // If an exception was thrown or removeTemporaryFilesAfterScan was set, remove temporary files
-                // and close resources, zipfiles, and modules
-                nestedJarHandler.close(topLevelLog);
-            }
-        }
-
-        if (exception != null) {
-            // If an exception was thrown, log the cause, and flush the toplevel log
-            if (topLevelLog != null) {
-                final Throwable cause = InterruptionChecker.getCause(exception);
-                topLevelLog.log("~", "An uncaught exception was thrown:", cause);
+                topLevelLog.log("~",
+                        e instanceof InterruptedException || e instanceof CancellationException
+                                ? "Scan interrupted or canceled"
+                                : e instanceof ExecutionException || e instanceof RuntimeException
+                                        ? "Uncaught exception during scan"
+                                        : e.getMessage(),
+                        InterruptionChecker.getCause(e));
+                // Flush the log
                 topLevelLog.flush();
             }
 
-            // If exception is null, then failureHandler must be non-null at this point
-            try {
-                // Call the FailureHandler
-                failureHandler.onFailure(exception);
-            } catch (final Exception f) {
-                // The failure handler failed
-                if (topLevelLog != null) {
-                    topLevelLog.log("~", "The failure handler threw an exception:", f);
+            // Since an exception was thrown, remove temporary files
+            removeTemporaryFilesAfterScan = true;
+
+            // Stop any running threads (should not be needed, threads should already be quiescent)
+            interruptionChecker.interrupt();
+
+            if (failureHandler == null) {
+                // If there is no failure handler set, re-throw the exception
+                throw e;
+            } else {
+                // Otherwise, call the failure handler
+                try {
+                    failureHandler.onFailure(e);
+                } catch (final Exception f) {
+                    // The failure handler failed
+                    if (topLevelLog != null) {
+                        topLevelLog.log("~", "The failure handler threw an exception:", f);
+                        topLevelLog.flush();
+                    }
+                    // Group the two exceptions into one, using the suppressed exception mechanism
+                    // to show the scan exception below the failure handler exception
+                    final ExecutionException failureHandlerException = new ExecutionException(
+                            "Exception while calling failure handler", f);
+                    failureHandlerException.addSuppressed(e);
+                    // Throw a new ExecutionException (although this will probably be ignored,
+                    // since any job with a FailureHandler was started with ExecutorService::execute
+                    // rather than ExecutorService::submit)  
+                    throw failureHandlerException;
                 }
-                // Group the two exceptions into one, using the suppressed exception mechanism
-                // to show the scan exception below the failure handler exception
-                final ExecutionException failureHandlerException = new ExecutionException(
-                        "Exception while calling failure handler", f);
-                failureHandlerException.addSuppressed(exception);
-                // Throw a new ExecutionException (although this will probably be ignored,
-                // since any job with a FailureHandler was started with ExecutorService::execute
-                // rather than ExecutorService::submit)  
-                throw failureHandlerException;
+            }
+
+        } finally {
+            if (removeTemporaryFilesAfterScan) {
+                // If removeTemporaryFilesAfterScan was set, remove temp files and close resources, zipfiles and modules
+                nestedJarHandler.close(topLevelLog);
             }
         }
         return scanResult;
