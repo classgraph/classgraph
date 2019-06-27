@@ -1020,7 +1020,7 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
 
-        } catch (final InterruptedException | ExecutionException | RuntimeException e) {
+        } catch (final Throwable e) {
             if (topLevelLog != null) {
                 topLevelLog.log("~",
                         e instanceof InterruptedException || e instanceof CancellationException
