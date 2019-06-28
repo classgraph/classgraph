@@ -74,6 +74,49 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
+     * Constructor.
+     *
+     * @param eltClassName
+     *            The type signature of the array elements.
+     * @param numDims
+     *            The number of array dimensions.
+     * @param typeSignatureStr
+     *            Raw array type signature string (e.g. "[[I")
+     */
+    ArrayTypeSignature(final String eltClassName, final int numDims) {
+        super();
+        final BaseTypeSignature baseTypeSignature = BaseTypeSignature.getTypeSignature(eltClassName);
+        String eltTypeSigStr;
+        if (baseTypeSignature != null) {
+            // Element type is a base (primitive) type
+            eltTypeSigStr = baseTypeSignature.getTypeSignatureChar();
+            this.elementTypeSignature = baseTypeSignature;
+        } else {
+            // Element type is not a base (primitive) type -- create a type signature for element type
+            eltTypeSigStr = "L" + eltClassName.replace('.', '/') + ";";
+            try {
+                this.elementTypeSignature = ClassRefTypeSignature.parse(new Parser(eltTypeSigStr),
+                        // No type variables to resolve for generic types
+                        /* definingClassName = */ null);
+                if (this.elementTypeSignature == null) {
+                    throw new IllegalArgumentException(
+                            "Could not form array base type signature for class " + eltClassName);
+                }
+            } catch (final ParseException e) {
+                throw new IllegalArgumentException(
+                        "Could not form array base type signature for class " + eltClassName);
+            }
+        }
+        final StringBuilder buf = new StringBuilder(numDims + eltTypeSigStr.length());
+        for (int i = 0; i < numDims; i++) {
+            buf.append('[');
+        }
+        buf.append(eltTypeSigStr);
+        this.typeSignatureStr = buf.toString();
+        this.numDims = numDims;
+    }
+
+    /**
      * Get the raw array type signature string, e.g. "[[I".
      * 
      * @return the raw array type signature string.
@@ -127,8 +170,19 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @return the {@link ArrayClassInfo} instance.
      */
     public ArrayClassInfo getArrayClassInfo() {
-        if (arrayClassInfo == null && scanResult != null) {
-            arrayClassInfo = new ArrayClassInfo(this, scanResult);
+        if (arrayClassInfo == null) {
+            if (scanResult != null) {
+                final String className = getClassName();
+                // Cache ArrayClassInfo instances using scanResult.classNameToClassInfo, if scanResult is available
+                arrayClassInfo = (ArrayClassInfo) scanResult.classNameToClassInfo.get(className);
+                if (arrayClassInfo == null) {
+                    scanResult.classNameToClassInfo.put(className, arrayClassInfo = new ArrayClassInfo(this));
+                    arrayClassInfo.setScanResult(this.scanResult);
+                }
+            } else {
+                // scanResult is not yet available, create an uncached instance of an ArrayClassInfo for this type
+                arrayClassInfo = new ArrayClassInfo(this);
+            }
         }
         return arrayClassInfo;
     }
@@ -142,14 +196,20 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         if (elementTypeSignature != null) {
             elementTypeSignature.setScanResult(scanResult);
         }
+        if (arrayClassInfo != null) {
+            arrayClassInfo.setScanResult(scanResult);
+        }
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
+    /**
+     * Get the names of any classes referenced in the type signature.
+     *
+     * @param refdClassNames
+     *            the referenced class names.
      */
     @Override
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
-        elementTypeSignature.findReferencedClassNames(referencedClassNames);
+    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+        elementTypeSignature.findReferencedClassNames(refdClassNames);
     }
 
     // -------------------------------------------------------------------------------------------------------------

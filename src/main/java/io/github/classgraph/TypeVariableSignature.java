@@ -164,11 +164,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         return definingClassName;
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
+    /**
+     * Get the names of any classes referenced in the type signature.
+     *
+     * @param refdClassNames
+     *            the referenced class names.
      */
     @Override
-    void findReferencedClassNames(final Set<String> classNames) {
+    protected void findReferencedClassNames(final Set<String> refdClassNames) {
         // No class names present in type variables
     }
 

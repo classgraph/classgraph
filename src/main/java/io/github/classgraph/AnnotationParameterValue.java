@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Array;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -135,15 +136,18 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Get the names of any classes referenced in the annotation parameters.
+     * Get {@link ClassInfo} objects for any classes referenced in the annotation parameters.
      *
-     * @param referencedClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
         if (value != null) {
-            value.findReferencedClassNames(referencedClassNames);
+            value.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
     }
 

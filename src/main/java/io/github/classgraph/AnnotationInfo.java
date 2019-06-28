@@ -204,17 +204,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return name;
     }
 
-    /**
-     * Get the class info.
-     *
-     * @return The {@link ClassInfo} object for the annotation class.
-     */
-    @Override
-    public ClassInfo getClassInfo() {
-        getClassName();
-        return super.getClassInfo();
-    }
-
     /* (non-Javadoc)
      * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
      */
@@ -229,22 +218,31 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Find the names of any classes referenced in the type descriptors of annotation parameters.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param referencedClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
-        referencedClassNames.add(name);
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
+        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
-                annotationParamValue.findReferencedClassNames(referencedClassNames);
+                annotationParamValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
             }
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /** Return the {@link ClassInfo} object for the annotation class. */
+    @Override
+    public ClassInfo getClassInfo() {
+        return super.getClassInfo();
+    }
 
     /**
      * Load the {@link Annotation} class corresponding to this {@link AnnotationInfo} object, by calling

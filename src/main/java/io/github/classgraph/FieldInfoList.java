@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.function.Consumer;
@@ -223,14 +224,17 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the names of any classes referenced in the fields in this list.
+     * Get {@link ClassInfo} objects for any classes referenced in the list.
      *
-     * @param referencedClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
         for (final FieldInfo fi : this) {
-            fi.findReferencedClassNames(referencedClassNames);
+            fi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
     }
 

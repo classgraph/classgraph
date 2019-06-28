@@ -37,6 +37,36 @@ public class BaseTypeSignature extends TypeSignature {
     /** A base type (byte, char, double, float, int, long, short, boolean, or void). */
     private final String baseType;
 
+    /** The type signature character used to represent the base type. */
+    private final String typeSignatureChar;
+
+    /** byte type signature. */
+    private static final BaseTypeSignature BYTE = new BaseTypeSignature("byte", 'B');
+
+    /** char type signature. */
+    private static final BaseTypeSignature CHAR = new BaseTypeSignature("char", 'C');
+
+    /** double type signature. */
+    private static final BaseTypeSignature DOUBLE = new BaseTypeSignature("double", 'D');
+
+    /** float type signature. */
+    private static final BaseTypeSignature FLOAT = new BaseTypeSignature("float", 'F');
+
+    /** int type signature. */
+    private static final BaseTypeSignature INT = new BaseTypeSignature("int", 'I');
+
+    /** long type signature. */
+    private static final BaseTypeSignature LONG = new BaseTypeSignature("long", 'J');
+
+    /** short type signature. */
+    private static final BaseTypeSignature SHORT = new BaseTypeSignature("short", 'S');
+
+    /** boolean type signature. */
+    private static final BaseTypeSignature BOOLEAN = new BaseTypeSignature("boolean", 'Z');
+
+    /** void type signature. */
+    static final BaseTypeSignature VOID = new BaseTypeSignature("void", 'V');
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -45,9 +75,10 @@ public class BaseTypeSignature extends TypeSignature {
      * @param baseType
      *            the base type
      */
-    BaseTypeSignature(final String baseType) {
+    private BaseTypeSignature(final String baseType, final char typeSignatureChar) {
         super();
         this.baseType = baseType;
+        this.typeSignatureChar = Character.toString(typeSignatureChar);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -59,6 +90,15 @@ public class BaseTypeSignature extends TypeSignature {
      */
     public String getTypeStr() {
         return baseType;
+    }
+
+    /**
+     * Get the type signature char used to represent the type, e.g. "Z" for int.
+     * 
+     * @return the type signature char, as a one-char String.
+     */
+    public String getTypeSignatureChar() {
+        return typeSignatureChar;
     }
 
     /**
@@ -88,6 +128,38 @@ public class BaseTypeSignature extends TypeSignature {
             return void.class;
         default:
             throw new IllegalArgumentException("Unknown base type " + baseType);
+        }
+    }
+
+    /**
+     * Get the {@link BaseTypeSignature} for a given type name.
+     *
+     * @param typeName
+     *            the name of the type.
+     * @return The {@link BaseTypeSignature} of the named base type, or null if typeName is not a base type.
+     */
+    public static BaseTypeSignature getTypeSignature(final String typeName) {
+        switch (typeName) {
+        case "byte":
+            return BYTE;
+        case "char":
+            return CHAR;
+        case "double":
+            return DOUBLE;
+        case "float":
+            return FLOAT;
+        case "int":
+            return INT;
+        case "long":
+            return LONG;
+        case "short":
+            return SHORT;
+        case "boolean":
+            return BOOLEAN;
+        case "void":
+            return VOID;
+        default:
+            return null;
         }
     }
 
@@ -127,31 +199,31 @@ public class BaseTypeSignature extends TypeSignature {
         switch (parser.peek()) {
         case 'B':
             parser.next();
-            return new BaseTypeSignature("byte");
+            return BYTE;
         case 'C':
             parser.next();
-            return new BaseTypeSignature("char");
+            return CHAR;
         case 'D':
             parser.next();
-            return new BaseTypeSignature("double");
+            return DOUBLE;
         case 'F':
             parser.next();
-            return new BaseTypeSignature("float");
+            return FLOAT;
         case 'I':
             parser.next();
-            return new BaseTypeSignature("int");
+            return INT;
         case 'J':
             parser.next();
-            return new BaseTypeSignature("long");
+            return LONG;
         case 'S':
             parser.next();
-            return new BaseTypeSignature("short");
+            return SHORT;
         case 'Z':
             parser.next();
-            return new BaseTypeSignature("boolean");
+            return BOOLEAN;
         case 'V':
             parser.next();
-            return new BaseTypeSignature("void");
+            return VOID;
         default:
             return null;
         }
@@ -176,12 +248,15 @@ public class BaseTypeSignature extends TypeSignature {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
+    /**
+     * Get the names of any classes referenced in the type signature.
+     *
+     * @param refdClassNames
+     *            the referenced class names.
      */
     @Override
-    void findReferencedClassNames(final Set<String> classNameListOut) {
-        // Don't return byte.class, int.class, etc. 
+    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+        // Don't add byte.class, int.class, etc. 
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -573,10 +573,10 @@ final class GraphvizDotfileGenerator {
 
             if (showFieldTypeDependencyEdges && classNode.fieldInfo != null) {
                 for (final FieldInfo fi : classNode.fieldInfo) {
-                    for (final String referencedFieldTypeName : fi.findReferencedClassNames()) {
-                        if (allVisibleNodes.contains(referencedFieldTypeName)) {
+                    for (final ClassInfo referencedFieldType : fi.findReferencedClassInfo()) {
+                        if (allVisibleNodes.contains(referencedFieldType.getName())) {
                             // class --[ ] field type (open box)
-                            buf.append("  \"").append(referencedFieldTypeName).append("\" -> \"")
+                            buf.append("  \"").append(referencedFieldType.getName()).append("\" -> \"")
                                     .append(classNode.getName())
                                     .append("\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
                         }
@@ -586,10 +586,10 @@ final class GraphvizDotfileGenerator {
 
             if (showMethodTypeDependencyEdges && classNode.methodInfo != null) {
                 for (final MethodInfo mi : classNode.methodInfo) {
-                    for (final String referencedMethodTypeName : mi.findReferencedClassNames()) {
-                        if (allVisibleNodes.contains(referencedMethodTypeName)) {
+                    for (final ClassInfo referencedMethodType : mi.findReferencedClassInfo()) {
+                        if (allVisibleNodes.contains(referencedMethodType.getName())) {
                             // class --[#] field type (open box)
-                            buf.append("  \"").append(referencedMethodTypeName).append("\" -> \"")
+                            buf.append("  \"").append(referencedMethodType.getName()).append("\" -> \"")
                                     .append(classNode.getName())
                                     .append("\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
                         }

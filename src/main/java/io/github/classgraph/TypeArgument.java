@@ -197,13 +197,15 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         }
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
+    /**
+     * Get the names of any classes referenced in the type signature.
+     *
+     * @param refdClassNames
+     *            the referenced class names.
      */
-    @Override
-    void findReferencedClassNames(final Set<String> classNameListOut) {
+    public void findReferencedClassNames(final Set<String> refdClassNames) {
         if (typeSignature != null) {
-            typeSignature.findReferencedClassNames(classNameListOut);
+            typeSignature.findReferencedClassNames(refdClassNames);
         }
     }
 

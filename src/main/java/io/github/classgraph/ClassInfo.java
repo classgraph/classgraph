@@ -309,20 +309,36 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @param className
      *            the class name
-     * @param classModifiers
-     *            the class modifiers
      * @param classNameToClassInfo
      *            the map from class name to class info
-     * @return the or create class info
+     * @return the {@link ClassInfo} object.
      */
-    static ClassInfo getOrCreateClassInfo(final String className, final int classModifiers,
+    static ClassInfo getOrCreateClassInfo(final String className,
             final Map<String, ClassInfo> classNameToClassInfo) {
+        // Look for array class names
+        int numArrayDims = 0;
+        String baseClassName = className;
+        while (baseClassName.endsWith("[]")) {
+            numArrayDims++;
+            baseClassName = baseClassName.substring(0, baseClassName.length() - 2);
+        }
+        // Be resilient to the use of class descriptors rather than class names (should not be needed)
+        while (baseClassName.startsWith("[")) {
+            numArrayDims++;
+            baseClassName = baseClassName.substring(1);
+        }
+        if (baseClassName.endsWith(";")) {
+            baseClassName = baseClassName.substring(baseClassName.length() - 1);
+        }
+        baseClassName = baseClassName.replace('/', '.');
+
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className,
-                    classInfo = new ClassInfo(className, classModifiers, /* classfileResource = */ null));
+            classNameToClassInfo.put(className, //
+                    classInfo = numArrayDims == 0 //
+                            ? new ClassInfo(baseClassName, /* classModifiers = */ 0, /* classfileResource = */ null)
+                            : new ArrayClassInfo(new ArrayTypeSignature(baseClassName, numArrayDims)));
         }
-        classInfo.setModifiers(classModifiers);
         return classInfo;
     }
 
@@ -372,8 +388,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
         if (superclassName != null && !superclassName.equals("java.lang.Object")) {
-            final ClassInfo superclassClassInfo = getOrCreateClassInfo(superclassName, /* classModifiers = */ 0,
-                    classNameToClassInfo);
+            final ClassInfo superclassClassInfo = getOrCreateClassInfo(superclassName, classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
         }
@@ -388,10 +403,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the map from class name to class info
      */
     void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(interfaceName,
-                /* classModifiers = */ Modifier.INTERFACE, classNameToClassInfo);
+        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(interfaceName, classNameToClassInfo);
         interfaceClassInfo.setIsInterface(true);
-        interfaceClassInfo.modifiers |= Modifier.INTERFACE;
         this.addRelatedClass(RelType.IMPLEMENTED_INTERFACES, interfaceClassInfo);
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
     }
@@ -408,9 +421,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final Map<String, ClassInfo> classNameToClassInfo) {
         for (final ClassContainment classContainment : classContainmentEntries) {
             final ClassInfo innerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.innerClassName,
-                    /* classModifiers = */ classContainment.innerClassModifierBits, classNameToClassInfo);
+                    classNameToClassInfo);
+            innerClassInfo.setModifiers(classContainment.innerClassModifierBits);
             final ClassInfo outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName,
-                    /* classModifiers = */ 0, classNameToClassInfo);
+                    classNameToClassInfo);
             innerClassInfo.addRelatedClass(RelType.CONTAINED_WITHIN_OUTER_CLASS, outerClassInfo);
             outerClassInfo.addRelatedClass(RelType.CONTAINS_INNER_CLASS, innerClassInfo);
         }
@@ -437,7 +451,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(classAnnotationInfo.getName(),
-                ANNOTATION_CLASS_MODIFIER, classNameToClassInfo);
+                classNameToClassInfo);
+        annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
         if (this.annotationInfo == null) {
             this.annotationInfo = new AnnotationInfoList(2);
         }
@@ -469,7 +484,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (annotationInfoList != null) {
             for (final AnnotationInfo fieldAnnotationInfo : annotationInfoList) {
                 final ClassInfo annotationClassInfo = getOrCreateClassInfo(fieldAnnotationInfo.getName(),
-                        ANNOTATION_CLASS_MODIFIER, classNameToClassInfo);
+                        classNameToClassInfo);
+                annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
                 // Mark this class as having a field or method with this annotation
                 this.addRelatedClass(isField ? RelType.FIELD_ANNOTATIONS : RelType.METHOD_ANNOTATIONS,
                         annotationClassInfo);
@@ -528,8 +544,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                         for (int j = 0; j < paramAnnotationInfoArr.length; j++) {
                             final AnnotationInfo methodParamAnnotationInfo = paramAnnotationInfoArr[j];
                             final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-                                    methodParamAnnotationInfo.getName(), ANNOTATION_CLASS_MODIFIER,
-                                    classNameToClassInfo);
+                                    methodParamAnnotationInfo.getName(), classNameToClassInfo);
+                            annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
                             this.addRelatedClass(RelType.METHOD_PARAMETER_ANNOTATIONS, annotationClassInfo);
                             annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
                                     this);
@@ -2714,29 +2730,37 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the names of any classes referenced in this class' type descriptor, or the type descriptors of fields,
-     * methods or annotations.
+     * Get {@link ClassInfo} objects for any classes referenced in this class' type descriptor, or the type
+     * descriptors of fields, methods or annotations.
      *
-     * @param referencedClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> referencedClassNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
+        // Add this class to the set of references
+        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+
         if (this.referencedClassNames != null) {
-            referencedClassNames.addAll(this.referencedClassNames);
+            for (final String refdClassName : this.referencedClassNames) {
+                final ClassInfo classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
+                classInfo.setScanResult(scanResult);
+                refdClassInfo.add(classInfo);
+            }
         }
-        getMethodInfo().findReferencedClassNames(referencedClassNames);
-        getFieldInfo().findReferencedClassNames(referencedClassNames);
-        getAnnotationInfo().findReferencedClassNames(referencedClassNames);
+        getMethodInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        getFieldInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        getAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         if (annotationDefaultParamValues != null) {
-            annotationDefaultParamValues.findReferencedClassNames(referencedClassNames);
+            annotationDefaultParamValues.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
         final ClassTypeSignature classSig = getTypeSignature();
         if (classSig != null) {
-            classSig.findReferencedClassNames(referencedClassNames);
+            classSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
-        // Remove any self-references
-        referencedClassNames.remove(name);
     }
 
     // -------------------------------------------------------------------------------------------------------------

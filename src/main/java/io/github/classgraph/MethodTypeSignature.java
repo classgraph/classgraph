@@ -30,7 +30,9 @@ package io.github.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.types.ParseException;
@@ -134,7 +136,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
             // Special case for instance initialization method signatures in a CONSTANT_NameAndType_info structure:
             // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
             return new MethodTypeSignature(Collections.<TypeParameter> emptyList(),
-                    Collections.<TypeSignature> emptyList(), new BaseTypeSignature("void"),
+                    Collections.<TypeSignature> emptyList(), BaseTypeSignature.VOID,
                     Collections.<ClassRefOrTypeVariableSignature> emptyList());
         }
         final Parser parser = new Parser(typeDescriptor);
@@ -240,26 +242,48 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         }
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.HierarchicalTypeSignature#findReferencedClassNames(java.util.Set)
+    /**
+     * Get the names of any classes referenced in the type signature.
+     *
+     * @param refdClassNames
+     *            the referenced class names.
      */
-    @Override
-    void findReferencedClassNames(final Set<String> classNameListOut) {
+    protected void findReferencedClassNames(final Set<String> refdClassNames) {
         for (final TypeParameter typeParameter : typeParameters) {
             if (typeParameter != null) {
-                typeParameter.findReferencedClassNames(classNameListOut);
+                typeParameter.findReferencedClassNames(refdClassNames);
             }
         }
         for (final TypeSignature typeSignature : parameterTypeSignatures) {
             if (typeSignature != null) {
-                typeSignature.findReferencedClassNames(classNameListOut);
+                typeSignature.findReferencedClassNames(refdClassNames);
             }
         }
-        resultType.findReferencedClassNames(classNameListOut);
+        resultType.findReferencedClassNames(refdClassNames);
         for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
             if (typeSignature != null) {
-                typeSignature.findReferencedClassNames(classNameListOut);
+                typeSignature.findReferencedClassNames(refdClassNames);
             }
+        }
+    }
+
+    /**
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
+     *
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     */
+    @Override
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
+        final Set<String> refdClassNames = new HashSet<>();
+        findReferencedClassNames(refdClassNames);
+        for (final String refdClassName : refdClassNames) {
+            final ClassInfo classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
+            classInfo.scanResult = scanResult;
+            refdClassInfo.add(classInfo);
         }
     }
 

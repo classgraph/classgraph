@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.util.Set;
-
 import nonapi.io.github.classgraph.types.ParseException;
 
 /**
@@ -163,8 +161,8 @@ public class AnnotationClassRef extends ScanResultObject {
      */
     @Override
     public ClassInfo getClassInfo() {
-        getClassName();
-        return super.getClassInfo();
+        getTypeSignature();
+        return typeSignature.getClassInfo();
     }
 
     /* (non-Javadoc)
@@ -176,14 +174,6 @@ public class AnnotationClassRef extends ScanResultObject {
         if (typeSignature != null) {
             typeSignature.setScanResult(scanResult);
         }
-    }
-
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#findReferencedClassNames(java.util.Set)
-     */
-    @Override
-    protected void findReferencedClassNames(final Set<String> classNames) {
-        classNames.add(getClassName());
     }
 
     // -------------------------------------------------------------------------------------------------------------

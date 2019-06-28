@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
@@ -388,24 +389,27 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Get the names of any classes in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param classNames
-     *            the names of any classes in the type descriptor or type signature.
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> classNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
         final TypeSignature methodSig = getTypeSignature();
         if (methodSig != null) {
-            methodSig.findReferencedClassNames(classNames);
+            methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
         final TypeSignature methodDesc = getTypeDescriptor();
         if (methodDesc != null) {
-            methodDesc.findReferencedClassNames(classNames);
+            methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
-                ai.findReferencedClassNames(classNames);
+                ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
             }
         }
     }

@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -60,12 +61,20 @@ public class ArrayClassInfo extends ClassInfo {
      * @param scanResult
      *            the scan result
      */
-    ArrayClassInfo(final ArrayTypeSignature arrayTypeSignature, final ScanResult scanResult) {
+    ArrayClassInfo(final ArrayTypeSignature arrayTypeSignature) {
         super(arrayTypeSignature.getClassName(), /* modifiers = */ 0, /* resource = */ null);
         this.arrayTypeSignature = arrayTypeSignature;
-        this.scanResult = scanResult;
         // Pre-load fields from element type
         getElementClassInfo();
+    }
+
+    /* (non-Javadoc)
+     * @see io.github.classgraph.ClassInfo#setScanResult(io.github.classgraph.ScanResult)
+     */
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        // TODO Auto-generated method stub
+        super.setScanResult(scanResult);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -123,7 +132,7 @@ public class ArrayClassInfo extends ClassInfo {
      * Get the {@link ClassInfo} instance for the array element type.
      *
      * @return the {@link ClassInfo} instance for the array element type. Returns null if the element type was not
-     *         found during the scan. In particular, will return null for
+     *         found during the scan. In particular, will return null for arrays that have a primitive element type.
      */
     public ClassInfo getElementClassInfo() {
         if (elementClassInfo == null) {
@@ -209,16 +218,17 @@ public class ArrayClassInfo extends ClassInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the names of any classes referenced in this class' type descriptor, or the type descriptors of fields,
-     * methods or annotations.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param referencedClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> referencedClassNames) {
-        super.findReferencedClassNames(referencedClassNames);
-        arrayTypeSignature.findReferencedClassNames(referencedClassNames);
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
+        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------

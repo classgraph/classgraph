@@ -795,8 +795,10 @@ class Scanner implements Callable<ScanResult> {
             fileToLastModified.putAll(classpathElement.fileToLastModified);
         }
 
-        // Scan classfiles, if scanSpec.enableClassInfo is true
-        final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+        // Scan classfiles, if scanSpec.enableClassInfo is true.
+        // (classNameToClassInfo is a ConcurrentHashMap because it can be modified by
+        // ArrayTypeSignature.getArrayClassInfo() after scanning is complete)
+        final Map<String, ClassInfo> classNameToClassInfo = new ConcurrentHashMap<>();
         final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
         final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
         if (scanSpec.enableClassInfo) {

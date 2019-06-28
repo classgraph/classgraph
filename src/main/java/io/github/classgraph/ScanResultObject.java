@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -56,25 +57,33 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Get the names of all referenced classes.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @return the referenced class names
+     * @return the referenced class info.
      */
-    Set<String> findReferencedClassNames() {
-        final Set<String> allReferencedClassNames = new LinkedHashSet<>();
-        findReferencedClassNames(allReferencedClassNames);
-        // Remove references to java.lang.Object
-        allReferencedClassNames.remove("java.lang.Object");
-        return allReferencedClassNames;
+    final Set<ClassInfo> findReferencedClassInfo() {
+        final Set<ClassInfo> refdClassInfo = new LinkedHashSet<>();
+        if (scanResult != null) {
+            findReferencedClassInfo(scanResult.classNameToClassInfo, refdClassInfo);
+        }
+        return refdClassInfo;
     }
 
     /**
-     * Get any class names referenced in type descriptors of this object.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param refdClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
-    abstract void findReferencedClassNames(Set<String> refdClassNames);
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
+        final ClassInfo ci = getClassInfo();
+        if (ci != null) {
+            refdClassInfo.add(ci);
+        }
+    }
 
     /**
      * The name of the class (used by {@link #getClassInfo()} to fetch the {@link ClassInfo} object for the class).

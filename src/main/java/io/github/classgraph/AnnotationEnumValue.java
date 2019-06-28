@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Field;
-import java.util.Set;
 
 /**
  * Class for wrapping an enum constant value (split into class name and constant name), as used as an annotation
@@ -144,14 +143,6 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#findReferencedClassNames(java.util.Set)
-     */
-    @Override
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
-        referencedClassNames.add(className);
-    }
 
     /* (non-Javadoc)
      * @see java.lang.Comparable#compareTo(java.lang.Object)

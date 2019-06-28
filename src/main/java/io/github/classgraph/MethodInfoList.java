@@ -39,7 +39,6 @@ import java.util.function.Consumer;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
-
     /** An unmodifiable empty {@link MethodInfoList}. */
     static final MethodInfoList EMPTY_LIST = new MethodInfoList() {
         @Override
@@ -224,14 +223,17 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the names of any classes referenced in the methods in this list.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param referencedClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
         for (final MethodInfo mi : this) {
-            mi.findReferencedClassNames(referencedClassNames);
+            mi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
     }
 

@@ -78,7 +78,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     private Map<String, ResourceList> pathToWhitelistedResourcesCached;
 
     /** The map from class name to {@link ClassInfo}. */
-    private Map<String, ClassInfo> classNameToClassInfo;
+    Map<String, ClassInfo> classNameToClassInfo;
 
     /** The map from package name to {@link PackageInfo}. */
     private Map<String, PackageInfo> packageNameToPackageInfo;
@@ -316,21 +316,19 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // classes that were not scanned
         if (scanSpec.enableInterClassDependencies) {
             for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
-                final Set<ClassInfo> refdClasses = new HashSet<>();
-                for (final String refdClassName : ci.findReferencedClassNames()) {
-                    // Don't add circular dependencies
-                    if (!ci.getName().equals(refdClassName)) {
-                        // Get ClassInfo object for the named class, or create one if it doesn't exist
-                        final ClassInfo refdClassInfo = ClassInfo.getOrCreateClassInfo(refdClassName,
-                                /* classModifiers are unknown */ 0, classNameToClassInfo);
-                        refdClassInfo.setScanResult(this);
+                final Set<ClassInfo> refdClassesFiltered = new HashSet<>();
+                for (final ClassInfo refdClassInfo : ci.findReferencedClassInfo()) {
+                    // Don't add self-references, or references to Object
+                    if (refdClassInfo != null && !ci.equals(refdClassInfo)
+                            && !refdClassInfo.getName().equals("java.lang.Object")) {
+                        // Only add class to result if it is whitelisted, or external classes are enabled
                         if (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses) {
-                            // Only add class to result if it is whitelisted, or external classes are enabled
-                            refdClasses.add(refdClassInfo);
+                            refdClassInfo.setScanResult(this);
+                            refdClassesFiltered.add(refdClassInfo);
                         }
                     }
                 }
-                ci.setReferencedClasses(new ClassInfoList(refdClasses, /* sortByName = */ true));
+                ci.setReferencedClasses(new ClassInfoList(refdClassesFiltered, /* sortByName = */ true));
             }
         }
     }

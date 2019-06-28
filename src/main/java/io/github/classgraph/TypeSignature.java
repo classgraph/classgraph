@@ -28,6 +28,10 @@
  */
 package io.github.classgraph;
 
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
@@ -40,6 +44,39 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /** Constructor. */
     protected TypeSignature() {
         // Empty
+    }
+
+    /**
+     * Get the names of any classes referenced in the type signature.
+     *
+     * @param refdClassNames
+     *            the referenced class names.
+     */
+    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+        final String className = getClassName();
+        if (className != null && !className.isEmpty()) {
+            refdClassNames.add(getClassName());
+        }
+    }
+
+    /**
+     * Get {@link ClassInfo} objects for any classes referenced in the type signature.
+     *
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info.
+     */
+    @Override
+    final protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
+        final Set<String> refdClassNames = new HashSet<>();
+        findReferencedClassNames(refdClassNames);
+        for (final String refdClassName : refdClassNames) {
+            final ClassInfo classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
+            classInfo.scanResult = scanResult;
+            refdClassInfo.add(classInfo);
+        }
     }
 
     /**

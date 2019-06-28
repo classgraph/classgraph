@@ -28,18 +28,8 @@
  */
 package io.github.classgraph;
 
-import java.util.Set;
-
 /**
  * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
-    /**
-     * Find the names of all classes referenced in the type signature.
-     *
-     * @param classNames
-     *            The set to store class names in.
-     */
-    @Override
-    abstract void findReferencedClassNames(final Set<String> classNames);
 }

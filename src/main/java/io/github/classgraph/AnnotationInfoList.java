@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.function.Consumer;
@@ -290,14 +291,17 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the names of any classes referenced in the annotations in this list or their parameters.
+     * Get {@link ClassInfo} objects for any classes referenced in this list.
      *
-     * @param referencedClassNames
-     *            the referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
         for (final AnnotationInfo ai : this) {
-            ai.findReferencedClassNames(referencedClassNames);
+            ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
     }
 

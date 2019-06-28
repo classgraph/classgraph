@@ -33,6 +33,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
@@ -647,31 +648,34 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Get the names of any classes in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param classNames
-     *            the class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> classNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
         final MethodTypeSignature methodSig = getTypeSignature();
         if (methodSig != null) {
-            methodSig.findReferencedClassNames(classNames);
+            methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
         final MethodTypeSignature methodDesc = getTypeDescriptor();
         if (methodDesc != null) {
-            methodDesc.findReferencedClassNames(classNames);
+            methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
-                ai.findReferencedClassNames(classNames);
+                ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
             }
         }
         for (final MethodParameterInfo mpi : getParameterInfo()) {
             final AnnotationInfo[] aiArr = mpi.annotationInfo;
             if (aiArr != null) {
                 for (final AnnotationInfo ai : aiArr) {
-                    ai.findReferencedClassNames(classNames);
+                    ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
                 }
             }
         }

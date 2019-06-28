@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -533,22 +534,28 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     }
 
     /**
-     * Get the names of any classes referenced in the annotation parameters.
+     * Get {@link ClassInfo} objects for any classes referenced in annotation parameters.
      *
-     * @param referencedClassNames
-     *            referenced class names
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
-    void findReferencedClassNames(final Set<String> referencedClassNames) {
+    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo) {
         if (annotationEnumValue != null) {
-            annotationEnumValue.findReferencedClassNames(referencedClassNames);
+            annotationEnumValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         } else if (annotationClassRef != null) {
-            referencedClassNames.add(annotationClassRef.getClassName());
+            final ClassInfo classInfo = annotationClassRef.getClassInfo();
+            if (classInfo != null) {
+                refdClassInfo.add(classInfo);
+            }
         } else if (annotationInfo != null) {
-            annotationInfo.findReferencedClassNames(referencedClassNames);
+            annotationInfo.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         } else if (objectArrayValue != null) {
             for (final ObjectTypedValueWrapper item : objectArrayValue) {
-                item.findReferencedClassNames(referencedClassNames);
+                item.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
             }
         }
     }

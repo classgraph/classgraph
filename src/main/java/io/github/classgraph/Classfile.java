@@ -1052,9 +1052,11 @@ class Classfile {
             }
         }
 
-        // Find classes referenced in the constant pool (note that there are some class refs that will not be
+        // Find classes referenced in the constant pool. Note that there are some class refs that will not be
         // found this way, e.g. enum classes and class refs in annotation parameter values, since they are
-        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12)).
+        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12).
+        // Therefore, a hybrid approach needs to be applied of extracting these other class refs from
+        // the ClassInfo graph, and combining them with class names extracted from the constant pool here.
         if (scanSpec.enableInterClassDependencies) {
             refdClassNames = new HashSet<>();
             // Get class names from direct class references in constant pool
@@ -1628,6 +1630,9 @@ class Classfile {
                 ClassTypeSignature typeSig = null;
                 try {
                     typeSig = ClassTypeSignature.parse(typeSignature, /* classInfo = */ null);
+                    if (refdClassNames != null) {
+                        typeSig.findReferencedClassNames(refdClassNames);
+                    }
                 } catch (final ParseException e) {
                     // Ignore
                 }
