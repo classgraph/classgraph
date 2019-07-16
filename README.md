@@ -112,12 +112,12 @@ The following commands will build the most recent version of ClassGraph from git
 git clone https://github.com/classgraph/classgraph.git
 cd classgraph
 export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
-mvn -Dmaven.test.skip=true package
+./mvnw -Dmaven.test.skip=true package
 ```
 
-This will allow you to build a local SNAPSHOT jar in `target/`. Alternatively, use `mvn -Dmaven.test.skip=true install` to build a SNAPSHOT jar and then copy it into your local repository, so that you can use it in your Maven projects. Note that may need to do `mvn dependency:resolve` in your project if you overwrite an older snapshot with a newer one.
+This will allow you to build a local SNAPSHOT jar in `target/`. Alternatively, use `./mvnw -Dmaven.test.skip=true install` to build a SNAPSHOT jar and then copy it into your local repository, so that you can use it in your Maven projects. Note that may need to do `./mvnw dependency:resolve` in your project if you overwrite an older snapshot with a newer one.
 
-`mvn -U` updates from remote repositories an may overwrite your local artifact. But you can always change the `artifactId` or the `groupId` of your local ClassGraph build to place your local build artifact in another location within your local repository.
+`./mvnw -U` updates from remote repositories an may overwrite your local artifact. But you can always change the `artifactId` or the `groupId` of your local ClassGraph build to place your local build artifact in another location within your local repository.
 
 ## Documentation
 
