@@ -58,8 +58,6 @@ public class ArrayClassInfo extends ClassInfo {
      *
      * @param arrayTypeSignature
      *            the array type signature
-     * @param scanResult
-     *            the scan result
      */
     ArrayClassInfo(final ArrayTypeSignature arrayTypeSignature) {
         super(arrayTypeSignature.getClassName(), /* modifiers = */ 0, /* resource = */ null);

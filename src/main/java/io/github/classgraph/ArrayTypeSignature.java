@@ -80,8 +80,6 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *            The type signature of the array elements.
      * @param numDims
      *            The number of array dimensions.
-     * @param typeSignatureStr
-     *            Raw array type signature string (e.g. "[[I")
      */
     ArrayTypeSignature(final String eltClassName, final int numDims) {
         super();
