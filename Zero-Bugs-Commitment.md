@@ -1,4 +1,3 @@
-
 # The Zero Bugs Commitment
 
 This project adheres to the **Zero Bugs Commitment** (`#ZeroBugs`).
@@ -9,7 +8,7 @@ respecting and cultivating contributions.
 
 **As developers of this project, we pledge that:**
 
-## 1. We will prioritize fixing bugs over implementing new features.
+## (1) We will prioritize fixing bugs over implementing new features.
 
 *(Motivation: It is human nature to be much more interested in building new
 things than doing the hard work to fix old, broken things.)*
@@ -18,8 +17,7 @@ things than doing the hard work to fix old, broken things.)*
 implementing new features, with the goal of **keeping the count of known or
 open bugs at zero**.
 
-
-## 2. We will take responsibility for code we have written or contributed to.
+## (2) We will take responsibility for code we have written or contributed to.
 
 *(Motivation: As attention shifts between projects, it is difficult to return
 to work on old code. This can lead to bit rot.)*
@@ -32,7 +30,7 @@ find someone else who can assume the responsibility for our code.
 Note that this is about taking *personal responsibility* for our own work, not
 about who has *official maintainership* for a project or piece of code.
 
-## 3. We will be responsive during the bugfixing process.
+## (3) We will be responsive during the bugfixing process.
 
 *(Motivation: It is easy to delay responding to a bug report, a bug comment or
 a request until the issue becomes forgotten or obsolete. This is the unfortunate
@@ -43,7 +41,7 @@ source ecosystem.)*
 open in our project's bug tracker, and to be proactive in resolving problems
 as quickly as practical.
 
-## 4. We will be respectful and inclusive.
+## (4) We will be respectful and inclusive.
 
 *(Motivation: Open source communities have been known to reject halting but
 earnest efforts of new contributors. Bug trackers are also full of pet
@@ -58,7 +56,7 @@ a disagreement.
 
 ---
 
-#### THIS DOCUMENT IS IN THE PUBLIC DOMAIN
+**THIS DOCUMENT IS IN THE PUBLIC DOMAIN**
 
 You are strongly encouraged to share this commitment, to make this commitment
 yourself for software that you develop or maintain, and to encourage others to
@@ -76,4 +74,4 @@ However, please leave a record of your changes below.
 
 #### Version history:
 
-0.1: Original version (author: Luke Hutchison -- http://twitter.com/LH )
+0.1: Original version (author: Luke Hutchison)

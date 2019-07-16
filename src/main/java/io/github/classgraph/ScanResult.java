@@ -320,12 +320,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 for (final ClassInfo refdClassInfo : ci.findReferencedClassInfo()) {
                     // Don't add self-references, or references to Object
                     if (refdClassInfo != null && !ci.equals(refdClassInfo)
-                            && !refdClassInfo.getName().equals("java.lang.Object")) {
-                        // Only add class to result if it is whitelisted, or external classes are enabled
-                        if (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses) {
-                            refdClassInfo.setScanResult(this);
-                            refdClassesFiltered.add(refdClassInfo);
-                        }
+                            && !refdClassInfo.getName().equals("java.lang.Object")
+                            // Only add class to result if it is whitelisted, or external classes are enabled
+                            && (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses)) {
+                        refdClassInfo.setScanResult(this);
+                        refdClassesFiltered.add(refdClassInfo);
                     }
                 }
                 ci.setReferencedClasses(new ClassInfoList(refdClassesFiltered, /* sortByName = */ true));

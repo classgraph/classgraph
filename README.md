@@ -29,7 +29,6 @@ ClassGraph (formerly **FastClasspathScanner**) is an uber-fast, ultra-lightweigh
 | ClassGraph is now fully stable. This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**. |
 |-----------------------------|
 
-
 ### ClassGraph vs. Java Introspection
 
 ClassGraph has the ability to "invert" the Java class and/or reflection API, or has the ability to index classes and resources. For example, the Java class and reflection API can tell you the interfaces implemented by a given class, or can give you the list of annotations on a class; ClassGraph can find **all classes that implement a given interface**, or can find **all classes that are annotated with a given annotation**. The Java API can load the content of a resource file with a specific path in a specific ClassLoader, but ClassGraph can find and load **all resources in all classloaders with paths matching a given pattern**.
@@ -108,7 +107,7 @@ ClassGraph must be built on JDK 8 or newer (due to the presence of `@FunctionalI
 
 The following commands will build the most recent version of ClassGraph from git master. The compiled package will then be in the "classgraph/target" directory.
 
-```
+```bash
 git clone https://github.com/classgraph/classgraph.git
 cd classgraph
 export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
