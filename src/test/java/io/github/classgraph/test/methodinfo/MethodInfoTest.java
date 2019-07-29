@@ -133,25 +133,11 @@ public class MethodInfoTest {
                                     + "(java.lang.String, char, long, float[], byte[][], "
                                     + "java.util.List<java.lang.Float>, " + X.class.getName()
                                     + "[][][], java.lang.String[]...)",
-<<<<<<< HEAD
-                            "@" + Test.class.getName()
-                                    + "(expected=java.lang.IllegalArgumentException.class, timeout=0) "
-                                    + "public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testGetMethodInfoIgnoringVisibility()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testMethodInfoLoadMethodForArrayArg()");
-=======
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
                             "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
->>>>>>> 566c0c704a3f8591c979ddfa98941c6623dc608b
         }
     }
 
@@ -189,25 +175,11 @@ public class MethodInfoTest {
                                     + "java.util.List<java.lang.Float>, " + X.class.getName()
                                     + "[][][], java.lang.String[]...)",
                             "private static java.lang.String[] privateMethod()",
-<<<<<<< HEAD
-                            "@" + Test.class.getName()
-                                    + "(expected=java.lang.IllegalArgumentException.class, timeout=0) "
-                                    + "public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testGetMethodInfoIgnoringVisibility()",
-                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
-                                    + "public void testMethodInfoLoadMethodForArrayArg()");
-=======
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
                             "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
->>>>>>> 566c0c704a3f8591c979ddfa98941c6623dc608b
         }
     }
 
