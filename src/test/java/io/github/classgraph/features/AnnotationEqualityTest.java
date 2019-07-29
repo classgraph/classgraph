@@ -16,7 +16,7 @@ import io.github.classgraph.ScanResult;
 /**
  * AnnotationEqualityTest.
  */
-public class AnnotationEqualityTest {
+class AnnotationEqualityTest {
     /**
      * The Interface W.
      */
