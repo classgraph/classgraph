@@ -7,7 +7,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 import org.assertj.core.api.iterable.Extractor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.AnnotationInfoList;

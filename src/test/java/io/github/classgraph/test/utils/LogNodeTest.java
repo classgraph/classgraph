@@ -1,6 +1,6 @@
 package io.github.classgraph.test.utils;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -8,7 +8,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.utils.LogNode;

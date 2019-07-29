@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationClassRef;
 import io.github.classgraph.ArrayClassInfo;

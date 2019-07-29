@@ -32,7 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
@@ -56,11 +57,14 @@ public class FieldInfoTest {
     /**
      * Field info not enabled.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void fieldInfoNotEnabled() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .scan()) {
-            scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo();
+            Assertions.assertThrows(
+                    IllegalArgumentException.class,
+                    () -> scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
+            );
         }
     }
 

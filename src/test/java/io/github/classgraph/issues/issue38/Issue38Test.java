@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.annotation.Annotation;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
@@ -12,7 +12,7 @@ import io.github.classgraph.ScanResult;
 /**
  * Issue38Test.
  */
-public class Issue38Test {
+class Issue38Test {
     /**
      * The Class AnnotationLiteral.
      *
@@ -26,7 +26,7 @@ public class Issue38Test {
      * Test implements suppress warnings.
      */
     @Test
-    public void testImplementsSuppressWarnings() {
+    void testImplementsSuppressWarnings() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue38Test.class.getPackage().getName())
                 .scan()) {
             assertThat(scanResult.getClassesImplementing(SuppressWarnings.class.getName()).getNames())

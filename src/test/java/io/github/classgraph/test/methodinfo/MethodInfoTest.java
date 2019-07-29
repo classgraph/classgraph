@@ -34,7 +34,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ArrayClassInfo;
 import io.github.classgraph.ArrayTypeSignature;
@@ -99,12 +100,15 @@ public class MethodInfoTest {
     /**
      * Method info not enabled.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .scan()) {
-            scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo();
+            Assertions.assertThrows(
+                    IllegalArgumentException.class,
+                    () -> scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+            );
         }
     }
 
@@ -129,17 +133,11 @@ public class MethodInfoTest {
                                     + "(java.lang.String, char, long, float[], byte[][], "
                                     + "java.util.List<java.lang.Float>, " + X.class.getName()
                                     + "[][][], java.lang.String[]...)",
-                            "@" + Test.class.getName()
-                                    + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
-                                    + "public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetMethodInfoIgnoringVisibility()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testMethodInfoLoadMethodForArrayArg()");
+                            "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
+                            "@" + Test.class.getName() + " public void testGetMethodInfo()",
+                            "@" + Test.class.getName() + " public void testGetConstructorInfo()",
+                            "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
+                            "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
         }
     }
 
@@ -177,17 +175,11 @@ public class MethodInfoTest {
                                     + "java.util.List<java.lang.Float>, " + X.class.getName()
                                     + "[][][], java.lang.String[]...)",
                             "private static java.lang.String[] privateMethod()",
-                            "@" + Test.class.getName()
-                                    + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
-                                    + "public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testGetMethodInfoIgnoringVisibility()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
-                                    + "public void testMethodInfoLoadMethodForArrayArg()");
+                            "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
+                            "@" + Test.class.getName() + " public void testGetMethodInfo()",
+                            "@" + Test.class.getName() + " public void testGetConstructorInfo()",
+                            "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
+                            "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
         }
     }
 

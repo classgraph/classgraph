@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
@@ -34,7 +34,7 @@ public class ClassInfoTest {
     /**
      * Setup.
      */
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         scanResult = new ClassGraph().whitelistPackages(Impl1.class.getPackage().getName()).scan();
     }
@@ -42,7 +42,7 @@ public class ClassInfoTest {
     /**
      * Teardown.
      */
-    @AfterClass
+    @AfterAll
     public static void teardown() {
         scanResult.close();
         scanResult = null;

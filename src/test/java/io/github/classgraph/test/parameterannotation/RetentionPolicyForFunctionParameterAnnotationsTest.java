@@ -7,9 +7,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
@@ -86,7 +86,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     /**
      * Generate ScanResult before running tests.
      */
-    @BeforeClass
+    @BeforeAll
     public static void beforeClass() {
         scanResult = new ClassGraph()
                 .whitelistPackages(RetentionPolicyForFunctionParameterAnnotationsTest.class.getPackage().getName())
@@ -97,7 +97,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     /**
      * Close ScanResult after running tests.
      */
-    @AfterClass
+    @AfterAll
     public static void afterClass() {
         scanResult.close();
     }
