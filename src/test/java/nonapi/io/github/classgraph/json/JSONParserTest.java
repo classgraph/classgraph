@@ -1,6 +1,6 @@
 package nonapi.io.github.classgraph.json;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import nonapi.io.github.classgraph.types.ParseException;
 
