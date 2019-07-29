@@ -214,7 +214,7 @@ public class AnnotationParameterValue extends ScanResultObject
             final Object paramVal = value.get();
             final Class<?> valClass = paramVal.getClass();
             if (valClass.isArray()) {
-                buf.append('[');
+                buf.append('{');
                 for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
                     if (j > 0) {
                         buf.append(", ");
@@ -222,7 +222,7 @@ public class AnnotationParameterValue extends ScanResultObject
                     final Object elt = Array.get(paramVal, j);
                     buf.append(elt == null ? "null" : elt.toString());
                 }
-                buf.append(']');
+                buf.append('}');
             } else if (paramVal instanceof String) {
                 buf.append('"');
                 buf.append(paramVal.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
