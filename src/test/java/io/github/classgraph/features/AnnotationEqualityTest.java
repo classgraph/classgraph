@@ -6,7 +6,7 @@ import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
@@ -14,7 +14,7 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
 /**
- * AnnotationEquality.
+ * AnnotationEqualityTest.
  */
 public class AnnotationEqualityTest {
     /**
@@ -82,7 +82,7 @@ public class AnnotationEqualityTest {
      * Test equality of JRE-instantiated Annotation with proxy instance instantiated by ClassGraph.
      */
     @Test
-    public void annotationEquality() {
+    void annotationEquality() {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(AnnotationEqualityTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(Y.class.getName());

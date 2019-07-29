@@ -32,10 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URL;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * Issue286Test.
@@ -44,7 +45,8 @@ public class Issue286Test {
     /**
      * Issue 286 test.
      */
-    @Test(timeout = 1000)
+    @Test
+    @Timeout(value = 1)
     public void issue286Test() {
         final URL jarURL = getClass().getClassLoader().getResource("issue286.jar");
         assertThat(jarURL).isNotNull();
