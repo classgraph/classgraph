@@ -219,13 +219,13 @@ public class Issue153Test {
             // Read class annotation parameters
             assertThat(classInfo.getAnnotationInfo().getAsStrings()) //
                     .containsExactlyInAnyOrder("@" + StringAnnotation.class.getName() + "(\"classlabel\")", //
-                            "@" + TwoParamAnnotation.class.getName() + "(value1='x', value2=[1, 2, 3])", //
+                            "@" + TwoParamAnnotation.class.getName() + "(value1='x', value2={1, 2, 3})", //
                             "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA"
                                     + ")", //
-                            "@" + NestedAnnotation.class.getName() + "([@" + StringAnnotation.class.getName()
-                                    + "(\"one\"), @" + StringAnnotation.class.getName() + "(\"two\")])", //
-                            "@" + ClassRefAnnotation.class.getName() + "(class " + Issue153Test.class.getName()
-                                    + ")");
+                            "@" + NestedAnnotation.class.getName() + "({@" + StringAnnotation.class.getName()
+                                    + "(\"one\"), @" + StringAnnotation.class.getName() + "(\"two\")})", //
+                            "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName()
+                                    + ".class)");
 
             assertThat(classInfo.getFieldInfo("testField").getAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + StringAnnotation.class.getName() + "(\"fieldlabel\")");

@@ -130,15 +130,15 @@ public class MethodInfoTest {
                                     + "java.util.List<java.lang.Float>, " + X.class.getName()
                                     + "[][][], java.lang.String[]...)",
                             "@" + Test.class.getName()
-                                    + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
+                                    + "(expected=java.lang.IllegalArgumentException.class, timeout=0) "
                                     + "public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testGetMethodInfoIgnoringVisibility()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testMethodInfoLoadMethodForArrayArg()");
         }
     }
@@ -178,15 +178,15 @@ public class MethodInfoTest {
                                     + "[][][], java.lang.String[]...)",
                             "private static java.lang.String[] privateMethod()",
                             "@" + Test.class.getName()
-                                    + "(expected=class java.lang.IllegalArgumentException, timeout=0) "
+                                    + "(expected=java.lang.IllegalArgumentException.class, timeout=0) "
                                     + "public void methodInfoNotEnabled()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testGetMethodInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testGetConstructorInfo()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testGetMethodInfoIgnoringVisibility()",
-                            "@" + Test.class.getName() + "(expected=class org.junit.Test$None, timeout=0) "
+                            "@" + Test.class.getName() + "(expected=org.junit.Test$None.class, timeout=0) "
                                     + "public void testMethodInfoLoadMethodForArrayArg()");
         }
     }

@@ -116,7 +116,7 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
             assertThat(v2).isEqualTo(new String[] { "x" });
             assertThat(v3).isEqualTo(new int[] {});
             assertThat(Arrays.toString((Object[]) v4))
-                    .isEqualTo("[@" + NestedAnnotation.class.getName() + "(str=\"Test\", intArray=[9])]");
+                    .isEqualTo("[@" + NestedAnnotation.class.getName() + "(str=\"Test\", intArray={9})]");
 
             final AnnotationWithPrimitiveArrayParams annotation = (AnnotationWithPrimitiveArrayParams) annotationInfo
                     .loadClassAndInstantiate();
