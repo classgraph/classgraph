@@ -17,7 +17,7 @@ import io.github.classgraph.TypeVariableSignature;
  * @param <T>
  *            the generic type
  */
-public class ResolveTypeVariable<T extends ArrayList<Integer>> {
+public class ResolveTypeVariableTest<T extends ArrayList<Integer>> {
     /** The list. */
     T list;
 
@@ -27,8 +27,8 @@ public class ResolveTypeVariable<T extends ArrayList<Integer>> {
     @Test
     public void test() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(ResolveTypeVariable.class.getPackage().getName()).enableAllInfo().scan()) {
-            final FieldInfoList fields = scanResult.getClassInfo(ResolveTypeVariable.class.getName())
+                .whitelistPackages(ResolveTypeVariableTest.class.getPackage().getName()).enableAllInfo().scan()) {
+            final FieldInfoList fields = scanResult.getClassInfo(ResolveTypeVariableTest.class.getName())
                     .getFieldInfo();
             assertThat(((TypeVariableSignature) fields.get(0).getTypeSignature()).resolve().toString())
                     .isEqualTo("T extends java.util.ArrayList<java.lang.Integer>");

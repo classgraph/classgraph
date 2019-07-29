@@ -39,7 +39,7 @@ import io.github.classgraph.ScanResult;
 /**
  * DeclaredVsNonDeclared.
  */
-public class DeclaredVsNonDeclared {
+public class DeclaredVsNonDeclaredTest {
     /**
      * The Class A.
      */
@@ -122,7 +122,7 @@ public class DeclaredVsNonDeclared {
     @Test
     public void declaredVsNonDeclaredMethods() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
+                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
             assertThat(B.getFieldInfo("x").getClassInfo().getName()).isEqualTo(B.class.getName());
@@ -148,7 +148,7 @@ public class DeclaredVsNonDeclared {
         };
 
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
+                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
             final ClassInfo C = scanResult.getClassInfo(C.class.getName());
@@ -190,7 +190,7 @@ public class DeclaredVsNonDeclared {
     @Test
     public void annotationsShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
+                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
 
@@ -213,7 +213,7 @@ public class DeclaredVsNonDeclared {
     @Test
     public void loadFieldAndMethod() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclared.class.getPackage().getName()).scan()) {
+                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
             assertThat(B.getFieldInfo("x").loadClassAndGetField().getName()).isEqualTo("x");
             assertThat(B.getMethodInfo("y").get(0).loadClassAndGetMethod().getName()).isEqualTo("y");
