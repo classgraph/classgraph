@@ -41,7 +41,7 @@ import com.xyz.meta.A;
 /**
  * ClassLoadingWorksWithParentLastLoadersStub.
  */
-public class ClassLoadingWorksWithParentLastLoadersStub {
+public class ClassLoadingWorksWithParentLastLoadersStubTest {
 
     /**
      * Same class loader that found A class should load it.

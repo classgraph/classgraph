@@ -16,7 +16,7 @@ import io.github.classgraph.ScanResult;
 /**
  * AnnotationEquality.
  */
-public class AnnotationEquality {
+public class AnnotationEqualityTest {
     /**
      * The Interface W.
      */
@@ -72,7 +72,7 @@ public class AnnotationEquality {
     /**
      * The Class Y.
      */
-    @X(b = 5, c = { Long.class, Integer.class, AnnotationEquality.class, W.class, X.class }
+    @X(b = 5, c = { Long.class, Integer.class, AnnotationEqualityTest.class, W.class, X.class }
     // , d = "xyz", e = 'w'
     )
     private static class Y {
@@ -84,7 +84,7 @@ public class AnnotationEquality {
     @Test
     public void annotationEquality() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(AnnotationEquality.class.getPackage().getName()).enableAllInfo().scan()) {
+                .whitelistPackages(AnnotationEqualityTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(Y.class.getName());
             assertThat(classInfo).isNotNull();
             final Class<?> cls = classInfo.loadClass();

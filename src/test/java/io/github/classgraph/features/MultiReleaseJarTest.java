@@ -20,9 +20,9 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 /**
  * MultiReleaseJar.
  */
-public class MultiReleaseJar {
+public class MultiReleaseJarTest {
     /** The Constant jarURL. */
-    private static final URL jarURL = MultiReleaseJar.class.getClassLoader().getResource("multi-release-jar.jar");
+    private static final URL jarURL = MultiReleaseJarTest.class.getClassLoader().getResource("multi-release-jar.jar");
 
     /**
      * Multi release jar.
