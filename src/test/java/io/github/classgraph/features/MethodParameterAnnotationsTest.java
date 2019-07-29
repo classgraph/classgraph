@@ -13,7 +13,7 @@ import io.github.classgraph.ScanResult;
 /**
  * AnnotationEquality.
  */
-public class MethodParameterAnnotations {
+public class MethodParameterAnnotationsTest {
     /**
      * The Annotation W.
      */
@@ -62,7 +62,7 @@ public class MethodParameterAnnotations {
     @Test
     public void annotationEquality() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(MethodParameterAnnotations.class.getPackage().getName()).enableAllInfo()
+                .whitelistPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             assertThat(scanResult.getClassInfo(Y.class.getName()).getMethodParameterAnnotations().getNames())
                     .containsOnly(W.class.getName());

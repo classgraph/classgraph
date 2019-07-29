@@ -16,7 +16,7 @@ import io.github.classgraph.ScanResult;
 /**
  * AnnotationParamWithPrimitiveTypedArray.
  */
-public class AnnotationParamWithPrimitiveTypedArray {
+public class AnnotationParamWithPrimitiveTypedArrayTest {
     /**
      * The Interface NestedAnnotation.
      */
@@ -94,7 +94,7 @@ public class AnnotationParamWithPrimitiveTypedArray {
     @Test
     public void primitiveArrayParams() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(AnnotationParamWithPrimitiveTypedArray.class.getPackage().getName()).scan()) {
+                .whitelistPackages(AnnotationParamWithPrimitiveTypedArrayTest.class.getPackage().getName()).scan()) {
             final AnnotationInfo annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName())
                     .getAnnotationInfo().get(0);
             final AnnotationParameterValueList annotationParams = annotationInfo.getParameterValues();
