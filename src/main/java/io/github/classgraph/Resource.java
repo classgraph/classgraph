@@ -70,12 +70,11 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /** The cached result of toString(). */
     private String toString;
 
-    /** The last modified millis since the epoch, or 0L if it is unknown  */
-    private long lastModified;
+    /** The last modified millis since the epoch, or 0L if it is unknown */
+    private final long lastModified;
 
-    /** The file permissions for this resource, or null if unknown  */
-    private Set<PosixFilePermission> posixFilePermissions;
-
+    /** The file permissions for this resource, or null if unknown */
+    private final Set<PosixFilePermission> posixFilePermissions;
 
     /**
      * The {@link LogNode} used to log that the resource was found when classpath element paths are scanned. In the
@@ -107,8 +106,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *            the classpath element this resource was obtained from.
      * @param length
      *            the length the length of the resource.
+     * @param lastModified
+     *            The last modified date, in milliseconds since the epoch, or 0 if unknown.
+     * @param posixFilePermissions
+     *            The POSIX file permissions, or null if unknown.
      */
-    public Resource(final ClasspathElement classpathElement, final long length, final long lastModified, final Set<PosixFilePermission> posixFilePermissions) {
+    public Resource(final ClasspathElement classpathElement, final long length, final long lastModified,
+            final Set<PosixFilePermission> posixFilePermissions) {
         this.classpathElement = classpathElement;
         this.length = length;
         this.lastModified = lastModified;

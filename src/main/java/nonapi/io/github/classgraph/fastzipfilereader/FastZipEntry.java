@@ -68,10 +68,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The uncompressed size of the zip entry, in bytes. */
     public final long uncompressedSize;
 
-    /** The last modified millis since the epoch, or 0L if it is unknown  */
+    /** The last modified millis since the epoch, or 0L if it is unknown */
     public final long lastModified;
 
-    /** The file permissions for this resource, or null if unknown  */
+    /** The file permissions for this resource, or null if unknown */
     public final Set<PosixFilePermission> posixFilePermissions;
 
     /**
@@ -94,6 +94,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * Constructor.
+     * 
      * @param parentLogicalZipFile
      *            The parent logical zipfile containing this entry.
      * @param locHeaderPos
@@ -114,8 +115,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The POSIX file permissions
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
-                 final boolean isDeflated, final long compressedSize, final long uncompressedSize,
-                 final NestedJarHandler nestedJarHandler, final long lastModified, final Set<PosixFilePermission> posixFilePermissions) {
+            final boolean isDeflated, final long compressedSize, final long uncompressedSize,
+            final NestedJarHandler nestedJarHandler, final long lastModified,
+            final Set<PosixFilePermission> posixFilePermissions) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;

@@ -613,10 +613,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 }
                 final boolean isDeflated = compressionMethod == /* deflated */ 8;
 
-                final int lastModifiedTime = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 12)
+                final int lastModifiedTime = entryBytes != null
+                        ? ZipFileSliceReader.getShort(entryBytes, entOff + 12)
                         : zipFileSliceReader.getShort(cenPos + entOff + 12);
 
-                final int lastModifiedDate = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 14)
+                final int lastModifiedDate = entryBytes != null
+                        ? ZipFileSliceReader.getShort(entryBytes, entOff + 14)
                         : zipFileSliceReader.getShort(cenPos + entOff + 14);
 
                 // MS-DOS Date & Time Format
@@ -628,7 +630,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 final int lastModifiedYear = (lastModifiedDate >> 9) + 1980;
 
                 final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-                lastModifiedCalendar.set(lastModifiedYear, lastModifiedMonth, lastModifiedDay, lastModifiedHour, lastModifiedMinute, lastModifiedSecond);
+                lastModifiedCalendar.set(lastModifiedYear, lastModifiedMonth, lastModifiedDay, lastModifiedHour,
+                        lastModifiedMinute, lastModifiedSecond);
                 lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
 
                 // Get compressed and uncompressed size
@@ -638,24 +641,42 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                         : zipFileSliceReader.getInt(cenPos + entOff + 24);
 
                 // Get external file attributes
-                int externalFileAttributes = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 40)
+                final int externalFileAttributes = entryBytes != null
+                        ? ZipFileSliceReader.getShort(entryBytes, entOff + 40)
                         : zipFileSliceReader.getShort(cenPos + entOff + 40);
 
                 Set<PosixFilePermission> perms;
                 if (externalFileAttributes == 0) {
                     perms = null;
-                }
-                else {
+                } else {
                     perms = new HashSet<>();
-                    if ((externalFileAttributes & 0400) > 0) perms.add(PosixFilePermission.OWNER_READ);
-                    if ((externalFileAttributes & 0200) > 0) perms.add(PosixFilePermission.OWNER_WRITE);
-                    if ((externalFileAttributes & 0100) > 0) perms.add(PosixFilePermission.OWNER_EXECUTE);
-                    if ((externalFileAttributes & 0040) > 0) perms.add(PosixFilePermission.GROUP_READ);
-                    if ((externalFileAttributes & 0020) > 0) perms.add(PosixFilePermission.GROUP_WRITE);
-                    if ((externalFileAttributes & 0010) > 0) perms.add(PosixFilePermission.GROUP_EXECUTE);
-                    if ((externalFileAttributes & 0004) > 0) perms.add(PosixFilePermission.OTHERS_READ);
-                    if ((externalFileAttributes & 0002) > 0) perms.add(PosixFilePermission.OTHERS_WRITE);
-                    if ((externalFileAttributes & 0001) > 0) perms.add(PosixFilePermission.OTHERS_EXECUTE);
+                    if ((externalFileAttributes & 0400) > 0) {
+                        perms.add(PosixFilePermission.OWNER_READ);
+                    }
+                    if ((externalFileAttributes & 0200) > 0) {
+                        perms.add(PosixFilePermission.OWNER_WRITE);
+                    }
+                    if ((externalFileAttributes & 0100) > 0) {
+                        perms.add(PosixFilePermission.OWNER_EXECUTE);
+                    }
+                    if ((externalFileAttributes & 0040) > 0) {
+                        perms.add(PosixFilePermission.GROUP_READ);
+                    }
+                    if ((externalFileAttributes & 0020) > 0) {
+                        perms.add(PosixFilePermission.GROUP_WRITE);
+                    }
+                    if ((externalFileAttributes & 0010) > 0) {
+                        perms.add(PosixFilePermission.GROUP_EXECUTE);
+                    }
+                    if ((externalFileAttributes & 0004) > 0) {
+                        perms.add(PosixFilePermission.OTHERS_READ);
+                    }
+                    if ((externalFileAttributes & 0002) > 0) {
+                        perms.add(PosixFilePermission.OTHERS_WRITE);
+                    }
+                    if ((externalFileAttributes & 0001) > 0) {
+                        perms.add(PosixFilePermission.OTHERS_EXECUTE);
+                    }
                 }
 
                 long pos = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 42)
@@ -718,7 +739,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
                 // Add zip entry
                 final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
-                        compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler, lastModifiedCalendar.getTimeInMillis(), perms);
+                        compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler,
+                        lastModifiedCalendar.getTimeInMillis(), perms);
                 entries.add(entry);
 
                 // Record manifest entry
