@@ -540,7 +540,16 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the last modified millis since the epoch
+     * Get the last modified time for the resource, in milliseconds since the epoch. This time is obtained from the
+     * directory entry, if this resource is a file on disk, or from the zipfile central directory, if this resource
+     * is a zipfile entry. Timestamps are not available for resources obtained from system modules or jlink'd
+     * modules.
+     * 
+     * <p>
+     * Note: The ZIP format has no notion of timezone, so timestamps are only meaningful if it is known what
+     * timezone they were created in. We arbitrarily assume that zipfile timestamps are in the UTC timezone. This
+     * may be a wrong assumption, so you may need to apply a timezone correction if you know the timezone used by
+     * the zipfile creator.
      *
      * @return The millis since the epoch indicating the date / time that this file resource was last modified.
      *         Returns 0L if the last modified date is unknown.
@@ -550,9 +559,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the Posix File Permissions for the resource
+     * Get the POSIX file permissions for the resource. POSIX file permissions are obtained from the directory
+     * entry, if this resource is a file on disk, or from the zipfile central directory, if this resource is a
+     * zipfile entry. POSIX file permissions are not available for resources obtained from system modules or jlink'd
+     * modules, and may not be available on non-POSIX-compliant operating systems or non-POSIX filesystems.
      *
-     * @return The set of PosixFilePermission for the resource or null if they are unknown
+     * @return The set of {@link PosixFilePermission} permission flags for the resource, or null if unknown.
      */
     public Set<PosixFilePermission> getPosixFilePermissions() {
         return posixFilePermissions;
