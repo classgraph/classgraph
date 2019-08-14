@@ -38,6 +38,8 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.attribute.PosixFileAttributes;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -152,7 +154,15 @@ class ClasspathElementDir extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final String relativePath, final File classpathResourceFile) {
-        return new Resource(this, classpathResourceFile.length()) {
+        Set<PosixFilePermission> posixFilePermissions = null;
+        try {
+            posixFilePermissions = Files.readAttributes(classpathResourceFile.toPath(), PosixFileAttributes.class)
+                    .permissions();
+        } catch (UnsupportedOperationException | IOException | SecurityException e) {
+            // POSIX attributes not supported
+        }
+        return new Resource(this, classpathResourceFile.length(), classpathResourceFile.lastModified(),
+                posixFilePermissions) {
             /** The random access file. */
             private RandomAccessFile randomAccessFile;
 
