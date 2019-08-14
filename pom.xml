@@ -56,6 +56,11 @@
 
         <!-- Default to generating Javadoc in HTML 4.01 format -->
         <javadoc.html.version />
+        
+        <!-- Warnings are disabled, in order to suppress warning about bootstrap classpath not being set -->
+        <!-- (which arises as a result of building for JDK 7 on JDK8+, allowing for use of @FunctionalInterface) -->
+        <!-- <maven.compiler.showWarnings>true</maven.compiler.showWarnings> -->
+        <!-- <maven.compiler.showDeprecation>true</maven.compiler.showDeprecation> -->
     </properties>
 
     <build>
@@ -159,6 +164,11 @@
                         <!-- compile fine as long as they exist in the compiling JDK (in this case, JDK 8+). -->
                         <!-- Missing annotations don't trigger a linkage error or ClassNotFoundException -->
                         <!-- unless the annotation is actually read. -->
+                        <!-- However, note that not explicitly specifying a JDK 7 rt.jar as the bootstrap -->
+                        <!-- classpath (in order to build on a newer JDK, which does have @FunctionalInterface) -->
+                        <!-- will lead to the following build-time warning, if maven.compiler.showWarnings -->
+                        <!-- is set to true: -->
+                        <!-- "[WARNING] bootstrap class path not set in conjunction with -source 7"-->
                         <source>7</source>
                         <target>7</target>
                     </configuration>
