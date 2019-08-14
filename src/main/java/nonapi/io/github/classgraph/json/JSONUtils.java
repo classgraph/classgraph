@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.json;
 
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -303,6 +304,56 @@ public final class JSONUtils {
         }
     }
 
+    // private static MethodHandle canAccess = null;
+    //private static Method canAccessMethod = null;
+    // private static MethodHandle isAccessible = null;
+    private static Method isAccessibleMethod = null;
+    // private static MethodHandle trySetAccessible = null;
+    private static Method trySetAccessibleMethod = null;
+    static {
+        // TODO: MethodHandles are disabled for now, due to Animal Sniffer bug:
+        // https://github.com/mojohaus/animal-sniffer/issues/67
+
+        //        final Lookup lookup = MethodHandles.lookup();
+        //        try {
+        //            // JDK 9+: use AccessibleObject::canAccess(instance)
+        //            canAccess = lookup.findVirtual(AccessibleObject.class, "canAccess",
+        //                    MethodType.methodType(boolean.class, Object.class));
+        //        } catch (NoSuchMethodException | IllegalAccessException e) {
+        //            // Ignore
+        //        }
+        //        try {
+        //            canAccessMethod = AccessibleObject.class.getDeclaredMethod("canAccess");
+        //        } catch (NoSuchMethodException | SecurityException e1) {
+        //            // Ignore
+        //        }
+        //        try {
+        //            // JDK 7/8: use AccessibleObject::isAccessible()
+        //            isAccessible = lookup.findVirtual(AccessibleObject.class, "isAccessible",
+        //                    MethodType.methodType(boolean.class));
+        //        } catch (NoSuchMethodException | IllegalAccessException e) {
+        //            // Ignore
+        //        }
+        try {
+            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible", Object.class);
+        } catch (NoSuchMethodException | SecurityException e1) {
+            // Ignore
+        }
+        //        try {
+        //            // JDK 9+: use AccessibleObject::trySetAccessible() rather than
+        //            // AccessibleObject::setAccessible(true)
+        //            trySetAccessible = lookup.findVirtual(AccessibleObject.class, "trySetAccessible",
+        //                    MethodType.methodType(boolean.class));
+        //        } catch (NoSuchMethodException | IllegalAccessException e) {
+        //            // Ignore
+        //        }
+        try {
+            trySetAccessibleMethod = AccessibleObject.class.getDeclaredMethod("trySetAccessible");
+        } catch (NoSuchMethodException | SecurityException e1) {
+            // Ignore
+        }
+    }
+
     /**
      * Return true if the field is accessible, or can be made accessible (and make it accessible if so).
      *
@@ -311,30 +362,87 @@ public final class JSONUtils {
      * @return true if accessible
      */
     static boolean isAccessibleOrMakeAccessible(final AccessibleObject fieldOrConstructor) {
-        // Make field accessible if needed
-        final AtomicBoolean isAccessible = new AtomicBoolean(
-                // Replace with (in JDK 9+): fieldOrConstructor.canAccess(instance);
-                fieldOrConstructor.isAccessible());
-        if (!isAccessible.get()) {
-            try {
-                fieldOrConstructor.setAccessible(true);
-                isAccessible.set(true);
-            } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException 
+        // Test if field or constructor is already accessible
+        final AtomicBoolean accessible = new AtomicBoolean(false);
+        // TODO: this method needs to take an object instance reference before canAccess can be used
+        //        if (canAccess != null) {
+        //            //        // JDK 9+: use canAccess(instance)
+        //            //        try {
+        //            //            accessible.set((Boolean) canAccess.invokeExact(fieldOrConstructor, instance));
+        //            //        } catch (Throwable e) {
+        //            //            // Ignore
+        //            //        }
+        //        }
+        //        if (canAccessMethod != null) {
+        //            accessible.set((Boolean) canAccessMethod.invoke(fieldOrConstructor, instance));
+        //        }
+        if (!accessible.get()) {
+            //            if (isAccessible != null) {
+            //                // JDK 7/8: use isAccessible (deprecated in JDK 9+)
+            //                try {
+            //                    // accessible.set((Boolean) isAccessible.invoke(fieldOrConstructor));
+            //                } catch (final Throwable e) {
+            //                    // Ignore
+            //                }
+            //            } else 
+            if (isAccessibleMethod != null) {
+                // JDK 7/8: use isAccessible (deprecated in JDK 9+)
+                try {
+                    accessible.set((Boolean) isAccessibleMethod.invoke(fieldOrConstructor));
+                } catch (final Throwable e) {
+                    // Ignore
+                }
+            }
+        }
+
+        // Only set accessible if field or constructor is not yet accessible
+        if (!accessible.get()) {
+            //                if (trySetAccessible != null) {
+            //                    accessible.set((Boolean) trySetAccessible.invoke(fieldOrConstructor));
+            //                } else
+            if (trySetAccessibleMethod != null) {
+                try {
+                    accessible.set((Boolean) trySetAccessibleMethod.invoke(fieldOrConstructor));
+                } catch (final Throwable e) {
+                    // Ignore
+                }
+            }
+            if (!accessible.get()) {
+                try {
+                    fieldOrConstructor.setAccessible(true);
+                    accessible.set(true);
+                } catch (final Throwable t) {
+                    // Ignore
+                }
+            }
+            if (!accessible.get()) {
                 AccessController.doPrivileged(new PrivilegedAction<Void>() {
                     @Override
                     public Void run() {
-                        try {
-                            fieldOrConstructor.setAccessible(true);
-                            isAccessible.set(true);
-                        } catch (final RuntimeException e) { // JDK 9+: InaccessibleObjectException | SecurityException
-                            // Ignore
+                        //                if (trySetAccessible != null) {
+                        //                    accessible.set((Boolean) trySetAccessible.invoke(fieldOrConstructor));
+                        //                } else
+                        if (trySetAccessibleMethod != null) {
+                            try {
+                                accessible.set((Boolean) trySetAccessibleMethod.invoke(fieldOrConstructor));
+                            } catch (final Throwable e) {
+                                // Ignore
+                            }
+                        }
+                        if (!accessible.get()) {
+                            try {
+                                fieldOrConstructor.setAccessible(true);
+                                accessible.set(true);
+                            } catch (final Throwable t) {
+                                // Ignore
+                            }
                         }
                         return null;
                     }
                 });
             }
         }
-        return isAccessible.get();
+        return accessible.get();
     }
 
     /**
