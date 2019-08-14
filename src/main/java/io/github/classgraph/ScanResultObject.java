@@ -57,7 +57,7 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
      * @return the referenced class info.
      */
@@ -70,7 +70,7 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
      * @param classNameToClassInfo
      *            the map from class name to {@link ClassInfo}.

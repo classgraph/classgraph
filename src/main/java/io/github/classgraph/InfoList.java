@@ -43,9 +43,6 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
     /** serialVersionUID. */
     static final long serialVersionUID = 1L;
 
-    /** Whether or not the list is modifiable. */
-    boolean modifiable = true;
-
     /**
      * Constructor.
      */
@@ -71,6 +68,18 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
      */
     InfoList(final Collection<T> infoCollection) {
         super(infoCollection);
+    }
+
+    // Keep Scrutinizer happy
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    // Keep Scrutinizer happy
+    @Override
+    public int hashCode() {
+        return super.hashCode();
     }
 
     // -------------------------------------------------------------------------------------------------------------

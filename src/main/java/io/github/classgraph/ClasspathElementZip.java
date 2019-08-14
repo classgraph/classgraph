@@ -216,20 +216,20 @@ class ClasspathElementZip extends ClasspathElement {
                     .split(" ")) {
                 if (!childClassPathEltPathRelative.isEmpty()) {
                     // Resolve Class-Path entry relative to containing dir
-                    String childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
+                    final String childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
                             childClassPathEltPathRelative);
                     // If this is a nested jar, prepend outer jar prefix
                     final ZipFileSlice parentZipFileSlice = logicalZipFile.getParentZipFileSlice();
-                    if (parentZipFileSlice != null) {
-                        childClassPathEltPath = parentZipFileSlice.getPath()
-                                + (childClassPathEltPath.startsWith("/") ? "!" : "!/") + childClassPathEltPath;
-                    }
+                    final String childClassPathEltPathWithPrefix = parentZipFileSlice == null
+                            ? childClassPathEltPath
+                            : parentZipFileSlice.getPath() + (childClassPathEltPath.startsWith("/") ? "!" : "!/")
+                                    + childClassPathEltPath;
                     // Only add child classpath elements once
-                    if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
+                    if (scheduledChildClasspathElements.add(childClassPathEltPathWithPrefix)) {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit( //
                                 new ClasspathEntryWorkUnit(
-                                        /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPath,
+                                        /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPathWithPrefix,
                                                 classLoader),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */

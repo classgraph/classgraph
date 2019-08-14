@@ -223,9 +223,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
         for (final String refdClassName : refdClassNames) {
-            final ClassInfo classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
-            classInfo.scanResult = scanResult;
-            refdClassInfo.add(classInfo);
+            final ClassInfo clsInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
+            clsInfo.scanResult = scanResult;
+            refdClassInfo.add(clsInfo);
         }
     }
 

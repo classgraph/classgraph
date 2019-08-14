@@ -73,6 +73,18 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
         super(collection);
     }
 
+    // Keep Scrutinizer happy
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    // Keep Scrutinizer happy
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
     /** Make this list unmodifiable. */
     void makeUnmodifiable() {
         modifiable = false;

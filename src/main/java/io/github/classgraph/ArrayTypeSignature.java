@@ -170,11 +170,11 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     public ArrayClassInfo getArrayClassInfo() {
         if (arrayClassInfo == null) {
             if (scanResult != null) {
-                final String className = getClassName();
+                final String clsName = getClassName();
                 // Cache ArrayClassInfo instances using scanResult.classNameToClassInfo, if scanResult is available
-                arrayClassInfo = (ArrayClassInfo) scanResult.classNameToClassInfo.get(className);
+                arrayClassInfo = (ArrayClassInfo) scanResult.classNameToClassInfo.get(clsName);
                 if (arrayClassInfo == null) {
-                    scanResult.classNameToClassInfo.put(className, arrayClassInfo = new ArrayClassInfo(this));
+                    scanResult.classNameToClassInfo.put(clsName, arrayClassInfo = new ArrayClassInfo(this));
                     arrayClassInfo.setScanResult(this.scanResult);
                 }
             } else {
