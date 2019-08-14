@@ -39,9 +39,12 @@ import java.util.List;
  * @param <T>
  *            the element type
  */
-public class InfoList<T extends HasName> extends ArrayList<T> {
+public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> {
     /** serialVersionUID. */
     static final long serialVersionUID = 1L;
+
+    /** Whether or not the list is modifiable. */
+    boolean modifiable = true;
 
     /**
      * Constructor.
@@ -107,7 +110,4 @@ public class InfoList<T extends HasName> extends ArrayList<T> {
             return toStringVals;
         }
     }
-
-    // -------------------------------------------------------------------------------------------------------------
-
 }

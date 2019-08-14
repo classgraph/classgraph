@@ -30,15 +30,10 @@ package io.github.classgraph;
 
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Spliterator;
-import java.util.function.Consumer;
 
 import io.github.classgraph.ClassInfo.RelType;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
@@ -53,150 +48,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     private AnnotationInfoList directlyRelatedAnnotations;
 
     /** An unmodifiable empty {@link AnnotationInfoList}. */
-    static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList() {
-        @Override
-        public boolean add(final AnnotationInfo e) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void add(final int index, final AnnotationInfo element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean remove(final Object o) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public AnnotationInfo remove(final int index) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final Collection<? extends AnnotationInfo> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final int index, final Collection<? extends AnnotationInfo> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void clear() {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public AnnotationInfo set(final int index, final AnnotationInfo element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        // Provide replacement iterators so that there is no chance of a thread that
-        // is trying to sort the empty list causing a ConcurrentModificationException
-        // in another thread that is iterating over the empty list (#334)
-        @Override
-        public Iterator<AnnotationInfo> iterator() {
-            return new Iterator<AnnotationInfo>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public AnnotationInfo next() {
-                    return null;
-                }
-            };
-        }
-
-        @Override
-        public Spliterator<AnnotationInfo> spliterator() {
-            return new Spliterator<AnnotationInfo>() {
-                @Override
-                public boolean tryAdvance(final Consumer<? super AnnotationInfo> action) {
-                    return false;
-                }
-
-                @Override
-                public Spliterator<AnnotationInfo> trySplit() {
-                    return null;
-                }
-
-                @Override
-                public long estimateSize() {
-                    return 0;
-                }
-
-                @Override
-                public int characteristics() {
-                    return 0;
-                }
-            };
-        }
-
-        @Override
-        public ListIterator<AnnotationInfo> listIterator() {
-            return new ListIterator<AnnotationInfo>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public AnnotationInfo next() {
-                    return null;
-                }
-
-                @Override
-                public boolean hasPrevious() {
-                    return false;
-                }
-
-                @Override
-                public AnnotationInfo previous() {
-                    return null;
-                }
-
-                @Override
-                public int nextIndex() {
-                    return 0;
-                }
-
-                @Override
-                public int previousIndex() {
-                    return 0;
-                }
-
-                @Override
-                public void remove() {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void set(final AnnotationInfo e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void add(final AnnotationInfo e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-            };
-        }
-    };
+    static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList();
+    static {
+        EMPTY_LIST.makeUnmodifiable();
+    }
 
     /**
      * Return an unmodifiable empty {@link AnnotationInfoList}.

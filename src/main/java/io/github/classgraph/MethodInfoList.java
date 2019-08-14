@@ -30,160 +30,16 @@ package io.github.classgraph;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Spliterator;
-import java.util.function.Consumer;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
     /** An unmodifiable empty {@link MethodInfoList}. */
-    static final MethodInfoList EMPTY_LIST = new MethodInfoList() {
-        @Override
-        public boolean add(final MethodInfo e) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void add(final int index, final MethodInfo element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean remove(final Object o) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public MethodInfo remove(final int index) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final Collection<? extends MethodInfo> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final int index, final Collection<? extends MethodInfo> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void clear() {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public MethodInfo set(final int index, final MethodInfo element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        // Provide replacement iterators so that there is no chance of a thread that
-        // is trying to sort the empty list causing a ConcurrentModificationException
-        // in another thread that is iterating over the empty list (#334)
-        @Override
-        public Iterator<MethodInfo> iterator() {
-            return new Iterator<MethodInfo>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public MethodInfo next() {
-                    return null;
-                }
-            };
-        }
-
-        @Override
-        public Spliterator<MethodInfo> spliterator() {
-            return new Spliterator<MethodInfo>() {
-                @Override
-                public boolean tryAdvance(final Consumer<? super MethodInfo> action) {
-                    return false;
-                }
-
-                @Override
-                public Spliterator<MethodInfo> trySplit() {
-                    return null;
-                }
-
-                @Override
-                public long estimateSize() {
-                    return 0;
-                }
-
-                @Override
-                public int characteristics() {
-                    return 0;
-                }
-            };
-        }
-
-        @Override
-        public ListIterator<MethodInfo> listIterator() {
-            return new ListIterator<MethodInfo>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public MethodInfo next() {
-                    return null;
-                }
-
-                @Override
-                public boolean hasPrevious() {
-                    return false;
-                }
-
-                @Override
-                public MethodInfo previous() {
-                    return null;
-                }
-
-                @Override
-                public int nextIndex() {
-                    return 0;
-                }
-
-                @Override
-                public int previousIndex() {
-                    return 0;
-                }
-
-                @Override
-                public void remove() {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void set(final MethodInfo e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void add(final MethodInfo e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-            };
-        }
-    };
+    static final MethodInfoList EMPTY_LIST = new MethodInfoList();
+    static {
+        EMPTY_LIST.makeUnmodifiable();
+    }
 
     /**
      * Return an unmodifiable empty {@link MethodInfoList}.

@@ -38,166 +38,22 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Spliterator;
-import java.util.function.Consumer;
 
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
-public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
+public class ResourceList extends PotentiallyUnmodifiableList<Resource> implements AutoCloseable {
     /** serialVersionUID. */
     static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link ResourceList}. */
-    static final ResourceList EMPTY_LIST = new ResourceList() {
-        @Override
-        public boolean add(final Resource e) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void add(final int index, final Resource element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean remove(final Object o) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public Resource remove(final int index) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final Collection<? extends Resource> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final int index, final Collection<? extends Resource> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void clear() {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public Resource set(final int index, final Resource element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        // Provide replacement iterators so that there is no chance of a thread that
-        // is trying to sort the empty list causing a ConcurrentModificationException
-        // in another thread that is iterating over the empty list (#334)
-        @Override
-        public Iterator<Resource> iterator() {
-            return new Iterator<Resource>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public Resource next() {
-                    return null;
-                }
-            };
-        }
-
-        @Override
-        public Spliterator<Resource> spliterator() {
-            return new Spliterator<Resource>() {
-                @Override
-                public boolean tryAdvance(final Consumer<? super Resource> action) {
-                    return false;
-                }
-
-                @Override
-                public Spliterator<Resource> trySplit() {
-                    return null;
-                }
-
-                @Override
-                public long estimateSize() {
-                    return 0;
-                }
-
-                @Override
-                public int characteristics() {
-                    return 0;
-                }
-            };
-        }
-
-        @Override
-        public ListIterator<Resource> listIterator() {
-            return new ListIterator<Resource>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public Resource next() {
-                    return null;
-                }
-
-                @Override
-                public boolean hasPrevious() {
-                    return false;
-                }
-
-                @Override
-                public Resource previous() {
-                    return null;
-                }
-
-                @Override
-                public int nextIndex() {
-                    return 0;
-                }
-
-                @Override
-                public int previousIndex() {
-                    return 0;
-                }
-
-                @Override
-                public void remove() {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void set(final Resource e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void add(final Resource e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-            };
-        }
-    };
+    static final ResourceList EMPTY_LIST = new ResourceList();
+    static {
+        EMPTY_LIST.makeUnmodifiable();
+    }
 
     /**
      * Return an unmodifiable empty {@link ResourceList}.

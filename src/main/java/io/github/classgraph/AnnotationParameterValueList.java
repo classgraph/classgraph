@@ -29,161 +29,17 @@
 package io.github.classgraph;
 
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Spliterator;
-import java.util.function.Consumer;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
 
     /** An unmodifiable empty {@link AnnotationParameterValueList}. */
-    static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList() {
-        @Override
-        public boolean add(final AnnotationParameterValue e) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void add(final int index, final AnnotationParameterValue element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean remove(final Object o) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public AnnotationParameterValue remove(final int index) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final Collection<? extends AnnotationParameterValue> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final int index, final Collection<? extends AnnotationParameterValue> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void clear() {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public AnnotationParameterValue set(final int index, final AnnotationParameterValue element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        // Provide replacement iterators so that there is no chance of a thread that
-        // is trying to sort the empty list causing a ConcurrentModificationException
-        // in another thread that is iterating over the empty list (#334)
-        @Override
-        public Iterator<AnnotationParameterValue> iterator() {
-            return new Iterator<AnnotationParameterValue>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public AnnotationParameterValue next() {
-                    return null;
-                }
-            };
-        }
-
-        @Override
-        public Spliterator<AnnotationParameterValue> spliterator() {
-            return new Spliterator<AnnotationParameterValue>() {
-                @Override
-                public boolean tryAdvance(final Consumer<? super AnnotationParameterValue> action) {
-                    return false;
-                }
-
-                @Override
-                public Spliterator<AnnotationParameterValue> trySplit() {
-                    return null;
-                }
-
-                @Override
-                public long estimateSize() {
-                    return 0;
-                }
-
-                @Override
-                public int characteristics() {
-                    return 0;
-                }
-            };
-        }
-
-        @Override
-        public ListIterator<AnnotationParameterValue> listIterator() {
-            return new ListIterator<AnnotationParameterValue>() {
-                @Override
-                public boolean hasNext() {
-                    return false;
-                }
-
-                @Override
-                public AnnotationParameterValue next() {
-                    return null;
-                }
-
-                @Override
-                public boolean hasPrevious() {
-                    return false;
-                }
-
-                @Override
-                public AnnotationParameterValue previous() {
-                    return null;
-                }
-
-                @Override
-                public int nextIndex() {
-                    return 0;
-                }
-
-                @Override
-                public int previousIndex() {
-                    return 0;
-                }
-
-                @Override
-                public void remove() {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void set(final AnnotationParameterValue e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-
-                @Override
-                public void add(final AnnotationParameterValue e) {
-                    throw new IllegalArgumentException("List is immutable");
-                }
-            };
-        }
-    };
+    static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList();
+    static {
+        EMPTY_LIST.makeUnmodifiable();
+    }
 
     /**
      * Return an unmodifiable empty {@link AnnotationParameterValueList}.
