@@ -105,10 +105,8 @@ public class MethodInfoTest {
         // .enableSaveMethodInfo() not called
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .scan()) {
-            Assertions.assertThrows(
-                    IllegalArgumentException.class,
-                    () -> scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
-            );
+            Assertions.assertThrows(IllegalArgumentException.class,
+                    () -> scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo());
         }
     }
 

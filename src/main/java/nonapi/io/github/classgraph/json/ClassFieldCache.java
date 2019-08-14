@@ -79,6 +79,7 @@ class ClassFieldCache {
     private final boolean onlySerializePublicFields;
 
     /** The default constructor for each concrete type. */
+    // TODO: replace these with constructor MethodHandles for speed
     private final Map<Class<?>, Constructor<?>> defaultConstructorForConcreteType = new HashMap<>();
 
     /** The constructor with size hint for each concrete type. */

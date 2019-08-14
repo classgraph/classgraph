@@ -61,10 +61,8 @@ public class FieldInfoTest {
     public void fieldInfoNotEnabled() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
                 .scan()) {
-            Assertions.assertThrows(
-                    IllegalArgumentException.class,
-                    () -> scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
-            );
+            Assertions.assertThrows(IllegalArgumentException.class,
+                    () -> scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo());
         }
     }
 

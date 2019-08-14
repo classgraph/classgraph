@@ -61,6 +61,7 @@ class ClassFields {
     final Map<String, FieldTypeInfo> fieldNameToFieldTypeInfo = new HashMap<>();
 
     /** If non-null, this is the field that has an {@link Id} annotation. */
+    // TODO: replace this with getter/setter MethodHandles for speed
     Field idField;
 
     /**
