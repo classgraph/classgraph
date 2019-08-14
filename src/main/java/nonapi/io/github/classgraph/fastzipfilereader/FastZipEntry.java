@@ -34,6 +34,8 @@ import java.io.InputStream;
 import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -66,6 +68,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The uncompressed size of the zip entry, in bytes. */
     public final long uncompressedSize;
 
+    /** The last modified millis since the epoch, or 0L if it is unknown  */
+    public final long lastModified;
+
+    /** The file permissions for this resource, or null if unknown  */
+    public final Set<PosixFilePermission> posixFilePermissions;
+
     /**
      * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
      */
@@ -86,7 +94,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * Constructor.
-     *
      * @param parentLogicalZipFile
      *            The parent logical zipfile containing this entry.
      * @param locHeaderPos
@@ -101,10 +108,14 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The uncompressed size of the entry.
      * @param nestedJarHandler
      *            The {@link NestedJarHandler}.
+     * @param lastModified
+     *            The last modified date/time in millis since the epoch
+     * @param posixFilePermissions
+     *            The POSIX file permissions
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
-            final boolean isDeflated, final long compressedSize, final long uncompressedSize,
-            final NestedJarHandler nestedJarHandler) {
+                 final boolean isDeflated, final long compressedSize, final long uncompressedSize,
+                 final NestedJarHandler nestedJarHandler, final long lastModified, final Set<PosixFilePermission> posixFilePermissions) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;
@@ -112,6 +123,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.compressedSize = compressedSize;
         this.uncompressedSize = !isDeflated && uncompressedSize < 0 ? compressedSize : uncompressedSize;
         this.nestedJarHandler = nestedJarHandler;
+        this.lastModified = lastModified;
+        this.posixFilePermissions = posixFilePermissions;
 
         // Get multi-release jar version number, and strip any version prefix
         int entryVersion = 8;
@@ -387,7 +400,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                             // N.B. the ByteBuffer version of setInput doesn't seem to need the extra
                             // padding byte at the end when using the "nowrap" Inflater option.
 
-                            // Copy from the ByteBuffer into a temporary byte[] array (needed for JDK<11). 
+                            // Copy from the ByteBuffer into a temporary byte[] array (needed for JDK<11).
                             try {
                                 final int remaining = currChunkByteBuf.remaining();
                                 if (isLastChunk && remaining < inflateBuf.length) {

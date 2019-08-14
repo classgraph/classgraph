@@ -144,7 +144,7 @@ class ClasspathElementZip extends ClasspathElement {
             // Get the normalized path of the logical zipfile
             zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, logicalZipFile.getPath());
 
-            // Get package root of jarfile 
+            // Get package root of jarfile
             final String packageRoot = logicalZipFileAndPackageRoot.getValue();
             if (!packageRoot.isEmpty()) {
                 packageRootPrefix = packageRoot + "/";
@@ -238,7 +238,7 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             }
         }
-        // Add paths in an OSGi bundle jar manifest's "Bundle-ClassPath" entry to the classpath, resolving 
+        // Add paths in an OSGi bundle jar manifest's "Bundle-ClassPath" entry to the classpath, resolving
         // the paths relative to the root of the jarfile
         if (logicalZipFile.bundleClassPathManifestEntryValue != null) {
             final String zipFilePathPrefix = zipFilePath + "!/";
@@ -281,7 +281,7 @@ class ClasspathElementZip extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
-        return new Resource(this, zipEntry.uncompressedSize) {
+        return new Resource(this, zipEntry.uncompressedSize, zipEntry.lastModified, zipEntry.posixFilePermissions) {
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.
