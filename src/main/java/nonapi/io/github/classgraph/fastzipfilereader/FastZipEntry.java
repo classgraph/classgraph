@@ -231,7 +231,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
         return !isDeflated //
                 && dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE //
-                == (dataStartOffsetWithinPhysicalZipFile + uncompressedSize) / FileUtils.MAX_BUFFER_SIZE;
+                        == (dataStartOffsetWithinPhysicalZipFile + uncompressedSize) / FileUtils.MAX_BUFFER_SIZE;
     }
 
     /**
