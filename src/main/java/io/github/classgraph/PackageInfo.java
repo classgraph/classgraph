@@ -204,7 +204,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *         in this package.
      */
     public ClassInfo getClassInfo(final String className) {
-        return memberClassNameToClassInfo.get(className);
+        return memberClassNameToClassInfo == null ? null : memberClassNameToClassInfo.get(className);
     }
 
     /**
@@ -213,7 +213,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return the {@link ClassInfo} objects for all classes that are members of this package.
      */
     public ClassInfoList getClassInfo() {
-        return new ClassInfoList(new HashSet<>(memberClassNameToClassInfo.values()), /* sortByName = */ true);
+        return memberClassNameToClassInfo == null ? ClassInfoList.EMPTY_LIST
+                : new ClassInfoList(new HashSet<>(memberClassNameToClassInfo.values()), /* sortByName = */ true);
     }
 
     /**
@@ -223,7 +224,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *            the reachable class info
      */
     private void obtainClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
-        reachableClassInfo.addAll(memberClassNameToClassInfo.values());
+        if (memberClassNameToClassInfo != null) {
+            reachableClassInfo.addAll(memberClassNameToClassInfo.values());
+        }
         for (final PackageInfo subPackageInfo : getChildren()) {
             subPackageInfo.obtainClassInfoRecursive(reachableClassInfo);
         }
