@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -56,7 +59,7 @@
 
         <!-- Default to generating Javadoc in HTML 4.01 format -->
         <javadoc.html.version />
-        
+
         <!-- Warnings are disabled, in order to suppress warning about bootstrap classpath not being set -->
         <!-- (which arises as a result of building for JDK 7 on JDK8+, allowing for use of @FunctionalInterface) -->
         <!-- <maven.compiler.showWarnings>true</maven.compiler.showWarnings> -->
@@ -104,6 +107,10 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+            </plugin>
+            <plugin>
                 <groupId>org.sonatype.plugins</groupId>
                 <artifactId>nexus-staging-maven-plugin</artifactId>
             </plugin>
@@ -137,7 +144,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <!-- Check against JDK 7 API -->
@@ -168,7 +176,7 @@
                         <!-- classpath (in order to build on a newer JDK, which does have @FunctionalInterface) -->
                         <!-- will lead to the following build-time warning, if maven.compiler.showWarnings -->
                         <!-- is set to true: -->
-                        <!-- "[WARNING] bootstrap class path not set in conjunction with -source 7"-->
+                        <!-- "[WARNING] bootstrap class path not set in conjunction with -source 7" -->
                         <source>7</source>
                         <target>7</target>
                     </configuration>
@@ -246,14 +254,17 @@
                                     <!-- ModulePathInfo requires java.management -->
                                     <!-- LogNode requires java.logging -->
                                     <moduleInfoSource>
-                                        /** ${project.name}: ${project.description} ( ${project.url} ) */
+                                        /** ${project.name}: ${project.description} ( ${project.url} )
+                                        */
                                         module
                                         io.github.classgraph {
                                         exports io.github.classgraph;
-                                        requires java.xml;
+                                        requires
+                                        java.xml;
                                         requires jdk.unsupported;
                                         requires java.management;
-                                        requires java.logging;
+                                        requires
+                                        java.logging;
                                         }
                                     </moduleInfoSource>
                                 </module>
@@ -278,6 +289,33 @@
                                 <sources>
                                     <source>src/test/perf</source>
                                 </sources>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Copy LICENSE-ClassGraph.txt to build root -->
+                <plugin>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.1.0</version>
+                    <executions>
+                        <execution>
+                            <id>copy-license</id>
+                            <phase>process-resources</phase>
+                            <goals>
+                                <goal>copy-resources</goal>
+                            </goals>
+                            <configuration>
+                                <outputDirectory>${basedir}/target/classes</outputDirectory>
+                                <resources>
+                                    <resource>
+                                        <directory>${basedir}</directory>
+                                        <filtering>false</filtering>
+                                        <includes>
+                                            <include>LICENSE-ClassGraph.txt</include>
+                                        </includes>
+                                    </resource>
+                                </resources>
                             </configuration>
                         </execution>
                     </executions>
