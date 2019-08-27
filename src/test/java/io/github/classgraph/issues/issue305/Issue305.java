@@ -42,10 +42,9 @@ public class Issue305 {
             errPrintStreamHandler.setLevel(Level.INFO);
             rootLogger.addHandler(errPrintStreamHandler);
 
-            try (ScanResult scanResult = new ClassGraph()
-                    .overrideClassLoaders(new URLClassLoader(new URL[] {
-                            Issue305.class.getClassLoader().getResource("class-path-manifest-entry.jar") }))
-                    .verbose().scan()) {
+            try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(
+                    new URL[] { Issue305.class.getClassLoader().getResource("class-path-manifest-entry.jar") }))
+                    .scan()) {
             }
 
             final String systemErrMessages = new String(err.toByteArray());
