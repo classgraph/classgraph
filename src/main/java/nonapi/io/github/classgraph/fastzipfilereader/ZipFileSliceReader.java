@@ -152,6 +152,9 @@ class ZipFileSliceReader implements AutoCloseable {
      *             the index out of bounds exception
      */
     static int getShort(final byte[] arr, final long off) throws IndexOutOfBoundsException {
+        if (off > 0xffffffffL) {
+            throw new IndexOutOfBoundsException();
+        }
         final int ioff = (int) off;
         if (ioff < 0 || ioff > arr.length - 2) {
             throw new IndexOutOfBoundsException();
@@ -192,6 +195,9 @@ class ZipFileSliceReader implements AutoCloseable {
      *             if an I/O exception occurs.
      */
     static int getInt(final byte[] arr, final long off) throws IOException {
+        if (off > 0xffffffffL) {
+            throw new IndexOutOfBoundsException();
+        }
         final int ioff = (int) off;
         if (ioff < 0 || ioff > arr.length - 4) {
             throw new IndexOutOfBoundsException();
@@ -238,6 +244,9 @@ class ZipFileSliceReader implements AutoCloseable {
      *             if an I/O exception occurs.
      */
     static long getLong(final byte[] arr, final long off) throws IOException {
+        if (off > 0xffffffffL) {
+            throw new IndexOutOfBoundsException();
+        }
         final int ioff = (int) off;
         if (ioff < 0 || ioff > arr.length - 8) {
             throw new IndexOutOfBoundsException();
@@ -294,6 +303,9 @@ class ZipFileSliceReader implements AutoCloseable {
      *             if an I/O exception occurs.
      */
     static String getString(final byte[] arr, final long off, final int lenBytes) throws IOException {
+        if (off > 0xffffffffL) {
+            throw new IndexOutOfBoundsException();
+        }
         final int ioff = (int) off;
         if (ioff < 0 || ioff > arr.length - lenBytes) {
             throw new IndexOutOfBoundsException();
