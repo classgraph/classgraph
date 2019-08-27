@@ -181,7 +181,7 @@ class ZipFileSliceReader implements AutoCloseable {
         if (off < 0 || off > zipFileSlice.len - len) {
             throw new IndexOutOfBoundsException();
         }
-        byte[] bytes = new byte[len];
+        final byte[] bytes = new byte[len];
         if (read(off, bytes, 0, len) < len) {
             throw new EOFException("Unexpected EOF");
         }

@@ -750,7 +750,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                                 throw new IOException("Unknown Unicode entry name format " + version
                                         + " in extra field: " + entryNameSanitized);
                             } else if (size > 9) {
-                                byte[] utf8Bytes = (entryBytes != null
+                                final byte[] utf8Bytes = (entryBytes != null
                                         ? ZipFileSliceReader.getBytes(entryBytes, tagOff + 9, size - 9)
                                         : zipFileSliceReader.getBytes(cenPos + tagOff + 9, size - 9));
                                 if (decoder == null) {
@@ -761,7 +761,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                                 try {
                                     // Replace non-Unicode entry name with Unicode version
                                     entryNameSanitized = decoder.decode(ByteBuffer.wrap(utf8Bytes)).toString();
-                                } catch (CharacterCodingException e) {
+                                } catch (final CharacterCodingException e) {
                                     throw new IOException("Malformed Unicode entry name: " + entryNameSanitized);
                                 }
                             }
