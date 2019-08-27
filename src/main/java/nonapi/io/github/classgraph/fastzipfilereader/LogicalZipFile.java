@@ -454,12 +454,12 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 || numEnt != zipFileSliceReader.getShort(eocdPos + 10)) {
             throw new IOException("Multi-disk jarfiles not supported: " + getPath());
         }
-        long cenSize = zipFileSliceReader.getInt(eocdPos + 12);
+        long cenSize = zipFileSliceReader.getInt(eocdPos + 12) & 0xffffffffL;
         if (cenSize > eocdPos) {
             throw new IOException(
                     "Central directory size out of range: " + cenSize + " vs. " + eocdPos + ": " + getPath());
         }
-        long cenOff = zipFileSliceReader.getInt(eocdPos + 16);
+        long cenOff = zipFileSliceReader.getInt(eocdPos + 16) & 0xffffffffL;
         long cenPos = eocdPos - cenSize;
 
         // Check for Zip64 End Of Central Directory Locator record
@@ -479,29 +479,31 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                     || numEnt64 != zipFileSliceReader.getLong(eocdPos64 + 32)) {
                 throw new IOException("Multi-disk jarfiles not supported: " + getPath());
             }
-            if (numEnt != numEnt64 && numEnt != 0xffff) {
+            if (numEnt == 0xffff) {
+                numEnt = numEnt64;
+            } else if (numEnt != numEnt64) {
                 // Entry size mismatch -- trigger manual counting of entries
                 numEnt = -1L;
-            } else {
-                numEnt = numEnt64;
             }
 
             final long cenSize64 = zipFileSliceReader.getLong(eocdPos64 + 40);
-            if (cenSize != cenSize64 && cenSize != 0xffffffff) {
+            if (cenSize == 0xffffffffL) {
+                cenSize = cenSize64;
+            } else if (cenSize != cenSize64) {
                 throw new IOException(
                         "Mismatch in central directory size: " + cenSize + " vs. " + cenSize64 + ": " + getPath());
             }
-            cenSize = cenSize64;
 
             // Recalculate the central directory position
             cenPos = eocdPos64 - cenSize;
 
             final long cenOff64 = zipFileSliceReader.getLong(eocdPos64 + 48);
-            if (cenOff != cenOff64 && cenOff != 0xffffffff) {
+            if (cenOff == 0xffffffffL) {
+                cenOff = cenOff64;
+            } else if (cenOff != cenOff64) {
                 throw new IOException(
                         "Mismatch in central directory offset: " + cenOff + " vs. " + cenOff64 + ": " + getPath());
             }
-            cenOff = cenOff64;
         }
 
         // Get offset of first local file header
@@ -635,10 +637,10 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
 
                 // Get compressed and uncompressed size
-                long compressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 20)
-                        : zipFileSliceReader.getInt(cenPos + entOff + 20);
-                long uncompressedSize = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 24)
-                        : zipFileSliceReader.getInt(cenPos + entOff + 24);
+                long compressedSize = (entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 20)
+                        : zipFileSliceReader.getInt(cenPos + entOff + 20)) & 0xffffffffL;
+                long uncompressedSize = (entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 24)
+                        : zipFileSliceReader.getInt(cenPos + entOff + 24)) & 0xffffffffL;
 
                 // Get external file attributes
                 final int externalFileAttributes = entryBytes != null
@@ -683,6 +685,9 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                         : zipFileSliceReader.getInt(cenPos + entOff + 42);
 
                 // Check for Zip64 header in extra fields
+                // See:
+                // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
+                // https://github.com/LuaDist/zip/blob/master/proginfo/extrafld.txt
                 if (extraFieldLen > 0) {
                     for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
                         final long tagOff = filenameEndOff + extraFieldOff;
@@ -692,28 +697,50 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                                 : zipFileSliceReader.getShort(cenPos + tagOff + 2);
                         if (extraFieldOff + 4 + size > extraFieldLen) {
                             // Invalid size
+                            if (log != null) {
+                                log.log("Skipping zip entry with invalid extra field size: " + entryNameSanitized);
+                            }
                             break;
                         }
-                        if (tag == /* EXTID_ZIP64 */ 1 && size >= 24) {
-                            final long uncompressedSizeL = entryBytes != null
+                        if (tag == 1 && size >= 20) {
+                            // Zip64 extended information extra field
+                            final long uncompressedSize64 = entryBytes != null
                                     ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 0)
                                     : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 0);
-                            if (uncompressedSize == 0xffffffff) {
-                                uncompressedSize = uncompressedSizeL;
+                            if (uncompressedSize == 0xffffffffL) {
+                                uncompressedSize = uncompressedSize64;
+                            } else if (uncompressedSize != uncompressedSize64) {
+                                throw new IOException("Mismatch in uncompressed size: " + uncompressedSize + " vs. "
+                                        + uncompressedSize64 + ": " + getPath());
                             }
-                            final long compressedSizeL = entryBytes != null
+                            final long compressedSize64 = entryBytes != null
                                     ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
                                     : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8);
-                            if (compressedSize == 0xffffffff) {
-                                compressedSize = compressedSizeL;
+                            if (compressedSize == 0xffffffffL) {
+                                compressedSize = compressedSize64;
+                            } else if (compressedSize != compressedSize64) {
+                                throw new IOException("Mismatch in compressed size: " + compressedSize + " vs. "
+                                        + compressedSize64 + ": " + getPath());
                             }
-                            final long posL = entryBytes != null
-                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
-                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
-                            if (pos == 0xffffffff) {
-                                pos = posL;
+                            // Only compressed size and uncompressed size are required fields
+                            if (size >= 28) {
+                                final long pos64 = entryBytes != null
+                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 16)
+                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 16);
+                                if (pos == 0xffffffffL) {
+                                    pos = pos64;
+                                } else if (pos != pos64) {
+                                    throw new IOException(
+                                            "Mismatch in entry pos: " + pos + " vs. " + pos64 + ": " + getPath());
+                                }
                             }
                             break;
+                        } else if (tag == 0x5455 && size >= 5) {
+                            // Extended Unix timestamp
+
+                        } else if (tag == 0x7855 && size >= 0 /* TODO */) {
+                            // Info-ZIP Unix
+
                         }
                         extraFieldOff += 4 + size;
                     }
