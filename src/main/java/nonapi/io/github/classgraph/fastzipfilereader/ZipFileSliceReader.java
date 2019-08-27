@@ -141,6 +141,97 @@ class ZipFileSliceReader implements AutoCloseable {
     }
 
     /**
+     * Get a byte subarray from a byte array.
+     *
+     * @param arr
+     *            the byte array
+     * @param off
+     *            the offset to start reading from
+     * @param len
+     *            the number of bytes to read
+     * @return the byte subarray
+     * @throws IndexOutOfBoundsException
+     *             the index out of bounds exception
+     */
+    static byte[] getBytes(final byte[] arr, final long off, final int len) throws IndexOutOfBoundsException {
+        if (off > 0xffffffffL) {
+            throw new IndexOutOfBoundsException();
+        }
+        final int ioff = (int) off;
+        if (ioff < 0 || ioff > arr.length - len) {
+            throw new IndexOutOfBoundsException();
+        }
+        return Arrays.copyOfRange(arr, ioff, ioff + len);
+    }
+
+    /**
+     * Get a byte array from the zipfile slice.
+     *
+     * @param off
+     *            the offset to start reading from
+     * @param len
+     *            the number of bytes to read
+     * @return the byte array
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    byte[] getBytes(final long off, final int len) throws IOException, InterruptedException {
+        if (off < 0 || off > zipFileSlice.len - len) {
+            throw new IndexOutOfBoundsException();
+        }
+        byte[] bytes = new byte[len];
+        if (read(off, bytes, 0, len) < len) {
+            throw new EOFException("Unexpected EOF");
+        }
+        return bytes;
+    }
+
+    /**
+     * Get a byte from a byte array.
+     *
+     * @param arr
+     *            the byte array
+     * @param off
+     *            the offset to start reading from
+     * @return the byte
+     * @throws IndexOutOfBoundsException
+     *             the index out of bounds exception
+     */
+    static byte getByte(final byte[] arr, final long off) throws IndexOutOfBoundsException {
+        if (off > 0xffffffffL) {
+            throw new IndexOutOfBoundsException();
+        }
+        final int ioff = (int) off;
+        if (ioff < 0 || ioff > arr.length - 1) {
+            throw new IndexOutOfBoundsException();
+        }
+        return (byte) (arr[ioff] & 0xff);
+    }
+
+    /**
+     * Get a byte from the zipfile slice.
+     *
+     * @param off
+     *            the offset to start reading from
+     * @return the byte
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    byte getByte(final long off) throws IOException, InterruptedException {
+        if (off < 0 || off > zipFileSlice.len - 1) {
+            throw new IndexOutOfBoundsException();
+        }
+        if (read(off, scratch, 0, 1) < 1) {
+            throw new EOFException("Unexpected EOF");
+        }
+        return (byte) (scratch[0] & 0xff);
+    }
+
+    /**
      * Get a short from a byte array.
      *
      * @param arr

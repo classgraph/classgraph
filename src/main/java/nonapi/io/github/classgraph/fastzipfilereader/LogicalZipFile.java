@@ -32,6 +32,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.AbstractMap.SimpleEntry;
@@ -556,6 +560,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
         // Enumerate entries
         entries = new ArrayList<>((int) numEnt);
         FastZipEntry manifestZipEntry = null;
+        CharsetDecoder decoder = null;
         try {
             int entSize = 0;
             for (long entOff = 0; entOff + 46 <= cenSize; entOff += entSize) {
@@ -585,8 +590,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 final String entryName = entryBytes != null
                         ? ZipFileSliceReader.getString(entryBytes, filenameStartOff, filenameLen)
                         : zipFileSliceReader.getString(cenPos + filenameStartOff, filenameLen);
-                final String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName,
-                        /* removeInitialSlash = */ true);
+                String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true);
                 if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
                     // Skip directory entries
                     continue;
@@ -614,27 +618,6 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                     continue;
                 }
                 final boolean isDeflated = compressionMethod == /* deflated */ 8;
-
-                final int lastModifiedTime = entryBytes != null
-                        ? ZipFileSliceReader.getShort(entryBytes, entOff + 12)
-                        : zipFileSliceReader.getShort(cenPos + entOff + 12);
-
-                final int lastModifiedDate = entryBytes != null
-                        ? ZipFileSliceReader.getShort(entryBytes, entOff + 14)
-                        : zipFileSliceReader.getShort(cenPos + entOff + 14);
-
-                // MS-DOS Date & Time Format
-                final int lastModifiedSecond = (lastModifiedTime & 0b11111) * 2;
-                final int lastModifiedMinute = lastModifiedTime >> 5 & 0b111111;
-                final int lastModifiedHour = lastModifiedTime >> 11;
-                final int lastModifiedDay = lastModifiedDate & 0b11111;
-                final int lastModifiedMonth = (lastModifiedDate >> 5 & 0b111) - 1;
-                final int lastModifiedYear = (lastModifiedDate >> 9) + 1980;
-
-                final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-                lastModifiedCalendar.set(lastModifiedYear, lastModifiedMonth, lastModifiedDay, lastModifiedHour,
-                        lastModifiedMinute, lastModifiedSecond);
-                lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
 
                 // Get compressed and uncompressed size
                 long compressedSize = (entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 20)
@@ -688,6 +671,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // See:
                 // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
                 // https://github.com/LuaDist/zip/blob/master/proginfo/extrafld.txt
+                long lastModifiedMillis = 0L;
                 if (extraFieldLen > 0) {
                     for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
                         final long tagOff = filenameEndOff + extraFieldOff;
@@ -711,7 +695,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                                 uncompressedSize = uncompressedSize64;
                             } else if (uncompressedSize != uncompressedSize64) {
                                 throw new IOException("Mismatch in uncompressed size: " + uncompressedSize + " vs. "
-                                        + uncompressedSize64 + ": " + getPath());
+                                        + uncompressedSize64 + ": " + entryNameSanitized);
                             }
                             final long compressedSize64 = entryBytes != null
                                     ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
@@ -720,7 +704,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                                 compressedSize = compressedSize64;
                             } else if (compressedSize != compressedSize64) {
                                 throw new IOException("Mismatch in compressed size: " + compressedSize + " vs. "
-                                        + compressedSize64 + ": " + getPath());
+                                        + compressedSize64 + ": " + entryNameSanitized);
                             }
                             // Only compressed size and uncompressed size are required fields
                             if (size >= 28) {
@@ -730,20 +714,85 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                                 if (pos == 0xffffffffL) {
                                     pos = pos64;
                                 } else if (pos != pos64) {
-                                    throw new IOException(
-                                            "Mismatch in entry pos: " + pos + " vs. " + pos64 + ": " + getPath());
+                                    throw new IOException("Mismatch in entry pos: " + pos + " vs. " + pos64 + ": "
+                                            + entryNameSanitized);
                                 }
                             }
                             break;
+
                         } else if (tag == 0x5455 && size >= 5) {
                             // Extended Unix timestamp
+                            final byte bits = entryBytes != null
+                                    ? ZipFileSliceReader.getByte(entryBytes, tagOff + 4 + 0)
+                                    : zipFileSliceReader.getByte(cenPos + tagOff + 4 + 0);
+                            if ((bits & 1) == 1 && size >= 5 + 8) {
+                                lastModifiedMillis = (entryBytes != null
+                                        ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 1)
+                                        : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 1)) * 1000L;
+                            }
 
-                        } else if (tag == 0x7855 && size >= 0 /* TODO */) {
-                            // Info-ZIP Unix
+                        } else if (tag == 0x5855 && size >= 20) {
+                            // Unix extra field (deprecated)
+                            lastModifiedMillis = (entryBytes != null
+                                    ? ZipFileSliceReader.getLong(entryBytes, tagOff + 4 + 8)
+                                    : zipFileSliceReader.getLong(cenPos + tagOff + 4 + 8)) * 1000L;
+                            // There are also optional UID and GID fields in this extra field (currently ignored)
 
+                        } else if (tag == 0x7855) {
+                            // Info-ZIP Unix UID and GID fields (currently ignored)
+
+                        } else if (tag == 0x7075) {
+                            // Info-ZIP Unicode path extra field
+                            final byte version = entryBytes != null
+                                    ? ZipFileSliceReader.getByte(entryBytes, tagOff + 4 + 0)
+                                    : zipFileSliceReader.getByte(cenPos + tagOff + 4 + 0);
+                            if (version != 1) {
+                                throw new IOException("Unknown Unicode entry name format " + version
+                                        + " in extra field: " + entryNameSanitized);
+                            } else if (size > 9) {
+                                byte[] utf8Bytes = (entryBytes != null
+                                        ? ZipFileSliceReader.getBytes(entryBytes, tagOff + 9, size - 9)
+                                        : zipFileSliceReader.getBytes(cenPos + tagOff + 9, size - 9));
+                                if (decoder == null) {
+                                    decoder = StandardCharsets.UTF_8.newDecoder();
+                                    decoder.onMalformedInput(CodingErrorAction.REPORT)
+                                            .onUnmappableCharacter(CodingErrorAction.REPORT);
+                                }
+                                try {
+                                    // Replace non-Unicode entry name with Unicode version
+                                    entryNameSanitized = decoder.decode(ByteBuffer.wrap(utf8Bytes)).toString();
+                                } catch (CharacterCodingException e) {
+                                    throw new IOException("Malformed Unicode entry name: " + entryNameSanitized);
+                                }
+                            }
                         }
                         extraFieldOff += 4 + size;
                     }
+                }
+
+                if (lastModifiedMillis == 0L) {
+                    // If Unix timestamp was not provided, convertr zip entry timestamp from MS-DOS format
+                    final int lastModifiedTime = entryBytes != null
+                            ? ZipFileSliceReader.getShort(entryBytes, entOff + 12)
+                            : zipFileSliceReader.getShort(cenPos + entOff + 12);
+
+                    final int lastModifiedDate = entryBytes != null
+                            ? ZipFileSliceReader.getShort(entryBytes, entOff + 14)
+                            : zipFileSliceReader.getShort(cenPos + entOff + 14);
+
+                    // MS-DOS Date & Time Format
+                    final int lastModifiedSecond = (lastModifiedTime & 0b11111) * 2;
+                    final int lastModifiedMinute = lastModifiedTime >> 5 & 0b111111;
+                    final int lastModifiedHour = lastModifiedTime >> 11;
+                    final int lastModifiedDay = lastModifiedDate & 0b11111;
+                    final int lastModifiedMonth = (lastModifiedDate >> 5 & 0b111) - 1;
+                    final int lastModifiedYear = (lastModifiedDate >> 9) + 1980;
+
+                    final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+                    lastModifiedCalendar.set(lastModifiedYear, lastModifiedMonth, lastModifiedDay, lastModifiedHour,
+                            lastModifiedMinute, lastModifiedSecond);
+                    lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
+                    lastModifiedMillis = lastModifiedCalendar.getTimeInMillis();
                 }
 
                 if (compressedSize < 0 || pos < 0) {
@@ -766,8 +815,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
 
                 // Add zip entry
                 final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
-                        compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler,
-                        lastModifiedCalendar.getTimeInMillis(), perms);
+                        compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler, lastModifiedMillis,
+                        perms);
                 entries.add(entry);
 
                 // Record manifest entry
