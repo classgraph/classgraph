@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -69,15 +72,15 @@
             <!-- See: https://stackoverflow.com/a/10483284/3950982 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -120,6 +123,57 @@
         <pluginManagement>
             <!-- Plugins. Find updates with: mvn versions:display-plugin-updates -->
             <plugins>
+                <!-- Enforce minimum Maven version, and JDK 7 API -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.0.0-M2</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.codehaus.mojo</groupId>
+                            <artifactId>animal-sniffer-enforcer-rule</artifactId>
+                            <version>1.17</version>
+                        </dependency>
+                    </dependencies>
+                    <executions>
+                        <!-- Require Maven version -->
+                        <execution>
+                            <id>enforce-versions</id>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <requireMavenVersion>
+                                        <version>3.6.1</version>
+                                    </requireMavenVersion>
+                                </rules>
+                            </configuration>
+                        </execution>
+                        <!-- Check main project for compatibility with JDK 7 API -->
+                        <execution>
+                            <id>check-signatures</id>
+                            <phase>test</phase>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                        <signature>
+                                            <groupId>org.codehaus.mojo.signature</groupId>
+                                            <!-- Check against JDK 7 API -->
+                                            <artifactId>java17</artifactId>
+                                            <version>1.0</version>
+                                        </signature>
+                                    </checkSignatureRule>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
                 <!-- Copy LICENSE-ClassGraph.txt to build root -->
                 <plugin>
                     <artifactId>maven-resources-plugin</artifactId>
@@ -199,42 +253,6 @@
                                 <!-- Tests use some JDK 8 features, such as lambdas -->
                                 <source>8</source>
                                 <target>8</target>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-
-                <!-- Enforce API version 1.7 -->
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.0.0-M2</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>org.codehaus.mojo</groupId>
-                            <artifactId>animal-sniffer-enforcer-rule</artifactId>
-                            <version>1.17</version>
-                        </dependency>
-                    </dependencies>
-                    <executions>
-                        <!-- Check main project for compatibility with JDK 7 API -->
-                        <execution>
-                            <id>check-signatures</id>
-                            <phase>test</phase>
-                            <goals>
-                                <goal>enforce</goal>
-                            </goals>
-                            <configuration>
-                                <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
-                                        <signature>
-                                            <groupId>org.codehaus.mojo.signature</groupId>
-                                            <!-- Check against JDK 7 API -->
-                                            <artifactId>java17</artifactId>
-                                            <version>1.0</version>
-                                        </signature>
-                                    </checkSignatureRule>
-                                </rules>
                             </configuration>
                         </execution>
                     </executions>
