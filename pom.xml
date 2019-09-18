@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.48</version>
+    <version>4.8.48-SNAPSHOT</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -31,7 +31,7 @@
         <connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
         <developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
         <url>https://github.com/classgraph/classgraph</url>
-        <tag>classgraph-4.8.48</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
@@ -39,13 +39,9 @@
     </issueManagement>
 
     <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
         <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>bintray</id>
+            <url>https://api.bintray.com/maven/lukehutch/classgraph/io.github.classgraph:classgraph</url>
         </repository>
     </distributionManagement>
 
@@ -106,10 +102,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -402,21 +394,6 @@
                     </executions>
                 </plugin>
 
-                <!-- Stage jars on Sonatype Nexus -->
-                <!-- See: http://java.dzone.com/articles/deploy-maven-central -->
-                <!-- and: http://central.sonatype.org/pages/apache-maven.html -->
-                <plugin>
-                    <groupId>org.sonatype.plugins</groupId>
-                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                    <version>1.6.8</version>
-                    <extensions>true</extensions>
-                    <configuration>
-                        <serverId>ossrh</serverId>
-                        <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                        <autoReleaseAfterClose>true</autoReleaseAfterClose>
-                    </configuration>
-                </plugin>
-
                 <!-- Deploy jars to Maven Central -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -519,19 +496,45 @@
             <build>
                 <plugins>
                     <plugin>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <version>1.6</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
-                                <phase>verify</phase>
+                                <phase>deploy</phase>
                                 <goals>
                                     <goal>sign</goal>
                                 </goals>
+                                <configuration>
+                                    <keyname>${gpg.keyname}</keyname>
+                                    <passphraseServerId>${gpg.keyname}</passphraseServerId>
+                                </configuration>
                             </execution>
                         </executions>
-                    </plugin>
+                    </plugin> -->
                 </plugins>
             </build>
         </profile>
