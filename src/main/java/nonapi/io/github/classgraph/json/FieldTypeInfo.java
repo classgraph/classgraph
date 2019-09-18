@@ -79,24 +79,26 @@ class FieldTypeInfo {
      * The Enum PrimitiveType.
      */
     private enum PrimitiveType {
-        /** The non primitive. */
+        /** Non-primitive type. */
         NON_PRIMITIVE,
-        /** The integer. */
+        /** Integer type. */
         INTEGER,
-        /** The long. */
+        /** Long type. */
         LONG,
-        /** The short. */
+        /** Short type. */
         SHORT,
-        /** The double. */
+        /** Double type. */
         DOUBLE,
-        /** The float. */
+        /** Float type. */
         FLOAT,
-        /** The boolean. */
+        /** Boolean type. */
         BOOLEAN,
-        /** The byte. */
+        /** Byte type. */
         BYTE,
-        /** The character. */
-        CHARACTER;
+        /** Character type. */
+        CHARACTER,
+        /** Class reference */
+        CLASS_REF;
     }
 
     /**
@@ -161,6 +163,8 @@ class FieldTypeInfo {
                 this.primitiveType = PrimitiveType.BYTE;
             } else if (fieldRawType == Character.TYPE) {
                 this.primitiveType = PrimitiveType.CHARACTER;
+            } else if (fieldRawType == Class.class) {
+                this.primitiveType = PrimitiveType.CLASS_REF;
             } else {
                 this.primitiveType = PrimitiveType.NON_PRIMITIVE;
             }
@@ -261,6 +265,13 @@ class FieldTypeInfo {
             }
             switch (primitiveType) {
             case NON_PRIMITIVE:
+                field.set(containingObj, value);
+                break;
+            case CLASS_REF:
+                if (!(value instanceof Class)) {
+                    throw new IllegalArgumentException(
+                            "Expected value of type Class<?>; got " + value.getClass().getName());
+                }
                 field.set(containingObj, value);
                 break;
             case INTEGER:

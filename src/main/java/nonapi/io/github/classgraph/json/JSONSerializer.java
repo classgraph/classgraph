@@ -182,6 +182,10 @@ public final class JSONSerializer {
                     needToConvert[i] = false;
                 }
             }
+            // Special handling for class references: Convert to class name string
+            if (val instanceof Class) {
+                convertedVals[i] = ((Class<?>) val).getName();
+            }
         }
         // Pass 2: Recursively convert items in standard objects, maps, collections and arrays to JSON objects.
         for (int i = 0; i < convertedVals.length; i++) {
@@ -246,6 +250,11 @@ public final class JSONSerializer {
             final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal,
             final boolean onlySerializePublicFields) {
+
+        // For class references, return class name as a string
+        if (obj instanceof Class) {
+            return ((Class<?>) obj).getName();
+        }
 
         // For null and basic value types, just return value
         if (JSONUtils.isBasicValueType(obj)) {

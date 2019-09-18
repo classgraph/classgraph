@@ -75,8 +75,18 @@ public class JSONDeserializer {
             throw ClassGraphException.newClassGraphException("Expected a basic value type");
         }
         if (expectedType instanceof ParameterizedType) {
-            // TODO: add support for Class<T> reference values, which may be parameterized
-            throw new IllegalArgumentException("Got illegal ParameterizedType: " + expectedType);
+            if (((ParameterizedType) expectedType).getRawType().getClass() == Class.class) {
+                final String str = jsonVal.toString();
+                final int idx = str.indexOf('<');
+                final String className = str.substring(0, idx < 0 ? str.length() : idx);
+                try {
+                    return Class.forName(className);
+                } catch (final ClassNotFoundException e) {
+                    throw new IllegalArgumentException("Could not deserialize class reference " + jsonVal, e);
+                }
+            } else {
+                throw new IllegalArgumentException("Got illegal ParameterizedType: " + expectedType);
+            }
         } else if (!(expectedType instanceof Class<?>)) {
             throw new IllegalArgumentException("Got illegal basic value type: " + expectedType);
         }

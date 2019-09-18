@@ -212,6 +212,8 @@ public final class JSONUtils {
             return field.getByte(containingObj);
         } else if (fieldType == Character.TYPE) {
             return field.getChar(containingObj);
+        } else if (fieldType == Class.class) {
+            return field.get(containingObj);
         } else {
             return field.get(containingObj);
         }
@@ -237,7 +239,8 @@ public final class JSONUtils {
                 || cls == Byte.class || cls == Byte.TYPE //
                 || cls == Character.class || cls == Character.TYPE //
                 || cls == Boolean.class || cls == Boolean.TYPE //
-                || cls.isEnum();
+                || cls.isEnum() //
+                || cls == Class.class;
     }
 
     /**
@@ -267,7 +270,8 @@ public final class JSONUtils {
     static boolean isBasicValueType(final Object obj) {
         return obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
                 || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
-                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum();
+                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum()
+                || obj instanceof Class;
     }
 
     /**
