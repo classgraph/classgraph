@@ -104,10 +104,6 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
             </plugin>
@@ -396,21 +392,6 @@
                             </configuration>
                         </execution>
                     </executions>
-                </plugin>
-
-                <!-- Stage jars on Sonatype Nexus -->
-                <!-- See: http://java.dzone.com/articles/deploy-maven-central -->
-                <!-- and: http://central.sonatype.org/pages/apache-maven.html -->
-                <plugin>
-                    <groupId>org.sonatype.plugins</groupId>
-                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                    <version>1.6.8</version>
-                    <extensions>true</extensions>
-                    <configuration>
-                        <serverId>ossrh</serverId>
-                        <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                        <autoReleaseAfterClose>true</autoReleaseAfterClose>
-                    </configuration>
                 </plugin>
 
                 <!-- Deploy jars to Maven Central -->
