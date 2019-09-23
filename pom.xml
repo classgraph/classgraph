@@ -1,9 +1,12 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.49-SNAPSHOT</version>
+    <version>4.8.48-SNAPSHOT</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -148,7 +151,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <!-- Check against JDK 7 API -->
@@ -485,7 +489,7 @@
         </profile>
 
         <!-- Sign jars for release (mvn release:prepare && mvn release:perform) -->
-        <!-- <profile>
+        <profile>
             <id>release</id>
             <activation>
                 <property>
@@ -496,6 +500,28 @@
             <build>
                 <plugins>
                     <plugin>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <version>1.6</version>
@@ -512,10 +538,10 @@
                                 </configuration>
                             </execution>
                         </executions>
-                    </plugin>
+                    </plugin> -->
                 </plugins>
             </build>
-        </profile> -->
+        </profile>
 
         <!-- Lifecycle mapping for eclipse m2e compatibility. -->
         <!-- See: https://stackoverflow.com/a/23707050/3950982 -->
