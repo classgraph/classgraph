@@ -137,7 +137,7 @@
                     </dependencies>
                     <executions>
                         <!-- Require Maven version -->
-                        <execution>
+                        <!-- <execution>
                             <id>enforce-versions</id>
                             <goals>
                                 <goal>enforce</goal>
@@ -149,7 +149,7 @@
                                     </requireMavenVersion>
                                 </rules>
                             </configuration>
-                        </execution>
+                        </execution> -->
                         <!-- Check main project for compatibility with JDK 7 API -->
                         <execution>
                             <id>check-signatures</id>
@@ -534,10 +534,11 @@
                                     <goal>sign</goal>
                                 </goals>
                                 <configuration>
-                                    <useAgent>true</useAgent>
+                                    <keyname>${gpg.keyname}</keyname>
+                                    <passphraseServerId>${gpg.keyname}</passphraseServerId>
                                     <gpgArguments>
-                                        <arg>--pinentry-mode</arg>
-                                        <arg>loopback</arg>
+                                        <gpgArgument>--pinentry-mode</gpgArgument>
+                                        <gpgArgument>loopback</gpgArgument>
                                     </gpgArguments>
                                 </configuration>
                             </execution>
