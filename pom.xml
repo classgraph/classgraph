@@ -134,7 +134,7 @@
                     </dependencies>
                     <executions>
                         <!-- Require Maven version -->
-                        <!-- <execution>
+                        <execution>
                             <id>enforce-versions</id>
                             <goals>
                                 <goal>enforce</goal>
@@ -146,7 +146,7 @@
                                     </requireMavenVersion>
                                 </rules>
                             </configuration>
-                        </execution> -->
+                        </execution>
                         <!-- Check main project for compatibility with JDK 7 API -->
                         <execution>
                             <id>check-signatures</id>
