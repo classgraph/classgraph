@@ -41,7 +41,7 @@
     <distributionManagement>
         <repository>
             <id>bintray</id>
-            <url>https://api.bintray.com/maven/lukehutch/classgraph/classgraph</url>
+            <url>https://api.bintray.com/maven/lukehutch/classgraph/io.github.classgraph:classgraph</url>
         </repository>
     </distributionManagement>
 
