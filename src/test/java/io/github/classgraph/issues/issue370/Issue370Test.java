@@ -69,7 +69,7 @@ public class Issue370Test {
                 final AnnotationInfo annotationInfo = methodInfo.getAnnotationInfo(ApiOperation.class.getName());
                 final String value = annotationInfo.getParameterValues().get("notes").getValue().toString();
                 // System.err.println(value);
-                assertThat(value).isNotNull();
+                assertThat(value).isEqualTo("${snippetclassifications.findById}");
             }
         }
     }
