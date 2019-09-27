@@ -4,7 +4,7 @@ jdk:
   - openjdk11
   - openjdk12
   - openjdk13
-  - openjdk-ea
+  #- openjdk-ea
 
 #ignore default install step
 install: true
