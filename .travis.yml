@@ -1,8 +1,10 @@
 language: java
 jdk:
   - openjdk8
-  - openjdk11     # LTS
-  - openjdk-ea    # Early access
+  - openjdk11
+  - openjdk12
+  - openjdk13
+  - openjdk-ea
 
 #ignore default install step
 install: true
