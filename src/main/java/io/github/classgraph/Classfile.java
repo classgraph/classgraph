@@ -339,7 +339,7 @@ class Classfile {
         if (annotationParamVal == null) {
             // Should not be possible -- ignore
         } else if (annotationParamVal instanceof AnnotationInfo) {
-            final var annotationInfo = (AnnotationInfo) annotationParamVal;
+            final AnnotationInfo annotationInfo = (AnnotationInfo) annotationParamVal;
             scheduleScanningIfExternalClass(annotationInfo.getClassName(), "annotation class", log);
             for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
                 extendScanningUpwardsFromAnnotationParameterValues(apv.getValue(), log);

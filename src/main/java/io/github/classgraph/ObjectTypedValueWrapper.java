@@ -287,22 +287,16 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      */
     private Object getArrayValueClassOrName(final ClassInfo annotationClassInfo, final String paramName,
             final boolean getClass) {
-        if (annotationClassInfo == null) {
-            // annotationClassInfo is null, cannot convert array values to correct type -- just return Object array.
-            // (Should not happen, because the Classfile class extends scanning recursively upwards from all
-            // annotation parameter values and annotation default values, so there should always be a ClassInfo
-            // object created for every annotation.)
-            return getClass ? Object.class : "java.lang.Object";
-        }
         // Find the method in the annotation class with the same name as the annotation parameter.
-        final MethodInfoList annotationMethodList = annotationClassInfo.methodInfo == null ? null
-                : annotationClassInfo.methodInfo.get(paramName);
-        if (annotationMethodList != null && annotationMethodList.size() > 1) {
-            // There should only be one method with a given name in an annotation
-            throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName
-                    + "() in annotation class "
-                    + (annotationClassInfo == null ? "<class outside whitelist>" : annotationClassInfo.getName()));
-        } else if (annotationMethodList != null && annotationMethodList.size() == 1) {
+        final MethodInfoList annotationMethodList = annotationClassInfo == null
+                || annotationClassInfo.methodInfo == null ? null : annotationClassInfo.methodInfo.get(paramName);
+        if (annotationMethodList != null && annotationMethodList.size() > 0) {
+            if (annotationMethodList.size() > 1) {
+                // There should only be one method with a given name in an annotation
+                throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName
+                        + "() in annotation class " + (annotationClassInfo == null ? "<class outside whitelist>"
+                                : annotationClassInfo.getName()));
+            }
             // Get the result type of the method with the same name as the annotation parameter 
             final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
                     .getTypeSignatureOrTypeDescriptor().getResultType();
@@ -330,9 +324,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             }
         } else {
             // Could not find a method with this name -- this is an external class.
-            // Find first non-null object in array, and use its type as the type of the array.
+            // Find first non-null object in array, and use its type as the element type of the array.
             for (final ObjectTypedValueWrapper elt : objectArrayValue) {
                 if (elt != null) {
+                    // Primitive typed arrays will be turned into arrays of boxed types
                     return elt.integerValue != null ? (getClass ? Integer.class : "int")
                             : elt.longValue != null ? (getClass ? Long.class : "long")
                                     : elt.shortValue != null ? (getClass ? Short.class : "short")
@@ -345,11 +340,14 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                                                                             : elt.floatValue != null
                                                                                     ? (getClass ? Float.class
                                                                                             : "float")
-                                                                                    : (getClass ? null : "");
+                                                                                    : (getClass ? elt.getClass()
+                                                                                            : elt.getClass()
+                                                                                                    .getName());
                 }
             }
         }
-        return getClass ? null : "";
+        // Could not determine the element type -- just use Object
+        return getClass ? Object.class : "java.lang.Object";
     }
 
     /**
