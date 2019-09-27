@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -326,6 +327,39 @@ class Classfile {
     }
 
     /**
+     * Check if scanning needs to be extended upwards from an annotation parameter value.
+     *
+     * @param the
+     *            {@link AnnotationInfo} object for an annotation, or for an annotation parmaeter value.
+     * @param log
+     *            the log
+     */
+    private void extendScanningUpwardsFromAnnotationParameterValues(final Object annotationParamVal,
+            final LogNode log) {
+        if (annotationParamVal == null) {
+            // Should not be possible -- ignore
+        } else if (annotationParamVal instanceof AnnotationInfo) {
+            final var annotationInfo = (AnnotationInfo) annotationParamVal;
+            scheduleScanningIfExternalClass(annotationInfo.getClassName(), "annotation class", log);
+            for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
+                extendScanningUpwardsFromAnnotationParameterValues(apv.getValue(), log);
+            }
+        } else if (annotationParamVal instanceof AnnotationEnumValue) {
+            scheduleScanningIfExternalClass(((AnnotationEnumValue) annotationParamVal).getClassName(), "enum class",
+                    log);
+        } else if (annotationParamVal instanceof AnnotationClassRef) {
+            scheduleScanningIfExternalClass(((AnnotationClassRef) annotationParamVal).getClassName(), "class ref",
+                    log);
+        } else if (annotationParamVal.getClass().isArray()) {
+            for (int i = 0, n = Array.getLength(annotationParamVal); i < n; i++) {
+                extendScanningUpwardsFromAnnotationParameterValues(Array.get(annotationParamVal, i), log);
+            }
+        } else {
+            // String etc. -- ignore
+        }
+    }
+
+    /**
      * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
      *
      * @param log
@@ -346,6 +380,13 @@ class Classfile {
         if (classAnnotations != null) {
             for (final AnnotationInfo annotationInfo : classAnnotations) {
                 scheduleScanningIfExternalClass(annotationInfo.getName(), "class annotation", log);
+                extendScanningUpwardsFromAnnotationParameterValues(annotationInfo, log);
+            }
+        }
+        // Annotation default param values
+        if (annotationParamDefaultValues != null) {
+            for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
+                extendScanningUpwardsFromAnnotationParameterValues(apv.getValue(), log);
             }
         }
         // Check method annotations and method parameter annotations
@@ -354,14 +395,16 @@ class Classfile {
                 if (methodInfo.annotationInfo != null) {
                     for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
                         scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
+                        extendScanningUpwardsFromAnnotationParameterValues(methodAnnotationInfo, log);
                     }
                     if (methodInfo.parameterAnnotationInfo != null
                             && methodInfo.parameterAnnotationInfo.length > 0) {
-                        for (final AnnotationInfo[] paramAnns : methodInfo.parameterAnnotationInfo) {
-                            if (paramAnns != null && paramAnns.length > 0) {
-                                for (final AnnotationInfo paramAnn : paramAnns) {
-                                    scheduleScanningIfExternalClass(paramAnn.getName(),
+                        for (final AnnotationInfo[] paramAnnInfoArr : methodInfo.parameterAnnotationInfo) {
+                            if (paramAnnInfoArr != null && paramAnnInfoArr.length > 0) {
+                                for (final AnnotationInfo paramAnnInfo : paramAnnInfoArr) {
+                                    scheduleScanningIfExternalClass(paramAnnInfo.getName(),
                                             "method parameter annotation", log);
+                                    extendScanningUpwardsFromAnnotationParameterValues(paramAnnInfo, log);
                                 }
                             }
                         }
@@ -375,6 +418,7 @@ class Classfile {
                 if (fieldInfo.annotationInfo != null) {
                     for (final AnnotationInfo fieldAnnotationInfo : fieldInfo.annotationInfo) {
                         scheduleScanningIfExternalClass(fieldAnnotationInfo.getName(), "field annotation", log);
+                        extendScanningUpwardsFromAnnotationParameterValues(fieldAnnotationInfo, log);
                     }
                 }
             }

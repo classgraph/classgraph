@@ -37,38 +37,25 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.issues.issue370.annotations.ApiOperation;
+import io.github.classgraph.issues.issue370.impl.ClassWithAnnotation;
 
 /**
  * Unit Test.
  */
 public class Issue370Test {
-
-    public static @interface ApiOperation {
-        String value();
-
-        String notes();
-    }
-
-    public static class ClassWithAnnotation {
-        @ApiOperation(value = "", notes = "${snippetclassifications.findById}")
-        public void doSometing() {
-
-        }
-    }
-
     /**
      * Unit test.
      */
     @Test
     public void issue370Test() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(Issue370Test.class.getPackage().getName()).scan()) {
+                .whitelistPackages(ClassWithAnnotation.class.getPackage().getName()).scan()) {
             final ClassInfo clazzInfo = scanResult.getClassInfo(ClassWithAnnotation.class.getName());
             assertThat(clazzInfo).isNotNull();
             for (final MethodInfo methodInfo : clazzInfo.getMethodInfo().filter(MethodInfo::isPublic)) {
                 final AnnotationInfo annotationInfo = methodInfo.getAnnotationInfo(ApiOperation.class.getName());
                 final String value = annotationInfo.getParameterValues().get("notes").getValue().toString();
-                // System.err.println(value);
                 assertThat(value).isEqualTo("${snippetclassifications.findById}");
             }
         }

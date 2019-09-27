@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /** A union type, used for typesafe serialization/deserialization to/from JSON. Only one field is ever set. */
 class ObjectTypedValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization
@@ -192,9 +194,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      *            if non-null, instantiate this object as a parameter value of this annotation class.
      * @param paramName
      *            if non-null, instantiate this object as a value of this named parameter.
+     * @param log
+     *            the log.
      * @return The value wrapped by this wrapper class.
      */
-    Object instantiateOrGet(final ClassInfo annotationClassInfo, final String paramName) {
+    Object instantiateOrGet(final ClassInfo annotationClassInfo, final String paramName, final LogNode log) {
         final boolean instantiate = annotationClassInfo != null;
         if (annotationEnumValue != null) {
             return instantiate ? annotationEnumValue.loadClassAndReturnEnumValue() : annotationEnumValue;
@@ -251,7 +255,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             for (int i = 0; i < objectArrayValue.length; i++) {
                 if (objectArrayValue[i] != null) {
                     // Get the element value (may also cause the element to be instantiated)
-                    final Object eltValue = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName);
+                    final Object eltValue = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName,
+                            log);
                     // Store the possibly-instantiated value in the array
                     Array.set(annotationValueObjectArray, i, eltValue);
                 }
@@ -268,7 +273,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * @return The value wrapped by this wrapper class.
      */
     public Object get() {
-        return instantiateOrGet(null, null);
+        return instantiateOrGet(null, null, null);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -287,13 +292,21 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      */
     private Object getArrayValueClassOrName(final ClassInfo annotationClassInfo, final String paramName,
             final boolean getClass) {
+        if (annotationClassInfo == null) {
+            // annotationClassInfo is null, cannot convert array values to correct type -- just return Object array.
+            // (Should not happen, because the Classfile class extends scanning recursively upwards from all
+            // annotation parameter values and annotation default values, so there should always be a ClassInfo
+            // object created for every annotation.)
+            return getClass ? Object.class : "java.lang.Object";
+        }
         // Find the method in the annotation class with the same name as the annotation parameter.
         final MethodInfoList annotationMethodList = annotationClassInfo.methodInfo == null ? null
                 : annotationClassInfo.methodInfo.get(paramName);
         if (annotationMethodList != null && annotationMethodList.size() > 1) {
             // There should only be one method with a given name in an annotation
             throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName
-                    + "() in annotation class " + annotationClassInfo.getName());
+                    + "() in annotation class "
+                    + (annotationClassInfo == null ? "<class outside whitelist>" : annotationClassInfo.getName()));
         } else if (annotationMethodList != null && annotationMethodList.size() == 1) {
             // Get the result type of the method with the same name as the annotation parameter 
             final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
@@ -301,7 +314,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             // The result type has to be an array type 
             if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
                 throw new IllegalArgumentException("Annotation parameter " + paramName + " in annotation class "
-                        + annotationClassInfo.getName()
+                        + (annotationClassInfo == null ? "<class outside whitelist>"
+                                : annotationClassInfo.getName())
                         + " holds an array, but does not have an array type signature");
             }
             final ArrayTypeSignature arrayTypeSig = (ArrayTypeSignature) annotationMethodResultTypeSig;
@@ -389,7 +403,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     intArrayValue[j] = objectArrayValue[j].integerValue;
                 }
@@ -402,7 +417,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     longArrayValue[j] = objectArrayValue[j].longValue;
                 }
@@ -415,7 +431,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     shortArrayValue[j] = objectArrayValue[j].shortValue;
                 }
@@ -428,7 +445,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     charArrayValue[j] = objectArrayValue[j].characterValue;
                 }
@@ -441,7 +459,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     floatArrayValue[j] = objectArrayValue[j].floatValue;
                 }
@@ -454,7 +473,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     doubleArrayValue[j] = objectArrayValue[j].doubleValue;
                 }
@@ -467,7 +487,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     booleanArrayValue[j] = objectArrayValue[j].booleanValue;
                 }
@@ -480,7 +501,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + annotationClassInfo.getName());
+                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                        : annotationClassInfo.getName()));
                     }
                     byteArrayValue[j] = objectArrayValue[j].byteValue;
                 }
