@@ -383,7 +383,7 @@ class Classfile {
                 extendScanningUpwardsFromAnnotationParameterValues(annotationInfo, log);
             }
         }
-        // Annotation default param values
+        // Check annotation default parameter values
         if (annotationParamDefaultValues != null) {
             for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
                 extendScanningUpwardsFromAnnotationParameterValues(apv.getValue(), log);

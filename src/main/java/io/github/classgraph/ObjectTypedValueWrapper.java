@@ -34,8 +34,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.LogNode;
-
 /** A union type, used for typesafe serialization/deserialization to/from JSON. Only one field is ever set. */
 class ObjectTypedValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization
@@ -194,11 +192,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      *            if non-null, instantiate this object as a parameter value of this annotation class.
      * @param paramName
      *            if non-null, instantiate this object as a value of this named parameter.
-     * @param log
-     *            the log.
      * @return The value wrapped by this wrapper class.
      */
-    Object instantiateOrGet(final ClassInfo annotationClassInfo, final String paramName, final LogNode log) {
+    Object instantiateOrGet(final ClassInfo annotationClassInfo, final String paramName) {
         final boolean instantiate = annotationClassInfo != null;
         if (annotationEnumValue != null) {
             return instantiate ? annotationEnumValue.loadClassAndReturnEnumValue() : annotationEnumValue;
@@ -255,8 +251,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             for (int i = 0; i < objectArrayValue.length; i++) {
                 if (objectArrayValue[i] != null) {
                     // Get the element value (may also cause the element to be instantiated)
-                    final Object eltValue = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName,
-                            log);
+                    final Object eltValue = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName);
                     // Store the possibly-instantiated value in the array
                     Array.set(annotationValueObjectArray, i, eltValue);
                 }
@@ -273,7 +268,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * @return The value wrapped by this wrapper class.
      */
     public Object get() {
-        return instantiateOrGet(null, null, null);
+        return instantiateOrGet(null, null);
     }
 
     // -------------------------------------------------------------------------------------------------------------

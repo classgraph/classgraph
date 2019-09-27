@@ -178,7 +178,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @return the instance
      */
     Object instantiate(final ClassInfo annotationClassInfo, final LogNode log) {
-        return value.instantiateOrGet(annotationClassInfo, name, log);
+        return value.instantiateOrGet(annotationClassInfo, name);
     }
 
     // -------------------------------------------------------------------------------------------------------------
