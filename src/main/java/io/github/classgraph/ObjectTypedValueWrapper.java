@@ -294,8 +294,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             if (annotationMethodList.size() > 1) {
                 // There should only be one method with a given name in an annotation
                 throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName
-                        + "() in annotation class " + (annotationClassInfo == null ? "<class outside whitelist>"
-                                : annotationClassInfo.getName()));
+                        + "() in annotation class " + annotationClassInfo.getName());
             }
             // Get the result type of the method with the same name as the annotation parameter 
             final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
@@ -303,8 +302,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             // The result type has to be an array type 
             if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
                 throw new IllegalArgumentException("Annotation parameter " + paramName + " in annotation class "
-                        + (annotationClassInfo == null ? "<class outside whitelist>"
-                                : annotationClassInfo.getName())
+                        + annotationClassInfo.getName()
                         + " holds an array, but does not have an array type signature");
             }
             final ArrayTypeSignature arrayTypeSig = (ArrayTypeSignature) annotationMethodResultTypeSig;

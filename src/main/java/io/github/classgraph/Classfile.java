@@ -329,8 +329,8 @@ class Classfile {
     /**
      * Check if scanning needs to be extended upwards from an annotation parameter value.
      *
-     * @param the
-     *            {@link AnnotationInfo} object for an annotation, or for an annotation parmaeter value.
+     * @param annotationParamVal
+     *            the {@link AnnotationInfo} object for an annotation, or for an annotation parameter value.
      * @param log
      *            the log
      */
