@@ -357,18 +357,17 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             readMore(bufferUnderrunBytes);
         }
         final char[] chars = new char[utfLen];
-        int c, c2, c3, c4;
         int byteIdx = 0;
         int charIdx = 0;
         for (; byteIdx < utfLen; byteIdx++) {
-            c = buf[utfStart + byteIdx] & 0xff;
+            final int c = buf[utfStart + byteIdx] & 0xff;
             if (c > 127) {
                 break;
             }
             chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
         }
         while (byteIdx < utfLen) {
-            c = buf[utfStart + byteIdx] & 0xff;
+            final int c = buf[utfStart + byteIdx] & 0xff;
             switch (c >> 4) {
             case 0:
             case 1:
@@ -377,36 +376,39 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             case 4:
             case 5:
             case 6:
-            case 7:
+            case 7: {
                 byteIdx++;
                 chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
                 break;
+            }
             case 12:
-            case 13:
+            case 13: {
                 byteIdx += 2;
                 if (byteIdx > utfLen) {
                     throw new IOException("Bad modified UTF8");
                 }
-                c2 = buf[utfStart + byteIdx - 1];
+                final int c2 = buf[utfStart + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80) {
                     throw new IOException("Bad modified UTF8");
                 }
-                c4 = ((c & 0x1f) << 6) | (c2 & 0x3f);
-                chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
+                final int c3 = ((c & 0x1f) << 6) | (c2 & 0x3f);
+                chars[charIdx++] = (char) (replaceSlashWithDot && c3 == '/' ? '.' : c3);
                 break;
-            case 14:
+            }
+            case 14: {
                 byteIdx += 3;
                 if (byteIdx > utfLen) {
                     throw new IOException("Bad modified UTF8");
                 }
-                c2 = buf[utfStart + byteIdx - 2];
-                c3 = buf[utfStart + byteIdx - 1];
+                final int c2 = buf[utfStart + byteIdx - 2];
+                final int c3 = buf[utfStart + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80 || (c3 & 0xc0) != 0x80) {
                     throw new IOException("Bad modified UTF8");
                 }
-                c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
+                final int c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
                 break;
+            }
             default:
                 throw new IOException("Bad modified UTF8");
             }

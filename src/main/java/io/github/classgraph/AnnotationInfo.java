@@ -328,7 +328,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                                 + (args == null ? 0 : args.length) + ", expected " + paramTypes.length);
             }
             if (args != null && paramTypes.length == 1) {
-                if (methodName.equals("equals") && paramTypes[0] == Object.class) {
+                if ("equals".equals(methodName) && paramTypes[0] == Object.class) {
                     // equals() needs to function the same as the JDK implementation 
                     // (see src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in the JDK)
                     if (this == args[0]) {
