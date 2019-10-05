@@ -42,7 +42,11 @@ import nonapi.io.github.classgraph.json.JSONSerializer;
  */
 public class Issue368Test {
 
+    /**
+     * InnerClass.
+     */
     public static class InnerClass {
+        @SuppressWarnings("javadoc")
         public Class<Issue368Test> innerClassField = Issue368Test.class;
     }
 

@@ -1,5 +1,8 @@
 package io.github.classgraph.issues.issue370.annotations;
 
+/**
+ * ExtensionProperty.
+ */
 public @interface ExtensionProperty {
 
     /**

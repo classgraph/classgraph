@@ -1,5 +1,8 @@
 package io.github.classgraph.issues.issue370.annotations;
 
+/**
+ * Extension.
+ */
 public @interface Extension {
     /**
      * An option name for these extensions.

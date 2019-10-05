@@ -304,7 +304,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             // Instantiate the annotation parameter values (this loads and gets references for class literals,
             // enum constants, etc.)
             for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
-                final Object instantiatedValue = apv.instantiate(annotationInfo.getClassInfo(), /* log = */ null);
+                final Object instantiatedValue = apv.instantiate(annotationInfo.getClassInfo());
                 if (instantiatedValue == null) {
                     // Annotations cannot contain null values
                     throw new IllegalArgumentException("Got null value for annotation parameter " + apv.getName()

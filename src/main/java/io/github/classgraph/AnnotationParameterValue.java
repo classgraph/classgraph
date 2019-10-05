@@ -33,8 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.LogNode;
-
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
@@ -173,11 +171,9 @@ public class AnnotationParameterValue extends ScanResultObject
      *
      * @param annotationClassInfo
      *            the annotation class info
-     * @param log
-     *            the log
      * @return the instance
      */
-    Object instantiate(final ClassInfo annotationClassInfo, final LogNode log) {
+    Object instantiate(final ClassInfo annotationClassInfo) {
         return value.instantiateOrGet(annotationClassInfo, name);
     }
 

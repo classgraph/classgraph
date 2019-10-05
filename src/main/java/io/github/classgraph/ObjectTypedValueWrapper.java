@@ -290,7 +290,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         // Find the method in the annotation class with the same name as the annotation parameter.
         final MethodInfoList annotationMethodList = annotationClassInfo == null
                 || annotationClassInfo.methodInfo == null ? null : annotationClassInfo.methodInfo.get(paramName);
-        if (annotationMethodList != null && annotationMethodList.size() > 0) {
+        if (annotationMethodList != null && !annotationMethodList.isEmpty()) {
             if (annotationMethodList.size() > 1) {
                 // There should only be one method with a given name in an annotation
                 throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName
