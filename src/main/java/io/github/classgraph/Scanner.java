@@ -182,7 +182,7 @@ class Scanner implements Callable<ScanResult> {
                                 systemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
                         moduleOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+                        classpathElementModule.open(/* ignored */ null, moduleOrder.size() - 1, classpathFinderLog);
                     } else {
                         if (classpathFinderLog != null) {
                             classpathFinderLog
@@ -204,7 +204,7 @@ class Scanner implements Callable<ScanResult> {
                                 nonSystemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
                         moduleOrder.add(classpathElementModule);
                         // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+                        classpathElementModule.open(/* ignored */ null, moduleOrder.size() - 1, classpathFinderLog);
                     } else {
                         if (classpathFinderLog != null) {
                             classpathFinderLog.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
@@ -447,7 +447,7 @@ class Scanner implements Callable<ScanResult> {
             final Queue<Entry<Integer, ClasspathElement>> toplevelClasspathEltOrder) {
         return new WorkUnitProcessor<ClasspathEntryWorkUnit>() {
             @Override
-            public void processWorkUnit(final ClasspathEntryWorkUnit workUnit,
+            public void processWorkUnit(final ClasspathEntryWorkUnit workUnit, final int workUnitIdx,
                     final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log)
                     throws InterruptedException {
                 try {
@@ -470,7 +470,7 @@ class Scanner implements Callable<ScanResult> {
                         // jars as LogicalZipFile instances. Read manifest files for jarfiles to look
                         // for Class-Path manifest entries. Adds extra classpath elements to the work
                         // queue if they are found.
-                        classpathElt.open(workQueue, log);
+                        classpathElt.open(workQueue, workUnitIdx, log);
 
                         // Create a new tuple consisting of the order of the new classpath element
                         // within its parent, and the new classpath element.
@@ -581,7 +581,7 @@ class Scanner implements Callable<ScanResult> {
          * java.lang.Object, nonapi.io.github.classgraph.concurrency.WorkQueue)
          */
         @Override
-        public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
+        public void processWorkUnit(final ClassfileScanWorkUnit workUnit, final int workUnitIdxIgnored,
                 final WorkQueue<ClassfileScanWorkUnit> workQueue, final LogNode log) throws InterruptedException {
             // Classfile scan log entries are listed inline below the entry that was added to the log
             // when the path of the corresponding resource was found, by using the LogNode stored in
@@ -602,15 +602,15 @@ class Scanner implements Callable<ScanResult> {
 
             } catch (final SkipClassException e) {
                 if (subLog != null) {
-                    subLog.log("Skipping classfile: " + e.getMessage());
+                    subLog.log(workUnit.classfileResource.getPath(), "Skipping classfile: " + e.getMessage());
                 }
             } catch (final ClassfileFormatException e) {
                 if (subLog != null) {
-                    subLog.log("Invalid classfile: " + e.getMessage());
+                    subLog.log(workUnit.classfileResource.getPath(), "Invalid classfile: " + e.getMessage());
                 }
             } catch (final IOException e) {
                 if (subLog != null) {
-                    subLog.log("Could not read classfile: " + e);
+                    subLog.log(workUnit.classfileResource.getPath(), "Could not read classfile: " + e);
                 }
             } finally {
                 if (subLog != null) {
@@ -949,10 +949,10 @@ class Scanner implements Callable<ScanResult> {
                 new WorkUnitProcessor<ClasspathElement>() {
                     @Override
                     public void processWorkUnit(final ClasspathElement classpathElement,
-                            final WorkQueue<ClasspathElement> workQueueIgnored, final LogNode pathScanLog)
-                            throws InterruptedException {
+                            final int classpathElementIdx, final WorkQueue<ClasspathElement> workQueueIgnored,
+                            final LogNode pathScanLog) throws InterruptedException {
                         // Scan the paths within the classpath element
-                        classpathElement.scanPaths(pathScanLog);
+                        classpathElement.scanPaths(classpathElementIdx, pathScanLog);
                     }
                 });
 

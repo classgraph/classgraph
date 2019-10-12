@@ -105,15 +105,17 @@ class ClasspathElementZip extends ClasspathElement {
      * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathElementIdx, final LogNode log)
+            throws InterruptedException {
         if (!scanSpec.scanJars) {
             if (log != null) {
-                log.log("Skipping classpath element, since jar scanning is disabled: " + rawPath);
+                log(classpathElementIdx, "Skipping classpath element, since jar scanning is disabled: " + rawPath,
+                        log);
             }
             skipClasspathElement = true;
             return;
         }
-        final LogNode subLog = log == null ? null : log.log("Opening jar: " + rawPath);
+        final LogNode subLog = log == null ? null : log(classpathElementIdx, "Opening jar: " + rawPath, log);
         final int plingIdx = rawPath.indexOf('!');
         final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                 plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
@@ -390,11 +392,13 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Scan for path matches within jarfile, and record ZipEntry objects of matching files.
      *
+     * @param classpathElementIdx
+     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
     @Override
-    void scanPaths(final LogNode log) {
+    void scanPaths(final int classpathElementIdx, final LogNode log) {
         if (logicalZipFile == null) {
             skipClasspathElement = true;
         }
@@ -407,7 +411,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
 
         final LogNode subLog = log == null ? null
-                : log.log(getZipFilePath(), "Scanning jarfile classpath element " + getZipFilePath());
+                : log(classpathElementIdx, "Scanning jarfile classpath element " + getZipFilePath(), log);
 
         Set<String> loggedNestedClasspathRootPrefixes = null;
         String prevParentRelativePath = null;

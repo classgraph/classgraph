@@ -87,10 +87,11 @@ class ClasspathElementDir extends ClasspathElement {
      * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathElementIdx, final LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
-                log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltDir);
+                log(classpathElementIdx,
+                        "Skipping classpath element, since dir scanning is disabled: " + classpathEltDir, log);
             }
             skipClasspathElement = true;
             return;
@@ -109,7 +110,7 @@ class ClasspathElementDir extends ClasspathElement {
                         for (final File file : listFiles) {
                             if (file.isFile() && file.getName().endsWith(".jar")) {
                                 if (log != null) {
-                                    log.log("Found lib jar: " + file);
+                                    log(classpathElementIdx, "Found lib jar: " + file, log);
                                 }
                                 workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
                                         /* rawClasspathEntry = */ //
@@ -125,7 +126,7 @@ class ClasspathElementDir extends ClasspathElement {
                 final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
                 if (FileUtils.canReadAndIsDir(packageRootDir)) {
                     if (log != null) {
-                        log.log("Found package root: " + packageRootDir);
+                        log(classpathElementIdx, "Found package root: " + packageRootDir, log);
                     }
                     workQueue
                             .addWorkUnit(new ClasspathEntryWorkUnit(
@@ -137,7 +138,8 @@ class ClasspathElementDir extends ClasspathElement {
             }
         } catch (final SecurityException e) {
             if (log != null) {
-                log.log("Skipping classpath element, since dir cannot be accessed: " + classpathEltDir);
+                log(classpathElementIdx,
+                        "Skipping classpath element, since dir cannot be accessed: " + classpathEltDir, log);
             }
             skipClasspathElement = true;
             return;
@@ -452,11 +454,13 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Hierarchically scan directory structure for classfiles and matching files.
      *
+     * @param classpathElementIdx
+     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
     @Override
-    void scanPaths(final LogNode log) {
+    void scanPaths(final int classpathElementIdx, final LogNode log) {
         if (skipClasspathElement) {
             return;
         }
@@ -466,7 +470,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         final LogNode subLog = log == null ? null
-                : log.log(classpathEltDir.getPath(), "Scanning directory classpath element " + classpathEltDir);
+                : log(classpathElementIdx, "Scanning directory classpath element " + classpathEltDir, log);
 
         scanDirRecursively(classpathEltDir, subLog);
 

@@ -89,11 +89,12 @@ class ClasspathElementModule extends ClasspathElement {
      * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log)
-            throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final int classpathElementIdx,
+            final LogNode log) throws InterruptedException {
         if (!scanSpec.scanModules) {
             if (log != null) {
-                log.log("Skipping module, since module scanning is disabled: " + getModuleName());
+                log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
+                        log);
             }
             skipClasspathElement = true;
             return;
@@ -103,7 +104,7 @@ class ClasspathElementModule extends ClasspathElement {
                     /* ignored */ null);
         } catch (final IOException | NullSingletonException e) {
             if (log != null) {
-                log.log("Skipping invalid module " + getModuleName() + " : " + e);
+                log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : " + e, log);
             }
             skipClasspathElement = true;
             return;
@@ -229,11 +230,13 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Scan for package matches within module.
      *
+     * @param classpathElementIdx
+     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
     @Override
-    void scanPaths(final LogNode log) {
+    void scanPaths(final int classpathElementIdx, final LogNode log) {
         if (skipClasspathElement) {
             return;
         }
@@ -242,9 +245,8 @@ class ClasspathElementModule extends ClasspathElement {
             throw new IllegalArgumentException("Already scanned classpath element " + toString());
         }
 
-        final String moduleLocationStr = moduleRef.getLocationStr();
         final LogNode subLog = log == null ? null
-                : log.log(moduleLocationStr, "Scanning module " + moduleRef.getName());
+                : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
 
         try (RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
                 = moduleReaderProxyRecycler.acquireRecycleOnClose()) {

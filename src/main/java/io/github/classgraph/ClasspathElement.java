@@ -318,6 +318,23 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Write entries to log in classpath / module path order.
+     *
+     * @param classpathElementIdx
+     *            the classpath element idx
+     * @param msg
+     *            the log message
+     * @param log
+     *            the log
+     * @return the new {@link LogNode}
+     */
+    protected LogNode log(final int classpathElementIdx, final String msg, final LogNode log) {
+        return log.log(String.format("%07d", classpathElementIdx), msg);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Determine if this classpath element is valid. If it is not valid, sets skipClasspathElement. For
      * {@link ClasspathElementZip}, may also open or extract inner jars, and also causes jarfile manifests to be
      * read to look for Class-Path entries. If nested jars or Class-Path entries are found, they are added to the
@@ -325,22 +342,26 @@ abstract class ClasspathElement {
      *
      * @param workQueue
      *            the work queue
+     * @param classpathElementIdx
+     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      * @throws InterruptedException
      *             if the thread was interrupted while trying to open the classpath element.
      */
-    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log)
-            throws InterruptedException;
+    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathEltIdx,
+            final LogNode log) throws InterruptedException;
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for
      * whitelisted and non-blacklisted resources and classfiles.
      *
+     * @param classpathElementIdx
+     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
-    abstract void scanPaths(final LogNode log);
+    abstract void scanPaths(final int classpathElementIdx, final LogNode log);
 
     /**
      * Get the {@link Resource} for a given relative path.
