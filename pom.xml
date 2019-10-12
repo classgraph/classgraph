@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.49-SNAPSHOT</version>
+    <version>4.8.48-SNAPSHOT</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -42,7 +42,7 @@
         <repository>
             <id>bintray-classgraph-classgraph</id>
             <name>classgraph-classgraph</name>
-            <url>https://api.bintray.com/maven/classgraph/classgraph/io.github.classgraph:classgraph/;publish=1</url>
+            <url>https://api.bintray.com/maven/classgraph/classgraph/io.github.classgraph/;publish=1</url>
         </repository>
     </distributionManagement>
 
