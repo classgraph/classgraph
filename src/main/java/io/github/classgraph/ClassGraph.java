@@ -109,6 +109,20 @@ public class ClassGraph {
         return this;
     }
 
+    /**
+     * Switches on verbose logging to System.err if verbose is true.
+     * 
+     * @param verbose
+     *            if true, enable verbose logging.
+     * @return this (for method chaining).
+     */
+    public ClassGraph verbose(final boolean verbose) {
+        if (verbose) {
+            verbose();
+        }
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
