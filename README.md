@@ -97,6 +97,8 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 </dependency>
 ```
 
+See instructions for [use as a module](https://github.com/classgraph/classgraph/wiki#use-as-a-module).
+
 ### Pre-built JARs
 
 You can get pre-built JARs (usable on JRE 7 or newer) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~io.github.classgraph).
