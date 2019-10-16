@@ -349,7 +349,7 @@ abstract class ClasspathElement {
      * @throws InterruptedException
      *             if the thread was interrupted while trying to open the classpath element.
      */
-    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathEltIdx,
+    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathElementIdx,
             final LogNode log) throws InterruptedException;
 
     /**
