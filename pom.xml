@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -149,7 +152,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <!-- Check against JDK 7 API -->
@@ -395,7 +399,27 @@
                     </executions>
                 </plugin>
 
-                <!-- Deploy jars to Maven Central -->
+                <!-- Sign jars -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>1.6</version>
+                    <executions>
+                        <execution>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>sign</goal>
+                            </goals>
+                            <configuration>
+                                <keyname>${gpg.keyname}</keyname>
+                                <passphraseServerId>${gpg.keyname}</passphraseServerId>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Deploy jars -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-release-plugin</artifactId>
@@ -497,6 +521,7 @@
             <build>
                 <plugins>
                     <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
                         <executions>
                             <execution>
@@ -508,6 +533,7 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <executions>
                             <execution>
@@ -518,24 +544,10 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>deploy</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                                <configuration>
-                                    <keyname>${gpg.keyname}</keyname>
-                                    <passphraseServerId>${gpg.keyname}</passphraseServerId>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
+                    <!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-gpg-plugin</artifactId> 
+                        <version>1.6</version> <executions> <execution> <id>sign-artifacts</id> <phase>verify</phase> <goals> <goal>sign</goal> 
+                        </goals> <configuration> <keyname>${gpg.keyname}</keyname> <passphraseServerId>${gpg.keyname}</passphraseServerId> </configuration> 
+                        </execution> </executions> </plugin> -->
                 </plugins>
             </build>
         </profile>
