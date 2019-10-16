@@ -42,7 +42,7 @@
         <repository>
             <id>bintray-classgraph-classgraph</id>
             <name>classgraph-classgraph</name>
-            <url>https://api.bintray.com/maven/classgraph/classgraph/io.github.classgraph/;publish=1</url>
+            <url>https://api.bintray.com/maven/classgraph/classgraph/io.github.classgraph:classgraph/;publish=1</url>
         </repository>
     </distributionManagement>
 
