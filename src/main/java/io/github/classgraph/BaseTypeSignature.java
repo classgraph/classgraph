@@ -236,8 +236,7 @@ public class BaseTypeSignature extends TypeSignature {
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
+        return baseType;
     }
 
     /* (non-Javadoc)
@@ -245,7 +244,7 @@ public class BaseTypeSignature extends TypeSignature {
      */
     @Override
     protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+        return null;
     }
 
     /**

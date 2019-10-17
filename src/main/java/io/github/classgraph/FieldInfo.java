@@ -130,7 +130,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     /**
      * Get the {@link ClassInfo} object for the declaring class (i.e. the class that declares this field).
      *
-     * @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this field).
+     * @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this field), or
+     *         null if the class representing the type of the field was not encountered during scanning.
      */
     @Override
     public ClassInfo getClassInfo() {
