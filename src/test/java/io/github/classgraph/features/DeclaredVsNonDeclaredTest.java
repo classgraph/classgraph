@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.function.Function;
 
-import org.assertj.core.api.iterable.Extractor;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationInfo;
@@ -140,9 +140,9 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
-        final Extractor<AnnotationInfo, Object> annotationNameExtractor = new Extractor<AnnotationInfo, Object>() {
+        final Function<AnnotationInfo, Object> annotationNameExtractor = new Function<AnnotationInfo, Object>() {
             @Override
-            public Object extract(final AnnotationInfo input) {
+            public Object apply(AnnotationInfo input) {
                 return input.getName();
             }
         };
