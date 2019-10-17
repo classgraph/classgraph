@@ -68,11 +68,11 @@ class MetaAnnotationTest {
     @Test
     void oneLevel() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.E").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.B");
+                .containsOnly("com.xyz.meta.B");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.F").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.B", "com.xyz.meta.A");
+                .containsOnly("com.xyz.meta.B", "com.xyz.meta.A");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.G").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.C");
+                .containsOnly("com.xyz.meta.C");
     }
 
     /**
@@ -80,8 +80,8 @@ class MetaAnnotationTest {
      */
     @Test
     void twoLevels() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J").getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.A");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J").getNames()).containsOnly("com.xyz.meta.F",
+                "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.A");
     }
 
     /**
@@ -89,8 +89,8 @@ class MetaAnnotationTest {
      */
     @Test
     void threeLevels() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.L").getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.I", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.L").getNames()).containsOnly("com.xyz.meta.I",
+                "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H");
     }
 
     /**
@@ -99,19 +99,19 @@ class MetaAnnotationTest {
     @Test
     void acrossCycle() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.I");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.H").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.I", "com.xyz.meta.K", "java.lang.annotation.Retention",
-                        "java.lang.annotation.Target");
+                .containsOnly("com.xyz.meta.I");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.H").directOnly().getNames()).containsOnly(
+                "com.xyz.meta.I", "com.xyz.meta.K", "java.lang.annotation.Retention",
+                "java.lang.annotation.Target");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.E", "com.xyz.meta.H");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.I").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.L", "com.xyz.meta.H", "java.lang.annotation.Retention",
-                        "java.lang.annotation.Target");
+                .containsOnly("com.xyz.meta.E", "com.xyz.meta.H");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.I").directOnly().getNames()).containsOnly(
+                "com.xyz.meta.L", "com.xyz.meta.H", "java.lang.annotation.Retention",
+                "java.lang.annotation.Target");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.K").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.H");
+                .containsOnly("com.xyz.meta.H");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.D").directOnly().getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.K");
+                .containsOnly("com.xyz.meta.K");
     }
 
     /**
@@ -119,8 +119,8 @@ class MetaAnnotationTest {
      */
     @Test
     void cycleAnnotatesSelf() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H", "com.xyz.meta.I");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").getNames()).containsOnly("com.xyz.meta.E",
+                "com.xyz.meta.B", "com.xyz.meta.H", "com.xyz.meta.I");
     }
 
     /**
@@ -128,10 +128,9 @@ class MetaAnnotationTest {
      */
     @Test
     void namesOfMetaAnnotations() {
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.J", "com.xyz.meta.F");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.C").getNames())
-                .containsExactlyInAnyOrder("com.xyz.meta.G");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getNames()).containsOnly("com.xyz.meta.J",
+                "com.xyz.meta.F");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.C").getNames()).containsOnly("com.xyz.meta.G");
     }
 
     /**
@@ -141,14 +140,14 @@ class MetaAnnotationTest {
     void union() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J")
                 .union(scanResult.getClassesWithAnnotation("com.xyz.meta.G")).directOnly().getNames())
-                        .containsExactlyInAnyOrder("com.xyz.meta.E", "com.xyz.meta.F", "com.xyz.meta.C");
+                        .containsOnly("com.xyz.meta.E", "com.xyz.meta.F", "com.xyz.meta.C");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
-                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getNames()).containsExactlyInAnyOrder(
+                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getNames()).containsOnly(
                         "com.xyz.meta.A", "com.xyz.meta.B", "com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H",
                         "com.xyz.meta.I");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
                 .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getNames())
-                        .containsExactlyInAnyOrder("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H");
+                        .containsOnly("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H");
     }
 
     /**
@@ -158,9 +157,9 @@ class MetaAnnotationTest {
     void intersect() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
                 .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getNames())
-                        .containsExactlyInAnyOrder("com.xyz.meta.E", "com.xyz.meta.B");
+                        .containsOnly("com.xyz.meta.E", "com.xyz.meta.B");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
                 .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getNames())
-                        .containsExactlyInAnyOrder("com.xyz.meta.E");
+                        .containsOnly("com.xyz.meta.E");
     }
 }

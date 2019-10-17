@@ -42,9 +42,9 @@ public class Issue74Test {
     public void issue74() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue74Test.class.getPackage().getName())
                 .scan()) {
-            assertThat(scanResult.getClassesImplementing(Function.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
-                            ExtendsFunctionAdapter.class.getName());
+            assertThat(scanResult.getClassesImplementing(Function.class.getName()).getNames()).containsOnly(
+                    FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
+                    ExtendsFunctionAdapter.class.getName());
         }
     }
 }

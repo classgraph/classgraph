@@ -148,20 +148,19 @@ public class DeclaredVsNonDeclaredTest {
             final AnnotationInfoList annotationInfossOnA = A.getAnnotationInfo();
             final AnnotationInfoList annotationsInfosOnB = B.getAnnotationInfo();
 
-            assertThat(annotationInfossOnA).extracting(AnnotationInfo::getName).containsExactlyInAnyOrder(
+            assertThat(annotationInfossOnA).extracting(AnnotationInfo::getName).containsOnly(
                     InheritedAnnotation.class.getName(), NormalAnnotation.class.getName(),
                     InheritedMetaAnnotation.class.getName(), NonInheritedMetaAnnotation.class.getName());
-            assertThat(annotationsInfosOnB).extracting(AnnotationInfo::getName).containsExactlyInAnyOrder(
-                    InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName());
+            assertThat(annotationsInfosOnB).extracting(AnnotationInfo::getName)
+                    .containsOnly(InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName());
             assertThat(annotationInfossOnA.directOnly()).extracting(AnnotationInfo::getName)
-                    .containsExactlyInAnyOrder(NormalAnnotation.class.getName(),
-                            InheritedAnnotation.class.getName());
+                    .containsOnly(NormalAnnotation.class.getName(), InheritedAnnotation.class.getName());
             assertThat(annotationsInfosOnB.directOnly()).isEmpty();
             assertThat(C.getAnnotationInfo().directOnly()).extracting(AnnotationInfo::getName)
-                    .containsExactlyInAnyOrder(NormalAnnotation.class.getName());
+                    .containsOnly(NormalAnnotation.class.getName());
 
             final AnnotationInfoList annotationsOnAw = A.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
-            assertThat(annotationsOnAw).extracting(AnnotationInfo::getName).containsExactlyInAnyOrder(
+            assertThat(annotationsOnAw).extracting(AnnotationInfo::getName).containsOnly(
                     InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName(),
                     NonInheritedMetaAnnotation.class.getName());
 
@@ -189,11 +188,11 @@ public class DeclaredVsNonDeclaredTest {
             final ClassInfoList annotationsOnA = A.getAnnotations();
             final ClassInfoList annotationsOnB = B.getAnnotations();
 
-            assertThat(annotationsOnA.loadClasses()).containsExactlyInAnyOrder(NormalAnnotation.class,
-                    InheritedAnnotation.class, InheritedMetaAnnotation.class, NonInheritedMetaAnnotation.class);
-            assertThat(annotationsOnB.loadClasses()).containsExactlyInAnyOrder(InheritedAnnotation.class,
+            assertThat(annotationsOnA.loadClasses()).containsOnly(NormalAnnotation.class, InheritedAnnotation.class,
+                    InheritedMetaAnnotation.class, NonInheritedMetaAnnotation.class);
+            assertThat(annotationsOnB.loadClasses()).containsOnly(InheritedAnnotation.class,
                     InheritedMetaAnnotation.class);
-            assertThat(annotationsOnA.directOnly().loadClasses()).containsExactlyInAnyOrder(NormalAnnotation.class,
+            assertThat(annotationsOnA.directOnly().loadClasses()).containsOnly(NormalAnnotation.class,
                     InheritedAnnotation.class);
             assertThat(annotationsOnB.directOnly()).isEmpty();
         }

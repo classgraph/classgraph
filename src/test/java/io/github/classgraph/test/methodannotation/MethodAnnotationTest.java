@@ -70,7 +70,7 @@ public class MethodAnnotationTest {
             final ClassInfoList classesWithMethodAnnotation = scanResult
                     .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
             final List<String> testClasses = classesWithMethodAnnotation.getNames();
-            assertThat(testClasses).containsExactlyInAnyOrder(MethodAnnotationTest.class.getName());
+            assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
             boolean found = false;
             for (final ClassInfo ci : classesWithMethodAnnotation) {
                 for (final MethodInfo mi : ci.getMethodInfo()) {

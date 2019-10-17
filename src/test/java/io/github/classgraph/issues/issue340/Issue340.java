@@ -34,8 +34,8 @@ public class Issue340 {
             // jar2 and jar4 also have an invalid Class-Path entry that tries to escape the parent jar root.
             // jar1 and jar2 are deflated, jar3 and jar4 are stored.
             assertThat(scanResult.getAllResources().stream().map(Resource::getPath)
-                    .filter(path -> path.startsWith("file")).collect(Collectors.toList()))
-                            .containsExactlyInAnyOrder("file1", "file2", "file3", "file4");
+                    .filter(path -> path.startsWith("file")).collect(Collectors.toList())).containsOnly("file1",
+                            "file2", "file3", "file4");
         }
     }
 }

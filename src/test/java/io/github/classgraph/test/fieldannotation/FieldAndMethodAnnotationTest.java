@@ -76,7 +76,7 @@ public class FieldAndMethodAnnotationTest {
                 .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
-            assertThat(testClasses).containsExactlyInAnyOrder(FieldAndMethodAnnotationTest.class.getName());
+            assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }
 
@@ -91,7 +91,7 @@ public class FieldAndMethodAnnotationTest {
                 .enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();
-            assertThat(testClasses).containsExactlyInAnyOrder(FieldAndMethodAnnotationTest.class.getName());
+            assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }
 }

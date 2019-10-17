@@ -56,7 +56,7 @@ public class Issue107Test {
             assertThat(scanResult.getPackageInfo().getNames()).containsAll(Arrays.asList("", "io", "io.github",
                     "io.github.classgraph", Issue107Test.class.getPackage().getName()));
             assertThat(scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo()
-                    .getNames()).containsExactlyInAnyOrder(PackageAnnotation.class.getName());
+                    .getNames()).containsOnly(PackageAnnotation.class.getName());
         }
     }
 }

@@ -48,7 +48,7 @@ public class Issue166Test {
     public void issue166Test() {
         final URL jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
-            assertThat(scanResult.getAllResources().getPaths()).containsExactlyInAnyOrder("Issue166.txt");
+            assertThat(scanResult.getAllResources().getPaths()).containsOnly("Issue166.txt");
         }
     }
 

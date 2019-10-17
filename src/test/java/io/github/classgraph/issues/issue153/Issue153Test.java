@@ -218,7 +218,7 @@ public class Issue153Test {
 
             // Read class annotation parameters
             assertThat(classInfo.getAnnotationInfo().getAsStrings()) //
-                    .containsExactlyInAnyOrder("@" + StringAnnotation.class.getName() + "(\"classlabel\")", //
+                    .containsOnly("@" + StringAnnotation.class.getName() + "(\"classlabel\")", //
                             "@" + TwoParamAnnotation.class.getName() + "(value1='x', value2={1, 2, 3})", //
                             "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA"
                                     + ")", //

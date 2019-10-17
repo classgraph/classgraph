@@ -57,17 +57,17 @@ public class Issue350 {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue350.class.getPackage().getName())
                 .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassesWithFieldAnnotation(SuperclassAnnotation.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(Pub.class.getName(), PubSub.class.getName());
+                    .containsOnly(Pub.class.getName(), PubSub.class.getName());
             assertThat(scanResult.getClassesWithMethodAnnotation(SuperclassAnnotation.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(Pub.class.getName(), PubSub.class.getName());
+                    .containsOnly(Pub.class.getName(), PubSub.class.getName());
         }
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue350.class.getPackage().getName())
                 .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
                 .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithFieldAnnotation(SuperclassAnnotation.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(Pub.class.getName(), PubSub.class.getName(), Priv.class.getName());
+                    .containsOnly(Pub.class.getName(), PubSub.class.getName(), Priv.class.getName());
             assertThat(scanResult.getClassesWithMethodAnnotation(SuperclassAnnotation.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(Pub.class.getName(), PubSub.class.getName(), Priv.class.getName());
+                    .containsOnly(Pub.class.getName(), PubSub.class.getName(), Priv.class.getName());
         }
     }
 }

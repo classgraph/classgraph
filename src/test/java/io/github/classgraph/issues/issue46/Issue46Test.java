@@ -47,7 +47,7 @@ public class Issue46Test {
         final String jarPath = Issue46Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
                 + "!level2.jar!level3.jar!classpath1/classpath2";
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
-            assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder("com.test.Test");
+            assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }
 }

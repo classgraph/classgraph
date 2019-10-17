@@ -66,7 +66,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder( //
+            assertThat(methods).containsOnly( //
                     "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal)",
                     "public static net.corda.core.contracts.ComponentGroupEnum[] values()",
                     "public static net.corda.core.contracts.ComponentGroupEnum valueOf(java.lang.String)");
@@ -92,7 +92,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder(
+            assertThat(methods).containsOnly(
                     "@org.jetbrains.annotations.NotNull public static final <A> rx.Observable<A> toObservable(@org.jetbrains.annotations.NotNull mandated net.corda.core.concurrent.CordaFuture<? extends A> $receiver)",
                     "@org.jetbrains.annotations.NotNull public static final <T> net.corda.core.concurrent.CordaFuture<T> toFuture(@org.jetbrains.annotations.NotNull mandated rx.Observable<T> $receiver)");
         }
@@ -117,7 +117,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder(
+            assertThat(methods).containsOnly(
                     "public static final <V, W> W match(@org.jetbrains.annotations.NotNull mandated java.util.concurrent.Future<V> $receiver, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super V, ? extends W> success, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super java.lang.Throwable, ? extends W> failure)",
                     "@org.jetbrains.annotations.NotNull public static final <V, W> net.corda.core.concurrent.CordaFuture<W> firstOf(@org.jetbrains.annotations.NotNull net.corda.core.concurrent.CordaFuture<? extends V>[] futures, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.core.concurrent.CordaFuture<? extends V>, ? extends W> handler)",
                     "public static synthetic void shortCircuitedTaskFailedMessage$annotations()",
@@ -144,7 +144,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder("private final java.lang.String commandDataToString()",
+            assertThat(methods).containsOnly("private final java.lang.String commandDataToString()",
                     "@org.jetbrains.annotations.NotNull public java.lang.String toString()",
                     "@org.jetbrains.annotations.NotNull public final T getValue()",
                     "@org.jetbrains.annotations.NotNull public final java.util.List<java.security.PublicKey> getSigners()",
@@ -178,7 +178,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder("public final int getNextNodeId()",
+            assertThat(methods).containsOnly("public final int getNextNodeId()",
                     "private final void setNextNodeId(int <set-?>)",
                     "@org.jetbrains.annotations.NotNull public final net.corda.testing.node.InMemoryMessagingNetwork getMessagingNetwork()",
                     "@org.jetbrains.annotations.NotNull public final java.util.List<net.corda.testing.node.MockNetwork$MockNode> getNodes()",
@@ -240,7 +240,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder( //
+            assertThat(methods).containsOnly( //
                     "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal, @org.jetbrains.annotations.NotNull java.lang.String columnName)",
                     "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute[] values()",
                     "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute valueOf(java.lang.String)",
@@ -267,7 +267,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder(
+            assertThat(methods).containsOnly(
                     "@org.jetbrains.annotations.NotNull protected final com.google.common.collect.Multimap<java.lang.String, java.lang.reflect.Method> getMethodMap()",
                     "@org.jetbrains.annotations.NotNull public final java.util.Map<java.lang.String, java.util.List<java.lang.String>> getMethodParamNames()",
                     "@org.jetbrains.annotations.NotNull public java.util.List<java.lang.String> paramNamesFromMethod(@org.jetbrains.annotations.NotNull java.lang.reflect.Method method)",
@@ -303,7 +303,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder(
+            assertThat(methods).containsOnly(
                     "@org.jetbrains.annotations.NotNull public static <Q extends net.corda.core.node.services.vault.GenericQueryCriteria<Q, ? super P>, P extends net.corda.core.node.services.vault.BaseQueryCriteriaParser<Q, ? super P, ? super S>, S extends net.corda.core.node.services.vault.BaseSort> java.util.Collection<javax.persistence.criteria.Predicate> visit(@org.jetbrains.annotations.NotNull net.corda.core.node.services.vault.GenericQueryCriteria$ChainableQueryCriteria$AndVisitor<Q, ? super P, ? super S>, P parser)");
         }
     }
@@ -327,7 +327,7 @@ public class Issue175Test {
                     methods.add(method.toString());
                 }
             }
-            assertThat(methods).containsExactlyInAnyOrder(
+            assertThat(methods).containsOnly(
                     "@org.jetbrains.annotations.Nullable public final java.lang.Object invoke()",
                     "@org.jetbrains.annotations.Nullable public java.lang.Object call()",
                     "@org.jetbrains.annotations.NotNull public final java.lang.reflect.Method getMethod()",

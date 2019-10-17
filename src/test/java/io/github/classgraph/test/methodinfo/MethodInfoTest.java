@@ -125,7 +125,7 @@ public class MethodInfoTest {
                             return !methodInfo.getName().equals("$closeResource")
                                     && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
                         }
-                    }).getAsStrings()).containsExactlyInAnyOrder( //
+                    }).getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
@@ -147,7 +147,7 @@ public class MethodInfoTest {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
-                    .containsExactlyInAnyOrder("public <init>()");
+                    .containsOnly("public <init>()");
         }
     }
 
@@ -166,7 +166,7 @@ public class MethodInfoTest {
                             return !methodInfo.getName().equals("$closeResource")
                                     && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
                         }
-                    }).getAsStrings()).containsExactlyInAnyOrder( //
+                    }).getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "

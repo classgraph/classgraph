@@ -35,7 +35,7 @@ public class IssuesTest {
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getSubclasses(Object.class.getName()).getNames()).contains(Impl1.class.getName());
             assertThat(scanResult.getSuperclasses(Impl1Sub.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(Impl1.class.getName());
+                    .containsOnly(Impl1.class.getName());
         }
     }
 
@@ -47,7 +47,7 @@ public class IssuesTest {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getSuperclasses(InternalExtendsExternal.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(ExternalSuperclass.class.getName());
+                    .containsOnly(ExternalSuperclass.class.getName());
         }
     }
 
@@ -60,7 +60,7 @@ public class IssuesTest {
                 .whitelistPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
                 .scan()) {
             assertThat(scanResult.getSuperclasses(InternalExtendsExternal.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(ExternalSuperclass.class.getName());
+                    .containsOnly(ExternalSuperclass.class.getName());
         }
     }
 
@@ -72,7 +72,7 @@ public class IssuesTest {
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(InternalExtendsExternal.class.getName());
+                    .containsOnly(InternalExtendsExternal.class.getName());
         }
     }
 
@@ -85,7 +85,7 @@ public class IssuesTest {
                 .whitelistPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
                 .scan()) {
             assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
-                    .containsExactlyInAnyOrder(InternalExtendsExternal.class.getName());
+                    .containsOnly(InternalExtendsExternal.class.getName());
         }
     }
 }

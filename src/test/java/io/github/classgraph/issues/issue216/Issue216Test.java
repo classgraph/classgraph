@@ -56,7 +56,7 @@ public class Issue216Test {
                 public boolean accept(final ClassInfo ci) {
                     return ci.hasAnnotation(Entity.class.getName());
                 }
-            }).getNames()).containsExactlyInAnyOrder(Issue216Test.class.getName());
+            }).getNames()).containsOnly(Issue216Test.class.getName());
         }
     }
 }

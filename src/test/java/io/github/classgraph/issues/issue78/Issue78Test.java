@@ -17,8 +17,7 @@ public class Issue78Test {
     @Test
     public void issue78() {
         try (ScanResult scanResult = new ClassGraph().whitelistClasses(Issue78Test.class.getName()).scan()) {
-            assertThat(scanResult.getAllClasses().getNames())
-                    .containsExactlyInAnyOrder(Issue78Test.class.getName());
+            assertThat(scanResult.getAllClasses().getNames()).containsOnly(Issue78Test.class.getName());
         }
     }
 }

@@ -96,7 +96,7 @@ public class Issue364Test {
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
                     .get(0).getLastModified()).isEqualTo(1434543812000L);
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
-                    .get(0).getPosixFilePermissions()).containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ,
+                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
                             PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_WRITE,
                             PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
@@ -105,7 +105,7 @@ public class Issue364Test {
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/execute")
                     .get(0).getLastModified()).isEqualTo(1434557130000L);
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/execute")
-                    .get(0).getPosixFilePermissions()).containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ,
+                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
                             PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_EXECUTE,
                             PosixFilePermission.OTHERS_READ, PosixFilePermission.OTHERS_EXECUTE);
@@ -115,7 +115,7 @@ public class Issue364Test {
                     .get(0).getLastModified()).isEqualTo(1434557162000L);
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
-                    .get(0).getPosixFilePermissions()).containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ,
+                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE, PosixFilePermission.GROUP_READ,
                             PosixFilePermission.GROUP_WRITE);
 
@@ -124,14 +124,14 @@ public class Issue364Test {
                     .get(0).getLastModified()).isEqualTo(1434557152000L);
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
-                    .get(0).getPosixFilePermissions()).containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ);
+                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ);
 
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
                     .get(0).getLastModified()).isEqualTo(1434543812000L);
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
-                    .get(0).getPosixFilePermissions()).containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ,
+                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE, PosixFilePermission.GROUP_READ,
                             PosixFilePermission.OTHERS_READ);
         }

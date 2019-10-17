@@ -49,7 +49,7 @@ public class Issue99Test {
     @Test
     public void testWithoutBlacklist() {
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
-            assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder("com.test.Test");
+            assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }
 
