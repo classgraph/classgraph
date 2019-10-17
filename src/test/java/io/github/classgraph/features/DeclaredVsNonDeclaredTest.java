@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
 
@@ -140,13 +139,6 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
-        final Function<AnnotationInfo, String> annotationNameExtractor = new Function<AnnotationInfo, String>() {
-            @Override
-            public String apply(AnnotationInfo input) {
-                return input.getName();
-            }
-        };
-
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
                 .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
@@ -156,31 +148,31 @@ public class DeclaredVsNonDeclaredTest {
             final AnnotationInfoList annotationInfossOnA = A.getAnnotationInfo();
             final AnnotationInfoList annotationsInfosOnB = B.getAnnotationInfo();
 
-            assertThat(annotationInfossOnA).extracting(annotationNameExtractor).containsExactlyInAnyOrder(
+            assertThat(annotationInfossOnA).extracting(AnnotationInfo::getName).containsExactlyInAnyOrder(
                     InheritedAnnotation.class.getName(), NormalAnnotation.class.getName(),
                     InheritedMetaAnnotation.class.getName(), NonInheritedMetaAnnotation.class.getName());
-            assertThat(annotationsInfosOnB).extracting(annotationNameExtractor).containsExactlyInAnyOrder(
+            assertThat(annotationsInfosOnB).extracting(AnnotationInfo::getName).containsExactlyInAnyOrder(
                     InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName());
-            assertThat(annotationInfossOnA.directOnly()).extracting(annotationNameExtractor)
+            assertThat(annotationInfossOnA.directOnly()).extracting(AnnotationInfo::getName)
                     .containsExactlyInAnyOrder(NormalAnnotation.class.getName(),
                             InheritedAnnotation.class.getName());
             assertThat(annotationsInfosOnB.directOnly()).isEmpty();
-            assertThat(C.getAnnotationInfo().directOnly()).extracting(annotationNameExtractor)
+            assertThat(C.getAnnotationInfo().directOnly()).extracting(AnnotationInfo::getName)
                     .containsExactlyInAnyOrder(NormalAnnotation.class.getName());
 
             final AnnotationInfoList annotationsOnAw = A.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
-            assertThat(annotationsOnAw).extracting(annotationNameExtractor).containsExactlyInAnyOrder(
+            assertThat(annotationsOnAw).extracting(AnnotationInfo::getName).containsExactlyInAnyOrder(
                     InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName(),
                     NonInheritedMetaAnnotation.class.getName());
 
             final AnnotationInfoList annotationsOnBw = B.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
-            assertThat(annotationsOnBw).extracting(annotationNameExtractor).isEmpty();
+            assertThat(annotationsOnBw).extracting(AnnotationInfo::getName).isEmpty();
             // See note on inherited annotations on methods
             // https://docs.oracle.com/javase/8/docs/api/java/lang/annotation/Inherited.html
             // "Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used to
             // annotate anything other than a class. Note also that this meta-annotation only causes annotations
             // to be inherited from superclasses; annotations on implemented interfaces have no effect."
-            assertThat(annotationsOnBw.directOnly()).extracting(annotationNameExtractor).isEmpty();
+            assertThat(annotationsOnBw.directOnly()).extracting(AnnotationInfo::getName).isEmpty();
         }
     }
 
