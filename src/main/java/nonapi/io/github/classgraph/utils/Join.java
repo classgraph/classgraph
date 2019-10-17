@@ -64,7 +64,11 @@ public final class Join {
             } else {
                 buf.append(sep);
             }
-            buf.append(item.toString());
+            if (item == null) {
+                buf.append("null");
+            } else {
+                buf.append(item.toString());
+            }
         }
         if (!addAtEnd.isEmpty()) {
             buf.append(addAtEnd);

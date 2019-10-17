@@ -324,8 +324,13 @@ public class JSONDeserializer {
             typeResolutions = null;
             mapKeyType = null;
             final Class<?> objectResolvedCls = (Class<?>) objectResolvedTypeGeneric;
-            arrayComponentType = isArray ? objectResolvedCls.getComponentType() : null;
-            is1DArray = isArray && !arrayComponentType.isArray();
+            if (isArray) {
+                arrayComponentType = objectResolvedCls.getComponentType();
+                is1DArray = !arrayComponentType.isArray();
+            } else {
+                arrayComponentType = null;
+                is1DArray = false;
+            }
             commonResolvedValueType = null;
         } else if (objectResolvedTypeGeneric instanceof ParameterizedType) {
             // Get mapping from type variables to resolved types, by comparing the concrete type arguments
@@ -380,20 +385,20 @@ public class JSONDeserializer {
         // Need to deserialize items in the same order as serialization: create all deserialized objects
         // at the current level in Pass 1, recording any ids that are found, then recurse into child nodes
         // in Pass 2 after objects at the current level have all been instantiated.
-        ArrayList<ObjectInstantiation> itemsToRecurseToInPass2 = new ArrayList<>();
+        ArrayList<ObjectInstantiation> itemsToRecurseToInPass2 = null;
 
         // Pass 1: Convert JSON objects in JSONObject items into Java objects
-        final int numItems = isJsonObject ? jsonObject.items.size()
-                : isJsonArray ? jsonArray.items.size() : /* can't happen */ 0;
+        final int numItems = jsonObject != null ? jsonObject.items.size()
+                : jsonArray != null ? jsonArray.items.size() : /* can't happen */ 0;
         for (int i = 0; i < numItems; i++) {
             // Iterate through items of JSONObject or JSONArray (key is null for JSONArray)
-            final Entry<String, Object> jsonObjectItem = isJsonObject ? jsonObject.items.get(i) : null;
             final String itemJsonKey;
             final Object itemJsonValue;
-            if (isJsonObject) {
+            if (jsonObject != null) {
+                final Entry<String, Object> jsonObjectItem = jsonObject.items.get(i);
                 itemJsonKey = jsonObjectItem.getKey();
                 itemJsonValue = jsonObjectItem.getValue();
-            } else if (isJsonArray) {
+            } else if (jsonArray != null) {
                 itemJsonKey = null;
                 itemJsonValue = jsonArray.items.get(i);
             } else {
@@ -408,7 +413,7 @@ public class JSONDeserializer {
 
             // If this is a standard object, look up the field info in the type cache
             FieldTypeInfo fieldTypeInfo;
-            if (isObj) {
+            if (classFields != null) {
                 // Standard objects must interpret the key as a string, since field names are strings.
                 // Look up field name directly, using the itemJsonKey string
                 fieldTypeInfo = classFields.fieldNameToFieldTypeInfo.get(itemJsonKey);
@@ -427,7 +432,7 @@ public class JSONDeserializer {
                     // resolutions found by comparing the resolved type of the concrete containing object
                     // with its generic type. (Fields were partially resolved before by substituting type
                     // arguments of subclasses into type variables of superclasses.)
-                    isObj ? fieldTypeInfo.getFullyResolvedFieldType(typeResolutions)
+                    fieldTypeInfo != null ? fieldTypeInfo.getFullyResolvedFieldType(typeResolutions)
                             // For arrays, the item type is the array component type
                             : isArray ? arrayComponentType
                                     // For collections and maps, the value type is the same for all items
@@ -500,8 +505,9 @@ public class JSONDeserializer {
                         // Call the appropriate constructor for the item, whether its type is array, Collection,
                         // Map or other class type. For collections and Maps, call the size hint constructor
                         // for speed when adding items.
-                        final int numSubItems = itemJsonValueIsJsonObject ? itemJsonValueJsonObject.items.size()
-                                : itemJsonValueIsJsonArray ? itemJsonValueJsonArray.items.size()
+                        final int numSubItems = itemJsonValueJsonObject != null
+                                ? itemJsonValueJsonObject.items.size()
+                                : itemJsonValueJsonArray != null ? itemJsonValueJsonArray.items.size()
                                         : /* can't happen */ 0;
                         if ((resolvedItemValueType instanceof Class<?>
                                 && ((Class<?>) resolvedItemValueType).isArray())) {
@@ -523,7 +529,7 @@ public class JSONDeserializer {
                                         : commonValueDefaultConstructor != null
                                                 ? commonValueDefaultConstructor.newInstance()
                                                 : /* can't happen */ null;
-                            } else if (isObj) {
+                            } else if (fieldTypeInfo != null) {
                                 // For object types, each field has its own constructor, and the constructor can
                                 // vary if the field type is completely generic (e.g. "T field").
                                 final Constructor<?> valueConstructorWithSizeHint = fieldTypeInfo
@@ -568,9 +574,9 @@ public class JSONDeserializer {
             }
 
             // Add instantiated items to parent object
-            if (isObj) {
+            if (fieldTypeInfo != null) {
                 fieldTypeInfo.setFieldValue(objectInstance, instantiatedItemObject);
-            } else if (isMap) {
+            } else if (mapInstance != null) {
                 // For maps, key type should be deserialized from strings, to support e.g. Integer as a key type.
                 // This only works for basic object types though (String, Integer, Enum, etc.)
                 final Object mapKey = jsonBasicValueToObject(itemJsonKey, mapKeyType,
@@ -578,7 +584,7 @@ public class JSONDeserializer {
                 mapInstance.put(mapKey, instantiatedItemObject);
             } else if (isArray) {
                 Array.set(objectInstance, i, instantiatedItemObject);
-            } else if (isCollection) {
+            } else if (collectionInstance != null) {
                 // Can't add partially-deserialized item objects to Collections yet, since their
                 // hashCode() and equals() methods may depend upon fields that have not yet been set.
                 collectionElementAdders.add(new Runnable() {

@@ -1043,7 +1043,7 @@ class Classfile {
             case 7: // Class reference (format is e.g. "java/lang/String")
                 // Forward or backward indirect reference to a modified UTF8 entry
                 indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
-                if (scanSpec.enableInterClassDependencies) {
+                if (classNameCpIdxs != null) {
                     // If this is a class ref, and inter-class dependencies are enabled, record the dependency
                     classNameCpIdxs.add(indirectStringRefs[i]);
                 }
@@ -1067,7 +1067,7 @@ class Classfile {
             case 12: // name and type
                 final int nameRef = inputStreamOrByteBuffer.readUnsignedShort();
                 final int typeRef = inputStreamOrByteBuffer.readUnsignedShort();
-                if (scanSpec.enableInterClassDependencies) {
+                if (typeSignatureIdxs != null) {
                     typeSignatureIdxs.add(typeRef);
                 }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
@@ -1101,7 +1101,7 @@ class Classfile {
         // referenced as strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12).
         // Therefore, a hybrid approach needs to be applied of extracting these other class refs from
         // the ClassInfo graph, and combining them with class names extracted from the constant pool here.
-        if (scanSpec.enableInterClassDependencies) {
+        if (classNameCpIdxs != null) {
             refdClassNames = new HashSet<>();
             // Get class names from direct class references in constant pool
             for (final int cpIdx : classNameCpIdxs) {
@@ -1123,6 +1123,8 @@ class Classfile {
                     }
                 }
             }
+        }
+        if (typeSignatureIdxs != null) {
             // Get class names from type signatures in "name and type" entries in constant pool
             for (final int cpIdx : typeSignatureIdxs) {
                 final String typeSigStr = getConstantPoolString(cpIdx);
@@ -1644,7 +1646,7 @@ class Classfile {
                 : log.log("Found " //
                         + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
                         + " " + className);
-        if (log != null) {
+        if (subLog != null) {
             if (superclassName != null) {
                 subLog.log(
                         "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);

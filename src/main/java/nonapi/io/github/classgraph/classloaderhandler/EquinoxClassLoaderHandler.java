@@ -107,8 +107,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 boolean foundClassPathElement = false;
                 for (final String fieldName : FIELD_NAMES) {
                     final Object fieldVal = ReflectionUtils.getFieldVal(bundlefile, fieldName, false);
-                    foundClassPathElement = fieldVal != null;
-                    if (foundClassPathElement) {
+                    if (fieldVal != null) {
+                        foundClassPathElement = true;
                         // We found the base file and a classpath element, e.g. "bin/"
                         Object base = baseFile;
                         String sep = "/";
@@ -128,7 +128,6 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         break;
                     }
                 }
-
                 if (!foundClassPathElement) {
                     // No classpath element found, just use basefile
                     classpathOrderOut.addClasspathEntry(baseFile.toString(), classLoader, scanSpec, log);

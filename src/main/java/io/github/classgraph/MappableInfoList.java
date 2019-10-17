@@ -76,7 +76,9 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     public Map<String, T> asMap() {
         final Map<String, T> nameToInfoObject = new HashMap<>();
         for (final T i : this) {
-            nameToInfoObject.put(i.getName(), i);
+            if (i != null) {
+                nameToInfoObject.put(i.getName(), i);
+            }
         }
         return nameToInfoObject;
     }
@@ -90,8 +92,10 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      */
     public boolean containsName(final String name) {
         for (final T i : this) {
-            if (i.getName().equals(name)) {
-                return true;
+            if (i != null) {
+                if (i.getName().equals(name)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -106,8 +110,10 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      */
     public T get(final String name) {
         for (final T i : this) {
-            if (i.getName().equals(name)) {
-                return i;
+            if (i != null) {
+                if (i.getName().equals(name)) {
+                    return i;
+                }
             }
         }
         return null;

@@ -95,7 +95,9 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
         } else {
             final List<String> names = new ArrayList<>(this.size());
             for (final T i : this) {
-                names.add(i.getName());
+                if (i != null) {
+                    names.add(i.getName());
+                }
             }
             return names;
         }

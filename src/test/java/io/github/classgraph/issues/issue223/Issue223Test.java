@@ -72,10 +72,12 @@ public class Issue223Test {
                 }
             }
             assertThat(innerInterface).isNotNull();
-            assertThat(innerInterface.getName()).isEqualTo(InnerInterface.class.getName());
-            assertThat(innerInterface.isInterface()).isTrue();
-            final Class<?> innerClassRef = innerInterface.loadClass();
-            assertThat(innerClassRef).isNotNull();
+            if (innerInterface != null) {
+                assertThat(innerInterface.getName()).isEqualTo(InnerInterface.class.getName());
+                assertThat(innerInterface.isInterface()).isTrue();
+                final Class<?> innerClassRef = innerInterface.loadClass();
+                assertThat(innerClassRef).isNotNull();
+            }
         }
     }
 }

@@ -318,10 +318,6 @@ public class NestedJarHandler {
                                     break;
                                 }
                             }
-                            if (!isDirectory) {
-                                throw new IOException(
-                                        "Path " + childPath + " does not exist in jarfile " + parentLogicalZipFile);
-                            }
                         }
                         // At this point, either isDirectory is true, or childZipEntry is non-null
 
@@ -339,6 +335,11 @@ public class NestedJarHandler {
                             }
                             // Return parent logical zipfile, and child path as the package root
                             return new SimpleEntry<>(parentLogicalZipFile, childPath);
+                        }
+
+                        if (childZipEntry == null /* i.e. if (!isDirectory) */) {
+                            throw new IOException(
+                                    "Path " + childPath + " does not exist in jarfile " + parentLogicalZipFile);
                         }
 
                         // Do not extract nested jar, if nested jar scanning is disabled

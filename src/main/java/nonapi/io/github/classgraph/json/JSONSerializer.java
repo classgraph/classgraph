@@ -280,6 +280,7 @@ public final class JSONSerializer {
 
         Object jsonVal;
         final Class<?> cls = obj.getClass();
+        final boolean isArray = cls.isArray();
 
         if (Map.class.isAssignableFrom(cls)) {
             final Map<Object, Object> map = (Map<Object, Object>) obj;
@@ -302,12 +303,12 @@ public final class JSONSerializer {
             final String[] convertedKeys = new String[n];
             for (int i = 0; i < n; i++) {
                 final Object key = keys.get(i);
-                if (!JSONUtils.isBasicValueType(key)) {
+                if (key != null && !JSONUtils.isBasicValueType(key)) {
                     throw new IllegalArgumentException("Map key of type " + key.getClass().getName()
                             + " is not a basic type (String, Integer, etc.), so can't be easily "
                             + "serialized as a JSON associative array key");
                 }
-                convertedKeys[i] = JSONUtils.escapeJSONString(key.toString());
+                convertedKeys[i] = JSONUtils.escapeJSONString(key == null ? "null" : key.toString());
             }
 
             // Sort value strings lexicographically if values are not Comparable
@@ -330,16 +331,16 @@ public final class JSONSerializer {
             }
             jsonVal = new JSONObject(convertedKeyValPairs);
 
-        } else if (cls.isArray() || List.class.isAssignableFrom(cls)) {
+        } else if (isArray || List.class.isAssignableFrom(cls)) {
             // Serialize an array or list
             final boolean isList = List.class.isAssignableFrom(cls);
             final List<?> list = isList ? (List<?>) obj : null;
-            final int n = isList ? list.size() : Array.getLength(obj);
+            final int n = list != null ? list.size() : isArray ? Array.getLength(obj) : 0;
 
             // Convert list items to JSON values
             final Object[] convertedVals = new Object[n];
             for (int i = 0; i < n; i++) {
-                convertedVals[i] = isList ? list.get(i) : Array.get(obj, i);
+                convertedVals[i] = list != null ? list.get(i) : isArray ? Array.get(obj, i) : 0;
             }
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
