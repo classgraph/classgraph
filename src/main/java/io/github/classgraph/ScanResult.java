@@ -522,13 +522,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     /**
      * Get the list of all resources found in any classpath element, <i>whether in whitelisted packages or not (as
-     * long as the resource is not blacklisted)<i>, that have the given path, relative to the package root of the
+     * long as the resource is not blacklisted)</i>, that have the given path, relative to the package root of the
      * classpath element. May match several resources, up to one per classpath element.
      *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root.
      * @return A list of all resources found in any classpath element, <i>whether in whitelisted packages or not (as
-     *         long as the resource is not blacklisted)<i>, that have the given path, relative to the package root
+     *         long as the resource is not blacklisted)</i>, that have the given path, relative to the package root
      *         of the classpath element. May match several resources, up to one per classpath element.
      */
     public ResourceList getResourcesWithPathIgnoringWhitelist(final String resourcePath) {
