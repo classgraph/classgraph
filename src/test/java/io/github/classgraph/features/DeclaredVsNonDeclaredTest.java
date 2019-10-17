@@ -140,9 +140,9 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
-        final Function<AnnotationInfo, Object> annotationNameExtractor = new Function<AnnotationInfo, Object>() {
+        final Function<AnnotationInfo, String> annotationNameExtractor = new Function<AnnotationInfo, String>() {
             @Override
-            public Object apply(AnnotationInfo input) {
+            public String apply(AnnotationInfo input) {
                 return input.getName();
             }
         };
