@@ -457,7 +457,7 @@ public final class FileUtils {
      *
      * @param file
      *            A {@link File}.
-     * @throw IOException if the file does not exist, is not a regular file, or cannot be read.
+     * @throws IOException if the file does not exist, is not a regular file, or cannot be read.
      */
     public static void checkCanReadAndIsFile(final File file) throws IOException {
         try {
@@ -495,7 +495,7 @@ public final class FileUtils {
      *
      * @param file
      *            A {@link File}.
-     * @throw IOException if the file does not exist, is not a directory, or cannot be read.
+     * @throws IOException if the file does not exist, is not a directory, or cannot be read.
      */
     public static void checkCanReadAndIsDir(final File file) throws IOException {
         try {

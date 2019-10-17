@@ -67,6 +67,8 @@ public final class CollectionUtils {
      *            the element type
      * @param list
      *            the list
+     * @param comparator
+     *            the comparator
      */
     public static <T> void sortIfNotEmpty(final List<T> list, final Comparator<? super T> comparator) {
         if (!list.isEmpty()) {
