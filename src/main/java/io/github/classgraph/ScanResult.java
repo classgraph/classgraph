@@ -128,8 +128,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
      * not blocked. (Bug #233)
      */
-    private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
-            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+    private static Set<WeakReference<ScanResult>> nonClosedWeakReferences;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -200,13 +199,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
             @Override
             public void run() {
                 // Close all ScanResult instances that have not yet been closed
-                for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
-                        nonClosedWeakReferences)) {
-                    final ScanResult scanResult = nonClosedWeakReference.get();
-                    if (scanResult != null) {
-                        scanResult.close();
+                if (nonClosedWeakReferences != null) {
+                    for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
+                            nonClosedWeakReferences)) {
+                        final ScanResult scanResult = nonClosedWeakReference.get();
+                        if (scanResult != null) {
+                            scanResult.close();
+                        }
+                        nonClosedWeakReferences.remove(nonClosedWeakReference);
                     }
-                    nonClosedWeakReferences.remove(nonClosedWeakReference);
                 }
             }
         };
@@ -229,6 +230,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final Thread preloadClassesThread = new Thread() {
             @Override
             public void run() {
+                // Create the new ConcurrentHashMap from the system classloader
+                nonClosedWeakReferences = Collections
+                        .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
                 try {
                     // Warm up the classloader, caching the classes necessary to close direct byte buffers
                     FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
@@ -334,8 +338,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.classGraphClassLoader = new ClassGraphClassLoader(this);
 
         // Provide the shutdown hook with a weak reference to this ScanResult
-        this.weakReference = new WeakReference<>(this);
-        nonClosedWeakReferences.add(this.weakReference);
+        if (nonClosedWeakReferences != null) {
+            this.weakReference = new WeakReference<>(this);
+            nonClosedWeakReferences.add(this.weakReference);
+        } else {
+            // Should not happen
+            throw new RuntimeException("nonClosedWeakReferences should not be null");
+        }
     }
 
     /** Index {@link Resource} and {@link ClassInfo} objects. */
@@ -1433,7 +1442,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
             classGraphClassLoader = null;
             classLoaderOrderRespectingParentDelegation = null;
             // Remove WeakReference to this ScanResult, so shutdown hook does not try to close this
-            nonClosedWeakReferences.remove(weakReference);
+            if (nonClosedWeakReferences != null) {
+                nonClosedWeakReferences.remove(weakReference);
+            }
             // Flush log on exit, in case additional log entries were generated after scan() completed
             if (topLevelLog != null) {
                 topLevelLog.flush();
