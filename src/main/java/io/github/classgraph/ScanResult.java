@@ -218,9 +218,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final ClassLoader systemClassLoader = MappedByteBuffer.class.getClassLoader();
         hookThread.setContextClassLoader(systemClassLoader);
 
-        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
-        Runtime.getRuntime().addShutdownHook(hookThread);
-
         // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
         // to be loaded to close resources are already loaded and cached. Otherwise, the classloader may be
         // closed by its own shutdown hook before ClassGraph's shutdown hook can run, and classloading can
@@ -257,6 +254,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 throw new RuntimeException(e);
             }
         }
+
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
+        Runtime.getRuntime().addShutdownHook(hookThread);
     }
 
     // -------------------------------------------------------------------------------------------------------------
