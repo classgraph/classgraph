@@ -46,13 +46,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
@@ -248,16 +247,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
         };
         // Run this thread with the same context classloader as the shutdown hook thread (the system classloader)
         preloadClassesThread.setContextClassLoader(systemClassLoader);
-        ExecutorService executor = Executors.newFixedThreadPool(1);
-        executor.execute(preloadClassesThread);
-        try {
-            // Wait for preloadClassesThread to finish running
-            wait.acquire();
-        } catch (final InterruptedException e) {
-            // Should not happen
-            throw new RuntimeException(e);
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1)) {
+            executorService.execute(preloadClassesThread);
+            try {
+                // Wait for preloadClassesThread to finish running
+                wait.acquire();
+            } catch (final InterruptedException e) {
+                // Should not happen
+                throw new RuntimeException(e);
+            }
         }
-        executor.shutdown();
     }
 
     // -------------------------------------------------------------------------------------------------------------
