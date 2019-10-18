@@ -35,6 +35,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -45,6 +46,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -194,10 +196,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // Shutdown hook
 
     static {
-        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
-        Runtime.getRuntime().addShutdownHook(new Thread() {
+        final Thread hookThread = new Thread() {
             @Override
             public void run() {
+                // Close all ScanResult instances that have not yet been closed
                 for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
                         nonClosedWeakReferences)) {
                     final ScanResult scanResult = nonClosedWeakReference.get();
@@ -207,7 +209,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     nonClosedWeakReferences.remove(nonClosedWeakReference);
                 }
             }
-        });
+        };
+
+        // Set thread classloader to system classloader, so that a reference is not held to the caller's
+        // classloader, e.g. servlet container classloader (#376)
+        final ClassLoader systemClassLoader = MappedByteBuffer.class.getClassLoader();
+        hookThread.setContextClassLoader(systemClassLoader);
+
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
+        Runtime.getRuntime().addShutdownHook(hookThread);
 
         // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
         // to be loaded to close resources are already loaded and cached. Otherwise, the classloader may be
@@ -215,7 +225,31 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // fail, which will throw an exception and leave resources open (#331).
         // We achieve this by mmap'ing a file and then closing it, since the only problematic classes are
         // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
-        FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
+        final Semaphore wait = new Semaphore(0);
+        final Thread preloadClassesThread = new Thread() {
+            @Override
+            public void run() {
+                try {
+                    // Warm up the classloader, caching the classes necessary to close direct byte buffers
+                    FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
+                } catch (final Exception e) {
+                    // Should not happen
+                    throw new RuntimeException(e);
+                }
+                // Allow code below to continue
+                wait.release();
+            }
+        };
+        // Run this thread with the same context classloader as the shutdown hook thread (the system classloader)
+        preloadClassesThread.setContextClassLoader(systemClassLoader);
+        preloadClassesThread.start();
+        try {
+            // Wait for preloadClassesThread to finish running
+            wait.acquire();
+        } catch (final InterruptedException e) {
+            // Should not happen
+            throw new RuntimeException(e);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
