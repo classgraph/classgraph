@@ -46,6 +46,9 @@ class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     /** Whether to set daemon mode. */
     private final boolean daemon;
 
+    /** The context classloader to use for new threads, or null to use the caller's classloader. */
+    private final ClassLoader threadContextClassLoader;
+
     /**
      * Constructor.
      *
@@ -57,6 +60,24 @@ class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     SimpleThreadFactory(final String threadNamePrefix, final boolean daemon) {
         this.threadNamePrefix = threadNamePrefix;
         this.daemon = daemon;
+        this.threadContextClassLoader = null;
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param threadNamePrefix
+     *            prefix for created threads.
+     * @param daemon
+     *            create daemon threads?
+     * @param threadContextClassLoader
+     *            The context classloader to use for new threads, or null to use the caller's classloader
+     */
+    SimpleThreadFactory(final String threadNamePrefix, final boolean daemon,
+            final ClassLoader threadContextClassLoader) {
+        this.threadNamePrefix = threadNamePrefix;
+        this.daemon = daemon;
+        this.threadContextClassLoader = threadContextClassLoader;
     }
 
     /* (non-Javadoc)
@@ -65,6 +86,9 @@ class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     @Override
     public Thread newThread(final Runnable r) {
         final Thread t = new Thread(r, threadNamePrefix + threadIdx.getAndIncrement());
+        if (threadContextClassLoader != null) {
+            t.setContextClassLoader(threadContextClassLoader);
+        }
         t.setDaemon(daemon);
         return t;
     }

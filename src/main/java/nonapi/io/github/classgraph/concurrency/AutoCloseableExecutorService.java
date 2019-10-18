@@ -54,6 +54,19 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     }
 
     /**
+     * A ThreadPoolExecutor that can be used in a try-with-resources block.
+     * 
+     * @param numThreads
+     *            The number of threads to allocate.
+     * @param threadContextClassLoader
+     *            The context classloader to use for new threads, or null to use the caller's classloader
+     */
+    public AutoCloseableExecutorService(final int numThreads, final ClassLoader threadContextClassLoader) {
+        super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+                new SimpleThreadFactory("ClassGraph-worker-", true, threadContextClassLoader));
+    }
+
+    /**
      * Catch exceptions from both submit() and execute(), and call {@link InterruptionChecker#interrupt()} to
      * interrupt all threads.
      *

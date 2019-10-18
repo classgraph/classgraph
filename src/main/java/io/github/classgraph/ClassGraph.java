@@ -83,7 +83,7 @@ public class ClassGraph {
     static {
         ScanResult.initShutdownHook();
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Construct a ClassGraph instance. */

@@ -196,6 +196,47 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // Shutdown hook init code
 
     static void initShutdownHook() {
+        // For shutdown hook, use system classloader, so that a reference is not held to the caller's
+        // classloader, e.g. servlet container classloader (#376)
+        final ClassLoader systemClassLoader = MappedByteBuffer.class.getClassLoader();
+
+        // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
+        // to be loaded to close resources are already loaded and cached. Otherwise, the classloader may be
+        // closed by its own shutdown hook before ClassGraph's shutdown hook can run, and classloading can
+        // fail, which will throw an exception and leave resources open (#331).
+        // We achieve this by mmap'ing a file and then closing it, since the only problematic classes are
+        // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
+        // Run this thread with the same context classloader as the shutdown hook thread (the system classloader).
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1,
+                systemClassLoader)) {
+            final Semaphore wait = new Semaphore(0);
+            executorService.execute(new Runnable() {
+                @Override
+                public void run() {
+                    // Create the new ConcurrentHashMap from the system classloader
+                    nonClosedWeakReferences = Collections
+                            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+                    try {
+                        // Warm up the classloader, caching the classes necessary to close direct byte buffers
+                        FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
+                    } catch (final Exception e) {
+                        // Should not happen
+                        throw new RuntimeException(e);
+                    }
+                    // Allow code below to continue
+                    wait.release();
+                }
+            });
+            try {
+                // Wait for preloadClassesThread to finish running
+                wait.acquire();
+            } catch (final InterruptedException e) {
+                // Should not happen
+                throw new RuntimeException(e);
+            }
+        }
+
+        // Create shutdown hook thread to close all open/mapped DirectByteBuffers on shutdown
         final Thread hookThread = new Thread() {
             @Override
             public void run() {
@@ -212,48 +253,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 }
             }
         };
-
-        // Set thread classloader to system classloader, so that a reference is not held to the caller's
-        // classloader, e.g. servlet container classloader (#376)
-        final ClassLoader systemClassLoader = MappedByteBuffer.class.getClassLoader();
+        // Set shutdown hook thread classloader to system classloader, dropping ref to context classloader
         hookThread.setContextClassLoader(systemClassLoader);
-
-        // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
-        // to be loaded to close resources are already loaded and cached. Otherwise, the classloader may be
-        // closed by its own shutdown hook before ClassGraph's shutdown hook can run, and classloading can
-        // fail, which will throw an exception and leave resources open (#331).
-        // We achieve this by mmap'ing a file and then closing it, since the only problematic classes are
-        // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
-        final Semaphore wait = new Semaphore(0);
-        final Thread preloadClassesThread = new Thread() {
-            @Override
-            public void run() {
-                // Create the new ConcurrentHashMap from the system classloader
-                nonClosedWeakReferences = Collections
-                        .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
-                try {
-                    // Warm up the classloader, caching the classes necessary to close direct byte buffers
-                    FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
-                } catch (final Exception e) {
-                    // Should not happen
-                    throw new RuntimeException(e);
-                }
-                // Allow code below to continue
-                wait.release();
-            }
-        };
-        // Run this thread with the same context classloader as the shutdown hook thread (the system classloader)
-        preloadClassesThread.setContextClassLoader(systemClassLoader);
-        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1)) {
-            executorService.execute(preloadClassesThread);
-            try {
-                // Wait for preloadClassesThread to finish running
-                wait.acquire();
-            } catch (final InterruptedException e) {
-                // Should not happen
-                throw new RuntimeException(e);
-            }
-        }
 
         // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
         Runtime.getRuntime().addShutdownHook(hookThread);
