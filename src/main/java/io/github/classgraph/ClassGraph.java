@@ -81,7 +81,7 @@ public class ClassGraph {
 
     // Run shutdown hook init code
     static {
-        ScanResult.init();
+        ScanResult.initShutdownHook();
     }
     
     // -------------------------------------------------------------------------------------------------------------

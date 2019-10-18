@@ -195,7 +195,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
     // Shutdown hook init code
 
-    static void init() {
+    static void initShutdownHook() {
         final Thread hookThread = new Thread() {
             @Override
             public void run() {
