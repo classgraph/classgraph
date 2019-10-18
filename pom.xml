@@ -22,8 +22,8 @@
         <developer>
             <name>Luke Hutchison</name>
             <email>luke.hutch@gmail.com</email>
-            <organization>--</organization>
-            <organizationUrl>https://github.com/lukehutch</organizationUrl>
+            <organization>ClassGraph</organization>
+            <organizationUrl>https://github.com/classgraph</organizationUrl>
         </developer>
     </developers>
 
