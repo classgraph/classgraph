@@ -232,11 +232,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final Thread preloadClassesThread = new Thread() {
             @Override
             public void run() {
-                System.out.println("running");
                 // Create the new ConcurrentHashMap from the system classloader
                 nonClosedWeakReferences = Collections
                         .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
-                System.out.println("ended");
                 try {
                     // Warm up the classloader, caching the classes necessary to close direct byte buffers
                     FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
