@@ -208,6 +208,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
         // Run this thread with the same context classloader as the shutdown hook thread (the system classloader).
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1,
+                // Create new thread with system classloader
                 systemClassLoader)) {
             final Semaphore wait = new Semaphore(0);
             executorService.execute(new Runnable() {
@@ -228,7 +229,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 }
             });
             try {
-                // Wait for preloadClassesThread to finish running
+                // Wait for the above thread to finish running
                 wait.acquire();
             } catch (final InterruptedException e) {
                 // Should not happen
