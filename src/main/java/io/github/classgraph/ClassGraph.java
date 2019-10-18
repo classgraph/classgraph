@@ -79,6 +79,11 @@ public class ClassGraph {
     /** If non-null, log while scanning. */
     private LogNode topLevelLog;
 
+    // Run shutdown hook init code
+    static {
+        ScanResult.init();
+    }
+    
     // -------------------------------------------------------------------------------------------------------------
 
     /** Construct a ClassGraph instance. */

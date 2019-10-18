@@ -46,6 +46,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
@@ -192,9 +194,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Shutdown hook
+    // Shutdown hook init code
 
-    static {
+    static void init() {
         final Thread hookThread = new Thread() {
             @Override
             public void run() {
@@ -230,9 +232,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final Thread preloadClassesThread = new Thread() {
             @Override
             public void run() {
+                System.out.println("running");
                 // Create the new ConcurrentHashMap from the system classloader
                 nonClosedWeakReferences = Collections
                         .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+                System.out.println("ended");
                 try {
                     // Warm up the classloader, caching the classes necessary to close direct byte buffers
                     FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
@@ -246,7 +250,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
         };
         // Run this thread with the same context classloader as the shutdown hook thread (the system classloader)
         preloadClassesThread.setContextClassLoader(systemClassLoader);
-        preloadClassesThread.start();
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        executor.execute(preloadClassesThread);
         try {
             // Wait for preloadClassesThread to finish running
             wait.acquire();
@@ -254,6 +259,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // Should not happen
             throw new RuntimeException(e);
         }
+        executor.shutdown();
     }
 
     // -------------------------------------------------------------------------------------------------------------
