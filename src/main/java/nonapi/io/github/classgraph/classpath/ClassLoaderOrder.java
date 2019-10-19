@@ -194,7 +194,7 @@ public class ClassLoaderOrder {
                 manualLifecycle = true;
             }
             // Delegate to this classloader, by recursing to that classloader to get its classloader order
-            entry.findClassLoaderOrder(classLoader, this);
+            entry.findClassLoaderOrder(classLoader, this, log);
         }
     }
 }

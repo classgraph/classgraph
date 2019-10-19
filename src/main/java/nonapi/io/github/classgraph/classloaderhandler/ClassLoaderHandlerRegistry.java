@@ -152,7 +152,7 @@ public class ClassLoaderHandlerRegistry {
             }
             try {
                 findClassLoaderOrderMethod = classLoaderHandlerClass.getDeclaredMethod("findClassLoaderOrder",
-                        ClassLoader.class, ClassLoaderOrder.class);
+                        ClassLoader.class, ClassLoaderOrder.class, LogNode.class);
             } catch (final Exception e) {
                 throw new RuntimeException(
                         "Could not find findClassLoaderOrder method for " + classLoaderHandlerClass.getName(), e);
@@ -198,10 +198,13 @@ public class ClassLoaderHandlerRegistry {
          *            the {@link ClassLoader}.
          * @param classLoaderOrder
          *            a {@link ClassLoaderOrder} object.
+         * @param log
+         *            the log
          */
-        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder) {
+        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                final LogNode log) {
             try {
-                findClassLoaderOrderMethod.invoke(null, classLoader, classLoaderOrder);
+                findClassLoaderOrderMethod.invoke(null, classLoader, classLoaderOrder, log);
             } catch (final Throwable e) {
                 throw new RuntimeException(
                         "Exception while calling findClassLoaderOrder for " + classLoaderHandlerClass.getName(), e);
