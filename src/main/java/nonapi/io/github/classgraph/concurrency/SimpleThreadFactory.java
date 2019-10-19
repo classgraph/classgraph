@@ -92,13 +92,14 @@ class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
                 // as the parent thread group, in order to drop any references to the container's context
                 // classloader, so that it may be garbage collected if the application is unloaded (#376).
             }
-            parentThreadGroup = new ThreadGroup(parentThreadGroup, threadNamePrefix + "threadgroup");
+            parentThreadGroup = new ThreadGroup(parentThreadGroup, threadNamePrefix + "thread-group");
         }
-        final Thread t = new Thread(parentThreadGroup, runnable, threadNamePrefix + threadIdx.getAndIncrement());
+        final Thread thread = new Thread(parentThreadGroup, runnable,
+                threadNamePrefix + threadIdx.getAndIncrement());
         if (threadContextClassLoader != null) {
-            t.setContextClassLoader(threadContextClassLoader);
+            thread.setContextClassLoader(threadContextClassLoader);
         }
-        t.setDaemon(daemon);
-        return t;
+        thread.setDaemon(daemon);
+        return thread;
     }
 }

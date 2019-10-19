@@ -237,8 +237,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
         }
 
+        ThreadGroup parentThreadGroup = Thread.currentThread().getThreadGroup();
+        for (; parentThreadGroup.getParent() != null; parentThreadGroup = parentThreadGroup.getParent()) {
+            // Find system (toplevel) thread group, and use this as the parent thread group, in order to
+            // drop any references to the container's context classloader, so that it may be garbage collected
+            // if the application is unloaded (#376).
+        }
+        parentThreadGroup = new ThreadGroup(parentThreadGroup, "ClassGraph-shutdown-thread-group");
+
         // Create shutdown hook thread to close all open/mapped DirectByteBuffers on shutdown
-        final Thread hookThread = new Thread() {
+        final Thread hookThread = new Thread(parentThreadGroup, new Runnable() {
             @Override
             public void run() {
                 // Close all ScanResult instances that have not yet been closed
@@ -253,7 +261,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     }
                 }
             }
-        };
+        }, "ClassGraph-shutdown-thread");
         // Set shutdown hook thread classloader to system classloader, dropping ref to context classloader
         hookThread.setContextClassLoader(systemClassLoader);
 
