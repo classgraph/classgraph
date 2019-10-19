@@ -72,7 +72,13 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Register a {@link WebListener} to respond to Tomcat servlet context shutdown.
+     * Register a {@link WebListener} to respond to Tomcat servlet context shutdown (#376). This creates classfile
+     * references to the classes {@link WebListener}, {@link ServletContextListener} and
+     * {@link ServletContextEvent}, however this class {@link TomcatLifeCycleListener} is never actually referenced
+     * by any other class in ClassGraph (it is only included in the classpath so that Tomcat can locate it using the
+     * {@link WebListener} annotation). Therefore ClassGraph has only a compile-time ("provides"-scoped) dependency
+     * on Tomcat to enable Tomcat to find this class, but a ClassNotFound exception should not be thrown by anything
+     * else that uses ClassGraph.
      */
     @WebListener
     public static class TomcatLifeCycleListener implements ServletContextListener {
