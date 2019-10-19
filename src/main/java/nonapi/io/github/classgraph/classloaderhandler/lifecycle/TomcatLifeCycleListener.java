@@ -28,6 +28,8 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler.lifecycle;
 
+import java.util.logging.Logger;
+
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
@@ -45,6 +47,9 @@ import io.github.classgraph.ScanResult;
  */
 @WebListener
 public class TomcatLifeCycleListener implements ServletContextListener {
+    /** The logger. */
+    private final Logger log = Logger.getLogger(ClassGraph.class.getName());
+
     /**
      * Context initialized.
      *
@@ -53,6 +58,7 @@ public class TomcatLifeCycleListener implements ServletContextListener {
      */
     @Override
     public void contextInitialized(final ServletContextEvent event) {
+        log.info("Tomcat container detected -- disabling ClassGraph shutdown hook");
         ClassGraph.disableShutdownHook();
     }
 
@@ -65,6 +71,7 @@ public class TomcatLifeCycleListener implements ServletContextListener {
     @Override
     public void contextDestroyed(final ServletContextEvent event) {
         // Cleanly close down any open {@link ScanResult} instances.
+        log.info("Closing any remaning open ClassGraph ScanResult instances");
         ScanResult.closeAll();
     }
 }

@@ -28,6 +28,8 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler.lifecycle;
 
+import java.util.logging.Logger;
+
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
@@ -52,6 +54,9 @@ public class SpringLifeCycleListener {
     ServletListenerRegistrationBean<ServletContextListener> servletListener() {
         final ServletListenerRegistrationBean<ServletContextListener> srb = new ServletListenerRegistrationBean<>();
         srb.setListener(new ServletContextListener() {
+            /** The logger. */
+            private final Logger log = Logger.getLogger(ClassGraph.class.getName());
+
             /**
              * Context initialized.
              *
@@ -60,6 +65,7 @@ public class SpringLifeCycleListener {
              */
             @Override
             public void contextInitialized(final ServletContextEvent event) {
+                log.info("Spring container detected -- disabling ClassGraph shutdown hook");
                 ClassGraph.disableShutdownHook();
             }
 
@@ -72,6 +78,7 @@ public class SpringLifeCycleListener {
             @Override
             public void contextDestroyed(final ServletContextEvent event) {
                 // Cleanly close down any open {@link ScanResult} instances.
+                log.info("Closing any remaning open ClassGraph ScanResult instances");
                 ScanResult.closeAll();
             }
         });

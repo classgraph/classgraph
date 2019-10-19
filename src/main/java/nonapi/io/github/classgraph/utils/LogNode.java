@@ -49,8 +49,7 @@ import nonapi.io.github.classgraph.classpath.SystemJarFinder;
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
 public final class LogNode {
-
-    /** The Constant log. */
+    /** The logger. */
     private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
 
     /**
