@@ -32,6 +32,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -96,6 +97,39 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
                 interruptionChecker.setExecutionException(e);
                 // Interrupt other threads
                 interruptionChecker.interrupt();
+            }
+        }
+    }
+
+    /**
+     * Run a {@link Runnable} with a specific {@link ClassLoader}.
+     *
+     * @param runnable
+     *            the {@link Runnable}.
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     */
+    public static void runWithClassLoader(final Runnable runnable, final ClassLoader classLoader) {
+        // Run the Runnable in the system classloader
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1,
+                // Create new thread with specific classloader
+                classLoader)) {
+            final Semaphore wait = new Semaphore(0);
+            executorService.execute(new Runnable() {
+                @Override
+                public void run() {
+                    // Run the Runnable
+                    runnable.run();
+                    // Allow code below to continue
+                    wait.release();
+                }
+            });
+            try {
+                // Wait for the above thread to finish running
+                wait.acquire();
+            } catch (final InterruptedException e) {
+                // Should not happen
+                throw new RuntimeException(e);
             }
         }
     }

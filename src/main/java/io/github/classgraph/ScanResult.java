@@ -35,7 +35,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -46,12 +45,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
+import nonapi.io.github.classgraph.concurrency.SimpleThreadFactory;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
@@ -195,78 +194,58 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
     // Shutdown hook init code
 
-    static void initShutdownHook() {
-        // For shutdown hook, use system classloader, so that a reference is not held to the caller's
-        // classloader, e.g. servlet container classloader (#376)
-        final ClassLoader systemClassLoader = MappedByteBuffer.class.getClassLoader();
-
+    /**
+     * Static initialization, called when the ClassGraph class is initialized. Call from
+     * {@link AutoCloseableExecutorService#runInSystemClassLoader(Runnable)}, so there's no chance that the shutdown
+     * hook will hold a ref to the context classloader.
+     */
+    static void staticInit() {
+        nonClosedWeakReferences = Collections
+                .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
         // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
         // to be loaded to close resources are already loaded and cached. Otherwise, the classloader may be
         // closed by its own shutdown hook before ClassGraph's shutdown hook can run, and classloading can
         // fail, which will throw an exception and leave resources open (#331).
         // We achieve this by mmap'ing a file and then closing it, since the only problematic classes are
         // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
-        // Run this thread with the same context classloader as the shutdown hook thread (the system classloader).
-        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1,
-                // Create new thread with system classloader
-                systemClassLoader)) {
-            final Semaphore wait = new Semaphore(0);
-            executorService.execute(new Runnable() {
-                @Override
-                public void run() {
-                    // Create the new ConcurrentHashMap from the system classloader
-                    nonClosedWeakReferences = Collections
-                            .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
-                    try {
-                        // Warm up the classloader, caching the classes necessary to close direct byte buffers
-                        FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
-                    } catch (final Exception e) {
-                        // Should not happen
-                        throw new RuntimeException(e);
-                    }
-                    // Allow code below to continue
-                    wait.release();
-                }
-            });
-            try {
-                // Wait for the above thread to finish running
-                wait.acquire();
-            } catch (final InterruptedException e) {
-                // Should not happen
-                throw new RuntimeException(e);
-            }
-        }
+        FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
+    }
 
-        ThreadGroup parentThreadGroup = Thread.currentThread().getThreadGroup();
-        for (; parentThreadGroup.getParent() != null; parentThreadGroup = parentThreadGroup.getParent()) {
-            // Find system (toplevel) thread group, and use this as the parent thread group, in order to
-            // drop any references to the container's context classloader, so that it may be garbage collected
-            // if the application is unloaded (#376).
-        }
-        parentThreadGroup = new ThreadGroup(parentThreadGroup, "ClassGraph-shutdown-thread-group");
-
+    /**
+     * Initialize the shutdown hook.
+     *
+     * @param systemClassLoader
+     *            the system classloader
+     */
+    static void initShutdownHook(final ClassLoader systemClassLoader) {
         // Create shutdown hook thread to close all open/mapped DirectByteBuffers on shutdown
-        final Thread hookThread = new Thread(parentThreadGroup, new Runnable() {
-            @Override
-            public void run() {
-                // Close all ScanResult instances that have not yet been closed
-                if (nonClosedWeakReferences != null) {
-                    for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
-                            nonClosedWeakReferences)) {
-                        final ScanResult scanResult = nonClosedWeakReference.get();
-                        if (scanResult != null) {
-                            scanResult.close();
-                        }
-                        nonClosedWeakReferences.remove(nonClosedWeakReference);
+        final Thread hookThread = new Thread(
+                SimpleThreadFactory.newThreadGroupWithRootAsParent("ClassGraph-shutdown-thread-group"),
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        ScanResult.closeAll();
                     }
-                }
-            }
-        }, "ClassGraph-shutdown-thread");
+                }, "ClassGraph-shutdown-thread");
         // Set shutdown hook thread classloader to system classloader, dropping ref to context classloader
         hookThread.setContextClassLoader(systemClassLoader);
 
         // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
         Runtime.getRuntime().addShutdownHook(hookThread);
+    }
+
+    /** Close all {@link ScanResult} instances that have not yet been closed. */
+    public static void closeAll() {
+        if (nonClosedWeakReferences != null) {
+            for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
+                    nonClosedWeakReferences)) {
+                final ScanResult scanResult = nonClosedWeakReference.get();
+                if (scanResult != null) {
+                    scanResult.close();
+                }
+                nonClosedWeakReferences.remove(nonClosedWeakReference);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

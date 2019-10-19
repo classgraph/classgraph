@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
+import java.nio.MappedByteBuffer;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -39,6 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
@@ -79,16 +81,49 @@ public class ClassGraph {
     /** If non-null, log while scanning. */
     private LogNode topLevelLog;
 
-    // Run shutdown hook init code
-    static {
-        ScanResult.initShutdownHook();
-    }
+    /** If true, add a shutdown hook to close all files and direct byte buffers on shutdown. */
+    private static final AtomicBoolean enableShutdownHook = new AtomicBoolean(true);
+
+    /** If true, ScanResult#staticInit() has been run. */
+    private static final AtomicBoolean scanResultStaticInitRun = new AtomicBoolean(false);
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
-        // Blank
+        // Initialize ScanResult, if this is the first call to ClassGraph constructor
+        if (!scanResultStaticInitRun.getAndSet(true)) {
+            // A ref to the system ClassLoader.
+            final ClassLoader mappedByteBufferClassLoader = MappedByteBuffer.class.getClassLoader();
+
+            // Create nonClosedWeakReferences from the system classloader, so there's no chance that
+            // the shutdown hook will hold a ref to the context classloader (#376)
+            AutoCloseableExecutorService.runWithClassLoader(new Runnable() {
+                @Override
+                public void run() {
+                    ScanResult.staticInit();
+                }
+            }, mappedByteBufferClassLoader);
+
+            // Set up shutdown hook, if enabled
+            if (enableShutdownHook.get()) {
+                ScanResult.initShutdownHook(mappedByteBufferClassLoader);
+            }
+        }
+    }
+
+    /**
+     * Disable the adding of a shutdown hook, which closes all files and direct byte buffers on shutdown, enabling
+     * clean shutdown even if the user forgets to call {@link ScanResult#close()} on a {@link ScanResult}. This
+     * static method must be called before the first call to the {@link ClassGraph#ClassGraph()} constructor, since
+     * the first call to the constructor adds the shutdown hook if this has not been disabled.
+     * 
+     * <p>
+     * The shutdown hook should be disabled in environments where apps may be loaded and unloaded many times
+     * throughout the lifetime of the VM, such as web application servers.
+     */
+    public static void disableShutdownHook() {
+        enableShutdownHook.set(false);
     }
 
     /**

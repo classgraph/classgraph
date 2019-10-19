@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Johno Crawford (johno@sulake.com)
  */
-class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
+public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
 
     /** The thread name prefix. */
     private final String threadNamePrefix;
@@ -80,22 +80,34 @@ class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
         this.threadContextClassLoader = threadContextClassLoader;
     }
 
-    /* (non-Javadoc)
-     * @see java.util.concurrent.ThreadFactory#newThread(java.lang.Runnable)
+    /**
+     * Create a new {@link ThreadGroup} with the root {@link ThreadGroup} as its parent.
+     *
+     * @param threadGroupName
+     *            the thread group name
+     * @return the {@link ThreadGroup}.
+     */
+    public static ThreadGroup newThreadGroupWithRootAsParent(final String threadGroupName) {
+        ThreadGroup parentThreadGroup = Thread.currentThread().getThreadGroup();
+        for (; parentThreadGroup.getParent() != null; parentThreadGroup = parentThreadGroup.getParent()) {
+            // If context classloader is overridden, find system (toplevel) thread group, and use this
+            // as the parent thread group, in order to drop any references to the container's context
+            // classloader, so that it may be garbage collected if the application is unloaded (#376).
+        }
+        return new ThreadGroup(parentThreadGroup, threadGroupName);
+    }
+
+    /**
+     * New thread.
+     *
+     * @param runnable
+     *            the runnable
+     * @return the thread
      */
     @Override
     public Thread newThread(final Runnable runnable) {
-        ThreadGroup parentThreadGroup = Thread.currentThread().getThreadGroup();
-        if (threadContextClassLoader != null) {
-            for (; parentThreadGroup.getParent() != null; parentThreadGroup = parentThreadGroup.getParent()) {
-                // If context classloader is overridden, find system (toplevel) thread group, and use this
-                // as the parent thread group, in order to drop any references to the container's context
-                // classloader, so that it may be garbage collected if the application is unloaded (#376).
-            }
-            parentThreadGroup = new ThreadGroup(parentThreadGroup, threadNamePrefix + "thread-group");
-        }
-        final Thread thread = new Thread(parentThreadGroup, runnable,
-                threadNamePrefix + threadIdx.getAndIncrement());
+        final Thread thread = new Thread(newThreadGroupWithRootAsParent(threadNamePrefix + "thread-group"),
+                runnable, threadNamePrefix + threadIdx.getAndIncrement());
         if (threadContextClassLoader != null) {
             thread.setContextClassLoader(threadContextClassLoader);
         }
