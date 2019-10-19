@@ -50,8 +50,9 @@ public class TomcatLifeCycleListener implements ServletContextListener {
      * @param event
      *            the event
      */
-    public void contextInitialized(ServletContextEvent event) {
-        // Do nothing
+    @Override
+    public void contextInitialized(final ServletContextEvent event) {
+        //
     }
 
     /**
@@ -60,7 +61,8 @@ public class TomcatLifeCycleListener implements ServletContextListener {
      * @param event
      *            the event
      */
-    public void contextDestroyed(ServletContextEvent event) {
+    @Override
+    public void contextDestroyed(final ServletContextEvent event) {
         // Cleanly close down any open {@link ScanResult} instances.
         ScanResult.closeAll();
     }

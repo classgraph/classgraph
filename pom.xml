@@ -123,9 +123,9 @@
             <version>1.0.2.Final</version>
             <scope>test</scope>
         </dependency>
-        
+
         <!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
-        
+
         <!-- Needed for Eclipse nullability analysis to work, but use "provided" as the scope so that we don't add a 
             hard dependency on the JDT annotations, because we don't use the annotations in any of the ClassGraph code, so these 
             annotations are not needed at runtime. https://bugs.eclipse.org/bugs/show_bug.cgi?id=552198 -->
@@ -135,12 +135,30 @@
             <version>2.2.300</version>
             <scope>provided</scope>
         </dependency>
-        
-        <!-- Needed for tomcat shutdown hook (#376). Used in TomcatWebappClassLoaderBaseHandler. -->
+
+        <!-- Needed for tomcat and Spring shutdown hooks (#376). Used in TomcatLifeCycleListener and SpringLifeCycleListener. -->
         <dependency>
             <groupId>org.apache.tomcat</groupId>
             <artifactId>tomcat-catalina</artifactId>
             <version>9.0.27</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>3.0.2.RELEASE</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>5.2.0.RELEASE</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+            <version>1.2.3.RELEASE</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
