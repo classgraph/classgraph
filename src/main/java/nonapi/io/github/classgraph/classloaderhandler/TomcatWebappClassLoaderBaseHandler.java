@@ -31,11 +31,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.util.List;
 
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
-import javax.servlet.annotation.WebListener;
-
-import io.github.classgraph.ScanResult;
+import nonapi.io.github.classgraph.classloaderhandler.lifecycle.TomcatLifeCycleListener;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -63,45 +59,12 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     /**
      * Shutdown hooks should not be used in Tomcat, because this leads to ClassLoader reference leaks (#376).
-     * Instead, {@link TomcatLifeCycleListener} is registered below.
+     * Instead, {@link TomcatLifeCycleListener} listens for servlet disposal.
      * 
      * @return true.
      */
     public static boolean manualLifecycle() {
         return true;
-    }
-
-    /**
-     * Register a {@link WebListener} to respond to Tomcat servlet context shutdown (#376). This creates classfile
-     * references to the classes {@link WebListener}, {@link ServletContextListener} and
-     * {@link ServletContextEvent}, however this class {@link TomcatLifeCycleListener} is never actually referenced
-     * by any other class in ClassGraph (it is only included in the classpath so that Tomcat can locate it using the
-     * {@link WebListener} annotation). Therefore ClassGraph has only a compile-time ("provides"-scoped) dependency
-     * on Tomcat to enable Tomcat to find this class, but a ClassNotFound exception should not be thrown by anything
-     * else that uses ClassGraph.
-     */
-    @WebListener
-    public static class TomcatLifeCycleListener implements ServletContextListener {
-        /**
-         * Context initialized.
-         *
-         * @param event
-         *            the event
-         */
-        public void contextInitialized(ServletContextEvent event) {
-            // Do nothing
-        }
-
-        /**
-         * Context destroyed.
-         *
-         * @param event
-         *            the event
-         */
-        public void contextDestroyed(ServletContextEvent event) {
-            // Cleanly close down any open {@link ScanResult} instances.
-            ScanResult.closeAll();
-        }
     }
 
     /**
