@@ -19,6 +19,7 @@ import io.github.classgraph.TypeVariableSignature;
  */
 public class ResolveTypeVariableTest<T extends ArrayList<Integer>> {
     /** The list. */
+    @SuppressWarnings("null")
     T list;
 
     /**

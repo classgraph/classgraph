@@ -86,6 +86,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     private static class SingletonHolder<V> {
         /** The singleton. */
+        @SuppressWarnings("null")
         private volatile V singleton;
 
         /** Whether or not the singleton has been initialized (the count will have reached 0 if so). */
@@ -167,6 +168,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     public V get(final K key, final LogNode log) throws E, InterruptedException, NullSingletonException {
         final SingletonHolder<V> singletonHolder = map.get(key);
+        @SuppressWarnings("null")
         V instance = null;
         if (singletonHolder != null) {
             // There is already a SingletonHolder in the map for this key -- get the value

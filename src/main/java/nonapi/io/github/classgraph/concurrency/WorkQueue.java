@@ -212,6 +212,7 @@ public class WorkQueue<T> implements AutoCloseable {
     /**
      * Send poison pills to workers.
      */
+    @SuppressWarnings("null")
     private void sendPoisonPills() {
         for (int i = 0; i < numWorkers; i++) {
             workUnits.add(new WorkUnitWrapper<T>(null));

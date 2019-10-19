@@ -38,6 +38,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          */
+        @SuppressWarnings("null")
         public A() {
         }
 
@@ -69,6 +70,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          */
+        @SuppressWarnings("null")
         public B() {
         }
 
@@ -147,6 +149,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          */
+        @SuppressWarnings("null")
         public D() {
         }
 

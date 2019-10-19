@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -120,6 +123,15 @@
             <version>1.0.2.Final</version>
             <scope>test</scope>
         </dependency>
+        <!-- Needed for Eclipse nullability analysis to work, but use "provided" as the scope so that we don't add a 
+            hard dependency on the JDT annotations, because we don't use the annotations in any of the ClassGraph code, so these 
+            annotations are not needed at runtime. https://bugs.eclipse.org/bugs/show_bug.cgi?id=552198 -->
+        <dependency>
+            <groupId>org.eclipse.jdt</groupId>
+            <artifactId>org.eclipse.jdt.annotation</artifactId>
+            <version>2.2.300</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -231,7 +243,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <!-- Check against JDK 7 API -->

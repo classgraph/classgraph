@@ -55,7 +55,8 @@ class ReferenceEqualityKey<K> {
      */
     @Override
     public int hashCode() {
-        return wrappedKey == null ? 0 : wrappedKey.hashCode();
+        final K key = wrappedKey;
+        return key == null ? 0 : key.hashCode();
     }
 
     /* (non-Javadoc)
@@ -76,6 +77,7 @@ class ReferenceEqualityKey<K> {
      */
     @Override
     public String toString() {
-        return wrappedKey == null ? "null" : wrappedKey.toString();
+        final K key = wrappedKey;
+        return key == null ? "null" : key.toString();
     }
 }
