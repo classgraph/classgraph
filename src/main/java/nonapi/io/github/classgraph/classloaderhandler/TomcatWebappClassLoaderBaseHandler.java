@@ -31,7 +31,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.util.List;
 
-import nonapi.io.github.classgraph.classloaderhandler.lifecycle.TomcatLifeCycleListener;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -55,16 +54,6 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      */
     public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "org.apache.catalina.loader.WebappClassLoaderBase".equals(classLoaderClass.getName());
-    }
-
-    /**
-     * Shutdown hooks should not be used in Tomcat, because this leads to ClassLoader reference leaks (#376).
-     * Instead, {@link TomcatLifeCycleListener} listens for servlet disposal.
-     * 
-     * @return true.
-     */
-    public static boolean manualLifecycle() {
-        return true;
     }
 
     /**

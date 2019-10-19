@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -55,9 +54,6 @@ public class ClasspathFinder {
      * delegation order.
      */
     private ClassLoader[] classLoaderOrderRespectingParentDelegation;
-
-    /** If true, don't add a shutdown hook -- a {@link ClassLoaderHandler} will manage the lifecycle instead. */
-    private boolean manualLifecycle;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -86,16 +82,6 @@ public class ClasspathFinder {
      */
     public ClassLoader[] getClassLoaderOrderRespectingParentDelegation() {
         return classLoaderOrderRespectingParentDelegation;
-    }
-
-    /**
-     * Checks if the lifecycle is manually managed by a {@link ClassLoaderHandler} (preventing the addition of a
-     * shutdown hook).
-     *
-     * @return true, if lifecycle is manual.
-     */
-    public boolean manualLifecycle() {
-        return manualLifecycle;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -226,9 +212,6 @@ public class ClasspathFinder {
             // Need to record the classloader delegation order, in particular to respect parent-last delegation
             // order, since this is not the default (issue #267).
             classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
-
-            // Check whether to add a shutdown hook
-            manualLifecycle = classLoaderOrder.manualLifecycle();
 
             // Get classpath elements from java.class.path, but don't add them if the element is in an ignored
             // parent classloader and not in a child classloader (and don't use java.class.path at all if

@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.classloaderhandler;
 
 import io.github.classgraph.ClassGraph;
-import nonapi.io.github.classgraph.classloaderhandler.lifecycle.SpringLifeCycleListener;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -59,16 +58,6 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "org.springframework.boot.devtools.restart.classloader.RestartClassLoader"
                 .equals(classLoaderClass.getName());
-    }
-
-    /**
-     * Shutdown hooks should not be used in Spring, because this leads to ClassLoader reference leaks (#376).
-     * Instead, {@link SpringLifeCycleListener} listens for bean container disposal.
-     * 
-     * @return true.
-     */
-    public static boolean manualLifecycle() {
-        return true;
     }
 
     /**

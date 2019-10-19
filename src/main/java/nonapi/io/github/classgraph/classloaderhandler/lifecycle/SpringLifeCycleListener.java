@@ -35,6 +35,7 @@ import org.springframework.boot.context.embedded.ServletListenerRegistrationBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -59,7 +60,7 @@ public class SpringLifeCycleListener {
              */
             @Override
             public void contextInitialized(final ServletContextEvent event) {
-                // Do nothing
+                ClassGraph.disableShutdownHook();
             }
 
             /**

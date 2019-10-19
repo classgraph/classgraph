@@ -32,6 +32,7 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
+import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -52,7 +53,7 @@ public class TomcatLifeCycleListener implements ServletContextListener {
      */
     @Override
     public void contextInitialized(final ServletContextEvent event) {
-        //
+        ClassGraph.disableShutdownHook();
     }
 
     /**

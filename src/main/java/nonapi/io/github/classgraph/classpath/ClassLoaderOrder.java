@@ -66,9 +66,6 @@ public class ClassLoaderOrder {
      */
     private final Set<ClassLoader> allParentClassLoaders = new HashSet<>();
 
-    /** If true, don't add a shutdown hook -- a {@link ClassLoaderHandler} will manage the lifecycle instead. */
-    private boolean manualLifecycle;
-
     /** A map from {@link ClassLoader} to {@link ClassLoaderHandlerRegistryEntry}. */
     private final Map<ClassLoader, ClassLoaderHandlerRegistryEntry> classLoaderToClassLoaderHandlerRegistryEntry = //
             new HashMap<>();
@@ -92,16 +89,6 @@ public class ClassLoaderOrder {
      */
     public Set<ClassLoader> getAllParentClassLoaders() {
         return allParentClassLoaders;
-    }
-
-    /**
-     * Checks if the lifecycle is manually managed by a {@link ClassLoaderHandler} (preventing the addition of a
-     * shutdown hook).
-     *
-     * @return true, if lifecycle is manual.
-     */
-    public boolean manualLifecycle() {
-        return manualLifecycle;
     }
 
     /**
@@ -158,10 +145,6 @@ public class ClassLoaderOrder {
             final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader, log);
             if (entry != null) {
                 classLoaderOrder.add(new SimpleEntry<>(classLoader, entry));
-                // Check if the ClassLoaderHandler wants to manually handle lifecycle
-                if (entry.manualLifecycle) {
-                    manualLifecycle = true;
-                }
             }
         }
     }
@@ -189,10 +172,6 @@ public class ClassLoaderOrder {
         if (delegatedTo.add(classLoader)) {
             // Find ClassLoaderHandlerRegistryEntry for this classloader
             final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader, log);
-            // Check if the ClassLoaderHandler wants to manually handle lifecycle
-            if (entry.manualLifecycle) {
-                manualLifecycle = true;
-            }
             // Delegate to this classloader, by recursing to that classloader to get its classloader order
             entry.findClassLoaderOrder(classLoader, this, log);
         }
