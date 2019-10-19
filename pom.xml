@@ -426,16 +426,14 @@
                                     <moduleInfoSource>
                                         /** ${project.name}: ${project.description} ( ${project.url} )
                                         */
-                                        module
-                                        io.github.classgraph {
+                                        module io.github.classgraph {
                                         exports io.github.classgraph;
-                                        exports nonapi.io.github.classgraph.classloaderhandler.lifecycle;
-                                        requires
-                                        java.xml;
+                                        exports
+                                        nonapi.io.github.classgraph.classloaderhandler.lifecycle;
+                                        requires java.xml;
                                         requires jdk.unsupported;
                                         requires java.management;
-                                        requires
-                                        java.logging;
+                                        requires java.logging;
                                         }
                                     </moduleInfoSource>
                                 </module>
