@@ -84,8 +84,17 @@ class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
      * @see java.util.concurrent.ThreadFactory#newThread(java.lang.Runnable)
      */
     @Override
-    public Thread newThread(final Runnable r) {
-        final Thread t = new Thread(r, threadNamePrefix + threadIdx.getAndIncrement());
+    public Thread newThread(final Runnable runnable) {
+        ThreadGroup parentThreadGroup = Thread.currentThread().getThreadGroup();
+        if (threadContextClassLoader != null) {
+            for (; parentThreadGroup.getParent() != null; parentThreadGroup = parentThreadGroup.getParent()) {
+                // If context classloader is overridden, find system (toplevel) thread group, and use this
+                // as the parent thread group, in order to drop any references to the container's context
+                // classloader, so that it may be garbage collected if the application is unloaded (#376).
+            }
+            parentThreadGroup = new ThreadGroup(parentThreadGroup, threadNamePrefix + "threadgroup");
+        }
+        final Thread t = new Thread(parentThreadGroup, runnable, threadNamePrefix + threadIdx.getAndIncrement());
         if (threadContextClassLoader != null) {
             t.setContextClassLoader(threadContextClassLoader);
         }
