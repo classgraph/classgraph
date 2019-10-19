@@ -55,6 +55,15 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     }
 
     /**
+     * Shutdown hooks should not be used in Tomcat, because this leads to ClassLoader reference leaks (#376).
+     * 
+     * @return true.
+     */
+    public static boolean manualLifecycle() {
+        return true;
+    }
+
+    /**
      * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
      *
      * @param classLoader

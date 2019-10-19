@@ -132,6 +132,9 @@ public class ClassLoaderHandlerRegistry {
         /** The ClassLoaderHandler class. */
         public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
 
+        /** If true, don't add shutdown hooks, the {@link ClassLoaderHandler} will manage lifecycle itself. */
+        public boolean manualLifecycle;
+
         /**
          * Constructor.
          *
@@ -159,6 +162,12 @@ public class ClassLoaderHandlerRegistry {
             } catch (final Exception e) {
                 throw new RuntimeException(
                         "Could not find findClasspathOrder method for " + classLoaderHandlerClass.getName(), e);
+            }
+            try {
+                manualLifecycle = (boolean) classLoaderHandlerClass.getDeclaredMethod("manualLifecycle")
+                        .invoke(null, classLoaderHandlerClass);
+            } catch (final Exception e) {
+                // Ignore, if manualLifecycle() method is missing
             }
         }
 
