@@ -93,25 +93,25 @@ public class ClassGraph {
         // Initialize ScanResult, if this is the first call to ClassGraph constructor
         if (!scanResultStaticInitRun.getAndSet(true)) {
             // Get a ref to the bootstrap ClassLoader.
-            ClassLoader bootstrapClassLoader = ClassGraph.class.getClassLoader();
-            for (; bootstrapClassLoader.getParent() != null; bootstrapClassLoader = bootstrapClassLoader
-                    .getParent()) {
+            ClassLoader rootClassLoader = ClassGraph.class.getClassLoader();
+            for (; rootClassLoader.getParent() != null; rootClassLoader = rootClassLoader.getParent()) {
                 // Find root classloader
             }
 
             // Create nonClosedWeakReferences from the system classloader, so there's no chance that
             // the shutdown hook will hold a ref to the context classloader (#376)
+            final ClassLoader bootstrapClassLoader = rootClassLoader;
             AutoCloseableExecutorService.runWithClassLoader(bootstrapClassLoader, new Runnable() {
                 @Override
                 public void run() {
                     ScanResult.staticInit();
+
+                    // Set up shutdown hook, if enabled
+                    if (enableShutdownHook.get()) {
+                        ScanResult.initShutdownHook(bootstrapClassLoader);
+                    }
                 }
             });
-
-            // Set up shutdown hook, if enabled
-            if (enableShutdownHook.get()) {
-                ScanResult.initShutdownHook(bootstrapClassLoader);
-            }
         }
     }
 
