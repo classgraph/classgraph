@@ -136,23 +136,12 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Needed for tomcat and Spring shutdown hooks (#376). Used in TomcatLifeCycleListener and SpringLifeCycleListener. -->
+        <!-- Needed for servlet and Spring shutdown hooks (#376). Used in ServletLifeCycleListener and SpringLifeCycleListener. -->
+        <!-- https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api -->
         <dependency>
-            <groupId>org.apache.tomcat</groupId>
-            <artifactId>tomcat-catalina</artifactId>
-            <version>9.0.27</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>3.0.2.RELEASE</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-core</artifactId>
-            <version>5.2.0.RELEASE</version>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.0.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

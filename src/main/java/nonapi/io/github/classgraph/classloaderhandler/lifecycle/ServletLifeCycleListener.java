@@ -40,13 +40,13 @@ import io.github.classgraph.ScanResult;
 /**
  * Register a {@link WebListener} to respond to Tomcat servlet context shutdown (#376). This creates classfile
  * references to the classes {@link WebListener}, {@link ServletContextListener} and {@link ServletContextEvent},
- * however this class {@link TomcatLifeCycleListener} is never actually referenced by any other class in ClassGraph
+ * however this class {@link ServletLifeCycleListener} is never actually referenced by any other class in ClassGraph
  * (it is only included in the classpath so that Tomcat can locate it using the {@link WebListener} annotation).
  * Therefore ClassGraph has only a compile-time ("provides"-scoped) dependency on Tomcat to enable Tomcat to find
  * this class, but a ClassNotFound exception should not be thrown by anything else that uses ClassGraph.
  */
 @WebListener
-public class TomcatLifeCycleListener implements ServletContextListener {
+public class ServletLifeCycleListener implements ServletContextListener {
     /** The logger. */
     private final Logger log = Logger.getLogger(ClassGraph.class.getName());
 
@@ -58,7 +58,7 @@ public class TomcatLifeCycleListener implements ServletContextListener {
      */
     @Override
     public void contextInitialized(final ServletContextEvent event) {
-        log.info("Tomcat container detected -- disabling ClassGraph shutdown hook");
+        log.info("Servlet container initialized -- disabling ClassGraph shutdown hook");
         ClassGraph.disableShutdownHook();
     }
 
@@ -71,7 +71,7 @@ public class TomcatLifeCycleListener implements ServletContextListener {
     @Override
     public void contextDestroyed(final ServletContextEvent event) {
         // Cleanly close down any open {@link ScanResult} instances.
-        log.info("Closing any remaning open ClassGraph ScanResult instances");
+        log.info("Servlet context destroyed -- closing any remaning open ClassGraph ScanResult instances");
         ScanResult.closeAll();
     }
 }

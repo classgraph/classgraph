@@ -28,17 +28,11 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler.lifecycle;
 
-import java.util.logging.Logger;
-
-import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 import org.springframework.boot.context.embedded.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Register a {@link ServletContextListener} to respond to Spring context shutdown (#376). This creates classfile
@@ -53,35 +47,7 @@ public class SpringLifeCycleListener {
     @Bean
     ServletListenerRegistrationBean<ServletContextListener> servletListener() {
         final ServletListenerRegistrationBean<ServletContextListener> srb = new ServletListenerRegistrationBean<>();
-        srb.setListener(new ServletContextListener() {
-            /** The logger. */
-            private final Logger log = Logger.getLogger(ClassGraph.class.getName());
-
-            /**
-             * Context initialized.
-             *
-             * @param event
-             *            the event
-             */
-            @Override
-            public void contextInitialized(final ServletContextEvent event) {
-                log.info("Spring container detected -- disabling ClassGraph shutdown hook");
-                ClassGraph.disableShutdownHook();
-            }
-
-            /**
-             * Context destroyed.
-             *
-             * @param event
-             *            the event
-             */
-            @Override
-            public void contextDestroyed(final ServletContextEvent event) {
-                // Cleanly close down any open {@link ScanResult} instances.
-                log.info("Closing any remaning open ClassGraph ScanResult instances");
-                ScanResult.closeAll();
-            }
-        });
+        srb.setListener(new ServletLifeCycleListener());
         return srb;
     }
 }
