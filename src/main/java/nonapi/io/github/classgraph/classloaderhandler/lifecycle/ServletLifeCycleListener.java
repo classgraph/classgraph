@@ -38,12 +38,12 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * Register a {@link WebListener} to respond to Tomcat servlet context shutdown (#376). This creates classfile
- * references to the classes {@link WebListener}, {@link ServletContextListener} and {@link ServletContextEvent},
- * however this class {@link ServletLifeCycleListener} is never actually referenced by any other class in ClassGraph
- * (it is only included in the classpath so that Tomcat can locate it using the {@link WebListener} annotation).
- * Therefore ClassGraph has only a compile-time ("provides"-scoped) dependency on Tomcat to enable Tomcat to find
- * this class, but a ClassNotFound exception should not be thrown by anything else that uses ClassGraph.
+ * Register a {@link WebListener} to respond to servlet context shutdown (#376). This creates classfile references
+ * to javax.servlet classes, however this class is never actually referenced by any other class in ClassGraph (it is
+ * only included in the classpath so that the servlet container can locate it using the {@link WebListener}
+ * annotation). Therefore ClassGraph has only a compile-time ("provides"-scoped) dependency on the servlet container
+ * to enable the container to find this class, but a ClassNotFound exception should not be thrown by anything else
+ * that uses ClassGraph.
  */
 @WebListener
 public class ServletLifeCycleListener implements ServletContextListener {

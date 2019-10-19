@@ -36,11 +36,11 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Register a {@link ServletContextListener} to respond to Spring context shutdown (#376). This creates classfile
- * references to Spring, Spring-Boot, and servlet classes, however this class {@link SpringLifeCycleListener} is
- * never actually referenced by any other class in ClassGraph (it is only included in the classpath so that Spring
- * can locate it using the {@link Configuration} annotation). Therefore ClassGraph has only a compile-time
- * ("provides"-scoped) dependency on Spring to enable Spring to find this class, but a ClassNotFound exception
- * should not be thrown by anything else that uses ClassGraph.
+ * references to Spring and servlet classes, however this class is never actually referenced by any other class in
+ * ClassGraph (it is only included in the classpath so that Spring can locate it using the {@link Configuration}
+ * annotation). Therefore ClassGraph has only a compile-time ("provides"-scoped) dependency on Spring to enable
+ * Spring to find this class, but a ClassNotFound exception should not be thrown by anything else that uses
+ * ClassGraph.
  */
 @Configuration
 public class SpringLifeCycleListener {
