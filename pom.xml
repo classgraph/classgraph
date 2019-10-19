@@ -123,6 +123,9 @@
             <version>1.0.2.Final</version>
             <scope>test</scope>
         </dependency>
+        
+        <!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
+        
         <!-- Needed for Eclipse nullability analysis to work, but use "provided" as the scope so that we don't add a 
             hard dependency on the JDT annotations, because we don't use the annotations in any of the ClassGraph code, so these 
             annotations are not needed at runtime. https://bugs.eclipse.org/bugs/show_bug.cgi?id=552198 -->
@@ -130,6 +133,14 @@
             <groupId>org.eclipse.jdt</groupId>
             <artifactId>org.eclipse.jdt.annotation</artifactId>
             <version>2.2.300</version>
+            <scope>provided</scope>
+        </dependency>
+        
+        <!-- Needed for tomcat shutdown hook (#376). Used in TomcatWebappClassLoaderBaseHandler. -->
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>tomcat-catalina</artifactId>
+            <version>9.0.27</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

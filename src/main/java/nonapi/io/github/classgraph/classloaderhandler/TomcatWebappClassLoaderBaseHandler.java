@@ -31,6 +31,11 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.util.List;
 
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
+import javax.servlet.annotation.WebListener;
+
+import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -53,30 +58,44 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
     public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
-        final boolean canHandle = "org.apache.catalina.loader.WebappClassLoaderBase"
-                .equals(classLoaderClass.getName());
-        if (canHandle) {
-            // manualLifecycle() returns true below, which prevents the addition of a shutdown hook, in order
-            // to prevent the shutdown hook from holding a reference to the context classloader (#376).
-            // Instead, use ServletContextListener to close any open ScanResult instances on servlet shutdown.
-            try {
-                final Class<?> servletContextListenerClass = Class.forName("javax.servlet.ServletContextListener");
-            } catch (final ClassNotFoundException e) {
-                if (log != null) {
-                    log.log("Cannot find ServletContextListener class, so cannot cleanly shut down ClassGraph");
-                }
-            }
-        }
-        return canHandle;
+        return "org.apache.catalina.loader.WebappClassLoaderBase".equals(classLoaderClass.getName());
     }
 
     /**
      * Shutdown hooks should not be used in Tomcat, because this leads to ClassLoader reference leaks (#376).
+     * Instead, {@link TomcatLifeCycleListener} is registered below.
      * 
      * @return true.
      */
     public static boolean manualLifecycle() {
         return true;
+    }
+
+    /**
+     * Register a {@link WebListener} to respond to Tomcat servlet context shutdown.
+     */
+    @WebListener
+    public static class TomcatLifeCycleListener implements ServletContextListener {
+        /**
+         * Context initialized.
+         *
+         * @param event
+         *            the event
+         */
+        public void contextInitialized(ServletContextEvent event) {
+            // Do nothing
+        }
+
+        /**
+         * Context destroyed.
+         *
+         * @param event
+         *            the event
+         */
+        public void contextDestroyed(ServletContextEvent event) {
+            // Cleanly close down any open {@link ScanResult} instances.
+            ScanResult.closeAll();
+        }
     }
 
     /**
