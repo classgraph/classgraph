@@ -31,7 +31,6 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
-import java.nio.MappedByteBuffer;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -93,21 +92,25 @@ public class ClassGraph {
     public ClassGraph() {
         // Initialize ScanResult, if this is the first call to ClassGraph constructor
         if (!scanResultStaticInitRun.getAndSet(true)) {
-            // A ref to the system ClassLoader.
-            final ClassLoader mappedByteBufferClassLoader = MappedByteBuffer.class.getClassLoader();
+            // Get a ref to the bootstrap ClassLoader.
+            ClassLoader bootstrapClassLoader = ClassGraph.class.getClassLoader();
+            for (; bootstrapClassLoader.getParent() != null; bootstrapClassLoader = bootstrapClassLoader
+                    .getParent()) {
+                // Find root classloader
+            }
 
             // Create nonClosedWeakReferences from the system classloader, so there's no chance that
             // the shutdown hook will hold a ref to the context classloader (#376)
-            AutoCloseableExecutorService.runWithClassLoader(new Runnable() {
+            AutoCloseableExecutorService.runWithClassLoader(bootstrapClassLoader, new Runnable() {
                 @Override
                 public void run() {
                     ScanResult.staticInit();
                 }
-            }, mappedByteBufferClassLoader);
+            });
 
             // Set up shutdown hook, if enabled
             if (enableShutdownHook.get()) {
-                ScanResult.initShutdownHook(mappedByteBufferClassLoader);
+                ScanResult.initShutdownHook(bootstrapClassLoader);
             }
         }
     }

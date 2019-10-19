@@ -103,13 +103,13 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
 
     /**
      * Run a {@link Runnable} with a specific {@link ClassLoader}.
-     *
-     * @param runnable
-     *            the {@link Runnable}.
+     * 
      * @param classLoader
      *            the {@link ClassLoader}.
+     * @param runnable
+     *            the {@link Runnable}.
      */
-    public static void runWithClassLoader(final Runnable runnable, final ClassLoader classLoader) {
+    public static void runWithClassLoader(final ClassLoader classLoader, final Runnable runnable) {
         // Run the Runnable in the system classloader
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1,
                 // Create new thread with specific classloader
