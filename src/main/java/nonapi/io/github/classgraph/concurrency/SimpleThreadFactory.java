@@ -46,9 +46,6 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     /** Whether to set daemon mode. */
     private final boolean daemon;
 
-    /** The context classloader to use for new threads, or null to use the caller's classloader. */
-    private final ClassLoader threadContextClassLoader;
-
     /**
      * Constructor.
      *
@@ -60,41 +57,6 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     SimpleThreadFactory(final String threadNamePrefix, final boolean daemon) {
         this.threadNamePrefix = threadNamePrefix;
         this.daemon = daemon;
-        this.threadContextClassLoader = null;
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param threadNamePrefix
-     *            prefix for created threads.
-     * @param daemon
-     *            create daemon threads?
-     * @param threadContextClassLoader
-     *            The context classloader to use for new threads, or null to use the caller's classloader
-     */
-    SimpleThreadFactory(final String threadNamePrefix, final boolean daemon,
-            final ClassLoader threadContextClassLoader) {
-        this.threadNamePrefix = threadNamePrefix;
-        this.daemon = daemon;
-        this.threadContextClassLoader = threadContextClassLoader;
-    }
-
-    /**
-     * Create a new {@link ThreadGroup} with the root {@link ThreadGroup} as its parent.
-     *
-     * @param threadGroupName
-     *            the thread group name
-     * @return the {@link ThreadGroup}.
-     */
-    public static ThreadGroup newThreadGroupWithRootAsParent(final String threadGroupName) {
-        ThreadGroup parentThreadGroup = Thread.currentThread().getThreadGroup();
-        for (; parentThreadGroup.getParent() != null; parentThreadGroup = parentThreadGroup.getParent()) {
-            // If context classloader is overridden, find system (toplevel) thread group, and use this
-            // as the parent thread group, in order to drop any references to the container's context
-            // classloader, so that it may be garbage collected if the application is unloaded (#376).
-        }
-        return new ThreadGroup(parentThreadGroup, threadGroupName);
     }
 
     /**
@@ -106,11 +68,8 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
      */
     @Override
     public Thread newThread(final Runnable runnable) {
-        final Thread thread = new Thread(newThreadGroupWithRootAsParent(threadNamePrefix + "thread-group"),
-                runnable, threadNamePrefix + threadIdx.getAndIncrement());
-        if (threadContextClassLoader != null) {
-            thread.setContextClassLoader(threadContextClassLoader);
-        }
+        final Thread thread = new Thread(new ThreadGroup("ClassGraph-thread-group"), runnable,
+                threadNamePrefix + threadIdx.getAndIncrement());
         thread.setDaemon(daemon);
         return thread;
     }

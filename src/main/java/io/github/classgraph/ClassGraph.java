@@ -39,7 +39,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
@@ -80,39 +79,12 @@ public class ClassGraph {
     /** If non-null, log while scanning. */
     private LogNode topLevelLog;
 
-    /** If true, add a shutdown hook to close all files and direct byte buffers on shutdown. */
-    private static final AtomicBoolean enableShutdownHook = new AtomicBoolean(true);
-
-    /** If true, ScanResult#staticInit() has been run. */
-    private static final AtomicBoolean scanResultStaticInitRun = new AtomicBoolean(false);
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
         // Initialize ScanResult, if this is the first call to ClassGraph constructor
-        if (!scanResultStaticInitRun.getAndSet(true)) {
-            // Get a ref to the bootstrap ClassLoader.
-            ClassLoader rootClassLoader = ClassGraph.class.getClassLoader();
-            for (; rootClassLoader.getParent() != null; rootClassLoader = rootClassLoader.getParent()) {
-                // Find root classloader
-            }
-
-            // Create nonClosedWeakReferences from the system classloader, so there's no chance that
-            // the shutdown hook will hold a ref to the context classloader (#376)
-            final ClassLoader bootstrapClassLoader = rootClassLoader;
-            AutoCloseableExecutorService.runWithClassLoader(bootstrapClassLoader, new Runnable() {
-                @Override
-                public void run() {
-                    ScanResult.staticInit();
-
-                    // Set up shutdown hook, if enabled
-                    if (enableShutdownHook.get()) {
-                        ScanResult.initShutdownHook(bootstrapClassLoader);
-                    }
-                }
-            });
-        }
+        ScanResult.init();
     }
 
     /**
@@ -126,7 +98,7 @@ public class ClassGraph {
      * throughout the lifetime of the VM, such as web application servers.
      */
     public static void disableShutdownHook() {
-        enableShutdownHook.set(false);
+        ScanResult.enableShutdownHook.set(false);
     }
 
     /**

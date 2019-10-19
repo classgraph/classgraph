@@ -32,7 +32,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -52,19 +51,6 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                 new SimpleThreadFactory("ClassGraph-worker-", true));
-    }
-
-    /**
-     * A ThreadPoolExecutor that can be used in a try-with-resources block.
-     * 
-     * @param numThreads
-     *            The number of threads to allocate.
-     * @param threadContextClassLoader
-     *            The context classloader to use for new threads, or null to use the caller's classloader
-     */
-    public AutoCloseableExecutorService(final int numThreads, final ClassLoader threadContextClassLoader) {
-        super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                new SimpleThreadFactory("ClassGraph-worker-", true, threadContextClassLoader));
     }
 
     /**
@@ -97,39 +83,6 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
                 interruptionChecker.setExecutionException(e);
                 // Interrupt other threads
                 interruptionChecker.interrupt();
-            }
-        }
-    }
-
-    /**
-     * Run a {@link Runnable} with a specific {@link ClassLoader}.
-     * 
-     * @param classLoader
-     *            the {@link ClassLoader}.
-     * @param runnable
-     *            the {@link Runnable}.
-     */
-    public static void runWithClassLoader(final ClassLoader classLoader, final Runnable runnable) {
-        // Run the Runnable in the system classloader
-        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(1,
-                // Create new thread with specific classloader
-                classLoader)) {
-            final Semaphore wait = new Semaphore(0);
-            executorService.execute(new Runnable() {
-                @Override
-                public void run() {
-                    // Run the Runnable
-                    runnable.run();
-                    // Allow code below to continue
-                    wait.release();
-                }
-            });
-            try {
-                // Wait for the above thread to finish running
-                wait.acquire();
-            } catch (final InterruptedException e) {
-                // Should not happen
-                throw new RuntimeException(e);
             }
         }
     }

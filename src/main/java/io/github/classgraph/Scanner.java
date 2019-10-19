@@ -213,6 +213,9 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
         }
+
+        // Add a shutdown hook, if necessary
+        ScanResult.addShutdownHook();
     }
 
     // -------------------------------------------------------------------------------------------------------------
