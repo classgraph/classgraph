@@ -45,9 +45,11 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final Class<?> classLoaderClass) {
+    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "org.eclipse.osgi.internal.framework.ContextFinder".equals(classLoaderClass.getName());
     }
 
@@ -58,14 +60,16 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
      *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
      */
-    public static void findClassLoaderOrder(final ClassLoader classLoader,
-            final ClassLoaderOrder classLoaderOrder) {
+    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+            final LogNode log) {
         classLoaderOrder.delegateTo(
                 (ClassLoader) ReflectionUtils.getFieldVal(classLoader, "parentContextClassLoader", false),
-                /* isParent = */ true);
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
-        classLoaderOrder.add(classLoader);
+                /* isParent = */ true, log);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.add(classLoader, log);
     }
 
     /**

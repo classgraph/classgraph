@@ -41,6 +41,7 @@ import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find all unique classloaders. */
 public class ClassLoaderOrder {
@@ -108,9 +109,11 @@ public class ClassLoaderOrder {
      *
      * @param classLoader
      *            the {@link ClassLoader}.
+     * @param log
+     *            the log
      * @return the {@link ClassLoaderHandlerRegistryEntry} for the {@link ClassLoader}.
      */
-    private ClassLoaderHandlerRegistryEntry getRegistryEntry(final ClassLoader classLoader) {
+    private ClassLoaderHandlerRegistryEntry getRegistryEntry(final ClassLoader classLoader, final LogNode log) {
         ClassLoaderHandlerRegistryEntry entry = classLoaderToClassLoaderHandlerRegistryEntry.get(classLoader);
         if (entry == null) {
             // Try all superclasses of classloader in turn
@@ -119,7 +122,7 @@ public class ClassLoaderOrder {
                     currClassLoaderClass = currClassLoaderClass.getSuperclass()) {
                 // Find a ClassLoaderHandler that can handle the ClassLoader
                 for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-                    if (ent.canHandle(currClassLoaderClass)) {
+                    if (ent.canHandle(currClassLoaderClass, log)) {
                         // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
                         entry = ent;
                         break;
@@ -144,13 +147,15 @@ public class ClassLoaderOrder {
      *
      * @param classLoader
      *            the class loader
+     * @param log
+     *            the log
      */
-    public void add(final ClassLoader classLoader) {
+    public void add(final ClassLoader classLoader, final LogNode log) {
         if (classLoader == null) {
             return;
         }
         if (added.add(classLoader)) {
-            final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader);
+            final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader, log);
             if (entry != null) {
                 classLoaderOrder.add(new SimpleEntry<>(classLoader, entry));
                 // Check if the ClassLoaderHandler wants to manually handle lifecycle
@@ -168,8 +173,10 @@ public class ClassLoaderOrder {
      *            the class loader
      * @param isParent
      *            true if this is a parent of another classloader
+     * @param log
+     *            the log
      */
-    public void delegateTo(final ClassLoader classLoader, final boolean isParent) {
+    public void delegateTo(final ClassLoader classLoader, final boolean isParent, final LogNode log) {
         if (classLoader == null) {
             return;
         }
@@ -181,7 +188,7 @@ public class ClassLoaderOrder {
         }
         if (delegatedTo.add(classLoader)) {
             // Find ClassLoaderHandlerRegistryEntry for this classloader
-            final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader);
+            final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader, log);
             // Check if the ClassLoaderHandler wants to manually handle lifecycle
             if (entry.manualLifecycle) {
                 manualLifecycle = true;

@@ -45,9 +45,11 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final Class<?> classLoaderClass) {
+    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "weblogic.utils.classloaders.ChangeAwareClassLoader".equals(classLoaderClass.getName())
                 || "weblogic.utils.classloaders.GenericClassLoader".equals(classLoaderClass.getName())
                 || "weblogic.utils.classloaders.FilteringClassLoader".equals(classLoaderClass.getName())
@@ -64,11 +66,13 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
      *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
      */
-    public static void findClassLoaderOrder(final ClassLoader classLoader,
-            final ClassLoaderOrder classLoaderOrder) {
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
-        classLoaderOrder.add(classLoader);
+    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+            final LogNode log) {
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.add(classLoader, log);
     }
 
     /**

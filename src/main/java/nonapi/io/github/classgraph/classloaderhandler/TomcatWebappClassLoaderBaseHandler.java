@@ -48,10 +48,26 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final Class<?> classLoaderClass) {
-        return "org.apache.catalina.loader.WebappClassLoaderBase".equals(classLoaderClass.getName());
+    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+        final boolean canHandle = "org.apache.catalina.loader.WebappClassLoaderBase"
+                .equals(classLoaderClass.getName());
+        if (canHandle) {
+            // manualLifecycle() returns true below, which prevents the addition of a shutdown hook, in order
+            // to prevent the shutdown hook from holding a reference to the context classloader (#376).
+            // Instead, use ServletContextListener to close any open ScanResult instances on servlet shutdown.
+            try {
+                final Class<?> servletContextListenerClass = Class.forName("javax.servlet.ServletContextListener");
+            } catch (final ClassNotFoundException e) {
+                if (log != null) {
+                    log.log("Cannot find ServletContextListener class, so cannot cleanly shut down ClassGraph");
+                }
+            }
+        }
+        return canHandle;
     }
 
     /**
@@ -70,11 +86,13 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
      *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
      */
-    public static void findClassLoaderOrder(final ClassLoader classLoader,
-            final ClassLoaderOrder classLoaderOrder) {
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
-        classLoaderOrder.add(classLoader);
+    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+            final LogNode log) {
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.add(classLoader, log);
     }
 
     /**

@@ -51,9 +51,11 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final Class<?> classLoaderClass) {
+    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "org.codehaus.plexus.classworlds.realm.ClassRealm".equals(classLoaderClass.getName());
     }
 
@@ -85,8 +87,11 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
      *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
      */
-    public static void findClassLoaderOrder(final ClassLoader classRealm, final ClassLoaderOrder classLoaderOrder) {
+    public static void findClassLoaderOrder(final ClassLoader classRealm, final ClassLoaderOrder classLoaderOrder,
+            final LogNode log) {
         // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
         final Object foreignImports = ReflectionUtils.getFieldVal(classRealm, "foreignImports", false);
         if (foreignImports != null) {
@@ -96,7 +101,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
                 final ClassLoader foreignImportClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(entry,
                         "getClassLoader", false);
                 // Treat foreign import classloader as if it is a parent classloader
-                classLoaderOrder.delegateTo(foreignImportClassLoader, /* isParent = */ true);
+                classLoaderOrder.delegateTo(foreignImportClassLoader, /* isParent = */ true, log);
             }
         }
 
@@ -106,7 +111,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
         // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for self-first strategy
         if (!isParentFirst) {
             // Add self before parent
-            classLoaderOrder.add(classRealm);
+            classLoaderOrder.add(classRealm, log);
         }
 
         // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter
@@ -114,13 +119,13 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
         // able to load classes by name that are not imported from the parent classloader).
         final ClassLoader parentClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(classRealm,
                 "getParentClassLoader", false);
-        classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true);
-        classLoaderOrder.delegateTo(classRealm.getParent(), /* isParent = */ true);
+        classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true, log);
+        classLoaderOrder.delegateTo(classRealm.getParent(), /* isParent = */ true, log);
 
         // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for parent-first strategy
         if (isParentFirst) {
             // Add self after parent
-            classLoaderOrder.add(classRealm);
+            classLoaderOrder.add(classRealm, log);
         }
     }
 

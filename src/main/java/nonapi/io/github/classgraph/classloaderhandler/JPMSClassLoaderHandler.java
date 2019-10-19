@@ -47,9 +47,11 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final Class<?> classLoaderClass) {
+    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "jdk.internal.loader.ClassLoaders$AppClassLoader".equals(classLoaderClass.getName())
                 || "jdk.internal.loader.BuiltinClassLoader".equals(classLoaderClass.getName());
     }
@@ -61,14 +63,16 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
      *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
      */
-    public static void findClassLoaderOrder(final ClassLoader classLoader,
-            final ClassLoaderOrder classLoaderOrder) {
+    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+            final LogNode log) {
         // Add JPMS classloaders into classloader order, so that they can be used for classloading
         // (e.g. by ClassInfo#loadClass()). However, findClasspathOrder() below cannot actually find
         // classpath element locations from JPMS classloaders, so the method body is blank.
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
-        classLoaderOrder.add(classLoader);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.add(classLoader, log);
     }
 
     /**

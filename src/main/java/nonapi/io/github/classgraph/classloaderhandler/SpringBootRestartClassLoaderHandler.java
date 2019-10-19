@@ -51,9 +51,11 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final Class<?> classLoaderClass) {
+    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "org.springframework.boot.devtools.restart.classloader.RestartClassLoader"
                 .equals(classLoaderClass.getName());
     }
@@ -65,18 +67,20 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
      *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
      */
-    public static void findClassLoaderOrder(final ClassLoader classLoader,
-            final ClassLoaderOrder classLoaderOrder) {
+    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+            final LogNode log) {
         // The Restart classloader is a parent-last classloader, so need to delegate to the context
         // classloader(s) before the parent.
-        classLoaderOrder.delegateTo(Thread.currentThread().getContextClassLoader(), /* isParent = */ false);
-        classLoaderOrder.delegateTo(ClassGraph.class.getClassLoader(), /* isParent = */ false);
+        classLoaderOrder.delegateTo(Thread.currentThread().getContextClassLoader(), /* isParent = */ false, log);
+        classLoaderOrder.delegateTo(ClassGraph.class.getClassLoader(), /* isParent = */ false, log);
         // Also delegate to system classloader, in case the above two are actually the same as `classLoader`
-        classLoaderOrder.delegateTo(ClassLoader.getSystemClassLoader(), /* isParent = */ true);
+        classLoaderOrder.delegateTo(ClassLoader.getSystemClassLoader(), /* isParent = */ true, log);
         // Finally delegate to the parent of the RestartClassLoader, in case that is different from
         // SystemClassLoader
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
     }
 
     /**

@@ -45,9 +45,11 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    public static boolean canHandle(final Class<?> classLoaderClass) {
+    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return "io.github.classgraph.issues.issue267.FakeRestartClassLoader".equals(classLoaderClass.getName());
     }
 
@@ -58,12 +60,14 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
      *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
      */
-    public static void findClassLoaderOrder(final ClassLoader classLoader,
-            final ClassLoaderOrder classLoaderOrder) {
+    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+            final LogNode log) {
         // Add self first, then delegate to parent
-        classLoaderOrder.add(classLoader);
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true);
+        classLoaderOrder.add(classLoader, log);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
     }
 
     /**
