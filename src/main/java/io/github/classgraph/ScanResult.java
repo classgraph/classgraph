@@ -132,9 +132,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /** If true, ScanResult#staticInit() has been run. */
     private static final AtomicBoolean initialized = new AtomicBoolean(false);
 
-    /** If true, add a shutdown hook to close all files and direct byte buffers on shutdown. */
-    static final AtomicBoolean enableShutdownHook = new AtomicBoolean(true);
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** The current serialization format. */
@@ -205,43 +202,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
     static void init() {
         if (!initialized.getAndSet(true)) {
             // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
-            // to be loaded to close resources are already loaded and cached. Otherwise, the classloader may be
-            // closed by its own shutdown hook before ClassGraph's shutdown hook can run, and classloading can
-            // fail, which will throw an exception and leave resources open (#331).
+            // to be loaded to close resources are already loaded and cached. This was originally for use in
+            // a shutdown hook (#331), which has now been removed, but it is probably still a good idea to
+            // ensure that classes needed to unmap DirectByteBuffer instances are available at init.
             // We achieve this by mmap'ing a file and then closing it, since the only problematic classes are
             // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
             FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
-        }
-    }
-
-    /**
-     * Add a shutdown hook, if this is the first time ClassGraph has been run, and if the shutdown hook is enabled
-     * for the current context classloader.
-     */
-    static void addShutdownHook() {
-        if (enableShutdownHook.get()) {
-            // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit().
-            Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    // Close all open/mapped DirectByteBuffers on shutdown
-                    ScanResult.closeAll();
-                }
-            }, "ClassGraph-shutdown-hook"));
-        }
-    }
-
-    /** Close all {@link ScanResult} instances that have not yet been closed. */
-    public static void closeAll() {
-        if (nonClosedWeakReferences != null) {
-            for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(
-                    nonClosedWeakReferences)) {
-                final ScanResult scanResult = nonClosedWeakReference.get();
-                if (scanResult != null) {
-                    scanResult.close();
-                }
-                nonClosedWeakReferences.remove(nonClosedWeakReference);
-            }
         }
     }
 
@@ -327,13 +293,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.classGraphClassLoader = new ClassGraphClassLoader(this);
 
         // Provide the shutdown hook with a weak reference to this ScanResult
-        if (nonClosedWeakReferences != null) {
-            this.weakReference = new WeakReference<>(this);
-            nonClosedWeakReferences.add(this.weakReference);
-        } else {
-            // Should not happen
-            throw new RuntimeException("nonClosedWeakReferences should not be null");
-        }
+        this.weakReference = new WeakReference<>(this);
+        nonClosedWeakReferences.add(this.weakReference);
     }
 
     /** Index {@link Resource} and {@link ClassInfo} objects. */
@@ -1390,6 +1351,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
+            nonClosedWeakReferences.remove(weakReference);
             if (classpathOrder != null) {
                 classpathOrder.clear();
                 classpathOrder = null;
@@ -1430,13 +1392,26 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
             classGraphClassLoader = null;
             classLoaderOrderRespectingParentDelegation = null;
-            // Remove WeakReference to this ScanResult, so shutdown hook does not try to close this
-            if (nonClosedWeakReferences != null) {
-                nonClosedWeakReferences.remove(weakReference);
-            }
             // Flush log on exit, in case additional log entries were generated after scan() completed
             if (topLevelLog != null) {
                 topLevelLog.flush();
+            }
+        }
+    }
+
+    /**
+     * Close all {@link ScanResult} instances that have not yet been closed. Note that this will close all open
+     * {@link ScanResult} instances for any class that uses the classloader that the {@link ScanResult} class is
+     * cached in -- so if you call this method, you need to ensure that the lifecycle of the classloader matches the
+     * lifecycle of your application, or that two concurrent applications don't share the same classloader,
+     * otherwise one application might close another application's {@link ScanResult} instances while they are still
+     * in use.
+     */
+    public static void closeAll() {
+        for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(nonClosedWeakReferences)) {
+            final ScanResult scanResult = nonClosedWeakReference.get();
+            if (scanResult != null) {
+                scanResult.close();
             }
         }
     }

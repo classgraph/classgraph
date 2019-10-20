@@ -88,20 +88,6 @@ public class ClassGraph {
     }
 
     /**
-     * Disable the adding of a shutdown hook, which closes all files and direct byte buffers on shutdown, enabling
-     * clean shutdown even if the user forgets to call {@link ScanResult#close()} on a {@link ScanResult}. This
-     * static method must be called before the first call to the {@link ClassGraph#ClassGraph()} constructor, since
-     * the first call to the constructor adds the shutdown hook if this has not been disabled.
-     * 
-     * <p>
-     * The shutdown hook should be disabled in environments where apps may be loaded and unloaded many times
-     * throughout the lifetime of the VM, such as web application servers.
-     */
-    public static void disableShutdownHook() {
-        ScanResult.enableShutdownHook.set(false);
-    }
-
-    /**
      * Get the version number of ClassGraph.
      *
      * @return the ClassGraph version, or "unknown" if it could not be determined.
