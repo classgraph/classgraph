@@ -138,6 +138,7 @@ class PhysicalZipFile implements Closeable {
                     // (there is a limit to the number of mapped files -- 64k on Linux)
                     // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
                     System.gc();
+                    System.runFinalization();
                     // Then try calling map again
                     buffer = fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
                 }
