@@ -137,7 +137,7 @@ ClassGraph was written by Luke Hutchison ([@LH](http://twitter.com/LH) on Twitte
 
 If ClassGraph is critical to your work, you can help fund further development through the [GitHub Sponsors Program](https://github.com/sponsors/lukehutch).
 
-<img src="https://github.blog/wp-content/uploads/2019/05/mona-heart-featured.png" height="140">
+<a href="https://github.com/sponsors/lukehutch"><img src="https://github.blog/wp-content/uploads/2019/05/mona-heart-featured.png" height="140"></a>
 
 ## Acknowledgments
 
