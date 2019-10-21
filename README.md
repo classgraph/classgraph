@@ -137,11 +137,11 @@ This will allow you to build a local SNAPSHOT jar in `target/`. Alternatively, u
 
 If ClassGraph is critical to your work, you can help fund further development through the [GitHub Sponsors Program](https://github.com/sponsors/lukehutch).
 
-### Acknowledgments
+## Acknowledgments
 
 ClassGraph would not be possible without contributions from numerous users, including in the form of bug reports, feature requests, code contributions, and assistance with testing.
 
-### Alternatives
+## Alternatives
 
 Some other classpath scanning mechanisms include:
 
