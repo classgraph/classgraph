@@ -135,9 +135,10 @@ This will allow you to build a local SNAPSHOT jar in `target/`. Alternatively, u
 
 ClassGraph was written by Luke Hutchison ([@LH](http://twitter.com/LH) on Twitter).
 
-<img align="left" src="https://github.blog/wp-content/uploads/2019/05/mona-heart-featured.png" height="140"> If ClassGraph is critical to your work, you can help fund further development through the [GitHub Sponsors Program](https://github.com/sponsors/lukehutch).
+If ClassGraph is critical to your work, you can help fund further development through the [GitHub Sponsors Program](https://github.com/sponsors/lukehutch).
 
-<br/>
+<img align="left" src="https://github.blog/wp-content/uploads/2019/05/mona-heart-featured.png" height="140">
+
 <br/>
 
 ## Acknowledgments
