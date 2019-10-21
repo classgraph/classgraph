@@ -131,9 +131,11 @@ This will allow you to build a local SNAPSHOT jar in `target/`. Alternatively, u
 * Feel free to subscribe to the [ClassGraph-Users](https://groups.google.com/d/forum/classgraph-users) email list for updates, or to ask questions.
 * There is also a [Gitter room](https://gitter.im/classgraph/Lobby) for discussion of ClassGraph.
 
-## Author
+## Sponsorship
 
 ClassGraph was written by Luke Hutchison ([@LH](http://twitter.com/LH) on Twitter).
+
+If ClassGraph is critical to your work, you can help fund further development through the [GitHub Sponsors Program](https://github.com/sponsors/lukehutch).
 
 ### Acknowledgments
 
