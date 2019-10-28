@@ -68,7 +68,9 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
      */
     @Override
     public Thread newThread(final Runnable runnable) {
-        final Thread thread = new Thread(new ThreadGroup("ClassGraph-thread-group"), runnable,
+        final SecurityManager s = System.getSecurityManager();
+        final Thread thread = new Thread(
+                s != null ? s.getThreadGroup() : new ThreadGroup("ClassGraph-thread-group"), runnable,
                 threadNamePrefix + threadIdx.getAndIncrement());
         thread.setDaemon(daemon);
         return thread;
