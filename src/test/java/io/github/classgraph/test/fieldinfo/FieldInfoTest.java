@@ -43,16 +43,23 @@ import io.github.classgraph.test.external.ExternalAnnotation;
  * FieldInfoTest.
  */
 public class FieldInfoTest {
-    /** The Constant publicFieldWithAnnotation. */
+    /** Constant publicFieldWithAnnotation. */
     @ExternalAnnotation
     public static final int publicFieldWithAnnotation = 3;
 
-    /** The Constant privateFieldWithAnnotation. */
+    /** Constant privateFieldWithAnnotation. */
     @ExternalAnnotation
     private static final String privateFieldWithAnnotation = "test";
 
-    /** The field without annotation. */
+    /** Field without annotation. */
     public int fieldWithoutAnnotation;
+
+    /**
+     * Field with initializer but without static or final modifier. In Java, the constant pool is not currently used
+     * by the compiler to assign initializer values for non-static, non-final fields, whereas it supposedly is in
+     * Kotlin (#380).
+     */
+    public int nonStaticNonFinalFieldWithInitializer = 5;
 
     /**
      * Field info not enabled.
@@ -78,7 +85,7 @@ public class FieldInfoTest {
             assertThat(fieldInfoStrs).containsOnly(
                     "@" + ExternalAnnotation.class.getName()
                             + " public static final int publicFieldWithAnnotation = 3",
-                    "public int fieldWithoutAnnotation");
+                    "public int fieldWithoutAnnotation", "public int nonStaticNonFinalFieldWithInitializer");
         }
     }
 
@@ -97,7 +104,7 @@ public class FieldInfoTest {
                             + " public static final int publicFieldWithAnnotation = 3",
                     "@" + ExternalAnnotation.class.getName()
                             + " private static final java.lang.String privateFieldWithAnnotation = \"test\"",
-                    "public int fieldWithoutAnnotation");
+                    "public int fieldWithoutAnnotation", "public int nonStaticNonFinalFieldWithInitializer");
         }
     }
 }
