@@ -1246,10 +1246,9 @@ class Classfile {
             // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
             final int fieldModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
             final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
-            final boolean isStaticFinalField = ((fieldModifierFlags & 0x0018) == 0x0018);
             final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
-            final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
-                    && isStaticFinalField && fieldIsVisible;
+            final boolean getStaticFinalFieldConstValue = scanSpec.enableFieldConstantInitializerValues
+                    && fieldIsVisible;
             if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field
                 inputStreamOrByteBuffer.readUnsignedShort(); // fieldNameCpIdx

@@ -378,7 +378,7 @@ public class ClassGraphTest {
     @Test
     public void scanStaticFinalFieldName() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
-                .enableStaticFinalFieldConstantInitializerValues().scan()) {
+                .enableFieldConstantInitializerValues().scan()) {
             int numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
                 if (fieldInfo.getConstantInitializerValue() != null) {
@@ -403,7 +403,7 @@ public class ClassGraphTest {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);
         }
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
-                .enableStaticFinalFieldConstantInitializerValues().ignoreFieldVisibility().scan()) {
+                .enableFieldConstantInitializerValues().ignoreFieldVisibility().scan()) {
             int numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
                 final Object constInitializerValue = fieldInfo.getConstantInitializerValue();

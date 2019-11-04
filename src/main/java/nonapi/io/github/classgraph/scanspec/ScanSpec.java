@@ -124,7 +124,7 @@ public class ScanSpec {
     public boolean enableAnnotationInfo;
 
     /** Enable the storing of constant initializer values for static final fields in ClassInfo objects. */
-    public boolean enableStaticFinalFieldConstantInitializerValues;
+    public boolean enableFieldConstantInitializerValues;
 
     /** If true, enables the determination of inter-class dependencies. */
     public boolean enableInterClassDependencies;

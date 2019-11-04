@@ -72,8 +72,7 @@ public class FieldInfoTest {
     @Test
     public void testGetFieldInfo() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
-                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
-                .scan()) {
+                .enableFieldInfo().enableFieldConstantInitializerValues().enableAnnotationInfo().scan()) {
             final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();
             assertThat(fieldInfoStrs).containsOnly(
@@ -89,7 +88,7 @@ public class FieldInfoTest {
     @Test
     public void testGetFieldInfoIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
-                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
+                .enableFieldInfo().enableFieldConstantInitializerValues().enableAnnotationInfo()
                 .ignoreFieldVisibility().scan()) {
             final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();

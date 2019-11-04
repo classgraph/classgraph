@@ -294,16 +294,20 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Returns the constant initializer value of a constant final field. Requires
-     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} to have been called.
+     * Returns the constant initializer value of a field. Requires
+     * {@link ClassGraph#enableFieldConstantInitializerValues()} to have been called. Will only return non-null for
+     * fields that have constant initializers, which is usually only fields of primitive type, or String constants.
+     * Also note that it is up to the compiler as to whether or not a constant-valued field is assigned as a
+     * constant in the field definition itself, or whether it is assigned manually in static or non-static class
+     * initializer blocks or the constructor -- so your mileage may vary in being able to extract constant
+     * initializer values.
      * 
-     * @return The initializer value, if this is a static final field, and has a constant initializer value, or null
-     *         if none.
+     * @return The initializer value, if this field has a constant initializer value, or null if none.
      */
     public Object getConstantInitializerValue() {
-        if (!scanResult.scanSpec.enableStaticFinalFieldConstantInitializerValues) {
+        if (!scanResult.scanSpec.enableFieldConstantInitializerValues) {
             throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableStaticFinalFieldConstantInitializerValues() " + "before #scan()");
+                    "Please call ClassGraph#enableFieldConstantInitializerValues() " + "before #scan()");
         }
         return constantInitializerValue == null ? null : constantInitializerValue.get();
     }
