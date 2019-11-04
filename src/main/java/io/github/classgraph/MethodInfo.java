@@ -192,7 +192,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
     /**
      * Returns the parsed type descriptor for the method, which will not include type parameters. If you need
-     * generic type parameters, call getTypeSignature() instead.
+     * generic type parameters, call {@link #getTypeSignature()} instead.
      * 
      * @return The parsed type descriptor for the method.
      */
@@ -209,8 +209,19 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Returns the type descriptor string for the method, which will not include type parameters. If you need
+     * generic type parameters, call {@link #getTypeSignatureStr()} instead.
+     * 
+     * @return The type descriptor string for the method.
+     */
+    public String getTypeDescriptorStr() {
+        return typeDescriptorStr;
+    }
+
+    /**
      * Returns the parsed type signature for the method, possibly including type parameters. If this returns null,
-     * indicating that no type signature information is available for this method, call getTypeDescriptor() instead.
+     * indicating that no type signature information is available for this method, call {@link #getTypeDescriptor()}
+     * instead.
      * 
      * @return The parsed type signature for the method, or null if not available.
      */
@@ -227,8 +238,19 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Returns the parsed type signature for the method, possibly including type parameters. If the parsed type
-     * signature is null, indicating that no type signature information is available for this method, returns the
+     * Returns the type signature string for the method, possibly including type parameters. If this returns null,
+     * indicating that no type signature information is available for this method, call
+     * {@link #getTypeDescriptorStr()} instead.
+     * 
+     * @return The type signature string for the method, or null if not available.
+     */
+    public String getTypeSignatureStr() {
+        return typeSignatureStr;
+    }
+
+    /**
+     * Returns the parsed type signature for the method, possibly including type parameters. If the type signature
+     * string is null, indicating that no type signature information is available for this method, returns the
      * parsed type descriptor instead.
      * 
      * @return The parsed type signature for the method, or if not available, the parsed type descriptor for the
@@ -240,6 +262,22 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             return typeSig;
         } else {
             return getTypeDescriptor();
+        }
+    }
+
+    /**
+     * Returns the type signature string for the method, possibly including type parameters. If the type signature
+     * string is null, indicating that no type signature information is available for this method, returns the type
+     * descriptor string instead.
+     * 
+     * @return The type signature string for the method, or if not available, the type descriptor string for the
+     *         method.
+     */
+    public String getTypeSignatureOrTypeDescriptorStr() {
+        if (typeSignatureStr != null) {
+            return typeSignatureStr;
+        } else {
+            return typeDescriptorStr;
         }
     }
 

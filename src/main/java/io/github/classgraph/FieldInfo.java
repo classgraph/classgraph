@@ -197,9 +197,10 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Returns the parsed type descriptor for the field, if available.
+     * Returns the parsed type descriptor for the field, which will not include type parameters. If you need generic
+     * type parameters, call {@link #getTypeSignature()} instead.
      * 
-     * @return The parsed type descriptor for the field, if available, else returns null.
+     * @return The parsed type descriptor string for the field.
      */
     public TypeSignature getTypeDescriptor() {
         if (typeDescriptorStr == null) {
@@ -217,9 +218,21 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Returns the parsed type signature for the field, if available.
+     * Returns the type descriptor string for the field, which will not include type parameters. If you need generic
+     * type parameters, call {@link #getTypeSignatureStr()} instead.
      * 
-     * @return The parsed type signature for the field, if available, else returns null.
+     * @return The type descriptor string for the field.
+     */
+    public String getTypeDescriptorStr() {
+        return typeDescriptorStr;
+    }
+
+    /**
+     * Returns the parsed type signature for the field, possibly including type parameters. If this returns null,
+     * indicating that no type signature information is available for this field, call {@link #getTypeDescriptor()}
+     * instead.
+     * 
+     * @return The parsed type signature for the field, or null if not available.
      */
     public TypeSignature getTypeSignature() {
         if (typeSignatureStr == null) {
@@ -237,6 +250,17 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Returns the type signature string for the field, possibly including type parameters. If this returns null,
+     * indicating that no type signature information is available for this field, call
+     * {@link #getTypeDescriptorStr()} instead.
+     * 
+     * @return The type signature string for the field, or null if not available.
+     */
+    public String getTypeSignatureStr() {
+        return typeSignatureStr;
+    }
+
+    /**
      * Returns the type signature for the field, possibly including type parameters. If the type signature is null,
      * indicating that no type signature information is available for this field, returns the type descriptor
      * instead.
@@ -250,6 +274,22 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             return typeSig;
         } else {
             return getTypeDescriptor();
+        }
+    }
+
+    /**
+     * Returns the type signature string for the field, possibly including type parameters. If the type signature
+     * string is null, indicating that no type signature information is available for this field, returns the type
+     * descriptor string instead.
+     * 
+     * @return The type signature string for the field, or if not available, the type descriptor string for the
+     *         method.
+     */
+    public String getTypeSignatureOrTypeDescriptorStr() {
+        if (typeSignatureStr != null) {
+            return typeSignatureStr;
+        } else {
+            return typeDescriptorStr;
         }
     }
 

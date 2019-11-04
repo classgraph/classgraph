@@ -2455,9 +2455,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the type signature of the class.
+     * Get the parsed type signature for the class.
      *
-     * @return The class type signature, if available, otherwise returns null.
+     * @return The parsed type signature for the class, including any generic type parameters, or null if not
+     *         available (probably indicating the class is not generic).
      */
     public ClassTypeSignature getTypeSignature() {
         if (typeSignatureStr == null) {
@@ -2472,6 +2473,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
         return typeSignature;
+    }
+
+    /**
+     * Get the type signature string for the class.
+     *
+     * @return The type signature string for the class, including any generic type parameters, or null if not
+     *         available (probably indicating the class is not generic).
+     */
+    public String getTypeSignatureStr() {
+        return typeSignatureStr;
     }
 
     // -------------------------------------------------------------------------------------------------------------
