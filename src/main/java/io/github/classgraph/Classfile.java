@@ -1247,7 +1247,7 @@ class Classfile {
             final int fieldModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
             final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
             final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
-            final boolean getStaticFinalFieldConstValue = scanSpec.enableFieldConstantInitializerValues
+            final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
                     && fieldIsVisible;
             if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field

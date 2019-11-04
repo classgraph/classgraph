@@ -133,7 +133,7 @@ public class ClassGraph {
      * 
      * <p>
      * Calls {@link #enableClassInfo()}, {@link #enableFieldInfo()}, {@link #enableMethodInfo()},
-     * {@link #enableAnnotationInfo()}, {@link #enableFieldConstantInitializerValues()},
+     * {@link #enableAnnotationInfo()}, {@link #enableStaticFinalFieldConstantInitializerValues()},
      * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()}, and {@link #ignoreMethodVisibility()}.
      *
      * @return this (for method chaining).
@@ -143,7 +143,7 @@ public class ClassGraph {
         enableFieldInfo();
         enableMethodInfo();
         enableAnnotationInfo();
-        enableFieldConstantInitializerValues();
+        enableStaticFinalFieldConstantInitializerValues();
         ignoreClassVisibility();
         ignoreFieldVisibility();
         ignoreMethodVisibility();
@@ -227,35 +227,38 @@ public class ClassGraph {
     }
 
     /**
-     * Deprecated, because non-static / non-final fields can have initializer values too. Please use
-     * {@link #enableFieldConstantInitializerValues()} instead.
-     *
-     * @return this (for method chaining).
-     */
-    @Deprecated
-    public ClassGraph enableStaticFinalFieldConstantInitializerValues() {
-        enableFieldConstantInitializerValues();
-        return this;
-    }
-
-    /**
-     * Enables the saving of field constant initializer values. By default, constant initializer values are not
-     * scanned. If this is enabled, you can obtain the constant field initializer values from
-     * {@link FieldInfo#getConstantInitializerValue()}. Note that constant initializer values are usually only of
-     * primitive type, or String constants. Also note that it is up to the compiler as to whether or not a
-     * constant-valued field is assigned as a constant in the field definition itself, or whether it is assigned
-     * manually in static or non-static class initializer blocks or the constructor -- so your mileage may vary in
-     * being able to extract constant initializer values.
+     * Enables the saving of static final field constant initializer values. By default, constant initializer values
+     * are not scanned. If this is enabled, you can obtain the constant field initializer values from
+     * {@link FieldInfo#getConstantInitializerValue()}.
+     * 
+     * <p>
+     * Note that constant initializer values are usually only of primitive type, or String constants (or values that
+     * can be computed and reduced to one of those types at compiletime).
+     * 
+     * <p>
+     * Also note that it is up to the compiler as to whether or not a constant-valued field is assigned as a
+     * constant in the field definition itself, or whether it is assigned manually in static class initializer
+     * blocks -- so your mileage may vary in being able to extract constant initializer values.
+     * 
+     * <p>
+     * In fact in Kotlin, even constant initializers for non-static / non-final fields are stored in a field
+     * attribute in the classfile (and so these values may be picked up by ClassGraph by calling this method),
+     * although any field initializers for non-static fields are supposed to be ignored by the JVM according to the
+     * classfile spec, so the Kotlin compiler may change in future to stop generating these values, and you probably
+     * shouldn't rely on being able to get the initializers for non-static fields in Kotlin. (As far as non-final
+     * fields, javac simply does not add constant initializer values to the field attributes list for non-final
+     * fields, even if they are static, but the spec doesn't say whether or not the JVM should ignore constant
+     * initializers for non-final fields.)
      * 
      * <p>
      * Automatically calls {@link #enableClassInfo()} and {@link #enableFieldInfo()}.
      *
      * @return this (for method chaining).
      */
-    public ClassGraph enableFieldConstantInitializerValues() {
+    public ClassGraph enableStaticFinalFieldConstantInitializerValues() {
         enableClassInfo();
         enableFieldInfo();
-        scanSpec.enableFieldConstantInitializerValues = true;
+        scanSpec.enableStaticFinalFieldConstantInitializerValues = true;
         return this;
     }
 
