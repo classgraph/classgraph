@@ -82,6 +82,7 @@ public class ArrayClassInfo extends ClassInfo {
      *
      * @return The raw type signature string of the array class.
      */
+    @Override
     public String getTypeSignatureStr() {
         return arrayTypeSignature.getTypeSignatureStr();
     }
