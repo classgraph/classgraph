@@ -144,13 +144,12 @@ public class DeclaredVsNonDeclaredTest {
         final Function<ClassInfo, List<String>> getClassGraphDeclaredFieldNames = classInfo -> classInfo
                 .getDeclaredFieldInfo().stream().map(FieldInfo::getName).collect(Collectors.toList());
 
-        final Function<Class<?>, String[]> getClassFieldNames = clazz -> Arrays.stream(clazz.getFields())
-                .map(Field::getName).filter(filterOutClassMethods).collect(Collectors.toList())
-                .toArray(new String[0]);
+        final Function<Class<?>, List<String>> getClassFieldNames = clazz -> Arrays.stream(clazz.getFields())
+                .map(Field::getName).filter(filterOutClassMethods).collect(Collectors.toList());
 
-        final Function<Class<?>, String[]> getClassDeclaredFieldNames = clazz -> Arrays
+        final Function<Class<?>, List<String>> getClassDeclaredFieldNames = clazz -> Arrays
                 .stream(clazz.getDeclaredFields()).map(Field::getName).filter(filterOutClassMethods)
-                .collect(Collectors.toList()).toArray(new String[0]);
+                .collect(Collectors.toList());
 
         // Non-"declared" fields, superclass
 
