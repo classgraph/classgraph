@@ -111,6 +111,15 @@ public class DeclaredVsNonDeclaredTest {
                         : new String[] { "publicSuperClassMethod" });
         assertThat(getClassMethodNames.apply(SuperClass.class)).containsExactlyInAnyOrder("publicSuperClassMethod");
 
+        // Non-"declared" methods, subclass
+
+        assertThat(getClassGraphMethodNames.apply(subClassInfo)).containsExactlyInAnyOrder(ignoreVisibility
+                ? new String[] { "publicSuperClassMethod", "publicSubClassMethod", "privateSuperClassMethod",
+                        "privateSubClassMethod" }
+                : new String[] { "publicSuperClassMethod", "publicSubClassMethod" });
+        assertThat(getClassMethodNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSuperClassMethod",
+                "publicSubClassMethod");
+
         // "Declared" methods, superclass
 
         assertThat(getClassGraphDeclaredMethodNames.apply(superClassInfo)).containsExactlyInAnyOrder(
@@ -118,15 +127,6 @@ public class DeclaredVsNonDeclaredTest {
                         : new String[] { "publicSuperClassMethod" });
         assertThat(getClassDeclaredMethodNames.apply(SuperClass.class))
                 .containsExactlyInAnyOrder("publicSuperClassMethod", "privateSuperClassMethod");
-
-        // Non-"declared" methods, subclass
-
-        assertThat(getClassGraphMethodNames.apply(subClassInfo)).containsExactlyInAnyOrder(ignoreVisibility
-                ? new String[] { "publicSuperClassMethod", "privateSuperClassMethod", "publicSubClassMethod",
-                        "privateSubClassMethod" }
-                : new String[] { "publicSuperClassMethod", "publicSubClassMethod" });
-        assertThat(getClassMethodNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSuperClassMethod",
-                "publicSubClassMethod");
 
         // "Declared" methods, subclass
 
@@ -158,6 +158,16 @@ public class DeclaredVsNonDeclaredTest {
                         : new String[] { "publicSuperClassField" });
         assertThat(getClassFieldNames.apply(SuperClass.class)).containsExactlyInAnyOrder("publicSuperClassField");
 
+        // Non-"declared" fields, subclass
+
+        assertThat(getClassGraphFieldNames.apply(subClassInfo))
+                .containsExactlyInAnyOrder(ignoreVisibility
+                        ? new String[] { "publicSuperClassField", "publicSubClassField", "privateSuperClassField",
+                                "privateSubClassField" }
+                        : new String[] { "publicSuperClassField", "publicSubClassField" });
+        assertThat(getClassFieldNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSuperClassField",
+                "publicSubClassField");
+
         // "Declared" fields, superclass
 
         assertThat(getClassGraphDeclaredFieldNames.apply(superClassInfo)).containsExactlyInAnyOrder(
@@ -165,16 +175,6 @@ public class DeclaredVsNonDeclaredTest {
                         : new String[] { "publicSuperClassField" });
         assertThat(getClassDeclaredFieldNames.apply(SuperClass.class))
                 .containsExactlyInAnyOrder("publicSuperClassField", "privateSuperClassField");
-
-        // Non-"declared" fields, subclass
-
-        assertThat(getClassGraphFieldNames.apply(subClassInfo))
-                .containsExactlyInAnyOrder(ignoreVisibility
-                        ? new String[] { "publicSuperClassField", "privateSuperClassField", "publicSubClassField",
-                                "privateSubClassField" }
-                        : new String[] { "publicSuperClassField", "publicSubClassField" });
-        assertThat(getClassFieldNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSuperClassField",
-                "publicSubClassField");
 
         // "Declared" fields, subclass
 
