@@ -173,7 +173,7 @@ class Scanner implements Callable<ScanResult> {
                 final String classLoaderClassName = classLoader.getClass().getName();
                 // It's not possible to instantiate AppClassLoader or PlatformClassLoader, so if these are
                 // passed in as override classloaders, they must have been obtained using
-                // Thread.currentThread.getContextClassLoader() [.getParent()] or similar
+                // Thread.currentThread().getContextClassLoader() [.getParent()] or similar
                 if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")) {
                     scanModules = true;
                 } else if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
