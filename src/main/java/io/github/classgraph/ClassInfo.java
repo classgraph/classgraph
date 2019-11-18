@@ -2277,7 +2277,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * {@link IllegalArgumentException}.
      *
      * <p>
-     * By default only returns information for public methods, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
      * called before the scan.
      *
      * @return the list of FieldInfo objects for visible fields declared by this class, or the empty list if no
@@ -2306,7 +2306,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * {@link IllegalArgumentException}.
      *
      * <p>
-     * By default only returns information for public methods, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
      * called before the scan.
      *
      * @return the list of FieldInfo objects for visible fields of this class or its superclases, or the empty list
@@ -2386,7 +2386,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * {@link IllegalArgumentException}.
      *
      * <p>
-     * By default only returns information for public methods, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
      * called before the scan.
      *
      * @param fieldName
