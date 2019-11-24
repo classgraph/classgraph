@@ -72,7 +72,7 @@ class ClassFields {
     private static final Comparator<Field> FIELD_NAME_ORDER_COMPARATOR = //
             new Comparator<Field>() {
                 @Override
-                public int compare(Field a, Field b) {
+                public int compare(final Field a, final Field b) {
                     return a.getName().compareTo(b.getName());
                 }
             };
@@ -84,7 +84,7 @@ class ClassFields {
     private static final Comparator<Field> SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR = //
             new Comparator<Field>() {
                 @Override
-                public int compare(Field a, Field b) {
+                public int compare(final Field a, final Field b) {
                     return a.getName().equals("format") ? -1
                             : b.getName().equals("format") ? 1 : a.getName().compareTo(b.getName());
                 }
