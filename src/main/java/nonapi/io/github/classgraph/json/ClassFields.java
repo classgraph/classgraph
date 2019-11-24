@@ -32,6 +32,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -96,6 +98,22 @@ class ClassFields {
                 throw new IllegalArgumentException("Illegal class type: " + currType);
             }
             final Field[] fields = currRawType.getDeclaredFields();
+            List<String> res = new ArrayList<>();
+            Arrays.sort(fields, new Comparator<Field>() {
+                @Override
+                public int compare(Field a, Field b) {
+                    if (a.getName().equals("format")){
+                        return -1;
+                    } else if (b.getName().equals("format")) {
+                        return 1;
+                    }
+                    return a.getName().compareTo(b.getName());
+                }
+            });
+            for(Field f : fields) {
+                res.add(f.getName());
+            }
+            System.out.println(res);
             final List<FieldTypeInfo> fieldOrderWithinClass = new ArrayList<>();
             for (final Field field : fields) {
                 // Mask superclass fields if subclass has a field of the same name
