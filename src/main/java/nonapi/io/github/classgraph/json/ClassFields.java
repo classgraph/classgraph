@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.classgraph.ScanResult;
+
 /**
  * The list of fields that can be (de)serialized (non-final, non-transient, non-synthetic, accessible), and their
  * corresponding resolved (concrete) types.
@@ -65,6 +67,28 @@ class ClassFields {
     /** If non-null, this is the field that has an {@link Id} annotation. */
     // TODO: replace this with getter/setter MethodHandles for speed
     Field idField;
+
+    /** Used to sort fields into deterministic order. */
+    private static final Comparator<Field> FIELD_NAME_ORDER_COMPARATOR = //
+            new Comparator<Field>() {
+                @Override
+                public int compare(Field a, Field b) {
+                    return a.getName().compareTo(b.getName());
+                }
+            };
+
+    /**
+     * Used to sort fields into deterministic order for SerializationFormat class (which needs to have "format"
+     * field in first position for ClassGraph's serialization format) (#383).
+     */
+    private static final Comparator<Field> SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR = //
+            new Comparator<Field>() {
+                @Override
+                public int compare(Field a, Field b) {
+                    return a.getName().equals("format") ? -1
+                            : b.getName().equals("format") ? 1 : a.getName().compareTo(b.getName());
+                }
+            };
 
     /**
      * Constructor.
@@ -97,23 +121,16 @@ class ClassFields {
                 // Class definitions should not be of type WildcardType or GenericArrayType 
                 throw new IllegalArgumentException("Illegal class type: " + currType);
             }
+
+            // getDeclaredFields() does not guarantee any given order, so need to sort fields. (#383)
             final Field[] fields = currRawType.getDeclaredFields();
-            List<String> res = new ArrayList<>();
-            Arrays.sort(fields, new Comparator<Field>() {
-                @Override
-                public int compare(Field a, Field b) {
-                    if (a.getName().equals("format")){
-                        return -1;
-                    } else if (b.getName().equals("format")) {
-                        return 1;
-                    }
-                    return a.getName().compareTo(b.getName());
-                }
-            });
-            for(Field f : fields) {
-                res.add(f.getName());
-            }
-            System.out.println(res);
+            Arrays.sort(fields, cls.getName().equals(ScanResult.class.getName() + "$SerializationFormat")
+                    // Special sort order for SerializationFormat class: put "format" field first
+                    ? SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR
+                    // Otherwise just sort by name so that order is deterministic
+                    : FIELD_NAME_ORDER_COMPARATOR);
+
+            // Find any @Id-annotated field, and get Field type info
             final List<FieldTypeInfo> fieldOrderWithinClass = new ArrayList<>();
             for (final Field field : fields) {
                 // Mask superclass fields if subclass has a field of the same name
