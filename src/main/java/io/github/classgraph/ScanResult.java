@@ -461,10 +461,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // Index Resource objects by path
             final ResourceList whitelistedResourcesList = new ResourceList();
             for (final ClasspathElement classpathElt : classpathOrder) {
-                if (classpathElt.pathToWhitelistedResource != null) {
-                    for (final Resource res : classpathElt.pathToWhitelistedResource.values()) {
-                        whitelistedResourcesList.add(res);
-                    }
+                if (classpathElt.whitelistedResources != null) {
+                    whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
                 }
             }
             // Set atomically for thread safety
@@ -515,29 +513,20 @@ public final class ScanResult implements Closeable, AutoCloseable {
             return getAllResourcesAsMap().get(path);
         } else {
             // If just a few calls are made, directly search for resource with the requested path
-            boolean resourceFound = false;
+            ResourceList matchingResources = null;
             for (final ClasspathElement classpathElt : classpathOrder) {
-                if (classpathElt.pathToWhitelistedResource != null) {
-                    if (classpathElt.pathToWhitelistedResource.containsKey(path)) {
-                        resourceFound = true;
-                        break;
-                    }
-                }
-            }
-            if (resourceFound) {
-                final ResourceList matchingResources = new ResourceList(2);
-                for (final ClasspathElement classpathElt : classpathOrder) {
-                    if (classpathElt.pathToWhitelistedResource != null) {
-                        final Resource res = classpathElt.pathToWhitelistedResource.get(path);
-                        if (res != null) {
+                if (classpathElt.whitelistedResources != null) {
+                    for (final Resource res : classpathElt.whitelistedResources) {
+                        if (res.getPath().equals(path)) {
+                            if (matchingResources == null) {
+                                matchingResources = new ResourceList();
+                            }
                             matchingResources.add(res);
                         }
                     }
                 }
-                return matchingResources;
-            } else {
-                return ResourceList.EMPTY_LIST;
             }
+            return matchingResources == null ? ResourceList.EMPTY_LIST : matchingResources;
         }
     }
 

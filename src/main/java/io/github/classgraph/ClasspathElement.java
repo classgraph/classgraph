@@ -31,7 +31,6 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -82,13 +81,16 @@ abstract class ClasspathElement {
     List<ClasspathElement> childClasspathElementsOrdered;
 
     /**
-     * A map from path to {@link Resource} for resources found within this classpath element that were whitelisted
-     * and not blacklisted.
+     * Resources found within this classpath element that were whitelisted and not blacklisted. (Only written by one
+     * thread, so doesn't need to be a concurrent list.)
      */
-    protected final Map<String, Resource> pathToWhitelistedResource = new ConcurrentHashMap<>();
+    protected final List<Resource> whitelistedResources = new ArrayList<>();
 
-    /** The list of all classfiles found within this classpath element that were whitelisted and not blacklisted. */
-    protected Collection<Resource> whitelistedClassfileResources = new ConcurrentLinkedQueue<>();
+    /**
+     * The list of all classfiles found within this classpath element that were whitelisted and not blacklisted.
+     * (Only written by one thread, so doesn't need to be a concurrent list.)
+     */
+    protected List<Resource> whitelistedClassfileResources = new ArrayList<>();
 
     /** The map from File to last modified timestamp, if scanFiles is true. */
     protected final Map<File, Long> fileToLastModified = new ConcurrentHashMap<>();
@@ -262,8 +264,8 @@ abstract class ClasspathElement {
         }
 
         if (!isClassfileOnly) {
-            // Put resource into pathToWhitelistedResource map, whether for a classfile or non-classfile resource
-            pathToWhitelistedResource.put(resource.getPath(), resource);
+            // Add resource to list of whitelisted resources, whether for a classfile or non-classfile resource
+            whitelistedResources.add(resource);
         }
 
         // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not
@@ -303,10 +305,10 @@ abstract class ClasspathElement {
      */
     protected void finishScanPaths(final LogNode log) {
         if (log != null) {
-            if (pathToWhitelistedResource.isEmpty() && whitelistedClassfileResources.isEmpty()) {
+            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
                 log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles or resources found"
                         : "Classfile scanning is disabled, and no whitelisted resources found");
-            } else if (pathToWhitelistedResource.isEmpty()) {
+            } else if (whitelistedResources.isEmpty()) {
                 log.log("No whitelisted resources found");
             } else if (whitelistedClassfileResources.isEmpty()) {
                 log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles found"
