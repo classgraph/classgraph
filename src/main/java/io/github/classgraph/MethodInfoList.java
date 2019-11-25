@@ -144,8 +144,8 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * @param methodName
      *            The name of a method.
      * @return A list of {@link MethodInfo} objects in the list with the given name (there may be more than one
-     *         method with a given name, due to overloading). Returns the empty list if no method had a matching
-     *         name.
+     *         method with a given name, due to overloading, so this returns a {@link MethodInfoList} rather than a
+     *         single {@link MethodInfo}). Returns the empty list if no method had a matching name.
      */
     public MethodInfoList get(final String methodName) {
         boolean hasMethodWithName = false;
