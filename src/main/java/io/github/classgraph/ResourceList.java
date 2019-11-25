@@ -91,6 +91,39 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         super(resourceCollection);
     }
 
+    /**
+     * Returns a list of all resources with the requested path. (There may be more than one resource with a given
+     * path, from different classpath elements or modules, so this returns a {@link ResourceList} rather than a
+     * single {@link Resource}.)
+     * 
+     * @param resourcePath
+     *            The path of a resource
+     * @return A {@link ResourceList} of {@link Resource} objects in this list that have the given path (there may
+     *         be more than one resource with a given path, from different classpath elements or modules, so this
+     *         returns a {@link ResourceList} rather than a single {@link Resource}.) Returns the empty list if no
+     *         resource with is found with a matching path.
+     */
+    public ResourceList get(final String resourcePath) {
+        boolean hasResourceWithPath = false;
+        for (final Resource res : this) {
+            if (res.getPath().equals(resourcePath)) {
+                hasResourceWithPath = true;
+                break;
+            }
+        }
+        if (!hasResourceWithPath) {
+            return EMPTY_LIST;
+        } else {
+            final ResourceList matchingResources = new ResourceList(2);
+            for (final Resource res : this) {
+                if (res.getPath().equals(resourcePath)) {
+                    matchingResources.add(res);
+                }
+            }
+            return matchingResources;
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
