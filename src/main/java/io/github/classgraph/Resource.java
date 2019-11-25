@@ -70,12 +70,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /** The cached result of toString(). */
     private String toString;
 
-    /** The last modified millis since the epoch, or 0L if it is unknown */
-    private final long lastModified;
-
-    /** The file permissions for this resource, or null if unknown */
-    private final Set<PosixFilePermission> posixFilePermissions;
-
     /**
      * The {@link LogNode} used to log that the resource was found when classpath element paths are scanned. In the
      * case of whitelisted classfile resources, sublog entries are added when the classfile's contents are scanned.
@@ -95,28 +89,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     public Resource(final ClasspathElement classpathElement, final long length) {
         this.classpathElement = classpathElement;
         this.length = length;
-        this.lastModified = 0L;
-        this.posixFilePermissions = null;
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param classpathElement
-     *            the classpath element this resource was obtained from.
-     * @param length
-     *            the length the length of the resource.
-     * @param lastModified
-     *            The last modified date, in milliseconds since the epoch, or 0 if unknown.
-     * @param posixFilePermissions
-     *            The POSIX file permissions, or null if unknown.
-     */
-    Resource(final ClasspathElement classpathElement, final long length, final long lastModified,
-            final Set<PosixFilePermission> posixFilePermissions) {
-        this.classpathElement = classpathElement;
-        this.length = length;
-        this.lastModified = lastModified;
-        this.posixFilePermissions = posixFilePermissions;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -554,9 +526,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * @return The millis since the epoch indicating the date / time that this file resource was last modified.
      *         Returns 0L if the last modified date is unknown.
      */
-    public long getLastModified() {
-        return lastModified;
-    }
+    public abstract long getLastModified();
 
     /**
      * Get the POSIX file permissions for the resource. POSIX file permissions are obtained from the directory
@@ -566,9 +536,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *
      * @return The set of {@link PosixFilePermission} permission flags for the resource, or null if unknown.
      */
-    public Set<PosixFilePermission> getPosixFilePermissions() {
-        return posixFilePermissions;
-    }
+    public abstract Set<PosixFilePermission> getPosixFilePermissions();
 
     // -------------------------------------------------------------------------------------------------------------
 

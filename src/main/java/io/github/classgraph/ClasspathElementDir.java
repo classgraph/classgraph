@@ -156,15 +156,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final String relativePath, final File classpathResourceFile) {
-        Set<PosixFilePermission> posixFilePermissions = null;
-        try {
-            posixFilePermissions = Files.readAttributes(classpathResourceFile.toPath(), PosixFileAttributes.class)
-                    .permissions();
-        } catch (UnsupportedOperationException | IOException | SecurityException e) {
-            // POSIX attributes not supported
-        }
-        return new Resource(this, classpathResourceFile.length(), classpathResourceFile.lastModified(),
-                posixFilePermissions) {
+        return new Resource(this, classpathResourceFile.length()) {
             /** The random access file. */
             private RandomAccessFile randomAccessFile;
 
@@ -179,6 +171,25 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return relativePath;
+            }
+
+            @Override
+            public long getLastModified() {
+                return classpathResourceFile.lastModified();
+            }
+
+            @SuppressWarnings("null")
+            @Override
+            public Set<PosixFilePermission> getPosixFilePermissions() {
+                Set<PosixFilePermission> posixFilePermissions = null;
+                try {
+                    posixFilePermissions = Files
+                            .readAttributes(classpathResourceFile.toPath(), PosixFileAttributes.class)
+                            .permissions();
+                } catch (UnsupportedOperationException | IOException | SecurityException e) {
+                    // POSIX attributes not supported
+                }
+                return posixFilePermissions;
             }
 
             @Override

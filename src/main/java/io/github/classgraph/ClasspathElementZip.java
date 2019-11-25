@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashSet;
 import java.util.Map.Entry;
@@ -283,8 +284,7 @@ class ClasspathElementZip extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
-        return new Resource(this, zipEntry.uncompressedSize, zipEntry.getLastModifiedTimeMillis(),
-                zipEntry.posixFilePermissions) {
+        return new Resource(this, zipEntry.uncompressedSize) {
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.
@@ -297,6 +297,50 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return zipEntry.entryName;
+            }
+
+            @Override
+            public long getLastModified() {
+                return zipEntry.getLastModifiedTimeMillis();
+            }
+
+            @Override
+            public Set<PosixFilePermission> getPosixFilePermissions() {
+                final int fileAttributes = zipEntry.fileAttributes;
+                Set<PosixFilePermission> perms;
+                if (fileAttributes == 0) {
+                    perms = null;
+                } else {
+                    perms = new HashSet<>();
+                    if ((fileAttributes & 0400) > 0) {
+                        perms.add(PosixFilePermission.OWNER_READ);
+                    }
+                    if ((fileAttributes & 0200) > 0) {
+                        perms.add(PosixFilePermission.OWNER_WRITE);
+                    }
+                    if ((fileAttributes & 0100) > 0) {
+                        perms.add(PosixFilePermission.OWNER_EXECUTE);
+                    }
+                    if ((fileAttributes & 0040) > 0) {
+                        perms.add(PosixFilePermission.GROUP_READ);
+                    }
+                    if ((fileAttributes & 0020) > 0) {
+                        perms.add(PosixFilePermission.GROUP_WRITE);
+                    }
+                    if ((fileAttributes & 0010) > 0) {
+                        perms.add(PosixFilePermission.GROUP_EXECUTE);
+                    }
+                    if ((fileAttributes & 0004) > 0) {
+                        perms.add(PosixFilePermission.OTHERS_READ);
+                    }
+                    if ((fileAttributes & 0002) > 0) {
+                        perms.add(PosixFilePermission.OTHERS_WRITE);
+                    }
+                    if ((fileAttributes & 0001) > 0) {
+                        perms.add(PosixFilePermission.OTHERS_EXECUTE);
+                    }
+                }
+                return perms;
             }
 
             @Override

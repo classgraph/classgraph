@@ -37,7 +37,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.attribute.PosixFilePermission;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -624,43 +623,8 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                         : zipFileSliceReader.getInt(cenPos + entOff + 24)) & 0xffffffffL;
 
                 // Get external file attributes
-                final int externalFileAttributes = entryBytes != null
-                        ? ZipFileSliceReader.getShort(entryBytes, entOff + 40)
+                final int fileAttributes = entryBytes != null ? ZipFileSliceReader.getShort(entryBytes, entOff + 40)
                         : zipFileSliceReader.getShort(cenPos + entOff + 40);
-
-                Set<PosixFilePermission> perms;
-                if (externalFileAttributes == 0) {
-                    perms = null;
-                } else {
-                    perms = new HashSet<>();
-                    if ((externalFileAttributes & 0400) > 0) {
-                        perms.add(PosixFilePermission.OWNER_READ);
-                    }
-                    if ((externalFileAttributes & 0200) > 0) {
-                        perms.add(PosixFilePermission.OWNER_WRITE);
-                    }
-                    if ((externalFileAttributes & 0100) > 0) {
-                        perms.add(PosixFilePermission.OWNER_EXECUTE);
-                    }
-                    if ((externalFileAttributes & 0040) > 0) {
-                        perms.add(PosixFilePermission.GROUP_READ);
-                    }
-                    if ((externalFileAttributes & 0020) > 0) {
-                        perms.add(PosixFilePermission.GROUP_WRITE);
-                    }
-                    if ((externalFileAttributes & 0010) > 0) {
-                        perms.add(PosixFilePermission.GROUP_EXECUTE);
-                    }
-                    if ((externalFileAttributes & 0004) > 0) {
-                        perms.add(PosixFilePermission.OTHERS_READ);
-                    }
-                    if ((externalFileAttributes & 0002) > 0) {
-                        perms.add(PosixFilePermission.OTHERS_WRITE);
-                    }
-                    if ((externalFileAttributes & 0001) > 0) {
-                        perms.add(PosixFilePermission.OTHERS_EXECUTE);
-                    }
-                }
 
                 long pos = entryBytes != null ? ZipFileSliceReader.getInt(entryBytes, entOff + 42)
                         : zipFileSliceReader.getInt(cenPos + entOff + 42);
@@ -802,7 +766,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // Add zip entry
                 final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
                         compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler, lastModifiedMillis,
-                        lastModifiedTimeMSDOS, lastModifiedDateMSDOS, perms);
+                        lastModifiedTimeMSDOS, lastModifiedDateMSDOS, fileAttributes);
                 entries.add(entry);
 
                 // Record manifest entry

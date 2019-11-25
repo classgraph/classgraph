@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -131,6 +132,16 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return resourcePath;
+            }
+
+            @Override
+            public long getLastModified() {
+                return 0L; // Unknown
+            }
+
+            @Override
+            public Set<PosixFilePermission> getPosixFilePermissions() {
+                return null; // N/A
             }
 
             @Override

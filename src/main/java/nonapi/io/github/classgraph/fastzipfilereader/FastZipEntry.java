@@ -34,9 +34,7 @@ import java.io.InputStream;
 import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
-import java.nio.file.attribute.PosixFilePermission;
 import java.util.Calendar;
-import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.DataFormatException;
@@ -79,8 +77,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The last modified date in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L. */
     private final int lastModifiedDateMSDOS;
 
-    /** The file permissions for this resource, or null if unknown */
-    public final Set<PosixFilePermission> posixFilePermissions;
+    /** The file attributes for this resource, or 0 if unknown */
+    public final int fileAttributes;
 
     /**
      * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
@@ -124,14 +122,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
      * @param lastModifiedDateMSDOS
      *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
-     * @param posixFilePermissions
-     *            The POSIX file permissions
+     * @param fileAttributes
+     *            The POSIX file attribute bits from the zip entry.
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
             final NestedJarHandler nestedJarHandler, final long lastModifiedTimeMillis,
-            final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS,
-            final Set<PosixFilePermission> posixFilePermissions) {
+            final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS, final int fileAttributes) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;
@@ -142,7 +139,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.lastModifiedTimeMillis = lastModifiedTimeMillis;
         this.lastModifiedTimeMSDOS = lastModifiedTimeMSDOS;
         this.lastModifiedDateMSDOS = lastModifiedDateMSDOS;
-        this.posixFilePermissions = posixFilePermissions;
+        this.fileAttributes = fileAttributes;
 
         // Get multi-release jar version number, and strip any version prefix
         int entryVersion = 8;
