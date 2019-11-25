@@ -40,7 +40,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.ClassGraphException;
@@ -770,29 +768,17 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                     }
                 }
 
+                int lastModifiedTimeMSDOS = 0;
+                int lastModifiedDateMSDOS = 0;
                 if (lastModifiedMillis == 0L) {
-                    // If Unix timestamp was not provided, convertr zip entry timestamp from MS-DOS format
-                    final int lastModifiedTime = entryBytes != null
+                    // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS format
+                    lastModifiedTimeMSDOS = entryBytes != null
                             ? ZipFileSliceReader.getShort(entryBytes, entOff + 12)
                             : zipFileSliceReader.getShort(cenPos + entOff + 12);
 
-                    final int lastModifiedDate = entryBytes != null
+                    lastModifiedDateMSDOS = entryBytes != null
                             ? ZipFileSliceReader.getShort(entryBytes, entOff + 14)
                             : zipFileSliceReader.getShort(cenPos + entOff + 14);
-
-                    // MS-DOS Date & Time Format
-                    final int lastModifiedSecond = (lastModifiedTime & 0b11111) * 2;
-                    final int lastModifiedMinute = lastModifiedTime >> 5 & 0b111111;
-                    final int lastModifiedHour = lastModifiedTime >> 11;
-                    final int lastModifiedDay = lastModifiedDate & 0b11111;
-                    final int lastModifiedMonth = (lastModifiedDate >> 5 & 0b111) - 1;
-                    final int lastModifiedYear = (lastModifiedDate >> 9) + 1980;
-
-                    final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-                    lastModifiedCalendar.set(lastModifiedYear, lastModifiedMonth, lastModifiedDay, lastModifiedHour,
-                            lastModifiedMinute, lastModifiedSecond);
-                    lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
-                    lastModifiedMillis = lastModifiedCalendar.getTimeInMillis();
                 }
 
                 if (compressedSize < 0 || pos < 0) {
@@ -816,7 +802,7 @@ public class LogicalZipFile extends ZipFileSlice implements AutoCloseable {
                 // Add zip entry
                 final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
                         compressedSize, uncompressedSize, physicalZipFile.nestedJarHandler, lastModifiedMillis,
-                        perms);
+                        lastModifiedTimeMSDOS, lastModifiedDateMSDOS, perms);
                 entries.add(entry);
 
                 // Record manifest entry

@@ -283,7 +283,8 @@ class ClasspathElementZip extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
-        return new Resource(this, zipEntry.uncompressedSize, zipEntry.lastModified, zipEntry.posixFilePermissions) {
+        return new Resource(this, zipEntry.uncompressedSize, zipEntry.getLastModifiedTimeMillis(),
+                zipEntry.posixFilePermissions) {
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.

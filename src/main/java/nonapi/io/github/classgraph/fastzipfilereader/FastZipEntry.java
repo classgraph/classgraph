@@ -35,7 +35,9 @@ import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Calendar;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -69,7 +71,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public final long uncompressedSize;
 
     /** The last modified millis since the epoch, or 0L if it is unknown */
-    public final long lastModified;
+    private long lastModifiedTimeMillis;
+
+    /** The last modified time in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L. */
+    private final int lastModifiedTimeMSDOS;
+
+    /** The last modified date in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L. */
+    private final int lastModifiedDateMSDOS;
 
     /** The file permissions for this resource, or null if unknown */
     public final Set<PosixFilePermission> posixFilePermissions;
@@ -109,14 +117,20 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The uncompressed size of the entry.
      * @param nestedJarHandler
      *            The {@link NestedJarHandler}.
-     * @param lastModified
-     *            The last modified date/time in millis since the epoch
+     * @param lastModifiedTimeMillis
+     *            The last modified date/time in millis since the epoch, or 0L if unknown (in which case, the MSDOS
+     *            time and date fields will be provided).
+     * @param lastModifiedTimeMSDOS
+     *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
+     * @param lastModifiedDateMSDOS
+     *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
      * @param posixFilePermissions
      *            The POSIX file permissions
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
-            final NestedJarHandler nestedJarHandler, final long lastModified,
+            final NestedJarHandler nestedJarHandler, final long lastModifiedTimeMillis,
+            final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS,
             final Set<PosixFilePermission> posixFilePermissions) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
@@ -125,7 +139,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.compressedSize = compressedSize;
         this.uncompressedSize = !isDeflated && uncompressedSize < 0 ? compressedSize : uncompressedSize;
         this.nestedJarHandler = nestedJarHandler;
-        this.lastModified = lastModified;
+        this.lastModifiedTimeMillis = lastModifiedTimeMillis;
+        this.lastModifiedTimeMSDOS = lastModifiedTimeMSDOS;
+        this.lastModifiedDateMSDOS = lastModifiedDateMSDOS;
         this.posixFilePermissions = posixFilePermissions;
 
         // Get multi-release jar version number, and strip any version prefix
@@ -611,6 +627,35 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      */
     public String getPath() {
         return parentLogicalZipFile.getPath() + "!/" + entryName;
+    }
+
+    /**
+     * Get the last modified time in Epoch millis, or 0L if unknown.
+     *
+     * @return the last modified time in Epoch millis.
+     */
+    public long getLastModifiedTimeMillis() {
+        // If lastModifiedTimeMillis is zero, but there is an MSDOS date and time available
+        if (lastModifiedTimeMillis == 0L && (lastModifiedDateMSDOS != 0 || lastModifiedTimeMSDOS != 0)) {
+            // Convert from MS-DOS Date & Time Format to Epoch millis
+            final int lastModifiedSecond = (lastModifiedTimeMSDOS & 0b11111) * 2;
+            final int lastModifiedMinute = lastModifiedTimeMSDOS >> 5 & 0b111111;
+            final int lastModifiedHour = lastModifiedTimeMSDOS >> 11;
+            final int lastModifiedDay = lastModifiedDateMSDOS & 0b11111;
+            final int lastModifiedMonth = (lastModifiedDateMSDOS >> 5 & 0b111) - 1;
+            final int lastModifiedYear = (lastModifiedDateMSDOS >> 9) + 1980;
+
+            final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            lastModifiedCalendar.set(lastModifiedYear, lastModifiedMonth, lastModifiedDay, lastModifiedHour,
+                    lastModifiedMinute, lastModifiedSecond);
+            lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
+
+            // Cache converted time by overwriting the zero lastModifiedTimeMillis field
+            lastModifiedTimeMillis = lastModifiedCalendar.getTimeInMillis();
+        }
+
+        // Return the last modified time, or 0L if it is totally unknown.
+        return lastModifiedTimeMillis;
     }
 
     /* (non-Javadoc)
