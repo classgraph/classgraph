@@ -509,7 +509,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                         final int numBytesToSkip = (int) Math.min(FileUtils.MAX_BUFFER_SIZE,
                                 Math.min(remainingToSkip, remainingInBuf));
                         try {
-                            currChunkByteBuf.position(currChunkByteBuf.position() + numBytesToSkip);
+                            ((Buffer) currChunkByteBuf).position(currChunkByteBuf.position() + numBytesToSkip);
                         } catch (final BufferUnderflowException e) {
                             throw new EOFException("Unexpected EOF in stored (non-deflated) zip entry data");
                         }
