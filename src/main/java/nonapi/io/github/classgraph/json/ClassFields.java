@@ -90,6 +90,10 @@ class ClassFields {
                 }
             };
 
+    /** The name of the SerializationFormat class (used by ClassGraph to serialize a ScanResult). */
+    private static final String SERIALIZATION_FORMAT_CLASS_NAME = ScanResult.class.getName()
+            + "$SerializationFormat";
+
     /**
      * Constructor.
      *
@@ -124,7 +128,7 @@ class ClassFields {
 
             // getDeclaredFields() does not guarantee any given order, so need to sort fields. (#383)
             final Field[] fields = currRawType.getDeclaredFields();
-            Arrays.sort(fields, cls.getName().equals(ScanResult.class.getName() + "$SerializationFormat")
+            Arrays.sort(fields, cls.getName().equals(SERIALIZATION_FORMAT_CLASS_NAME)
                     // Special sort order for SerializationFormat class: put "format" field first
                     ? SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR
                     // Otherwise just sort by name so that order is deterministic
