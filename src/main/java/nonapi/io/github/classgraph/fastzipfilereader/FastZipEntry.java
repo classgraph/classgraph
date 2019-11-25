@@ -506,7 +506,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                         }
                         final long remainingToSkip = n - skipped;
                         final int remainingInBuf = currChunkByteBuf.remaining();
-                        final int numBytesToSkip = (int) Math.min(Integer.MAX_VALUE - 8,
+                        final int numBytesToSkip = (int) Math.min(FileUtils.MAX_BUFFER_SIZE,
                                 Math.min(remainingToSkip, remainingInBuf));
                         try {
                             currChunkByteBuf.position(currChunkByteBuf.position() + numBytesToSkip);
