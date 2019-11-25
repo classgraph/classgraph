@@ -298,7 +298,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
 
             /** A scratch buffer. */
-            private final byte[] scratch = new byte[64 * 1024];
+            private final byte[] scratch = new byte[8 * 1024];
 
             /** The current 2GB chunk of the zip entry. */
             private ByteBuffer currChunkByteBuf;
@@ -319,7 +319,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private final AtomicBoolean closed = new AtomicBoolean(false);
 
             /** The size of the {@link Inflate} buffer to use. */
-            private static final int INFLATE_BUF_SIZE = 1024 * 1024;
+            private static final int INFLATE_BUF_SIZE = 8 * 1024;
 
             // Open the first 2GB chunk.
             {
