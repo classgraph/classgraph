@@ -139,6 +139,9 @@ public class ClassLoaderHandlerRegistry {
          *            The ClassLoaderHandler class.
          */
         private ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
+            // TODO: replace these with MethodHandles for speed
+            // TODO: (although MethodHandles are disabled for now, due to Animal Sniffer bug):
+            // https://github.com/mojohaus/animal-sniffer/issues/67
             this.classLoaderHandlerClass = classLoaderHandlerClass;
             try {
                 canHandleMethod = classLoaderHandlerClass.getDeclaredMethod("canHandle", Class.class,

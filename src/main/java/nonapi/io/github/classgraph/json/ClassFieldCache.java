@@ -80,6 +80,8 @@ class ClassFieldCache {
 
     /** The default constructor for each concrete type. */
     // TODO: replace these with constructor MethodHandles for speed
+    // TODO: (although MethodHandles are disabled for now, due to Animal Sniffer bug):
+    // https://github.com/mojohaus/animal-sniffer/issues/67
     private final Map<Class<?>, Constructor<?>> defaultConstructorForConcreteType = new HashMap<>();
 
     /** The constructor with size hint for each concrete type. */
