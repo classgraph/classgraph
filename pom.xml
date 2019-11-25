@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -160,11 +163,6 @@
                 <version>3.0.0-M4</version>
             </plugin>
             <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>4.2.1</version>
-            </plugin>
-            <plugin>
                 <groupId>org.moditect</groupId>
                 <artifactId>moditect-maven-plugin</artifactId>
                 <version>1.0.0.Beta2</version>
@@ -243,7 +241,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <!-- Check against JDK 7 API -->
@@ -346,30 +345,6 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                 </plugin>
 
-                <!-- Create and bundle manifest file -->
-                <plugin>
-                    <groupId>org.apache.felix</groupId>
-                    <artifactId>maven-bundle-plugin</artifactId>
-                    <extensions>true</extensions>
-                    <configuration>
-                        <instructions>
-                            <Bundle-Category>Utilities</Bundle-Category>
-                            <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
-                            <Bundle-Description>${project.description}</Bundle-Description>
-                            <Bundle-Vendor>Luke Hutchison</Bundle-Vendor>
-                        </instructions>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <id>bundle-manifest</id>
-                            <phase>process-classes</phase>
-                            <goals>
-                                <goal>manifest</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-
                 <!-- Compile module-info.class using ModiTect, and place it in META-INF/versions/9 -->
                 <plugin>
                     <!-- In the future, rather than using ModiTect, could use two execute rules. -->
@@ -378,7 +353,7 @@
                     <artifactId>moditect-maven-plugin</artifactId>
                     <executions>
                         <execution>
-                            <id>add-module-infos</id>
+                            <id>add-module-info-execution</id>
                             <phase>package</phase>
                             <goals>
                                 <goal>add-module-info</goal>
@@ -393,6 +368,7 @@
                                     <!-- FileUtils requires jdk.unsupported (for usage of Unsafe) -->
                                     <!-- ModulePathInfo requires java.management -->
                                     <!-- LogNode requires java.logging -->
+                                    <!-- N.B. make sure the manifest "Import-Package" entries match these "requires" -->
                                     <moduleInfoSource>
                                         /** ${project.name}: ${project.description} ( ${project.url} )
                                         */
@@ -437,12 +413,27 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <configuration>
+                        <forceCreation>true</forceCreation>
                         <archive>
-                            <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+                            <forced>true</forced>
                             <manifest>
                                 <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                                 <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
                             </manifest>
+                            <manifestEntries>
+                                <Bundle-Category>Utilities</Bundle-Category>
+                                <Bundle-License>http://opensource.org/licenses/MIT</Bundle-License>
+                                <Bundle-ManifestVersion>2</Bundle-ManifestVersion>
+                                <Bundle-Name>ClassGraph</Bundle-Name>
+                                <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
+                                <Bundle-Vendor>Luke Hutchison</Bundle-Vendor>
+                                <Bundle-Description>${project.description}</Bundle-Description>
+                                <Bundle-Version>${project.version}</Bundle-Version>
+                                <Export-Package>io.github.classgraph;version="4.8.55"</Export-Package>
+                                <!-- N.B. make sure the module-info "requires" entries match these imports -->
+                                <Import-Package>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,jdk.internal.misc,sun.misc,sun.nio.ch</Import-Package>
+                                <Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=1.7))"</Require-Capability>
+                            </manifestEntries>
                         </archive>
                     </configuration>
                 </plugin>
