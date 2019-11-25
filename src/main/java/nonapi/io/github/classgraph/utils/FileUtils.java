@@ -345,28 +345,30 @@ public final class FileUtils {
         }
 
         // Handle "..", "." and empty path segments, if any were found
-        final boolean pathHasInitialSlash = !path.isEmpty() && path.charAt(0) == '/';
-        final StringBuilder pathSanitized = new StringBuilder();
+        final boolean pathHasInitialSlash = pathLen > 0 && pathChars[0] == '/';
+        final StringBuilder pathSanitized = new StringBuilder(pathLen + 16);
         if (foundSegmentToSanitize) {
             // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
-            final List<List<String>> allSectionSegments = new ArrayList<>();
-            List<String> currSectionSegments = new ArrayList<>();
+            final List<List<CharSequence>> allSectionSegments = new ArrayList<>();
+            List<CharSequence> currSectionSegments = new ArrayList<>();
             allSectionSegments.add(currSectionSegments);
             int lastSepIdx = -1;
             for (int i = 0; i < pathLen + 1; i++) {
                 final char c = i == pathLen ? '\0' : pathChars[i];
                 if (c == '/' || c == '!' || c == '\0') {
-                    final String segment = path.substring(lastSepIdx + 1, i);
-                    if (segment.equals(".") || segment.isEmpty()) {
-                        // Ignore "/./" or empty segment "//"
-                    } else if (segment.equals("..")) {
+                    final int segmentStartIdx = lastSepIdx + 1;
+                    final int segmentLen = i - segmentStartIdx;
+                    if (segmentLen == 0 || (segmentLen == 1 && pathChars[segmentStartIdx] == '.')) {
+                        // Ignore empty segment "//" or idempotent segment "/./"
+                    } else if (segmentLen == 2 && pathChars[segmentStartIdx] == '.'
+                            && pathChars[segmentStartIdx + 1] == '.') {
                         // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
                         if (!currSectionSegments.isEmpty()) {
                             currSectionSegments.remove(currSectionSegments.size() - 1);
                         }
                     } else {
                         // Encountered normal path segment
-                        currSectionSegments.add(segment);
+                        currSectionSegments.add(path.subSequence(segmentStartIdx, segmentStartIdx + segmentLen));
                     }
                     if (c == '!' && !currSectionSegments.isEmpty()) {
                         // Begin new section
@@ -377,13 +379,13 @@ public final class FileUtils {
                 }
             }
             // Turn sections and segments back into path string
-            for (final List<String> sectionSegments : allSectionSegments) {
+            for (final List<CharSequence> sectionSegments : allSectionSegments) {
                 if (!sectionSegments.isEmpty()) {
                     // Delineate segments with "!"
                     if (pathSanitized.length() > 0) {
                         pathSanitized.append('!');
                     }
-                    for (final String sectionSegment : sectionSegments) {
+                    for (final CharSequence sectionSegment : sectionSegments) {
                         pathSanitized.append('/');
                         pathSanitized.append(sectionSegment);
                     }
