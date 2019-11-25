@@ -461,8 +461,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // Index Resource objects by path
             final ResourceList whitelistedResourcesList = new ResourceList();
             for (final ClasspathElement classpathElt : classpathOrder) {
-                if (classpathElt.whitelistedResources != null) {
-                    whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
+                if (classpathElt.pathToWhitelistedResource != null) {
+                    for (final Resource res : classpathElt.pathToWhitelistedResource.values()) {
+                        whitelistedResourcesList.add(res);
+                    }
                 }
             }
             // Set atomically for thread safety
@@ -507,20 +509,35 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllResources();
-        if (allWhitelistedResources.isEmpty()) {
-            return ResourceList.EMPTY_LIST;
+        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
+        if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
+            // If numerous calls are made, produce and cache a single HashMap for O(1) access time
+            return getAllResourcesAsMap().get(path);
         } else {
-            final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
-            ResourceList resourceList;
-            if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
-                // If numerous calls are made, produce and cache a HashMap for O(1) access time
-                resourceList = getAllResourcesAsMap().get(path);
-            } else {
-                // If just a few calls are made, use O(N) search through list
-                resourceList = allWhitelistedResources.get(path);
+            // If just a few calls are made, directly search for resource with the requested path
+            boolean resourceFound = false;
+            for (final ClasspathElement classpathElt : classpathOrder) {
+                if (classpathElt.pathToWhitelistedResource != null) {
+                    if (classpathElt.pathToWhitelistedResource.containsKey(path)) {
+                        resourceFound = true;
+                        break;
+                    }
+                }
             }
-            return (resourceList == null ? new ResourceList(1) : resourceList);
+            if (resourceFound) {
+                final ResourceList matchingResources = new ResourceList(2);
+                for (final ClasspathElement classpathElt : classpathOrder) {
+                    if (classpathElt.pathToWhitelistedResource != null) {
+                        final Resource res = classpathElt.pathToWhitelistedResource.get(path);
+                        if (res != null) {
+                            matchingResources.add(res);
+                        }
+                    }
+                }
+                return matchingResources;
+            } else {
+                return ResourceList.EMPTY_LIST;
+            }
         }
     }
 

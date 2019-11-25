@@ -81,8 +81,11 @@ abstract class ClasspathElement {
      */
     List<ClasspathElement> childClasspathElementsOrdered;
 
-    /** The list of all resources found within this classpath element that were whitelisted and not blacklisted. */
-    protected final Collection<Resource> whitelistedResources = new ConcurrentLinkedQueue<>();
+    /**
+     * A map from path to {@link Resource} for resources found within this classpath element that were whitelisted
+     * and not blacklisted.
+     */
+    protected final Map<String, Resource> pathToWhitelistedResource = new ConcurrentHashMap<>();
 
     /** The list of all classfiles found within this classpath element that were whitelisted and not blacklisted. */
     protected Collection<Resource> whitelistedClassfileResources = new ConcurrentLinkedQueue<>();
@@ -259,8 +262,8 @@ abstract class ClasspathElement {
         }
 
         if (!isClassfileOnly) {
-            // Add resource to whitelistedResources, whether for a classfile or non-classfile resource
-            whitelistedResources.add(resource);
+            // Put resource into pathToWhitelistedResource map, whether for a classfile or non-classfile resource
+            pathToWhitelistedResource.put(resource.getPath(), resource);
         }
 
         // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not
@@ -300,10 +303,10 @@ abstract class ClasspathElement {
      */
     protected void finishScanPaths(final LogNode log) {
         if (log != null) {
-            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
+            if (pathToWhitelistedResource.isEmpty() && whitelistedClassfileResources.isEmpty()) {
                 log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles or resources found"
                         : "Classfile scanning is disabled, and no whitelisted resources found");
-            } else if (whitelistedResources.isEmpty()) {
+            } else if (pathToWhitelistedResource.isEmpty()) {
                 log.log("No whitelisted resources found");
             } else if (whitelistedClassfileResources.isEmpty()) {
                 log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles found"
