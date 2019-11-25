@@ -319,7 +319,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private final AtomicBoolean closed = new AtomicBoolean(false);
 
             /** The size of the {@link Inflate} buffer to use. */
-            private static final int INFLATE_BUF_SIZE = 1024;
+            private static final int INFLATE_BUF_SIZE = 1024 * 1024;
 
             // Open the first 2GB chunk.
             {
