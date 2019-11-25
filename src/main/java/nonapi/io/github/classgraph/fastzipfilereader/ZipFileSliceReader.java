@@ -158,9 +158,6 @@ class ZipFileSliceReader implements AutoCloseable {
             throw new IndexOutOfBoundsException();
         }
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > arr.length - len) {
-            throw new IndexOutOfBoundsException();
-        }
         return Arrays.copyOfRange(arr, ioff, ioff + len);
     }
 
@@ -204,9 +201,6 @@ class ZipFileSliceReader implements AutoCloseable {
             throw new IndexOutOfBoundsException();
         }
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > arr.length - 1) {
-            throw new IndexOutOfBoundsException();
-        }
         return (byte) (arr[ioff] & 0xff);
     }
 
@@ -247,9 +241,6 @@ class ZipFileSliceReader implements AutoCloseable {
             throw new IndexOutOfBoundsException();
         }
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > arr.length - 2) {
-            throw new IndexOutOfBoundsException();
-        }
         return ((arr[ioff + 1] & 0xff) << 8) | (arr[ioff] & 0xff);
     }
 
@@ -290,9 +281,6 @@ class ZipFileSliceReader implements AutoCloseable {
             throw new IndexOutOfBoundsException();
         }
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > arr.length - 4) {
-            throw new IndexOutOfBoundsException();
-        }
         return ((arr[ioff + 3] & 0xff) << 24) //
                 | ((arr[ioff + 2] & 0xff) << 16) //
                 | ((arr[ioff + 1] & 0xff) << 8) //
@@ -339,9 +327,6 @@ class ZipFileSliceReader implements AutoCloseable {
             throw new IndexOutOfBoundsException();
         }
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > arr.length - 8) {
-            throw new IndexOutOfBoundsException();
-        }
         return ((arr[ioff + 7] & 0xffL) << 56) //
                 | ((arr[ioff + 6] & 0xffL) << 48) //
                 | ((arr[ioff + 5] & 0xffL) << 40) //
@@ -398,9 +383,6 @@ class ZipFileSliceReader implements AutoCloseable {
             throw new IndexOutOfBoundsException();
         }
         final int ioff = (int) off;
-        if (ioff < 0 || ioff > arr.length - lenBytes) {
-            throw new IndexOutOfBoundsException();
-        }
         return new String(arr, ioff, lenBytes, StandardCharsets.UTF_8);
     }
 
