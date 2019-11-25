@@ -298,7 +298,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
 
             /** A scratch buffer. */
-            private final byte[] scratch = new byte[8192];
+            private final byte[] scratch = new byte[64 * 1024];
 
             /** The current 2GB chunk of the zip entry. */
             private ByteBuffer currChunkByteBuf;
@@ -482,12 +482,43 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                     try {
                         currChunkByteBuf.get(buf, off + read, numBytesRead);
                     } catch (final BufferUnderflowException e) {
-                        // Should not happen
                         throw new EOFException("Unexpected EOF in stored (non-deflated) zip entry data");
                     }
                     read += numBytesRead;
                 }
                 return read;
+            }
+
+            /**
+             * Skip stored (non-deflated) data in ByteBuffer.
+             *
+             * @param n
+             *            the number of bytes to skip.
+             * @throws IOException
+             *             if an I/O exception occurred or the thread was interrupted.
+             */
+            private void skipStored(final long n) throws IOException {
+                try {
+                    long skipped = 0;
+                    while (skipped < n) {
+                        if (!currChunkByteBuf.hasRemaining() && !readNextChunk()) {
+                            throw new EOFException("Unexpected EOF while skipping (non-deflated) zip entry data");
+                        }
+                        final long remainingToSkip = n - skipped;
+                        final int remainingInBuf = currChunkByteBuf.remaining();
+                        final int numBytesToSkip = (int) Math.min(Integer.MAX_VALUE - 8,
+                                Math.min(remainingToSkip, remainingInBuf));
+                        try {
+                            currChunkByteBuf.position(currChunkByteBuf.position() + numBytesToSkip);
+                        } catch (final BufferUnderflowException e) {
+                            throw new EOFException("Unexpected EOF in stored (non-deflated) zip entry data");
+                        }
+                        skipped += numBytesToSkip;
+                    }
+                } catch (final InterruptedException e) {
+                    nestedJarHandler.interruptionChecker.interrupt();
+                    throw new IOException("Thread was interrupted");
+                }
             }
 
             @Override
@@ -543,16 +574,21 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 if (n < 0) {
                     throw new IllegalArgumentException("Invalid skip value");
                 }
-                long total = 0;
-                while (total < n) {
-                    final int numSkipped = read(scratch, 0, (int) Math.min(n - total, scratch.length));
-                    if (numSkipped == -1) {
-                        eof = true;
-                        break;
+                if (isDeflated) {
+                    long total = 0;
+                    while (total < n) {
+                        final int bytesToSkip = (int) Math.min(n - total, scratch.length);
+                        final int numSkipped = read(scratch, 0, bytesToSkip);
+                        if (numSkipped == -1) {
+                            eof = true;
+                            break;
+                        }
+                        total += numSkipped;
                     }
-                    total += numSkipped;
+                } else {
+                    skipStored(n);
                 }
-                return total;
+                return n;
             }
 
             @Override
