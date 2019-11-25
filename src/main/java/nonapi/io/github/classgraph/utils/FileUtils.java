@@ -319,20 +319,23 @@ public final class FileUtils {
 
         // Find all '/' and '!' character positions, which split a path into segments 
         boolean foundSegmentToSanitize = false;
+        final int pathLen = path.length();
+        final char[] pathChars = new char[pathLen];
+        path.getChars(0, pathLen, pathChars, 0);
         {
             int lastSepIdx = -1;
             char prevC = '\0';
-            for (int i = 0; i < path.length() + 1; i++) {
-                final char c = i == path.length() ? '\0' : path.charAt(i);
+            for (int i = 0, ii = pathLen + 1; i < ii; i++) {
+                final char c = i == pathLen ? '\0' : pathChars[i];
                 if (c == '/' || c == '!' || c == '\0') {
                     final int segmentLength = i - (lastSepIdx + 1);
                     if (
                     // Found empty segment "//" or "!!"
                     (segmentLength == 0 && prevC == c)
                             // Found segment "."
-                            || (segmentLength == 1 && path.charAt(i - 1) == '.')
+                            || (segmentLength == 1 && pathChars[i - 1] == '.')
                             // Found segment ".."
-                            || (segmentLength == 2 && path.charAt(i - 2) == '.' && path.charAt(i - 1) == '.')) {
+                            || (segmentLength == 2 && pathChars[i - 2] == '.' && pathChars[i - 1] == '.')) {
                         foundSegmentToSanitize = true;
                     }
                     lastSepIdx = i;
@@ -349,8 +352,8 @@ public final class FileUtils {
             List<String> currSectionSegments = new ArrayList<>();
             allSectionSegments.add(currSectionSegments);
             int lastSepIdx = -1;
-            for (int i = 0; i < path.length() + 1; i++) {
-                final char c = i == path.length() ? '\0' : path.charAt(i);
+            for (int i = 0; i < pathLen + 1; i++) {
+                final char c = i == pathLen ? '\0' : pathChars[i];
                 if (c == '/' || c == '!' || c == '\0') {
                     final String segment = path.substring(lastSepIdx + 1, i);
                     if (segment.equals(".") || segment.isEmpty()) {
