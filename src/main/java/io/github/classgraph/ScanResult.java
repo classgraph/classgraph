@@ -46,6 +46,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,6 +72,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     /** A list of all files that were found in whitelisted packages. */
     private ResourceList allWhitelistedResourcesCached;
+
+    /** The number of times {@link #getResourcesWithPath(String)} has been called. */
+    private final AtomicInteger getResourcesWithPathCallCount = new AtomicInteger();
 
     /**
      * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
@@ -508,7 +512,14 @@ public final class ScanResult implements Closeable, AutoCloseable {
             return ResourceList.EMPTY_LIST;
         } else {
             final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
-            final ResourceList resourceList = allWhitelistedResources.get(path);
+            ResourceList resourceList;
+            if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
+                // If numerous calls are made, produce and cache a HashMap for O(1) access time
+                resourceList = getAllResourcesAsMap().get(path);
+            } else {
+                // If just a few calls are made, use O(N) search through list
+                resourceList = allWhitelistedResources.get(path);
+            }
             return (resourceList == null ? new ResourceList(1) : resourceList);
         }
     }
