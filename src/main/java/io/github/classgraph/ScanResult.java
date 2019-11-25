@@ -508,7 +508,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             return ResourceList.EMPTY_LIST;
         } else {
             final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
-            final ResourceList resourceList = getAllResourcesAsMap().get(path);
+            final ResourceList resourceList = allWhitelistedResources.get(path);
             return (resourceList == null ? new ResourceList(1) : resourceList);
         }
     }
