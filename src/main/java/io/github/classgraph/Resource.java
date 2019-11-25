@@ -111,7 +111,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * @param posixFilePermissions
      *            The POSIX file permissions, or null if unknown.
      */
-    public Resource(final ClasspathElement classpathElement, final long length, final long lastModified,
+    Resource(final ClasspathElement classpathElement, final long length, final long lastModified,
             final Set<PosixFilePermission> posixFilePermissions) {
         this.classpathElement = classpathElement;
         this.length = length;
