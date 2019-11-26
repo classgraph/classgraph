@@ -126,10 +126,11 @@
 
         <!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
 
-        <!-- Needed for Eclipse nullability analysis to work, but use "provided" as the scope so that we don't add a 
-            hard dependency on the JDT annotations, because we don't use the annotations in any of the ClassGraph code, so these 
-            annotations are not needed at runtime. https://bugs.eclipse.org/bugs/show_bug.cgi?id=552198 -->
         <dependency>
+            <!-- Needed for Eclipse nullability analysis to work, but use "provided" as the scope so that we -->
+            <!-- don't add a hard dependency on the JDT annotations, because we don't use the annotations in -->
+            <!-- any of the ClassGraph code, so these annotations are not needed at runtime. -->
+            <!-- See: https://bugs.eclipse.org/bugs/show_bug.cgi?id=552198 -->
             <groupId>org.eclipse.jdt</groupId>
             <artifactId>org.eclipse.jdt.annotation</artifactId>
             <version>2.2.300</version>
@@ -174,6 +175,11 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>1.8</version><!--$NO-MVN-MAN-VER$-->
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>3.2.0</version>
             </plugin>
@@ -195,7 +201,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <!-- <version>2.5.3</version> -->
+                <version>2.5.3</version><!--$NO-MVN-MAN-VER$-->
             </plugin>
         </plugins>
 
@@ -263,7 +269,7 @@
                                 <goal>copy-resources</goal>
                             </goals>
                             <configuration>
-                                <outputDirectory>${basedir}/target/classes</outputDirectory>
+                                <outputDirectory>${project.build.outputDirectory}</outputDirectory>
                                 <resources>
                                     <resource>
                                         <directory>${basedir}</directory>
@@ -282,7 +288,7 @@
                                 <goal>copy-resources</goal>
                             </goals>
                             <configuration>
-                                <outputDirectory>${basedir}/target/apidocs</outputDirectory>
+                                <outputDirectory>${project.build.directory}/apidocs</outputDirectory>
                                 <resources>
                                     <resource>
                                         <directory>${basedir}</directory>
@@ -294,25 +300,37 @@
                                 </resources>
                             </configuration>
                         </execution>
-                        <!-- Put module-info.class in META-INF/versions/9 to maximize backwards compatibility -->
-                        <!-- See: https://github.com/moditect/moditect/issues/67 -->
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <!-- Put module-info.class in META-INF/versions/9 to maximize backwards compatibility. -->
+                    <!-- This has to be done after the jar is created, since module-info.class cannot be -->
+                    <!-- copied to the target directory, otherwise this build or the following incremental -->
+                    <!-- build will cause Animal Sniffer to fail, since it depends upon ASM 5, which balks -->
+                    <!-- when it hits module-info.class with: "Execution check-signatures of goal -->
+                    <!-- org.apache.maven.plugins:maven-enforcer-plugin:3.0.0-M3:enforce failed: -->
+                    <!-- This feature requires ASM6". -->
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-antrun-plugin</artifactId>
+                    <executions>
                         <execution>
-                            <id>copy-module-info</id>
+                            <id>add-module-info-to-jar</id>
                             <phase>package</phase>
                             <goals>
-                                <goal>copy-resources</goal>
+                                <goal>run</goal>
                             </goals>
                             <configuration>
-                                <outputDirectory>${basedir}/target/classes/META-INF/versions/9</outputDirectory>
-                                <resources>
-                                    <resource>
-                                        <directory>${project.basedir}/src/module-info/io.github.classgraph</directory>
-                                        <filtering>false</filtering>
-                                        <includes>
-                                            <include>module-info.class</include>
-                                        </includes>
-                                    </resource>
-                                </resources>
+                                <target>
+                                    <jar
+                                        update="true"
+                                        destfile="${project.build.directory}/${project.build.finalName}.jar">
+                                        <zipfileset
+                                            prefix="META-INF/versions/9"
+                                            dir="${project.basedir}/src/module-info/io.github.classgraph"
+                                            includes="module-info.class" />
+                                    </jar>
+                                </target>
                             </configuration>
                         </execution>
                     </executions>
