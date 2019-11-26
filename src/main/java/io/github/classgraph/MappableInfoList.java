@@ -111,10 +111,8 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     @SuppressWarnings("null")
     public T get(final String name) {
         for (final T i : this) {
-            if (i != null) {
-                if (i.getName().equals(name)) {
-                    return i;
-                }
+            if (i != null && i.getName().equals(name)) {
+                return i;
             }
         }
         return null;
