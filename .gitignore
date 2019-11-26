@@ -1,8 +1,12 @@
+!.gitignore
+
 pom.xml.releaseBackup
 release.properties
 
 *.class
 !CompiledWithJDK8.class
+!module-info.class
+
 /target/
 bin/
 tmp/
