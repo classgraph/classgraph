@@ -59,6 +59,14 @@ public final class JSONUtils {
 
     /** JSON character-to-string escaping replacements -- see http://www.json.org/ under "string". */
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
+
+    //    private static MethodHandle canAccessMethodHandle = null;
+    //    private static Method canAccessMethod = null;
+    private static MethodHandle isAccessibleMethodHandle = null;
+    private static Method isAccessibleMethod = null;
+    private static MethodHandle trySetAccessibleMethodHandle = null;
+    private static Method trySetAccessibleMethod = null;
+
     static {
         for (int c = 0; c < 256; c++) {
             if (c == 32) {
@@ -77,6 +85,46 @@ public final class JSONUtils {
         JSON_CHAR_REPLACEMENTS['\t'] = "\\t";
         JSON_CHAR_REPLACEMENTS['\b'] = "\\b";
         JSON_CHAR_REPLACEMENTS['\f'] = "\\f";
+
+        final Lookup lookup = MethodHandles.lookup();
+        //        try {
+        //            // JDK 9+: use AccessibleObject::canAccess(instance)
+        //            canAccessMethodHandle = lookup.findVirtual(AccessibleObject.class, "canAccess",
+        //                    MethodType.methodType(boolean.class, Object.class));
+        //        } catch (NoSuchMethodException | IllegalAccessException e) {
+        //            // Ignore
+        //        }
+        //        try {
+        //            canAccessMethod = AccessibleObject.class.getDeclaredMethod("canAccess");
+        //        } catch (NoSuchMethodException | SecurityException e1) {
+        //            // Ignore
+        //        }
+        try {
+            // JDK 7/8: use AccessibleObject::isAccessible()
+            isAccessibleMethodHandle = lookup.findVirtual(AccessibleObject.class, "isAccessible",
+                    MethodType.methodType(boolean.class));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            // Ignore
+        }
+
+        try {
+            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible", Object.class);
+        } catch (NoSuchMethodException | SecurityException e1) {
+            // Ignore
+        }
+        try {
+            // JDK 9+: use AccessibleObject::trySetAccessible() rather than
+            // AccessibleObject::setAccessible(true)
+            trySetAccessibleMethodHandle = lookup.findVirtual(AccessibleObject.class, "trySetAccessible",
+                    MethodType.methodType(boolean.class));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            // Ignore
+        }
+        try {
+            trySetAccessibleMethod = AccessibleObject.class.getDeclaredMethod("trySetAccessible");
+        } catch (NoSuchMethodException | SecurityException e1) {
+            // Ignore
+        }
     }
 
     /** Lookup table for fast indenting. */
@@ -309,54 +357,6 @@ public final class JSONUtils {
             return (Class<?>) ((ParameterizedType) type).getRawType();
         } else {
             throw new IllegalArgumentException("Illegal type: " + type);
-        }
-    }
-
-    //    private static MethodHandle canAccessMethodHandle = null;
-    //    private static Method canAccessMethod = null;
-    private static MethodHandle isAccessibleMethodHandle = null;
-    private static Method isAccessibleMethod = null;
-    private static MethodHandle trySetAccessibleMethodHandle = null;
-    private static Method trySetAccessibleMethod = null;
-    static {
-        final Lookup lookup = MethodHandles.lookup();
-        //        try {
-        //            // JDK 9+: use AccessibleObject::canAccess(instance)
-        //            canAccessMethodHandle = lookup.findVirtual(AccessibleObject.class, "canAccess",
-        //                    MethodType.methodType(boolean.class, Object.class));
-        //        } catch (NoSuchMethodException | IllegalAccessException e) {
-        //            // Ignore
-        //        }
-        //        try {
-        //            canAccessMethod = AccessibleObject.class.getDeclaredMethod("canAccess");
-        //        } catch (NoSuchMethodException | SecurityException e1) {
-        //            // Ignore
-        //        }
-        try {
-            // JDK 7/8: use AccessibleObject::isAccessible()
-            isAccessibleMethodHandle = lookup.findVirtual(AccessibleObject.class, "isAccessible",
-                    MethodType.methodType(boolean.class));
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            // Ignore
-        }
-
-        try {
-            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible", Object.class);
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
-        try {
-            // JDK 9+: use AccessibleObject::trySetAccessible() rather than
-            // AccessibleObject::setAccessible(true)
-            trySetAccessibleMethodHandle = lookup.findVirtual(AccessibleObject.class, "trySetAccessible",
-                    MethodType.methodType(boolean.class));
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            // Ignore
-        }
-        try {
-            trySetAccessibleMethod = AccessibleObject.class.getDeclaredMethod("trySetAccessible");
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
         }
     }
 
