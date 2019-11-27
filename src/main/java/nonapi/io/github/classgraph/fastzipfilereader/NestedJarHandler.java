@@ -28,21 +28,31 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -240,7 +250,9 @@ public class NestedJarHandler {
                             // Jarfile is at an http:// or https:// URL
                             if (scanSpec.enableRemoteJarScanning) {
                                 // Download jar to a temp file, or if not possible, to a ByteBuffer in RAM
-                                physicalZipFile = downloadJarFromURL(nestedJarPath, log);
+                                final LogNode subLog = log == null ? null
+                                        : log.log("Downloading jar from URL " + nestedJarPath);
+                                physicalZipFile = downloadJarFromURL(nestedJarPath, subLog);
                             } else {
                                 throw new IOException(
                                         "Remote jar scanning has not been enabled, cannot scan classpath element: "
@@ -419,6 +431,14 @@ public class NestedJarHandler {
         }
     };
 
+    /** {@link MappedByteBuffer} instances that are currently mapped. */
+    private final Set<MappedByteBuffer> mappedByteBuffers = Collections
+            .newSetFromMap(new ConcurrentHashMap<MappedByteBuffer, Boolean>());
+
+    /** {@link MappedByteBufferResources} instances that were allocated for downloading jars from URLs. */
+    private final Set<MappedByteBufferResources> mappedByteBufferResources = Collections
+            .newSetFromMap(new ConcurrentHashMap<MappedByteBufferResources, Boolean>());
+
     /** Any temporary files created while scanning. */
     private ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
 
@@ -426,10 +446,16 @@ public class NestedJarHandler {
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
     /**
-     * The threshold uncompressed size at which nested deflated jars are inflated to a temporary file on disk,
+     * The maximum size of a jar that is downloaded from a {@link URL}'s {@link InputStream} to RAM, before the
+     * content is spilled over to a temporary file on disk.
+     */
+    private static final int MAX_JAR_RAM_SIZE = 64 * 1024 * 1024;
+
+    /**
+     * The maximum uncompressed size above which nested deflated jars are inflated to a temporary file on disk,
      * rather than to RAM.
      */
-    private static final int INFLATE_TO_DISK_THRESHOLD = 32 * 1024 * 1024;
+    private static final int INFLATE_TO_DISK_THRESHOLD = MAX_JAR_RAM_SIZE;
 
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -479,6 +505,220 @@ public class NestedJarHandler {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Resources for a mapped file. */
+    public static class MappedByteBufferResources {
+        private File file;
+        private RandomAccessFile raf;
+        private FileChannel fileChannel;
+        private ByteBuffer byteBuffer;
+        private boolean byteBufferIsMapped;
+        private NestedJarHandler nestedJarHandler;
+
+        /**
+         * Map a {@link ByteBuffer} from a {@link File}.
+         *
+         * @param file
+         *            the file
+         * @param nestedJarHandler
+         *            the nested jar handler
+         * @throws IOException
+         *             On I/O exception.
+         */
+        public MappedByteBufferResources(final File file, final NestedJarHandler nestedJarHandler)
+                throws IOException {
+            this.file = file;
+            this.nestedJarHandler = nestedJarHandler;
+            if (byteBuffer != null) {
+                throw new IllegalArgumentException("Already open");
+            }
+            try {
+                raf = new RandomAccessFile(file, "r");
+                fileChannel = raf.getChannel();
+                byteBuffer = nestedJarHandler.mapFileChannelToByteBuffer(fileChannel, 0L, raf.length());
+                byteBufferIsMapped = true;
+
+            } catch (final IOException | SecurityException e) {
+                if (fileChannel != null) {
+                    fileChannel.close();
+                    fileChannel = null;
+                }
+                if (raf != null) {
+                    raf.close();
+                    raf = null;
+                }
+                throw e;
+            }
+        }
+
+        /**
+         * Wrap a {@link ByteBuffer} that does not need to be unmapped (for cases where a {@link URL} was fetched
+         * but it fit in RAM, so didn't need to spill over to disk).
+         * 
+         * @param byteBuffer
+         *            the byte buffer.
+         */
+        public MappedByteBufferResources(final ByteBuffer byteBuffer) {
+            this.byteBuffer = byteBuffer;
+            // Don't set fileChannel or raf, they are unneeded.
+            // byteBufferIsMapped will remain false.
+        }
+
+        /**
+         * Get the mapped file (or null if a {@link ByteBuffer} was wrapped instead).
+         *
+         * @return the mapped file
+         */
+        public File getFile() {
+            return file;
+        }
+
+        /**
+         * Get the byte buffer.
+         *
+         * @return the byte buffer
+         */
+        public ByteBuffer getByteBuffer() {
+            return byteBuffer;
+        }
+
+        /**
+         * Free resources.
+         *
+         * @param log
+         *            the log
+         */
+        public void close(final LogNode log) {
+            if (byteBufferIsMapped && byteBuffer != null) {
+                nestedJarHandler.unmapByteBuffer(byteBuffer, log);
+                byteBuffer = null;
+            }
+            if (fileChannel != null) {
+                try {
+                    fileChannel.close();
+                    fileChannel = null;
+                } catch (final IOException e) {
+                    // Ignore
+                }
+            }
+            if (raf != null) {
+                try {
+                    raf.close();
+                    raf = null;
+                } catch (final IOException e) {
+                    // Ignore
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Map a {@link FileChannel} to a {@link MappedByteBuffer}.
+     *
+     * @param fileChannel
+     *            the file channel
+     * @param position
+     *            the start position to map.
+     * @param size
+     *            the number of bytes to map.
+     * @return the {@link MappedByteBuffer}.
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
+    public MappedByteBuffer mapFileChannelToByteBuffer(final FileChannel fileChannel, final long position,
+            final long size) throws IOException {
+        MappedByteBuffer byteBuffer;
+        try {
+            // Try mapping the FileChannel
+            byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, position, size);
+        } catch (final FileNotFoundException e) {
+            throw e;
+        } catch (IOException | OutOfMemoryError e) {
+            // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
+            // (there is a limit to the number of mapped files -- 64k on Linux)
+            // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
+            System.gc();
+            System.runFinalization();
+            // Then try calling map again
+            byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, position, size);
+        }
+
+        // If succeeded, add the ByteBuffer to the set of opened ByteBuffers so it can be cleanly closed 
+        mappedByteBuffers.add(byteBuffer);
+        return byteBuffer;
+    }
+
+    /**
+     * Unmap a previously-mapped {@link ByteBuffer}.
+     *
+     * @param byteBuffer
+     *            the {@link ByteBuffer}.
+     * @param log
+     *            the log.
+     */
+    public void unmapByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
+        if (mappedByteBuffers.remove(byteBuffer)) {
+            FileUtils.closeDirectByteBuffer(byteBuffer, log);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
+     * size is exceeded.
+     *
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param maxRAMBufferSize
+     *            the max RAM to use before spilling over to a temp file on disk.
+     * @param sourceURL
+     *            the source URL that inputStream was opened from.
+     * @param log
+     *            the log
+     * @return The {@link MappedByteBufferResources} contaning the {@link ByteBuffer} obtained by fetching the
+     *         {@link InputStream}.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    private MappedByteBufferResources readAllBytesAsByteBufferWithSpilloverToDisk(final InputStream inputStream,
+            final int maxRAMBufferSize, final String sourceURL, final LogNode log) throws IOException {
+        if (maxRAMBufferSize > FileUtils.MAX_BUFFER_SIZE) {
+            throw new IOException("InputStream is too large to read");
+        }
+        final byte[] buf = new byte[maxRAMBufferSize];
+        final int bufLength = buf.length;
+
+        int totBytesRead = 0;
+        int bytesRead = 0;
+        while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
+            // Fill buffer until nothing more can be read
+            totBytesRead += bytesRead;
+        }
+        if (bytesRead < 0) {
+            // Successfully reached end of stream -- wrap array with ByteBuffer and return it
+            return new MappedByteBufferResources(ByteBuffer.wrap(buf, 0, totBytesRead));
+        } else {
+            // bytesRead == 0 => ran out of buffer space, spill over to disk
+            final File tempFile = makeTempFile(sourceURL, /* onlyUseLeafname = */ true);
+            if (log != null) {
+                log.log("Could not fit downloaded URL into max RAM buffer size of " + maxRAMBufferSize
+                        + " bytes, downloading to temporary file: " + sourceURL + " -> " + tempFile);
+            }
+            Files.write(tempFile.toPath(), buf, StandardOpenOption.WRITE);
+            try (OutputStream os = new BufferedOutputStream(new FileOutputStream(tempFile, /* append = */ true))) {
+                bytesRead = 0;
+                while ((bytesRead = inputStream.read(buf, 0, buf.length)) > 0) {
+                    os.write(buf, 0, bytesRead);
+                }
+            }
+            return new MappedByteBufferResources(tempFile, this);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Get the leafname of a path.
      *
@@ -513,7 +753,7 @@ public class NestedJarHandler {
      * @throws IOException
      *             If the temporary file could not be created.
      */
-    private File makeTempFile(final String filePath, final boolean onlyUseLeafname) throws IOException {
+    public File makeTempFile(final String filePath, final boolean onlyUseLeafname) throws IOException {
         final File tempFile = File.createTempFile("ClassGraph--",
                 TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(onlyUseLeafname ? leafname(filePath) : filePath));
         tempFile.deleteOnExit();
@@ -540,7 +780,6 @@ public class NestedJarHandler {
      */
     private PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
             throws IOException, InterruptedException {
-        final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading jar from URL " + jarURL);
         InputStream inputStream = null;
         try {
             URL url = null;
@@ -553,37 +792,32 @@ public class NestedJarHandler {
                     throw new IOException("Could not parse URL: " + jarURL);
                 }
             }
+
+            // Fetch the jar contents from the URL's InputStream.
+            // If it doesn't fit in RAM, spill over to disk.
             inputStream = url.openStream();
+            final MappedByteBufferResources bufResources = readAllBytesAsByteBufferWithSpilloverToDisk(inputStream,
+                    MAX_JAR_RAM_SIZE, jarURL, log);
+            mappedByteBufferResources.add(bufResources);
 
             PhysicalZipFile physicalZipFile = null;
-            try {
-                // Download jar from inputStream to a temporary file
-                final File tempFile = makeTempFile(jarURL, /* onlyUseLeafname = */ true);
-                Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                if (subLog != null) {
-                    subLog.log("Downloaded jar to temporary file " + tempFile);
-                }
+            final File tempFile = bufResources.getFile();
+            if (tempFile != null) {
+                // InputStream would not fit within the RAM limit, so spilled over to disk
                 // Wrap temp file in a PhysicalZipFile
                 physicalZipFile = canonicalFileToPhysicalZipFile(tempFile, log);
+                if (physicalZipFile == null) {
+                    // Should not happen
+                    throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
+                }
                 // Add temp file to queue of physical zipfiles that have to be unmapped on close
                 additionalAllocatedPhysicalZipFiles.add(physicalZipFile);
-            } catch (final SecurityException | UnsupportedOperationException | IOException e) {
-                // Temp file could not be written, so this is a read-only filesystem, or temp dir does not exist,
-                // or temp dir has run out of space. Download the jar to a ByteBuffer in RAM instead.
-                if (log != null) {
-                    log.log("Could not download jar to temp file (" + e + "), downloading to ByteBuffer instead");
-                }
-                // Read inputStream into a ByteBuffer
-                final ByteBuffer byteBuffer = FileUtils.readAllBytesAsByteBuffer(inputStream, -1L);
+            } else {
                 // Wrap ByteBuffer in a PhysicalZipFile. (No need to add to additionalAllocatedPhysicalZipFiles,
                 // since byteBuffer is not a DirectByteBuffer, it just wraps a standard Java byte array, so the
                 // DirectByteBuffer cleaner does not need to be called on close.)
-                physicalZipFile = new PhysicalZipFile(byteBuffer, /* outermostFile = */ null, jarURL,
-                        NestedJarHandler.this);
-            }
-            if (physicalZipFile == null) {
-                // Should not happen
-                throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
+                physicalZipFile = new PhysicalZipFile(bufResources.getByteBuffer(), /* outermostFile = */ null,
+                        jarURL, NestedJarHandler.this);
             }
             return physicalZipFile;
 
@@ -593,9 +827,9 @@ public class NestedJarHandler {
             if (inputStream != null) {
                 inputStream.close();
             }
-            if (subLog != null) {
-                subLog.addElapsedTime();
-                subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
+            if (log != null) {
+                log.addElapsedTime();
+                log.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
                         + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
                         + "and the same URL must also be separately opened by the ClassLoader *****");
             }
@@ -678,6 +912,16 @@ public class NestedJarHandler {
                 }
                 tempFiles.clear();
                 tempFiles = null;
+            }
+            if (mappedByteBufferResources != null) {
+                for (final MappedByteBufferResources bufRes : new ArrayList<>(mappedByteBufferResources)) {
+                    bufRes.close(log);
+                }
+            }
+            if (mappedByteBuffers != null) {
+                for (final ByteBuffer byteBuffer : new ArrayList<>(mappedByteBuffers)) {
+                    unmapByteBuffer(byteBuffer, log);
+                }
             }
         }
     }

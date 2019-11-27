@@ -505,7 +505,8 @@ class Scanner implements Callable<ScanResult> {
                         return isJar
                                 ? new ClasspathElementZip(canonicalPathNormalized, classLoader, nestedJarHandler,
                                         scanSpec)
-                                : new ClasspathElementDir(fileCanonicalized, classLoader, scanSpec);
+                                : new ClasspathElementDir(fileCanonicalized, classLoader, nestedJarHandler,
+                                        scanSpec);
                     }
                 }
             };

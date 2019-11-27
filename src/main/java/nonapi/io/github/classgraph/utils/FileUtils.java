@@ -181,12 +181,11 @@ public final class FileUtils {
                 // lengths do not become a memory allocation attack vector
                 : Math.min((int) fileSizeHint, MAX_INITIAL_BUFFER_SIZE);
         byte[] buf = new byte[bufferSize];
-
         int bufLength = buf.length;
         int totBytesRead = 0;
         for (int bytesRead;;) {
-            // Fill buffer -- may fill more or fewer bytes than buffer size
             while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
+                // Fill buffer until nothing more can be read
                 totBytesRead += bytesRead;
             }
             if (bytesRead < 0) {
@@ -214,18 +213,18 @@ public final class FileUtils {
      * 
      * @param inputStream
      *            The {@link InputStream}.
-     * @param fileSize
+     * @param fileSizeHint
      *            The file size, if known, otherwise -1L.
      * @return The contents of the {@link InputStream} as a byte array.
      * @throws IOException
      *             If the contents could not be read.
      */
-    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSize)
+    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSizeHint)
             throws IOException {
-        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSize);
+        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSizeHint);
         final byte[] buf = ent.getKey();
         final int bufBytesUsed = ent.getValue();
-        return (buf.length == bufBytesUsed) ? buf : Arrays.copyOf(buf, bufBytesUsed);
+        return bufBytesUsed == buf.length ? buf : Arrays.copyOf(buf, bufBytesUsed);
     }
 
     /**
@@ -241,7 +240,10 @@ public final class FileUtils {
      */
     public static ByteBuffer readAllBytesAsByteBuffer(final InputStream inputStream, final long fileSizeHint)
             throws IOException {
-        return ByteBuffer.wrap(readAllBytesAsArray(inputStream, fileSizeHint));
+        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSizeHint);
+        final byte[] buf = ent.getKey();
+        final int bufBytesUsed = ent.getValue();
+        return ByteBuffer.wrap(buf, 0, bufBytesUsed);
     }
 
     /**

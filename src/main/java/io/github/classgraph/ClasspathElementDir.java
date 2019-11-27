@@ -29,14 +29,10 @@
 package io.github.classgraph;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
@@ -49,6 +45,8 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler.MappedByteBufferResources;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -66,6 +64,9 @@ class ClasspathElementDir extends ClasspathElement {
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final Set<String> scannedCanonicalPaths = new HashSet<>();
 
+    /** The nested jar handler. */
+    private final NestedJarHandler nestedJarHandler;
+
     /**
      * A directory classpath element.
      *
@@ -73,13 +74,17 @@ class ClasspathElementDir extends ClasspathElement {
      *            the classpath element directory
      * @param classLoader
      *            the classloader
+     * @param nestedJarHandler
+     *            the nested jar handler
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementDir(final File classpathEltDir, final ClassLoader classLoader, final ScanSpec scanSpec) {
+    ClasspathElementDir(final File classpathEltDir, final ClassLoader classLoader,
+            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
         this.classpathEltDir = classpathEltDir;
         this.ignorePrefixLen = classpathEltDir.getPath().length() + 1;
+        this.nestedJarHandler = nestedJarHandler;
     }
 
     /* (non-Javadoc)
@@ -153,15 +158,15 @@ class ClasspathElementDir extends ClasspathElement {
      *            the relative path
      * @param classpathResourceFile
      *            the classpath resource file
+     * @param nestedJarHandler
+     *            the nested jar handler
      * @return the resource
      */
-    private Resource newResource(final String relativePath, final File classpathResourceFile) {
+    private Resource newResource(final String relativePath, final File classpathResourceFile,
+            final NestedJarHandler nestedJarHandler) {
         return new Resource(this, classpathResourceFile.length()) {
-            /** The random access file. */
-            private RandomAccessFile randomAccessFile;
-
-            /** The file channel. */
-            private FileChannel fileChannel;
+            /** The mapped file. */
+            private MappedByteBufferResources mappedFileResources;
 
             @Override
             public String getPath() {
@@ -200,23 +205,8 @@ class ClasspathElementDir extends ClasspathElement {
                 }
                 markAsOpen();
                 try {
-                    randomAccessFile = new RandomAccessFile(classpathResourceFile, "r");
-                    fileChannel = randomAccessFile.getChannel();
-                    MappedByteBuffer buffer = null;
-                    try {
-                        buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                    } catch (final FileNotFoundException e) {
-                        throw e;
-                    } catch (IOException | OutOfMemoryError e) {
-                        // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
-                        // (there is a limit to the number of mapped files -- 64k on Linux)
-                        // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                        System.gc();
-                        System.runFinalization();
-                        // Then try calling map again
-                        buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                    }
-                    byteBuffer = buffer;
+                    mappedFileResources = new MappedByteBufferResources(classpathResourceFile, nestedJarHandler);
+                    byteBuffer = mappedFileResources.getByteBuffer();
                     length = byteBuffer.remaining();
                     return byteBuffer;
                 } catch (final IOException | SecurityException | OutOfMemoryError e) {
@@ -273,25 +263,9 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public synchronized void close() {
                 super.close(); // Close inputStream
-                if (byteBuffer != null) {
-                    FileUtils.closeDirectByteBuffer(byteBuffer, /* log = */ null);
-                    byteBuffer = null;
-                }
-                if (fileChannel != null) {
-                    try {
-                        fileChannel.close();
-                    } catch (final IOException e) {
-                        // Ignore
-                    }
-                    fileChannel = null;
-                }
-                if (randomAccessFile != null) {
-                    try {
-                        randomAccessFile.close();
-                    } catch (final IOException e) {
-                        // Ignore
-                    }
-                    randomAccessFile = null;
+                if (mappedFileResources != null) {
+                    mappedFileResources.close(/* log = */ null);
+                    mappedFileResources = null;
                 }
                 markAsClosed();
             }
@@ -309,7 +283,8 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     Resource getResource(final String relativePath) {
         final File resourceFile = new File(classpathEltDir, relativePath);
-        return FileUtils.canReadAndIsFile(resourceFile) ? newResource(relativePath, resourceFile) : null;
+        return FileUtils.canReadAndIsFile(resourceFile) ? newResource(relativePath, resourceFile, nestedJarHandler)
+                : null;
     }
 
     /**
@@ -419,7 +394,7 @@ class ClasspathElementDir extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyWhitelisted(fileInDirRelativePath))) {
                         // Resource is whitelisted
-                        final Resource resource = newResource(fileInDirRelativePath, fileInDir);
+                        final Resource resource = newResource(fileInDirRelativePath, fileInDir, nestedJarHandler);
                         addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
 
                         // Save last modified time  
@@ -435,7 +410,7 @@ class ClasspathElementDir extends ClasspathElement {
             // Always check for module descriptor in package root, even if package root isn't in whitelist
             for (final File fileInDir : filesInDir) {
                 if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
-                    final Resource resource = newResource("module-info.class", fileInDir);
+                    final Resource resource = newResource("module-info.class", fileInDir, nestedJarHandler);
                     addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
                 }

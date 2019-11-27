@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -57,7 +56,7 @@ class PhysicalZipFile implements Closeable {
     private RandomAccessFile raf;
 
     /** The {@link FileChannel}. */
-    private FileChannel fc;
+    private FileChannel fileChannel;
 
     /** The file length. */
     final long fileLen;
@@ -105,15 +104,15 @@ class PhysicalZipFile implements Closeable {
             if (fileLen == 0L) {
                 throw new IOException("Zipfile is empty: " + file);
             }
-            fc = raf.getChannel();
+            fileChannel = raf.getChannel();
         } catch (final IOException | SecurityException e) {
+            if (fileChannel != null) {
+                fileChannel.close();
+                fileChannel = null;
+            }
             if (raf != null) {
                 raf.close();
                 raf = null;
-            }
-            if (fc != null) {
-                fc.close();
-                fc = null;
             }
             throw e;
         }
@@ -128,21 +127,7 @@ class PhysicalZipFile implements Closeable {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer
                 final long pos = chunkIdxI.longValue() * FileUtils.MAX_BUFFER_SIZE;
                 final long chunkSize = Math.min(FileUtils.MAX_BUFFER_SIZE, fileLen - pos);
-                MappedByteBuffer buffer = null;
-                try {
-                    buffer = fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                } catch (final FileNotFoundException e) {
-                    throw e;
-                } catch (IOException | OutOfMemoryError e) {
-                    // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
-                    // (there is a limit to the number of mapped files -- 64k on Linux)
-                    // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                    System.gc();
-                    System.runFinalization();
-                    // Then try calling map again
-                    buffer = fc.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                }
-                return buffer;
+                return nestedJarHandler.mapFileChannelToByteBuffer(fileChannel, pos, chunkSize);
             }
         };
     }
@@ -260,10 +245,23 @@ class PhysicalZipFile implements Closeable {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
-            if (fc != null) {
+            if (chunkIdxToByteBuffer != null) {
+                chunkIdxToByteBuffer.clear();
+                chunkIdxToByteBuffer = null;
+            }
+            if (mappedByteBuffersCached != null) {
+                for (int i = 0; i < mappedByteBuffersCached.length; i++) {
+                    if (mappedByteBuffersCached[i] != null) {
+                        nestedJarHandler.unmapByteBuffer(mappedByteBuffersCached[i], /* log = */ null);
+                        mappedByteBuffersCached[i] = null;
+                    }
+                }
+                mappedByteBuffersCached = null;
+            }
+            if (fileChannel != null) {
                 try {
-                    fc.close();
-                    fc = null;
+                    fileChannel.close();
+                    fileChannel = null;
                 } catch (final IOException e) {
                     // Ignore
                 }
@@ -275,19 +273,6 @@ class PhysicalZipFile implements Closeable {
                 } catch (final IOException e) {
                     // Ignore
                 }
-            }
-            if (chunkIdxToByteBuffer != null) {
-                chunkIdxToByteBuffer.clear();
-                chunkIdxToByteBuffer = null;
-            }
-            if (mappedByteBuffersCached != null) {
-                for (int i = 0; i < mappedByteBuffersCached.length; i++) {
-                    if (mappedByteBuffersCached[i] != null) {
-                        FileUtils.closeDirectByteBuffer(mappedByteBuffersCached[i], /* log = */ null);
-                        mappedByteBuffersCached[i] = null;
-                    }
-                }
-                mappedByteBuffersCached = null;
             }
             nestedJarHandler = null;
         }
