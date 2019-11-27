@@ -23,4 +23,4 @@ jobs:
     - name: print Java version
       run: java -version
     - name: Build with Maven
-      run: ./mvnw clean package --file pom.xml
+      run: ./mvnw clean test package --file pom.xml
