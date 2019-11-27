@@ -33,6 +33,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -57,6 +59,7 @@ import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Open and read jarfiles, which may be nested within other jarfiles. */
@@ -228,12 +231,12 @@ public class NestedJarHandler {
                         // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
                         // This is also the last frame of recursion for the 'else' clause below.
 
-                        // If the path starts with "http://" or "https://", download the jar to a temp file
-                        // or to a ByteBuffer in RAM
-                        final boolean isRemote = nestedJarPath.startsWith("http://")
-                                || nestedJarPath.startsWith("https://");
+                        // If the path starts with "http://" or "https://" or any other URI/URL scheme,
+                        // download the jar to a temp file or to a ByteBuffer in RAM. ("jar:" and "file:"
+                        // have already been stripped from any URL/URI.)
+                        final boolean isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
                         PhysicalZipFile physicalZipFile;
-                        if (isRemote) {
+                        if (isURL) {
                             // Jarfile is at an http:// or https:// URL
                             if (scanSpec.enableRemoteJarScanning) {
                                 // Download jar to a temp file, or if not possible, to a ByteBuffer in RAM
@@ -538,13 +541,20 @@ public class NestedJarHandler {
     private PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
             throws IOException, InterruptedException {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading jar from URL " + jarURL);
-        final URL url;
+        InputStream inputStream = null;
         try {
-            url = new URL(jarURL);
-        } catch (final MalformedURLException e) {
-            throw new IOException("Malformed URL: " + jarURL);
-        }
-        try (final InputStream inputStream = url.openStream()) {
+            URL url = null;
+            try {
+                url = new URL(jarURL);
+            } catch (final MalformedURLException e1) {
+                try {
+                    url = new URI(jarURL).toURL();
+                } catch (final URISyntaxException e2) {
+                    throw new IOException("Could not parse URL: " + jarURL);
+                }
+            }
+            inputStream = url.openStream();
+
             PhysicalZipFile physicalZipFile = null;
             try {
                 // Download jar from inputStream to a temporary file
@@ -576,12 +586,18 @@ public class NestedJarHandler {
                 throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
             }
             return physicalZipFile;
+
+        } catch (final MalformedURLException e) {
+            throw new IOException("Malformed URL: " + jarURL);
         } finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
             if (subLog != null) {
                 subLog.addElapsedTime();
-                subLog.log("***** Note that it is time-consuming to scan jars at http(s) addresses, "
-                        + "they must be downloaded for every scan, and the same jars must also be "
-                        + "separately downloaded by the ClassLoader *****");
+                subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
+                        + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
+                        + "and the same URL must also be separately opened by the ClassLoader *****");
             }
         }
     }

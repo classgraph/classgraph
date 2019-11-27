@@ -43,6 +43,8 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
  * Jarfile utilities.
  */
 public final class JarUtils {
+    /** Check if a path has a URL scheme at the beginning. */
+    public static final Pattern URL_SCHEME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+-.]*[:].*");
 
     /** The Constant DASH_VERSION. */
     private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");

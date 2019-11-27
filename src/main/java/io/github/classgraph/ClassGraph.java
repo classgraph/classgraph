@@ -407,7 +407,12 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final String overrideClasspath) {
-        scanSpec.overrideClasspath(overrideClasspath);
+        if (overrideClasspath.isEmpty()) {
+            throw new IllegalArgumentException("Can't override classpath with an empty path");
+        }
+        for (final String classpathElement : JarUtils.smartPathSplit(overrideClasspath)) {
+            scanSpec.addClasspathOverride(classpathElement);
+        }
         return this;
     }
 
@@ -424,11 +429,12 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
-        final String overrideClasspath = JarUtils.pathElementsToPathStr(overrideClasspathElements);
-        if (overrideClasspath.isEmpty()) {
+        if (!overrideClasspathElements.iterator().hasNext()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        overrideClasspath(overrideClasspath);
+        for (final Object classpathElement : overrideClasspathElements) {
+            scanSpec.addClasspathOverride(classpathElement);
+        }
         return this;
     }
 
@@ -445,11 +451,12 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Object... overrideClasspathElements) {
-        final String overrideClasspath = JarUtils.pathElementsToPathStr(overrideClasspathElements);
-        if (overrideClasspath.isEmpty()) {
+        if (overrideClasspathElements.length == 0) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        overrideClasspath(overrideClasspath);
+        for (final Object classpathElement : overrideClasspathElements) {
+            scanSpec.addClasspathOverride(classpathElement);
+        }
         return this;
     }
 

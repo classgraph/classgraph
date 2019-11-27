@@ -89,10 +89,10 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        classpathOrder.addClasspathEntries( //
+        classpathOrder.addClasspathPathStr( //
                 (String) ReflectionUtils.invokeMethod(classLoader, "getFinderClassPath", false), classLoader,
                 scanSpec, log);
-        classpathOrder.addClasspathEntries( //
+        classpathOrder.addClasspathPathStr( //
                 (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath", false), classLoader, scanSpec,
                 log);
     }

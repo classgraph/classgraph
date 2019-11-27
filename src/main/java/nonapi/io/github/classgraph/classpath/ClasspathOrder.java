@@ -30,6 +30,8 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
 import java.lang.reflect.Array;
+import java.net.URI;
+import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -52,8 +54,8 @@ public class ClasspathOrder {
     /** Unique classpath entries. */
     private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
 
-    /** The classpath order. */
-    private final List<Entry<String, ClassLoader>> order = new ArrayList<>();
+    /** The classpath order. Keys are instances of {@link String}, {@link URL} or {@link URI}. */
+    private final List<Entry<Object, ClassLoader>> order = new ArrayList<>();
 
     /**
      * Constructor.
@@ -68,9 +70,9 @@ public class ClasspathOrder {
     /**
      * Get the order of classpath elements, as an ordered set.
      *
-     * @return the classpath order, as (path/URL, ClassLoader) tuples.
+     * @return the classpath order, as (path/URL/URI, ClassLoader) tuples.
      */
-    public List<Entry<String, ClassLoader>> getOrder() {
+    public List<Entry<Object, ClassLoader>> getOrder() {
         return order;
     }
 
@@ -84,7 +86,7 @@ public class ClasspathOrder {
     }
 
     /**
-     * Test to see if a RelativePath has been filtered out by the user.
+     * Test to see if a classpath element has been filtered out by the user.
      *
      * @param classpathElementPath
      *            the classpath element path
@@ -122,27 +124,38 @@ public class ClasspathOrder {
     /**
      * Add a classpath entry.
      *
-     * @param pathEntry
-     *            the classpath entry -- the path string should already have been run through
-     *            FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path)
+     * @param pathElement
+     *            the {@link String} path, {@link URL} or {@link URI} of the classpath element. If a string, the
+     *            path string should already have been run through FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+     *            path)
+     * @param pathElementStr
+     *            the path element in string format
      * @param classLoader
      *            the classloader
      * @param scanSpec
      *            the scan spec
      * @return true, if added and unique
      */
-    private boolean addClasspathEntry(final String pathEntry, final ClassLoader classLoader,
-            final ScanSpec scanSpec) {
-        if (scanSpec.overrideClasspath == null //
-                && (SystemJarFinder.getJreLibOrExtJars().contains(pathEntry)
-                        || pathEntry.equals(SystemJarFinder.getJreRtJarPath()))) {
-            // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
-            // returned by a system classloader
-            return false;
-        }
-        if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
-            order.add(new SimpleEntry<>(pathEntry, classLoader));
-            return true;
+    private boolean addClasspathEntry(final Object pathElement, final String pathElementStr,
+            final ClassLoader classLoader, final ScanSpec scanSpec) {
+        if (pathElement instanceof URL || pathElement instanceof URI) {
+            // Assume that any custom URLs or URIs passed in are not in lib or ext dir, and are not system jars
+            if (classpathEntryUniqueResolvedPaths.add(pathElementStr)) {
+                order.add(new SimpleEntry<>(pathElement, classLoader));
+                return true;
+            }
+        } else {
+            if (scanSpec.overrideClasspath == null //
+                    && (SystemJarFinder.getJreLibOrExtJars().contains(pathElementStr)
+                            || pathElementStr.equals(SystemJarFinder.getJreRtJarPath()))) {
+                // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
+                // returned by a system classloader
+                return false;
+            }
+            if (classpathEntryUniqueResolvedPaths.add(pathElementStr)) {
+                order.add(new SimpleEntry<>(pathElementStr, classLoader));
+                return true;
+            }
         }
         return false;
     }
@@ -152,7 +165,8 @@ public class ClasspathOrder {
      * elements that it knows about. ClassLoaders will be called in order.
      *
      * @param pathElement
-     *            the URL or path of the classpath element.
+     *            the {@link String} path, {@link URL} or {@link URI} of the classpath element, or some object whose
+     *            {@link Object#toString()} method can be called to obtain the classpath element.
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
      * @param scanSpec
@@ -162,113 +176,166 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
-    public boolean addClasspathEntry(final String pathElement, final ClassLoader classLoader,
+    public boolean addClasspathEntry(final Object pathElement, final ClassLoader classLoader,
             final ScanSpec scanSpec, final LogNode log) {
-        if (pathElement == null || pathElement.isEmpty()) {
+        if (pathElement == null) {
             return false;
         }
-        // Check for wildcard path element (allowable for local classpaths as of JDK 6)
-        if (pathElement.endsWith("*")) {
-            if (pathElement.length() == 1 || //
-                    (pathElement.length() > 2 && pathElement.charAt(pathElement.length() - 1) == '*'
-                            && (pathElement.charAt(pathElement.length() - 2) == File.separatorChar
-                                    || (File.separatorChar != '/'
-                                            && pathElement.charAt(pathElement.length() - 2) == '/')))) {
-                // Apply classpath element filters, if any 
-                final String baseDirPath = pathElement.length() == 1 ? ""
-                        : pathElement.substring(0, pathElement.length() - 2);
-                final String baseDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, baseDirPath);
-                if (!filter(baseDirPath)
-                        || (!baseDirPathResolved.equals(baseDirPath) && !filter(baseDirPathResolved))) {
-                    if (log != null) {
-                        log.log("Classpath element did not match filter criterion, skipping: " + pathElement);
-                    }
-                    return false;
-                }
-
-                // Check the path before the "/*" suffix is a directory 
-                final File baseDir = new File(baseDirPathResolved);
-                if (!baseDir.exists()) {
-                    if (log != null) {
-                        log.log("Directory does not exist for wildcard classpath element: " + pathElement);
-                    }
-                    return false;
-                }
-                if (!FileUtils.canRead(baseDir)) {
-                    if (log != null) {
-                        log.log("Cannot read directory for wildcard classpath element: " + pathElement);
-                    }
-                    return false;
-                }
-                if (!baseDir.isDirectory()) {
-                    if (log != null) {
-                        log.log("Wildcard is appended to something other than a directory: " + pathElement);
-                    }
-                    return false;
-                }
-
-                // Add all elements in the requested directory to the classpath
-                final LogNode dirLog = log == null ? null
-                        : log.log("Adding classpath elements from wildcarded directory: " + pathElement);
-                final File[] baseDirFiles = baseDir.listFiles();
-                if (baseDirFiles != null) {
-                    for (final File fileInDir : baseDirFiles) {
-                        final String name = fileInDir.getName();
-                        if (!name.equals(".") && !name.equals("..")) {
-                            // Add each directory entry as a classpath element
-                            final String fileInDirPath = fileInDir.getPath();
-                            final String fileInDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-                                    fileInDirPath);
-                            if (addClasspathEntry(fileInDirPathResolved, classLoader, scanSpec)) {
-                                if (dirLog != null) {
-                                    dirLog.log("Found classpath element: " + fileInDirPath
-                                            + (fileInDirPath.equals(fileInDirPathResolved) ? ""
-                                                    : " -> " + fileInDirPathResolved));
-                                }
-                            } else {
-                                if (dirLog != null) {
-                                    dirLog.log("Ignoring duplicate classpath element: " + fileInDirPath
-                                            + (fileInDirPath.equals(fileInDirPathResolved) ? ""
-                                                    : " -> " + fileInDirPathResolved));
-                                }
-                            }
-                        }
-                    }
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
+        final String pathElementStr = pathElement.toString();
+        if (pathElement instanceof URL || pathElement instanceof URI) {
+            if (!filter(pathElementStr)) {
                 if (log != null) {
-                    log.log("Wildcard classpath elements can only end with a leaf of \"*\", "
-                            + "can't have a partial name and then a wildcard: " + pathElement);
+                    log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr);
                 }
                 return false;
             }
-        } else {
-            // Non-wildcarded (standard) classpath element
-            final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, pathElement);
-            if (!filter(pathElement)
-                    || (!pathElementResolved.equals(pathElement) && !filter(pathElementResolved))) {
+            if (addClasspathEntry(pathElement, pathElementStr, classLoader, scanSpec)) {
                 if (log != null) {
-                    log.log("Classpath element did not match filter criterion, skipping: " + pathElement
-                            + (pathElement.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
-                }
-                return false;
-            }
-            if (addClasspathEntry(pathElementResolved, classLoader, scanSpec)) {
-                if (log != null) {
-                    log.log("Found classpath element: " + pathElement
-                            + (pathElement.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
+                    log.log("Found classpath element: " + pathElementStr);
                 }
                 return true;
             } else {
                 if (log != null) {
-                    log.log("Ignoring duplicate classpath element: " + pathElement
-                            + (pathElement.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
+                    log.log("Ignoring duplicate classpath element: " + pathElementStr);
                 }
                 return false;
             }
+        } else {
+            if (pathElementStr.isEmpty()) {
+                return false;
+            }
+            // Check for wildcard path element (allowable for local classpaths as of JDK 6)
+            if (pathElementStr.endsWith("*")) {
+                if (pathElementStr.length() == 1 || //
+                        (pathElementStr.length() > 2 && pathElementStr.charAt(pathElementStr.length() - 1) == '*'
+                                && (pathElementStr.charAt(pathElementStr.length() - 2) == File.separatorChar
+                                        || (File.separatorChar != '/'
+                                                && pathElementStr.charAt(pathElementStr.length() - 2) == '/')))) {
+                    // Apply classpath element filters, if any 
+                    final String baseDirPath = pathElementStr.length() == 1 ? ""
+                            : pathElementStr.substring(0, pathElementStr.length() - 2);
+                    final String baseDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                            baseDirPath);
+                    if (!filter(baseDirPath)
+                            || (!baseDirPathResolved.equals(baseDirPath) && !filter(baseDirPathResolved))) {
+                        if (log != null) {
+                            log.log("Classpath element did not match filter criterion, skipping: "
+                                    + pathElementStr);
+                        }
+                        return false;
+                    }
+
+                    // Check the path before the "/*" suffix is a directory 
+                    final File baseDir = new File(baseDirPathResolved);
+                    if (!baseDir.exists()) {
+                        if (log != null) {
+                            log.log("Directory does not exist for wildcard classpath element: " + pathElementStr);
+                        }
+                        return false;
+                    }
+                    if (!FileUtils.canRead(baseDir)) {
+                        if (log != null) {
+                            log.log("Cannot read directory for wildcard classpath element: " + pathElementStr);
+                        }
+                        return false;
+                    }
+                    if (!baseDir.isDirectory()) {
+                        if (log != null) {
+                            log.log("Wildcard is appended to something other than a directory: " + pathElementStr);
+                        }
+                        return false;
+                    }
+
+                    // Add all elements in the requested directory to the classpath
+                    final LogNode dirLog = log == null ? null
+                            : log.log("Adding classpath elements from wildcarded directory: " + pathElementStr);
+                    final File[] baseDirFiles = baseDir.listFiles();
+                    if (baseDirFiles != null) {
+                        for (final File fileInDir : baseDirFiles) {
+                            final String name = fileInDir.getName();
+                            if (!name.equals(".") && !name.equals("..")) {
+                                // Add each directory entry as a classpath element
+                                final String fileInDirPath = fileInDir.getPath();
+                                final String fileInDirPathResolved = FastPathResolver
+                                        .resolve(FileUtils.CURR_DIR_PATH, fileInDirPath);
+                                if (addClasspathEntry(fileInDirPathResolved, fileInDirPathResolved, classLoader,
+                                        scanSpec)) {
+                                    if (dirLog != null) {
+                                        dirLog.log("Found classpath element: " + fileInDirPath
+                                                + (fileInDirPath.equals(fileInDirPathResolved) ? ""
+                                                        : " -> " + fileInDirPathResolved));
+                                    }
+                                } else {
+                                    if (dirLog != null) {
+                                        dirLog.log("Ignoring duplicate classpath element: " + fileInDirPath
+                                                + (fileInDirPath.equals(fileInDirPathResolved) ? ""
+                                                        : " -> " + fileInDirPathResolved));
+                                    }
+                                }
+                            }
+                        }
+                        return true;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    if (log != null) {
+                        log.log("Wildcard classpath elements can only end with a leaf of \"*\", "
+                                + "can't have a partial name and then a wildcard: " + pathElementStr);
+                    }
+                    return false;
+                }
+            } else {
+                // Non-wildcarded (standard) classpath element
+                final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                        pathElementStr);
+                if (!filter(pathElementStr)
+                        || (!pathElementResolved.equals(pathElementStr) && !filter(pathElementResolved))) {
+                    if (log != null) {
+                        log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr
+                                + (pathElementStr.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
+                    }
+                    return false;
+                }
+                if (addClasspathEntry(pathElementResolved, pathElementResolved, classLoader, scanSpec)) {
+                    if (log != null) {
+                        log.log("Found classpath element: " + pathElementStr
+                                + (pathElementStr.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
+                    }
+                    return true;
+                } else {
+                    if (log != null) {
+                        log.log("Ignoring duplicate classpath element: " + pathElementStr
+                                + (pathElementStr.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
+                    }
+                    return false;
+                }
+            }
+        }
+    }
+
+    /**
+     * Add classpath entries, separated by the system path separator character.
+     *
+     * @param overrideClasspath
+     *            the delimited {@link String}, {@link URL} or {@link URI} of classpath elements.
+     * @param classLoader
+     *            the ClassLoader that this classpath was obtained from.
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     */
+    public boolean addClasspathEntries(final List<Object> overrideClasspath, final ClassLoader classLoader,
+            final ScanSpec scanSpec, final LogNode log) {
+        if (overrideClasspath == null || overrideClasspath.isEmpty()) {
+            return false;
+        } else {
+            for (final Object pathElement : overrideClasspath) {
+                addClasspathEntry(pathElement, classLoader, scanSpec, log);
+            }
+            return true;
         }
     }
 
@@ -285,7 +352,7 @@ public class ClasspathOrder {
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathEntries(final String pathStr, final ClassLoader classLoader, final ScanSpec scanSpec,
+    public boolean addClasspathPathStr(final String pathStr, final ClassLoader classLoader, final ScanSpec scanSpec,
             final LogNode log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
@@ -303,10 +370,11 @@ public class ClasspathOrder {
     }
 
     /**
-     * Add classpath entries from an object obtained from reflection. The object may be a String (containing a
-     * single path, or several paths separated with File.pathSeparator), a List or other Iterable, or an array
-     * object. In the case of Iterables and arrays, the elements may be any type whose {@code toString()} method
-     * returns a path or URL string (including the {@code URL} and {@code Path} types).
+     * Add classpath entries from an object obtained from reflection. The object may be a {@link URL}, a
+     * {@link URI}, a {@link String} (containing a single path, or several paths separated with File.pathSeparator),
+     * a List or other Iterable, or an array object. In the case of Iterables and arrays, the elements may be any
+     * type whose {@code toString()} method returns a path or URL string (including the {@code URL} and {@code Path}
+     * types).
      *
      * @param pathObject
      *            the object containing a classpath string or strings.
@@ -322,26 +390,23 @@ public class ClasspathOrder {
             final ScanSpec scanSpec, final LogNode log) {
         boolean valid = false;
         if (pathObject != null) {
-            if (pathObject instanceof String) {
-                valid |= addClasspathEntries((String) pathObject, classLoader, scanSpec, log);
+            if (pathObject instanceof URL || pathObject instanceof URI) {
+                valid |= addClasspathEntry(pathObject, classLoader, scanSpec, log);
             } else if (pathObject instanceof Iterable) {
-                for (final Object p : (Iterable<?>) pathObject) {
-                    if (p != null) {
-                        valid |= addClasspathEntries(p.toString(), classLoader, scanSpec, log);
-                    }
+                for (final Object elt : (Iterable<?>) pathObject) {
+                    valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
                 }
             } else {
                 final Class<?> valClass = pathObject.getClass();
                 if (valClass.isArray()) {
                     for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
                         final Object elt = Array.get(pathObject, j);
-                        if (elt != null) {
-                            valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
-                        }
+                        valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
                     }
                 } else {
-                    // Try simply calling toString() as a final fallback, in case this returns something sensible
-                    valid |= addClasspathEntries(pathObject.toString(), classLoader, scanSpec, log);
+                    // Try simply calling toString() as a final fallback, to handle String objects, or to
+                    // try to handle anything else
+                    valid |= addClasspathPathStr(pathObject.toString(), classLoader, scanSpec, log);
                 }
             }
         }

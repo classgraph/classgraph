@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.AbstractMap.SimpleEntry;
@@ -61,7 +62,7 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
-    /** The raw path for this zipfile. */
+    /** The {@link String} representation of the raw path, {@link URL} or {@link URI} for this zipfile. */
     private final String rawPath;
     /** The logical zipfile for this classpath element. */
     LogicalZipFile logicalZipFile;
@@ -84,8 +85,9 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * A jarfile classpath element.
      *
-     * @param rawPath
-     *            the raw path to the jarfile, possibly including "!"-delimited nested paths.
+     * @param rawPathObj
+     *            the raw path to the jarfile as a {@link String}, possibly including "!"-delimited nested paths, or
+     *            a {@link URL} or {@link URI} for the jarfile
      * @param classLoader
      *            the classloader
      * @param nestedJarHandler
@@ -93,10 +95,12 @@ class ClasspathElementZip extends ClasspathElement {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementZip(final String rawPath, final ClassLoader classLoader,
+    ClasspathElementZip(final Object rawPathObj, final ClassLoader classLoader,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
-        this.rawPath = rawPath;
+        // Convert the raw path object (String, URL or URI) to a string.
+        // Any required URL/URI parsing are done in NestedJarHandler.
+        this.rawPath = rawPathObj.toString();
         this.zipFilePath = rawPath; // May change when open() is called
         this.nestedJarHandler = nestedJarHandler;
     }

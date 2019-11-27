@@ -388,8 +388,7 @@ public final class JSONUtils {
                 try {
                     // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
                     // https://github.com/mojohaus/animal-sniffer/issues/67
-                    accessible.set((Boolean) (Object) isAccessibleMethodHandle
-                            .invoke(new Object[] { fieldOrConstructor }));
+                    accessible.set((Boolean) isAccessibleMethodHandle.invoke(new Object[] { fieldOrConstructor }));
                 } catch (final Throwable e) {
                     // Ignore
                 }
@@ -407,9 +406,9 @@ public final class JSONUtils {
         if (!accessible.get()) {
             if (trySetAccessibleMethodHandle != null) {
                 try {
-                    accessible.set((Boolean) (Object) trySetAccessibleMethodHandle
-                            .invoke(new Object[] { fieldOrConstructor }));
-                } catch (Throwable e) {
+                    accessible.set(
+                            (Boolean) trySetAccessibleMethodHandle.invoke(new Object[] { fieldOrConstructor }));
+                } catch (final Throwable e) {
                     // Ignore
                 }
             } else if (trySetAccessibleMethod != null) {
@@ -433,9 +432,9 @@ public final class JSONUtils {
                     public Void run() {
                         if (trySetAccessibleMethodHandle != null) {
                             try {
-                                accessible.set((Boolean) (Object) trySetAccessibleMethodHandle
+                                accessible.set((Boolean) trySetAccessibleMethodHandle
                                         .invoke(new Object[] { fieldOrConstructor }));
-                            } catch (Throwable e) {
+                            } catch (final Throwable e) {
                                 // Ignore
                             }
                         } else if (trySetAccessibleMethod != null) {

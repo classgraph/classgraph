@@ -90,6 +90,6 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath", false);
-        classpathOrder.addClasspathEntries(classpath, classLoader, scanSpec, log);
+        classpathOrder.addClasspathPathStr(classpath, classLoader, scanSpec, log);
     }
 }

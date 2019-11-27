@@ -29,6 +29,8 @@
 package nonapi.io.github.classgraph.scanspec;
 
 import java.lang.reflect.Field;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -198,8 +200,11 @@ public class ScanSpec {
      */
     public transient List<Object> overrideModuleLayers;
 
-    /** If non-null, specifies a classpath to override the default one. */
-    public String overrideClasspath;
+    /**
+     * If non-null, specifies a list of classpath elements (String, {@link URL} or {@link URI} to use to override
+     * the default classpath.
+     */
+    public List<Object> overrideClasspath;
 
     /** If non-null, a list of filter operations to apply to classpath elements. */
     public transient List<ClasspathElementFilter> classpathElementFilters;
@@ -248,15 +253,22 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Override the automatically-detected classpath with a custom search path. You can specify multiple elements,
-     * separated by File.pathSeparatorChar. If this method is called, nothing but the provided classpath will be
-     * scanned, i.e. causes ClassLoaders to be ignored, as well as the java.class.path system property.
+     * Override the automatically-detected classpath with a custom path. You can specify multiple elements in
+     * separate calls, and if this method is called even once, the default classpath will be overridden, such that
+     * nothing but the provided classpath will be scanned, i.e. causes ClassLoaders to be ignored, as well as the
+     * java.class.path system property.
      * 
-     * @param overrideClasspath
-     *            The classpath to scan.
+     * @param overrideClasspathElement
+     *            The classpath element to add as an override to the default classpath.
      */
-    public void overrideClasspath(final String overrideClasspath) {
-        this.overrideClasspath = overrideClasspath;
+    public void addClasspathOverride(final Object overrideClasspathElement) {
+        if (this.overrideClasspath == null) {
+            this.overrideClasspath = new ArrayList<>();
+        }
+        this.overrideClasspath
+                .add(overrideClasspathElement instanceof String || overrideClasspathElement instanceof URL
+                        || overrideClasspathElement instanceof URI ? overrideClasspathElement
+                                : overrideClasspathElement.toString());
     }
 
     /**

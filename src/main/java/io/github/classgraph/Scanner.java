@@ -31,6 +31,10 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -370,7 +374,7 @@ class Scanner implements Callable<ScanResult> {
     /** Used to enqueue classpath elements for opening. */
     static class ClasspathEntryWorkUnit {
         /** The raw classpath entry and associated {@link ClassLoader}. */
-        private final Entry<String, ClassLoader> rawClasspathEntry;
+        private final Entry<Object, ClassLoader> rawClasspathEntry;
 
         /** The parent classpath element. */
         private final ClasspathElement parentClasspathElement;
@@ -388,7 +392,7 @@ class Scanner implements Callable<ScanResult> {
          * @param orderWithinParentClasspathElement
          *            the order within parent classpath element
          */
-        public ClasspathEntryWorkUnit(final Entry<String, ClassLoader> rawClasspathEntry,
+        public ClasspathEntryWorkUnit(final Entry<Object, ClassLoader> rawClasspathEntry,
                 final ClasspathElement parentClasspathElement, final int orderWithinParentClasspathElement) {
             this.rawClasspathEntry = rawClasspathEntry;
             this.parentClasspathElement = parentClasspathElement;
@@ -400,22 +404,60 @@ class Scanner implements Callable<ScanResult> {
      * The classpath element singleton map. For each classpath element path, canonicalize path, and create a
      * ClasspathElement singleton.
      */
-    private final SingletonMap<Entry<String, ClassLoader>, ClasspathElement, IOException> //
+    private final SingletonMap<Entry<Object, ClassLoader>, ClasspathElement, IOException> //
     classpathEntryToClasspathElementSingletonMap = //
-            new SingletonMap<Entry<String, ClassLoader>, ClasspathElement, IOException>() {
+            new SingletonMap<Entry<Object, ClassLoader>, ClasspathElement, IOException>() {
                 @Override
-                public ClasspathElement newInstance(final Entry<String, ClassLoader> classpathEntry,
+                public ClasspathElement newInstance(final Entry<Object, ClassLoader> classpathEntry,
                         final LogNode log) throws IOException, InterruptedException {
-                    final String classpathEntryPath = classpathEntry.getKey();
+                    Object classpathEntryObj = classpathEntry.getKey();
                     final ClassLoader classLoader = classpathEntry.getValue();
-                    if (classpathEntryPath.regionMatches(true, 0, "http://", 0, 7)
-                            || classpathEntryPath.regionMatches(true, 0, "https://", 0, 8)) {
-                        // For remote URLs, must be a jar
-                        return new ClasspathElementZip(classpathEntryPath, classLoader, nestedJarHandler, scanSpec);
+
+                    String classpathEntryPath;
+                    if (classpathEntryObj instanceof URL || classpathEntryObj instanceof URI) {
+                        String scheme = classpathEntryObj instanceof URL ? ((URL) classpathEntryObj).getProtocol()
+                                : ((URI) classpathEntryObj).getScheme();
+                        if ("jar".equals(scheme)) {
+                            // Strip off "jar:" scheme prefix
+                            try {
+                                classpathEntryObj = classpathEntryObj instanceof URL
+                                        ? new URL(((URL) classpathEntryObj).toString().substring(4))
+                                        : new URI(((URI) classpathEntryObj).toString().substring(4));
+                                scheme = classpathEntryObj instanceof URL ? ((URL) classpathEntryObj).getProtocol()
+                                        : ((URI) classpathEntryObj).getScheme();
+                            } catch (MalformedURLException | URISyntaxException e) {
+                                throw new IOException("Could not strip 'jar:' prefix from " + classpathEntryObj, e);
+                            }
+                        }
+                        if ("file".equals(scheme)) {
+                            // Extract file path, and use below as a path string to determine if this
+                            // classpath element is a file (jar) or directory
+                            classpathEntryPath = classpathEntryObj instanceof URL
+                                    ? ((URL) classpathEntryObj).getPath()
+                                    : ((URI) classpathEntryObj).getPath();
+                        } else if ("http".equals(scheme) || "https".equals(scheme)) {
+                            // Jar URL or URI (remote URLs/URIs must be jars)
+                            return new ClasspathElementZip(classpathEntryObj, classLoader, nestedJarHandler,
+                                    scanSpec);
+                        } else {
+                            // For custom URL schemes, assume it must be for a jar, not a directory
+                            return new ClasspathElementZip(classpathEntryObj, classLoader, nestedJarHandler,
+                                    scanSpec);
+                        }
+                    } else {
+                        // classpathEntryObj is a string
+                        classpathEntryPath = classpathEntryObj.toString();
                     }
+
                     // Normalize path -- strip off any leading "jar:" / "file:", and normalize separators
                     final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                             classpathEntryPath);
+
+                    // "http:", "https:" or any other URL/URI scheme must indicate a jar
+                    if (JarUtils.URL_SCHEME_PATTERN.matcher(pathNormalized).matches()) {
+                        return new ClasspathElementZip(classpathEntryPath, classLoader, nestedJarHandler, scanSpec);
+                    }
+
                     // Strip everything after first "!", to get path of base jarfile or dir
                     final int plingIdx = pathNormalized.indexOf('!');
                     final String pathToCanonicalize = plingIdx < 0 ? pathNormalized
@@ -932,7 +974,7 @@ class Scanner implements Callable<ScanResult> {
     private ScanResult openClasspathElementsThenScan() throws InterruptedException, ExecutionException {
         // Get order of elements in traditional classpath
         final List<ClasspathEntryWorkUnit> rawClasspathEntryWorkUnits = new ArrayList<>();
-        for (final Entry<String, ClassLoader> rawClasspathEntry : classpathFinder.getClasspathOrder().getOrder()) {
+        for (final Entry<Object, ClassLoader> rawClasspathEntry : classpathFinder.getClasspathOrder().getOrder()) {
             rawClasspathEntryWorkUnits
                     .add(new ClasspathEntryWorkUnit(rawClasspathEntry, /* parentClasspathElement = */ null,
                             /* orderWithinParentClasspathElement = */ rawClasspathEntryWorkUnits.size()));
