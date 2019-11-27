@@ -780,22 +780,19 @@ public class NestedJarHandler {
      */
     private PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
             throws IOException, InterruptedException {
-        InputStream inputStream = null;
+        URL url = null;
         try {
-            URL url = null;
+            url = new URL(jarURL);
+        } catch (final MalformedURLException e1) {
             try {
-                url = new URL(jarURL);
-            } catch (final MalformedURLException e1) {
-                try {
-                    url = new URI(jarURL).toURL();
-                } catch (final URISyntaxException e2) {
-                    throw new IOException("Could not parse URL: " + jarURL);
-                }
+                url = new URI(jarURL).toURL();
+            } catch (final URISyntaxException e2) {
+                throw new IOException("Could not parse URL: " + jarURL);
             }
-
+        }
+        try (InputStream inputStream = url.openStream()) {
             // Fetch the jar contents from the URL's InputStream.
             // If it doesn't fit in RAM, spill over to disk.
-            inputStream = url.openStream();
             final MappedByteBufferResources bufResources = readAllBytesAsByteBufferWithSpilloverToDisk(inputStream,
                     MAX_JAR_RAM_SIZE, jarURL, log);
             mappedByteBufferResources.add(bufResources);
@@ -824,9 +821,6 @@ public class NestedJarHandler {
         } catch (final MalformedURLException e) {
             throw new IOException("Malformed URL: " + jarURL);
         } finally {
-            if (inputStream != null) {
-                inputStream.close();
-            }
             if (log != null) {
                 log.addElapsedTime();
                 log.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
