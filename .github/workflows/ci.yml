@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ '1.8.0', '11.0.x', '13.0.x' ]
+        java: [ '1.8.0', '11.0.x', '12.0.x', '13.0.x' ]
     steps:
     - uses: actions/checkout@v1
     - name: Set up JDK
