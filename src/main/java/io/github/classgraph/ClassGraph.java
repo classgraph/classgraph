@@ -1043,7 +1043,7 @@ public class ClassGraph {
     }
 
     /**
-     * Enable classpath elements to be fetched from remote http/https URLs to local temporary files and scanned.
+     * Enable classpath elements to be fetched from remote ("http:"/"https:") URLs (or URLs with custom schemes).
      * This option is disabled by default, as this may present a security vulnerability, since classes from
      * downloaded jars can be subsequently loaded using {@link ClassInfo#loadClass}.
      * 
