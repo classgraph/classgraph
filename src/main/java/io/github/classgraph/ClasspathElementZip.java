@@ -36,7 +36,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -44,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
@@ -195,7 +195,8 @@ class ClasspathElementZip extends ClasspathElement {
                             subLog.log("Found nested lib jar: " + entryPath);
                         }
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                /* rawClasspathEntry = */ new SimpleEntry<>(entryPath, classLoader),
+                                /* rawClasspathEntry = */ new ClasspathElementAndClassLoader(entryPath,
+                                        classLoader),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
                                 childClasspathEntryIdx++));
@@ -236,8 +237,8 @@ class ClasspathElementZip extends ClasspathElement {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit( //
                                 new ClasspathEntryWorkUnit(
-                                        /* rawClasspathEntry = */ new SimpleEntry<>(childClassPathEltPathWithPrefix,
-                                                classLoader),
+                                        /* rawClasspathEntry = */ new ClasspathElementAndClassLoader(
+                                                childClassPathEltPathWithPrefix, classLoader),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */
                                         childClasspathEntryIdx++));
@@ -268,7 +269,7 @@ class ClasspathElementZip extends ClasspathElement {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
                                 /* rawClasspathEntry = */ //
-                                new SimpleEntry<>(childClassPathEltPath, classLoader),
+                                new ClasspathElementAndClassLoader(childClassPathEltPath, classLoader),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
                                 childClasspathEntryIdx++));

@@ -388,7 +388,9 @@ public final class JSONUtils {
                 try {
                     // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
                     // https://github.com/mojohaus/animal-sniffer/issues/67
-                    accessible.set((Boolean) isAccessibleMethodHandle.invoke(new Object[] { fieldOrConstructor }));
+                    final Object invokeResult = (Object) isAccessibleMethodHandle
+                            .invoke(new Object[] { fieldOrConstructor });
+                    accessible.set((Boolean) invokeResult);
                 } catch (final Throwable e) {
                     // Ignore
                 }
@@ -406,8 +408,11 @@ public final class JSONUtils {
         if (!accessible.get()) {
             if (trySetAccessibleMethodHandle != null) {
                 try {
-                    accessible.set(
-                            (Boolean) trySetAccessibleMethodHandle.invoke(new Object[] { fieldOrConstructor }));
+                    // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
+                    // https://github.com/mojohaus/animal-sniffer/issues/67
+                    final Object invokeResult = trySetAccessibleMethodHandle
+                            .invoke(new Object[] { fieldOrConstructor });
+                    accessible.set((Boolean) invokeResult);
                 } catch (final Throwable e) {
                     // Ignore
                 }
@@ -432,8 +437,11 @@ public final class JSONUtils {
                     public Void run() {
                         if (trySetAccessibleMethodHandle != null) {
                             try {
-                                accessible.set((Boolean) trySetAccessibleMethodHandle
-                                        .invoke(new Object[] { fieldOrConstructor }));
+                                // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
+                                // https://github.com/mojohaus/animal-sniffer/issues/67
+                                final Object invokeResult = trySetAccessibleMethodHandle
+                                        .invoke(new Object[] { fieldOrConstructor });
+                                accessible.set((Boolean) invokeResult);
                             } catch (final Throwable e) {
                                 // Ignore
                             }

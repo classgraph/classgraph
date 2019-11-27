@@ -36,13 +36,13 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
@@ -119,7 +119,7 @@ class ClasspathElementDir extends ClasspathElement {
                                 }
                                 workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
                                         /* rawClasspathEntry = */ //
-                                        new SimpleEntry<>(file.getPath(), classLoader),
+                                        new ClasspathElementAndClassLoader(file.getPath(), classLoader),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                             }
@@ -133,12 +133,11 @@ class ClasspathElementDir extends ClasspathElement {
                     if (log != null) {
                         log(classpathElementIdx, "Found package root: " + packageRootDir, log);
                     }
-                    workQueue
-                            .addWorkUnit(new ClasspathEntryWorkUnit(
-                                    /* rawClasspathEntry = */ new SimpleEntry<>(packageRootDir.getPath(),
-                                            classLoader),
-                                    /* parentClasspathElement = */ this,
-                                    /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
+                    workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                            /* rawClasspathEntry = */ new ClasspathElementAndClassLoader(packageRootDir.getPath(),
+                                    classLoader),
+                            /* parentClasspathElement = */ this,
+                            /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                 }
             }
         } catch (final SecurityException e) {

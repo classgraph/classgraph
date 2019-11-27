@@ -32,11 +32,9 @@ import java.io.File;
 import java.lang.reflect.Array;
 import java.net.URI;
 import java.net.URL;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
@@ -55,7 +53,31 @@ public class ClasspathOrder {
     private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
 
     /** The classpath order. Keys are instances of {@link String}, {@link URL} or {@link URI}. */
-    private final List<Entry<Object, ClassLoader>> order = new ArrayList<>();
+    private final List<ClasspathElementAndClassLoader> order = new ArrayList<>();
+
+    /**
+     * A classpath element and the {@link ClassLoader} it was obtained from.
+     */
+    public static class ClasspathElementAndClassLoader {
+        /** The classpath element (a {@link String}, {@link URL} or {@link URI}). */
+        public final Object classpathElement;
+
+        /** The classloader the classpath element was obtained from. */
+        public final ClassLoader classLoader;
+
+        /**
+         * Constructor.
+         *
+         * @param classpathElement
+         *            the classpath element (a {@link String}, {@link URL} or {@link URI}).
+         * @param classLoader
+         *            the classloader the classpath element was obtained from.
+         */
+        public ClasspathElementAndClassLoader(final Object classpathElement, final ClassLoader classLoader) {
+            this.classpathElement = classpathElement;
+            this.classLoader = classLoader;
+        }
+    }
 
     /**
      * Constructor.
@@ -68,11 +90,11 @@ public class ClasspathOrder {
     }
 
     /**
-     * Get the order of classpath elements, as an ordered set.
+     * Get the order of classpath elements, uniquified and in order.
      *
-     * @return the classpath order, as (path/URL/URI, ClassLoader) tuples.
+     * @return the classpath order.
      */
-    public List<Entry<Object, ClassLoader>> getOrder() {
+    public List<ClasspathElementAndClassLoader> getOrder() {
         return order;
     }
 
@@ -115,7 +137,7 @@ public class ClasspathOrder {
      */
     boolean addSystemClasspathEntry(final String pathEntry, final ClassLoader classLoader) {
         if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
-            order.add(new SimpleEntry<>(pathEntry, classLoader));
+            order.add(new ClasspathElementAndClassLoader(pathEntry, classLoader));
             return true;
         }
         return false;
@@ -141,7 +163,7 @@ public class ClasspathOrder {
         if (pathElement instanceof URL || pathElement instanceof URI) {
             // Assume that any custom URLs or URIs passed in are not in lib or ext dir, and are not system jars
             if (classpathEntryUniqueResolvedPaths.add(pathElementStr)) {
-                order.add(new SimpleEntry<>(pathElement, classLoader));
+                order.add(new ClasspathElementAndClassLoader(pathElement, classLoader));
                 return true;
             }
         } else {
@@ -153,7 +175,7 @@ public class ClasspathOrder {
                 return false;
             }
             if (classpathEntryUniqueResolvedPaths.add(pathElementStr)) {
-                order.add(new SimpleEntry<>(pathElementStr, classLoader));
+                order.add(new ClasspathElementAndClassLoader(pathElementStr, classLoader));
                 return true;
             }
         }

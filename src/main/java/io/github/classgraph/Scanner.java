@@ -59,6 +59,7 @@ import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
 import nonapi.io.github.classgraph.classpath.ModuleFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
@@ -374,7 +375,7 @@ class Scanner implements Callable<ScanResult> {
     /** Used to enqueue classpath elements for opening. */
     static class ClasspathEntryWorkUnit {
         /** The raw classpath entry and associated {@link ClassLoader}. */
-        private final Entry<Object, ClassLoader> rawClasspathEntry;
+        private final ClasspathElementAndClassLoader rawClasspathEntry;
 
         /** The parent classpath element. */
         private final ClasspathElement parentClasspathElement;
@@ -392,7 +393,7 @@ class Scanner implements Callable<ScanResult> {
          * @param orderWithinParentClasspathElement
          *            the order within parent classpath element
          */
-        public ClasspathEntryWorkUnit(final Entry<Object, ClassLoader> rawClasspathEntry,
+        public ClasspathEntryWorkUnit(final ClasspathElementAndClassLoader rawClasspathEntry,
                 final ClasspathElement parentClasspathElement, final int orderWithinParentClasspathElement) {
             this.rawClasspathEntry = rawClasspathEntry;
             this.parentClasspathElement = parentClasspathElement;
@@ -404,15 +405,13 @@ class Scanner implements Callable<ScanResult> {
      * The classpath element singleton map. For each classpath element path, canonicalize path, and create a
      * ClasspathElement singleton.
      */
-    private final SingletonMap<Entry<Object, ClassLoader>, ClasspathElement, IOException> //
+    private final SingletonMap<ClasspathElementAndClassLoader, ClasspathElement, IOException> //
     classpathEntryToClasspathElementSingletonMap = //
-            new SingletonMap<Entry<Object, ClassLoader>, ClasspathElement, IOException>() {
+            new SingletonMap<ClasspathElementAndClassLoader, ClasspathElement, IOException>() {
                 @Override
-                public ClasspathElement newInstance(final Entry<Object, ClassLoader> classpathEntry,
+                public ClasspathElement newInstance(final ClasspathElementAndClassLoader classpathEntry,
                         final LogNode log) throws IOException, InterruptedException {
-                    Object classpathEntryObj = classpathEntry.getKey();
-                    final ClassLoader classLoader = classpathEntry.getValue();
-
+                    Object classpathEntryObj = classpathEntry.classpathElement;
                     String classpathEntryPath;
                     if (classpathEntryObj instanceof URL || classpathEntryObj instanceof URI) {
                         String scheme = classpathEntryObj instanceof URL ? ((URL) classpathEntryObj).getProtocol()
@@ -437,12 +436,12 @@ class Scanner implements Callable<ScanResult> {
                                     : ((URI) classpathEntryObj).getPath();
                         } else if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
-                            return new ClasspathElementZip(classpathEntryObj, classLoader, nestedJarHandler,
-                                    scanSpec);
+                            return new ClasspathElementZip(classpathEntryObj, classpathEntry.classLoader,
+                                    nestedJarHandler, scanSpec);
                         } else {
                             // For custom URL schemes, assume it must be for a jar, not a directory
-                            return new ClasspathElementZip(classpathEntryObj, classLoader, nestedJarHandler,
-                                    scanSpec);
+                            return new ClasspathElementZip(classpathEntryObj, classpathEntry.classLoader,
+                                    nestedJarHandler, scanSpec);
                         }
                     } else {
                         // classpathEntryObj is a string
@@ -455,7 +454,8 @@ class Scanner implements Callable<ScanResult> {
 
                     // "http:", "https:" or any other URL/URI scheme must indicate a jar
                     if (JarUtils.URL_SCHEME_PATTERN.matcher(pathNormalized).matches()) {
-                        return new ClasspathElementZip(classpathEntryPath, classLoader, nestedJarHandler, scanSpec);
+                        return new ClasspathElementZip(classpathEntryPath, classpathEntry.classLoader,
+                                nestedJarHandler, scanSpec);
                     }
 
                     // Strip everything after first "!", to get path of base jarfile or dir
@@ -493,7 +493,8 @@ class Scanner implements Callable<ScanResult> {
                         // only recurse once, since File::getCanonicalFile and FastPathResolver::resolve are
                         // idempotent)
                         try {
-                            return this.get(new SimpleEntry<>(canonicalPathNormalized, classLoader), log);
+                            return this.get(new ClasspathElementAndClassLoader(canonicalPathNormalized,
+                                    classpathEntry.classLoader), log);
                         } catch (final NullSingletonException e) {
                             throw new IOException("Cannot get classpath element for canonical path "
                                     + canonicalPathNormalized + " : " + e);
@@ -503,10 +504,10 @@ class Scanner implements Callable<ScanResult> {
                         // been seen -- instantiate a ClasspathElementZip or ClasspathElementDir singleton
                         // for the classpath element path
                         return isJar
-                                ? new ClasspathElementZip(canonicalPathNormalized, classLoader, nestedJarHandler,
-                                        scanSpec)
-                                : new ClasspathElementDir(fileCanonicalized, classLoader, nestedJarHandler,
-                                        scanSpec);
+                                ? new ClasspathElementZip(canonicalPathNormalized, classpathEntry.classLoader,
+                                        nestedJarHandler, scanSpec)
+                                : new ClasspathElementDir(fileCanonicalized, classpathEntry.classLoader,
+                                        nestedJarHandler, scanSpec);
                     }
                 }
             };
@@ -568,8 +569,8 @@ class Scanner implements Callable<ScanResult> {
                     }
                 } catch (final IOException | SecurityException e) {
                     if (log != null) {
-                        log.log("Skipping invalid classpath element " + workUnit.rawClasspathEntry.getKey() + " : "
-                                + e);
+                        log.log("Skipping invalid classpath element " + workUnit.rawClasspathEntry.classpathElement
+                                + " : " + e);
                     }
                 }
             }
@@ -975,7 +976,8 @@ class Scanner implements Callable<ScanResult> {
     private ScanResult openClasspathElementsThenScan() throws InterruptedException, ExecutionException {
         // Get order of elements in traditional classpath
         final List<ClasspathEntryWorkUnit> rawClasspathEntryWorkUnits = new ArrayList<>();
-        for (final Entry<Object, ClassLoader> rawClasspathEntry : classpathFinder.getClasspathOrder().getOrder()) {
+        for (final ClasspathElementAndClassLoader rawClasspathEntry : classpathFinder.getClasspathOrder()
+                .getOrder()) {
             rawClasspathEntryWorkUnits
                     .add(new ClasspathEntryWorkUnit(rawClasspathEntry, /* parentClasspathElement = */ null,
                             /* orderWithinParentClasspathElement = */ rawClasspathEntryWorkUnits.size()));
