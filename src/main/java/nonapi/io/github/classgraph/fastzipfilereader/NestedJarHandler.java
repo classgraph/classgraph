@@ -512,25 +512,89 @@ public class NestedJarHandler {
         private FileChannel fileChannel;
         private ByteBuffer byteBuffer;
         private boolean byteBufferIsMapped;
-        private NestedJarHandler nestedJarHandler;
+        private final NestedJarHandler nestedJarHandler;
 
         /**
-         * Map a {@link ByteBuffer} from a {@link File}.
+         * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum
+         * buffer size is exceeded.
+         *
+         * @param inputStream
+         *            The {@link InputStream}.
+         * @param maxRAMBufferSize
+         *            the max RAM to use before spilling over to a temp file on disk.
+         * @param sourceURL
+         *            the source URL that inputStream was opened from.
+         * @param log
+         *            the log
+         * @throws IOException
+         *             If the contents could not be read.
+         */
+        public MappedByteBufferResources(final InputStream inputStream, final int maxRAMBufferSize,
+                final String sourceURL, final NestedJarHandler nestedJarHandler, final LogNode log)
+                throws IOException {
+            this.nestedJarHandler = nestedJarHandler;
+            if (maxRAMBufferSize > FileUtils.MAX_BUFFER_SIZE) {
+                throw new IOException("InputStream is too large to read");
+            }
+            final byte[] buf = new byte[maxRAMBufferSize];
+            final int bufLength = buf.length;
+
+            int totBytesRead = 0;
+            int bytesRead = 0;
+            while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
+                // Fill buffer until nothing more can be read
+                totBytesRead += bytesRead;
+            }
+            if (bytesRead < 0) {
+                // Successfully reached end of stream -- wrap array with ByteBuffer and return it
+                byteBuffer = ByteBuffer.wrap(buf, 0, totBytesRead);
+                // Don't set file, fileChannel or raf, they are unneeded.
+                // byteBufferIsMapped will remain false.
+            } else {
+                // bytesRead == 0 => ran out of buffer space, spill over to disk
+                final File tempFile = nestedJarHandler.makeTempFile(sourceURL, /* onlyUseLeafname = */ true);
+                if (log != null) {
+                    log.log("Could not fit downloaded URL into max RAM buffer size of " + maxRAMBufferSize
+                            + " bytes, downloading to temporary file: " + sourceURL + " -> " + tempFile);
+                }
+                Files.write(tempFile.toPath(), buf, StandardOpenOption.WRITE);
+                try (OutputStream os = new BufferedOutputStream(
+                        new FileOutputStream(tempFile, /* append = */ true))) {
+                    for (int bytesReadCtd; (bytesReadCtd = inputStream.read(buf, 0, buf.length)) > 0;) {
+                        os.write(buf, 0, bytesReadCtd);
+                    }
+                }
+                // Map the file to a MappedByteBuffer
+                mapFile(tempFile);
+            }
+        }
+
+        /**
+         * Map a {@link File} to a {@link MappedByteBuffer}.
          *
          * @param file
          *            the file
          * @param nestedJarHandler
          *            the nested jar handler
          * @throws IOException
-         *             On I/O exception.
+         *             If the contents could not be read.
          */
         public MappedByteBufferResources(final File file, final NestedJarHandler nestedJarHandler)
                 throws IOException {
-            this.file = file;
             this.nestedJarHandler = nestedJarHandler;
-            if (byteBuffer != null) {
-                throw new IllegalArgumentException("Already open");
-            }
+            mapFile(file);
+        }
+
+        /**
+         * Map a {@link File} to a {@link MappedByteBuffer}.
+         *
+         * @param file
+         *            the file
+         * @throws IOException
+         *             Signals that an I/O exception has occurred.
+         */
+        private void mapFile(final File file) throws IOException {
+            this.file = file;
             try {
                 raf = new RandomAccessFile(file, "r");
                 fileChannel = raf.getChannel();
@@ -551,20 +615,7 @@ public class NestedJarHandler {
         }
 
         /**
-         * Wrap a {@link ByteBuffer} that does not need to be unmapped (for cases where a {@link URL} was fetched
-         * but it fit in RAM, so didn't need to spill over to disk).
-         * 
-         * @param byteBuffer
-         *            the byte buffer.
-         */
-        public MappedByteBufferResources(final ByteBuffer byteBuffer) {
-            this.byteBuffer = byteBuffer;
-            // Don't set fileChannel or raf, they are unneeded.
-            // byteBufferIsMapped will remain false.
-        }
-
-        /**
-         * Get the mapped file (or null if a {@link ByteBuffer} was wrapped instead).
+         * Get the mapped file (or null if an in-memory {@link ByteBuffer} was wrapped instead).
          *
          * @return the mapped file
          */
@@ -666,60 +717,6 @@ public class NestedJarHandler {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
-     * size is exceeded.
-     *
-     * @param inputStream
-     *            The {@link InputStream}.
-     * @param maxRAMBufferSize
-     *            the max RAM to use before spilling over to a temp file on disk.
-     * @param sourceURL
-     *            the source URL that inputStream was opened from.
-     * @param log
-     *            the log
-     * @return The {@link MappedByteBufferResources} contaning the {@link ByteBuffer} obtained by fetching the
-     *         {@link InputStream}.
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    private MappedByteBufferResources readAllBytesAsByteBufferWithSpilloverToDisk(final InputStream inputStream,
-            final int maxRAMBufferSize, final String sourceURL, final LogNode log) throws IOException {
-        if (maxRAMBufferSize > FileUtils.MAX_BUFFER_SIZE) {
-            throw new IOException("InputStream is too large to read");
-        }
-        final byte[] buf = new byte[maxRAMBufferSize];
-        final int bufLength = buf.length;
-
-        int totBytesRead = 0;
-        int bytesRead = 0;
-        while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
-            // Fill buffer until nothing more can be read
-            totBytesRead += bytesRead;
-        }
-        if (bytesRead < 0) {
-            // Successfully reached end of stream -- wrap array with ByteBuffer and return it
-            return new MappedByteBufferResources(ByteBuffer.wrap(buf, 0, totBytesRead));
-        } else {
-            // bytesRead == 0 => ran out of buffer space, spill over to disk
-            final File tempFile = makeTempFile(sourceURL, /* onlyUseLeafname = */ true);
-            if (log != null) {
-                log.log("Could not fit downloaded URL into max RAM buffer size of " + maxRAMBufferSize
-                        + " bytes, downloading to temporary file: " + sourceURL + " -> " + tempFile);
-            }
-            Files.write(tempFile.toPath(), buf, StandardOpenOption.WRITE);
-            try (OutputStream os = new BufferedOutputStream(new FileOutputStream(tempFile, /* append = */ true))) {
-                bytesRead = 0;
-                while ((bytesRead = inputStream.read(buf, 0, buf.length)) > 0) {
-                    os.write(buf, 0, bytesRead);
-                }
-            }
-            return new MappedByteBufferResources(tempFile, this);
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Get the leafname of a path.
      *
      * @param path
@@ -793,8 +790,8 @@ public class NestedJarHandler {
         try (InputStream inputStream = url.openStream()) {
             // Fetch the jar contents from the URL's InputStream.
             // If it doesn't fit in RAM, spill over to disk.
-            final MappedByteBufferResources bufResources = readAllBytesAsByteBufferWithSpilloverToDisk(inputStream,
-                    MAX_JAR_RAM_SIZE, jarURL, log);
+            final MappedByteBufferResources bufResources = new MappedByteBufferResources(inputStream,
+                    MAX_JAR_RAM_SIZE, jarURL, this, log);
             mappedByteBufferResources.add(bufResources);
 
             PhysicalZipFile physicalZipFile = null;
