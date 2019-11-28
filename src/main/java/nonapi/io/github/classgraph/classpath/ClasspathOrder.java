@@ -204,6 +204,9 @@ public class ClasspathOrder {
             return false;
         }
         final String pathElementStr = pathElement.toString();
+        if (pathElementStr.isEmpty()) {
+            return false;
+        }
         if (pathElement instanceof URL || pathElement instanceof URI) {
             if (!filter(pathElementStr)) {
                 if (log != null) {
@@ -223,9 +226,6 @@ public class ClasspathOrder {
                 return false;
             }
         } else {
-            if (pathElementStr.isEmpty()) {
-                return false;
-            }
             // Check for wildcard path element (allowable for local classpaths as of JDK 6)
             if (pathElementStr.endsWith("*")) {
                 if (pathElementStr.length() == 1 || //
