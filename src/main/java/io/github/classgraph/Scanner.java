@@ -35,6 +35,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -431,9 +432,9 @@ class Scanner implements Callable<ScanResult> {
                         if ("file".equals(scheme)) {
                             // Extract file path, and use below as a path string to determine if this
                             // classpath element is a file (jar) or directory
-                            classpathEntryPath = classpathEntryObj instanceof URL
+                            classpathEntryPath = URLDecoder.decode(classpathEntryObj instanceof URL
                                     ? ((URL) classpathEntryObj).getPath()
-                                    : ((URI) classpathEntryObj).getPath();
+                                    : ((URI) classpathEntryObj).getPath(), "UTF-8");
                         } else if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
                             return new ClasspathElementZip(classpathEntryObj, classpathEntry.classLoader,
