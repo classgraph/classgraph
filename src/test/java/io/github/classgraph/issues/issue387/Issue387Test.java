@@ -30,15 +30,17 @@ package io.github.classgraph.issues.issue387;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.AbstractMap.SimpleEntry;
 
-import io.github.classgraph.features.CustomURLScheme;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.features.CustomURLScheme;
 
 /**
  * Test.
@@ -58,10 +60,8 @@ class Issue387Test {
         final String customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
         final URL url = new URL(customSchemeURL);
         final URLClassLoader classLoader = new URLClassLoader(new URL[] { url }, null);
-        try (ScanResult scanResult = new ClassGraph()
-                .enableURLScheme(CustomURLScheme.SCHEME)
-                .overrideClassLoaders(classLoader)
-                .scan()) {
+        try (ScanResult scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME)
+                .overrideClassLoaders(classLoader).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             assertThat(CustomURLScheme.remappedURLs.entrySet().iterator().next())
                     .isEqualTo(new SimpleEntry<>(customSchemeURL, "file:" + filePath));

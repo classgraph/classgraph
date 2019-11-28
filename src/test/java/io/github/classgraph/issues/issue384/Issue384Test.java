@@ -34,12 +34,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 
-import io.github.classgraph.features.CustomURLScheme;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.features.CustomURLScheme;
 
 /**
  * Test.
