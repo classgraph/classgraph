@@ -217,7 +217,8 @@ public class ClasspathFinder {
             // parent classloader and not in a child classloader (and don't use java.class.path at all if
             // overrideClassLoaders is true or overrideClasspath is set)
             if (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null) {
-                final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"));
+                final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"),
+                        scanSpec);
                 if (pathElements.length > 0) {
                     final LogNode sysPropLog = classpathFinderLog == null ? null
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");

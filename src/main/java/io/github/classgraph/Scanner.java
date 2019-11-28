@@ -413,15 +413,15 @@ class Scanner implements Callable<ScanResult> {
                     Object classpathEntryObj = classpathEntry.classpathElement;
                     String classpathEntryPath;
                     if (classpathEntryObj instanceof URL) {
-                        final URL classpathEntryURL = (URL) classpathEntryObj;
+                        URL classpathEntryURL = (URL) classpathEntryObj;
                         String scheme = classpathEntryURL.getProtocol();
                         if ("jar".equals(scheme)) {
                             // Strip off "jar:" scheme prefix
                             try {
-                                classpathEntryObj = new URL(
+                                classpathEntryURL = new URL(
                                         URLDecoder.decode(classpathEntryURL.toString(), "UTF-8").substring(4));
                                 scheme = classpathEntryURL.getProtocol();
-                            } catch (MalformedURLException e) {
+                            } catch (final MalformedURLException e) {
                                 throw new IOException("Could not strip 'jar:' prefix from " + classpathEntryObj, e);
                             }
                         }
@@ -790,14 +790,14 @@ class Scanner implements Callable<ScanResult> {
                     // A <module>/<package> pair in the value of an Add-Opens attribute has the same 
                     // meaning as the command-line option --add-opens <module>/<package>=ALL-UNNAMED."
                     if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
-                        for (final String addExports : JarUtils
-                                .smartPathSplit(classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ')) {
+                        for (final String addExports : JarUtils.smartPathSplit(
+                                classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ', scanSpec)) {
                             scanSpec.modulePathInfo.addExports.add(addExports + "=ALL-UNNAMED");
                         }
                     }
                     if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
-                        for (final String addOpens : JarUtils
-                                .smartPathSplit(classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ')) {
+                        for (final String addOpens : JarUtils.smartPathSplit(
+                                classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ', scanSpec)) {
                             scanSpec.modulePathInfo.addOpens.add(addOpens + "=ALL-UNNAMED");
                         }
                     }

@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
 
 import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /**
  * Jarfile utilities.
@@ -102,26 +103,30 @@ public final class JarUtils {
     /**
      * Split a path on File.pathSeparator (':' on Linux, ';' on Windows), but also allow for the use of URLs with
      * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
-     * 
+     *
      * @param pathStr
      *            The path to split.
+     * @param scanSpec
+     *            the scan spec
      * @return The path element substrings.
      */
-    public static String[] smartPathSplit(final String pathStr) {
-        return smartPathSplit(pathStr, File.pathSeparatorChar);
+    public static String[] smartPathSplit(final String pathStr, final ScanSpec scanSpec) {
+        return smartPathSplit(pathStr, File.pathSeparatorChar, scanSpec);
     }
 
     /**
      * Split a path on the given separator char. If the separator char is ':', also allow for the use of URLs with
      * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
-     * 
+     *
      * @param pathStr
      *            The path to split.
      * @param separatorChar
      *            The separator char to use.
+     * @param scanSpec
+     *            the scan spec
      * @return The path element substrings.
      */
-    public static String[] smartPathSplit(final String pathStr, final char separatorChar) {
+    public static String[] smartPathSplit(final String pathStr, final char separatorChar, final ScanSpec scanSpec) {
         if (pathStr == null || pathStr.isEmpty()) {
             return new String[0];
         }
@@ -151,6 +156,23 @@ public final class JarUtils {
                         // Don't treat the "jar:" in the middle of "x.jar:y.jar" as a URL scheme
                         foundNonPathSeparator = true;
                         break;
+                    }
+                }
+                if (!foundNonPathSeparator && scanSpec != null && scanSpec.allowedURLSchemes != null
+                        && !scanSpec.allowedURLSchemes.isEmpty()) {
+                    // If custom URL schemes have been registered, allow those to be used as delimiters too
+                    for (final String scheme : scanSpec.allowedURLSchemes) {
+                        // Skip schemes already handled by the faster matching code above
+                        if (!scheme.equals("http") && !scheme.equals("https") && !scheme.equals("jar")
+                                && !scheme.equals("file")) {
+                            final int schemeLen = scheme.length();
+                            final int startIdx = i - schemeLen;
+                            if (pathStr.regionMatches(true, startIdx, scheme, 0, schemeLen)
+                                    && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
+                                foundNonPathSeparator = true;
+                                break;
+                            }
+                        }
                     }
                 }
                 if (!foundNonPathSeparator) {

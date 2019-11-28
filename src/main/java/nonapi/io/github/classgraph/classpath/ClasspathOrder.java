@@ -221,7 +221,7 @@ public class ClasspathOrder {
             try {
                 classpathElementObj = pathElement instanceof File ? pathElementStr
                         : pathElement instanceof URI ? ((URI) pathElement).toURL() : pathElement;
-            } catch (MalformedURLException e) {
+            } catch (final MalformedURLException e) {
                 if (log != null) {
                     log.log("Cannot convert from URI to URL: " + pathElementStr);
                 }
@@ -392,7 +392,7 @@ public class ClasspathOrder {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
-            final String[] parts = JarUtils.smartPathSplit(pathStr);
+            final String[] parts = JarUtils.smartPathSplit(pathStr, scanSpec);
             if (parts.length == 0) {
                 return false;
             } else {

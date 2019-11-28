@@ -410,7 +410,7 @@ public class ClassGraph {
         if (overrideClasspath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        for (final String classpathElement : JarUtils.smartPathSplit(overrideClasspath)) {
+        for (final String classpathElement : JarUtils.smartPathSplit(overrideClasspath, scanSpec)) {
             scanSpec.addClasspathOverride(classpathElement);
         }
         return this;

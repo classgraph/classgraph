@@ -124,7 +124,7 @@ public final class SystemJarFinder {
         }
         final String javaExtDirs = VersionFinder.getProperty("java.ext.dirs");
         if (javaExtDirs != null && !javaExtDirs.isEmpty()) {
-            for (final String javaExtDir : JarUtils.smartPathSplit(javaExtDirs)) {
+            for (final String javaExtDir : JarUtils.smartPathSplit(javaExtDirs, /* scanSpec = */ null)) {
                 if (!javaExtDir.isEmpty()) {
                     addJREPath(new File(javaExtDir));
                 }
