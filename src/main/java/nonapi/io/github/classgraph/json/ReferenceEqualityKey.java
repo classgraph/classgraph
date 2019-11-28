@@ -51,7 +51,7 @@ public class ReferenceEqualityKey<K> {
     }
 
     /**
-     *  Get the wrapped key.
+     * Get the wrapped key.
      *
      * @return the wrapped key.
      */
@@ -65,7 +65,9 @@ public class ReferenceEqualityKey<K> {
     @Override
     public int hashCode() {
         final K key = wrappedKey;
-        return key == null ? 0 : key.hashCode();
+        // Don't call key.hashCode(), because that can be an expensive (deep) hashing method,
+        // e.g. for ByteBuffer, it is based on the entire contents of the buffer
+        return key == null ? 0 : System.identityHashCode(key);
     }
 
     /* (non-Javadoc)
