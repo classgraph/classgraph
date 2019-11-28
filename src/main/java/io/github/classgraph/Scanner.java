@@ -431,11 +431,11 @@ class Scanner implements Callable<ScanResult> {
                             classpathEntryPath = URLDecoder.decode(classpathEntryURL.getPath(), "UTF-8");
                         } else if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
-                            return new ClasspathElementZip(classpathEntryObj, classpathEntry.classLoader,
+                            return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
                         } else {
                             // For custom URL schemes, assume it must be for a jar, not a directory
-                            return new ClasspathElementZip(classpathEntryObj, classpathEntry.classLoader,
+                            return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
                         }
                     } else {
