@@ -26,42 +26,30 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.issues.issue384;
+package io.github.classgraph.features;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.net.MalformedURLException;
+import java.io.IOException;
 import java.net.URL;
-import java.util.AbstractMap.SimpleEntry;
+import java.net.URLConnection;
+import java.net.URLStreamHandler;
+import java.util.HashMap;
+import java.util.Map;
 
-import io.github.classgraph.features.CustomURLScheme;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+public class CustomURLScheme {
+    public static final String SCHEME = "customscheme";
 
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
+    public static Map<String, String> remappedURLs = new HashMap<>();
 
-/**
- * Test.
- */
-class Issue384Test {
-    @BeforeAll
-    static void setup() {
-        new CustomURLScheme();
-    }
-
-    /**
-     * Test.
-     */
-    @Test
-    void issue384Test() throws MalformedURLException {
-        final String filePath = Issue384Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
-        final String customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
-        final URL url = new URL(customSchemeURL);
-        try (ScanResult scanResult = new ClassGraph().enableRemoteJarScanning().overrideClasspath(url).scan()) {
-            assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
-            assertThat(CustomURLScheme.remappedURLs.entrySet().iterator().next())
-                    .isEqualTo(new SimpleEntry<>(customSchemeURL, "file:" + filePath));
-        }
+    static {
+        URL.setURLStreamHandlerFactory(protocol -> SCHEME.equals(protocol) ? new URLStreamHandler() {
+            @Override
+            protected URLConnection openConnection(final URL url) throws IOException {
+                // Record that the URL was remapped, so we know this custom URLStreamHandler was called
+                final String newURL = "file:" + url.getPath();
+                remappedURLs.put(url.toString(), newURL);
+                // Replace scheme with "file://"
+                return new URL(newURL).openConnection();
+            }
+        } : null);
     }
 }

@@ -26,12 +26,11 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.issues.issue384;
+package io.github.classgraph.issues.issue387;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.*;
 import java.util.AbstractMap.SimpleEntry;
 
 import io.github.classgraph.features.CustomURLScheme;
@@ -44,7 +43,7 @@ import io.github.classgraph.ScanResult;
 /**
  * Test.
  */
-class Issue384Test {
+class Issue387Test {
     @BeforeAll
     static void setup() {
         new CustomURLScheme();
@@ -54,11 +53,15 @@ class Issue384Test {
      * Test.
      */
     @Test
-    void issue384Test() throws MalformedURLException {
-        final String filePath = Issue384Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
+    void issue387Test() throws MalformedURLException {
+        final String filePath = Issue387Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
         final String customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
         final URL url = new URL(customSchemeURL);
-        try (ScanResult scanResult = new ClassGraph().enableRemoteJarScanning().overrideClasspath(url).scan()) {
+        final URLClassLoader classLoader = new URLClassLoader(new URL[] { url }, null);
+        try (ScanResult scanResult = new ClassGraph()
+                .enableRemoteJarScanning()
+                .overrideClassLoaders(classLoader)
+                .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             assertThat(CustomURLScheme.remappedURLs.entrySet().iterator().next())
                     .isEqualTo(new SimpleEntry<>(customSchemeURL, "file:" + filePath));
