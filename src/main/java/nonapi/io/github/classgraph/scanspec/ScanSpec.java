@@ -33,7 +33,9 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import io.github.classgraph.ClassGraphException;
@@ -171,11 +173,10 @@ public class ScanSpec {
     public boolean extendScanningUpwardsToExternalClasses = true;
 
     /**
-     * If true, enable http(s) classpath elements to be fetched to local temporary files and scanned. Disabled by
-     * default as this may present a security vulnerability, since classes from downloaded jars can be subsequently
-     * loaded using {@link ClassInfo#loadClass}.
+     * URL schemes that are allowed in classpath elements (not counting the optional "jar:" prefix and/or "file:",
+     * which are automatically allowed).
      */
-    public boolean enableRemoteJarScanning;
+    public Set<String> allowedURLSchemes;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -300,6 +301,22 @@ public class ScanSpec {
         if (classLoader != null) {
             this.addedClassLoaders.add(classLoader);
         }
+    }
+
+    /**
+     * Allow a specified URL scheme in classpath elements.
+     *
+     * @param scheme
+     *            the scheme, e.g. "http".
+     */
+    public void enableURLScheme(final String scheme) {
+        if (scheme == null || scheme.length() < 2) {
+            throw new IllegalArgumentException("URL schemes must contain at least two characters");
+        }
+        if (allowedURLSchemes == null) {
+            allowedURLSchemes = new HashSet<>();
+        }
+        allowedURLSchemes.add(scheme);
     }
 
     /**

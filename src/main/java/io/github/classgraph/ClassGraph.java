@@ -1044,13 +1044,34 @@ public class ClassGraph {
 
     /**
      * Enable classpath elements to be fetched from remote ("http:"/"https:") URLs (or URLs with custom schemes).
-     * This option is disabled by default, as this may present a security vulnerability, since classes from
-     * downloaded jars can be subsequently loaded using {@link ClassInfo#loadClass}.
+     * Equivalent to:
+     * 
+     * <p>
+     * {@code new ClassGraph().enableURLScheme("http").enableURLScheme("https");}
+     * 
+     * <p>
+     * Scanning from http(s) URLs is disabled by default, as this may present a security vulnerability, since
+     * classes from downloaded jars can be subsequently loaded using {@link ClassInfo#loadClass}.
      * 
      * @return this (for method chaining).
      */
     public ClassGraph enableRemoteJarScanning() {
-        scanSpec.enableRemoteJarScanning = true;
+        scanSpec.enableURLScheme("http");
+        scanSpec.enableURLScheme("https");
+        return this;
+    }
+
+    /**
+     * Enable classpath elements to be fetched from {@link URL} connections with the specified URL scheme (also
+     * works for any custom URL schemes that have been defined, as long as they have more than two characters, in
+     * order to not conflict with Windows drive letters).
+     *
+     * @param scheme
+     *            the URL scheme string, e.g. "resource" for a custom "resource:" URL scheme.
+     * @return this (for method chaining).
+     */
+    public ClassGraph enableURLScheme(final String scheme) {
+        scanSpec.enableURLScheme(scheme);
         return this;
     }
 

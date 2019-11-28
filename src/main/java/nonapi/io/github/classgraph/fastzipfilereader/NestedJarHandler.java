@@ -200,19 +200,23 @@ public class NestedJarHandler {
                         final boolean isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
                         PhysicalZipFile physicalZipFile;
                         if (isURL) {
-                            // Jarfile is at an http:// or https:// URL
-                            if (scanSpec.enableRemoteJarScanning) {
-                                // Download jar to a temp file, or if not possible, to a ByteBuffer in RAM
-                                final LogNode subLog = log == null ? null
-                                        : log.log("Downloading jar from URL " + nestedJarPath);
-                                physicalZipFile = downloadJarFromURL(nestedJarPath, subLog);
-                            } else {
-                                throw new IOException(
-                                        "Remote jar scanning has not been enabled, cannot scan classpath element: "
-                                                + nestedJarPath);
+                            final String scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':'));
+                            if (scanSpec.allowedURLSchemes == null
+                                    || !scanSpec.allowedURLSchemes.contains(scheme)) {
+                                // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these
+                                // schemes were already stripped by FastPathResolver.resolve(nestedJarPathRaw))
+                                throw new IOException("Scanning of URL scheme \"" + scheme
+                                        + "\" has not been enabled -- cannot scan classpath element: "
+                                        + nestedJarPath);
                             }
+
+                            // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
+                            final LogNode subLog = log == null ? null
+                                    : log.log("Downloading jar from URL " + nestedJarPath);
+                            physicalZipFile = downloadJarFromURL(nestedJarPath, subLog);
+
                         } else {
-                            // Jarfile should be a local file
+                            // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
                             try {
                                 final File canonicalFile = new File(nestedJarPath).getCanonicalFile();
                                 physicalZipFile = canonicalFileToPhysicalZipFile(canonicalFile, log);
