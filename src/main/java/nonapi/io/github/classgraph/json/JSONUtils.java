@@ -388,7 +388,7 @@ public final class JSONUtils {
                 try {
                     // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
                     // https://github.com/mojohaus/animal-sniffer/issues/67
-                    final Object invokeResult = (Object) isAccessibleMethodHandle
+                    final Object invokeResult = isAccessibleMethodHandle
                             .invoke(new Object[] { fieldOrConstructor });
                     accessible.set((Boolean) invokeResult);
                 } catch (final Throwable e) {

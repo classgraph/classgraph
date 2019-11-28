@@ -44,7 +44,6 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -93,8 +92,11 @@ public class NestedJarHandler {
         }
     };
 
-    /** {@link PhysicalZipFile} instances created to extract nested jarfiles to disk or RAM. */
-    private Queue<PhysicalZipFile> additionalAllocatedPhysicalZipFiles = new ConcurrentLinkedQueue<>();
+    /** The allocated {@link PhysicalZipFile} instances. */
+    private Queue<PhysicalZipFile> allocatedPhysicalZipFiles = new ConcurrentLinkedQueue<>();
+
+    /** The allocated {@link LogicalZipFile} instances. */
+    private final Queue<LogicalZipFile> allocatedLogicalZipFiles = new ConcurrentLinkedQueue<>();
 
     /**
      * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice} wrapping either the zip entry data,
@@ -117,85 +119,39 @@ public class NestedJarHandler {
                 // If child entry is deflated i.e. (for a deflated nested zipfile), must inflate
                 // the contents of the entry before its central directory can be read (most of
                 // the time nested zipfiles are stored, not deflated, so this should be rare)
-                if ((childZipEntry.uncompressedSize < 0L
-                        || childZipEntry.uncompressedSize >= INFLATE_TO_DISK_THRESHOLD
-                // Also check compressed size for safety, in case uncompressed size is wrong
-                        || childZipEntry.compressedSize >= INFLATE_TO_DISK_THRESHOLD)) {
-                    // If child entry's size is unknown or the file is large, inflate to disk
-                    File tempFile = null;
-                    try {
-                        // Create temp file
-                        tempFile = makeTempFile(childZipEntry.entryName, /* onlyUseLeafname = */ true);
-
-                        // Inflate zip entry to temp file
-                        if (log != null) {
-                            log.log("Deflating zip entry to temporary file: " + childZipEntry
-                                    + " ; uncompressed size: " + childZipEntry.uncompressedSize + " ; temp file: "
-                                    + tempFile);
-                        }
-                        try (InputStream inputStream = childZipEntry.open()) {
-                            Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                        }
-
-                        // Get or create a PhysicalZipFile instance for the new temp file
-                        final PhysicalZipFile physicalZipFile = canonicalFileToPhysicalZipFile(tempFile, log);
-                        additionalAllocatedPhysicalZipFiles.add(physicalZipFile);
-
-                        // Create a new logical slice of the whole physical zipfile
-                        childZipEntrySlice = new ZipFileSlice(physicalZipFile);
-
-                    } catch (final IllegalArgumentException | IOException e) {
-                        // Could not make temp file, or failed to extract entire contents of entry
-                        if (log != null) {
-                            log.log("Deflating zip entry to temporary file failed: " + e);
-                        }
-                        if (tempFile != null) {
-                            // Delete temp file, in case it contains partially-extracted data
-                            // due to running out of disk space
-                            try {
-                                Files.delete(tempFile.toPath());
-                            } catch (final IOException | SecurityException e2) {
-                                if (log != null) {
-                                    log.log("Removing temporary file failed: " + e2);
-                                }
-                            }
-                        }
-                        childZipEntrySlice = null;
-                    }
-                } else {
-                    childZipEntrySlice = null;
+                if (log != null) {
+                    log.log("Deflating nested zip entry: " + childZipEntry + " ; uncompressed size: "
+                            + childZipEntry.uncompressedSize);
                 }
-                if (childZipEntrySlice == null) {
-                    // If the uncompressed size known and small, or inflating to temp file failed,
-                    // inflate to a ByteBuffer in memory instead
-                    if (childZipEntry.uncompressedSize > FileUtils.MAX_BUFFER_SIZE) {
-                        // Impose 2GB limit (i.e. a max of one ByteBuffer chunk) on inflation to memory
-                        throw new IOException("Uncompressed size of zip entry (" + childZipEntry.uncompressedSize
-                                + ") is too large to inflate to memory: " + childZipEntry.entryName);
-                    }
 
-                    // Open the zip entry to fetch inflated data, and read the whole contents of the
-                    // InputStream to a byte[] array, then wrap it in a ByteBuffer
-                    if (log != null) {
-                        log.log("Deflating zip entry to RAM: " + childZipEntry + " ; uncompressed size: "
-                                + childZipEntry.uncompressedSize);
-                    }
-                    ByteBuffer byteBuffer;
-                    try (InputStream inputStream = childZipEntry.open()) {
-                        byteBuffer = ByteBuffer
-                                .wrap(FileUtils.readAllBytesAsArray(inputStream, childZipEntry.uncompressedSize));
-                    }
+                // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large 
+                final MappedByteBufferResources bufResources = new MappedByteBufferResources(childZipEntry.open(),
+                        childZipEntry.entryName, NestedJarHandler.this, log);
+                mappedByteBufferResources.add(bufResources);
 
+                PhysicalZipFile physicalZipFile = null;
+                final File tempFile = bufResources.getFile();
+                if (tempFile != null) {
+                    // InputStream would not fit within the RAM limit, so spilled over to disk
+                    // Wrap temp file in a PhysicalZipFile
+                    physicalZipFile = canonicalFileToPhysicalZipFile(tempFile, log);
+                    if (physicalZipFile == null) {
+                        // Should not happen
+                        throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
+                    }
+                    // Create a new logical slice of the whole physical zipfile
+                    childZipEntrySlice = new ZipFileSlice(physicalZipFile);
+
+                } else {
                     // Create a new PhysicalZipFile that wraps the ByteBuffer as if the buffer had been
                     // mmap'd to a file on disk
-                    final PhysicalZipFile physicalZipFileInRam = new PhysicalZipFile(byteBuffer,
+                    physicalZipFile = new PhysicalZipFile(bufResources.getByteBuffer(),
                             /* outermostFile = */ childZipEntry.parentLogicalZipFile.physicalZipFile.getFile(),
                             childZipEntry.getPath(), NestedJarHandler.this);
-                    additionalAllocatedPhysicalZipFiles.add(physicalZipFileInRam);
-
-                    // Create a new logical slice of the whole physical in-memory zipfile
-                    childZipEntrySlice = new ZipFileSlice(physicalZipFileInRam, childZipEntry);
+                    // Create a new logical slice of the in-memory extracted inner zipfile
+                    childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
                 }
+                allocatedPhysicalZipFiles.add(physicalZipFile);
             }
             return childZipEntrySlice;
         }
@@ -217,9 +173,6 @@ public class NestedJarHandler {
             return logicalZipFile;
         }
     };
-
-    /** All allocated LogicalZipFile instances. */
-    private final Queue<LogicalZipFile> allocatedLogicalZipFiles = new ConcurrentLinkedQueue<>();
 
     /**
      * A singleton map from nested jarfile path to a tuple of the logical zipfile for the path, and the package root
@@ -451,12 +404,6 @@ public class NestedJarHandler {
      */
     private static final int MAX_JAR_RAM_SIZE = 64 * 1024 * 1024;
 
-    /**
-     * The maximum uncompressed size above which nested deflated jars are inflated to a temporary file on disk,
-     * rather than to RAM.
-     */
-    private static final int INFLATE_TO_DISK_THRESHOLD = MAX_JAR_RAM_SIZE;
-
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -508,6 +455,7 @@ public class NestedJarHandler {
     /** Resources for a mapped file. */
     public static class MappedByteBufferResources {
         private File file;
+        private boolean fileIsTempFile;
         private RandomAccessFile raf;
         private FileChannel fileChannel;
         private ByteBuffer byteBuffer;
@@ -520,23 +468,18 @@ public class NestedJarHandler {
          *
          * @param inputStream
          *            The {@link InputStream}.
-         * @param maxRAMBufferSize
-         *            the max RAM to use before spilling over to a temp file on disk.
-         * @param sourceURL
-         *            the source URL that inputStream was opened from.
+         * @param tempFileBaseName
+         *            the source URL or zip entry that inputStream was opened from (used to name temporary file, if
+         *            needed).
          * @param log
-         *            the log
+         *            the log.
          * @throws IOException
          *             If the contents could not be read.
          */
-        public MappedByteBufferResources(final InputStream inputStream, final int maxRAMBufferSize,
-                final String sourceURL, final NestedJarHandler nestedJarHandler, final LogNode log)
-                throws IOException {
+        public MappedByteBufferResources(final InputStream inputStream, final String tempFileBaseName,
+                final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
             this.nestedJarHandler = nestedJarHandler;
-            if (maxRAMBufferSize > FileUtils.MAX_BUFFER_SIZE) {
-                throw new IOException("InputStream is too large to read");
-            }
-            final byte[] buf = new byte[maxRAMBufferSize];
+            final byte[] buf = new byte[MAX_JAR_RAM_SIZE];
             final int bufLength = buf.length;
 
             int totBytesRead = 0;
@@ -552,10 +495,11 @@ public class NestedJarHandler {
                 // byteBufferIsMapped will remain false.
             } else {
                 // bytesRead == 0 => ran out of buffer space, spill over to disk
-                final File tempFile = nestedJarHandler.makeTempFile(sourceURL, /* onlyUseLeafname = */ true);
+                final File tempFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
+                fileIsTempFile = true;
                 if (log != null) {
-                    log.log("Could not fit downloaded URL into max RAM buffer size of " + maxRAMBufferSize
-                            + " bytes, downloading to temporary file: " + sourceURL + " -> " + tempFile);
+                    log.log("Could not fit downloaded URL into max RAM buffer size of " + MAX_JAR_RAM_SIZE
+                            + " bytes, downloading to temporary file: " + tempFileBaseName + " -> " + tempFile);
                 }
                 Files.write(tempFile.toPath(), buf, StandardOpenOption.WRITE);
                 try (OutputStream os = new BufferedOutputStream(
@@ -658,6 +602,16 @@ public class NestedJarHandler {
                 } catch (final IOException e) {
                     // Ignore
                 }
+            }
+            if (file != null && fileIsTempFile) {
+                try {
+                    Files.delete(file.toPath());
+                } catch (final IOException e) {
+                    if (log != null) {
+                        log.log("Could not delete temporary file " + file + " : " + e);
+                    }
+                }
+                file = null;
             }
         }
     }
@@ -790,8 +744,8 @@ public class NestedJarHandler {
         try (InputStream inputStream = url.openStream()) {
             // Fetch the jar contents from the URL's InputStream.
             // If it doesn't fit in RAM, spill over to disk.
-            final MappedByteBufferResources bufResources = new MappedByteBufferResources(inputStream,
-                    MAX_JAR_RAM_SIZE, jarURL, this, log);
+            final MappedByteBufferResources bufResources = new MappedByteBufferResources(inputStream, jarURL, this,
+                    log);
             mappedByteBufferResources.add(bufResources);
 
             PhysicalZipFile physicalZipFile = null;
@@ -804,8 +758,6 @@ public class NestedJarHandler {
                     // Should not happen
                     throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
                 }
-                // Add temp file to queue of physical zipfiles that have to be unmapped on close
-                additionalAllocatedPhysicalZipFiles.add(physicalZipFile);
             } else {
                 // Wrap ByteBuffer in a PhysicalZipFile. (No need to add to additionalAllocatedPhysicalZipFiles,
                 // since byteBuffer is not a DirectByteBuffer, it just wraps a standard Java byte array, so the
@@ -813,6 +765,7 @@ public class NestedJarHandler {
                 physicalZipFile = new PhysicalZipFile(bufResources.getByteBuffer(), /* outermostFile = */ null,
                         jarURL, NestedJarHandler.this);
             }
+            allocatedPhysicalZipFiles.add(physicalZipFile);
             return physicalZipFile;
 
         } catch (final MalformedURLException e) {
@@ -875,13 +828,13 @@ public class NestedJarHandler {
                 canonicalFileToPhysicalZipFileMap.clear();
                 canonicalFileToPhysicalZipFileMap = null;
             }
-            if (additionalAllocatedPhysicalZipFiles != null) {
-                for (PhysicalZipFile physicalZipFile; (physicalZipFile = additionalAllocatedPhysicalZipFiles
+            if (allocatedPhysicalZipFiles != null) {
+                for (PhysicalZipFile physicalZipFile; (physicalZipFile = allocatedPhysicalZipFiles
                         .poll()) != null;) {
                     physicalZipFile.close();
                 }
-                additionalAllocatedPhysicalZipFiles.clear();
-                additionalAllocatedPhysicalZipFiles = null;
+                allocatedPhysicalZipFiles.clear();
+                allocatedPhysicalZipFiles = null;
             }
             if (fastZipEntryToZipFileSliceMap != null) {
                 fastZipEntryToZipFileSliceMap.clear();
