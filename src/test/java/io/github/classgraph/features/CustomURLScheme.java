@@ -35,9 +35,14 @@ import java.net.URLStreamHandler;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * CustomURLScheme.
+ */
 public class CustomURLScheme {
+    /** URL scheme. */
     public static final String SCHEME = "customscheme";
 
+    /** Any URLs that were remapped. */
     public static Map<String, String> remappedURLs = new HashMap<>();
 
     static {
