@@ -410,7 +410,7 @@ class Scanner implements Callable<ScanResult> {
                 @Override
                 public ClasspathElement newInstance(final ClasspathElementAndClassLoader classpathEntry,
                         final LogNode log) throws IOException, InterruptedException {
-                    Object classpathEntryObj = classpathEntry.classpathElement;
+                    final Object classpathEntryObj = classpathEntry.classpathElement;
                     String classpathEntryPath;
                     if (classpathEntryObj instanceof URL) {
                         URL classpathEntryURL = (URL) classpathEntryObj;
