@@ -316,7 +316,7 @@ public class ScanSpec {
         if (allowedURLSchemes == null) {
             allowedURLSchemes = new HashSet<>();
         }
-        allowedURLSchemes.add(scheme);
+        allowedURLSchemes.add(scheme.toLowerCase());
     }
 
     /**
