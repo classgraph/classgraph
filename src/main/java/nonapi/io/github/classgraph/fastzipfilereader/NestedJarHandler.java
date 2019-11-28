@@ -64,6 +64,7 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
+import nonapi.io.github.classgraph.json.ReferenceEqualityKey;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -388,9 +389,12 @@ public class NestedJarHandler {
         }
     };
 
-    /** {@link MappedByteBuffer} instances that are currently mapped. */
-    private final Set<MappedByteBuffer> mappedByteBuffers = Collections
-            .newSetFromMap(new ConcurrentHashMap<MappedByteBuffer, Boolean>());
+    /**
+     * {@link MappedByteBuffer} instances that are currently mapped. (Use {@link ReferenceEqualityKey} so that the
+     * entire contents of the buffers are not compared by {@link ByteBuffer#equals(Object)}).
+     */
+    private final Set<ReferenceEqualityKey<? extends ByteBuffer>> mappedByteBuffers = Collections
+            .newSetFromMap(new ConcurrentHashMap<ReferenceEqualityKey<? extends ByteBuffer>, Boolean>());
 
     /** {@link MappedByteBufferResources} instances that were allocated for downloading jars from URLs. */
     private final Set<MappedByteBufferResources> mappedByteBufferResources = Collections
@@ -654,7 +658,7 @@ public class NestedJarHandler {
         }
 
         // If succeeded, add the ByteBuffer to the set of opened ByteBuffers so it can be cleanly closed 
-        mappedByteBuffers.add(byteBuffer);
+        mappedByteBuffers.add(new ReferenceEqualityKey<ByteBuffer>(byteBuffer));
         return byteBuffer;
     }
 
@@ -667,7 +671,7 @@ public class NestedJarHandler {
      *            the log.
      */
     public void unmapByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
-        if (mappedByteBuffers.remove(byteBuffer)) {
+        if (mappedByteBuffers.remove(new ReferenceEqualityKey<ByteBuffer>(byteBuffer))) {
             FileUtils.closeDirectByteBuffer(byteBuffer, log);
         }
     }
@@ -867,8 +871,9 @@ public class NestedJarHandler {
                 }
             }
             if (mappedByteBuffers != null) {
-                for (final ByteBuffer byteBuffer : new ArrayList<>(mappedByteBuffers)) {
-                    unmapByteBuffer(byteBuffer, log);
+                for (final ReferenceEqualityKey<? extends ByteBuffer> byteBufferRef : new ArrayList<>(
+                        mappedByteBuffers)) {
+                    unmapByteBuffer(byteBufferRef.get(), log);
                 }
             }
         }

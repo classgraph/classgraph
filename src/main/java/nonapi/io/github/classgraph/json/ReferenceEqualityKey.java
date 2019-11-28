@@ -35,7 +35,7 @@ package nonapi.io.github.classgraph.json;
  * @param <K>
  *            the key type
  */
-class ReferenceEqualityKey<K> {
+public class ReferenceEqualityKey<K> {
 
     /** The wrapped key. */
     private final K wrappedKey;
@@ -48,6 +48,15 @@ class ReferenceEqualityKey<K> {
      */
     public ReferenceEqualityKey(final K wrappedKey) {
         this.wrappedKey = wrappedKey;
+    }
+
+    /**
+     *  Get the wrapped key.
+     *
+     * @return the wrapped key.
+     */
+    public K get() {
+        return wrappedKey;
     }
 
     /* (non-Javadoc)
