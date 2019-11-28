@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
 import java.lang.reflect.Array;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -52,14 +53,14 @@ public class ClasspathOrder {
     /** Unique classpath entries. */
     private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
 
-    /** The classpath order. Keys are instances of {@link String}, {@link URL} or {@link URI}. */
+    /** The classpath order. Keys are instances of {@link String} or {@link URL}. */
     private final List<ClasspathElementAndClassLoader> order = new ArrayList<>();
 
     /**
      * A classpath element and the {@link ClassLoader} it was obtained from.
      */
     public static class ClasspathElementAndClassLoader {
-        /** The classpath element (a {@link String}, {@link URL} or {@link URI}). */
+        /** The classpath element (a {@link String} or {@link URL}). */
         public final Object classpathElement;
 
         /** The classloader the classpath element was obtained from. */
@@ -69,7 +70,7 @@ public class ClasspathOrder {
          * Constructor.
          *
          * @param classpathElement
-         *            the classpath element (a {@link String}, {@link URL} or {@link URI}).
+         *            the classpath element (a {@link String} or {@link URL}).
          * @param classLoader
          *            the classloader the classpath element was obtained from.
          */
@@ -207,14 +208,26 @@ public class ClasspathOrder {
         if (pathElementStr.isEmpty()) {
             return false;
         }
-        if (pathElement instanceof URL || pathElement instanceof URI) {
+        if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof File) {
             if (!filter(pathElementStr)) {
                 if (log != null) {
                     log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr);
                 }
                 return false;
             }
-            if (addClasspathEntry(pathElement, pathElementStr, classLoader, scanSpec)) {
+            // For URL objects, use the object itself (so that URL scheme handling can be undertaken later);
+            // for URI objects, convert to URL; for File objects, use the toString result (the path)
+            final Object classpathElementObj;
+            try {
+                classpathElementObj = pathElement instanceof File ? pathElementStr
+                        : pathElement instanceof URI ? ((URI) pathElement).toURL() : pathElement;
+            } catch (MalformedURLException e) {
+                if (log != null) {
+                    log.log("Cannot convert from URI to URL: " + pathElementStr);
+                }
+                return false;
+            }
+            if (addClasspathEntry(classpathElementObj, pathElementStr, classLoader, scanSpec)) {
                 if (log != null) {
                     log.log("Found classpath element: " + pathElementStr);
                 }
@@ -340,7 +353,7 @@ public class ClasspathOrder {
      * Add classpath entries, separated by the system path separator character.
      *
      * @param overrideClasspath
-     *            the delimited {@link String}, {@link URL} or {@link URI} of classpath elements.
+     *            a list of delimited path {@link String}, {@link URL}, {@link URI} or {@link File} objects.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param scanSpec
@@ -393,10 +406,10 @@ public class ClasspathOrder {
 
     /**
      * Add classpath entries from an object obtained from reflection. The object may be a {@link URL}, a
-     * {@link URI}, a {@link String} (containing a single path, or several paths separated with File.pathSeparator),
-     * a List or other Iterable, or an array object. In the case of Iterables and arrays, the elements may be any
-     * type whose {@code toString()} method returns a path or URL string (including the {@code URL} and {@code Path}
-     * types).
+     * {@link URI}, a {@link File} or a {@link String} (containing a single classpath element path, or several paths
+     * separated with File.pathSeparator), a List or other Iterable, or an array object. In the case of Iterables
+     * and arrays, the elements may be any type whose {@code toString()} method returns a path or URL string
+     * (including the {@code URL} and {@code Path} types).
      *
      * @param pathObject
      *            the object containing a classpath string or strings.

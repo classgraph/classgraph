@@ -32,8 +32,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.AbstractMap.SimpleEntry;
@@ -414,27 +412,23 @@ class Scanner implements Callable<ScanResult> {
                         final LogNode log) throws IOException, InterruptedException {
                     Object classpathEntryObj = classpathEntry.classpathElement;
                     String classpathEntryPath;
-                    if (classpathEntryObj instanceof URL || classpathEntryObj instanceof URI) {
-                        String scheme = classpathEntryObj instanceof URL ? ((URL) classpathEntryObj).getProtocol()
-                                : ((URI) classpathEntryObj).getScheme();
+                    if (classpathEntryObj instanceof URL) {
+                        final URL classpathEntryURL = (URL) classpathEntryObj;
+                        String scheme = classpathEntryURL.getProtocol();
                         if ("jar".equals(scheme)) {
                             // Strip off "jar:" scheme prefix
                             try {
-                                classpathEntryObj = classpathEntryObj instanceof URL
-                                        ? new URL(((URL) classpathEntryObj).toString().substring(4))
-                                        : new URI(((URI) classpathEntryObj).toString().substring(4));
-                                scheme = classpathEntryObj instanceof URL ? ((URL) classpathEntryObj).getProtocol()
-                                        : ((URI) classpathEntryObj).getScheme();
-                            } catch (MalformedURLException | URISyntaxException e) {
+                                classpathEntryObj = new URL(
+                                        URLDecoder.decode(classpathEntryURL.toString(), "UTF-8").substring(4));
+                                scheme = classpathEntryURL.getProtocol();
+                            } catch (MalformedURLException e) {
                                 throw new IOException("Could not strip 'jar:' prefix from " + classpathEntryObj, e);
                             }
                         }
                         if ("file".equals(scheme)) {
                             // Extract file path, and use below as a path string to determine if this
                             // classpath element is a file (jar) or directory
-                            classpathEntryPath = URLDecoder.decode(classpathEntryObj instanceof URL
-                                    ? ((URL) classpathEntryObj).getPath()
-                                    : ((URI) classpathEntryObj).getPath(), "UTF-8");
+                            classpathEntryPath = URLDecoder.decode(classpathEntryURL.getPath(), "UTF-8");
                         } else if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
                             return new ClasspathElementZip(classpathEntryObj, classpathEntry.classLoader,

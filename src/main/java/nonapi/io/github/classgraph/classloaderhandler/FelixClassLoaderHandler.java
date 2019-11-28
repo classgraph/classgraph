@@ -91,9 +91,8 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *            the content object
      * @return the content location
      */
-    private static String getContentLocation(final Object content) {
-        final File file = (File) ReflectionUtils.invokeMethod(content, "getFile", false);
-        return file != null ? file.toURI().toString() : null;
+    private static File getContentLocation(final Object content) {
+        return (File) ReflectionUtils.invokeMethod(content, "getFile", false);
     }
 
     /**
@@ -122,7 +121,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         final Object revision = ReflectionUtils.invokeMethod(bundleWiring, "getRevision", false);
         // Get the contents
         final Object content = ReflectionUtils.invokeMethod(revision, "getContent", false);
-        final String location = content != null ? getContentLocation(content) : null;
+        final File location = content != null ? getContentLocation(content) : null;
         if (location != null) {
             // Add the bundle object
             classpathOrderOut.addClasspathEntry(location, classLoader, scanSpec, log);
@@ -133,7 +132,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             if (embeddedContent != null) {
                 for (final Object embedded : embeddedContent) {
                     if (embedded != content) {
-                        final String embeddedLocation = embedded != null ? getContentLocation(embedded) : null;
+                        final File embeddedLocation = embedded != null ? getContentLocation(embedded) : null;
                         if (embeddedLocation != null) {
                             classpathOrderOut.addClasspathEntry(embeddedLocation, classLoader, scanSpec, log);
                         }
