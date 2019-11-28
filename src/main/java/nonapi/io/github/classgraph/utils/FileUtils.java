@@ -568,7 +568,8 @@ public final class FileUtils {
             } catch (final SecurityException e) {
                 throw ClassGraphException.newClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
-                                + "and ReflectPermission(\"suppressAccessChecks\")");
+                                + "and ReflectPermission(\"suppressAccessChecks\")",
+                        e);
             } catch (final ReflectiveOperationException | LinkageError ex) {
                 // Ignore
             }
@@ -591,7 +592,8 @@ public final class FileUtils {
                 throw ClassGraphException.newClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
                                 + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
-                                + "and ReflectPermission(\"suppressAccessChecks\")");
+                                + "and ReflectPermission(\"suppressAccessChecks\")",
+                        e);
             } catch (final ReflectiveOperationException | LinkageError ex) {
                 // Ignore
             }
