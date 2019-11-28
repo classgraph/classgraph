@@ -59,7 +59,7 @@ class Issue387Test {
         final URL url = new URL(customSchemeURL);
         final URLClassLoader classLoader = new URLClassLoader(new URL[] { url }, null);
         try (ScanResult scanResult = new ClassGraph()
-                .enableRemoteJarScanning()
+                .enableURLScheme(CustomURLScheme.SCHEME)
                 .overrideClassLoaders(classLoader)
                 .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
