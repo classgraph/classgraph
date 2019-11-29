@@ -346,7 +346,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             /** Advance to the next 2GB chunk. */
             private boolean readNextChunk() throws IOException, InterruptedException {
                 currChunkIdx++;
-                if (currChunkIdx >= parentLogicalZipFile.physicalZipFile.numMappedByteBuffers) {
+                if (currChunkIdx >= parentLogicalZipFile.physicalZipFile.numChunks()) {
                     // Ran out of chunks
                     return false;
                 }
@@ -532,7 +532,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                     throw new IndexOutOfBoundsException();
                 } else if (len == 0) {
                     return 0;
-                } else if (parentLogicalZipFile.physicalZipFile.fileLen == 0) {
+                } else if (parentLogicalZipFile.physicalZipFile.length() == 0) {
                     return -1;
                 }
                 try {

@@ -28,13 +28,9 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -44,7 +40,6 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -89,7 +84,8 @@ public class NestedJarHandler {
                 throw ClassGraphException
                         .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
-            return new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
+            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
+            return physicalZipFile;
         }
     };
 
@@ -126,33 +122,12 @@ public class NestedJarHandler {
                 }
 
                 // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large 
-                final MappedByteBufferResources bufResources = new MappedByteBufferResources(childZipEntry.open(),
+                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.open(),
                         childZipEntry.entryName, NestedJarHandler.this, log);
-                mappedByteBufferResources.add(bufResources);
-
-                PhysicalZipFile physicalZipFile = null;
-                final File tempFile = bufResources.getFile();
-                if (tempFile != null) {
-                    // InputStream would not fit within the RAM limit, so spilled over to disk
-                    // Wrap temp file in a PhysicalZipFile
-                    physicalZipFile = canonicalFileToPhysicalZipFile(tempFile, log);
-                    if (physicalZipFile == null) {
-                        // Should not happen
-                        throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
-                    }
-                    // Create a new logical slice of the whole physical zipfile
-                    childZipEntrySlice = new ZipFileSlice(physicalZipFile);
-
-                } else {
-                    // Create a new PhysicalZipFile that wraps the ByteBuffer as if the buffer had been
-                    // mmap'd to a file on disk
-                    physicalZipFile = new PhysicalZipFile(bufResources.getByteBuffer(),
-                            /* outermostFile = */ childZipEntry.parentLogicalZipFile.physicalZipFile.getFile(),
-                            childZipEntry.getPath(), NestedJarHandler.this);
-                    // Create a new logical slice of the in-memory extracted inner zipfile
-                    childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
-                }
                 allocatedPhysicalZipFiles.add(physicalZipFile);
+
+                // Create a new logical slice of the extracted inner zipfile
+                childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
             }
             return childZipEntrySlice;
         }
@@ -406,12 +381,6 @@ public class NestedJarHandler {
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
-    /**
-     * The maximum size of a jar that is downloaded from a {@link URL}'s {@link InputStream} to RAM, before the
-     * content is spilled over to a temporary file on disk.
-     */
-    private static final int MAX_JAR_RAM_SIZE = 64 * 1024 * 1024;
-
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -460,206 +429,14 @@ public class NestedJarHandler {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Resources for a mapped file. */
-    public static class MappedByteBufferResources {
-        private File file;
-        private boolean fileIsTempFile;
-        private RandomAccessFile raf;
-        private FileChannel fileChannel;
-        private ByteBuffer byteBuffer;
-        private boolean byteBufferIsMapped;
-        private final NestedJarHandler nestedJarHandler;
-
-        /**
-         * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum
-         * buffer size is exceeded.
-         *
-         * @param inputStream
-         *            The {@link InputStream}.
-         * @param tempFileBaseName
-         *            the source URL or zip entry that inputStream was opened from (used to name temporary file, if
-         *            needed).
-         * @param log
-         *            the log.
-         * @throws IOException
-         *             If the contents could not be read.
-         */
-        public MappedByteBufferResources(final InputStream inputStream, final String tempFileBaseName,
-                final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
-            this.nestedJarHandler = nestedJarHandler;
-            final byte[] buf = new byte[MAX_JAR_RAM_SIZE];
-            final int bufLength = buf.length;
-
-            int totBytesRead = 0;
-            int bytesRead = 0;
-            while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
-                // Fill buffer until nothing more can be read
-                totBytesRead += bytesRead;
-            }
-            if (bytesRead < 0) {
-                // Successfully reached end of stream -- wrap array with ByteBuffer and return it
-                byteBuffer = ByteBuffer.wrap(buf, 0, totBytesRead);
-                // Don't set file, fileChannel or raf, they are unneeded.
-                // byteBufferIsMapped will remain false.
-            } else {
-                // bytesRead == 0 => ran out of buffer space, spill over to disk
-                final File tempFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
-                fileIsTempFile = true;
-                if (log != null) {
-                    log.log("Could not fit downloaded URL into max RAM buffer size of " + MAX_JAR_RAM_SIZE
-                            + " bytes, downloading to temporary file: " + tempFileBaseName + " -> " + tempFile);
-                }
-                Files.write(tempFile.toPath(), buf, StandardOpenOption.WRITE);
-                try (OutputStream os = new BufferedOutputStream(
-                        new FileOutputStream(tempFile, /* append = */ true))) {
-                    for (int bytesReadCtd; (bytesReadCtd = inputStream.read(buf, 0, buf.length)) > 0;) {
-                        os.write(buf, 0, bytesReadCtd);
-                    }
-                }
-                // Map the file to a MappedByteBuffer
-                mapFile(tempFile);
-            }
-        }
-
-        /**
-         * Map a {@link File} to a {@link MappedByteBuffer}.
-         *
-         * @param file
-         *            the file
-         * @param nestedJarHandler
-         *            the nested jar handler
-         * @throws IOException
-         *             If the contents could not be read.
-         */
-        public MappedByteBufferResources(final File file, final NestedJarHandler nestedJarHandler)
-                throws IOException {
-            this.nestedJarHandler = nestedJarHandler;
-            mapFile(file);
-        }
-
-        /**
-         * Map a {@link File} to a {@link MappedByteBuffer}.
-         *
-         * @param file
-         *            the file
-         * @throws IOException
-         *             Signals that an I/O exception has occurred.
-         */
-        private void mapFile(final File file) throws IOException {
-            this.file = file;
-            try {
-                raf = new RandomAccessFile(file, "r");
-                fileChannel = raf.getChannel();
-                byteBuffer = nestedJarHandler.mapFileChannelToByteBuffer(fileChannel, 0L, raf.length());
-                byteBufferIsMapped = true;
-
-            } catch (final IOException | SecurityException e) {
-                if (fileChannel != null) {
-                    fileChannel.close();
-                    fileChannel = null;
-                }
-                if (raf != null) {
-                    raf.close();
-                    raf = null;
-                }
-                throw e;
-            }
-        }
-
-        /**
-         * Get the mapped file (or null if an in-memory {@link ByteBuffer} was wrapped instead).
-         *
-         * @return the mapped file
-         */
-        public File getFile() {
-            return file;
-        }
-
-        /**
-         * Get the byte buffer.
-         *
-         * @return the byte buffer
-         */
-        public ByteBuffer getByteBuffer() {
-            return byteBuffer;
-        }
-
-        /**
-         * Free resources.
-         *
-         * @param log
-         *            the log
-         */
-        public void close(final LogNode log) {
-            if (byteBufferIsMapped && byteBuffer != null) {
-                nestedJarHandler.unmapByteBuffer(byteBuffer, log);
-                byteBuffer = null;
-            }
-            if (fileChannel != null) {
-                try {
-                    fileChannel.close();
-                    fileChannel = null;
-                } catch (final IOException e) {
-                    // Ignore
-                }
-            }
-            if (raf != null) {
-                try {
-                    raf.close();
-                    raf = null;
-                } catch (final IOException e) {
-                    // Ignore
-                }
-            }
-            if (file != null && fileIsTempFile) {
-                try {
-                    Files.delete(file.toPath());
-                } catch (final IOException e) {
-                    if (log != null) {
-                        log.log("Could not delete temporary file " + file + " : " + e);
-                    }
-                }
-                file = null;
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
-     * Map a {@link FileChannel} to a {@link MappedByteBuffer}.
+     * Record that a {@link FileChannel} was mapped to a {@link MappedByteBuffer}.
      *
-     * @param fileChannel
-     *            the file channel
-     * @param position
-     *            the start position to map.
-     * @param size
-     *            the number of bytes to map.
-     * @return the {@link MappedByteBuffer}.
-     * @throws IOException
-     *             If an I/O exception occurs.
+     * @param byteBuffer
+     *            the byte buffer
      */
-    public MappedByteBuffer mapFileChannelToByteBuffer(final FileChannel fileChannel, final long position,
-            final long size) throws IOException {
-        MappedByteBuffer byteBuffer;
-        try {
-            // Try mapping the FileChannel
-            byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, position, size);
-        } catch (final FileNotFoundException e) {
-            throw e;
-        } catch (IOException | OutOfMemoryError e) {
-            // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
-            // (there is a limit to the number of mapped files -- 64k on Linux)
-            // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-            System.gc();
-            System.runFinalization();
-            // Then try calling map again
-            byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, position, size);
-        }
-
-        // If succeeded, add the ByteBuffer to the set of opened ByteBuffers so it can be cleanly closed 
+    public void addMappedByteBuffer(final ByteBuffer byteBuffer) {
         mappedByteBuffers.add(new ReferenceEqualityKey<ByteBuffer>(byteBuffer));
-        return byteBuffer;
     }
 
     /**
@@ -712,7 +489,7 @@ public class NestedJarHandler {
      * @throws IOException
      *             If the temporary file could not be created.
      */
-    private File makeTempFile(final String filePath, final boolean onlyUseLeafname) throws IOException {
+    File makeTempFile(final String filePath, final boolean onlyUseLeafname) throws IOException {
         final File tempFile = File.createTempFile("ClassGraph--",
                 TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(onlyUseLeafname ? leafname(filePath) : filePath));
         tempFile.deleteOnExit();
@@ -750,29 +527,8 @@ public class NestedJarHandler {
             }
         }
         try (InputStream inputStream = url.openStream()) {
-            // Fetch the jar contents from the URL's InputStream.
-            // If it doesn't fit in RAM, spill over to disk.
-            final MappedByteBufferResources bufResources = new MappedByteBufferResources(inputStream, jarURL, this,
-                    log);
-            mappedByteBufferResources.add(bufResources);
-
-            PhysicalZipFile physicalZipFile = null;
-            final File tempFile = bufResources.getFile();
-            if (tempFile != null) {
-                // InputStream would not fit within the RAM limit, so spilled over to disk
-                // Wrap temp file in a PhysicalZipFile
-                physicalZipFile = canonicalFileToPhysicalZipFile(tempFile, log);
-                if (physicalZipFile == null) {
-                    // Should not happen
-                    throw ClassGraphException.newClassGraphException("physicalZipFile should not be null");
-                }
-            } else {
-                // Wrap ByteBuffer in a PhysicalZipFile. (No need to add to additionalAllocatedPhysicalZipFiles,
-                // since byteBuffer is not a DirectByteBuffer, it just wraps a standard Java byte array, so the
-                // DirectByteBuffer cleaner does not need to be called on close.)
-                physicalZipFile = new PhysicalZipFile(bufResources.getByteBuffer(), /* outermostFile = */ null,
-                        jarURL, NestedJarHandler.this);
-            }
+            // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
+            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, jarURL, this, log);
             allocatedPhysicalZipFiles.add(physicalZipFile);
             return physicalZipFile;
 

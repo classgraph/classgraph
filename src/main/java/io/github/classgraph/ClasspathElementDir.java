@@ -45,8 +45,8 @@ import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
+import nonapi.io.github.classgraph.fastzipfilereader.MappedByteBufferResources;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler.MappedByteBufferResources;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -205,10 +205,18 @@ class ClasspathElementDir extends ClasspathElement {
                 markAsOpen();
                 try {
                     mappedFileResources = new MappedByteBufferResources(classpathResourceFile, nestedJarHandler);
-                    byteBuffer = mappedFileResources.getByteBuffer();
+                    if (mappedFileResources.numChunks() > 1) {
+                        // We could provide another method that fetches a chunk other than chunk 0, but the need
+                        // to read files larger than 2GB is probably limited (it's not even supported for zipfiles),
+                        // and the caller can use an InputStream if necessary. 
+                        throw new IOException(
+                                "File is larger than 2GB, cannot use read() method, use open() instead");
+                    }
+                    // Fetch chunk 0 (the first ~2GB of the file)
+                    byteBuffer = mappedFileResources.getByteBuffer(0);
                     length = byteBuffer.remaining();
                     return byteBuffer;
-                } catch (final IOException | SecurityException | OutOfMemoryError e) {
+                } catch (final IOException | SecurityException | OutOfMemoryError | InterruptedException e) {
                     close();
                     throw new IOException("Could not open " + this, e);
                 }
@@ -226,7 +234,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public synchronized InputStream open() throws IOException {
-                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD && length <= FileUtils.MAX_BUFFER_SIZE) {
                     read();
                     return inputStream = new InputStreamResourceCloser(this, byteBufferToInputStream());
                 } else {
@@ -245,7 +253,9 @@ class ClasspathElementDir extends ClasspathElement {
             public synchronized byte[] load() throws IOException {
                 try {
                     final byte[] byteArray;
-                    if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
+                    if (length > FileUtils.MAX_BUFFER_SIZE) {
+                        throw new IOException("File is larger than 2GB, cannot read into array");
+                    } else if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
                         read();
                         byteArray = byteBufferToByteArray();
                     } else {

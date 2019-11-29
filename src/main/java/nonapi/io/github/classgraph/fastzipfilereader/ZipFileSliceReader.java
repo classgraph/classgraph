@@ -45,7 +45,10 @@ class ZipFileSliceReader implements AutoCloseable {
     /** The zipfile slice. */
     private final ZipFileSlice zipFileSlice;
 
-    /** The chunk cache. */
+    /**
+     * The chunk cache, for duplicates of the ByteBuffers in the ZipFileSlice, so that different threads can work on
+     * the same MappedByteBuffers without interfering with each other's buffer position.
+     */
     private final ByteBuffer[] chunkCache;
 
     /** A scratch buffer. */
@@ -59,7 +62,7 @@ class ZipFileSliceReader implements AutoCloseable {
      */
     public ZipFileSliceReader(final ZipFileSlice zipFileSlice) {
         this.zipFileSlice = zipFileSlice;
-        this.chunkCache = new ByteBuffer[zipFileSlice.physicalZipFile.numMappedByteBuffers];
+        this.chunkCache = new ByteBuffer[zipFileSlice.physicalZipFile.numChunks()];
     }
 
     /**

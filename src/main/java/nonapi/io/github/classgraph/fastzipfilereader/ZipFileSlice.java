@@ -68,7 +68,7 @@ public class ZipFileSlice {
     }
 
     /**
-     * Create a ZipFileSlice that wraps an entire {@link PhysicalZipFile}.
+     * Create a ZipFileSlice that wraps a toplevel {@link PhysicalZipFile}.
      *
      * @param physicalZipFile
      *            the physical zipfile
@@ -77,7 +77,7 @@ public class ZipFileSlice {
         this.parentZipFileSlice = null;
         this.physicalZipFile = physicalZipFile;
         this.startOffsetWithinPhysicalZipFile = 0;
-        this.len = physicalZipFile.fileLen;
+        this.len = physicalZipFile.length();
         this.pathWithinParentZipFileSlice = physicalZipFile.getPath();
         this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
@@ -85,16 +85,16 @@ public class ZipFileSlice {
     /**
      * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} extracted to a ByteBuffer in memory.
      *
-     * @param physicalZipFileInRam
+     * @param physicalZipFile
      *            a physical zipfile that has been extracted to RAM
      * @param zipEntry
      *            the zip entry
      */
-    ZipFileSlice(final PhysicalZipFile physicalZipFileInRam, final FastZipEntry zipEntry) {
+    ZipFileSlice(final PhysicalZipFile physicalZipFile, final FastZipEntry zipEntry) {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
-        this.physicalZipFile = physicalZipFileInRam;
+        this.physicalZipFile = physicalZipFile;
         this.startOffsetWithinPhysicalZipFile = 0;
-        this.len = physicalZipFile.fileLen;
+        this.len = physicalZipFile.length();
         this.pathWithinParentZipFileSlice = zipEntry.entryName;
         this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
@@ -239,6 +239,6 @@ public class ZipFileSlice {
                         : physicalZipFile.getFile() == null ? "ByteBuffer downloaded to RAM from " + getPath()
                                 : physicalZipFile.getFile())
                 + " ; byte range: " + startOffsetWithinPhysicalZipFile + ".."
-                + (startOffsetWithinPhysicalZipFile + len) + " / " + physicalZipFile.fileLen + "]";
+                + (startOffsetWithinPhysicalZipFile + len) + " / " + physicalZipFile.length() + "]";
     }
 }

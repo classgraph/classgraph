@@ -197,7 +197,7 @@ public final class FileUtils {
                 bufLength = bufLength << 1;
             } else {
                 if (bufLength == MAX_BUFFER_SIZE) {
-                    throw new IOException("InputStream too large to read");
+                    throw new IOException("InputStream too large to read into array");
                 }
                 bufLength = MAX_BUFFER_SIZE;
             }

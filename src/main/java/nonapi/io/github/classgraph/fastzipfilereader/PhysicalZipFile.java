@@ -31,15 +31,13 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import nonapi.io.github.classgraph.concurrency.SingletonMap;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -52,23 +50,8 @@ class PhysicalZipFile implements Closeable {
     /** The path to the zipfile. */
     private final String path;
 
-    /** The {@link RandomAccessFile}. */
-    private RandomAccessFile raf;
-
-    /** The {@link FileChannel}. */
-    private FileChannel fileChannel;
-
-    /** The file length. */
-    final long fileLen;
-
-    /** The number of mapped byte buffers. */
-    final int numMappedByteBuffers;
-
-    /** The cached mapped byte buffers for each 2GB chunk. */
-    private ByteBuffer[] mappedByteBuffersCached;
-
-    /** A singleton map from chunk index to byte buffer, ensuring that any given chunk is only mapped once. */
-    private SingletonMap<Integer, ByteBuffer, IOException> chunkIdxToByteBuffer;
+    /** The byte buffer resources. */
+    private MappedByteBufferResources byteBufferResources;
 
     /** The nested jar handler. */
     NestedJarHandler nestedJarHandler;
@@ -97,39 +80,8 @@ class PhysicalZipFile implements Closeable {
         this.nestedJarHandler = nestedJarHandler;
         this.path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
 
-        // Open the File as a RandomAccessFile, and open a FileChannel on the RandomAccessFile
-        try {
-            raf = new RandomAccessFile(file, "r");
-            fileLen = raf.length();
-            if (fileLen == 0L) {
-                throw new IOException("Zipfile is empty: " + file);
-            }
-            fileChannel = raf.getChannel();
-        } catch (final IOException | SecurityException e) {
-            if (fileChannel != null) {
-                fileChannel.close();
-                fileChannel = null;
-            }
-            if (raf != null) {
-                raf.close();
-                raf = null;
-            }
-            throw e;
-        }
-
-        // Implement an array of MappedByteBuffers to support jarfiles >2GB in size:
-        // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
-        numMappedByteBuffers = (int) ((fileLen + FileUtils.MAX_BUFFER_SIZE) / FileUtils.MAX_BUFFER_SIZE);
-        mappedByteBuffersCached = new MappedByteBuffer[numMappedByteBuffers];
-        chunkIdxToByteBuffer = new SingletonMap<Integer, ByteBuffer, IOException>() {
-            @Override
-            public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws IOException {
-                // Map the indexed 2GB chunk of the file to a MappedByteBuffer
-                final long pos = chunkIdxI.longValue() * FileUtils.MAX_BUFFER_SIZE;
-                final long chunkSize = Math.min(FileUtils.MAX_BUFFER_SIZE, fileLen - pos);
-                return nestedJarHandler.mapFileChannelToByteBuffer(fileChannel, pos, chunkSize);
-            }
-        };
+        // Map the file to a ByteBuffer
+        this.byteBufferResources = new MappedByteBufferResources(file, nestedJarHandler);
     }
 
     /**
@@ -153,16 +105,41 @@ class PhysicalZipFile implements Closeable {
         this.nestedJarHandler = nestedJarHandler;
         this.isDeflatedToRam = true;
 
-        fileLen = byteBuffer.remaining();
-        if (fileLen == 0L) {
+        // Wrap the ByteBuffer
+        this.byteBufferResources = new MappedByteBufferResources(byteBuffer, nestedJarHandler);
+        if (this.byteBufferResources.length() == 0L) {
             throw new IOException("Zipfile is empty: " + path);
         }
+    }
 
-        // Implement an array of MappedByteBuffers to support jarfiles >2GB in size:
-        // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
-        numMappedByteBuffers = 1;
-        mappedByteBuffersCached = new ByteBuffer[numMappedByteBuffers];
-        mappedByteBuffersCached[0] = byteBuffer;
+    /**
+     * Construct a {@link PhysicalZipFile} from an InputStream, which is downloaded to a {@link ByteBuffer} in RAM,
+     * or spilled to disk if the content of the InputStream is too large.
+     *
+     * @param inputStream
+     *            the input stream
+     * @param path
+     *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
+     *            zipfile
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    PhysicalZipFile(final InputStream inputStream, final String path, final NestedJarHandler nestedJarHandler,
+            final LogNode log) throws IOException {
+        this.nestedJarHandler = nestedJarHandler;
+        this.path = path;
+        this.isDeflatedToRam = true;
+
+        // Wrap the ByteBuffer
+        this.byteBufferResources = new MappedByteBufferResources(inputStream, path, nestedJarHandler, log);
+        if (this.byteBufferResources.length() == 0L) {
+            throw new IOException("Zipfile is empty: " + path);
+        }
+        this.file = byteBufferResources.getMappedFile();
     }
 
     /**
@@ -178,23 +155,7 @@ class PhysicalZipFile implements Closeable {
      *             If the thread was interrupted.
      */
     ByteBuffer getByteBuffer(final int chunkIdx) throws IOException, InterruptedException {
-        if (closed.get()) {
-            throw new IOException(getClass().getSimpleName() + " already closed");
-        }
-        if (chunkIdx < 0 || chunkIdx >= mappedByteBuffersCached.length) {
-            throw new IOException("Chunk index out of range");
-        }
-        // Fast path: only look up singleton map if mappedByteBuffersCached is null 
-        if (mappedByteBuffersCached[chunkIdx] == null) {
-            // This 2GB chunk has not yet been read -- mmap it (use a singleton map so that the mmap
-            // doesn't happen more than once, in case of race condition)
-            try {
-                mappedByteBuffersCached[chunkIdx] = chunkIdxToByteBuffer.get(chunkIdx, /* log = */ null);
-            } catch (final NullSingletonException e) {
-                throw new IOException("Cannot get ByteBuffer chunk " + chunkIdx + " : " + e);
-            }
-        }
-        return mappedByteBuffersCached[chunkIdx];
+        return byteBufferResources.getByteBuffer(chunkIdx);
     }
 
     /**
@@ -215,6 +176,29 @@ class PhysicalZipFile implements Closeable {
      *         jar path, if it is memory-backed.
      */
     public String getPath() {
+        return path;
+    }
+
+    /**
+     * Get the length of the mapped file, or the initial remaining bytes in the wrapped ByteBuffer if a buffer was
+     * wrapped.
+     */
+    public long length() {
+        return byteBufferResources.length();
+    }
+
+    /**
+     * Get the number of 2GB chunks that are available in this PhysicalZipFile.
+     */
+    public int numChunks() {
+        return byteBufferResources.numChunks();
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
+    @Override
+    public String toString() {
         return path;
     }
 
@@ -245,44 +229,11 @@ class PhysicalZipFile implements Closeable {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
-            if (chunkIdxToByteBuffer != null) {
-                chunkIdxToByteBuffer.clear();
-                chunkIdxToByteBuffer = null;
+            if (byteBufferResources != null) {
+                byteBufferResources.close(/* log = */ null);
             }
-            if (mappedByteBuffersCached != null) {
-                for (int i = 0; i < mappedByteBuffersCached.length; i++) {
-                    if (mappedByteBuffersCached[i] != null) {
-                        nestedJarHandler.unmapByteBuffer(mappedByteBuffersCached[i], /* log = */ null);
-                        mappedByteBuffersCached[i] = null;
-                    }
-                }
-                mappedByteBuffersCached = null;
-            }
-            if (fileChannel != null) {
-                try {
-                    fileChannel.close();
-                    fileChannel = null;
-                } catch (final IOException e) {
-                    // Ignore
-                }
-            }
-            if (raf != null) {
-                try {
-                    raf.close();
-                    raf = null;
-                } catch (final IOException e) {
-                    // Ignore
-                }
-            }
+            byteBufferResources = null;
             nestedJarHandler = null;
         }
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        return path;
     }
 }
