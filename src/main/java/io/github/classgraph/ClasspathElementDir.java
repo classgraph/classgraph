@@ -210,7 +210,7 @@ class ClasspathElementDir extends ClasspathElement {
                         // to read files larger than 2GB is probably limited (it's not even supported for zipfiles),
                         // and the caller can use an InputStream if necessary. 
                         throw new IOException(
-                                "File is larger than 2GB, cannot use read() method, use open() instead");
+                                "File is larger than 2GB -- cannot use read() method, use open() instead");
                     }
                     // Fetch chunk 0 (the first ~2GB of the file)
                     byteBuffer = mappedFileResources.getByteBuffer(0);
