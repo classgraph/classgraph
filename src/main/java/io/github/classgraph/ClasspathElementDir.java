@@ -216,7 +216,12 @@ class ClasspathElementDir extends ClasspathElement {
                     byteBuffer = mappedFileResources.getByteBuffer(0);
                     length = byteBuffer.remaining();
                     return byteBuffer;
-                } catch (final IOException | SecurityException | OutOfMemoryError | InterruptedException e) {
+                } catch (final IOException | SecurityException | OutOfMemoryError e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
+                } catch (final InterruptedException e) {
+                    // Re-set interrupt status
+                    Thread.currentThread().interrupt();
                     close();
                     throw new IOException("Could not open " + this, e);
                 }

@@ -44,7 +44,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
 class PhysicalZipFile implements Closeable {
-    /** The {@link File} backing this {@link PhysicalZipFile}. */
+    /** The {@link File} backing this {@link PhysicalZipFile}, if any. */
     private final File file;
 
     /** The path to the zipfile. */
@@ -59,7 +59,7 @@ class PhysicalZipFile implements Closeable {
     /** True if the zipfile was deflated to RAM, rather than mapped from disk. */
     boolean isDeflatedToRam;
 
-    /** Set to true once this {@link PhysicalZipFile} is closed. */
+    /** Set to true once {@link #close()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**

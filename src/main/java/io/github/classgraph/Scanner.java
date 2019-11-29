@@ -199,60 +199,70 @@ class Scanner implements Callable<ScanResult> {
             scanModules = scanSpec.scanModules;
         }
 
-        this.moduleOrder = new ArrayList<>();
-        if (scanModules) {
-            // Add modules to start of classpath order, before traditional classpath
-            final List<ModuleRef> systemModuleRefs = moduleFinder.getSystemModuleRefs();
-            final ClassLoader defaultClassLoader = classLoaderOrderRespectingParentDelegation != null
-                    && classLoaderOrderRespectingParentDelegation.length != 0
-                            ? classLoaderOrderRespectingParentDelegation[0]
-                            : null;
-            if (systemModuleRefs != null) {
-                for (final ModuleRef systemModuleRef : systemModuleRefs) {
-                    final String moduleName = systemModuleRef.getName();
-                    if (
-                    // If scanning system packages and modules is enabled and white/blacklist is empty,
-                    // then scan all system modules
-                    (scanSpec.enableSystemJarsAndModules
-                            && scanSpec.moduleWhiteBlackList.whitelistAndBlacklistAreEmpty())
-                            // Otherwise only scan specifically whitelisted system modules
-                            || scanSpec.moduleWhiteBlackList
-                                    .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
-                        // Create a new ClasspathElementModule
-                        final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
-                                systemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
-                        moduleOrder.add(classpathElementModule);
-                        // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, moduleOrder.size() - 1, classpathFinderLog);
-                    } else {
-                        if (classpathFinderLog != null) {
-                            classpathFinderLog
-                                    .log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
+        try {
+            this.moduleOrder = new ArrayList<>();
+            if (scanModules) {
+                // Add modules to start of classpath order, before traditional classpath
+                final List<ModuleRef> systemModuleRefs = moduleFinder.getSystemModuleRefs();
+                final ClassLoader defaultClassLoader = classLoaderOrderRespectingParentDelegation != null
+                        && classLoaderOrderRespectingParentDelegation.length != 0
+                                ? classLoaderOrderRespectingParentDelegation[0]
+                                : null;
+                if (systemModuleRefs != null) {
+                    for (final ModuleRef systemModuleRef : systemModuleRefs) {
+                        final String moduleName = systemModuleRef.getName();
+                        if (
+                        // If scanning system packages and modules is enabled and white/blacklist is empty,
+                        // then scan all system modules
+                        (scanSpec.enableSystemJarsAndModules
+                                && scanSpec.moduleWhiteBlackList.whitelistAndBlacklistAreEmpty())
+                                // Otherwise only scan specifically whitelisted system modules
+                                || scanSpec.moduleWhiteBlackList
+                                        .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
+                            // Create a new ClasspathElementModule
+                            final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
+                                    systemModuleRef, defaultClassLoader,
+                                    nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap, scanSpec);
+                            moduleOrder.add(classpathElementModule);
+                            // Open the ClasspathElementModule
+                            classpathElementModule.open(/* ignored */ null, moduleOrder.size() - 1,
+                                    classpathFinderLog);
+                        } else {
+                            if (classpathFinderLog != null) {
+                                classpathFinderLog.log(
+                                        "Skipping non-whitelisted or blacklisted system module: " + moduleName);
+                            }
+                        }
+                    }
+                }
+                final List<ModuleRef> nonSystemModuleRefs = moduleFinder.getNonSystemModuleRefs();
+                if (nonSystemModuleRefs != null) {
+                    for (final ModuleRef nonSystemModuleRef : nonSystemModuleRefs) {
+                        String moduleName = nonSystemModuleRef.getName();
+                        if (moduleName == null) {
+                            moduleName = "";
+                        }
+                        if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
+                            // Create a new ClasspathElementModule
+                            final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
+                                    nonSystemModuleRef, defaultClassLoader,
+                                    nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap, scanSpec);
+                            moduleOrder.add(classpathElementModule);
+                            // Open the ClasspathElementModule
+                            classpathElementModule.open(/* ignored */ null, moduleOrder.size() - 1,
+                                    classpathFinderLog);
+                        } else {
+                            if (classpathFinderLog != null) {
+                                classpathFinderLog
+                                        .log("Skipping non-whitelisted or blacklisted module: " + moduleName);
+                            }
                         }
                     }
                 }
             }
-            final List<ModuleRef> nonSystemModuleRefs = moduleFinder.getNonSystemModuleRefs();
-            if (nonSystemModuleRefs != null) {
-                for (final ModuleRef nonSystemModuleRef : nonSystemModuleRefs) {
-                    String moduleName = nonSystemModuleRef.getName();
-                    if (moduleName == null) {
-                        moduleName = "";
-                    }
-                    if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
-                        // Create a new ClasspathElementModule
-                        final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
-                                nonSystemModuleRef, defaultClassLoader, nestedJarHandler, scanSpec);
-                        moduleOrder.add(classpathElementModule);
-                        // Open the ClasspathElementModule
-                        classpathElementModule.open(/* ignored */ null, moduleOrder.size() - 1, classpathFinderLog);
-                    } else {
-                        if (classpathFinderLog != null) {
-                            classpathFinderLog.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
-                        }
-                    }
-                }
-            }
+        } catch (final InterruptedException e) {
+            nestedJarHandler.close(/* log = */ null);
+            throw e;
         }
     }
 
@@ -1145,7 +1155,8 @@ class Scanner implements Callable<ScanResult> {
 
         } finally {
             if (removeTemporaryFilesAfterScan) {
-                // If removeTemporaryFilesAfterScan was set, remove temp files and close resources, zipfiles and modules
+                // If removeTemporaryFilesAfterScan was set, remove temp files and close resources,
+                // zipfiles and modules
                 nestedJarHandler.close(topLevelLog);
             }
         }

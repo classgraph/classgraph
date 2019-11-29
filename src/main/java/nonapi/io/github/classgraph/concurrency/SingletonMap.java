@@ -28,6 +28,7 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -220,6 +221,43 @@ public abstract class SingletonMap<K, V, E extends Exception> {
             }
         }
         return entries;
+    }
+
+    /**
+     * Returns true if the map is empty.
+     *
+     * @return true, if the map is empty
+     */
+    public boolean isEmpty() {
+        return map.isEmpty();
+    }
+
+    /**
+     * Get the map entries.
+     *
+     * @return the map entries.
+     * @throws InterruptedException
+     *             if interrupted.
+     */
+    public List<Entry<K, V>> entries() throws InterruptedException {
+        final List<Entry<K, V>> entries = new ArrayList<>(map.size());
+        for (final Entry<K, SingletonHolder<V>> ent : map.entrySet()) {
+            entries.add(new SimpleEntry<>(ent.getKey(), ent.getValue().get()));
+        }
+        return entries;
+    }
+
+    /**
+     * Remove the singleton for a given key.
+     * 
+     * @return the old singleton from the map, if one was present, otherwise null.
+     * @throws InterruptedException
+     *             if interrupted.
+     */
+    @SuppressWarnings("null")
+    public V remove(final K key) throws InterruptedException {
+        final SingletonHolder<V> val = map.remove(key);
+        return val == null ? null : val.get();
     }
 
     /** Clear the map. */

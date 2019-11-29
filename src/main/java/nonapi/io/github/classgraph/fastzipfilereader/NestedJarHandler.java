@@ -58,7 +58,6 @@ import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.json.ReferenceEqualityKey;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -85,6 +84,8 @@ public class NestedJarHandler {
                         .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
             final PhysicalZipFile physicalZipFile = new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
+            allocatedPhysicalZipFiles.add(physicalZipFile);
+
             return physicalZipFile;
         }
     };
@@ -194,9 +195,16 @@ public class NestedJarHandler {
                         } else {
                             // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
                             try {
+                                // Get canonical file
                                 final File canonicalFile = new File(nestedJarPath).getCanonicalFile();
-                                physicalZipFile = canonicalFileToPhysicalZipFile(canonicalFile, log);
+                                // Get or create a PhysicalZipFile instance for the canonical file
+                                physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
+                            } catch (final NullSingletonException e) {
+                                // If getting PhysicalZipFile failed, re-wrap in IOException
+                                throw new IOException(
+                                        "Could not get PhysicalZipFile for path " + nestedJarPath + " : " + e);
                             } catch (final SecurityException e) {
+                                // getCanonicalFile() failed (it may have also failed with IOException)
                                 throw new IOException(
                                         "Path component " + nestedJarPath + " could not be canonicalized: " + e);
                             }
@@ -368,11 +376,11 @@ public class NestedJarHandler {
      * {@link MappedByteBuffer} instances that are currently mapped. (Use {@link ReferenceEqualityKey} so that the
      * entire contents of the buffers are not compared by {@link ByteBuffer#equals(Object)}).
      */
-    private final Set<ReferenceEqualityKey<? extends ByteBuffer>> mappedByteBuffers = Collections
+    private Set<ReferenceEqualityKey<? extends ByteBuffer>> mappedByteBuffers = Collections
             .newSetFromMap(new ConcurrentHashMap<ReferenceEqualityKey<? extends ByteBuffer>, Boolean>());
 
     /** {@link MappedByteBufferResources} instances that were allocated for downloading jars from URLs. */
-    private final Set<MappedByteBufferResources> mappedByteBufferResources = Collections
+    private Set<MappedByteBufferResources> mappedByteBufferResources = Collections
             .newSetFromMap(new ConcurrentHashMap<MappedByteBufferResources, Boolean>());
 
     /** Any temporary files created while scanning. */
@@ -400,31 +408,6 @@ public class NestedJarHandler {
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker) {
         this.scanSpec = scanSpec;
         this.interruptionChecker = interruptionChecker;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the {@link PhysicalZipFile} for a cononical {@link File}.
-     *
-     * @param canonicalFile
-     *            the canonical file
-     * @param log
-     *            the log
-     * @return the physical zip file
-     * @throws IOException
-     *             If the {@link File} could not be read, or was not a file.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
-     */
-    private PhysicalZipFile canonicalFileToPhysicalZipFile(final File canonicalFile, final LogNode log)
-            throws IOException, InterruptedException {
-        try {
-            // Get or create a PhysicalZipFile instance for the canonical file
-            return canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
-        } catch (final NullSingletonException e) {
-            throw new IOException("Could not get physical zipfile " + canonicalFile + " : " + e);
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -582,14 +565,17 @@ public class NestedJarHandler {
                 logicalZipFile.close();
             }
             if (canonicalFileToPhysicalZipFileMap != null) {
-                try {
-                    for (final PhysicalZipFile physicalZipFile : canonicalFileToPhysicalZipFileMap.values()) {
-                        physicalZipFile.close();
+                while (!canonicalFileToPhysicalZipFileMap.isEmpty()) {
+                    try {
+                        for (final Entry<File, PhysicalZipFile> ent : canonicalFileToPhysicalZipFileMap.entries()) {
+                            final PhysicalZipFile physicalZipFile = ent.getValue();
+                            physicalZipFile.close();
+                            canonicalFileToPhysicalZipFileMap.remove(ent.getKey());
+                        }
+                    } catch (final InterruptedException e) {
+                        interruptionChecker.interrupt();
                     }
-                } catch (final InterruptedException e) {
-                    interruptionChecker.interrupt();
                 }
-                canonicalFileToPhysicalZipFileMap.clear();
                 canonicalFileToPhysicalZipFileMap = null;
             }
             if (allocatedPhysicalZipFiles != null) {
@@ -604,7 +590,22 @@ public class NestedJarHandler {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            // Temp files have to be deleted last, after all PhysicalZipFiles are closed
+            if (mappedByteBufferResources != null) {
+                for (final MappedByteBufferResources bufRes : mappedByteBufferResources) {
+                    bufRes.close(log);
+                }
+                mappedByteBufferResources = null;
+            }
+            if (mappedByteBuffers != null) {
+                while (!mappedByteBuffers.isEmpty()) {
+                    for (final ReferenceEqualityKey<? extends ByteBuffer> byteBufferRef : new ArrayList<>(
+                            mappedByteBuffers)) {
+                        unmapByteBuffer(byteBufferRef.get(), log);
+                    }
+                }
+                mappedByteBuffers = null;
+            }
+            // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
             if (tempFiles != null) {
                 final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
                         : log.log("Removing temporary files");
@@ -620,17 +621,6 @@ public class NestedJarHandler {
                 }
                 tempFiles.clear();
                 tempFiles = null;
-            }
-            if (mappedByteBufferResources != null) {
-                for (final MappedByteBufferResources bufRes : new ArrayList<>(mappedByteBufferResources)) {
-                    bufRes.close(log);
-                }
-            }
-            if (mappedByteBuffers != null) {
-                for (final ReferenceEqualityKey<? extends ByteBuffer> byteBufferRef : new ArrayList<>(
-                        mappedByteBuffers)) {
-                    unmapByteBuffer(byteBufferRef.get(), log);
-                }
             }
         }
     }

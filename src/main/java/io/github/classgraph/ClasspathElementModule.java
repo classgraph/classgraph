@@ -39,10 +39,10 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
+import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -57,8 +57,9 @@ class ClasspathElementModule extends ClasspathElement {
     /** The module ref. */
     final ModuleRef moduleRef;
 
-    /** The nested jar handler. */
-    private final NestedJarHandler nestedJarHandler;
+    /** A singleton map from a {@link ModuleRef} to a {@link ModuleReaderProxy} recycler for the module. */
+    SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
+    moduleRefToModuleReaderProxyRecyclerMap;
 
     /** The module reader proxy recycler. */
     private Recycler<ModuleReaderProxy, IOException> moduleReaderProxyRecycler;
@@ -73,16 +74,15 @@ class ClasspathElementModule extends ClasspathElement {
      *            the module ref
      * @param classLoader
      *            the classloader
-     * @param nestedJarHandler
-     *            the nested jar handler
      * @param scanSpec
      *            the scan spec
      */
     ClasspathElementModule(final ModuleRef moduleRef, final ClassLoader classLoader,
-            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
+            final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> // 
+            moduleRefToModuleReaderProxyRecyclerMap, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
+        this.moduleRefToModuleReaderProxyRecyclerMap = moduleRefToModuleReaderProxyRecyclerMap;
         this.moduleRef = moduleRef;
-        this.nestedJarHandler = nestedJarHandler;
     }
 
     /* (non-Javadoc)
@@ -101,8 +101,7 @@ class ClasspathElementModule extends ClasspathElement {
             return;
         }
         try {
-            moduleReaderProxyRecycler = nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef,
-                    /* ignored */ null);
+            moduleReaderProxyRecycler = moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef, log);
         } catch (final IOException | NullSingletonException e) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : " + e, log);

@@ -76,7 +76,7 @@ public class MappedByteBufferResources {
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
 
-    /** Set to true once this {@link PhysicalZipFile} is closed. */
+    /** Set to true once {@link #close()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**

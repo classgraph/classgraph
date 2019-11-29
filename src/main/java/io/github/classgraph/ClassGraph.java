@@ -1162,11 +1162,11 @@ public class ClassGraph {
             @Override
             public void run() {
                 try {
+                    // Call scanner, but ignore the returned ScanResult
                     new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
-                            topLevelLog);
-                } catch (final InterruptedException e) {
-                    // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
-                    // which is unlikely to ever actually be interrupted -- but this exception needs to be caught)
+                            topLevelLog).call();
+                } catch (final InterruptedException | CancellationException | ExecutionException e) {
+                    // Call failure handler
                     failureHandler.onFailure(e);
                 }
             }
