@@ -712,7 +712,7 @@ public class NestedJarHandler {
      * @throws IOException
      *             If the temporary file could not be created.
      */
-    public File makeTempFile(final String filePath, final boolean onlyUseLeafname) throws IOException {
+    private File makeTempFile(final String filePath, final boolean onlyUseLeafname) throws IOException {
         final File tempFile = File.createTempFile("ClassGraph--",
                 TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(onlyUseLeafname ? leafname(filePath) : filePath));
         tempFile.deleteOnExit();
