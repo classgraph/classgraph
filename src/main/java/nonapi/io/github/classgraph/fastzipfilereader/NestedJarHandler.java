@@ -47,7 +47,6 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Inflater;
@@ -384,7 +383,7 @@ public class NestedJarHandler {
             .newSetFromMap(new ConcurrentHashMap<MappedByteBufferResources, Boolean>());
 
     /** Any temporary files created while scanning. */
-    private ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
+    private Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<File, Boolean>());
 
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
@@ -464,7 +463,7 @@ public class NestedJarHandler {
     /**
      * Create a temporary file, and mark it for deletion on exit.
      * 
-     * @param filePath
+     * @param filePathBase
      *            The path to derive the temporary filename from.
      * @param onlyUseLeafname
      *            If true, only use the leafname of filePath to derive the temporary filename.
@@ -472,12 +471,34 @@ public class NestedJarHandler {
      * @throws IOException
      *             If the temporary file could not be created.
      */
-    File makeTempFile(final String filePath, final boolean onlyUseLeafname) throws IOException {
-        final File tempFile = File.createTempFile("ClassGraph--",
-                TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(onlyUseLeafname ? leafname(filePath) : filePath));
+    File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
+        final File tempFile = File.createTempFile("ClassGraph--", TEMP_FILENAME_LEAF_SEPARATOR
+                + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         return tempFile;
+    }
+
+    /**
+     * Attempt to remove a temporary file.
+     *
+     * @param tempFile
+     *            the temp file
+     * @throws IOException
+     *             If the temporary file could not be removed.
+     * @throws SecurityException
+     *             If the temporary file is inaccessible.
+     */
+    void removeTempFile(final File tempFile) throws IOException, SecurityException {
+        if (tempFiles.contains(tempFile)) {
+            try {
+                Files.delete(tempFile.toPath());
+            } finally {
+                tempFiles.remove(tempFile);
+            }
+        } else {
+            throw new IOException("Not a temp file: " + tempFile);
+        }
     }
 
     /**
@@ -610,16 +631,16 @@ public class NestedJarHandler {
                 final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
                         : log.log("Removing temporary files");
                 while (!tempFiles.isEmpty()) {
-                    final File tempFile = tempFiles.removeLast();
-                    try {
-                        Files.delete(tempFile.toPath());
-                    } catch (final IOException | SecurityException e) {
-                        if (rmLog != null) {
-                            rmLog.log("Removing temporary file failed: " + e);
+                    for (final File tempFile : new ArrayList<>(tempFiles)) {
+                        try {
+                            removeTempFile(tempFile);
+                        } catch (IOException | SecurityException e) {
+                            if (rmLog != null) {
+                                rmLog.log("Removing temporary file failed: " + tempFile);
+                            }
                         }
                     }
                 }
-                tempFiles.clear();
                 tempFiles = null;
             }
         }

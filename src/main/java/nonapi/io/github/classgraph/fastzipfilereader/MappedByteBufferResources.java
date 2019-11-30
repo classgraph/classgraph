@@ -119,20 +119,32 @@ public class MappedByteBufferResources {
 
         } else {
             // bytesRead == 0 => ran out of buffer space, spill over to disk
-            final File tempFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
-            mappedFileIsTempFile = true;
             if (log != null) {
                 log.log("Could not fit downloaded URL into max RAM buffer size of " + MAX_JAR_RAM_SIZE
-                        + " bytes, downloading to temporary file: " + tempFileBaseName + " -> " + tempFile);
+                        + " bytes, downloading to temporary file: " + tempFileBaseName + " -> " + this.mappedFile);
             }
-            Files.write(tempFile.toPath(), buf, StandardOpenOption.WRITE);
-            try (OutputStream os = new BufferedOutputStream(new FileOutputStream(tempFile, /* append = */ true))) {
+            try {
+                this.mappedFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
+            } catch (final IOException e) {
+                if (log != null) {
+                    log.log("Could not create temporary file: " + e);
+                }
+                throw e;
+            }
+            this.mappedFileIsTempFile = true;
+
+            // Write the full buffer to the temporary file
+            Files.write(this.mappedFile.toPath(), buf, StandardOpenOption.WRITE);
+
+            // Copy the rest of the InputStream to the end of the temporary file
+            try (OutputStream os = new BufferedOutputStream(
+                    new FileOutputStream(this.mappedFile, /* append = */ true))) {
                 for (int bytesReadCtd; (bytesReadCtd = inputStream.read(buf, 0, buf.length)) > 0;) {
                     os.write(buf, 0, bytesReadCtd);
                 }
             }
             // Map the file to a MappedByteBuffer
-            mapFile(tempFile);
+            mapFile();
         }
     }
 
@@ -164,7 +176,9 @@ public class MappedByteBufferResources {
      */
     public MappedByteBufferResources(final File file, final NestedJarHandler nestedJarHandler) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
-        mapFile(file);
+        this.mappedFile = file;
+        // Map the file to a MappedByteBuffer
+        mapFile();
     }
 
     /**
@@ -180,32 +194,36 @@ public class MappedByteBufferResources {
         byteBufferChunksCached = new AtomicReferenceArray<ByteBuffer>(1);
         byteBufferChunksCached.set(0, byteBuffer);
 
-        // Don't set file, fileChannel or raf, they are unneeded.
-        // byteBufferIsMapped will remain false.
+        // Don't set mappedFile, fileChannel or raf, they are unneeded.
     }
 
     /**
      * Map a {@link File} to a {@link MappedByteBuffer}.
      *
-     * @param file
-     *            the file
      * @throws IOException
      *             Signals that an I/O exception has occurred.
      */
-    private void mapFile(final File file) throws IOException {
-        this.mappedFile = file;
+    private void mapFile() throws IOException {
         try {
-            raf = new RandomAccessFile(file, "r");
+            raf = new RandomAccessFile(mappedFile, "r");
             length = raf.length();
             fileChannel = raf.getChannel();
 
         } catch (final IOException | SecurityException e) {
             if (fileChannel != null) {
-                fileChannel.close();
+                try {
+                    fileChannel.close();
+                } catch (final IOException e2) {
+                    // Ignore
+                }
                 fileChannel = null;
             }
             if (raf != null) {
-                raf.close();
+                try {
+                    raf.close();
+                } catch (final IOException e2) {
+                    // Ignore
+                }
                 raf = null;
             }
             throw e;
@@ -249,7 +267,6 @@ public class MappedByteBufferResources {
                 return byteBuffer;
             }
         };
-
     }
 
     /**
@@ -327,6 +344,7 @@ public class MappedByteBufferResources {
                 chunkIdxToByteBufferSingletonMap = null;
             }
             if (byteBufferChunksCached != null) {
+                // Only unmap bytebuffers if they came from a mapped file
                 if (mappedFile != null) {
                     for (int i = 0; i < byteBufferChunksCached.length(); i++) {
                         final ByteBuffer mappedByteBuffer = byteBufferChunksCached.get(i);
@@ -341,26 +359,27 @@ public class MappedByteBufferResources {
             if (fileChannel != null) {
                 try {
                     fileChannel.close();
-                    fileChannel = null;
                 } catch (final IOException e) {
                     // Ignore
                 }
+                fileChannel = null;
             }
             if (raf != null) {
                 try {
                     raf.close();
-                    raf = null;
                 } catch (final IOException e) {
                     // Ignore
                 }
+                raf = null;
             }
             if (mappedFile != null) {
+                // If mapped file was a temp file, remove it
                 if (mappedFileIsTempFile) {
                     try {
-                        Files.delete(mappedFile.toPath());
-                    } catch (final IOException e) {
+                        nestedJarHandler.removeTempFile(mappedFile);
+                    } catch (IOException | SecurityException e) {
                         if (log != null) {
-                            log.log("Could not delete temporary file " + mappedFile + " : " + e);
+                            log.log("Removing temporary file failed: " + mappedFile);
                         }
                     }
                 }
