@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,6 +39,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.NonReadableChannelException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -143,6 +143,7 @@ public class MappedByteBufferResources {
                     os.write(buf, 0, bytesReadCtd);
                 }
             }
+
             // Map the file to a MappedByteBuffer
             mapFile();
         }
@@ -161,6 +162,7 @@ public class MappedByteBufferResources {
     public MappedByteBufferResources(final ByteBuffer byteBuffer, final NestedJarHandler nestedJarHandler)
             throws IOException {
         this.nestedJarHandler = nestedJarHandler;
+        // Wrap the existing byte buffer
         wrapByteBuffer(byteBuffer);
     }
 
@@ -189,11 +191,9 @@ public class MappedByteBufferResources {
      */
     private void wrapByteBuffer(final ByteBuffer byteBuffer) {
         length = byteBuffer.remaining();
-
         // Put the ByteBuffer into the cache, so that the singleton map code for file mapping is never called
         byteBufferChunksCached = new AtomicReferenceArray<ByteBuffer>(1);
         byteBufferChunksCached.set(0, byteBuffer);
-
         // Don't set mappedFile, fileChannel or raf, they are unneeded.
     }
 
@@ -209,24 +209,12 @@ public class MappedByteBufferResources {
             length = raf.length();
             fileChannel = raf.getChannel();
 
-        } catch (final IOException | SecurityException e) {
-            if (fileChannel != null) {
-                try {
-                    fileChannel.close();
-                } catch (final IOException e2) {
-                    // Ignore
-                }
-                fileChannel = null;
-            }
-            if (raf != null) {
-                try {
-                    raf.close();
-                } catch (final IOException e2) {
-                    // Ignore
-                }
-                raf = null;
-            }
+        } catch (final IOException e) {
+            close(/* log = */ null);
             throw e;
+        } catch (final IllegalArgumentException | SecurityException e) {
+            close(/* log = */ null);
+            throw new IOException(e);
         }
 
         // Implement an array of MappedByteBuffers to support jarfiles >2GB in size:
@@ -249,16 +237,29 @@ public class MappedByteBufferResources {
                 try {
                     // Try mapping the FileChannel
                     byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                } catch (final FileNotFoundException e) {
+                } catch (final IOException e) {
+                    MappedByteBufferResources.this.close(log);
                     throw e;
-                } catch (IOException | OutOfMemoryError e) {
-                    // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
-                    // (there is a limit to the number of mapped files -- 64k on Linux)
-                    // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                    System.gc();
-                    System.runFinalization();
-                    // Then try calling map again
-                    byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
+                } catch (final NonReadableChannelException | IllegalArgumentException e) {
+                    MappedByteBufferResources.this.close(log);
+                    throw new IOException(e);
+                } catch (final OutOfMemoryError e) {
+                    try {
+                        // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
+                        // (there is a limit to the number of mapped files -- 64k on Linux)
+                        // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
+                        System.gc();
+                        System.runFinalization();
+                        // Then try calling map again
+                        byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
+                    } catch (final OutOfMemoryError e2) {
+                        // Out of mappable virtual memory
+                        MappedByteBufferResources.this.close(log);
+                        throw new IOException(e2);
+                    } catch (IOException | IllegalArgumentException e2) {
+                        MappedByteBufferResources.this.close(log);
+                        throw e2;
+                    }
                 }
 
                 // Record that the byte buffer has been mapped
