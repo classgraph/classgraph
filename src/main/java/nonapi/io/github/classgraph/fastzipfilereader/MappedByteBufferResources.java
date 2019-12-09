@@ -252,13 +252,13 @@ public class MappedByteBufferResources {
                         System.runFinalization();
                         // Then try calling map again
                         byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                    } catch (final OutOfMemoryError e2) {
-                        // Out of mappable virtual memory
-                        MappedByteBufferResources.this.close(log);
-                        throw new IOException(e2);
-                    } catch (IOException | IllegalArgumentException e2) {
+                    } catch (IOException e2) {
                         MappedByteBufferResources.this.close(log);
                         throw e2;
+                    } catch (final OutOfMemoryError | IllegalArgumentException e2) {
+                        // Out of mappable virtual memory, or other issue
+                        MappedByteBufferResources.this.close(log);
+                        throw new IOException(e2);
                     }
                 }
 
