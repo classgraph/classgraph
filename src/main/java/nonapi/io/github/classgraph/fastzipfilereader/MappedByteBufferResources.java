@@ -252,7 +252,7 @@ public class MappedByteBufferResources {
                         System.runFinalization();
                         // Then try calling map again
                         byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                    } catch (IOException e2) {
+                    } catch (final IOException e2) {
                         MappedByteBufferResources.this.close(log);
                         throw e2;
                     } catch (final OutOfMemoryError | IllegalArgumentException e2) {
