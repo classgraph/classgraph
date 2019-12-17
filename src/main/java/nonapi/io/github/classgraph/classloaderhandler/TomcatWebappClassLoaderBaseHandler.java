@@ -68,8 +68,24 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      */
     public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        final boolean isParentFirst = isParentFirst(classLoader);
+        if (isParentFirst) {
+            classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+            classLoaderOrder.add(classLoader, log);
+            return;
+        }
+        // Use parent-last delegation order
         classLoaderOrder.add(classLoader, log);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+    }
+
+    private static boolean isParentFirst(final ClassLoader classLoader) {
+        final Object delegateObject = ReflectionUtils.getFieldVal(classLoader, "delegate", false);
+        if (delegateObject != null) {
+            return (boolean) delegateObject;
+        }
+        // Assume parent-first delegation order
+        return true;
     }
 
     /**
@@ -97,7 +113,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         final List<List<?>> allResources = (List<List<?>>) ReflectionUtils.getFieldVal(resources, "allResources",
                 false);
         if (allResources != null) {
-            // type List<WebResourceSet> 
+            // type List<WebResourceSet>
             for (final List<?> webResourceSetList : allResources) {
                 // type WebResourceSet
                 // {DirResourceSet, FileResourceSet, JarResourceSet, JarWarResourceSet, EmptyResourceSet}
