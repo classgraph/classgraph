@@ -57,6 +57,22 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     }
 
     /**
+     * Return true if this classloader delegates to its parent.
+     * 
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @return true if this classloader delegates to its parent.
+     */
+    private static boolean isParentFirst(final ClassLoader classLoader) {
+        final Object delegateObject = ReflectionUtils.getFieldVal(classLoader, "delegate", false);
+        if (delegateObject != null) {
+            return (boolean) delegateObject;
+        }
+        // Assume parent-first delegation order
+        return true;
+    }
+
+    /**
      * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
      *
      * @param classLoader
@@ -70,22 +86,14 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
             final LogNode log) {
         final boolean isParentFirst = isParentFirst(classLoader);
         if (isParentFirst) {
+            // Use parent-first delegation order
             classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
-            classLoaderOrder.add(classLoader, log);
-            return;
         }
-        // Use parent-last delegation order
         classLoaderOrder.add(classLoader, log);
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
-    }
-
-    private static boolean isParentFirst(final ClassLoader classLoader) {
-        final Object delegateObject = ReflectionUtils.getFieldVal(classLoader, "delegate", false);
-        if (delegateObject != null) {
-            return (boolean) delegateObject;
+        if (!isParentFirst) {
+            // Use parent-last delegation order
+            classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         }
-        // Assume parent-first delegation order
-        return true;
     }
 
     /**
