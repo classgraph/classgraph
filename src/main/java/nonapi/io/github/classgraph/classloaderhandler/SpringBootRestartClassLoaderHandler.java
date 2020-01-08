@@ -76,22 +76,8 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
         // classloader order first
         classLoaderOrder.add(classLoader, log);
         
-        // Need to delegate to any other non-parent context classloader(s) before the parent, so go through all
-        // other context classloaders next, and delegate to them
-        final ClassLoader parent = classLoader.getParent();
-        if (Thread.currentThread().getContextClassLoader() != parent) {
-            classLoaderOrder.delegateTo(Thread.currentThread().getContextClassLoader(), /* isParent = */ false,
-                    log);
-        }
-        if (ClassGraph.class.getClassLoader() != parent) {
-            classLoaderOrder.delegateTo(ClassGraph.class.getClassLoader(), /* isParent = */ false, log);
-        }
-        if (ClassLoader.getSystemClassLoader() != parent) {
-            classLoaderOrder.delegateTo(ClassLoader.getSystemClassLoader(), /* isParent = */ true, log);
-        }
-        
         // Finally delegate to the parent of the RestartClassLoader
-        classLoaderOrder.delegateTo(parent, /* isParent = */ true, log);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
     }
 
     /**
