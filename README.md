@@ -89,11 +89,13 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
 ### Maven dependency
 
+Replace `X.Y.Z` below with the latest [release number](https://github.com/classgraph/classgraph/releases). (Alternatively, you could use `LATEST` in place of `X.Y.Z` instead if you just want to grab the latest version -- although be aware that that may lead to non-reproducible builds, since the ClassGraph version number could increase at any time. You could use [dependency locking](https://docs.gradle.org/current/userguide/dependency_locking.html) to address this.)
+
 ```xml
 <dependency>
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>LATEST</version>
+    <version>X.Y.Z</version>
 </dependency>
 ```
 
