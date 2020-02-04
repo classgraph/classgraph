@@ -1163,7 +1163,7 @@ public class ClassGraph {
             public void run() {
                 try {
                     // Call scanner, but ignore the returned ScanResult
-                    new Scanner(scanSpec, /* performScan = */ true, executorService, numParallelTasks,
+                    new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
                             scanResultProcessor, failureHandler, topLevelLog).call();
                 } catch (final InterruptedException | CancellationException | ExecutionException e) {
                     // Call failure handler
@@ -1191,7 +1191,7 @@ public class ClassGraph {
     private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
         try {
-            return executorService.submit(new Scanner(scanSpec, performScan, executorService, numParallelTasks,
+            return executorService.submit(new Scanner(performScan, scanSpec, executorService, numParallelTasks,
                     /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),

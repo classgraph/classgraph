@@ -117,11 +117,11 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * The classpath scanner. Scanning is started by calling {@link #call()} on this object.
-     *
-     * @param scanSpec
-     *            the scan spec
+     * 
      * @param performScan
      *            If true, performing a scan. If false, only fetching the classpath.
+     * @param scanSpec
+     *            the scan spec
      * @param executorService
      *            the executor service
      * @param numParallelTasks
@@ -132,10 +132,11 @@ class Scanner implements Callable<ScanResult> {
      *            the failure handler
      * @param topLevelLog
      *            the log
+     *
      * @throws InterruptedException
      *             if interrupted
      */
-    Scanner(final ScanSpec scanSpec, final boolean performScan, final ExecutorService executorService,
+    Scanner(final boolean performScan, final ScanSpec scanSpec, final ExecutorService executorService,
             final int numParallelTasks, final ScanResultProcessor scanResultProcessor,
             final FailureHandler failureHandler, final LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
