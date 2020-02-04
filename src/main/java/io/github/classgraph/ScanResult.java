@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
@@ -1276,14 +1277,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // and scans classpath element paths (needed for classloading), but does not scan the actual classfiles
         final ClassGraph classGraph = new ClassGraph();
         classGraph.scanSpec = deserialized.scanSpec;
-        classGraph.scanSpec.performScan = false;
         if (classGraph.scanSpec.overrideClasspath == null) {
             // Use the same classpath as before, if classpath was not overridden
             classGraph.overrideClasspath(deserialized.classpath);
         }
-        final ScanResult scanResult = classGraph.scan();
+        final ScanResult scanResult;
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                ClassGraph.DEFAULT_NUM_WORKER_THREADS)) {
+            scanResult = classGraph.getClasspathScanResult(executorService);
+        }
         scanResult.rawClasspathEltOrderStrs = deserialized.classpath;
-        scanResult.scanSpec.performScan = true;
 
         // Set the fields related to ClassInfo in the new ScanResult, based on the deserialized JSON 
         scanResult.scanSpec = deserialized.scanSpec;

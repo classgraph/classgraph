@@ -66,7 +66,7 @@ public class ClassGraph {
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
      * modern laptop with SSD, while scanning a large classpath.
      */
-    private static final int DEFAULT_NUM_WORKER_THREADS = Math.max(
+    static final int DEFAULT_NUM_WORKER_THREADS = Math.max(
             // Always scan with at least 2 threads
             2, //
             (int) Math.ceil(
@@ -1163,15 +1163,46 @@ public class ClassGraph {
             public void run() {
                 try {
                     // Call scanner, but ignore the returned ScanResult
-                    scanSpec.performScan = true;
-                    new Scanner(scanSpec, executorService, numParallelTasks, scanResultProcessor, failureHandler,
-                            topLevelLog).call();
+                    new Scanner(scanSpec, /* performScan = */ true, executorService, numParallelTasks,
+                            scanResultProcessor, failureHandler, topLevelLog).call();
                 } catch (final InterruptedException | CancellationException | ExecutionException e) {
                     // Call failure handler
                     failureHandler.onFailure(e);
                 }
             }
         });
+    }
+
+    /**
+     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}. You should
+     * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
+     * finished with it.
+     * 
+     * @param performScan
+     *            If true, performing a scan. If false, only fetching the classpath.
+     * @param executorService
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
+     *         representing the result of the scan.
+     */
+    private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
+            final int numParallelTasks) {
+        try {
+            return executorService.submit(new Scanner(scanSpec, performScan, executorService, numParallelTasks,
+                    /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
+        } catch (final InterruptedException e) {
+            // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
+            // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
+            return executorService.submit(new Callable<ScanResult>() {
+                @Override
+                public ScanResult call() throws Exception {
+                    throw e;
+                }
+            });
+        }
     }
 
     /**
@@ -1188,20 +1219,7 @@ public class ClassGraph {
      *         representing the result of the scan.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        try {
-            scanSpec.performScan = true;
-            return executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
-                    /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
-        } catch (final InterruptedException e) {
-            // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
-            // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
-            return executorService.submit(new Callable<ScanResult>() {
-                @Override
-                public ScanResult call() throws Exception {
-                    throw e;
-                }
-            });
-        }
+        return scanAsync(/* performScan = */ true, executorService, numParallelTasks);
     }
 
     /**
@@ -1285,6 +1303,35 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get a {@link ScanResult} that can be used for determining the classpath.
+     *
+     * @param executorService
+     *            The executor service.
+     * @return a {@link ScanResult} object representing the result of the scan (can only be used for determining
+     *         classpath).
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     */
+    ScanResult getClasspathScanResult(final AutoCloseableExecutorService executorService) {
+        try {
+            final ScanResult scanResult = scanAsync(/* performScan = */ false, executorService,
+                    DEFAULT_NUM_WORKER_THREADS).get();
+
+            // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
+            if (scanResult == null) {
+                throw new NullPointerException();
+            }
+            return scanResult;
+
+        } catch (final InterruptedException | CancellationException e) {
+            throw ClassGraphException.newClassGraphException("Scan interrupted", e);
+        } catch (final ExecutionException e) {
+            throw ClassGraphException.newClassGraphException("Uncaught exception during scan",
+                    InterruptionChecker.getCause(e));
+        }
+    }
+
+    /**
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
      * classloader resolution order. Classpath elements that do not exist as a file or directory are not included in
      * the returned list.
@@ -1295,8 +1342,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<File> getClasspathFiles() {
-        scanSpec.performScan = false;
-        try (ScanResult scanResult = scan()) {
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathFiles();
         }
     }
@@ -1328,8 +1375,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URI> getClasspathURIs() {
-        scanSpec.performScan = false;
-        try (ScanResult scanResult = scan()) {
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURIs();
         }
     }
@@ -1344,8 +1391,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URL> getClasspathURLs() {
-        scanSpec.performScan = false;
-        try (ScanResult scanResult = scan()) {
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURLs();
         }
     }
@@ -1358,8 +1405,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<ModuleRef> getModules() {
-        scanSpec.performScan = false;
-        try (ScanResult scanResult = scan()) {
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getModules();
         }
     }

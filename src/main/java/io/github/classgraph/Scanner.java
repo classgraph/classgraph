@@ -80,6 +80,9 @@ class Scanner implements Callable<ScanResult> {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
+    /** If true, performing a scan. If false, only fetching the classpath. */
+    public boolean performScan;
+
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
 
@@ -117,6 +120,8 @@ class Scanner implements Callable<ScanResult> {
      *
      * @param scanSpec
      *            the scan spec
+     * @param performScan
+     *            If true, performing a scan. If false, only fetching the classpath.
      * @param executorService
      *            the executor service
      * @param numParallelTasks
@@ -130,10 +135,11 @@ class Scanner implements Callable<ScanResult> {
      * @throws InterruptedException
      *             if interrupted
      */
-    Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler,
-            final LogNode topLevelLog) throws InterruptedException {
+    Scanner(final ScanSpec scanSpec, final boolean performScan, final ExecutorService executorService,
+            final int numParallelTasks, final ScanResultProcessor scanResultProcessor,
+            final FailureHandler failureHandler, final LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
+        this.performScan = performScan;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
         if (topLevelLog != null) {
@@ -1054,7 +1060,7 @@ class Scanner implements Callable<ScanResult> {
             }
         }
 
-        if (scanSpec.performScan) {
+        if (performScan) {
             // Scan classpath / modules, producing a ScanResult.
             return performScan(finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs,
                     classLoaderOrderRespectingParentDelegation);

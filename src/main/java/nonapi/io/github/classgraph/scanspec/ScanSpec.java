@@ -90,9 +90,6 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** If true, performing a scan. If false, only fetching the classpath. */
-    public boolean performScan = true;
-
     /** If true, scan jarfiles. */
     public boolean scanJars = true;
 

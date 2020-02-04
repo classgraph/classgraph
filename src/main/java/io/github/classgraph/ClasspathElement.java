@@ -189,10 +189,6 @@ abstract class ClasspathElement {
      *            the log
      */
     void maskClassfiles(final int classpathIdx, final Set<String> classpathRelativePathsFound, final LogNode log) {
-        if (!scanSpec.performScan) {
-            // Should not happen
-            throw new IllegalArgumentException("performScan is false");
-        }
         // Find relative paths that occur more than once in the classpath / module path.
         // Usually duplicate relative paths occur only between classpath / module path elements, not within,
         // but actually there is no restriction for paths within a zipfile to be unique, and in fact
