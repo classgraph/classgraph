@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
