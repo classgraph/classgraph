@@ -31,11 +31,13 @@ package io.github.classgraph;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
@@ -47,6 +49,9 @@ class ClassGraphClassLoader extends ClassLoader {
     /** The environment classloader order. */
     private final ClassLoader[] envClassLoaderOrder;
 
+    /** The classpath URLs. */
+    private final URLClassLoader classpathLoader;
+
     /**
      * Constructor.
      *
@@ -57,6 +62,7 @@ class ClassGraphClassLoader extends ClassLoader {
         super(null);
         this.scanResult = scanResult;
         this.envClassLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
+        this.classpathLoader = new URLClassLoader(scanResult.getClasspathURLs().toArray(new URL[0]));
         registerAsParallelCapable();
     }
 
@@ -72,25 +78,62 @@ class ClassGraphClassLoader extends ClassLoader {
             return loadedClass;
         }
 
-        // Try null classloader (the classloader that loaded this class, as the caller of Class.forName())
-        try {
-            return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, null);
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            // Ignore
+        // Only try environment classloaders if classpath and/or classloaders are not overridden
+        final ScanSpec scanSpec = scanResult.scanSpec;
+        final List<ClassLoader> triedClassLoaders = new ArrayList<>();
+        if ((scanSpec.overrideClasspath == null || scanSpec.overrideClasspath.isEmpty())
+                && (scanSpec.overrideClassLoaders == null || scanSpec.overrideClassLoaders.isEmpty())) {
+            // Try null classloader (the classloader that loaded this class, as the caller of Class.forName())
+            try {
+                return Class.forName(className, scanSpec.initializeLoadedClasses, null);
+            } catch (ClassNotFoundException | LinkageError e) {
+                // Ignore
+            }
+
+            // Try environment classloaders
+            if (envClassLoaderOrder != null) {
+                // Try environment classloaders
+                for (final ClassLoader envClassLoader : envClassLoaderOrder) {
+                    triedClassLoaders.add(envClassLoader);
+                    try {
+                        return Class.forName(className, scanSpec.initializeLoadedClasses, envClassLoader);
+                    } catch (ClassNotFoundException | LinkageError e) {
+                        // Ignore
+                    }
+                }
+            }
         }
 
-        // Try environment classloaders
-        final List<ClassLoader> triedClassLoaders = new ArrayList<>();
-        if (envClassLoaderOrder != null) {
-            // Try environment classloaders
-            for (final ClassLoader envClassLoader : envClassLoaderOrder) {
-                triedClassLoaders.add(envClassLoader);
+        // If classloaders are overridden or added, try loading through those classloaders
+        if (scanSpec.overrideClassLoaders != null && !scanSpec.overrideClassLoaders.isEmpty()) {
+            for (final ClassLoader overrideClassLoader : scanSpec.overrideClassLoaders) {
+                triedClassLoaders.add(overrideClassLoader);
                 try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, envClassLoader);
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    return overrideClassLoader.loadClass(className);
+                } catch (ClassNotFoundException | LinkageError e) {
                     // Ignore
                 }
             }
+        }
+        if (scanSpec.addedClassLoaders != null && !scanSpec.addedClassLoaders.isEmpty()) {
+            for (final ClassLoader addedClassLoader : scanSpec.addedClassLoaders) {
+                triedClassLoaders.add(addedClassLoader);
+                try {
+                    return addedClassLoader.loadClass(className);
+                } catch (ClassNotFoundException | LinkageError e) {
+                    // Ignore
+                }
+            }
+        }
+
+        // Try loading from classpath URLs. This should handle classpath override situations, and this will also
+        // enable classloading after the ScanResult has been closed in most situations (#399). Some of these URLs
+        // might be invalid though if the ScanResult has been closed (e.g. in the rare case that an inner jar
+        // had to be extracted to a temporary file on disk).
+        try {
+            return classpathLoader.loadClass(className);
+        } catch (ClassNotFoundException | LinkageError e) {
+            // Ignore
         }
 
         // Try getting the ClassInfo for the named class
@@ -100,9 +143,8 @@ class ClassGraphClassLoader extends ClassLoader {
             // Try specific classloader for the classpath element that the classfile was obtained from
             if (classInfo.classLoader != null && !triedClassLoaders.contains(classInfo.classLoader)) {
                 try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
-                            classInfo.classLoader);
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    return Class.forName(className, scanSpec.initializeLoadedClasses, classInfo.classLoader);
+                } catch (ClassNotFoundException | LinkageError e) {
                     // Ignore
                 }
             }
