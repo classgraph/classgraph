@@ -32,7 +32,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 
 import nonapi.io.github.classgraph.utils.JarUtils;
 
@@ -41,6 +43,9 @@ class ClassGraphClassLoader extends ClassLoader {
 
     /** The scan result. */
     private final ScanResult scanResult;
+
+    /** The environment classloader order. */
+    private final ClassLoader[] envClassLoaderOrder;
 
     /**
      * Constructor.
@@ -51,6 +56,7 @@ class ClassGraphClassLoader extends ClassLoader {
     ClassGraphClassLoader(final ScanResult scanResult) {
         super(null);
         this.scanResult = scanResult;
+        this.envClassLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
         registerAsParallelCapable();
     }
 
@@ -66,26 +72,6 @@ class ClassGraphClassLoader extends ClassLoader {
             return loadedClass;
         }
 
-        // Get ClassInfo for named class
-        final ClassInfo classInfo = scanResult.getClassInfo(className);
-
-        // Try environment classloaders first
-        boolean triedClassInfoLoader = false;
-        final ClassLoader[] classLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
-        if (classLoaderOrder != null) {
-            // Try environment classloaders
-            for (final ClassLoader envClassLoader : classLoaderOrder) {
-                try {
-                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, envClassLoader);
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    // Ignore
-                }
-                if (classInfo != null && envClassLoader == classInfo.classLoader) {
-                    triedClassInfoLoader = true;
-                }
-            }
-        }
-
         // Try null classloader (the classloader that loaded this class, as the caller of Class.forName())
         try {
             return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, null);
@@ -93,28 +79,55 @@ class ClassGraphClassLoader extends ClassLoader {
             // Ignore
         }
 
-        // Try specific classloader for the classpath element that the classfile was obtained from
-        if (!triedClassInfoLoader && classInfo != null && classInfo.classLoader != null) {
-            try {
-                return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, classInfo.classLoader);
-            } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                // Ignore
+        // Try environment classloaders
+        final List<ClassLoader> triedClassLoaders = new ArrayList<>();
+        if (envClassLoaderOrder != null) {
+            // Try environment classloaders
+            for (final ClassLoader envClassLoader : envClassLoaderOrder) {
+                triedClassLoaders.add(envClassLoader);
+                try {
+                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses, envClassLoader);
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    // Ignore
+                }
             }
         }
 
-        // If class came from a module, and it was not able to be loaded by the environment classloader,
-        // then it is possible it was a non-public class, and ClassGraph found it by ignoring class visibility
-        // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
-        // encapsulation rules by refusing to load modular classes that the context/system classloaders
-        // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
-        if (classInfo != null && classInfo.classpathElement instanceof ClasspathElementModule
-                && !classInfo.isPublic()) {
-            throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
-                    + "but the context and system classloaders could not load the class, probably because "
-                    + "the class is not public.");
+        // Try getting the ClassInfo for the named class
+        final ClassInfo classInfo = scanResult.classNameToClassInfo == null ? null
+                : scanResult.classNameToClassInfo.get(className);
+        if (classInfo != null) {
+            // Try specific classloader for the classpath element that the classfile was obtained from
+            if (classInfo.classLoader != null && !triedClassLoaders.contains(classInfo.classLoader)) {
+                try {
+                    return Class.forName(className, scanResult.scanSpec.initializeLoadedClasses,
+                            classInfo.classLoader);
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    // Ignore
+                }
+            }
+
+            // If class came from a module, and it was not able to be loaded by the environment classloader,
+            // then it is probable it was a non-public class, and ClassGraph found it by ignoring class visibility
+            // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
+            // encapsulation rules by refusing to load modular classes that the context/system classloaders
+            // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
+            if (classInfo.classpathElement instanceof ClasspathElementModule && !classInfo.isPublic()) {
+                throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
+                        + "but the context and system classloaders could not load the class, probably because "
+                        + "the class is not public.");
+            }
         }
 
-        // Try obtaining the classfile as a resource, and defining the class from the resource content
+        // Try obtaining the classfile as a resource, and defining the class from the resource content.
+        // This is a last-ditch attempt if the environment classloader(s) failed. This should be performed
+        // after envirnoment classloading is attempted, so that classes are not loaded by a mix of environment
+        // classloaders and direct manual classloading, otherwise class compatibility issues can arise.
+        // Also, the scanResult should only be accessed as a last resort, so that wherever possible, linked
+        // classes can be loaded after the ScanResult is closed. Otherwise if you load classes before a
+        // ScanResult is closed, then you close the ScanResult, then you access fields of the ScanResult
+        // with a type that has not yet been loaded, this can trigger an exception that the ScanResult
+        // was accessed after the ScanResult is closed (#399).
         final ResourceList classfileResources = scanResult
                 .getResourcesWithPath(JarUtils.classNameToClassfilePath(className));
         if (classfileResources != null) {

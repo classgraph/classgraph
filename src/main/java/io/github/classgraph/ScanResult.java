@@ -1389,8 +1389,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
             classGraphClassLoader = null;
             if (classNameToClassInfo != null) {
-                classNameToClassInfo.clear();
-                classNameToClassInfo = null;
+                // Don't clear classNameToClassInfo, since it may be used by ClassGraphClassLoader (#399).
+                // Just rely on the garbage collector to collect these once the ScanResult goes out of scope.
+                //                classNameToClassInfo.clear();
+                //                classNameToClassInfo = null;
             }
             if (packageNameToPackageInfo != null) {
                 packageNameToPackageInfo.clear();
