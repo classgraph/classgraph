@@ -118,8 +118,11 @@ public class ClasspathFinder {
             }
             final LogNode overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
-            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath, defaultClassLoader, scanSpec,
-                    overrideLog);
+            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath,
+                    // If the classpath is overridden, the classloader used to load classes is overridden in
+                    // ClassGraphClassLoader by a custom URLClassLoader that loads from the override classpath.
+                    // Just use defaultClassLoader as a placeholder here.
+                    defaultClassLoader, scanSpec, overrideLog);
             if (overrideLog != null) {
                 overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                         + "found by classpath scanning will be the same as the classes loaded by the "

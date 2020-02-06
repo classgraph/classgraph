@@ -33,9 +33,9 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -80,7 +80,7 @@ class ClassGraphClassLoader extends ClassLoader {
 
         // Only try environment classloaders if classpath and/or classloaders are not overridden
         final ScanSpec scanSpec = scanResult.scanSpec;
-        final List<ClassLoader> triedClassLoaders = new ArrayList<>();
+        final Set<ClassLoader> triedClassLoaders = new HashSet<>();
         if ((scanSpec.overrideClasspath == null || scanSpec.overrideClasspath.isEmpty())
                 && (scanSpec.overrideClassLoaders == null || scanSpec.overrideClassLoaders.isEmpty())) {
             // Try null classloader (the classloader that loaded this class, as the caller of Class.forName())
@@ -94,58 +94,44 @@ class ClassGraphClassLoader extends ClassLoader {
             if (envClassLoaderOrder != null) {
                 // Try environment classloaders
                 for (final ClassLoader envClassLoader : envClassLoaderOrder) {
-                    triedClassLoaders.add(envClassLoader);
-                    try {
-                        return Class.forName(className, scanSpec.initializeLoadedClasses, envClassLoader);
-                    } catch (ClassNotFoundException | LinkageError e) {
-                        // Ignore
+                    if (triedClassLoaders.add(envClassLoader)) {
+                        try {
+                            return Class.forName(className, scanSpec.initializeLoadedClasses, envClassLoader);
+                        } catch (ClassNotFoundException | LinkageError e) {
+                            // Ignore
+                        }
                     }
                 }
             }
         }
 
-        // If classloaders are overridden or added, try loading through those classloaders
-        if (scanSpec.overrideClassLoaders != null && !scanSpec.overrideClassLoaders.isEmpty()) {
-            for (final ClassLoader overrideClassLoader : scanSpec.overrideClassLoaders) {
-                triedClassLoaders.add(overrideClassLoader);
-                try {
-                    return overrideClassLoader.loadClass(className);
-                } catch (ClassNotFoundException | LinkageError e) {
-                    // Ignore
-                }
-            }
-        }
-        if (scanSpec.addedClassLoaders != null && !scanSpec.addedClassLoaders.isEmpty()) {
-            for (final ClassLoader addedClassLoader : scanSpec.addedClassLoaders) {
-                triedClassLoaders.add(addedClassLoader);
-                try {
-                    return addedClassLoader.loadClass(className);
-                } catch (ClassNotFoundException | LinkageError e) {
-                    // Ignore
-                }
+        // If the classpath is overridden, try loading class from the classpath URLs (this is done before
+        // checking classloader overrides, since classpath override takes precedence over classloader
+        // overrides in the ClasspathFinder class). Some of these URLs might be invalid if the ScanResult
+        // has been closed (e.g. in the rare case that an inner jar had to be extracted to a temporary file
+        // on disk).
+        if (scanSpec.overrideClasspath != null && !scanSpec.overrideClasspath.isEmpty()) {
+            try {
+                return classpathLoader.loadClass(className);
+            } catch (ClassNotFoundException | LinkageError e) {
+                // Ignore
             }
         }
 
-        // Try loading from classpath URLs. This should handle classpath override situations, and this will also
-        // enable classloading after the ScanResult has been closed in most situations (#399). Some of these URLs
-        // might be invalid though if the ScanResult has been closed (e.g. in the rare case that an inner jar
-        // had to be extracted to a temporary file on disk).
-        try {
-            return classpathLoader.loadClass(className);
-        } catch (ClassNotFoundException | LinkageError e) {
-            // Ignore
-        }
-
-        // Try getting the ClassInfo for the named class
+        // Try getting the ClassInfo for the named class, then the ClassLoader from the ClassInfo.
+        // This requires the ScanResult not to have been already closed, so this is only attempted if all the
+        // above efforts failed (#399).
         final ClassInfo classInfo = scanResult.classNameToClassInfo == null ? null
                 : scanResult.classNameToClassInfo.get(className);
         if (classInfo != null) {
             // Try specific classloader for the classpath element that the classfile was obtained from
-            if (classInfo.classLoader != null && !triedClassLoaders.contains(classInfo.classLoader)) {
-                try {
-                    return Class.forName(className, scanSpec.initializeLoadedClasses, classInfo.classLoader);
-                } catch (ClassNotFoundException | LinkageError e) {
-                    // Ignore
+            if (classInfo.classLoader != null) {
+                if (triedClassLoaders.add(classInfo.classLoader)) {
+                    try {
+                        return Class.forName(className, scanSpec.initializeLoadedClasses, classInfo.classLoader);
+                    } catch (ClassNotFoundException | LinkageError e) {
+                        // Ignore
+                    }
                 }
             }
 
@@ -161,15 +147,49 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
+        // If classloaders are overridden or added, try loading through those classloaders
+        if (scanSpec.overrideClassLoaders != null && !scanSpec.overrideClassLoaders.isEmpty()) {
+            for (final ClassLoader overrideClassLoader : scanSpec.overrideClassLoaders) {
+                if (triedClassLoaders.add(overrideClassLoader)) {
+                    try {
+                        return overrideClassLoader.loadClass(className);
+                    } catch (ClassNotFoundException | LinkageError e) {
+                        // Ignore
+                    }
+                }
+            }
+        }
+        if (scanSpec.addedClassLoaders != null && !scanSpec.addedClassLoaders.isEmpty()) {
+            for (final ClassLoader addedClassLoader : scanSpec.addedClassLoaders) {
+                if (triedClassLoaders.add(addedClassLoader)) {
+                    try {
+                        return addedClassLoader.loadClass(className);
+                    } catch (ClassNotFoundException | LinkageError e) {
+                        // Ignore
+                    }
+                }
+            }
+        }
+
+        // If the classpath was not overridden, now that override classloaders have been attempted and failed,
+        // still try to load the class from the classpath URLs before attempting direct classloading from resources
+        if (scanSpec.overrideClasspath == null || scanSpec.overrideClasspath.isEmpty()) {
+            try {
+                return classpathLoader.loadClass(className);
+            } catch (ClassNotFoundException | LinkageError e) {
+                // Ignore
+            }
+        }
+
         // Try obtaining the classfile as a resource, and defining the class from the resource content.
-        // This is a last-ditch attempt if the environment classloader(s) failed. This should be performed
-        // after envirnoment classloading is attempted, so that classes are not loaded by a mix of environment
+        // This is a last-ditch attempt if the above efforts all failed. This should be performed after
+        // envirnoment classloading is attempted, so that classes are not loaded by a mix of environment
         // classloaders and direct manual classloading, otherwise class compatibility issues can arise.
-        // Also, the scanResult should only be accessed as a last resort, so that wherever possible, linked
-        // classes can be loaded after the ScanResult is closed. Otherwise if you load classes before a
-        // ScanResult is closed, then you close the ScanResult, then you access fields of the ScanResult
-        // with a type that has not yet been loaded, this can trigger an exception that the ScanResult
-        // was accessed after the ScanResult is closed (#399).
+        // The ScanResult should only be accessed (to fetch resources) as a last resort, so that wherever
+        // possible, linked classes can be loaded after the ScanResult is closed. Otherwise if you load
+        // classes before a ScanResult is closed, then you close the ScanResult, then you try to access
+        // fields of the ScanResult that have a type that has not yet been loaded, this can trigger an
+        // exception that the ScanResult was accessed after it was closed (#399).
         final ResourceList classfileResources = scanResult
                 .getResourcesWithPath(JarUtils.classNameToClassfilePath(className));
         if (classfileResources != null) {
