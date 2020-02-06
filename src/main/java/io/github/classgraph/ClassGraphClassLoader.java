@@ -119,8 +119,9 @@ class ClassGraphClassLoader extends ClassLoader {
         }
 
         // Try getting the ClassInfo for the named class, then the ClassLoader from the ClassInfo.
-        // This requires the ScanResult not to have been already closed, so this is only attempted if all the
-        // above efforts failed (#399).
+        // This should still be valid if the ScanResult was closed, since ScanResult#close() leaves
+        // the classNameToClassInfo map intact, but still, this is only attempted if all the above
+        // efforts failed, to avoid accessing ClassInfo objects after the ScanResult is closed (#399).
         final ClassInfo classInfo = scanResult.classNameToClassInfo == null ? null
                 : scanResult.classNameToClassInfo.get(className);
         if (classInfo != null) {
