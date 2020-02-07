@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -261,7 +262,7 @@ class ClassGraphClassLoader extends ClassLoader {
         if (!environmentClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
                 final Enumeration<URL> resources = envClassLoader.getResources(path);
-                if (resources != null) {
+                if (resources != null && resources.hasMoreElements()) {
                     return resources;
                 }
             }
@@ -271,7 +272,7 @@ class ClassGraphClassLoader extends ClassLoader {
         if (!overriddenOrAddedClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader additionalClassLoader : overriddenOrAddedClassLoaderDelegationOrder) {
                 final Enumeration<URL> resources = additionalClassLoader.getResources(path);
-                if (resources != null) {
+                if (resources != null && resources.hasMoreElements()) {
                     return resources;
                 }
             }
@@ -281,7 +282,7 @@ class ClassGraphClassLoader extends ClassLoader {
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList == null || resourceList.isEmpty()) {
-            return super.getResources(path);
+            return Collections.<URL> emptyEnumeration();
         } else {
             return new Enumeration<URL>() {
                 /** The idx. */
