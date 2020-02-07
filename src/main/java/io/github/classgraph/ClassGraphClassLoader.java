@@ -120,6 +120,8 @@ class ClassGraphClassLoader extends ClassLoader {
             // try to load the class from the classpath URLs before attempting direct classloading from resources
             overriddenOrAddedClassLoaderDelegationOrder.add(classpathClassLoader);
         }
+        // Remove duplicates
+        overriddenOrAddedClassLoaderDelegationOrder.removeAll(environmentClassLoaderDelegationOrder);
     }
 
     /* (non-Javadoc)
@@ -149,9 +151,11 @@ class ClassGraphClassLoader extends ClassLoader {
         // This should still be valid if the ScanResult was closed, since ScanResult#close() leaves
         // the classNameToClassInfo map intact, but still, this is only attempted if all the above
         // efforts failed, to avoid accessing ClassInfo objects after the ScanResult is closed (#399).
+        ClassLoader classInfoClassLoader = null;
         final ClassInfo classInfo = scanResult.classNameToClassInfo == null ? null
                 : scanResult.classNameToClassInfo.get(className);
         if (classInfo != null) {
+            classInfoClassLoader = classInfo.classLoader;
             // Try specific classloader for the classpath element that the classfile was obtained from,
             // as long as it wasn't already tried
             if (classInfo.classLoader != null
@@ -178,10 +182,12 @@ class ClassGraphClassLoader extends ClassLoader {
         // Try overridden or added classloader(s)
         if (!overriddenOrAddedClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader additionalClassLoader : overriddenOrAddedClassLoaderDelegationOrder) {
-                try {
-                    return Class.forName(className, initializeLoadedClasses, additionalClassLoader);
-                } catch (ClassNotFoundException | LinkageError e) {
-                    // Ignore
+                if (additionalClassLoader != classInfoClassLoader) {
+                    try {
+                        return Class.forName(className, initializeLoadedClasses, additionalClassLoader);
+                    } catch (ClassNotFoundException | LinkageError e) {
+                        // Ignore
+                    }
                 }
             }
         }
