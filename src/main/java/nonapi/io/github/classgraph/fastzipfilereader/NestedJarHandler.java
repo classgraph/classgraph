@@ -127,7 +127,7 @@ public class NestedJarHandler {
                                 && childZipEntry.uncompressedSize < FileUtils.MAX_BUFFER_SIZE
                                         ? (int) childZipEntry.uncompressedSize
                                         : -1,
-                        childZipEntry.entryName, NestedJarHandler.this, log);
+                        childZipEntry.entryName, NestedJarHandler.this, scanSpec, log);
                 allocatedPhysicalZipFiles.add(physicalZipFile);
 
                 // Create a new logical slice of the extracted inner zipfile
@@ -537,7 +537,7 @@ public class NestedJarHandler {
         try (InputStream inputStream = url.openStream()) {
             // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
             final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, /* length unknown */ -1,
-                    jarURL, this, log);
+                    jarURL, this, scanSpec, log);
             allocatedPhysicalZipFiles.add(physicalZipFile);
             return physicalZipFile;
 

@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -48,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -81,12 +81,6 @@ public class MappedByteBufferResources {
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**
-     * The maximum size of a jar that is downloaded from a {@link URL}'s {@link InputStream} to RAM, before the
-     * content is spilled over to a temporary file on disk.
-     */
-    private static final int MAX_JAR_RAM_SIZE = 64 * 1024 * 1024;
-
-    /**
      * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
      * size is exceeded.
      *
@@ -99,22 +93,24 @@ public class MappedByteBufferResources {
      *            needed).
      * @param nestedJarHandler
      *            the nested jar handler
+     * @param scanSpec
+     *            the scan spec.
      * @param log
      *            the log.
      * @throws IOException
      *             If the contents could not be read.
      */
     public MappedByteBufferResources(final InputStream inputStream, final int inputStreamLengthHint,
-            final String tempFileBaseName, final NestedJarHandler nestedJarHandler, final LogNode log)
-            throws IOException {
+            final String tempFileBaseName, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec,
+            final LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         byte[] buf;
         boolean spillToDisk;
-        if (inputStreamLengthHint != -1 && inputStreamLengthHint <= MAX_JAR_RAM_SIZE) {
-            // inputStreamLengthHint indicates that inputStream is longer than MAX_JAR_RAM_SIZE,
+        if (inputStreamLengthHint != -1 && inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
+            // inputStreamLengthHint indicates that inputStream is longer than scanSpec.maxJarRamSize,
             // so try downloading to RAM
-            buf = new byte[inputStreamLengthHint == -1 ? MAX_JAR_RAM_SIZE
-                    : Math.min(MAX_JAR_RAM_SIZE, inputStreamLengthHint)];
+            buf = new byte[inputStreamLengthHint == -1 ? scanSpec.maxBufferedJarRAMSize
+                    : Math.min(scanSpec.maxBufferedJarRAMSize, inputStreamLengthHint)];
             final int bufLength = buf.length;
 
             int totBytesRead = 0;
@@ -138,7 +134,7 @@ public class MappedByteBufferResources {
                 spillToDisk = true;
             }
         } else {
-            // inputStreamLengthHint indicates that inputStream is longer than MAX_JAR_RAM_SIZE,
+            // inputStreamLengthHint indicates that inputStream is longer than scanSpec.maxJarRamSize,
             // so immediately spill to disk
             buf = null;
             spillToDisk = true;
@@ -146,8 +142,9 @@ public class MappedByteBufferResources {
         if (spillToDisk) {
             // bytesRead == 0 => ran out of buffer space, spill over to disk
             if (log != null) {
-                log.log("Could not fit InputStream content into max RAM buffer size of " + MAX_JAR_RAM_SIZE
-                        + " bytes, saving to temporary file: " + tempFileBaseName + " -> " + this.mappedFile);
+                log.log("Could not fit InputStream content into max RAM buffer size of "
+                        + scanSpec.maxBufferedJarRAMSize + " bytes, saving to temporary file: " + tempFileBaseName
+                        + " -> " + this.mappedFile);
             }
             try {
                 this.mappedFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
