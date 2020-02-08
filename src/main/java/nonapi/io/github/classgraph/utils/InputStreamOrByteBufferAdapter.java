@@ -57,8 +57,9 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     private ByteBuffer byteBuffer;
 
     /**
-     * Bytes read from the beginning of the classfile, for a memory-backed ByteBuffer. This array is reused across
-     * calls.
+     * Bytes read from the beginning of the classfile. Only access an index in this array directly if at least that
+     * many bytes have already been read from the classfile (i.e. can be used to read backwards but not forwards in
+     * the classfile).
      */
     public byte[] buf;
 
