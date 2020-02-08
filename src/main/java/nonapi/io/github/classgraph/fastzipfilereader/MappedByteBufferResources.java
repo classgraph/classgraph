@@ -109,7 +109,7 @@ public class MappedByteBufferResources {
             throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         byte[] buf;
-        boolean spillToDisk = false;
+        boolean spillToDisk;
         if (inputStreamLengthHint != -1 && inputStreamLengthHint <= MAX_JAR_RAM_SIZE) {
             // inputStreamLengthHint indicates that inputStream is longer than MAX_JAR_RAM_SIZE,
             // so try downloading to RAM
@@ -131,6 +131,7 @@ public class MappedByteBufferResources {
                 }
                 // Wrap array in a RAM-backed ByteBuffer
                 wrapByteBuffer(ByteBuffer.wrap(buf, 0, totBytesRead));
+                spillToDisk = false;
             } else {
                 // Didn't reach end of inputStream after buf was filled, so inputStreamLengthHint underestimated
                 // the length of the stream -- spill to disk, since we don't know how long the stream is now
