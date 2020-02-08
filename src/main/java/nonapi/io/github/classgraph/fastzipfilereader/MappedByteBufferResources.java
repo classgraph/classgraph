@@ -42,6 +42,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.NonReadableChannelException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -91,6 +92,8 @@ public class MappedByteBufferResources {
      *
      * @param inputStream
      *            The {@link InputStream}.
+     * @param inputStreamLengthHint
+     *            The number of bytes to read in inputStream, or -1 if unknown.
      * @param tempFileBaseName
      *            the source URL or zip entry that inputStream was opened from (used to name temporary file, if
      *            needed).
@@ -101,27 +104,49 @@ public class MappedByteBufferResources {
      * @throws IOException
      *             If the contents could not be read.
      */
-    public MappedByteBufferResources(final InputStream inputStream, final String tempFileBaseName,
-            final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+    public MappedByteBufferResources(final InputStream inputStream, final int inputStreamLengthHint,
+            final String tempFileBaseName, final NestedJarHandler nestedJarHandler, final LogNode log)
+            throws IOException {
         this.nestedJarHandler = nestedJarHandler;
-        final byte[] buf = new byte[MAX_JAR_RAM_SIZE];
-        final int bufLength = buf.length;
+        byte[] buf;
+        boolean spillToDisk = false;
+        if (inputStreamLengthHint != -1 && inputStreamLengthHint <= MAX_JAR_RAM_SIZE) {
+            // inputStreamLengthHint indicates that inputStream is longer than MAX_JAR_RAM_SIZE,
+            // so try downloading to RAM
+            buf = new byte[inputStreamLengthHint == -1 ? MAX_JAR_RAM_SIZE
+                    : Math.min(MAX_JAR_RAM_SIZE, inputStreamLengthHint)];
+            final int bufLength = buf.length;
 
-        int totBytesRead = 0;
-        int bytesRead = 0;
-        while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
-            // Fill buffer until nothing more can be read
-            totBytesRead += bytesRead;
-        }
-        if (bytesRead < 0) {
-            // Successfully reached end of stream -- wrap array buffer with ByteBuffer
-            wrapByteBuffer(ByteBuffer.wrap(buf, 0, totBytesRead));
-
+            int totBytesRead = 0;
+            int bytesRead = 0;
+            while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
+                // Fill buffer until nothing more can be read
+                totBytesRead += bytesRead;
+            }
+            if (bytesRead < 0) {
+                // Successfully reached end of stream -- wrap array buffer with ByteBuffer
+                if (totBytesRead < buf.length) {
+                    // Trim array
+                    buf = Arrays.copyOf(buf, totBytesRead);
+                }
+                // Wrap array in a RAM-backed ByteBuffer
+                wrapByteBuffer(ByteBuffer.wrap(buf, 0, totBytesRead));
+            } else {
+                // Didn't reach end of inputStream after buf was filled, so inputStreamLengthHint underestimated
+                // the length of the stream -- spill to disk, since we don't know how long the stream is now
+                spillToDisk = true;
+            }
         } else {
+            // inputStreamLengthHint indicates that inputStream is longer than MAX_JAR_RAM_SIZE,
+            // so immediately spill to disk
+            buf = null;
+            spillToDisk = true;
+        }
+        if (spillToDisk) {
             // bytesRead == 0 => ran out of buffer space, spill over to disk
             if (log != null) {
-                log.log("Could not fit downloaded URL into max RAM buffer size of " + MAX_JAR_RAM_SIZE
-                        + " bytes, downloading to temporary file: " + tempFileBaseName + " -> " + this.mappedFile);
+                log.log("Could not fit InputStream content into max RAM buffer size of " + MAX_JAR_RAM_SIZE
+                        + " bytes, saving to temporary file: " + tempFileBaseName + " -> " + this.mappedFile);
             }
             try {
                 this.mappedFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
@@ -133,8 +158,13 @@ public class MappedByteBufferResources {
             }
             this.mappedFileIsTempFile = true;
 
-            // Write the full buffer to the temporary file
-            Files.write(this.mappedFile.toPath(), buf, StandardOpenOption.WRITE);
+            if (buf != null) {
+                // If any content was already read from inputStream, flush it out to the temporary file
+                Files.write(this.mappedFile.toPath(), buf, StandardOpenOption.WRITE);
+            } else {
+                // Buffer was never allocated -- allocate one for the copy operation below
+                buf = new byte[8192];
+            }
 
             // Copy the rest of the InputStream to the end of the temporary file
             try (OutputStream os = new BufferedOutputStream(

@@ -118,6 +118,8 @@ class PhysicalZipFile implements Closeable {
      *
      * @param inputStream
      *            the input stream
+     * @param inputStreamLengthHint
+     *            The number of bytes to read in inputStream, or -1 if unknown.
      * @param path
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
@@ -128,14 +130,15 @@ class PhysicalZipFile implements Closeable {
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final InputStream inputStream, final String path, final NestedJarHandler nestedJarHandler,
-            final LogNode log) throws IOException {
+    PhysicalZipFile(final InputStream inputStream, final int inputStreamLengthHint, final String path,
+            final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.path = path;
         this.isDeflatedToRam = true;
 
         // Wrap the ByteBuffer
-        this.byteBufferResources = new MappedByteBufferResources(inputStream, path, nestedJarHandler, log);
+        this.byteBufferResources = new MappedByteBufferResources(inputStream, inputStreamLengthHint, path,
+                nestedJarHandler, log);
         if (this.byteBufferResources.length() == 0L) {
             throw new IOException("Zipfile is empty: " + path);
         }
