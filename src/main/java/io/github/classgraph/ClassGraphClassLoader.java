@@ -158,10 +158,10 @@ class ClassGraphClassLoader extends ClassLoader {
             classInfoClassLoader = classInfo.classLoader;
             // Try specific classloader for the classpath element that the classfile was obtained from,
             // as long as it wasn't already tried
-            if (classInfo.classLoader != null
-                    && !environmentClassLoaderDelegationOrder.contains(classInfo.classLoader)) {
+            if (classInfoClassLoader != null
+                    && !environmentClassLoaderDelegationOrder.contains(classInfoClassLoader)) {
                 try {
-                    return Class.forName(className, initializeLoadedClasses, classInfo.classLoader);
+                    return Class.forName(className, initializeLoadedClasses, classInfoClassLoader);
                 } catch (ClassNotFoundException | LinkageError e) {
                     // Ignore
                 }
