@@ -29,10 +29,12 @@
 package nonapi.io.github.classgraph.scanspec;
 
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -252,6 +254,13 @@ public class ScanSpec {
      * decrease ClassGraph's memory usage if either of the above rare situations occurs.
      */
     public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
+
+    /**
+     * If true, use a {@link RandomAccessFile} rather than a {@link MappedByteBuffer} to open jarfiles, which is
+     * slower, but does not use up virtual memory space. You can disable memory mapping if you get
+     * {@link OutOfMemoryError} when scanning.
+     */
+    public boolean disableMemoryMapping = false;
 
     // -------------------------------------------------------------------------------------------------------------
 

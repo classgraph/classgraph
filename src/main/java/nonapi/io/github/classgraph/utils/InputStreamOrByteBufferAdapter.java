@@ -34,6 +34,8 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import nonapi.io.github.classgraph.fastzipfilereader.ByteBufferWrapper;
+
 /** Buffer class that can wrap either an InputStream or a ByteBuffer, depending on which is available. */
 public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /**
@@ -53,8 +55,8 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /** The InputStream, if applicable. */
     private InputStream inputStream;
 
-    /** The ByteBuffer, if applicable. */
-    private ByteBuffer byteBuffer;
+    /** The {@link ByteBufferWrapper}, if applicable. */
+    private ByteBufferWrapper byteBufferWrapper;
 
     /**
      * Bytes read from the beginning of the classfile. Only access an index in this array directly if at least that
@@ -70,7 +72,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     public int curr;
 
     /** Bytes used in the buffer. */
-    private int used;
+    private int bufBytesFilled;
 
     /**
      * Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}.
@@ -86,15 +88,17 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
     /**
      * Create an {@link InputStreamOrByteBufferAdapter} from an {@link InputStream}.
      *
-     * @param byteBuffer
-     *            the byte buffer
+     * @param byteBufferWrapper
+     *            the byte buffer wrapper
      */
-    public InputStreamOrByteBufferAdapter(final ByteBuffer byteBuffer) {
-        if (byteBuffer.hasArray()) {
+    public InputStreamOrByteBufferAdapter(final ByteBufferWrapper byteBufferWrapper) {
+        final ByteBuffer byteBuffer = byteBufferWrapper.getByteBuffer();
+        if (byteBuffer != null && byteBuffer.hasArray()) {
             // Just use the array behind the buffer as the input buffer
             this.buf = byteBuffer.array();
+            this.bufBytesFilled = this.buf.length;
         } else {
-            this.byteBuffer = byteBuffer;
+            this.byteBufferWrapper = byteBufferWrapper;
             this.buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
         }
     }
@@ -119,22 +123,23 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             return inputStream.read(buf, off, len);
         } else {
             // Wrapped ByteBuffer
-            final int bytesRemainingInBuf = byteBuffer != null ? byteBuffer.remaining() : buf.length - off;
+            final int bytesRemainingInBuf = byteBufferWrapper != null ? byteBufferWrapper.remaining()
+                    : buf.length - off;
             final int bytesRead = Math.max(0, Math.min(len, bytesRemainingInBuf));
             if (bytesRead == 0) {
                 // Return -1, as per InputStream#read() contract
                 return -1;
             }
-            if (byteBuffer != null) {
+            if (byteBufferWrapper != null) {
                 // Copy from the ByteBuffer into the byte array
-                final int byteBufPositionBefore = byteBuffer.position();
+                final int byteBufPositionBefore = byteBufferWrapper.position();
                 try {
-                    byteBuffer.get(buf, off, bytesRead);
+                    byteBufferWrapper.get(buf, off, bytesRead);
                 } catch (final BufferUnderflowException e) {
                     // Should not happen
                     throw new IOException("Buffer underflow", e);
                 }
-                return byteBuffer.position() - byteBufPositionBefore;
+                return byteBufferWrapper.position() - byteBufPositionBefore;
             } else {
                 // Nothing to read, since ByteBuffer is backed with an array
                 return bytesRead;
@@ -151,17 +156,18 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If an I/O exception occurs.
      */
     private void readMore(final int bytesRequired) throws IOException {
-        if ((long) used + (long) bytesRequired > FileUtils.MAX_BUFFER_SIZE) {
+        if ((long) bufBytesFilled + (long) bytesRequired > FileUtils.MAX_BUFFER_SIZE) {
             // Since buf is an array, we're limited to reading 2GB per file
             throw new IOException("File is larger than 2GB, cannot read it");
         }
         // Read INITIAL_BUFFER_CHUNK_SIZE for first chunk, or SUBSEQUENT_BUFFER_CHUNK_SIZE for subsequent chunks,
         // but don't try to read past 2GB limit
         final int targetReadSize = Math.max(bytesRequired, // 
-                used == 0 ? INITIAL_BUFFER_CHUNK_SIZE : SUBSEQUENT_BUFFER_CHUNK_SIZE);
+                bufBytesFilled == 0 ? INITIAL_BUFFER_CHUNK_SIZE : SUBSEQUENT_BUFFER_CHUNK_SIZE);
         // Calculate number of bytes to read, based on the target read size, handling integer overflow
-        final int maxNewUsed = (int) Math.min((long) used + (long) targetReadSize, FileUtils.MAX_BUFFER_SIZE);
-        final int bytesToRead = maxNewUsed - used;
+        final int maxNewUsed = (int) Math.min((long) bufBytesFilled + (long) targetReadSize,
+                FileUtils.MAX_BUFFER_SIZE);
+        final int bytesToRead = maxNewUsed - bufBytesFilled;
         if (maxNewUsed > buf.length) {
             // Ran out of space, need to increase the size of the buffer
             long newBufLen = buf.length;
@@ -173,9 +179,9 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
         int extraBytesStillNotRead = bytesToRead;
         int totBytesRead = 0;
         while (extraBytesStillNotRead > 0) {
-            final int bytesRead = read(used, extraBytesStillNotRead);
+            final int bytesRead = read(bufBytesFilled, extraBytesStillNotRead);
             if (bytesRead > 0) {
-                used += bytesRead;
+                bufBytesFilled += bytesRead;
                 totBytesRead += bytesRead;
                 extraBytesStillNotRead -= bytesRead;
             } else {
@@ -211,7 +217,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public int readUnsignedByte(final int offset) throws IOException {
-        final int bytesToRead = Math.max(0, offset + 1 - used);
+        final int bytesToRead = Math.max(0, offset + 1 - bufBytesFilled);
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
@@ -241,7 +247,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public int readUnsignedShort(final int offset) throws IOException {
-        final int bytesToRead = Math.max(0, offset + 2 - used);
+        final int bytesToRead = Math.max(0, offset + 2 - bufBytesFilled);
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
@@ -272,7 +278,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public int readInt(final int offset) throws IOException {
-        final int bytesToRead = Math.max(0, offset + 4 - used);
+        final int bytesToRead = Math.max(0, offset + 4 - bufBytesFilled);
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
@@ -305,7 +311,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public long readLong(final int offset) throws IOException {
-        final int bytesToRead = Math.max(0, offset + 8 - used);
+        final int bytesToRead = Math.max(0, offset + 8 - bufBytesFilled);
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
@@ -328,7 +334,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
      *             If there was an exception while reading.
      */
     public void skip(final int bytesToSkip) throws IOException {
-        final int bytesToRead = Math.max(0, curr + bytesToSkip - used);
+        final int bytesToRead = Math.max(0, curr + bytesToSkip - bufBytesFilled);
         if (bytesToRead > 0) {
             readMore(bytesToRead);
         }
@@ -353,7 +359,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             throws IOException {
         final int utfLen = readUnsignedShort(strStart);
         final int utfStart = strStart + 2;
-        final int bufferUnderrunBytes = Math.max(0, utfStart + utfLen - used);
+        final int bufferUnderrunBytes = Math.max(0, utfStart + utfLen - bufBytesFilled);
         if (bufferUnderrunBytes > 0) {
             readMore(bufferUnderrunBytes);
         }
@@ -442,7 +448,7 @@ public class InputStreamOrByteBufferAdapter implements AutoCloseable {
             }
             this.inputStream = null;
         }
-        this.byteBuffer = null;
+        this.byteBufferWrapper = null;
         this.buf = null;
     }
 }

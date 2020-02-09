@@ -68,7 +68,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** Open and read jarfiles, which may be nested within other jarfiles. */
 public class NestedJarHandler {
     /** The {@link ScanSpec}. */
-    private final ScanSpec scanSpec;
+    final ScanSpec scanSpec;
 
     /**
      * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
@@ -82,7 +82,7 @@ public class NestedJarHandler {
                 throw ClassGraphException
                         .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
             }
-            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(canonicalFile, NestedJarHandler.this);
+            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(canonicalFile, NestedJarHandler.this, log);
             allocatedPhysicalZipFiles.add(physicalZipFile);
 
             return physicalZipFile;
@@ -379,8 +379,8 @@ public class NestedJarHandler {
      * {@link MappedByteBuffer} instances that are currently mapped. (Use {@link ReferenceEqualityKey} so that the
      * entire contents of the buffers are not compared by {@link ByteBuffer#equals(Object)}).
      */
-    private Set<ReferenceEqualityKey<? extends ByteBuffer>> mappedByteBuffers = Collections
-            .newSetFromMap(new ConcurrentHashMap<ReferenceEqualityKey<? extends ByteBuffer>, Boolean>());
+    private Set<ReferenceEqualityKey<ByteBufferWrapper>> mappedByteBuffers = Collections
+            .newSetFromMap(new ConcurrentHashMap<ReferenceEqualityKey<ByteBufferWrapper>, Boolean>());
 
     /** {@link MappedByteBufferResources} instances that were allocated for downloading jars from URLs. */
     private Set<MappedByteBufferResources> mappedByteBufferResources = Collections
@@ -421,21 +421,21 @@ public class NestedJarHandler {
      * @param byteBuffer
      *            the byte buffer
      */
-    public void addMappedByteBuffer(final ByteBuffer byteBuffer) {
-        mappedByteBuffers.add(new ReferenceEqualityKey<ByteBuffer>(byteBuffer));
+    public void addMappedByteBuffer(final ByteBufferWrapper byteBuffer) {
+        mappedByteBuffers.add(new ReferenceEqualityKey<ByteBufferWrapper>(byteBuffer));
     }
 
     /**
-     * Unmap a previously-mapped {@link ByteBuffer}.
+     * Unmap a possibly previously-mapped {@link ByteBuffer} (wrapped in a {@link ByteBufferWrapper}).
      *
      * @param byteBuffer
-     *            the {@link ByteBuffer}.
+     *            the {@link ByteBufferWrapper}.
      * @param log
      *            the log.
      */
-    public void unmapByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
-        if (mappedByteBuffers.remove(new ReferenceEqualityKey<ByteBuffer>(byteBuffer))) {
-            FileUtils.closeDirectByteBuffer(byteBuffer, log);
+    public void unmapByteBuffer(final ByteBufferWrapper byteBuffer, final LogNode log) {
+        if (mappedByteBuffers.remove(new ReferenceEqualityKey<ByteBufferWrapper>(byteBuffer))) {
+            byteBuffer.close(log);
         }
     }
 
@@ -624,7 +624,7 @@ public class NestedJarHandler {
             }
             if (mappedByteBuffers != null) {
                 while (!mappedByteBuffers.isEmpty()) {
-                    for (final ReferenceEqualityKey<? extends ByteBuffer> byteBufferRef : new ArrayList<>(
+                    for (final ReferenceEqualityKey<ByteBufferWrapper> byteBufferRef : new ArrayList<>(
                             mappedByteBuffers)) {
                         unmapByteBuffer(byteBufferRef.get(), log);
                     }

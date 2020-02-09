@@ -31,9 +31,7 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
-import java.nio.ByteBuffer;
 import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -256,23 +254,21 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @throws InterruptedException
      *             If the thread was interrupted.
      */
-    public ByteBuffer getAsSlice() throws IOException, InterruptedException {
+    public ByteBufferWrapper getAsSlice() throws IOException, InterruptedException {
         // Check the file is STORED and resides in only one chunk
         if (!canGetAsSlice()) {
             throw new IllegalArgumentException("Cannot open zip entry as a slice");
         }
+        final int sliceLength = (int) uncompressedSize;
+
         // Fetch the ByteBuffer for the applicable chunk
         final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
         final int chunkIdx = (int) (dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE);
         final long chunkStart = chunkIdx * (long) FileUtils.MAX_BUFFER_SIZE;
-        final ByteBuffer dupdBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(chunkIdx).duplicate();
-        // Create and return a slice on the chunk ByteBuffer that contains only this zip entry
-        // N.B. the cast to Buffer is necessary, see:
-        // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
-        // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
-        ((Buffer) dupdBuf).position((int) (dataStartOffsetWithinPhysicalZipFile - chunkStart));
-        ((Buffer) dupdBuf).limit((int) (dataStartOffsetWithinPhysicalZipFile + uncompressedSize - chunkStart));
-        return dupdBuf.slice();
+        final int sliceStart = (int) (dataStartOffsetWithinPhysicalZipFile - chunkStart);
+
+        // Duplicate and slice the ByteBuffer
+        return parentLogicalZipFile.physicalZipFile.getByteBuffer(chunkIdx).slice(sliceStart, sliceLength);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -301,7 +297,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             private final byte[] scratch = new byte[8 * 1024];
 
             /** The current 2GB chunk of the zip entry. */
-            private ByteBuffer currChunkByteBuf;
+            private ByteBufferWrapper currChunkByteBuf;
 
             /** True if the current 2GB chunk is the last chunk in the zip entry. */
             private boolean isLastChunk;
@@ -326,51 +322,34 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 // Calculate the chunk index for the first chunk
                 currChunkIdx = (int) (dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE);
 
-                // Get the MappedByteBuffer for the 2GB chunk, and duplicate it
-                currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).duplicate();
-
                 // Calculate the start position within the first chunk, and set the position of the slice.
                 // N.B. the cast to Buffer is necessary, see:
                 // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
                 // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
                 final int chunkPos = (int) (dataStartOffsetWithinPhysicalZipFile
                         - (((long) currChunkIdx) * (long) FileUtils.MAX_BUFFER_SIZE));
-                ((Buffer) currChunkByteBuf).position(chunkPos);
 
                 // Calculate end pos for the first chunk, and truncate it if it overflows 2GB
-                final long endPos = chunkPos + compressedSize;
-                ((Buffer) currChunkByteBuf).limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, endPos));
-                isLastChunk = endPos <= FileUtils.MAX_BUFFER_SIZE;
+                final int chunkLength = (int) Math.min(FileUtils.MAX_BUFFER_SIZE, compressedSize);
+                // True if there's only one chunk (first chunk is also last chunk)
+                isLastChunk = chunkLength == compressedSize;
+
+                // Get the MappedByteBuffer for the 2GB chunk, duplicate it and slice it
+                currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).slice(chunkPos,
+                        chunkLength);
             }
 
             /** Advance to the next 2GB chunk. */
             private boolean readNextChunk() throws IOException, InterruptedException {
                 currChunkIdx++;
+                isLastChunk = currChunkIdx >= parentLogicalZipFile.physicalZipFile.numChunks() - 1;
                 if (currChunkIdx >= parentLogicalZipFile.physicalZipFile.numChunks()) {
                     // Ran out of chunks
                     return false;
                 }
 
-                // Calculate how many bytes were consumed in previous chunks
-                final long chunkStartOff = ((long) currChunkIdx) * (long) FileUtils.MAX_BUFFER_SIZE;
-                final long priorBytes = chunkStartOff - dataStartOffsetWithinPhysicalZipFile;
-                final long remainingBytes = compressedSize - priorBytes;
-                if (remainingBytes <= 0) {
-                    return false;
-                }
-
                 // Get the MappedByteBuffer for the next 2GB chunk, and duplicate it
                 currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).duplicate();
-
-                // The start position for 2nd and subsequent chunks is 0.
-                // N.B. the cast to Buffer is necessary, see:
-                // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
-                // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
-                ((Buffer) currChunkByteBuf).position(0);
-
-                // Calculate end pos for the next chunk, and truncate it if it overflows 2GB
-                ((Buffer) currChunkByteBuf).limit((int) Math.min(FileUtils.MAX_BUFFER_SIZE, remainingBytes));
-                isLastChunk = remainingBytes <= FileUtils.MAX_BUFFER_SIZE;
                 return true;
             }
 
@@ -479,11 +458,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                     final int remainingToRead = len - read;
                     final int remainingInBuf = currChunkByteBuf.remaining();
                     final int numBytesRead = Math.min(remainingToRead, remainingInBuf);
-                    try {
-                        currChunkByteBuf.get(buf, off + read, numBytesRead);
-                    } catch (final BufferUnderflowException e) {
-                        throw new EOFException("Unexpected EOF in stored (non-deflated) zip entry data");
-                    }
+                    currChunkByteBuf.get(buf, off + read, numBytesRead);
                     read += numBytesRead;
                 }
                 return read;
@@ -508,11 +483,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                         final int remainingInBuf = currChunkByteBuf.remaining();
                         final int numBytesToSkip = (int) Math.min(FileUtils.MAX_BUFFER_SIZE,
                                 Math.min(remainingToSkip, remainingInBuf));
-                        try {
-                            ((Buffer) currChunkByteBuf).position(currChunkByteBuf.position() + numBytesToSkip);
-                        } catch (final BufferUnderflowException e) {
-                            throw new EOFException("Unexpected EOF in stored (non-deflated) zip entry data");
-                        }
+                        currChunkByteBuf.skip(numBytesToSkip);
                         skipped += numBytesToSkip;
                     }
                 } catch (final InterruptedException e) {

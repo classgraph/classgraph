@@ -38,11 +38,11 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.NonReadableChannelException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -66,13 +66,13 @@ public class MappedByteBufferResources {
     private FileChannel fileChannel;
 
     /** The total length. */
-    private long length;
+    private final AtomicLong length = new AtomicLong();
 
     /** The cached mapped byte buffers for each 2GB chunk. */
-    private AtomicReferenceArray<ByteBuffer> byteBufferChunksCached;
+    private AtomicReferenceArray<ByteBufferWrapper> byteBufferChunksCached;
 
     /** A singleton map from chunk index to byte buffer, ensuring that any given chunk is only mapped once. */
-    private SingletonMap<Integer, ByteBuffer, IOException> chunkIdxToByteBufferSingletonMap;
+    private SingletonMap<Integer, ByteBufferWrapper, IOException> chunkIdxToByteBufferSingletonMap;
 
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
@@ -93,17 +93,16 @@ public class MappedByteBufferResources {
      *            needed).
      * @param nestedJarHandler
      *            the nested jar handler
-     * @param scanSpec
-     *            the scan spec.
      * @param log
      *            the log.
      * @throws IOException
      *             If the contents could not be read.
      */
     public MappedByteBufferResources(final InputStream inputStream, final int inputStreamLengthHint,
-            final String tempFileBaseName, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec,
-            final LogNode log) throws IOException {
+            final String tempFileBaseName, final NestedJarHandler nestedJarHandler, final LogNode log)
+            throws IOException {
         this.nestedJarHandler = nestedJarHandler;
+        final ScanSpec scanSpec = nestedJarHandler.scanSpec;
         byte[] buf;
         boolean spillToDisk;
         if (inputStreamLengthHint != -1 && inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
@@ -126,7 +125,7 @@ public class MappedByteBufferResources {
                     buf = Arrays.copyOf(buf, totBytesRead);
                 }
                 // Wrap array in a RAM-backed ByteBuffer
-                wrapByteBuffer(ByteBuffer.wrap(buf, 0, totBytesRead));
+                wrapByteBuffer(new ByteBufferWrapper(buf));
                 spillToDisk = false;
             } else {
                 // Didn't reach end of inputStream after buf was filled, so inputStreamLengthHint underestimated
@@ -173,8 +172,28 @@ public class MappedByteBufferResources {
             }
 
             // Map the file to a MappedByteBuffer
-            mapFile();
+            mapFile(scanSpec.disableMemoryMapping, log);
         }
+    }
+
+    /**
+     * Map a {@link File} to a {@link MappedByteBuffer}.
+     *
+     * @param file
+     *            the file
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public MappedByteBufferResources(final File file, final NestedJarHandler nestedJarHandler, final LogNode log)
+            throws IOException {
+        this.nestedJarHandler = nestedJarHandler;
+        this.mappedFile = file;
+        // Map the file to a MappedByteBuffer
+        mapFile(nestedJarHandler.scanSpec.disableMemoryMapping, log);
     }
 
     /**
@@ -191,24 +210,7 @@ public class MappedByteBufferResources {
             throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         // Wrap the existing byte buffer
-        wrapByteBuffer(byteBuffer);
-    }
-
-    /**
-     * Map a {@link File} to a {@link MappedByteBuffer}.
-     *
-     * @param file
-     *            the file
-     * @param nestedJarHandler
-     *            the nested jar handler
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    public MappedByteBufferResources(final File file, final NestedJarHandler nestedJarHandler) throws IOException {
-        this.nestedJarHandler = nestedJarHandler;
-        this.mappedFile = file;
-        // Map the file to a MappedByteBuffer
-        mapFile();
+        wrapByteBuffer(new ByteBufferWrapper(byteBuffer));
     }
 
     /**
@@ -217,77 +219,92 @@ public class MappedByteBufferResources {
      * @param byteBuffer
      *            the {@link ByteBuffer}.
      */
-    private void wrapByteBuffer(final ByteBuffer byteBuffer) {
-        length = byteBuffer.remaining();
+    private void wrapByteBuffer(final ByteBufferWrapper byteBuffer) {
+        length.set(byteBuffer.remaining());
         // Put the ByteBuffer into the cache, so that the singleton map code for file mapping is never called
-        byteBufferChunksCached = new AtomicReferenceArray<ByteBuffer>(1);
+        byteBufferChunksCached = new AtomicReferenceArray<ByteBufferWrapper>(1);
         byteBufferChunksCached.set(0, byteBuffer);
         // Don't set mappedFile, fileChannel or raf, they are unneeded.
     }
 
     /**
-     * Map a {@link File} to a {@link MappedByteBuffer}.
+     * Map a {@link File} to a {@link MappedByteBuffer} or {@link RandomAccessFile}.
      *
+     * @param disableMemoryMapping
+     *            If true, use a {@link RandomAccessFile} rather than a {@link MappedByteBuffer} so that virtual
+     *            memory space is not used when reading jarfiles.
+     * @param log
+     *            the log.
      * @throws IOException
      *             Signals that an I/O exception has occurred.
      */
-    private void mapFile() throws IOException {
-        try {
-            raf = new RandomAccessFile(mappedFile, "r");
-            length = raf.length();
-            fileChannel = raf.getChannel();
-
-        } catch (final IOException e) {
-            close(/* log = */ null);
-            throw e;
-        } catch (final IllegalArgumentException | SecurityException e) {
-            close(/* log = */ null);
-            throw new IOException(e);
+    private void mapFile(final boolean disableMemoryMapping, final LogNode log) throws IOException {
+        // If memory mapping is enabled, share one instance of RandomAccessFile and FileChannel across
+        // all memory-mapped chunks, to avoid opening a new file or channel for every new chunk mapping
+        if (!disableMemoryMapping) {
+            try {
+                raf = new RandomAccessFile(mappedFile, "r");
+                fileChannel = raf.getChannel();
+            } catch (final IOException e) {
+                close(log);
+                throw e;
+            } catch (final IllegalArgumentException | SecurityException e) {
+                close(log);
+                throw new IOException(e);
+            }
         }
+        length.set(mappedFile.length());
 
         // Implement an array of MappedByteBuffers to support jarfiles >2GB in size:
         // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6347833
-        final int numByteBufferChunks = (int) ((length + FileUtils.MAX_BUFFER_SIZE) / FileUtils.MAX_BUFFER_SIZE);
-        byteBufferChunksCached = new AtomicReferenceArray<ByteBuffer>(numByteBufferChunks);
-        chunkIdxToByteBufferSingletonMap = new SingletonMap<Integer, ByteBuffer, IOException>() {
+        final int numByteBufferChunks = (int) ((length.get() + FileUtils.MAX_BUFFER_SIZE)
+                / FileUtils.MAX_BUFFER_SIZE);
+        byteBufferChunksCached = new AtomicReferenceArray<ByteBufferWrapper>(numByteBufferChunks);
+        chunkIdxToByteBufferSingletonMap = new SingletonMap<Integer, ByteBufferWrapper, IOException>() {
             @Override
-            public ByteBuffer newInstance(final Integer chunkIdxI, final LogNode log) throws IOException {
+            public ByteBufferWrapper newInstance(final Integer chunkIdxI, final LogNode log) throws IOException {
                 // Map the indexed 2GB chunk of the file to a MappedByteBuffer
                 final long pos = chunkIdxI.longValue() * FileUtils.MAX_BUFFER_SIZE;
-                final long chunkSize = Math.min(FileUtils.MAX_BUFFER_SIZE, length - pos);
+                final long chunkSize = Math.min(FileUtils.MAX_BUFFER_SIZE, length.get() - pos);
 
-                if (fileChannel == null) {
-                    // Should not happen
-                    throw new IOException("Cannot map a null FileChannel");
+                ByteBufferWrapper byteBuffer = null;
+                if (!disableMemoryMapping) {
+                    if (fileChannel == null) {
+                        // Should not happen
+                        throw new IOException("Cannot map a null FileChannel");
+                    }
+
+                    try {
+                        // Try memory-mapping the file channel
+                        byteBuffer = new ByteBufferWrapper(fileChannel, pos, chunkSize);
+
+                    } catch (final IOException e) {
+                        // Should not happen, since if raf was opened, the file must exist.
+                        // (TODO: I saw mention somewhere that on some operating systems, the JRE
+                        // may throw IOException and not OutOfMemoryError if memory mapping runs
+                        // out of virtual address space -- need to investigate this.)
+                        MappedByteBufferResources.this.close(log);
+                        throw e;
+
+                    } catch (final OutOfMemoryError e) {
+                        if (log != null) {
+                            log.log("Out of memory when trying to memory map file " + mappedFile);
+                        }
+                        // Failover to non-memory-mapped mode
+                        // (fileChannel and raf will be closed when this MappedByteBufferResources object is closed)
+                    }
                 }
 
-                MappedByteBuffer byteBuffer;
-                try {
-                    // Try mapping the FileChannel
-                    byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                } catch (final IOException e) {
-                    MappedByteBufferResources.this.close(log);
-                    throw e;
-                } catch (final NonReadableChannelException | IllegalArgumentException e) {
-                    MappedByteBufferResources.this.close(log);
-                    throw new IOException(e);
-                } catch (final OutOfMemoryError e) {
-                    try {
-                        // If map failed, try calling System.gc() to free some allocated MappedByteBuffers
-                        // (there is a limit to the number of mapped files -- 64k on Linux)
-                        // See: http://www.mapdb.org/blog/mmap_files_alloc_and_jvm_crash/
-                        System.gc();
-                        System.runFinalization();
-                        // Then try calling map again
-                        byteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, pos, chunkSize);
-                    } catch (final IOException e2) {
-                        MappedByteBufferResources.this.close(log);
-                        throw e2;
-                    } catch (final OutOfMemoryError | IllegalArgumentException e2) {
-                        // Out of mappable virtual memory, or other issue
-                        MappedByteBufferResources.this.close(log);
-                        throw new IOException(e2);
+                if (byteBuffer == null) {
+                    // Memory mapping was disabled or failed -- use a RandomAccessFile to access the file instead
+                    if (log != null) {
+                        log.log("Memory mapping is disabled for file " + mappedFile
+                                + " -- using slower RandomAccessFile method to open file instead");
                     }
+
+                    // If memory mapping was disabled or failed, every duplicate of this ByteBufferWrapper
+                    // needs to open its own RAF, for thread safety
+                    byteBuffer = new ByteBufferWrapper(mappedFile, pos, chunkSize);
                 }
 
                 // Record that the byte buffer has been mapped
@@ -310,7 +327,7 @@ public class MappedByteBufferResources {
      * @throws InterruptedException
      *             If the thread was interrupted.
      */
-    public ByteBuffer getByteBuffer(final int chunkIdx) throws IOException, InterruptedException {
+    public ByteBufferWrapper getByteBuffer(final int chunkIdx) throws IOException, InterruptedException {
         if (closed.get()) {
             throw new IOException(getClass().getSimpleName() + " already closed");
         }
@@ -318,7 +335,7 @@ public class MappedByteBufferResources {
             throw new IOException("Chunk index out of range");
         }
         // Fast path: only look up singleton map if mappedByteBuffersCached is null
-        ByteBuffer cachedBuf = byteBufferChunksCached.get(chunkIdx);
+        ByteBufferWrapper cachedBuf = byteBufferChunksCached.get(chunkIdx);
         if (cachedBuf == null) {
             // This 2GB chunk has not yet been read -- mmap it and cache it.
             // (Use a singleton map so that the mmap doesn't happen more than once)
@@ -350,7 +367,7 @@ public class MappedByteBufferResources {
      * wrapped.
      */
     public long length() {
-        return length;
+        return length.get();
     }
 
     /**
@@ -376,9 +393,9 @@ public class MappedByteBufferResources {
                 // Only unmap bytebuffers if they came from a mapped file
                 if (mappedFile != null) {
                     for (int i = 0; i < byteBufferChunksCached.length(); i++) {
-                        final ByteBuffer mappedByteBuffer = byteBufferChunksCached.get(i);
+                        final ByteBufferWrapper mappedByteBuffer = byteBufferChunksCached.get(i);
                         if (mappedByteBuffer != null) {
-                            nestedJarHandler.unmapByteBuffer(mappedByteBuffer, /* log = */ null);
+                            nestedJarHandler.unmapByteBuffer(mappedByteBuffer, log);
                             byteBufferChunksCached.set(i, null);
                         }
                     }

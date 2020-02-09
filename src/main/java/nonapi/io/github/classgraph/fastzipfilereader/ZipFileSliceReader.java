@@ -30,9 +30,6 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.nio.Buffer;
-import java.nio.BufferUnderflowException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -49,7 +46,7 @@ class ZipFileSliceReader implements AutoCloseable {
      * The chunk cache, for duplicates of the ByteBuffers in the ZipFileSlice, so that different threads can work on
      * the same MappedByteBuffers without interfering with each other's buffer position.
      */
-    private final ByteBuffer[] chunkCache;
+    private final ByteBufferWrapper[] chunkCache;
 
     /** A scratch buffer. */
     private final byte[] scratch = new byte[256];
@@ -62,7 +59,7 @@ class ZipFileSliceReader implements AutoCloseable {
      */
     public ZipFileSliceReader(final ZipFileSlice zipFileSlice) {
         this.zipFileSlice = zipFileSlice;
-        this.chunkCache = new ByteBuffer[zipFileSlice.physicalZipFile.numChunks()];
+        this.chunkCache = new ByteBufferWrapper[zipFileSlice.physicalZipFile.numChunks()];
     }
 
     /**
@@ -76,10 +73,11 @@ class ZipFileSliceReader implements AutoCloseable {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    private ByteBuffer getChunk(final int chunkIdx) throws IOException, InterruptedException {
-        ByteBuffer chunk = chunkCache[chunkIdx];
+    private ByteBufferWrapper getChunk(final int chunkIdx) throws IOException, InterruptedException {
+        ByteBufferWrapper chunk = chunkCache[chunkIdx];
         if (chunk == null) {
-            final ByteBuffer byteBufferDup = zipFileSlice.physicalZipFile.getByteBuffer(chunkIdx).duplicate();
+            final ByteBufferWrapper byteBufferDup = zipFileSlice.physicalZipFile.getByteBuffer(chunkIdx)
+                    .duplicate();
             chunk = chunkCache[chunkIdx] = byteBufferDup;
         }
         return chunk;
@@ -115,30 +113,17 @@ class ZipFileSliceReader implements AutoCloseable {
             // Find the ByteBuffer chunk to read from
             final long currOffAbsolute = zipFileSlice.startOffsetWithinPhysicalZipFile + currOff;
             final int chunkIdx = (int) (currOffAbsolute / FileUtils.MAX_BUFFER_SIZE);
-            final ByteBuffer chunk = getChunk(chunkIdx);
+            final ByteBufferWrapper chunk = getChunk(chunkIdx);
             final long chunkStartAbsolute = ((long) chunkIdx) * (long) FileUtils.MAX_BUFFER_SIZE;
             final int startReadPos = (int) (currOffAbsolute - chunkStartAbsolute);
 
-            // Read from current chunk.
-            // N.B. the cast to Buffer is necessary, see:
-            // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
-            // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
-            // Otherwise compiling in JDK<9 compatibility mode using JDK9+ causes runtime breakage. 
-            ((Buffer) chunk).mark();
-            ((Buffer) chunk).position(startReadPos);
-            final int numBytesRead = Math.min(chunk.remaining(), remainingBytesToRead);
-            try {
-                chunk.get(buf, currBufStart, numBytesRead);
-            } catch (final BufferUnderflowException e) {
-                // Should not happen
-                throw new EOFException("Unexpected EOF");
-            }
-            ((Buffer) chunk).reset();
+            // Fill buf from chunk
+            chunk.get(startReadPos, buf, currBufStart, remainingBytesToRead);
 
-            currOff += numBytesRead;
-            currBufStart += numBytesRead;
-            totBytesRead += numBytesRead;
-            remainingBytesToRead -= numBytesRead;
+            currOff += remainingBytesToRead;
+            currBufStart += remainingBytesToRead;
+            totBytesRead += remainingBytesToRead;
+            remainingBytesToRead -= remainingBytesToRead;
         }
         return totBytesRead == 0 && numBytesToRead > 0 ? -1 : totBytesRead;
     }

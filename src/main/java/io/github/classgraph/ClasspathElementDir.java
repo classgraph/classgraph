@@ -44,6 +44,7 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.fastzipfilereader.ByteBufferWrapper;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.MappedByteBufferResources;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
@@ -159,11 +160,16 @@ class ClasspathElementDir extends ClasspathElement {
      *            the classpath resource file
      * @param nestedJarHandler
      *            the nested jar handler
+     * @param log
+     *            the log
      * @return the resource
      */
     private Resource newResource(final String relativePath, final File classpathResourceFile,
-            final NestedJarHandler nestedJarHandler) {
+            final NestedJarHandler nestedJarHandler, final LogNode log) {
         return new Resource(this, classpathResourceFile.length()) {
+            /** The {@link ByteBufferWrapper}, or null. */
+            protected ByteBufferWrapper byteBufferWrapper;
+
             /** The mapped file. */
             private MappedByteBufferResources mappedFileResources;
 
@@ -196,15 +202,15 @@ class ClasspathElementDir extends ClasspathElement {
                 return posixFilePermissions;
             }
 
-            @Override
-            public synchronized ByteBuffer read() throws IOException {
+            synchronized ByteBufferWrapper readWrapped() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Parent directory could not be opened");
                 }
                 markAsOpen();
                 try {
-                    mappedFileResources = new MappedByteBufferResources(classpathResourceFile, nestedJarHandler);
+                    mappedFileResources = new MappedByteBufferResources(classpathResourceFile, nestedJarHandler,
+                            log);
                     if (mappedFileResources.numChunks() > 1) {
                         // We could provide another method that fetches a chunk other than chunk 0, but the need
                         // to read files larger than 2GB is probably limited (it's not even supported for zipfiles),
@@ -213,9 +219,8 @@ class ClasspathElementDir extends ClasspathElement {
                                 "File is larger than 2GB -- cannot use read() method, use open() instead");
                     }
                     // Fetch chunk 0 (the first ~2GB of the file)
-                    byteBuffer = mappedFileResources.getByteBuffer(0);
-                    length = byteBuffer.remaining();
-                    return byteBuffer;
+                    byteBufferWrapper = mappedFileResources.getByteBuffer(0);
+                    return byteBufferWrapper;
                 } catch (final IOException | SecurityException | OutOfMemoryError e) {
                     close();
                     throw new IOException("Could not open " + this, e);
@@ -228,9 +233,34 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
+            public synchronized ByteBuffer read() throws IOException {
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Parent directory could not be opened");
+                }
+                markAsOpen();
+                try {
+                    readWrapped();
+                    final ByteBuffer buf = byteBufferWrapper.getByteBuffer();
+                    if (buf == null) {
+                        throw new IOException("Could not read resource as a ByteBuffer, because memory mapping "
+                                + "of files was disabled, or an OutOfMemoryError occurred while attempting to "
+                                + "map files");
+                    }
+                    byteBuffer = buf.duplicate();
+                    byteBuffer.position(0);
+                    length = byteBuffer.remaining();
+                    return byteBuffer;
+                } catch (final IOException | SecurityException | OutOfMemoryError e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
+                }
+            }
+
+            @Override
             synchronized InputStreamOrByteBufferAdapter openOrRead() throws IOException {
                 if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
-                    return new InputStreamOrByteBufferAdapter(read());
+                    return new InputStreamOrByteBufferAdapter(readWrapped());
                 } else {
                     return new InputStreamOrByteBufferAdapter(inputStream = new InputStreamResourceCloser(this,
                             Files.newInputStream(classpathResourceFile.toPath())));
@@ -277,6 +307,11 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public synchronized void close() {
                 super.close(); // Close inputStream
+                if (byteBufferWrapper != null) {
+                    byteBufferWrapper.close(/* log = */ null);
+                    byteBufferWrapper = null;
+                    byteBuffer = null;
+                }
                 if (mappedFileResources != null) {
                     mappedFileResources.close(/* log = */ null);
                     mappedFileResources = null;
@@ -297,7 +332,8 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     Resource getResource(final String relativePath) {
         final File resourceFile = new File(classpathEltDir, relativePath);
-        return FileUtils.canReadAndIsFile(resourceFile) ? newResource(relativePath, resourceFile, nestedJarHandler)
+        return FileUtils.canReadAndIsFile(resourceFile)
+                ? newResource(relativePath, resourceFile, nestedJarHandler, /* log = */ null)
                 : null;
     }
 
@@ -408,7 +444,8 @@ class ClasspathElementDir extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyWhitelisted(fileInDirRelativePath))) {
                         // Resource is whitelisted
-                        final Resource resource = newResource(fileInDirRelativePath, fileInDir, nestedJarHandler);
+                        final Resource resource = newResource(fileInDirRelativePath, fileInDir, nestedJarHandler,
+                                subLog);
                         addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
 
                         // Save last modified time  
@@ -424,7 +461,7 @@ class ClasspathElementDir extends ClasspathElement {
             // Always check for module descriptor in package root, even if package root isn't in whitelist
             for (final File fileInDir : filesInDir) {
                 if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
-                    final Resource resource = newResource("module-info.class", fileInDir, nestedJarHandler);
+                    final Resource resource = newResource("module-info.class", fileInDir, nestedJarHandler, subLog);
                     addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
                 }

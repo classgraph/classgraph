@@ -30,9 +30,11 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -1122,6 +1124,18 @@ public class ClassGraph {
      */
     public ClassGraph setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
         scanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        return this;
+    }
+
+    /**
+     * If true, use a {@link RandomAccessFile} rather than a {@link MappedByteBuffer} to open jarfiles, which is
+     * slower, but does not use up virtual memory space. You can call this method to disable memory mapping if you
+     * run into an {@link OutOfMemoryError} when scanning.
+     * 
+     * @return this (for method chaining).
+     */
+    public ClassGraph disableMemoryMapping() {
+        scanSpec.disableMemoryMapping = true;
         return this;
     }
 

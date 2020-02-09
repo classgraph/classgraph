@@ -70,10 +70,13 @@ class PhysicalZipFile implements Closeable {
      *            the file
      * @param nestedJarHandler
      *            the nested jar handler
+     * @param log
+     *            the log
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler) throws IOException {
+    PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler, final LogNode log)
+            throws IOException {
         // Make sure the File is readable and is a regular file
         FileUtils.checkCanReadAndIsFile(file);
 
@@ -82,7 +85,7 @@ class PhysicalZipFile implements Closeable {
         this.path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
 
         // Map the file to a ByteBuffer
-        this.byteBufferResources = new MappedByteBufferResources(file, nestedJarHandler);
+        this.byteBufferResources = new MappedByteBufferResources(file, nestedJarHandler, log);
     }
 
     /**
@@ -126,8 +129,6 @@ class PhysicalZipFile implements Closeable {
      *            zipfile
      * @param nestedJarHandler
      *            the nested jar handler
-     * @param scanSpec
-     *            the scan spec.
      * @param log
      *            the log
      * @throws IOException
@@ -142,7 +143,7 @@ class PhysicalZipFile implements Closeable {
 
         // Wrap the ByteBuffer
         this.byteBufferResources = new MappedByteBufferResources(inputStream, inputStreamLengthHint, path,
-                nestedJarHandler, scanSpec, log);
+                nestedJarHandler, log);
         if (this.byteBufferResources.length() == 0L) {
             throw new IOException("Zipfile is empty: " + path);
         }
@@ -150,8 +151,8 @@ class PhysicalZipFile implements Closeable {
     }
 
     /**
-     * Get a mmap'd chunk of the file, where chunkIdx denotes which 2GB chunk of the file to return (0 for the first
-     * 2GB of the file, or for files smaller than 2GB; 1 for the 2-4GB chunk, etc.).
+     * Get a chunk of the file, where chunkIdx denotes which 2GB chunk of the file to return (0 for the first 2GB of
+     * the file, or for files smaller than 2GB; 1 for the 2-4GB chunk, etc.).
      * 
      * @param chunkIdx
      *            The index of the 2GB chunk to read
@@ -161,7 +162,7 @@ class PhysicalZipFile implements Closeable {
      * @throws InterruptedException
      *             If the thread was interrupted.
      */
-    ByteBuffer getByteBuffer(final int chunkIdx) throws IOException, InterruptedException {
+    ByteBufferWrapper getByteBuffer(final int chunkIdx) throws IOException, InterruptedException {
         return byteBufferResources.getByteBuffer(chunkIdx);
     }
 
