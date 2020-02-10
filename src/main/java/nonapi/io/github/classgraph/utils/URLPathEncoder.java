@@ -30,6 +30,8 @@ package nonapi.io.github.classgraph.utils;
 
 import java.nio.charset.StandardCharsets;
 
+import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
+
 /** A simple URL path encoder. */
 public final class URLPathEncoder {
 
@@ -84,6 +86,18 @@ public final class URLPathEncoder {
                 break;
             }
         }
+        // Also accept ':' after a Windows drive letter
+        if (VersionFinder.OS == OperatingSystem.Windows) {
+            int i = validColonPrefixLen;
+            if (i < path.length() && path.charAt(i) == '/') {
+                i++;
+            }
+            if (i < path.length() - 1 && Character.isLetter(path.charAt(i)) && path.charAt(i + 1) == ':') {
+                validColonPrefixLen = i + 2;
+            }
+        }
+
+        // Apply URL encoding rules to rest of path
         final byte[] pathBytes = path.getBytes(StandardCharsets.UTF_8);
         final StringBuilder encodedPath = new StringBuilder(pathBytes.length * 3);
         for (int i = 0; i < pathBytes.length; i++) {
@@ -111,11 +125,53 @@ public final class URLPathEncoder {
         String urlPathNormalized = urlPath;
         if (!urlPathNormalized.startsWith("jrt:") && !urlPathNormalized.startsWith("http://")
                 && !urlPathNormalized.startsWith("https://")) {
-            // Any URL with the "jar:" prefix must have "/" after any "!"
+
+            // String "jar:" and/or "file:", if already present
+            if (urlPathNormalized.startsWith("jar:")) {
+                urlPathNormalized = urlPathNormalized.substring(4);
+            }
+            if (urlPathNormalized.startsWith("file:")) {
+                urlPathNormalized = urlPathNormalized.substring(4);
+            }
+
+            // On Windows, remove drive prefix from path, if present (otherwise the ':' after the drive
+            // letter will be escaped as %3A)
+            String windowsDrivePrefix = "";
+            if (VersionFinder.OS == OperatingSystem.Windows) {
+                if (urlPathNormalized.length() >= 2 && Character.isLetter(urlPathNormalized.charAt(0))
+                        && urlPathNormalized.charAt(1) == ':') {
+                    // Path of form "C:/xyz"
+                    windowsDrivePrefix = urlPathNormalized.substring(0, 2);
+                    urlPathNormalized = urlPathNormalized.substring(2);
+                } else if (urlPathNormalized.length() >= 3 && urlPathNormalized.charAt(0) == '/'
+                        && Character.isLetter(urlPathNormalized.charAt(1)) && urlPathNormalized.charAt(2) == ':') {
+                    // Path of form "/C:/xyz"
+                    windowsDrivePrefix = urlPathNormalized.substring(1, 3);
+                    urlPathNormalized = urlPathNormalized.substring(3);
+                }
+            }
+
+            // Any URL containing "!" segments must have "/" after "!" for the "jar:" URL scheme to work
             urlPathNormalized = urlPathNormalized.replace("/!", "!").replace("!/", "!").replace("!", "!/");
-            // Prepend "jar:file:"
+
+            // Prepend "file:/"
+            if (windowsDrivePrefix.isEmpty()) {
+                // There is no Windows drive
+                urlPathNormalized = urlPathNormalized.startsWith("/") ? "file:" + urlPathNormalized
+                        : "file:/" + urlPathNormalized;
+            } else {
+                // There is a Windows drive
+                urlPathNormalized = "file:/" + windowsDrivePrefix
+                        + (urlPathNormalized.startsWith("/") ? urlPathNormalized : "/" + urlPathNormalized);
+            }
+
             if (!urlPathNormalized.startsWith("file:") && !urlPathNormalized.startsWith("jar:")) {
-                urlPathNormalized = "file:" + urlPathNormalized;
+                // Add "/" after "file:" if it's not already there -- all paths should be absolute by this point
+                if (!urlPathNormalized.startsWith("/") || !(VersionFinder.OS == OperatingSystem.Windows)) {
+                    urlPathNormalized = "file:/" + urlPathNormalized;
+                } else {
+                    urlPathNormalized = "file:" + urlPathNormalized;
+                }
             }
             if (urlPathNormalized.contains("!") && !urlPathNormalized.startsWith("jar:")) {
                 urlPathNormalized = "jar:" + urlPathNormalized;
