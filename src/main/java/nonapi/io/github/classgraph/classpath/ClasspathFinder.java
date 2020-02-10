@@ -46,8 +46,8 @@ public class ClasspathFinder {
     /** The classpath order. */
     private final ClasspathOrder classpathOrder;
 
-    /** The classloader finder. */
-    private final ClassLoaderFinder classLoaderFinder;
+    /** The {@link ModuleFinder}, if modules are to be scanned. */
+    private final ModuleFinder moduleFinder;
 
     /**
      * The default order in which ClassLoaders are called to load classes, respecting parent-first/parent-last
@@ -67,12 +67,12 @@ public class ClasspathFinder {
     }
 
     /**
-     * Get the callstack.
+     * Get the {@link ModuleFinder}.
      *
-     * @return The callstack.
+     * @return The {@link ModuleFinder}.
      */
-    public Class<?>[] getCallStack() {
-        return classLoaderFinder.getCallStack();
+    public ModuleFinder getModuleFinder() {
+        return moduleFinder;
     }
 
     /**
@@ -97,16 +97,57 @@ public class ClasspathFinder {
     public ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
-        // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
-        final String jreRtJar = SystemJarFinder.getJreRtJarPath();
-        final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
+        // Only look for environment classloaders if classpath and classloaders are not overridden
+        final ClassLoaderFinder classLoaderFinder = scanSpec.overrideClasspath == null
+                && scanSpec.overrideClassLoaders == null ? new ClassLoaderFinder(scanSpec, classpathFinderLog)
+                        : null;
 
-        classLoaderFinder = new ClassLoaderFinder(scanSpec, classpathFinderLog);
+        // If classloaders are overridden, check if the override classloader(s) is/are JPMS classloaders.
+        // If so, need to enable module scanning. If not, disable module scanning, since only the provided
+        // classloader(s) should be scanned. (#382)
+        boolean scanModules;
+        if (scanSpec.overrideClasspath != null) {
+            // Don't scan modules if classpath is overridden
+            scanModules = false;
+        } else if (scanSpec.overrideClassLoaders != null) {
+            // If classloaders are overridden, only scan modules if an override classloader is a JPMS 
+            // AppClassLoader or PlatformClassLoader
+            scanModules = false;
+            for (final ClassLoader classLoader : scanSpec.overrideClassLoaders) {
+                final String classLoaderClassName = classLoader.getClass().getName();
+                // It's not possible to instantiate AppClassLoader or PlatformClassLoader, so if these are
+                // passed in as override classloaders, they must have been obtained using
+                // Thread.currentThread().getContextClassLoader() [.getParent()] or similar
+                if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")) {
+                    scanModules = true;
+                } else if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
+                    scanModules = true;
+                    // The platform classloader was passed in, so specifically enable system module scanning
+                    if (!scanSpec.enableSystemJarsAndModules) {
+                        if (classpathFinderLog != null) {
+                            classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
+                                    + "jdk.internal.loader.ClassLoaders$PlatformClassLoader, which is a system "
+                                    + "classloader, so enableSystemJarsAndModules() was called automatically");
+                        }
+                        scanSpec.enableSystemJarsAndModules = true;
+                    }
+                }
+            }
+        } else {
+            // If classloaders are not overridden and classpath is not overridden, only scan modules
+            // if module scanning is enabled
+            scanModules = scanSpec.scanModules;
+        }
+
+        moduleFinder = scanModules && classLoaderFinder != null
+                ? new ModuleFinder(classLoaderFinder.getCallStack(), scanSpec, classpathFinderLog)
+                : null;
 
         classpathOrder = new ClasspathOrder(scanSpec);
         final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec);
 
-        final ClassLoader[] contextClassLoaders = classLoaderFinder.getContextClassLoaders();
+        final ClassLoader[] contextClassLoaders = classLoaderFinder == null ? new ClassLoader[0]
+                : classLoaderFinder.getContextClassLoaders();
         final ClassLoader defaultClassLoader = contextClassLoaders != null && contextClassLoaders.length > 0
                 ? contextClassLoaders[0]
                 : null;
@@ -130,7 +171,10 @@ public class ClasspathFinder {
             }
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
 
-        } else {
+        } else if (scanSpec.overrideClassLoaders == null) {
+            // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
+            final String jreRtJar = SystemJarFinder.getJreRtJarPath();
+
             // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
             final LogNode systemJarsLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("System jars:");
@@ -145,6 +189,7 @@ public class ClasspathFinder {
                             + jreRtJar);
                 }
             }
+            final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
             for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                 if (scanAllLibOrExtJars || scanSpec.libOrExtJarWhiteBlackList
                         .isSpecificallyWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
@@ -156,7 +201,9 @@ public class ClasspathFinder {
                     systemJarsLog.log("Scanning disabled for lib or ext jar: " + libOrExtJarPath);
                 }
             }
+        }
 
+        if (scanSpec.overrideClasspath == null) {
             // List ClassLoaderHandlers
             if (classpathFinderLog != null) {
                 final LogNode classLoaderHandlerLog = classpathFinderLog.log("ClassLoaderHandlers:");
@@ -215,30 +262,28 @@ public class ClasspathFinder {
             // Need to record the classloader delegation order, in particular to respect parent-last delegation
             // order, since this is not the default (issue #267).
             classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
+        }
 
-            // Get classpath elements from java.class.path, but don't add them if the element is in an ignored
-            // parent classloader and not in a child classloader (and don't use java.class.path at all if
-            // overrideClassLoaders is true or overrideClasspath is set)
-            if (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null) {
-                final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"),
-                        scanSpec);
-                if (pathElements.length > 0) {
-                    final LogNode sysPropLog = classpathFinderLog == null ? null
-                            : classpathFinderLog.log("Getting classpath entries from java.class.path");
-                    for (final String pathElement : pathElements) {
-                        final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-                                pathElement);
-                        if (!ignoredClasspathOrder.getClasspathEntryUniqueResolvedPaths()
-                                .contains(pathElementResolved)) {
-                            // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathEntry(pathElement, defaultClassLoader, scanSpec, sysPropLog);
-                        } else {
-                            // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
-                            if (sysPropLog != null) {
-                                sysPropLog.log("Found classpath element in java.class.path that will be ignored, "
-                                        + "since it is also found in an ignored parent classloader: "
-                                        + pathElement);
-                            }
+        // Get classpath elements from java.class.path, but don't add them if the element is in an ignored
+        // parent classloader and not in a child classloader (and don't use java.class.path at all if
+        // overrideClassLoaders is true or overrideClasspath is set)
+        if (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null) {
+            final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"), scanSpec);
+            if (pathElements.length > 0) {
+                final LogNode sysPropLog = classpathFinderLog == null ? null
+                        : classpathFinderLog.log("Getting classpath entries from java.class.path");
+                for (final String pathElement : pathElements) {
+                    final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                            pathElement);
+                    if (!ignoredClasspathOrder.getClasspathEntryUniqueResolvedPaths()
+                            .contains(pathElementResolved)) {
+                        // pathElement is not also listed in an ignored parent classloader
+                        classpathOrder.addClasspathEntry(pathElement, defaultClassLoader, scanSpec, sysPropLog);
+                    } else {
+                        // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
+                        if (sysPropLog != null) {
+                            sysPropLog.log("Found classpath element in java.class.path that will be ignored, "
+                                    + "since it is also found in an ignored parent classloader: " + pathElement);
                         }
                     }
                 }

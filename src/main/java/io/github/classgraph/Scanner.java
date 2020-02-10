@@ -166,49 +166,13 @@ class Scanner implements Callable<ScanResult> {
         this.classpathFinder = new ClasspathFinder(scanSpec, classpathFinderLog);
         this.classLoaderOrderRespectingParentDelegation = classpathFinder
                 .getClassLoaderOrderRespectingParentDelegation();
-        final ModuleFinder moduleFinder = new ModuleFinder(classpathFinder.getCallStack(), scanSpec,
-                classpathFinderLog);
-
-        // If classloaders are overridden, check if the override classloader(s) is/are JPMS classloaders.
-        // If so, need to enable module scanning. If not, disable module scanning, since only the provided
-        // classloader(s) should be scanned. (#382)
-        boolean scanModules;
-        if (scanSpec.overrideClasspath != null) {
-            // Don't scan modules if classpath is overridden
-            scanModules = false;
-        } else if (scanSpec.overrideClassLoaders != null) {
-            // If classloaders are overridden, only scan modules if an override classloader is a JPMS 
-            // AppClassLoader or PlatformClassLoader
-            scanModules = false;
-            for (final ClassLoader classLoader : scanSpec.overrideClassLoaders) {
-                final String classLoaderClassName = classLoader.getClass().getName();
-                // It's not possible to instantiate AppClassLoader or PlatformClassLoader, so if these are
-                // passed in as override classloaders, they must have been obtained using
-                // Thread.currentThread().getContextClassLoader() [.getParent()] or similar
-                if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")) {
-                    scanModules = true;
-                } else if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
-                    scanModules = true;
-                    // The platform classloader was passed in, so specifically enable system module scanning
-                    if (!scanSpec.enableSystemJarsAndModules) {
-                        if (classpathFinderLog != null) {
-                            classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
-                                    + "jdk.internal.loader.ClassLoaders$PlatformClassLoader, which is a system "
-                                    + "classloader, so enableSystemJarsAndModules() was called automatically");
-                        }
-                        scanSpec.enableSystemJarsAndModules = true;
-                    }
-                }
-            }
-        } else {
-            // If classloaders are not overridden and classpath is not overridden, only scan modules
-            // if module scanning is enabled
-            scanModules = scanSpec.scanModules;
-        }
 
         try {
             this.moduleOrder = new ArrayList<>();
-            if (scanModules) {
+
+            // Check if modules should be scanned
+            final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
+            if (moduleFinder != null) {
                 // Add modules to start of classpath order, before traditional classpath
                 final List<ModuleRef> systemModuleRefs = moduleFinder.getSystemModuleRefs();
                 final ClassLoader defaultClassLoader = classLoaderOrderRespectingParentDelegation != null
