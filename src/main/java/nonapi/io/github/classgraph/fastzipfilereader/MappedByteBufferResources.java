@@ -82,6 +82,13 @@ public class MappedByteBufferResources {
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**
+     * Minimum buffer size, to ensure that erroneous zip entry sizes, which are used as size hints (e.g.
+     * uncompressed size == 0) do not result in a buffer being too small, which would result in unnecessary
+     * temporary files being created.
+     */
+    private static final int MIN_BUFFER_SIZE = 16384;
+
+    /**
      * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
      * size is exceeded.
      *
@@ -108,11 +115,10 @@ public class MappedByteBufferResources {
             // inputStreamLengthHint is unknown (-1) or shorter than scanSpec.maxJarRamSize,
             // so try reading from the InputStream into an array of size scanSpec.maxBufferedJarRAMSize
             // or inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or
-            // may not be valid, use a buffer size of 8192 (which is a common buffer size, so the GC
-            // may be able to reuse an array object) -- also in case there really are zero bytes in the
-            // stream, this will not allocate a large array.
-            final int bufSize = inputStreamLengthHint == 0 ? 8192
-                    : inputStreamLengthHint == -1 ? scanSpec.maxBufferedJarRAMSize : inputStreamLengthHint;
+            // may not be valid (or in general, inputStreamLengthHint < MIN_BUFFER_SIZE), use a buffer
+            // size of MIN_BUFFER_SIZE.
+            final int bufSize = inputStreamLengthHint == -1 ? scanSpec.maxBufferedJarRAMSize
+                    : inputStreamLengthHint < MIN_BUFFER_SIZE ? MIN_BUFFER_SIZE : inputStreamLengthHint;
             byte[] buf = new byte[bufSize];
             final int bufLength = buf.length;
 
