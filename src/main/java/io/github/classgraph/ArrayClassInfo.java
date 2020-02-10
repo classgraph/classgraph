@@ -71,7 +71,6 @@ public class ArrayClassInfo extends ClassInfo {
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
-        // TODO Auto-generated method stub
         super.setScanResult(scanResult);
     }
 
