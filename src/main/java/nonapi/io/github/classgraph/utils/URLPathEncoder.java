@@ -165,14 +165,7 @@ public final class URLPathEncoder {
                         + (urlPathNormalized.startsWith("/") ? urlPathNormalized : "/" + urlPathNormalized);
             }
 
-            if (!urlPathNormalized.startsWith("file:") && !urlPathNormalized.startsWith("jar:")) {
-                // Add "/" after "file:" if it's not already there -- all paths should be absolute by this point
-                if (!urlPathNormalized.startsWith("/") || !(VersionFinder.OS == OperatingSystem.Windows)) {
-                    urlPathNormalized = "file:/" + urlPathNormalized;
-                } else {
-                    urlPathNormalized = "file:" + urlPathNormalized;
-                }
-            }
+            // Prepend "jar:" if path contains a "!" segment
             if (urlPathNormalized.contains("!") && !urlPathNormalized.startsWith("jar:")) {
                 urlPathNormalized = "jar:" + urlPathNormalized;
             }
