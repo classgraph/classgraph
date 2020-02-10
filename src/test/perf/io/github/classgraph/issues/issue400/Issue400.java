@@ -21,12 +21,34 @@ public class Issue400 {
     private static final long MB = 1024 * 1024;
     private static final long MEMORY_TOLERANCE = 2 * MB;
 
+    /**
+     * @return used JVM heap size allocated in RAM
+     * @see <a href="https://stackoverflow.com/a/42567450/253468">What are Runtime.getRuntime().totalMemory() and
+     *      freeMemory()?</a>
+     */
+    private long usedRam() {
+        final Runtime runtime = Runtime.getRuntime();
+        runtime.gc();
+        System.runFinalization();
+        runtime.gc();
+        System.runFinalization();
+        runtime.gc();
+        System.runFinalization();
+        return (runtime.totalMemory() - runtime.freeMemory());
+    }
+
+    /**
+     * Test whether RAM leaks, or whether nested deflated jars cause large RAM overhead.
+     * 
+     * @param jars
+     *            the jar URLs.
+     */
     @SuppressWarnings("null")
     private void loadsJarWithManyNestedEntriesAndDoesNotUseMuchMemory(final URL... jars) {
         final long ramAtStart = usedRam();
         long ramAfterScan;
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars)).enableAllInfo()
-                .scan()) {
+        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars))
+                .ignoreParentClassLoaders().enableAllInfo().scan()) {
             ramAfterScan = usedRam();
             // There are no classes in any of the JARs.
             assertThat(scanResult.getAllClassesAsMap()).isEmpty();
@@ -62,21 +84,5 @@ public class Issue400 {
     public void loadsDeflatedJarWithManyNestedEntriesAndDoesNotUseMuchMemory() {
         loadsJarWithManyNestedEntriesAndDoesNotUseMuchMemory(
                 Issue400.class.getClassLoader().getResource("issue400-nested-deflated.jar"));
-    }
-
-    /**
-     * @return used JVM heap size allocated in RAM
-     * @see <a href="https://stackoverflow.com/a/42567450/253468">What are Runtime.getRuntime().totalMemory() and
-     *      freeMemory()?</a>
-     */
-    private long usedRam() {
-        final Runtime runtime = Runtime.getRuntime();
-        runtime.gc();
-        System.runFinalization();
-        runtime.gc();
-        System.runFinalization();
-        runtime.gc();
-        System.runFinalization();
-        return (runtime.totalMemory() - runtime.freeMemory());
     }
 }
