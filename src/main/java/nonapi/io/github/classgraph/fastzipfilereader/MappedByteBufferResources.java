@@ -140,11 +140,6 @@ public class MappedByteBufferResources {
         }
         if (spillToDisk) {
             // bytesRead == 0 => ran out of buffer space, spill over to disk
-            if (log != null) {
-                log.log("Could not fit InputStream content into max RAM buffer size of "
-                        + scanSpec.maxBufferedJarRAMSize + " bytes, saving to temporary file: " + tempFileBaseName
-                        + " -> " + this.mappedFile);
-            }
             try {
                 this.mappedFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
             } catch (final IOException e) {
@@ -152,6 +147,11 @@ public class MappedByteBufferResources {
                     log.log("Could not create temporary file: " + e);
                 }
                 throw e;
+            }
+            if (log != null) {
+                log.log("Could not fit InputStream content into max RAM buffer size of "
+                        + scanSpec.maxBufferedJarRAMSize + " bytes, saving to temporary file: " + tempFileBaseName
+                        + " -> " + this.mappedFile);
             }
             this.mappedFileIsTempFile = true;
 
