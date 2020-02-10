@@ -234,11 +234,6 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public synchronized ByteBuffer read() throws IOException {
-                if (skipClasspathElement) {
-                    // Shouldn't happen
-                    throw new IOException("Parent directory could not be opened");
-                }
-                markAsOpen();
                 try {
                     readWrapped();
                     final ByteBuffer buf = byteBufferWrapper.getByteBuffer();
