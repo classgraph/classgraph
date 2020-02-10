@@ -355,7 +355,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
      * have come from a system module, or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
-     * system modules and jlink'd runtime images are not suppored by {@link URL}, and this will cause
+     * system modules and jlink'd runtime images are not supported by {@link URL}, and this will cause
      * {@link IllegalArgumentException} to be thrown.
      *
      * @return A {@link URL} representing the resource's location.
@@ -382,7 +382,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * Get the {@link URL} of the classpath element or module that this resource was obtained from. Use
      * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
      * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
-     * suppored by {@link URL}, and this will cause {@link IllegalArgumentException} to be thrown.
+     * supported by {@link URL}, and this will cause {@link IllegalArgumentException} to be thrown.
      *
      * @return The {@link URL} of the classpath element or module that this resource was found within.
      * @throws IllegalArgumentException
@@ -588,7 +588,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */
     @Override
     public void close() {
-        // Override in subclasses, and call super.close()
+        // Override in subclasses, and call super.close(), then at end, markAsClosed()
         if (inputStream != null) {
             try {
                 if (inputStream instanceof InputStreamResourceCloser) {
