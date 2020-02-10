@@ -42,7 +42,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -164,12 +163,11 @@ public final class FileUtils {
      *            The {@link InputStream}.
      * @param fileSizeHint
      *            The file size, if known, otherwise -1L.
-     * @return The contents of the {@link InputStream} as an Entry consisting of the byte array and number of bytes
-     *         used in the array.
+     * @return The contents of the {@link InputStream} as a byte array.
      * @throws IOException
      *             If the contents could not be read.
      */
-    private static SimpleEntry<byte[], Integer> readAllBytes(final InputStream inputStream, final long fileSizeHint)
+    private static byte[] readAllBytes(final InputStream inputStream, final long fileSizeHint)
             throws IOException {
         if (fileSizeHint > MAX_BUFFER_SIZE) {
             throw new IOException("InputStream is too large to read");
@@ -204,8 +202,7 @@ public final class FileUtils {
             buf = Arrays.copyOf(buf, bufLength);
         }
         // Return buffer and number of bytes read
-        return new SimpleEntry<>((bufLength == totBytesRead) ? buf : Arrays.copyOf(buf, totBytesRead),
-                totBytesRead);
+        return (bufLength == totBytesRead) ? buf : Arrays.copyOf(buf, totBytesRead);
     }
 
     /**
@@ -221,10 +218,7 @@ public final class FileUtils {
      */
     public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSizeHint)
             throws IOException {
-        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSizeHint);
-        final byte[] buf = ent.getKey();
-        final int bufBytesUsed = ent.getValue();
-        return bufBytesUsed == buf.length ? buf : Arrays.copyOf(buf, bufBytesUsed);
+        return readAllBytes(inputStream, fileSizeHint);
     }
 
     /**
@@ -240,10 +234,8 @@ public final class FileUtils {
      */
     public static ByteBuffer readAllBytesAsByteBuffer(final InputStream inputStream, final long fileSizeHint)
             throws IOException {
-        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSizeHint);
-        final byte[] buf = ent.getKey();
-        final int bufBytesUsed = ent.getValue();
-        return ByteBuffer.wrap(buf, 0, bufBytesUsed);
+        final byte[] buf = readAllBytes(inputStream, fileSizeHint);
+        return ByteBuffer.wrap(buf, 0, buf.length);
     }
 
     /**
@@ -259,10 +251,8 @@ public final class FileUtils {
      */
     public static String readAllBytesAsString(final InputStream inputStream, final long fileSizeHint)
             throws IOException {
-        final SimpleEntry<byte[], Integer> ent = readAllBytes(inputStream, fileSizeHint);
-        final byte[] buf = ent.getKey();
-        final int bufBytesUsed = ent.getValue();
-        return new String(buf, 0, bufBytesUsed, StandardCharsets.UTF_8);
+        final byte[] buf = readAllBytes(inputStream, fileSizeHint);
+        return new String(buf, 0, buf.length, StandardCharsets.UTF_8);
     }
 
     // -------------------------------------------------------------------------------------------------------------
