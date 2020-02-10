@@ -107,9 +107,13 @@ public class MappedByteBufferResources {
         if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
             // inputStreamLengthHint is unknown (-1) or shorter than scanSpec.maxJarRamSize,
             // so try reading from the InputStream into an array of size scanSpec.maxBufferedJarRAMSize
-            // or inputStreamLengthHint respectively.
-            byte[] buf = new byte[inputStreamLengthHint == -1 ? scanSpec.maxBufferedJarRAMSize
-                    : inputStreamLengthHint];
+            // or inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or
+            // may not be valid, use a buffer size of 8192 (which is a common buffer size, so the GC
+            // may be able to reuse an array object) -- also in case there really are zero bytes in the
+            // stream, this will not allocate a large array.
+            final int bufSize = inputStreamLengthHint == 0 ? 8192
+                    : inputStreamLengthHint == -1 ? scanSpec.maxBufferedJarRAMSize : inputStreamLengthHint;
+            byte[] buf = new byte[bufSize];
             final int bufLength = buf.length;
 
             int bufBytesUsed = 0;

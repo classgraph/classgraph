@@ -175,7 +175,7 @@ public final class FileUtils {
             throw new IOException("InputStream is too large to read");
         }
         final int bufferSize = fileSizeHint < 1L
-                // If fileSizeHint is unknown, use default buffer size 
+                // If fileSizeHint is zero or unknown, use default buffer size 
                 ? DEFAULT_BUFFER_SIZE
                 // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
                 // lengths do not become a memory allocation attack vector
