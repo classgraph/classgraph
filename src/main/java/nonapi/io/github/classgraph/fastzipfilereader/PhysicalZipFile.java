@@ -38,7 +38,6 @@ import java.nio.channels.FileChannel;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -135,7 +134,7 @@ class PhysicalZipFile implements Closeable {
      *             if an I/O exception occurs.
      */
     PhysicalZipFile(final InputStream inputStream, final int inputStreamLengthHint, final String path,
-            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec, final LogNode log)
+            final NestedJarHandler nestedJarHandler, final LogNode log)
             throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.path = path;
