@@ -169,6 +169,7 @@ public class ClassLoaderOrder {
         if (isParent) {
             allParentClassLoaders.add(classLoader);
         }
+        // Don't delegate to a classloader twice
         if (delegatedTo.add(classLoader)) {
             // Find ClassLoaderHandlerRegistryEntry for this classloader
             final ClassLoaderHandlerRegistryEntry entry = getRegistryEntry(classLoader, log);
