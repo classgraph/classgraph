@@ -195,20 +195,17 @@ public class MappedByteBufferResources {
         }
         this.mappedFileIsTempFile = true;
 
-        // Write already-read buffered bytes to temp file, if anything was read
-        if (buf != null) {
-            final Path path = this.mappedFile.toPath();
-            Files.write(path, buf, StandardOpenOption.WRITE);
-            Files.write(path, overflowBuf, StandardOpenOption.APPEND);
-        }
-
         // Copy the rest of the InputStream to the end of the temporary file
-        try (OutputStream os = new BufferedOutputStream(
-                new FileOutputStream(this.mappedFile, /* append = */ true))) {
+        try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(this.mappedFile))) {
+            // Write already-read buffered bytes to temp file, if anything was read
+            if (buf != null) {
+                outputStream.write(buf);
+                outputStream.write(overflowBuf);
+            }
             // Copy the rest of the InputStream to the file
             final byte[] copyBuf = new byte[8192];
-            for (int bytesReadCtd; (bytesReadCtd = inputStream.read(copyBuf, 0, copyBuf.length)) > 0;) {
-                os.write(copyBuf, 0, bytesReadCtd);
+            for (int bytesRead; (bytesRead = inputStream.read(copyBuf, 0, copyBuf.length)) > 0;) {
+                outputStream.write(copyBuf, 0, bytesRead);
             }
         }
 
