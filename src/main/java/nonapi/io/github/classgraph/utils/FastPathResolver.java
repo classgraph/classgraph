@@ -247,11 +247,13 @@ public final class FastPathResolver {
         if (WINDOWS) {
             if (relativePath.length() - startIdx > 2 && Character.isLetter(relativePath.charAt(startIdx))
                     && relativePath.charAt(startIdx + 1) == ':') {
+                // Path like "C:/xyz"
                 isAbsolutePath = true;
             } else if (relativePath.length() - startIdx > 3
                     && (relativePath.charAt(startIdx) == '/' || relativePath.charAt(startIdx) == '\\')
                     && Character.isLetter(relativePath.charAt(startIdx + 1))
                     && relativePath.charAt(startIdx + 2) == ':') {
+                // Path like "/C:/xyz"
                 isAbsolutePath = true;
                 startIdx++;
             }
