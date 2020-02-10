@@ -126,7 +126,7 @@ public final class URLPathEncoder {
         if (!urlPathNormalized.startsWith("jrt:") && !urlPathNormalized.startsWith("http://")
                 && !urlPathNormalized.startsWith("https://")) {
 
-            // String "jar:" and/or "file:", if already present
+            // Strip "jar:" and/or "file:", if already present
             if (urlPathNormalized.startsWith("jar:")) {
                 urlPathNormalized = urlPathNormalized.substring(4);
             }
