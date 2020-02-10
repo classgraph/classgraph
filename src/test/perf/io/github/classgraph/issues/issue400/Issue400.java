@@ -67,8 +67,11 @@ public class Issue400 {
     private long usedRam() {
         Runtime runtime = Runtime.getRuntime();
         runtime.gc();
+        System.runFinalization();
         runtime.gc();
+        System.runFinalization();
         runtime.gc();
+        System.runFinalization();
         return (runtime.totalMemory() - runtime.freeMemory());
     }
 }
