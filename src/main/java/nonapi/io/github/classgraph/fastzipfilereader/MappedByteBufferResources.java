@@ -39,6 +39,7 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -103,77 +104,106 @@ public class MappedByteBufferResources {
             throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         final ScanSpec scanSpec = nestedJarHandler.scanSpec;
-        byte[] buf;
-        boolean spillToDisk;
-        if (inputStreamLengthHint != -1 && inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
-            // inputStreamLengthHint indicates that inputStream is longer than scanSpec.maxJarRamSize,
-            // so try downloading to RAM
-            buf = new byte[inputStreamLengthHint == -1 ? scanSpec.maxBufferedJarRAMSize
-                    : Math.min(scanSpec.maxBufferedJarRAMSize, inputStreamLengthHint)];
+        if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
+            // inputStreamLengthHint is unknown (-1) or shorter than scanSpec.maxJarRamSize,
+            // so try reading from the InputStream into an array of size scanSpec.maxBufferedJarRAMSize
+            // or inputStreamLengthHint respectively.
+            byte[] buf = new byte[inputStreamLengthHint == -1 ? scanSpec.maxBufferedJarRAMSize
+                    : inputStreamLengthHint];
             final int bufLength = buf.length;
 
-            int totBytesRead = 0;
+            int bufBytesUsed = 0;
             int bytesRead = 0;
-            while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
+            while ((bytesRead = inputStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
                 // Fill buffer until nothing more can be read
-                totBytesRead += bytesRead;
+                bufBytesUsed += bytesRead;
             }
-            if (bytesRead < 0) {
-                // Successfully reached end of stream -- wrap array buffer with ByteBuffer
-                if (totBytesRead < buf.length) {
-                    // Trim array
-                    buf = Arrays.copyOf(buf, totBytesRead);
+            boolean spilledToDisk = false;
+            if (bytesRead == 0) {
+                // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading
+                // one more byte) to see if inputStreamHint underestimated the actual length of the stream
+                final byte[] overflowBuf = new byte[1];
+                final int overflowBufBytesUsed = inputStream.read(overflowBuf, 0, 1);
+                if (overflowBufBytesUsed == 1) {
+                    // We were able to read one more byte, so we're still not at the end of the stream,
+                    // and we need to spill to disk, because buf is full
+                    spillToDisk(inputStream, tempFileBaseName, buf, overflowBuf, scanSpec, log);
+                    spilledToDisk = true;
+                }
+                // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't spill to disk
+            }
+            if (!spilledToDisk) {
+                // Successfully reached end of stream
+                if (bufBytesUsed < buf.length) {
+                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated
+                    // the length of the InputStream)
+                    buf = Arrays.copyOf(buf, bufBytesUsed);
                 }
                 // Wrap array in a RAM-backed ByteBuffer
                 wrapByteBuffer(new ByteBufferWrapper(buf));
-                spillToDisk = false;
-            } else {
-                // Didn't reach end of inputStream after buf was filled, so inputStreamLengthHint underestimated
-                // the length of the stream -- spill to disk, since we don't know how long the stream is now
-                spillToDisk = true;
             }
+
         } else {
-            // inputStreamLengthHint indicates that inputStream is longer than scanSpec.maxJarRamSize,
-            // so immediately spill to disk
-            buf = null;
-            spillToDisk = true;
+            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately spill to disk
+            spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null, scanSpec, log);
         }
-        if (spillToDisk) {
-            // bytesRead == 0 => ran out of buffer space, spill over to disk
-            try {
-                this.mappedFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
-            } catch (final IOException e) {
-                if (log != null) {
-                    log.log("Could not create temporary file: " + e);
-                }
-                throw e;
-            }
+    }
+
+    /**
+     * Spill an {@link InputStream} to disk if the stream is too large to fit in RAM.
+     * 
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param tempFileBaseName
+     *            The stem to base the temporary filename on.
+     * @param buf
+     *            The first buffer to write to the beginning of the file, or null if none.
+     * @param overflowBuf
+     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
+     *            nullity as buf.)
+     * @param scanSpec
+     *            The scan spec.
+     * @param log
+     *            The log.
+     * @throws IOException
+     *             If anything went wrong creating or writing to the temp file.
+     */
+    private void spillToDisk(final InputStream inputStream, final String tempFileBaseName, final byte[] buf,
+            final byte[] overflowBuf, final ScanSpec scanSpec, final LogNode log) throws IOException {
+        // Create temp file
+        try {
+            this.mappedFile = nestedJarHandler.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
+        } catch (final IOException e) {
             if (log != null) {
-                log.log("Could not fit InputStream content into max RAM buffer size of "
-                        + scanSpec.maxBufferedJarRAMSize + " bytes, saving to temporary file: " + tempFileBaseName
-                        + " -> " + this.mappedFile);
+                log.log("Could not create temporary file: " + e);
             }
-            this.mappedFileIsTempFile = true;
-
-            if (buf != null) {
-                // If any content was already read from inputStream, flush it out to the temporary file
-                Files.write(this.mappedFile.toPath(), buf, StandardOpenOption.WRITE);
-            } else {
-                // Buffer was never allocated -- allocate one for the copy operation below
-                buf = new byte[8192];
-            }
-
-            // Copy the rest of the InputStream to the end of the temporary file
-            try (OutputStream os = new BufferedOutputStream(
-                    new FileOutputStream(this.mappedFile, /* append = */ true))) {
-                for (int bytesReadCtd; (bytesReadCtd = inputStream.read(buf, 0, buf.length)) > 0;) {
-                    os.write(buf, 0, bytesReadCtd);
-                }
-            }
-
-            // Map the file to a MappedByteBuffer
-            mapFile(scanSpec.disableMemoryMapping, log);
+            throw e;
         }
+        if (log != null) {
+            log.log("Could not fit InputStream content into max RAM buffer size, saving to temporary file: "
+                    + tempFileBaseName + " -> " + this.mappedFile);
+        }
+        this.mappedFileIsTempFile = true;
+
+        // Write already-read buffered bytes to temp file, if anything was read
+        if (buf != null) {
+            final Path path = this.mappedFile.toPath();
+            Files.write(path, buf, StandardOpenOption.WRITE);
+            Files.write(path, overflowBuf, StandardOpenOption.APPEND);
+        }
+
+        // Copy the rest of the InputStream to the end of the temporary file
+        try (OutputStream os = new BufferedOutputStream(
+                new FileOutputStream(this.mappedFile, /* append = */ true))) {
+            // Copy the rest of the InputStream to the file
+            final byte[] copyBuf = new byte[8192];
+            for (int bytesReadCtd; (bytesReadCtd = inputStream.read(copyBuf, 0, copyBuf.length)) > 0;) {
+                os.write(copyBuf, 0, bytesReadCtd);
+            }
+        }
+
+        // Map the file to a MappedByteBuffer
+        mapFile(scanSpec.disableMemoryMapping, log);
     }
 
     /**
