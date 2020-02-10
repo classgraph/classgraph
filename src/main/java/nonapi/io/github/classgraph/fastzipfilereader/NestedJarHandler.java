@@ -563,18 +563,24 @@ public class NestedJarHandler {
      */
     public void close(final LogNode log) {
         if (!closed.getAndSet(true)) {
+            boolean interrupted = false;
             if (inflaterRecycler != null) {
                 inflaterRecycler.forceClose();
                 inflaterRecycler = null;
             }
             if (moduleRefToModuleReaderProxyRecyclerMap != null) {
-                try {
-                    for (final Recycler<ModuleReaderProxy, IOException> recycler : //
-                    moduleRefToModuleReaderProxyRecyclerMap.values()) {
-                        recycler.forceClose();
+                boolean completedWithoutInterruption = false;
+                while (!completedWithoutInterruption) {
+                    try {
+                        for (final Recycler<ModuleReaderProxy, IOException> recycler : //
+                        moduleRefToModuleReaderProxyRecyclerMap.values()) {
+                            recycler.forceClose();
+                        }
+                        completedWithoutInterruption = true;
+                    } catch (final InterruptedException e) {
+                        // Try again if interrupted
+                        interrupted = true;
                     }
-                } catch (final InterruptedException e) {
-                    interruptionChecker.interrupt();
                 }
                 moduleRefToModuleReaderProxyRecyclerMap.clear();
                 moduleRefToModuleReaderProxyRecyclerMap = null;
@@ -593,13 +599,18 @@ public class NestedJarHandler {
             if (canonicalFileToPhysicalZipFileMap != null) {
                 while (!canonicalFileToPhysicalZipFileMap.isEmpty()) {
                     try {
-                        for (final Entry<File, PhysicalZipFile> ent : canonicalFileToPhysicalZipFileMap.entries()) {
+                        for (final Entry<File, PhysicalZipFile> ent : new ArrayList<>(
+                                canonicalFileToPhysicalZipFileMap.entries())) {
                             final PhysicalZipFile physicalZipFile = ent.getValue();
                             physicalZipFile.close();
                             canonicalFileToPhysicalZipFileMap.remove(ent.getKey());
                         }
                     } catch (final InterruptedException e) {
-                        interruptionChecker.interrupt();
+                        // If thread was interrupted, canonicalFileToPhysicalZipFileMap.entries() is interrupted
+                        // above, so canonicalFileToPhysicalZipFileMap.remove(ent.getKey()) is never called,
+                        // which causes the while loop to loop forever if we re-interrupt here (#400). Therefore
+                        // delay re-interruption until the end of this method.
+                        interrupted = false;
                     }
                 }
                 canonicalFileToPhysicalZipFileMap = null;
@@ -647,6 +658,9 @@ public class NestedJarHandler {
                     }
                 }
                 tempFiles = null;
+            }
+            if (interrupted) {
+                interruptionChecker.interrupt();
             }
         }
     }
