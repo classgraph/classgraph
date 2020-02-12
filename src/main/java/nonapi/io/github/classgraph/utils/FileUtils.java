@@ -167,8 +167,7 @@ public final class FileUtils {
      * @throws IOException
      *             If the contents could not be read.
      */
-    private static byte[] readAllBytes(final InputStream inputStream, final long fileSizeHint)
-            throws IOException {
+    private static byte[] readAllBytes(final InputStream inputStream, final long fileSizeHint) throws IOException {
         if (fileSizeHint > MAX_BUFFER_SIZE) {
             throw new IOException("InputStream is too large to read");
         }
@@ -179,10 +178,9 @@ public final class FileUtils {
                 // lengths do not become a memory allocation attack vector
                 : Math.min((int) fileSizeHint, MAX_INITIAL_BUFFER_SIZE);
         byte[] buf = new byte[bufferSize];
-        int bufLength = buf.length;
         int totBytesRead = 0;
         for (int bytesRead;;) {
-            while ((bytesRead = inputStream.read(buf, totBytesRead, bufLength - totBytesRead)) > 0) {
+            while ((bytesRead = inputStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
                 // Fill buffer until nothing more can be read
                 totBytesRead += bytesRead;
             }
@@ -190,19 +188,24 @@ public final class FileUtils {
                 // Reached end of stream
                 break;
             }
-            // bytesRead == 0 => grow buffer, avoiding overflow
-            if (bufLength <= MAX_BUFFER_SIZE - bufLength) {
-                bufLength = bufLength << 1;
+            // bytesRead == 0 => grow buffer (avoid integer overflow in next line)
+            if (buf.length <= MAX_BUFFER_SIZE - buf.length) {
+                buf = Arrays.copyOf(buf, buf.length * 2);
             } else {
-                if (bufLength == MAX_BUFFER_SIZE) {
-                    throw new IOException("InputStream too large to read into array");
+                if (buf.length == MAX_BUFFER_SIZE) {
+                    // Try reading one more byte, just in case the stream is exactly MAX_BUFFER_SIZE in length
+                    if (inputStream.read() == -1) {
+                        break;
+                    } else {
+                        throw new IOException("InputStream too large to read into array");
+                    }
                 }
-                bufLength = MAX_BUFFER_SIZE;
+                // Can't double the size of the buffer, but increase it to max size
+                buf = Arrays.copyOf(buf, MAX_BUFFER_SIZE);
             }
-            buf = Arrays.copyOf(buf, bufLength);
         }
         // Return buffer and number of bytes read
-        return (bufLength == totBytesRead) ? buf : Arrays.copyOf(buf, totBytesRead);
+        return totBytesRead == buf.length ? buf : Arrays.copyOf(buf, totBytesRead);
     }
 
     /**
