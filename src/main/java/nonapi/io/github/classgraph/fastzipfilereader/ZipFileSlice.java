@@ -30,8 +30,9 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
-import nonapi.io.github.classgraph.recycler.Recycler;
+import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListLeafname;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
@@ -40,32 +41,10 @@ public class ZipFileSlice {
     private final ZipFileSlice parentZipFileSlice;
     /** The underlying physical zipfile. */
     public final PhysicalZipFile physicalZipFile;
-    /** The start offset of the slice within the physical zipfile. */
-    final long startOffsetWithinPhysicalZipFile;
-    /** The compressed or stored size of the zipfile slice or entry. */
-    final long len;
     /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name/path of the zipfile entry. */
     private final String pathWithinParentZipFileSlice;
-    /** A {@link Recycler} for {@link ZipFileSliceReader} instances. */
-    final Recycler<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycler;
-    // N.B. if any fields are added, make sure the clone constructor below is updated
-
-    /**
-     * Create a new {@link Recycler} for {@link ZipFileSliceReader} instances.
-     *
-     * @return A new {@link Recycler} for {@link ZipFileSliceReader} instances.
-     */
-    private Recycler<ZipFileSliceReader, RuntimeException> newZipFileSliceReaderRecycler() {
-        return new Recycler<ZipFileSliceReader, RuntimeException>() {
-            /* (non-Javadoc)
-             * @see nonapi.io.github.classgraph.concurrency.LazyReference#newInstance()
-             */
-            @Override
-            public ZipFileSliceReader newInstance() throws RuntimeException {
-                return new ZipFileSliceReader(ZipFileSlice.this);
-            }
-        };
-    }
+    /** The {@link Slice} containing the zipfile. */
+    public Slice slice;
 
     /**
      * Create a ZipFileSlice that wraps a toplevel {@link PhysicalZipFile}.
@@ -76,14 +55,13 @@ public class ZipFileSlice {
     ZipFileSlice(final PhysicalZipFile physicalZipFile) {
         this.parentZipFileSlice = null;
         this.physicalZipFile = physicalZipFile;
-        this.startOffsetWithinPhysicalZipFile = 0;
-        this.len = physicalZipFile.length();
+        this.slice = physicalZipFile.slice;
         this.pathWithinParentZipFileSlice = physicalZipFile.getPath();
-        this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
     /**
-     * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} extracted to a ByteBuffer in memory.
+     * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} that was extracted or inflated from a nested jar
+     * to memory or disk.
      *
      * @param physicalZipFile
      *            a physical zipfile that has been extracted to RAM
@@ -93,14 +71,12 @@ public class ZipFileSlice {
     ZipFileSlice(final PhysicalZipFile physicalZipFile, final FastZipEntry zipEntry) {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
         this.physicalZipFile = physicalZipFile;
-        this.startOffsetWithinPhysicalZipFile = 0;
-        this.len = physicalZipFile.length();
+        this.slice = physicalZipFile.slice;
         this.pathWithinParentZipFileSlice = zipEntry.entryName;
-        this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
     /**
-     * Create a ZipFileSlice that wraps a single {@link FastZipEntry}.
+     * Create a ZipFileSlice that wraps a single stored (not deflated) {@link FastZipEntry}.
      *
      * @param zipEntry
      *            the zip entry
@@ -112,10 +88,8 @@ public class ZipFileSlice {
     ZipFileSlice(final FastZipEntry zipEntry) throws IOException, InterruptedException {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
         this.physicalZipFile = zipEntry.parentLogicalZipFile.physicalZipFile;
-        this.startOffsetWithinPhysicalZipFile = zipEntry.getEntryDataStartOffsetWithinPhysicalZipFile();
-        this.len = zipEntry.compressedSize;
+        this.slice = zipEntry.getSlice();
         this.pathWithinParentZipFileSlice = zipEntry.entryName;
-        this.zipFileSliceReaderRecycler = newZipFileSliceReaderRecycler();
     }
 
     /**
@@ -127,11 +101,8 @@ public class ZipFileSlice {
     ZipFileSlice(final ZipFileSlice other) {
         this.parentZipFileSlice = other.parentZipFileSlice;
         this.physicalZipFile = other.physicalZipFile;
-        this.startOffsetWithinPhysicalZipFile = other.startOffsetWithinPhysicalZipFile;
-        this.len = other.len;
+        this.slice = other.slice;
         this.pathWithinParentZipFileSlice = other.pathWithinParentZipFileSlice;
-        // Reuse the recycler for clones
-        this.zipFileSliceReaderRecycler = other.zipFileSliceReaderRecycler;
     }
 
     /**
@@ -207,26 +178,27 @@ public class ZipFileSlice {
     }
 
     /* (non-Javadoc)
-     * @see java.lang.Object#hashCode()
+     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#equals(java.lang.Object)
      */
     @Override
-    public int hashCode() {
-        return physicalZipFile.getPath().hashCode() ^ (int) startOffsetWithinPhysicalZipFile ^ (int) len;
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof ZipFileSlice)) {
+            return false;
+        } else {
+            final ZipFileSlice other = (ZipFileSlice) o;
+            return Objects.equals(physicalZipFile, other.physicalZipFile) && Objects.equals(slice, other.slice)
+                    && Objects.equals(pathWithinParentZipFileSlice, other.pathWithinParentZipFileSlice);
+        }
     }
 
     /* (non-Javadoc)
-     * @see java.lang.Object#equals(java.lang.Object)
+     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#hashCode()
      */
     @Override
-    public boolean equals(final Object obj) {
-        if (obj == this) {
-            return true;
-        } else if (!(obj instanceof ZipFileSlice)) {
-            return false;
-        }
-        final ZipFileSlice other = (ZipFileSlice) obj;
-        return startOffsetWithinPhysicalZipFile == other.startOffsetWithinPhysicalZipFile && len == other.len
-                && this.physicalZipFile.equals(other.physicalZipFile);
+    public int hashCode() {
+        return Objects.hash(physicalZipFile, slice, pathWithinParentZipFileSlice);
     }
 
     /* (non-Javadoc)
@@ -234,11 +206,10 @@ public class ZipFileSlice {
      */
     @Override
     public String toString() {
-        return "["
-                + (physicalZipFile.isDeflatedToRam ? "ByteBuffer deflated to RAM from " + getPath()
-                        : physicalZipFile.getFile() == null ? "ByteBuffer downloaded to RAM from " + getPath()
-                                : physicalZipFile.getFile())
-                + " ; byte range: " + startOffsetWithinPhysicalZipFile + ".."
-                + (startOffsetWithinPhysicalZipFile + len) + " / " + physicalZipFile.length() + "]";
+        final String path = getPath();
+        final String fileStr = physicalZipFile.getFile() == null ? null : physicalZipFile.getFile().toString();
+        return "[" + (fileStr == null || !fileStr.equals(path) ? path + " -> " + fileStr : path) + " ; byte range: "
+                + slice.sliceStartPos + ".." + (slice.sliceStartPos + slice.sliceLength) + " / "
+                + physicalZipFile.length() + "]";
     }
 }

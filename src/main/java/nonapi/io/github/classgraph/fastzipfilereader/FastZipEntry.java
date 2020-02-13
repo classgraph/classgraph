@@ -28,19 +28,12 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
-import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.BufferUnderflowException;
 import java.util.Calendar;
 import java.util.TimeZone;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
-import java.util.zip.ZipException;
 
-import nonapi.io.github.classgraph.recycler.RecycleOnClose;
-import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.fileslice.Slice;
+import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip entry within a {@link LogicalZipFile}. */
@@ -50,9 +43,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /** The offset of the entry's local header, as an offset relative to the parent logical zipfile. */
     private final long locHeaderPos;
-
-    /** The start offset of the entry's compressed data, as an absolute offset within the physical zipfile. */
-    private long entryDataStartOffsetWithinPhysicalZipFile = -1L;
 
     /** The zip entry path. */
     public final String entryName;
@@ -78,6 +68,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The file attributes for this resource, or 0 if unknown */
     public final int fileAttributes;
 
+    /** The {@link Slice} for the zip entry's raw data (which can be either stored or deflated). */
+    private Slice slice;
+
     /**
      * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
      */
@@ -87,12 +80,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * The unversioned entry name (i.e. entryName with "META_INF/versions/{versionInt}/" stripped)
      */
     public final String entryNameUnversioned;
-
-    /** The nested jar handler. */
-    private final NestedJarHandler nestedJarHandler;
-
-    /** The {@link RecyclableInflater} instance wrapping recyclable {@link Inflater} instances. */
-    private RecyclableInflater recyclableInflaterInstance;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -111,8 +98,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The compressed size of the entry.
      * @param uncompressedSize
      *            The uncompressed size of the entry.
-     * @param nestedJarHandler
-     *            The {@link NestedJarHandler}.
      * @param lastModifiedTimeMillis
      *            The last modified date/time in millis since the epoch, or 0L if unknown (in which case, the MSDOS
      *            time and date fields will be provided).
@@ -125,15 +110,14 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
-            final NestedJarHandler nestedJarHandler, final long lastModifiedTimeMillis,
-            final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS, final int fileAttributes) {
+            final long lastModifiedTimeMillis, final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS,
+            final int fileAttributes) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;
         this.isDeflated = isDeflated;
         this.compressedSize = compressedSize;
         this.uncompressedSize = !isDeflated && uncompressedSize < 0 ? compressedSize : uncompressedSize;
-        this.nestedJarHandler = nestedJarHandler;
         this.lastModifiedTimeMillis = lastModifiedTimeMillis;
         this.lastModifiedTimeMSDOS = lastModifiedTimeMSDOS;
         this.lastModifiedDateMSDOS = lastModifiedDateMSDOS;
@@ -195,430 +179,31 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Lazily find zip entry data start offset -- this is deferred until zip entry data needs to be read, in order
-     * to avoid randomly seeking within zipfile for every entry as the central directory is read.
+     * Lazily get zip entry slice -- this is deferred until zip entry data needs to be read, in order to avoid
+     * randomly seeking within zipfile for every entry as the central directory is read.
      *
      * @return the offset within the physical zip file of the entry's start offset.
      * @throws IOException
      *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
      */
-    long getEntryDataStartOffsetWithinPhysicalZipFile() throws IOException, InterruptedException {
-        if (entryDataStartOffsetWithinPhysicalZipFile == -1L) {
-            // Create zipfile slice reader for zip entry
-            try (RecycleOnClose<ZipFileSliceReader, RuntimeException> zipFileSliceReaderRecycleOnClose = //
-                    parentLogicalZipFile.zipFileSliceReaderRecycler.acquireRecycleOnClose()) {
-                final ZipFileSliceReader headerReader = zipFileSliceReaderRecycleOnClose.get();
-                // Check header magic
-                if (headerReader.getInt(locHeaderPos) != 0x04034b50) {
-                    throw new IOException("Zip entry has bad LOC header: " + entryName);
-                }
-                final long dataStartPos = locHeaderPos + 30 + headerReader.getShort(locHeaderPos + 26)
-                        + headerReader.getShort(locHeaderPos + 28);
-                if (dataStartPos > parentLogicalZipFile.len) {
-                    throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
-                }
-                entryDataStartOffsetWithinPhysicalZipFile = parentLogicalZipFile.startOffsetWithinPhysicalZipFile
-                        + dataStartPos;
+    public Slice getSlice() throws IOException {
+        if (slice == null) {
+            final RandomAccessReader randomAccessReader = parentLogicalZipFile.slice.randomAccessReader();
+
+            // Check header magic
+            if (randomAccessReader.readInt(locHeaderPos) != 0x04034b50) {
+                throw new IOException("Zip entry has bad LOC header: " + entryName);
             }
+            final long dataStartPos = locHeaderPos + 30 + randomAccessReader.readShort(locHeaderPos + 26)
+                    + randomAccessReader.readShort(locHeaderPos + 28);
+            if (dataStartPos > parentLogicalZipFile.slice.sliceLength) {
+                throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
+            }
+
+            // Create a new Slice that wraps just the data of the zip entry, and mark whether it is deflated
+            slice = parentLogicalZipFile.slice.slice(dataStartPos, compressedSize, isDeflated, uncompressedSize);
         }
-        return entryDataStartOffsetWithinPhysicalZipFile;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * True if the entire zip entry can be opened as a single ByteBuffer slice.
-     *
-     * @return true if the entire zip entry can be opened as a single ByteBuffer slice -- the entry must be STORED,
-     *         and span only one 2GB buffer chunk.
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
-     */
-    public boolean canGetAsSlice() throws IOException, InterruptedException {
-        final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
-        return !isDeflated //
-                && dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE //
-                        == (dataStartOffsetWithinPhysicalZipFile + uncompressedSize) / FileUtils.MAX_BUFFER_SIZE;
-    }
-
-    /**
-     * Open the ZipEntry as a ByteBuffer slice. Only call this method if {@link #canGetAsSlice()} returned true.
-     *
-     * @return the ZipEntry as a ByteBuffer.
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
-     */
-    public ByteBufferWrapper getAsSlice() throws IOException, InterruptedException {
-        // Check the file is STORED and resides in only one chunk
-        if (!canGetAsSlice()) {
-            throw new IllegalArgumentException("Cannot open zip entry as a slice");
-        }
-        final int sliceLength = (int) uncompressedSize;
-
-        // Fetch the ByteBuffer for the applicable chunk
-        final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
-        final int chunkIdx = (int) (dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE);
-        final long chunkStart = chunkIdx * (long) FileUtils.MAX_BUFFER_SIZE;
-        final int sliceStart = (int) (dataStartOffsetWithinPhysicalZipFile - chunkStart);
-
-        // Duplicate and slice the ByteBuffer
-        return parentLogicalZipFile.physicalZipFile.getByteBuffer(chunkIdx).slice(sliceStart, sliceLength);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Open the data of the zip entry as an {@link InputStream}, inflating the data if the entry is deflated.
-     *
-     * @return the input stream
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
-     */
-    public InputStream open() throws IOException, InterruptedException {
-        if (recyclableInflaterInstance != null) {
-            throw new IOException("Zip entry already open");
-        }
-        if (isDeflated) {
-            recyclableInflaterInstance = nestedJarHandler.inflaterRecycler.acquire();
-        }
-        return new InputStream() {
-            /** The data start offset within the physical zip file. */
-            private final long dataStartOffsetWithinPhysicalZipFile = getEntryDataStartOffsetWithinPhysicalZipFile();
-
-            /** A scratch buffer. */
-            private final byte[] scratch = new byte[8 * 1024];
-
-            /** The current 2GB chunk of the zip entry. */
-            private ByteBufferWrapper currChunkByteBuf;
-
-            /** True if the current 2GB chunk is the last chunk in the zip entry. */
-            private boolean isLastChunk;
-
-            /** The index of the current 2GB chunk. */
-            private int currChunkIdx;
-
-            /** True if the end of the zip entry has been reached. */
-            private boolean eof;
-
-            /** The {@link Inflater} instance, or null if the entry is stored rather than deflated. */
-            private final Inflater inflater = isDeflated ? recyclableInflaterInstance.getInflater() : null;
-
-            /** True if this {@link InputStream} has been closed. */
-            private final AtomicBoolean closed = new AtomicBoolean(false);
-
-            /** The size of the {@link Inflate} buffer to use. */
-            private static final int INFLATE_BUF_SIZE = 8 * 1024;
-
-            // Open the first 2GB chunk.
-            {
-                // Calculate the chunk index for the first chunk
-                currChunkIdx = (int) (dataStartOffsetWithinPhysicalZipFile / FileUtils.MAX_BUFFER_SIZE);
-
-                // Calculate the start position within the first chunk, and set the position of the slice.
-                // N.B. the cast to Buffer is necessary, see:
-                // https://github.com/plasma-umass/doppio/issues/497#issuecomment-334740243
-                // https://github.com/classgraph/classgraph/issues/284#issuecomment-443612800
-                final int chunkPos = (int) (dataStartOffsetWithinPhysicalZipFile
-                        - (((long) currChunkIdx) * (long) FileUtils.MAX_BUFFER_SIZE));
-
-                // Calculate end pos for the first chunk, and truncate it if it overflows 2GB
-                final int chunkLength = (int) Math.min(FileUtils.MAX_BUFFER_SIZE, compressedSize);
-                // True if there's only one chunk (first chunk is also last chunk)
-                isLastChunk = chunkLength == compressedSize;
-
-                // Get the MappedByteBuffer for the 2GB chunk, duplicate it and slice it
-                currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).slice(chunkPos,
-                        chunkLength);
-            }
-
-            /** Advance to the next 2GB chunk. */
-            private boolean readNextChunk() throws IOException, InterruptedException {
-                currChunkIdx++;
-                isLastChunk = currChunkIdx >= parentLogicalZipFile.physicalZipFile.numChunks() - 1;
-                if (currChunkIdx >= parentLogicalZipFile.physicalZipFile.numChunks()) {
-                    // Ran out of chunks
-                    return false;
-                }
-
-                // Get the MappedByteBuffer for the next 2GB chunk, and duplicate it
-                currChunkByteBuf = parentLogicalZipFile.physicalZipFile.getByteBuffer(currChunkIdx).duplicate();
-                return true;
-            }
-
-            /**
-             * Inflate deflated data.
-             *
-             * @param buf
-             *            the buffer to inflate into.
-             * @param off
-             *            the offset within buf to start writing.
-             * @param len
-             *            the number of bytes of uncompressed data to read.
-             * @return the number of bytes read.
-             * @throws IOException
-             *             if an I/O exception occurred.
-             * @throws InterruptedException
-             *             if the thread was interrupted.
-             */
-            private int readDeflated(final byte[] buf, final int off, final int len)
-                    throws IOException, InterruptedException {
-                try {
-                    final byte[] inflateBuf = new byte[INFLATE_BUF_SIZE];
-                    int numInflatedBytes;
-                    while ((numInflatedBytes = inflater.inflate(buf, off, len)) == 0) {
-                        if (inflater.finished() || inflater.needsDictionary()) {
-                            eof = true;
-                            return -1;
-                        }
-                        if (inflater.needsInput()) {
-                            // Check if there's still data left in the current chunk
-                            if (!currChunkByteBuf.hasRemaining()
-                                    // No more bytes in current chunk -- get next chunk, and then make sure
-                                    // that currChunkByteBuf.hasRemaining() subsequently returns true
-                                    && !(readNextChunk() && currChunkByteBuf.hasRemaining())) {
-                                // Ran out of data in the current chunk, and could not read a new chunk
-                                throw new IOException("Unexpected EOF in deflated data");
-                            }
-                            // Set inflater input for the current chunk
-
-                            // In JDK11+: simply use the following instead of all the lines below:
-                            //     inflater.setInput(currChunkByteBuf);
-                            // N.B. the ByteBuffer version of setInput doesn't seem to need the extra
-                            // padding byte at the end when using the "nowrap" Inflater option.
-
-                            // Copy from the ByteBuffer into a temporary byte[] array (needed for JDK<11).
-                            try {
-                                final int remaining = currChunkByteBuf.remaining();
-                                if (isLastChunk && remaining < inflateBuf.length) {
-                                    // An extra dummy byte is needed at the end of the input stream when
-                                    // using the "nowrap" Inflater option.
-                                    // See: ZipFile.ZipFileInputStream.fill()
-                                    currChunkByteBuf.get(inflateBuf, 0, remaining);
-                                    inflateBuf[remaining] = (byte) 0;
-                                    inflater.setInput(inflateBuf, 0, remaining + 1);
-                                } else if (isLastChunk && remaining == inflateBuf.length) {
-                                    // If this is the last chunk to read, and the number of remaining
-                                    // bytes is exactly the size of the buffer, read one byte fewer than
-                                    // the number of remaining bytes, to cause the last byte to be read
-                                    // in an extra pass.
-                                    currChunkByteBuf.get(inflateBuf, 0, remaining - 1);
-                                    inflater.setInput(inflateBuf, 0, remaining - 1);
-                                } else {
-                                    // There are more than inflateBuf.length bytes remaining to be read,
-                                    // or this is not the last chunk (i.e. read all remaining bytes in
-                                    // this chunk, which will trigger the next chunk to be read on the
-                                    // next loop iteration)
-                                    final int bytesToRead = Math.min(inflateBuf.length, remaining);
-                                    currChunkByteBuf.get(inflateBuf, 0, bytesToRead);
-                                    inflater.setInput(inflateBuf, 0, bytesToRead);
-                                }
-                            } catch (final BufferUnderflowException e) {
-                                // Should not happen
-                                throw new IOException("Unexpected EOF in deflated data");
-                            }
-                        }
-                    }
-                    return numInflatedBytes;
-                } catch (final DataFormatException e) {
-                    throw new ZipException(
-                            e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
-                }
-            }
-
-            /**
-             * Copy stored (non-deflated) data from ByteBuffer to target buffer.
-             *
-             * @param buf
-             *            the buffer to copy the stored entry into.
-             * @param off
-             *            the offset within buf to start writing.
-             * @param len
-             *            the number of bytes to read.
-             * @return the number of bytes read.
-             * @throws IOException
-             *             if an I/O exception occurred.
-             * @throws InterruptedException
-             *             if the thread was interrupted.
-             */
-            private int readStored(final byte[] buf, final int off, final int len)
-                    throws IOException, InterruptedException {
-                int read = 0;
-                while (read < len) {
-                    if (!currChunkByteBuf.hasRemaining() && !readNextChunk()) {
-                        return read == 0 ? -1 : read;
-                    }
-                    final int remainingToRead = len - read;
-                    final int remainingInBuf = currChunkByteBuf.remaining();
-                    final int numBytesRead = Math.min(remainingToRead, remainingInBuf);
-                    currChunkByteBuf.get(buf, off + read, numBytesRead);
-                    read += numBytesRead;
-                }
-                return read;
-            }
-
-            /**
-             * Skip stored (non-deflated) data in ByteBuffer.
-             *
-             * @param n
-             *            the number of bytes to skip.
-             * @throws IOException
-             *             if an I/O exception occurred or the thread was interrupted.
-             */
-            private void skipStored(final long n) throws IOException {
-                try {
-                    long skipped = 0;
-                    while (skipped < n) {
-                        if (!currChunkByteBuf.hasRemaining() && !readNextChunk()) {
-                            throw new EOFException("Unexpected EOF while skipping (non-deflated) zip entry data");
-                        }
-                        final long remainingToSkip = n - skipped;
-                        final int remainingInBuf = currChunkByteBuf.remaining();
-                        final int numBytesToSkip = (int) Math.min(FileUtils.MAX_BUFFER_SIZE,
-                                Math.min(remainingToSkip, remainingInBuf));
-                        currChunkByteBuf.skip(numBytesToSkip);
-                        skipped += numBytesToSkip;
-                    }
-                } catch (final InterruptedException e) {
-                    nestedJarHandler.interruptionChecker.interrupt();
-                    throw new IOException("Thread was interrupted");
-                }
-            }
-
-            @Override
-            public int read(final byte[] buf, final int off, final int len) throws IOException {
-                if (closed.get()) {
-                    throw new IOException("Stream closed");
-                }
-                if (buf == null) {
-                    throw new NullPointerException();
-                } else if (off < 0 || len < 0 || len > buf.length - off) {
-                    throw new IndexOutOfBoundsException();
-                } else if (len == 0) {
-                    return 0;
-                } else if (parentLogicalZipFile.physicalZipFile.length() == 0) {
-                    return -1;
-                }
-                try {
-                    if (isDeflated) {
-                        return readDeflated(buf, off, len);
-                    } else {
-                        return readStored(buf, off, len);
-                    }
-                } catch (final InterruptedException e) {
-                    nestedJarHandler.interruptionChecker.interrupt();
-                    throw new IOException("Thread was interrupted");
-                }
-            }
-
-            @Override
-            public int read() throws IOException {
-                if (closed.get()) {
-                    throw new IOException("Stream closed");
-                }
-                return read(scratch, 0, 1) == -1 ? -1 : scratch[0] & 0xff;
-            }
-
-            @Override
-            public int available() throws IOException {
-                if (closed.get()) {
-                    throw new IOException("Stream closed");
-                }
-                if (inflater.finished()) {
-                    eof = true;
-                }
-                return eof ? 0 : 1;
-            }
-
-            @Override
-            public long skip(final long n) throws IOException {
-                if (closed.get()) {
-                    throw new IOException("Stream closed");
-                }
-                if (n < 0) {
-                    throw new IllegalArgumentException("Invalid skip value");
-                }
-                if (isDeflated) {
-                    long total = 0;
-                    while (total < n) {
-                        final int bytesToSkip = (int) Math.min(n - total, scratch.length);
-                        final int numSkipped = read(scratch, 0, bytesToSkip);
-                        if (numSkipped == -1) {
-                            eof = true;
-                            break;
-                        }
-                        total += numSkipped;
-                    }
-                } else {
-                    skipStored(n);
-                }
-                return n;
-            }
-
-            @Override
-            public boolean markSupported() {
-                return false;
-            }
-
-            @Override
-            public synchronized void mark(final int readlimit) {
-                throw new IllegalArgumentException("Not supported");
-            }
-
-            @Override
-            public synchronized void reset() throws IOException {
-                throw new IllegalArgumentException("Not supported");
-            }
-
-            @Override
-            public void close() throws IOException {
-                if (!closed.getAndSet(true)) {
-                    currChunkByteBuf = null;
-                    if (recyclableInflaterInstance != null) {
-                        // Reset and recycle the Inflater
-                        nestedJarHandler.inflaterRecycler.recycle(recyclableInflaterInstance);
-                        recyclableInflaterInstance = null;
-                    }
-                }
-            }
-        };
-    }
-
-    /**
-     * Load the content of the zip entry, and return it as a byte array.
-     *
-     * @return the entry as a byte[] array
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
-     */
-    public byte[] load() throws IOException, InterruptedException {
-        try (InputStream is = open()) {
-            return FileUtils.readAllBytesAsArray(is, uncompressedSize);
-        }
-    }
-
-    /**
-     * Load the content of the zip entry, and return it as a String (converting from UTF-8 byte format).
-     *
-     * @return the entry as a String
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
-     */
-    public String loadAsString() throws IOException, InterruptedException {
-        try (InputStream is = open()) {
-            return FileUtils.readAllBytesAsString(is, uncompressedSize);
-        }
+        return slice;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -662,14 +247,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         return lastModifiedTimeMillis;
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        return "jar:file:" + getPath();
-    }
-
     /**
      * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
      * path.
@@ -699,6 +276,14 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return parentLogicalZipFile.hashCode() ^ version ^ entryName.hashCode() ^ (int) locHeaderPos;
+    }
+
+    /* (non-Javadoc)
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
@@ -713,10 +298,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /* (non-Javadoc)
-     * @see java.lang.Object#hashCode()
+     * @see java.lang.Object#toString()
      */
     @Override
-    public int hashCode() {
-        return parentLogicalZipFile.hashCode() ^ version ^ entryName.hashCode() ^ (int) locHeaderPos;
+    public String toString() {
+        return "jar:file:" + getPath();
     }
 }

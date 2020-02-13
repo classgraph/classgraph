@@ -36,6 +36,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
@@ -77,6 +78,23 @@ public class ClasspathOrder {
         public ClasspathElementAndClassLoader(final Object classpathElement, final ClassLoader classLoader) {
             this.classpathElement = classpathElement;
             this.classLoader = classLoader;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(classpathElement, classLoader);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (obj == this) {
+                return true;
+            } else if (!(obj instanceof ClasspathElementAndClassLoader)) {
+                return false;
+            }
+            final ClasspathElementAndClassLoader other = (ClasspathElementAndClassLoader) obj;
+            return Objects.equals(this.classpathElement, other.classpathElement)
+                    && Objects.equals(this.classLoader, other.classLoader);
         }
     }
 

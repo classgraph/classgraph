@@ -28,36 +28,43 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map.Entry;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
+import java.util.zip.ZipException;
 
-import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
-import nonapi.io.github.classgraph.json.ReferenceEqualityKey;
+import nonapi.io.github.classgraph.fileslice.ArraySlice;
+import nonapi.io.github.classgraph.fileslice.FileSlice;
+import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -68,7 +75,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** Open and read jarfiles, which may be nested within other jarfiles. */
 public class NestedJarHandler {
     /** The {@link ScanSpec}. */
-    final ScanSpec scanSpec;
+    public final ScanSpec scanSpec;
 
     /**
      * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
@@ -78,22 +85,9 @@ public class NestedJarHandler {
     canonicalFileToPhysicalZipFileMap = new SingletonMap<File, PhysicalZipFile, IOException>() {
         @Override
         public PhysicalZipFile newInstance(final File canonicalFile, final LogNode log) throws IOException {
-            if (closed.get()) {
-                throw ClassGraphException
-                        .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
-            }
-            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(canonicalFile, NestedJarHandler.this, log);
-            allocatedPhysicalZipFiles.add(physicalZipFile);
-
-            return physicalZipFile;
+            return new PhysicalZipFile(canonicalFile, NestedJarHandler.this, log);
         }
     };
-
-    /** The allocated {@link PhysicalZipFile} instances. */
-    private Queue<PhysicalZipFile> allocatedPhysicalZipFiles = new ConcurrentLinkedQueue<>();
-
-    /** The allocated {@link LogicalZipFile} instances. */
-    private final Queue<LogicalZipFile> allocatedLogicalZipFiles = new ConcurrentLinkedQueue<>();
 
     /**
      * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice} wrapping either the zip entry data,
@@ -107,9 +101,8 @@ public class NestedJarHandler {
                 throws IOException, InterruptedException {
             ZipFileSlice childZipEntrySlice;
             if (!childZipEntry.isDeflated) {
-                // Wrap the child entry (a stored nested zipfile) in a new ZipFileSlice -- there is
-                // nothing else to do. (Most nested zipfiles are stored, not deflated, so this fast
-                // path will be followed most often.)
+                // The child zip entry is a stored nested zipfile -- wrap it in a new ZipFileSlice.
+                // Hopefully nested zipfiles are stored, not deflated, as this is the fast path.
                 childZipEntrySlice = new ZipFileSlice(childZipEntry);
 
             } else {
@@ -122,13 +115,12 @@ public class NestedJarHandler {
                 }
 
                 // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large 
-                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.open(),
-                        childZipEntry.uncompressedSize > 0L
-                                && childZipEntry.uncompressedSize < FileUtils.MAX_BUFFER_SIZE
+                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.getSlice().open(),
+                        childZipEntry.uncompressedSize >= 0L
+                                && childZipEntry.uncompressedSize <= FileUtils.MAX_BUFFER_SIZE
                                         ? (int) childZipEntry.uncompressedSize
                                         : -1,
                         childZipEntry.entryName, NestedJarHandler.this, log);
-                allocatedPhysicalZipFiles.add(physicalZipFile);
 
                 // Create a new logical slice of the extracted inner zipfile
                 childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
@@ -143,14 +135,8 @@ public class NestedJarHandler {
         @Override
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log)
                 throws IOException, InterruptedException {
-            if (closed.get()) {
-                throw ClassGraphException
-                        .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
-            }
-            // Read the central directory for the logical zipfile slice
-            final LogicalZipFile logicalZipFile = new LogicalZipFile(zipFileSlice, log);
-            allocatedLogicalZipFiles.add(logicalZipFile);
-            return logicalZipFile;
+            // Read the central directory for the zipfile
+            return new LogicalZipFile(zipFileSlice, log);
         }
     };
 
@@ -164,10 +150,6 @@ public class NestedJarHandler {
                 @Override
                 public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
                         throws IOException, InterruptedException {
-                    if (closed.get()) {
-                        throw ClassGraphException
-                                .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
-                    }
                     final String nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
                     final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
                     if (lastPlingIdx < 0) {
@@ -259,7 +241,13 @@ public class NestedJarHandler {
                         if (!isDirectory) {
                             // If child path doesn't end with a slash, see if there's a non-directory entry
                             // with a name matching the child path (LogicalZipFile discards directory entries
-                            // ending with a slash when reading the central directory of a zipfile)
+                            // ending with a slash when reading the central directory of a zipfile).
+                            // N.B. We perform an O(N) search here because we assume the number of classpath
+                            // elements containing "!" sections is relatively small compared to the total number
+                            // of entries in all jarfiles (i.e. building a HashMap of entry path to entry for
+                            // every jarfile would generally be more expensive than performing this linear
+                            // search, and unless the classpath is enormous, the overall time performance
+                            // will not tend towards O(N^2).
                             for (final FastZipEntry entry : parentLogicalZipFile.entries) {
                                 if (entry.entryName.equals(childPath)) {
                                     childZipEntry = entry;
@@ -352,10 +340,6 @@ public class NestedJarHandler {
                     return new Recycler<ModuleReaderProxy, IOException>() {
                         @Override
                         public ModuleReaderProxy newInstance() throws IOException {
-                            if (closed.get()) {
-                                throw ClassGraphException.newClassGraphException(
-                                        NestedJarHandler.class.getSimpleName() + " already closed");
-                            }
                             return moduleRef.open();
                         }
                     };
@@ -363,28 +347,17 @@ public class NestedJarHandler {
             };
 
     /** A recycler for {@link Inflater} instances. */
-    Recycler<RecyclableInflater, RuntimeException> //
+    private Recycler<RecyclableInflater, RuntimeException> //
     inflaterRecycler = new Recycler<RecyclableInflater, RuntimeException>() {
         @Override
         public RecyclableInflater newInstance() throws RuntimeException {
-            if (closed.get()) {
-                throw ClassGraphException
-                        .newClassGraphException(NestedJarHandler.class.getSimpleName() + " already closed");
-            }
             return new RecyclableInflater();
         }
     };
 
-    /**
-     * {@link MappedByteBuffer} instances that are currently mapped. (Use {@link ReferenceEqualityKey} so that the
-     * entire contents of the buffers are not compared by {@link ByteBuffer#equals(Object)}).
-     */
-    private Set<ReferenceEqualityKey<ByteBufferWrapper>> mappedByteBuffers = Collections
-            .newSetFromMap(new ConcurrentHashMap<ReferenceEqualityKey<ByteBufferWrapper>, Boolean>());
-
-    /** {@link MappedByteBufferResources} instances that were allocated for downloading jars from URLs. */
-    private Set<MappedByteBufferResources> mappedByteBufferResources = Collections
-            .newSetFromMap(new ConcurrentHashMap<MappedByteBufferResources, Boolean>());
+    /** {@link RandomAccessFile} instances that are currently open (typically one per classpath element). */
+    private Set<RandomAccessFile> openFiles = Collections
+            .newSetFromMap(new ConcurrentHashMap<RandomAccessFile, Boolean>());
 
     /** Any temporary files created while scanning. */
     private Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<File, Boolean>());
@@ -397,6 +370,12 @@ public class NestedJarHandler {
 
     /** The interruption checker. */
     public InterruptionChecker interruptionChecker;
+
+    /** The default size of a file buffer. */
+    private static final int DEFAULT_BUFFER_SIZE = 16384;
+
+    /** The maximum initial buffer size. */
+    private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -411,32 +390,6 @@ public class NestedJarHandler {
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker) {
         this.scanSpec = scanSpec;
         this.interruptionChecker = interruptionChecker;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Record that a {@link FileChannel} was mapped to a {@link MappedByteBuffer}.
-     *
-     * @param byteBuffer
-     *            the byte buffer
-     */
-    public void addMappedByteBuffer(final ByteBufferWrapper byteBuffer) {
-        mappedByteBuffers.add(new ReferenceEqualityKey<ByteBufferWrapper>(byteBuffer));
-    }
-
-    /**
-     * Unmap a possibly previously-mapped {@link ByteBuffer} (wrapped in a {@link ByteBufferWrapper}).
-     *
-     * @param byteBuffer
-     *            the {@link ByteBufferWrapper}.
-     * @param log
-     *            the log.
-     */
-    public void unmapByteBuffer(final ByteBufferWrapper byteBuffer, final LogNode log) {
-        if (mappedByteBuffers.remove(new ReferenceEqualityKey<ByteBufferWrapper>(byteBuffer))) {
-            byteBuffer.close(log);
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -475,7 +428,7 @@ public class NestedJarHandler {
      * @throws IOException
      *             If the temporary file could not be created.
      */
-    File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
+    public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
         final File tempFile = File.createTempFile("ClassGraph--", TEMP_FILENAME_LEAF_SEPARATOR
                 + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
         tempFile.deleteOnExit();
@@ -502,6 +455,38 @@ public class NestedJarHandler {
             }
         } else {
             throw new IOException("Not a temp file: " + tempFile);
+        }
+    }
+
+    /**
+     * Open a file as a {@link RandomAccessFile}.
+     * 
+     * @param file
+     *            the file to open.
+     */
+    public RandomAccessFile openFile(final File file) throws IOException {
+        try {
+            final RandomAccessFile raf = new RandomAccessFile(file, "r");
+            openFiles.add(raf);
+            return raf;
+        } catch (final SecurityException e) {
+            throw new IOException("Could not open file " + file + " : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Close an open {@link RandomAccessFile}, and remove it from the list of files to close when
+     * {@link #close(LogNode)} is called.
+     * 
+     * @param raf
+     *            the {@link RandomAccessFile} to close.
+     */
+    public void closeOpenFile(final RandomAccessFile raf) {
+        openFiles.remove(raf);
+        try {
+            raf.close();
+        } catch (final IOException e) {
+            // Ignore
         }
     }
 
@@ -534,22 +519,377 @@ public class NestedJarHandler {
                 throw new IOException("Could not parse URL: " + jarURL);
             }
         }
-        try (InputStream inputStream = url.openStream()) {
-            // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
-            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, /* length unknown */ -1,
-                    jarURL, this, log);
-            allocatedPhysicalZipFiles.add(physicalZipFile);
-            return physicalZipFile;
 
-        } catch (final MalformedURLException e) {
-            throw new IOException("Malformed URL: " + jarURL);
-        } finally {
-            if (log != null) {
-                log.addElapsedTime();
-                log.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
-                        + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
-                        + "and the same URL must also be separately opened by the ClassLoader *****");
+        final URLConnection conn = url.openConnection();
+        HttpURLConnection httpConn = null;
+        try {
+            long contentLengthHint = -1L;
+            if (conn instanceof HttpURLConnection) {
+                // Get content length from HTTP headers, if available
+                httpConn = (HttpURLConnection) url.openConnection();
+                contentLengthHint = httpConn.getContentLengthLong();
+                if (contentLengthHint < -1L) {
+                    contentLengthHint = -1L;
+                }
+            } else if (conn.getURL().getProtocol().equalsIgnoreCase("file")) {
+                // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that
+                // rewrites its URLs into "file:" URLs (see Issue400.java).
+                try {
+                    // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
+                    // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
+                    final File file = new File(conn.getURL().toURI());
+                    return new PhysicalZipFile(file, this, log);
+
+                } catch (final URISyntaxException e) {
+                    // Fall through to open URL as InputStream below
+                }
             }
+
+            // Fetch content from URL
+            try (InputStream inputStream = conn.getInputStream()) {
+                // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
+                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
+                        this, log);
+                if (log != null) {
+                    log.addElapsedTime();
+                    log.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
+                            + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
+                            + "and the same URL must also be separately opened by the ClassLoader *****");
+                }
+                return physicalZipFile;
+
+            } catch (final MalformedURLException e) {
+                throw new IOException("Malformed URL: " + jarURL);
+            }
+        } finally {
+            if (httpConn != null) {
+                httpConn.disconnect();
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Wrap an {@link InputStream} with an {@link InflaterInputStream}, recycling the {@link Inflater} instance. */
+    public InputStream openInflaterInputStream(final InputStream rawInputStream) throws IOException {
+        return new InputStream() {
+            // Gen Inflater instance with nowrap set to true (needed by zip entries)
+            private final RecyclableInflater recyclableInflater = inflaterRecycler.acquire();
+            private final Inflater inflater = recyclableInflater.getInflater();
+            private final AtomicBoolean closed = new AtomicBoolean();
+            private final byte[] buf = new byte[INFLATE_BUF_SIZE];
+            private static final int INFLATE_BUF_SIZE = 8192;
+
+            @Override
+            public int read() throws IOException {
+                if (closed.get()) {
+                    throw new IOException("Already closed");
+                } else if (inflater.finished()) {
+                    return -1;
+                }
+                final int numDeflatedBytesRead = read(buf, 0, 1);
+                if (numDeflatedBytesRead < 0) {
+                    return -1;
+                } else {
+                    return buf[0] & 0xff;
+                }
+            }
+
+            @Override
+            public int read(final byte outBuf[], final int off, final int len) throws IOException {
+                if (closed.get()) {
+                    throw new IOException("Already closed");
+                } else if (len < 0) {
+                    throw new IllegalArgumentException("len cannot be negative");
+                } else if (len == 0) {
+                    return 0;
+                }
+                try {
+                    // Keep fetching data from rawInputStream until 
+                    int totInflatedBytes = 0;
+                    while (!inflater.finished() && totInflatedBytes < len) {
+                        final int numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes,
+                                len - totInflatedBytes);
+                        if (numInflatedBytes == 0) {
+                            if (inflater.needsDictionary()) {
+                                // Should not happen for jarfiles
+                                throw new IOException("Inflater needs preset dictionary");
+                            } else if (inflater.needsInput()) {
+                                // Read a chunk of data from the raw InputStream
+                                final int numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
+                                if (numRawBytesRead == -1) {
+                                    // An extra dummy byte is needed at the end of the input stream when
+                                    // using the "nowrap" Inflater option.
+                                    // See: ZipFile.ZipFileInflaterInputStream.fill()
+                                    buf[0] = (byte) 0;
+                                    inflater.setInput(buf, 0, 1);
+                                } else {
+                                    // Deflate the chunk of data
+                                    inflater.setInput(buf, 0, numRawBytesRead);
+                                }
+                            }
+                        } else {
+                            totInflatedBytes += numInflatedBytes;
+                        }
+                    }
+                    if (totInflatedBytes == 0) {
+                        // If no bytes were inflated, return -1 as required by read() API contract
+                        return -1;
+                    }
+                    return totInflatedBytes;
+
+                } catch (final DataFormatException e) {
+                    throw new ZipException(
+                            e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
+                }
+            }
+
+            @Override
+            public long skip(final long numToSkip) throws IOException {
+                if (closed.get()) {
+                    throw new IOException("Already closed");
+                } else if (numToSkip < 0) {
+                    throw new IllegalArgumentException("numToSkip cannot be negative");
+                } else if (numToSkip == 0) {
+                    return 0;
+                } else if (inflater.finished()) {
+                    return -1;
+                }
+                long totBytesSkipped = 0L;
+                for (;;) {
+                    final int readLen = (int) Math.min(numToSkip - totBytesSkipped, buf.length);
+                    final int numBytesRead = read(buf, 0, readLen);
+                    if (numBytesRead > 0) {
+                        totBytesSkipped -= numBytesRead;
+                    } else {
+                        break;
+                    }
+                }
+                return totBytesSkipped;
+            }
+
+            @Override
+            public int available() throws IOException {
+                if (closed.get()) {
+                    throw new IOException("Already closed");
+                }
+                // We don't know how many bytes are available, but have to return greater than
+                // zero if there is still input, according to the API contract. Hopefully nothing
+                // relies on this and ends up reading just one byte at a time.
+                return inflater.finished() ? 0 : 1;
+            }
+
+            @Override
+            public void mark(final int readlimit) {
+                throw new IllegalArgumentException("Not supported");
+            }
+
+            @Override
+            public void reset() throws IOException {
+                throw new IllegalArgumentException("Not supported");
+            }
+
+            @Override
+            public boolean markSupported() {
+                return false;
+            }
+
+            @Override
+            public void close() {
+                if (!closed.getAndSet(true)) {
+                    try {
+                        rawInputStream.close();
+                    } catch (final IOException e) {
+                        // Ignore
+                    } finally {
+                        // Reset and recycle inflater instance
+                        inflaterRecycler.recycle(recyclableInflater);
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
+     * size is exceeded.
+     *
+     * @param inputStream
+     *            the {@link InputStream} to read from.
+     * @param tempFileBaseName
+     *            the source URL or zip entry that inputStream was opened from (used to name temporary file, if
+     *            needed).
+     * @param inputStreamLengthHint
+     *            the length of inputStream if known, else -1L.
+     * @param log
+     *            the log.
+     * @return if the {@link InputStream} could be read into a byte array, an {@link ArraySlice} will be returned.
+     *         If this fails and the {@link InputStream} is spilled over to disk, a {@link FileSlice} will be
+     *         returned.
+     * 
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public Slice readAllBytesWithSpilloverToDisk(final InputStream inputStream, final String tempFileBaseName,
+            final long inputStreamLengthHint, final LogNode log) throws IOException {
+        // Open an InflaterInputStream on the slice
+        try (InputStream inptStream = inputStream) {
+            if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
+                // inputStreamLengthHint is unknown (-1) or shorter than scanSpec.maxBufferedJarRAMSize,
+                // so try reading from the InputStream into an array of size scanSpec.maxBufferedJarRAMSize
+                // or inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or
+                // may not be valid, use a buffer size of 16kB to avoid spilling to disk in case this is
+                // wrong but the file is still small.
+                final int bufSize = inputStreamLengthHint == -1L ? scanSpec.maxBufferedJarRAMSize
+                        : inputStreamLengthHint == 0L ? 16384
+                                : Math.min((int) inputStreamLengthHint, scanSpec.maxBufferedJarRAMSize);
+                byte[] buf = new byte[bufSize];
+                final int bufLength = buf.length;
+
+                int bufBytesUsed = 0;
+                int bytesRead = 0;
+                while ((bytesRead = inptStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
+                    // Fill buffer until nothing more can be read
+                    bufBytesUsed += bytesRead;
+                }
+                if (bytesRead == 0) {
+                    // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading
+                    // one more byte) to see if inputStreamHint underestimated the actual length of the stream
+                    final byte[] overflowBuf = new byte[1];
+                    final int overflowBufBytesUsed = inptStream.read(overflowBuf, 0, 1);
+                    if (overflowBufBytesUsed == 1) {
+                        // We were able to read one more byte, so we're still not at the end of the stream,
+                        // and we need to spill to disk, because buf is full
+                        return spillToDisk(inptStream, tempFileBaseName, buf, overflowBuf, log);
+                    }
+                    // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't spill to disk
+                }
+                // Successfully reached end of stream
+                if (bufBytesUsed < buf.length) {
+                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated
+                    // the length of the InputStream)
+                    buf = Arrays.copyOf(buf, bufBytesUsed);
+                }
+                // Return buf as new ArraySlice
+                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */
+                        0L, this);
+
+            }
+            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately spill to disk
+            return spillToDisk(inptStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null, log);
+        }
+    }
+
+    /**
+     * Spill an {@link InputStream} to disk if the stream is too large to fit in RAM.
+     * 
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param tempFileBaseName
+     *            The stem to base the temporary filename on.
+     * @param buf
+     *            The first buffer to write to the beginning of the file, or null if none.
+     * @param overflowBuf
+     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
+     *            nullity as buf.)
+     * @param log
+     *            The log.
+     * @throws IOException
+     *             If anything went wrong creating or writing to the temp file.
+     */
+    private FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName, final byte[] buf,
+            final byte[] overflowBuf, final LogNode log) throws IOException {
+        // Create temp file
+        File tempFile;
+        try {
+            tempFile = makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
+        } catch (final IOException e) {
+            throw new IOException("Could not create temporary file: " + e.getMessage());
+        }
+        if (log != null) {
+            log.log("Could not fit InputStream content into max RAM buffer size, saving to temporary file: "
+                    + tempFileBaseName + " -> " + tempFile);
+        }
+
+        // Copy everything read so far and the rest of the InputStream to the temporary file
+        try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
+            // Write already-read buffered bytes to temp file, if anything was read
+            if (buf != null) {
+                outputStream.write(buf);
+                outputStream.write(overflowBuf);
+            }
+            // Copy the rest of the InputStream to the file
+            final byte[] copyBuf = new byte[8192];
+            for (int bytesRead; (bytesRead = inputStream.read(copyBuf, 0, copyBuf.length)) > 0;) {
+                outputStream.write(copyBuf, 0, bytesRead);
+            }
+        }
+
+        // Return a new FileSlice for the temporary file
+        return new FileSlice(tempFile, this);
+    }
+
+    /**
+     * Read all the bytes in an {@link InputStream}.
+     * 
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param uncompressedLengthHint
+     *            The length of the data once inflated from the {@link InputStream}, if known, otherwise -1L.
+     * @return The contents of the {@link InputStream} as a byte array.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
+            throws IOException {
+        try (InputStream inptStream = inputStream) {
+            if (uncompressedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
+                throw new IOException("InputStream is too large to read");
+            }
+            final int bufferSize = uncompressedLengthHint < 1L
+                    // If fileSizeHint is zero or unknown, use default buffer size 
+                    ? DEFAULT_BUFFER_SIZE
+                    // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
+                    // lengths do not become a memory allocation attack vector
+                    : Math.min((int) uncompressedLengthHint, MAX_INITIAL_BUFFER_SIZE);
+            byte[] buf = new byte[bufferSize];
+            int totBytesRead = 0;
+            for (int bytesRead;;) {
+                while ((bytesRead = inptStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
+                    // Fill buffer until nothing more can be read
+                    totBytesRead += bytesRead;
+                }
+                if (bytesRead < 0) {
+                    // Reached end of stream without filling buf
+                    break;
+                }
+
+                // Reached end of stream, and buf is full
+                final int extraByte;
+                try {
+                    // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
+                    // reached, or the buffer was too small. Need to try reading one more byte to see which is
+                    // the case.
+                    extraByte = inptStream.read();
+                    if (extraByte == -1) {
+                        // Reached end of stream
+                        break;
+                    }
+                } catch (final ZipException e) {
+                    // FIXME temp
+                    throw new RuntimeException(e);
+                }
+
+                // Haven't reached end of stream yet. Need to grow the buffer (double its size), and append
+                // the extra byte that was just read.
+                if (buf.length == FileUtils.MAX_BUFFER_SIZE) {
+                    throw new IOException("InputStream too large to read into array");
+                }
+                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, FileUtils.MAX_BUFFER_SIZE));
+                buf[totBytesRead++] = (byte) extraByte;
+            }
+            // Return buffer and number of bytes read
+            return totBytesRead == buf.length ? buf : Arrays.copyOf(buf, totBytesRead);
         }
     }
 
@@ -564,10 +904,6 @@ public class NestedJarHandler {
     public void close(final LogNode log) {
         if (!closed.getAndSet(true)) {
             boolean interrupted = false;
-            if (inflaterRecycler != null) {
-                inflaterRecycler.forceClose();
-                inflaterRecycler = null;
-            }
             if (moduleRefToModuleReaderProxyRecyclerMap != null) {
                 boolean completedWithoutInterruption = false;
                 while (!completedWithoutInterruption) {
@@ -593,54 +929,31 @@ public class NestedJarHandler {
                 nestedPathToLogicalZipFileAndPackageRootMap.clear();
                 nestedPathToLogicalZipFileAndPackageRootMap = null;
             }
-            for (LogicalZipFile logicalZipFile; (logicalZipFile = allocatedLogicalZipFiles.poll()) != null;) {
-                logicalZipFile.close();
-            }
             if (canonicalFileToPhysicalZipFileMap != null) {
-                while (!canonicalFileToPhysicalZipFileMap.isEmpty()) {
-                    try {
-                        for (final Entry<File, PhysicalZipFile> ent : new ArrayList<>(
-                                canonicalFileToPhysicalZipFileMap.entries())) {
-                            final PhysicalZipFile physicalZipFile = ent.getValue();
-                            physicalZipFile.close();
-                            canonicalFileToPhysicalZipFileMap.remove(ent.getKey());
-                        }
-                    } catch (final InterruptedException e) {
-                        // If thread was interrupted, canonicalFileToPhysicalZipFileMap.entries() is interrupted
-                        // above, so canonicalFileToPhysicalZipFileMap.remove(ent.getKey()) is never called,
-                        // which causes the while loop to loop forever if we re-interrupt here (#400). Therefore
-                        // delay re-interruption until the end of this method.
-                        interrupted = false;
-                    }
-                }
+                canonicalFileToPhysicalZipFileMap.clear();
                 canonicalFileToPhysicalZipFileMap = null;
-            }
-            if (allocatedPhysicalZipFiles != null) {
-                for (PhysicalZipFile physicalZipFile; (physicalZipFile = allocatedPhysicalZipFiles
-                        .poll()) != null;) {
-                    physicalZipFile.close();
-                }
-                allocatedPhysicalZipFiles.clear();
-                allocatedPhysicalZipFiles = null;
             }
             if (fastZipEntryToZipFileSliceMap != null) {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            if (mappedByteBufferResources != null) {
-                for (final MappedByteBufferResources bufRes : mappedByteBufferResources) {
-                    bufRes.close(log);
-                }
-                mappedByteBufferResources = null;
-            }
-            if (mappedByteBuffers != null) {
-                while (!mappedByteBuffers.isEmpty()) {
-                    for (final ReferenceEqualityKey<ByteBufferWrapper> byteBufferRef : new ArrayList<>(
-                            mappedByteBuffers)) {
-                        unmapByteBuffer(byteBufferRef.get(), log);
+            if (openFiles != null) {
+                while (!openFiles.isEmpty()) {
+                    for (final RandomAccessFile openFile : new ArrayList<>(openFiles)) {
+                        try {
+                            openFile.close();
+                        } catch (final IOException e) {
+                            // Ignore
+                        }
+                        openFiles.remove(openFile);
                     }
                 }
-                mappedByteBuffers = null;
+                openFiles.clear();
+                openFiles = null;
+            }
+            if (inflaterRecycler != null) {
+                inflaterRecycler.forceClose();
+                inflaterRecycler = null;
             }
             // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
             if (tempFiles != null) {

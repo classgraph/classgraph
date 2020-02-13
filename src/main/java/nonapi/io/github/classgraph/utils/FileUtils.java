@@ -31,19 +31,16 @@ package nonapi.io.github.classgraph.utils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import io.github.classgraph.ClassGraphException;
@@ -63,31 +60,16 @@ public final class FileUtils {
     private static Object theUnsafe;
 
     /**
-     * The minimum filesize at which it becomes more efficient to read a file with a memory-mapped file channel
-     * rather than an InputStream. Based on benchmark testing using the following benchmark, averaged over three
-     * separate runs, then plotted as a speedup curve for 1, 2, 4 and 8 concurrent threads:
-     * 
-     * https://github.com/lukehutch/FileReadingBenchmark
-     */
-    public static final int FILECHANNEL_FILE_SIZE_THRESHOLD;
-
-    /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
      * will not reflect subsequent changes to the current directory).
      */
     public static final String CURR_DIR_PATH;
-
-    /** The default size of a file buffer. */
-    private static final int DEFAULT_BUFFER_SIZE = 16384;
 
     /**
      * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
      * reserve header words in arrays.
      */
     public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
-
-    /** The maximum initial buffer size. */
-    private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -116,182 +98,6 @@ public final class FileUtils {
                     .newClassGraphException("Could not resolve current directory: " + currDirPathStr, e);
         }
         CURR_DIR_PATH = currDirPathStr;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    static {
-        switch (VersionFinder.OS) {
-        case Linux:
-            // On Linux, FileChannel is more efficient once file sizes are larger than 16kb,
-            // and the speedup increases superlinearly, reaching 1.5-3x for a filesize of 1MB
-            // (and the performance increase does not level off at 1MB either -- that is as
-            // far as this was benchmarked).
-        case MacOSX:
-            // On older/slower Mac OS X machines, FileChannel is always 10-20% slower than InputStream,
-            // except for very large files (>1MB), and only for single-threaded reading.
-            // But on newer/faster Mac OS X machines, you get a 10-20% speedup between 16kB and 128kB,
-            // then a much larger speedup for files larger than 128kb (topping out at about 2.5x speedup).
-            // It's probably worth setting the threshold to 16kB to get the 10-20% speedup for files
-            // larger than 16kB in size on modern machines.
-        case Solaris:
-        case BSD:
-        case Unix:
-            // No testing has been performed yet on the other unices, so just pick the same val as MacOSX and Linux
-            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
-            break;
-
-        case Windows:
-            // Windows is always 10-20% faster with FileChannel than with InputStream, even for small files.
-            FILECHANNEL_FILE_SIZE_THRESHOLD = -1;
-            break;
-
-        case Unknown:
-            // For any other operating system
-        default:
-            FILECHANNEL_FILE_SIZE_THRESHOLD = 16384;
-            break;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Read all the bytes in an {@link InputStream}.
-     * 
-     * @param inputStream
-     *            The {@link InputStream}.
-     * @param fileSizeHint
-     *            The file size, if known, otherwise -1L.
-     * @return The contents of the {@link InputStream} as a byte array.
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    private static byte[] readAllBytes(final InputStream inputStream, final long fileSizeHint) throws IOException {
-        if (fileSizeHint > MAX_BUFFER_SIZE) {
-            throw new IOException("InputStream is too large to read");
-        }
-        final int bufferSize = fileSizeHint < 1L
-                // If fileSizeHint is zero or unknown, use default buffer size 
-                ? DEFAULT_BUFFER_SIZE
-                // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
-                // lengths do not become a memory allocation attack vector
-                : Math.min((int) fileSizeHint, MAX_INITIAL_BUFFER_SIZE);
-        byte[] buf = new byte[bufferSize];
-        int totBytesRead = 0;
-        for (int bytesRead;;) {
-            while ((bytesRead = inputStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
-                // Fill buffer until nothing more can be read
-                totBytesRead += bytesRead;
-            }
-            if (bytesRead < 0) {
-                // Reached end of stream
-                break;
-            }
-            // bytesRead == 0 => grow buffer (avoid integer overflow in next line)
-            if (buf.length <= MAX_BUFFER_SIZE - buf.length) {
-                buf = Arrays.copyOf(buf, buf.length * 2);
-            } else {
-                if (buf.length == MAX_BUFFER_SIZE) {
-                    // Try reading one more byte, just in case the stream is exactly MAX_BUFFER_SIZE in length
-                    if (inputStream.read() == -1) {
-                        break;
-                    } else {
-                        throw new IOException("InputStream too large to read into array");
-                    }
-                }
-                // Can't double the size of the buffer, but increase it to max size
-                buf = Arrays.copyOf(buf, MAX_BUFFER_SIZE);
-            }
-        }
-        // Return buffer and number of bytes read
-        return totBytesRead == buf.length ? buf : Arrays.copyOf(buf, totBytesRead);
-    }
-
-    /**
-     * Read all the bytes in an {@link InputStream} as a byte array.
-     * 
-     * @param inputStream
-     *            The {@link InputStream}.
-     * @param fileSizeHint
-     *            The file size, if known, otherwise -1L.
-     * @return The contents of the {@link InputStream} as a byte array.
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long fileSizeHint)
-            throws IOException {
-        return readAllBytes(inputStream, fileSizeHint);
-    }
-
-    /**
-     * Read all the bytes in an {@link InputStream} as a {@link ByteBuffer}.
-     * 
-     * @param inputStream
-     *            The {@link InputStream}.
-     * @param fileSizeHint
-     *            The file size, if known, otherwise -1L.
-     * @return The contents of the {@link InputStream} as a {@link ByteBuffer}.
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    public static ByteBuffer readAllBytesAsByteBuffer(final InputStream inputStream, final long fileSizeHint)
-            throws IOException {
-        final byte[] buf = readAllBytes(inputStream, fileSizeHint);
-        return ByteBuffer.wrap(buf, 0, buf.length);
-    }
-
-    /**
-     * Read all the bytes in an {@link InputStream} as a String.
-     * 
-     * @param inputStream
-     *            The {@link InputStream}.
-     * @param fileSizeHint
-     *            The file size, if known, otherwise -1L.
-     * @return The contents of the {@link InputStream} as a String.
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    public static String readAllBytesAsString(final InputStream inputStream, final long fileSizeHint)
-            throws IOException {
-        final byte[] buf = readAllBytes(inputStream, fileSizeHint);
-        return new String(buf, 0, buf.length, StandardCharsets.UTF_8);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Produce an {@link InputStream} that is able to read from a {@link ByteBuffer}.
-     * 
-     * @param byteBuffer
-     *            The {@link ByteBuffer}.
-     * @return An {@link InputStream} that reads from the {@link ByteBuffer}.
-     */
-    public static InputStream byteBufferToInputStream(final ByteBuffer byteBuffer) {
-        // https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
-        return new InputStream() {
-            /** The intermediate buffer. */
-            final ByteBuffer buf = byteBuffer;
-
-            @Override
-            public int read() {
-                if (!buf.hasRemaining()) {
-                    return -1;
-                }
-                return buf.get() & 0xFF;
-            }
-
-            @Override
-            public int read(final byte[] bytes, final int off, final int len) {
-                if (!buf.hasRemaining()) {
-                    return -1;
-                }
-
-                final int bytesRead = Math.min(len, buf.remaining());
-                buf.get(bytes, off, bytesRead);
-                return bytesRead;
-            }
-        };
     }
 
     // -------------------------------------------------------------------------------------------------------------

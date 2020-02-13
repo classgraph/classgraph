@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -44,14 +45,13 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fastzipfilereader.ByteBufferWrapper;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
-import nonapi.io.github.classgraph.fastzipfilereader.MappedByteBufferResources;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.fileslice.FileSlice;
+import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A directory classpath element. */
@@ -155,23 +155,20 @@ class ClasspathElementDir extends ClasspathElement {
      * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
      *
      * @param relativePath
-     *            the relative path
-     * @param classpathResourceFile
-     *            the classpath resource file
+     *            the relative path of the resource
+     * @param resourceFile
+     *            the {@link File} for the resource
      * @param nestedJarHandler
      *            the nested jar handler
      * @param log
      *            the log
      * @return the resource
      */
-    private Resource newResource(final String relativePath, final File classpathResourceFile,
+    private Resource newResource(final String relativePath, final File resourceFile,
             final NestedJarHandler nestedJarHandler, final LogNode log) {
-        return new Resource(this, classpathResourceFile.length()) {
-            /** The {@link ByteBufferWrapper}, or null. */
-            protected ByteBufferWrapper byteBufferWrapper;
-
-            /** The mapped file. */
-            private MappedByteBufferResources mappedFileResources;
+        return new Resource(this, resourceFile.length()) {
+            /** The {@link RandomAccessFile} opened on the file. */
+            private RandomAccessFile raf;
 
             @Override
             public String getPath() {
@@ -185,7 +182,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public long getLastModified() {
-                return classpathResourceFile.lastModified();
+                return resourceFile.lastModified();
             }
 
             @SuppressWarnings("null")
@@ -193,8 +190,7 @@ class ClasspathElementDir extends ClasspathElement {
             public Set<PosixFilePermission> getPosixFilePermissions() {
                 Set<PosixFilePermission> posixFilePermissions = null;
                 try {
-                    posixFilePermissions = Files
-                            .readAttributes(classpathResourceFile.toPath(), PosixFileAttributes.class)
+                    posixFilePermissions = Files.readAttributes(resourceFile.toPath(), PosixFileAttributes.class)
                             .permissions();
                 } catch (UnsupportedOperationException | IOException | SecurityException e) {
                     // POSIX attributes not supported
@@ -202,114 +198,62 @@ class ClasspathElementDir extends ClasspathElement {
                 return posixFilePermissions;
             }
 
-            synchronized ByteBufferWrapper readWrapped() throws IOException {
+            @Override
+            public synchronized ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Parent directory could not be opened");
                 }
-                markAsOpen();
-                try {
-                    mappedFileResources = new MappedByteBufferResources(classpathResourceFile, nestedJarHandler,
-                            log);
-                    if (mappedFileResources.numChunks() > 1) {
-                        // We could provide another method that fetches a chunk other than chunk 0, but the need
-                        // to read files larger than 2GB is probably limited (it's not even supported for zipfiles),
-                        // and the caller can use an InputStream if necessary. 
-                        throw new IOException(
-                                "File is larger than 2GB -- cannot use read() method, use open() instead");
-                    }
-                    // Fetch chunk 0 (the first ~2GB of the file)
-                    byteBufferWrapper = mappedFileResources.getByteBuffer(0);
-                    return byteBufferWrapper;
-                } catch (final IOException | SecurityException | OutOfMemoryError e) {
-                    close();
-                    throw new IOException("Could not open " + this, e);
-                } catch (final InterruptedException e) {
-                    // Re-set interrupt status
-                    Thread.currentThread().interrupt();
-                    close();
-                    throw new IOException("Could not open " + this, e);
-                }
+                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
+                raf = fileSlice.raf;
+                byteBuffer = fileSlice.read();
+                return byteBuffer;
             }
 
             @Override
-            public synchronized ByteBuffer read() throws IOException {
-                try {
-                    readWrapped();
-                    final ByteBuffer buf = byteBufferWrapper.getByteBuffer();
-                    if (buf == null) {
-                        throw new IOException("Could not read resource as a ByteBuffer, because memory mapping "
-                                + "of files was disabled, or an OutOfMemoryError occurred while attempting to "
-                                + "map files");
-                    }
-                    byteBuffer = buf.duplicate();
-                    byteBuffer.position(0);
-                    length = byteBuffer.remaining();
-                    return byteBuffer;
-                } catch (final IOException | SecurityException | OutOfMemoryError e) {
-                    close();
-                    throw new IOException("Could not open " + this, e);
+            synchronized ClassfileReader openClassfile() throws IOException {
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Parent directory could not be opened");
                 }
-            }
-
-            @Override
-            synchronized InputStreamOrByteBufferAdapter openOrRead() throws IOException {
-                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
-                    return new InputStreamOrByteBufferAdapter(readWrapped());
-                } else {
-                    return new InputStreamOrByteBufferAdapter(inputStream = new InputStreamResourceCloser(this,
-                            Files.newInputStream(classpathResourceFile.toPath())));
-                }
+                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
+                raf = fileSlice.raf;
+                return new ClassfileReader(fileSlice);
             }
 
             @Override
             public synchronized InputStream open() throws IOException {
-                if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD && length <= FileUtils.MAX_BUFFER_SIZE) {
-                    read();
-                    return inputStream = new InputStreamResourceCloser(this, byteBufferToInputStream());
-                } else {
-                    markAsOpen();
-                    try {
-                        return inputStream = new InputStreamResourceCloser(this,
-                                Files.newInputStream(classpathResourceFile.toPath()));
-                    } catch (final IOException | SecurityException e) {
-                        close();
-                        throw new IOException("Could not open " + this, e);
-                    }
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Parent directory could not be opened");
                 }
+                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
+                raf = fileSlice.raf;
+                inputStream = fileSlice.open();
+                return inputStream;
             }
 
             @Override
             public synchronized byte[] load() throws IOException {
-                try {
-                    final byte[] byteArray;
-                    if (length > FileUtils.MAX_BUFFER_SIZE) {
-                        throw new IOException("File is larger than 2GB, cannot read into array");
-                    } else if (length >= FileUtils.FILECHANNEL_FILE_SIZE_THRESHOLD) {
-                        read();
-                        byteArray = byteBufferToByteArray();
-                    } else {
-                        open();
-                        byteArray = FileUtils.readAllBytesAsArray(inputStream, length);
-                    }
-                    length = byteArray.length;
-                    return byteArray;
-                } finally {
-                    close();
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Parent directory could not be opened");
                 }
+                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
+                raf = fileSlice.raf;
+                return fileSlice.load();
             }
 
             @Override
             public synchronized void close() {
                 super.close(); // Close inputStream
-                if (byteBufferWrapper != null) {
-                    byteBufferWrapper.close(/* log = */ null);
-                    byteBufferWrapper = null;
+                if (byteBuffer != null) {
+                    // All ByteBuffers should wrap arrays, so they don't need to be cleaned
                     byteBuffer = null;
                 }
-                if (mappedFileResources != null) {
-                    mappedFileResources.close(/* log = */ null);
-                    mappedFileResources = null;
+                if (raf != null) {
+                    nestedJarHandler.closeOpenFile(raf);
+                    raf = null;
                 }
                 markAsClosed();
             }

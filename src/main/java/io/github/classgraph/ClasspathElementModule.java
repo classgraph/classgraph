@@ -43,12 +43,12 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
+import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
-import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A module classpath element. */
@@ -165,8 +165,12 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            synchronized InputStreamOrByteBufferAdapter openOrRead() throws IOException {
-                return new InputStreamOrByteBufferAdapter(open());
+            synchronized ClassfileReader openClassfile() throws IOException {
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Module could not be opened");
+                }
+                return new ClassfileReader(open());
             }
 
             @Override
@@ -178,7 +182,7 @@ class ClasspathElementModule extends ClasspathElement {
                 markAsOpen();
                 try {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                    inputStream = new InputStreamResourceCloser(this, moduleReaderProxy.open(resourcePath));
+                    inputStream = moduleReaderProxy.open(resourcePath);
                     // Length cannot be obtained from ModuleReader
                     length = -1L;
                     return inputStream;
@@ -193,7 +197,14 @@ class ClasspathElementModule extends ClasspathElement {
             public synchronized byte[] load() throws IOException {
                 try {
                     read();
-                    final byte[] byteArray = byteBufferToByteArray();
+                    final byte[] byteArray;
+                    if (byteBuffer.hasArray() && byteBuffer.position() == 0
+                            && byteBuffer.limit() == byteBuffer.capacity()) {
+                        byteArray = byteBuffer.array();
+                    } else {
+                        byteArray = new byte[byteBuffer.remaining()];
+                        byteBuffer.get(byteArray);
+                    }
                     length = byteArray.length;
                     return byteArray;
                 } finally {
@@ -204,14 +215,11 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public synchronized void close() {
                 super.close(); // Close inputStream
-                if (byteBuffer != null) {
-                    if (moduleReaderProxy != null) {
+                if (moduleReaderProxy != null) {
+                    if (byteBuffer != null) {
                         // Release any open ByteBuffer
                         moduleReaderProxy.release(byteBuffer);
                     }
-                    byteBuffer = null;
-                }
-                if (moduleReaderProxy != null) {
                     // Recycle the (open) ModuleReaderProxy instance.
                     moduleReaderProxyRecycler.recycle(moduleReaderProxy);
                     // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.

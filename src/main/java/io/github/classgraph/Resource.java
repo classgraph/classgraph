@@ -42,8 +42,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
+import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
@@ -89,202 +88,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     public Resource(final ClasspathElement classpathElement, final long length) {
         this.classpathElement = classpathElement;
         this.length = length;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Create an {@link InputStream} from a {@link ByteBuffer}.
-     *
-     * @return the input stream
-     */
-    protected InputStream byteBufferToInputStream() {
-        return inputStream == null ? inputStream = FileUtils.byteBufferToInputStream(byteBuffer) : inputStream;
-    }
-
-    /**
-     * Create a {@link ByteBuffer} from an {@link InputStream}.
-     *
-     * @return the byte buffer
-     * @throws IOException
-     *             if an I/O exception occurs.
-     */
-    protected ByteBuffer inputStreamToByteBuffer() throws IOException {
-        return byteBuffer == null ? byteBuffer = ByteBuffer.wrap(inputStreamToByteArray()) : byteBuffer;
-    }
-
-    /**
-     * Read all bytes from an {@link InputStream} and return as a byte array.
-     *
-     * @return the contents of the {@link InputStream}.
-     * @throws IOException
-     *             if an I/O exception occurs.
-     */
-    protected byte[] inputStreamToByteArray() throws IOException {
-        return FileUtils.readAllBytesAsArray(inputStream, length);
-    }
-
-    /**
-     * Read/copy contents of a {@link ByteBuffer} as a byte array.
-     *
-     * @return the contents of the {@link ByteBuffer} as a byte array.
-     */
-    protected byte[] byteBufferToByteArray() {
-        if (byteBuffer.hasArray()) {
-            return byteBuffer.array();
-        } else {
-            final byte[] byteArray = new byte[byteBuffer.remaining()];
-            byteBuffer.get(byteArray);
-            return byteArray;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Class for closing the parent {@link Resource} when an {@link InputStream} opened on the resource is closed.
-     */
-    protected class InputStreamResourceCloser extends InputStream {
-
-        /** The input stream. */
-        private InputStream inputStream;
-
-        /** The parent resource. */
-        private Resource parentResource;
-
-        /**
-         * Constructor.
-         *
-         * @param parentResource
-         *            the parent resource
-         * @param inputStream
-         *            the input stream
-         * @throws IOException
-         *             if an I/O exception occurs.
-         */
-        protected InputStreamResourceCloser(final Resource parentResource, final InputStream inputStream)
-                throws IOException {
-            super();
-            if (inputStream == null) {
-                throw new IOException("InputStream cannot be null");
-            }
-            this.inputStream = inputStream;
-            this.parentResource = parentResource;
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#read()
-         */
-        @Override
-        public int read() throws IOException {
-            if (inputStream == null) {
-                throw new IOException("InputStream is not open");
-            }
-            return inputStream.read();
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#read(byte[], int, int)
-         */
-        @Override
-        public int read(final byte[] b, final int off, final int len) throws IOException {
-            if (inputStream == null) {
-                throw new IOException("InputStream is not open");
-            }
-            return inputStream.read(b, off, len);
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#read(byte[])
-         */
-        @Override
-        public int read(final byte[] b) throws IOException {
-            if (inputStream == null) {
-                throw new IOException("InputStream is not open");
-            }
-            return inputStream.read(b);
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#available()
-         */
-        @Override
-        public int available() throws IOException {
-            if (inputStream == null) {
-                throw new IOException("InputStream is not open");
-            }
-            return inputStream.available();
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#skip(long)
-         */
-        @Override
-        public long skip(final long n) throws IOException {
-            if (inputStream == null) {
-                throw new IOException("InputStream is not open");
-            }
-            return inputStream.skip(n);
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#markSupported()
-         */
-        @Override
-        public boolean markSupported() {
-            return inputStream.markSupported();
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#mark(int)
-         */
-        @Override
-        public synchronized void mark(final int readlimit) {
-            inputStream.mark(readlimit);
-        }
-
-        /* (non-Javadoc)
-         * @see java.io.InputStream#reset()
-         */
-        @Override
-        public synchronized void reset() throws IOException {
-            if (inputStream == null) {
-                throw new IOException("InputStream is not open");
-            }
-            inputStream.reset();
-        }
-
-        /**
-         * Close the wrapped InputStream, but don't close parent resource.
-         *
-         * @throws IOException
-         *             if an I/O exception occurs.
-         */
-        void closeInputStream() throws IOException {
-            if (inputStream != null) {
-                try {
-                    inputStream.close();
-                } catch (final IOException e) {
-                    // Ignore
-                }
-                inputStream = null;
-            }
-        }
-
-        /**
-         * Close the parent resource by calling {@link Resource#close()}, which will call
-         * {@link #closeInputStream()}.
-         *
-         * @throws IOException
-         *             if an I/O exception occurs.
-         */
-        @Override
-        public void close() throws IOException {
-            if (parentResource != null) {
-                parentResource.close();
-                parentResource = null;
-            }
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -490,14 +293,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     public abstract byte[] load() throws IOException;
 
     /**
-     * Open a {@link ByteBuffer}, if there is an efficient underlying mechanism for opening one, otherwise open an
-     * {@link InputStream}.
+     * Open a {@link ClassfileReader} on the resource (for reading classfiles).
      *
-     * @return the {@link InputStreamOrByteBufferAdapter}
+     * @return the {@link ClassfileReader}.
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    abstract InputStreamOrByteBufferAdapter openOrRead() throws IOException;
+    abstract ClassfileReader openClassfile() throws IOException;
 
     /**
      * Get the length of the resource.
@@ -591,11 +393,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         // Override in subclasses, and call super.close(), then at end, markAsClosed()
         if (inputStream != null) {
             try {
-                if (inputStream instanceof InputStreamResourceCloser) {
-                    ((InputStreamResourceCloser) inputStream).closeInputStream();
-                } else {
-                    inputStream.close();
-                }
+                inputStream.close();
             } catch (final IOException e) {
                 // Ignore
             }

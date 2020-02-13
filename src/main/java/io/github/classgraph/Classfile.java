@@ -41,10 +41,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
-import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -55,8 +55,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * sequence, to avoid re-allocating buffer memory.
  */
 class Classfile {
-    /** The InputStream or ByteBuffer for the current classfile. */
-    private InputStreamOrByteBufferAdapter inputStreamOrByteBuffer;
+    /** The {@link ClassfileReader} for the current classfile. */
+    private ClassfileReader reader;
 
     /** The classpath element that contains this classfile. */
     private final ClasspathElement classpathElement;
@@ -654,9 +654,15 @@ class Classfile {
     private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws ClassfileFormatException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
-        return constantPoolStringOffset == 0 ? null
-                : intern(inputStreamOrByteBuffer.readString(constantPoolStringOffset, replaceSlashWithDot,
-                        stripLSemicolon));
+        if (constantPoolStringOffset == 0) {
+            return null;
+        }
+        final int utfLen = reader.readUnsignedShort(constantPoolStringOffset);
+        if (utfLen == 0) {
+            return "";
+        }
+        return intern(
+                reader.readString(constantPoolStringOffset + 2, utfLen, replaceSlashWithDot, stripLSemicolon));
     }
 
     /**
@@ -676,9 +682,15 @@ class Classfile {
     private String getConstantPoolString(final int cpIdx, final int subFieldIdx)
             throws ClassfileFormatException, IOException {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
-        return constantPoolStringOffset == 0 ? null
-                : intern(inputStreamOrByteBuffer.readString(constantPoolStringOffset,
-                        /* replaceSlashWithDot = */ false, /* stripLSemicolon = */ false));
+        if (constantPoolStringOffset == 0) {
+            return null;
+        }
+        final int utfLen = reader.readUnsignedShort(constantPoolStringOffset);
+        if (utfLen == 0) {
+            return "";
+        }
+        return intern(reader.readString(constantPoolStringOffset + 2, utfLen, /* replaceSlashWithDot = */ false,
+                /* stripLSemicolon = */ false));
     }
 
     /**
@@ -712,11 +724,11 @@ class Classfile {
         if (constantPoolStringOffset == 0) {
             return '\0';
         }
-        final int utfLen = inputStreamOrByteBuffer.readUnsignedShort(constantPoolStringOffset);
+        final int utfLen = reader.readUnsignedShort(constantPoolStringOffset);
         if (utfLen == 0) {
             return '\0';
         }
-        return inputStreamOrByteBuffer.buf[constantPoolStringOffset + 2];
+        return reader.readByte(constantPoolStringOffset + 2);
     }
 
     /**
@@ -757,7 +769,7 @@ class Classfile {
      *
      * @param cpIdx
      *            the constant pool index
-     * @param asciiString
+     * @param asciiStr
      *            the ASCII string to compare to
      * @return true, if successful
      * @throws ClassfileFormatException
@@ -765,22 +777,24 @@ class Classfile {
      * @throws IOException
      *             If an IO exception occurs.
      */
-    private boolean constantPoolStringEquals(final int cpIdx, final String asciiString)
+    private boolean constantPoolStringEquals(final int cpIdx, final String asciiStr)
             throws ClassfileFormatException, IOException {
-        final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
-        if (strOffset == 0) {
-            return asciiString == null;
-        } else if (asciiString == null) {
+        final int cpStrOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
+        if (cpStrOffset == 0) {
+            return asciiStr == null;
+        } else if (asciiStr == null) {
             return false;
         }
-        final int strLen = inputStreamOrByteBuffer.readUnsignedShort(strOffset);
-        final int otherLen = asciiString.length();
-        if (strLen != otherLen) {
+        final int cpStrLen = reader.readUnsignedShort(cpStrOffset);
+        final int asciiStrLen = asciiStr.length();
+        if (cpStrLen != asciiStrLen) {
             return false;
         }
-        final int strStart = strOffset + 2;
-        for (int i = 0; i < strLen; i++) {
-            if ((char) (inputStreamOrByteBuffer.buf[strStart + i] & 0xff) != asciiString.charAt(i)) {
+        final int cpStrStart = cpStrOffset + 2;
+        reader.bufferTo(cpStrStart + cpStrLen);
+        final byte[] buf = reader.buf();
+        for (int i = 0; i < cpStrLen; i++) {
+            if ((char) (buf[cpStrStart + i] & 0xff) != asciiStr.charAt(i)) {
                 return false;
             }
         }
@@ -804,7 +818,7 @@ class Classfile {
                     + (cpCount - 1) + "] -- cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
-        return inputStreamOrByteBuffer.readUnsignedShort(entryOffset[cpIdx]);
+        return reader.readUnsignedShort(entryOffset[cpIdx]);
     }
 
     /**
@@ -822,7 +836,7 @@ class Classfile {
                     + (cpCount - 1) + "] -- cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
-        return inputStreamOrByteBuffer.readInt(entryOffset[cpIdx]);
+        return reader.readInt(entryOffset[cpIdx]);
     }
 
     /**
@@ -840,7 +854,7 @@ class Classfile {
                     + (cpCount - 1) + "] -- cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
-        return inputStreamOrByteBuffer.readLong(entryOffset[cpIdx]);
+        return reader.readLong(entryOffset[cpIdx]);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -913,14 +927,13 @@ class Classfile {
      */
     private AnnotationInfo readAnnotation() throws IOException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
-        final String annotationClassName = getConstantPoolClassDescriptor(
-                inputStreamOrByteBuffer.readUnsignedShort());
-        final int numElementValuePairs = inputStreamOrByteBuffer.readUnsignedShort();
+        final String annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
+        final int numElementValuePairs = reader.readUnsignedShort();
         AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
             paramVals = new AnnotationParameterValueList(numElementValuePairs);
             for (int i = 0; i < numElementValuePairs; i++) {
-                final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+                final String paramName = getConstantPoolString(reader.readUnsignedShort());
                 final Object paramValue = readAnnotationElementValue();
                 paramVals.add(new AnnotationParameterValue(paramName, paramValue));
             }
@@ -936,44 +949,42 @@ class Classfile {
      *             If an IO exception occurs.
      */
     private Object readAnnotationElementValue() throws IOException {
-        final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
+        final int tag = (char) reader.readUnsignedByte();
         switch (tag) {
         case 'B':
-            return (byte) cpReadInt(inputStreamOrByteBuffer.readUnsignedShort());
+            return (byte) cpReadInt(reader.readUnsignedShort());
         case 'C':
-            return (char) cpReadInt(inputStreamOrByteBuffer.readUnsignedShort());
+            return (char) cpReadInt(reader.readUnsignedShort());
         case 'D':
-            return Double.longBitsToDouble(cpReadLong(inputStreamOrByteBuffer.readUnsignedShort()));
+            return Double.longBitsToDouble(cpReadLong(reader.readUnsignedShort()));
         case 'F':
-            return Float.intBitsToFloat(cpReadInt(inputStreamOrByteBuffer.readUnsignedShort()));
+            return Float.intBitsToFloat(cpReadInt(reader.readUnsignedShort()));
         case 'I':
-            return cpReadInt(inputStreamOrByteBuffer.readUnsignedShort());
+            return cpReadInt(reader.readUnsignedShort());
         case 'J':
-            return cpReadLong(inputStreamOrByteBuffer.readUnsignedShort());
+            return cpReadLong(reader.readUnsignedShort());
         case 'S':
-            return (short) cpReadUnsignedShort(inputStreamOrByteBuffer.readUnsignedShort());
+            return (short) cpReadUnsignedShort(reader.readUnsignedShort());
         case 'Z':
-            return cpReadInt(inputStreamOrByteBuffer.readUnsignedShort()) != 0;
+            return cpReadInt(reader.readUnsignedShort()) != 0;
         case 's':
-            return getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+            return getConstantPoolString(reader.readUnsignedShort());
         case 'e': {
             // Return type is AnnotationEnumVal.
-            final String annotationClassName = getConstantPoolClassDescriptor(
-                    inputStreamOrByteBuffer.readUnsignedShort());
-            final String annotationConstName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+            final String annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
+            final String annotationConstName = getConstantPoolString(reader.readUnsignedShort());
             return new AnnotationEnumValue(annotationClassName, annotationConstName);
         }
         case 'c':
             // Return type is AnnotationClassRef (for class references in annotations)
-            final String classRefTypeDescriptor = getConstantPoolString(
-                    inputStreamOrByteBuffer.readUnsignedShort());
+            final String classRefTypeDescriptor = getConstantPoolString(reader.readUnsignedShort());
             return new AnnotationClassRef(classRefTypeDescriptor);
         case '@':
             // Complex (nested) annotation. Return type is AnnotationInfo.
             return readAnnotation();
         case '[':
             // Return type is Object[] (of nested annotation element values)
-            final int count = inputStreamOrByteBuffer.readUnsignedShort();
+            final int count = reader.readUnsignedShort();
             final Object[] arr = new Object[count];
             for (int i = 0; i < count; ++i) {
                 // Nested annotation element value
@@ -1005,7 +1016,7 @@ class Classfile {
         }
 
         // Read size of constant pool
-        cpCount = inputStreamOrByteBuffer.readUnsignedShort();
+        cpCount = reader.readUnsignedShort();
 
         // Allocate storage for constant pool
         entryOffset = new int[cpCount];
@@ -1020,29 +1031,29 @@ class Classfile {
                 skipSlot = 0;
                 continue;
             }
-            entryTag[i] = inputStreamOrByteBuffer.readUnsignedByte();
-            entryOffset[i] = inputStreamOrByteBuffer.curr;
+            entryTag[i] = reader.readUnsignedByte();
+            entryOffset[i] = reader.currPos();
             switch (entryTag[i]) {
             case 0: // Impossible, probably buffer underflow
                 throw new ClassfileFormatException("Unknown constant pool tag 0 in classfile " + relativePath
                         + " (possible buffer underflow issue). Please report this at "
                         + "https://github.com/classgraph/classgraph/issues");
             case 1: // Modified UTF8
-                final int strLen = inputStreamOrByteBuffer.readUnsignedShort();
-                inputStreamOrByteBuffer.skip(strLen);
+                final int strLen = reader.readUnsignedShort();
+                reader.skip(strLen);
                 break;
             case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
             case 4: // float
-                inputStreamOrByteBuffer.skip(4);
+                reader.skip(4);
                 break;
             case 5: // long
             case 6: // double
-                inputStreamOrByteBuffer.skip(8);
+                reader.skip(8);
                 skipSlot = 1; // double slot
                 break;
             case 7: // Class reference (format is e.g. "java/lang/String")
                 // Forward or backward indirect reference to a modified UTF8 entry
-                indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
+                indirectStringRefs[i] = reader.readUnsignedShort();
                 if (classNameCpIdxs != null) {
                     // If this is a class ref, and inter-class dependencies are enabled, record the dependency
                     classNameCpIdxs.add(indirectStringRefs[i]);
@@ -1050,44 +1061,44 @@ class Classfile {
                 break;
             case 8: // String
                 // Forward or backward indirect reference to a modified UTF8 entry
-                indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
+                indirectStringRefs[i] = reader.readUnsignedShort();
                 break;
             case 9: // field ref
                 // Refers to a class ref (case 7) and then a name and type (case 12)
-                inputStreamOrByteBuffer.skip(4);
+                reader.skip(4);
                 break;
             case 10: // method ref
                 // Refers to a class ref (case 7) and then a name and type (case 12)
-                inputStreamOrByteBuffer.skip(4);
+                reader.skip(4);
                 break;
             case 11: // interface method ref
                 // Refers to a class ref (case 7) and then a name and type (case 12)
-                inputStreamOrByteBuffer.skip(4);
+                reader.skip(4);
                 break;
             case 12: // name and type
-                final int nameRef = inputStreamOrByteBuffer.readUnsignedShort();
-                final int typeRef = inputStreamOrByteBuffer.readUnsignedShort();
+                final int nameRef = reader.readUnsignedShort();
+                final int typeRef = reader.readUnsignedShort();
                 if (typeSignatureIdxs != null) {
                     typeSignatureIdxs.add(typeRef);
                 }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
                 break;
             case 15: // method handle
-                inputStreamOrByteBuffer.skip(3);
+                reader.skip(3);
                 break;
             case 16: // method type
-                inputStreamOrByteBuffer.skip(2);
+                reader.skip(2);
                 break;
             case 18: // invoke dynamic
-                inputStreamOrByteBuffer.skip(4);
+                reader.skip(4);
                 break;
             case 19: // module (for module-info.class in JDK9+)
                 // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
-                indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
+                indirectStringRefs[i] = reader.readUnsignedShort();
                 break;
             case 20: // package (for module-info.class in JDK9+)
                 // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
-                inputStreamOrByteBuffer.skip(2);
+                reader.skip(2);
                 break;
             default:
                 throw new ClassfileFormatException("Unknown constant pool tag " + entryTag[i]
@@ -1166,13 +1177,13 @@ class Classfile {
      */
     private void readBasicClassInfo() throws IOException, ClassfileFormatException, SkipClassException {
         // Modifier flags
-        classModifiers = inputStreamOrByteBuffer.readUnsignedShort();
+        classModifiers = reader.readUnsignedShort();
 
         isInterface = (classModifiers & 0x0200) != 0;
         isAnnotation = (classModifiers & 0x2000) != 0;
 
         // The fully-qualified class name of this class, with slashes replaced with dots
-        final String classNamePath = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+        final String classNamePath = getConstantPoolString(reader.readUnsignedShort());
         if (classNamePath == null) {
             throw new ClassfileFormatException("Class name is null");
         }
@@ -1203,7 +1214,7 @@ class Classfile {
         }
 
         // Superclass name, with slashes replaced with dots
-        final int superclassNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+        final int superclassNameCpIdx = reader.readUnsignedShort();
         if (superclassNameCpIdx > 0) {
             superclassName = getConstantPoolClassName(superclassNameCpIdx);
         }
@@ -1219,9 +1230,9 @@ class Classfile {
      */
     private void readInterfaces() throws IOException {
         // Interfaces
-        final int interfaceCount = inputStreamOrByteBuffer.readUnsignedShort();
+        final int interfaceCount = reader.readUnsignedShort();
         for (int i = 0; i < interfaceCount; i++) {
-            final String interfaceName = getConstantPoolClassName(inputStreamOrByteBuffer.readUnsignedShort());
+            final String interfaceName = getConstantPoolClassName(reader.readUnsignedShort());
             if (implementedInterfaces == null) {
                 implementedInterfaces = new ArrayList<>();
             }
@@ -1241,28 +1252,28 @@ class Classfile {
      */
     private void readFields() throws IOException, ClassfileFormatException {
         // Fields
-        final int fieldCount = inputStreamOrByteBuffer.readUnsignedShort();
+        final int fieldCount = reader.readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
             // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
-            final int fieldModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
+            final int fieldModifierFlags = reader.readUnsignedShort();
             final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
             final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
             final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
                     && fieldIsVisible;
             if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field
-                inputStreamOrByteBuffer.readUnsignedShort(); // fieldNameCpIdx
-                inputStreamOrByteBuffer.readUnsignedShort(); // fieldTypeDescriptorCpIdx
-                final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
+                reader.readUnsignedShort(); // fieldNameCpIdx
+                reader.readUnsignedShort(); // fieldTypeDescriptorCpIdx
+                final int attributesCount = reader.readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
-                    inputStreamOrByteBuffer.readUnsignedShort(); // attributeNameCpIdx
-                    final int attributeLength = inputStreamOrByteBuffer.readInt(); // == 2
-                    inputStreamOrByteBuffer.skip(attributeLength);
+                    reader.readUnsignedShort(); // attributeNameCpIdx
+                    final int attributeLength = reader.readInt(); // == 2
+                    reader.skip(attributeLength);
                 }
             } else {
-                final int fieldNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                final int fieldNameCpIdx = reader.readUnsignedShort();
                 final String fieldName = getConstantPoolString(fieldNameCpIdx);
-                final int fieldTypeDescriptorCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                final int fieldTypeDescriptorCpIdx = reader.readUnsignedShort();
                 final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);
                 String fieldTypeDescriptor;
@@ -1271,16 +1282,16 @@ class Classfile {
 
                 Object fieldConstValue = null;
                 AnnotationInfoList fieldAnnotationInfo = null;
-                final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
+                final int attributesCount = reader.readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
-                    final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                    final int attributeLength = inputStreamOrByteBuffer.readInt(); // == 2
+                    final int attributeNameCpIdx = reader.readUnsignedShort();
+                    final int attributeLength = reader.readInt(); // == 2
                     // See if field name matches one of the requested names for this class, and if it does,
                     // check if it is initialized with a constant value
                     if ((getStaticFinalFieldConstValue)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        final int cpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                        final int cpIdx = reader.readUnsignedShort();
                         if (cpIdx < 1 || cpIdx >= cpCount) {
                             throw new ClassfileFormatException("Constant pool index " + cpIdx
                                     + ", should be in range [1, " + (cpCount - 1)
@@ -1290,13 +1301,13 @@ class Classfile {
                         fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
                     } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                        fieldTypeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+                        fieldTypeSignature = getConstantPoolString(reader.readUnsignedShort());
                     } else if (scanSpec.enableAnnotationInfo //
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                         // Read annotation names
-                        final int fieldAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
+                        final int fieldAnnotationCount = reader.readUnsignedShort();
                         if (fieldAnnotationCount > 0) {
                             if (fieldAnnotationInfo == null) {
                                 fieldAnnotationInfo = new AnnotationInfoList(1);
@@ -1308,7 +1319,7 @@ class Classfile {
                         }
                     } else {
                         // No match, just skip attribute
-                        inputStreamOrByteBuffer.skip(attributeLength);
+                        reader.skip(attributeLength);
                     }
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
@@ -1334,10 +1345,10 @@ class Classfile {
      */
     private void readMethods() throws IOException, ClassfileFormatException {
         // Methods
-        final int methodCount = inputStreamOrByteBuffer.readUnsignedShort();
+        final int methodCount = reader.readUnsignedShort();
         for (int i = 0; i < methodCount; i++) {
             // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
-            final int methodModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
+            final int methodModifierFlags = reader.readUnsignedShort();
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
 
@@ -1347,14 +1358,14 @@ class Classfile {
             // Always enable MethodInfo for annotations (this is how annotation constants are defined)
             final boolean enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
             if (enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
-                final int methodNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                final int methodNameCpIdx = reader.readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
-                final int methodTypeDescriptorCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                final int methodTypeDescriptorCpIdx = reader.readUnsignedShort();
                 methodTypeDescriptor = getConstantPoolString(methodTypeDescriptorCpIdx);
             } else {
-                inputStreamOrByteBuffer.skip(4); // name_index, descriptor_index
+                reader.skip(4); // name_index, descriptor_index
             }
-            final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
+            final int attributesCount = reader.readUnsignedShort();
             String[] methodParameterNames = null;
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
@@ -1363,20 +1374,20 @@ class Classfile {
             if (!methodIsVisible || (!enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
-                    inputStreamOrByteBuffer.skip(2); // attribute_name_index
-                    final int attributeLength = inputStreamOrByteBuffer.readInt();
-                    inputStreamOrByteBuffer.skip(attributeLength);
+                    reader.skip(2); // attribute_name_index
+                    final int attributeLength = reader.readInt();
+                    reader.skip(attributeLength);
                 }
             } else {
                 // Look for method annotations
                 for (int j = 0; j < attributesCount; j++) {
-                    final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                    final int attributeLength = inputStreamOrByteBuffer.readInt();
+                    final int attributeNameCpIdx = reader.readUnsignedShort();
+                    final int attributeLength = reader.readInt();
                     if (scanSpec.enableAnnotationInfo
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                        final int methodAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
+                        final int methodAnnotationCount = reader.readUnsignedShort();
                         if (methodAnnotationCount > 0) {
                             if (methodAnnotationInfo == null) {
                                 methodAnnotationInfo = new AnnotationInfoList(1);
@@ -1395,7 +1406,7 @@ class Classfile {
                         // annotations are given in separate attributes, so if both attributes are present,
                         // have to make the parameter annotation arrays larger when the second attribute is
                         // encountered).
-                        final int numParams = inputStreamOrByteBuffer.readUnsignedByte();
+                        final int numParams = reader.readUnsignedByte();
                         if (methodParameterAnnotations == null) {
                             methodParameterAnnotations = new AnnotationInfo[numParams][];
                         } else if (methodParameterAnnotations.length != numParams) {
@@ -1404,7 +1415,7 @@ class Classfile {
                                             + "and RuntimeInvisibleParameterAnnotations");
                         }
                         for (int paramIdx = 0; paramIdx < numParams; paramIdx++) {
-                            final int numAnnotations = inputStreamOrByteBuffer.readUnsignedShort();
+                            final int numAnnotations = reader.readUnsignedShort();
                             if (numAnnotations > 0) {
                                 int annStartIdx = 0;
                                 if (methodParameterAnnotations[paramIdx] != null) {
@@ -1424,18 +1435,18 @@ class Classfile {
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                         // Read method parameters. For Java, these are only produced in JDK8+, and only if the
                         // commandline switch `-parameters` is provided at compiletime.
-                        final int paramCount = inputStreamOrByteBuffer.readUnsignedByte();
+                        final int paramCount = reader.readUnsignedByte();
                         methodParameterNames = new String[paramCount];
                         methodParameterModifiers = new int[paramCount];
                         for (int k = 0; k < paramCount; k++) {
-                            final int cpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                            final int cpIdx = reader.readUnsignedShort();
                             // If the constant pool index is zero, then the parameter is unnamed => use null
                             methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
-                            methodParameterModifiers[k] = inputStreamOrByteBuffer.readUnsignedShort();
+                            methodParameterModifiers[k] = reader.readUnsignedShort();
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         // Add type params to method type signature
-                        methodTypeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+                        methodTypeSignature = getConstantPoolString(reader.readUnsignedShort());
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
                         if (annotationParamDefaultValues == null) {
                             annotationParamDefaultValues = new AnnotationParameterValueList();
@@ -1445,9 +1456,9 @@ class Classfile {
                                 readAnnotationElementValue()));
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
                         methodHasBody = true;
-                        inputStreamOrByteBuffer.skip(attributeLength);
+                        reader.skip(attributeLength);
                     } else {
-                        inputStreamOrByteBuffer.skip(attributeLength);
+                        reader.skip(attributeLength);
                     }
                 }
                 // Create MethodInfo
@@ -1475,15 +1486,15 @@ class Classfile {
      */
     private void readClassAttributes() throws IOException, ClassfileFormatException {
         // Class attributes (including class annotations, class type variables, module info, etc.)
-        final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
+        final int attributesCount = reader.readUnsignedShort();
         for (int i = 0; i < attributesCount; i++) {
-            final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-            final int attributeLength = inputStreamOrByteBuffer.readInt();
+            final int attributeNameCpIdx = reader.readUnsignedShort();
+            final int attributeLength = reader.readInt();
             if (scanSpec.enableAnnotationInfo //
                     && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                             || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                     attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                final int annotationCount = inputStreamOrByteBuffer.readUnsignedShort();
+                final int annotationCount = reader.readUnsignedShort();
                 if (annotationCount > 0) {
                     if (classAnnotations == null) {
                         classAnnotations = new AnnotationInfoList();
@@ -1493,12 +1504,12 @@ class Classfile {
                     }
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
-                final int numInnerClasses = inputStreamOrByteBuffer.readUnsignedShort();
+                final int numInnerClasses = reader.readUnsignedShort();
                 for (int j = 0; j < numInnerClasses; j++) {
-                    final int innerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                    final int outerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                    inputStreamOrByteBuffer.skip(2); // inner_name_idx
-                    final int innerClassAccessFlags = inputStreamOrByteBuffer.readUnsignedShort();
+                    final int innerClassInfoCpIdx = reader.readUnsignedShort();
+                    final int outerClassInfoCpIdx = reader.readUnsignedShort();
+                    reader.skip(2); // inner_name_idx
+                    final int innerClassAccessFlags = reader.readUnsignedShort();
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
                         final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
                         final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
@@ -1511,11 +1522,10 @@ class Classfile {
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 // Get class type signature, including type variables
-                typeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
+                typeSignature = getConstantPoolString(reader.readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
-                final String innermostEnclosingClassName = getConstantPoolClassName(
-                        inputStreamOrByteBuffer.readUnsignedShort());
-                final int enclosingMethodCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                final String innermostEnclosingClassName = getConstantPoolClassName(reader.readUnsignedShort());
+                final int enclosingMethodCpIdx = reader.readUnsignedShort();
                 String definingMethodName;
                 if (enclosingMethodCpIdx == 0) {
                     // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in
@@ -1535,13 +1545,13 @@ class Classfile {
                 // class
                 this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
-                final int moduleNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                final int moduleNameCpIdx = reader.readUnsignedShort();
                 classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);
                 // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
                 // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
-                inputStreamOrByteBuffer.skip(attributeLength - 2);
+                reader.skip(attributeLength - 2);
             } else {
-                inputStreamOrByteBuffer.skip(attributeLength);
+                reader.skip(attributeLength);
             }
         }
     }
@@ -1602,19 +1612,17 @@ class Classfile {
         this.scanSpec = scanSpec;
 
         try {
-            // Open classfile as a ByteBuffer or InputStream
-            inputStreamOrByteBuffer = classfileResource.openOrRead();
+            // Open a BufferedSequentialReader for the classfile
+            reader = classfileResource.openClassfile();
 
             // Check magic number
-            if (inputStreamOrByteBuffer.readInt() != 0xCAFEBABE) {
+            if (reader.readInt() != 0xCAFEBABE) {
                 throw new ClassfileFormatException("Classfile does not have correct magic number");
             }
 
-            // Read classfile minor version
-            inputStreamOrByteBuffer.readUnsignedShort();
-
-            // Read classfile major version
-            inputStreamOrByteBuffer.readUnsignedShort();
+            // Read classfile minor and major version
+            reader.readUnsignedShort();
+            reader.readUnsignedShort();
 
             // Read the constant pool
             readConstantPoolEntries();
@@ -1635,9 +1643,9 @@ class Classfile {
             readClassAttributes();
 
         } finally {
-            // Close ByteBuffer or InputStream
+            // Close BufferedSequentialReader
             classfileResource.close();
-            inputStreamOrByteBuffer = null;
+            reader = null;
         }
 
         // Write class info to log 

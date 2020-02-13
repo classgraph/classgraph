@@ -28,39 +28,35 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 
+import nonapi.io.github.classgraph.fileslice.ArraySlice;
+import nonapi.io.github.classgraph.fileslice.FileSlice;
+import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
-class PhysicalZipFile implements Closeable {
+class PhysicalZipFile {
     /** The {@link File} backing this {@link PhysicalZipFile}, if any. */
     private final File file;
 
     /** The path to the zipfile. */
     private final String path;
 
-    /** The byte buffer resources. */
-    private MappedByteBufferResources byteBufferResources;
+    /** The {@link Slice} for the zipfile. */
+    Slice slice;
 
     /** The nested jar handler. */
     NestedJarHandler nestedJarHandler;
 
-    /** True if the zipfile was deflated to RAM, rather than mapped from disk. */
-    boolean isDeflatedToRam;
-
-    /** Set to true once {@link #close()} has been called. */
-    private final AtomicBoolean closed = new AtomicBoolean(false);
+    /** The cached hashCode. */
+    private int hashCode;
 
     /**
      * Construct a {@link PhysicalZipFile} from a file on disk.
@@ -82,16 +78,14 @@ class PhysicalZipFile implements Closeable {
         this.file = file;
         this.nestedJarHandler = nestedJarHandler;
         this.path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
-
-        // Map the file to a ByteBuffer
-        this.byteBufferResources = new MappedByteBufferResources(file, nestedJarHandler, log);
+        this.slice = new FileSlice(file, nestedJarHandler);
     }
 
     /**
-     * Construct a {@link PhysicalZipFile} from a ByteBuffer in memory.
+     * Construct a {@link PhysicalZipFile} from a byte array.
      *
-     * @param byteBuffer
-     *            the byte buffer
+     * @param arr
+     *            the array containing the zipfile.
      * @param outermostFile
      *            the outermost file
      * @param path
@@ -101,23 +95,18 @@ class PhysicalZipFile implements Closeable {
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final ByteBuffer byteBuffer, final File outermostFile, final String path,
+    PhysicalZipFile(final byte[] arr, final File outermostFile, final String path,
             final NestedJarHandler nestedJarHandler) throws IOException {
         this.file = outermostFile;
         this.path = path;
         this.nestedJarHandler = nestedJarHandler;
-        this.isDeflatedToRam = true;
-
-        // Wrap the ByteBuffer
-        this.byteBufferResources = new MappedByteBufferResources(byteBuffer, nestedJarHandler);
-        if (this.byteBufferResources.length() == 0L) {
-            throw new IOException("Zipfile is empty: " + path);
-        }
+        this.slice = new ArraySlice(arr, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
+                nestedJarHandler);
     }
 
     /**
-     * Construct a {@link PhysicalZipFile} from an InputStream, which is downloaded to a {@link ByteBuffer} in RAM,
-     * or spilled to disk if the content of the InputStream is too large.
+     * Construct a {@link PhysicalZipFile} by reading from the {@link InputStream} to an array in RAM, or spill to
+     * disk if the {@link InputStream} is too long.
      *
      * @param inputStream
      *            the input stream
@@ -133,36 +122,15 @@ class PhysicalZipFile implements Closeable {
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final InputStream inputStream, final int inputStreamLengthHint, final String path,
-            final NestedJarHandler nestedJarHandler, final LogNode log)
-            throws IOException {
+    PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String path,
+            final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.path = path;
-        this.isDeflatedToRam = true;
-
-        // Wrap the ByteBuffer
-        this.byteBufferResources = new MappedByteBufferResources(inputStream, inputStreamLengthHint, path,
-                nestedJarHandler, log);
-        if (this.byteBufferResources.length() == 0L) {
-            throw new IOException("Zipfile is empty: " + path);
-        }
-        this.file = byteBufferResources.getMappedFile();
-    }
-
-    /**
-     * Get a chunk of the file, where chunkIdx denotes which 2GB chunk of the file to return (0 for the first 2GB of
-     * the file, or for files smaller than 2GB; 1 for the 2-4GB chunk, etc.).
-     * 
-     * @param chunkIdx
-     *            The index of the 2GB chunk to read
-     * @return The {@link MappedByteBuffer} for the requested file chunk, up to 2GB in size.
-     * @throws IOException
-     *             If the chunk could not be mmap'd.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
-     */
-    ByteBufferWrapper getByteBuffer(final int chunkIdx) throws IOException, InterruptedException {
-        return byteBufferResources.getByteBuffer(chunkIdx);
+        // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice.
+        // If it fails, the InputStream will be spilled to disk, resulting in a FileSlice.
+        this.slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(inputStream, /* tempFileBaseName = */ path,
+                inputStreamLengthHint, log);
+        this.file = this.slice instanceof FileSlice ? ((FileSlice) this.slice).file : null;
     }
 
     /**
@@ -191,14 +159,35 @@ class PhysicalZipFile implements Closeable {
      * wrapped.
      */
     public long length() {
-        return byteBufferResources.length();
+        return slice.sliceLength;
     }
 
-    /**
-     * Get the number of 2GB chunks that are available in this PhysicalZipFile.
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
      */
-    public int numChunks() {
-        return byteBufferResources.numChunks();
+    @Override
+    public int hashCode() {
+        if (hashCode == 0) {
+            hashCode = (file == null ? 0 : file.hashCode());
+            if (hashCode == 0) {
+                hashCode = 1;
+            }
+        }
+        return hashCode;
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
+    @Override
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof PhysicalZipFile)) {
+            return false;
+        }
+        final PhysicalZipFile other = (PhysicalZipFile) o;
+        return Objects.equals(file, other.file);
     }
 
     /* (non-Javadoc)
@@ -207,40 +196,5 @@ class PhysicalZipFile implements Closeable {
     @Override
     public String toString() {
         return path;
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#hashCode()
-     */
-    @Override
-    public int hashCode() {
-        return file == null ? 0 : file.hashCode();
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
-    @Override
-    public boolean equals(final Object obj) {
-        if (obj == this) {
-            return true;
-        } else if (!(obj instanceof PhysicalZipFile)) {
-            return false;
-        }
-        return Objects.equals(file, ((PhysicalZipFile) obj).file);
-    }
-
-    /* (non-Javadoc)
-     * @see java.io.Closeable#close()
-     */
-    @Override
-    public void close() {
-        if (!closed.getAndSet(true)) {
-            if (byteBufferResources != null) {
-                byteBufferResources.close(/* log = */ null);
-            }
-            byteBufferResources = null;
-            nestedJarHandler = null;
-        }
     }
 }

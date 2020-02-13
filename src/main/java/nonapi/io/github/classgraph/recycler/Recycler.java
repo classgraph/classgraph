@@ -112,11 +112,15 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      */
     public final void recycle(final T instance) {
         if (instance != null) {
-            usedInstances.remove(instance);
+            if (!usedInstances.remove(instance)) {
+                throw new IllegalArgumentException("Tried to recycle an instance that was not in use");
+            }
             if (instance instanceof Resettable) {
                 ((Resettable) instance).reset();
             }
-            unusedInstances.add(instance);
+            if (!unusedInstances.add(instance)) {
+                throw new IllegalArgumentException("Tried to recycle an instance twice");
+            }
         }
     }
 

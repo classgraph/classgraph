@@ -46,16 +46,15 @@ import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fastzipfilereader.ByteBufferWrapper;
 import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice;
+import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.InputStreamOrByteBufferAdapter;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
@@ -291,9 +290,6 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
         return new Resource(this, zipEntry.uncompressedSize) {
-            /** The {@link ByteBufferWrapper}, or null. */
-            protected ByteBufferWrapper byteBufferWrapper;
-
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.
@@ -360,92 +356,62 @@ class ClasspathElementZip extends ClasspathElement {
                 }
                 markAsOpen();
                 try {
-                    inputStream = new InputStreamResourceCloser(this, zipEntry.open());
+                    inputStream = zipEntry.getSlice().open();
                     length = zipEntry.uncompressedSize;
                     return inputStream;
 
                 } catch (final IOException e) {
                     close();
                     throw e;
-                } catch (final InterruptedException e) {
-                    close();
-                    nestedJarHandler.interruptionChecker.interrupt();
-                    throw new IOException(e);
                 }
             }
 
             @Override
-            synchronized InputStreamOrByteBufferAdapter openOrRead() throws IOException {
-                return new InputStreamOrByteBufferAdapter(open());
+            synchronized ClassfileReader openClassfile() throws IOException {
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Jarfile could not be opened");
+                }
+                return new ClassfileReader(open());
             }
 
             @Override
             public synchronized ByteBuffer read() throws IOException {
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Jarfile could not be opened");
+                }
                 try {
-                    if (zipEntry.canGetAsSlice()) {
-                        try {
-                            // For STORED entries that do not span multiple 2GB chunks, can create a
-                            // ByteBuffer slice directly from the entry
-                            markAsOpen();
-                            // compressedSize should have the same value as uncompressedSize for STORED
-                            // entries, but compressedSize is more reliable (uncompressedSize may be -1)
-                            length = zipEntry.compressedSize;
-                            byteBufferWrapper = zipEntry.getAsSlice();
-                            byteBuffer = byteBufferWrapper.getByteBuffer();
-                            if (byteBuffer == null) {
-                                throw new IOException(
-                                        "Could not read resource as a ByteBuffer, because memory mapping "
-                                                + "of files was disabled, or an OutOfMemoryError occurred while attempting to "
-                                                + "map files");
-                            }
-                            return byteBuffer;
-
-                        } catch (final IOException e) {
-                            close();
-                            throw e;
-                        } catch (final InterruptedException e) {
-                            close();
-                            nestedJarHandler.interruptionChecker.interrupt();
-                            throw new IOException(e);
-                        }
-
-                    } else {
-                        // Otherwise, decompress or extract the entry into a byte[] array,
-                        // then wrap in a ByteBuffer
-                        open();
-                        return inputStreamToByteBuffer();
-                    }
+                    byteBuffer = zipEntry.getSlice().read();
+                    length = byteBuffer.remaining();
+                    return byteBuffer;
                 } catch (final IOException e) {
                     close();
                     throw e;
-                } catch (final InterruptedException e) {
-                    close();
-                    nestedJarHandler.interruptionChecker.interrupt();
-                    throw new IOException(e);
                 }
             }
 
             @Override
             public synchronized byte[] load() throws IOException {
+                if (skipClasspathElement) {
+                    // Shouldn't happen
+                    throw new IOException("Jarfile could not be opened");
+                }
                 try {
-                    open();
-                    final byte[] byteArray = inputStreamToByteArray();
+                    final byte[] byteArray = zipEntry.getSlice().load();
                     length = byteArray.length;
                     return byteArray;
-                } finally {
+                } catch (final IOException e) {
                     close();
+                    throw e;
                 }
             }
 
             @Override
             public synchronized void close() {
                 super.close(); // Close inputStream
-                if (byteBufferWrapper != null) {
-                    byteBufferWrapper.close(/* log = */ null);
-                    byteBufferWrapper = null;
-                    byteBuffer = null;
-                }
                 if (byteBuffer != null) {
+                    // All ByteBuffers should wrap arrays, so they don't need to be cleaned
                     byteBuffer = null;
                 }
                 markAsClosed();
