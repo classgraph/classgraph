@@ -66,6 +66,7 @@ import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.recycler.Recycler;
+import nonapi.io.github.classgraph.recycler.Resettable;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -562,6 +563,40 @@ public class NestedJarHandler {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Wrapper class that allows an {@link Inflater} instance to be reset for reuse and then recycled by a
+     * {@link Recycler}.
+     */
+    private static class RecyclableInflater implements Resettable, AutoCloseable {
+        /**
+         * Create a new {@link Inflater} instance with the "nowrap" option (which is needed for zipfile entries).
+         */
+        private final Inflater inflater = new Inflater(/* nowrap = */ true);
+
+        /**
+         * Get the {@link Inflater} instance.
+         *
+         * @return the {@link Inflater} instance.
+         */
+        public Inflater getInflater() {
+            return inflater;
+        }
+
+        /**
+         * Called when an {@link Inflater} instance is recycled, to reset the inflater so it can accept new input.
+         */
+        @Override
+        public void reset() {
+            inflater.reset();
+        }
+
+        /** Called when the {@link Recycler} instance is closed, to destroy the {@link Inflater} instance. */
+        @Override
+        public void close() {
+            inflater.end();
+        }
+    }
+
+    /**
      * Wrap an {@link InputStream} with an {@link InflaterInputStream}, recycling the {@link Inflater} instance.
      *
      * @param rawInputStream
@@ -708,6 +743,8 @@ public class NestedJarHandler {
             }
         };
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
