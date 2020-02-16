@@ -40,6 +40,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
@@ -64,7 +65,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     protected long length;
 
     /** True if the resource is open. */
-    private boolean isOpen;
+    protected AtomicBoolean isOpen = new AtomicBoolean();
 
     /** The cached result of toString(). */
     private String toString;
@@ -88,26 +89,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     public Resource(final ClasspathElement classpathElement, final long length) {
         this.classpathElement = classpathElement;
         this.length = length;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Mark the resource as open.
-     *
-     * @throws IOException
-     *             If the resource is already open.
-     */
-    protected void markAsOpen() throws IOException {
-        if (isOpen) {
-            throw new IOException("Resource is already open -- cannot open it again without first calling close()");
-        }
-        isOpen = true;
-    }
-
-    /** Mark the resource as closed. */
-    protected void markAsClosed() {
-        isOpen = false;
     }
 
     // -------------------------------------------------------------------------------------------------------------

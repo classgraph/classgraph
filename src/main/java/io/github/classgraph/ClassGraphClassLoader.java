@@ -208,8 +208,12 @@ class ClassGraphClassLoader extends ClassLoader {
                 // Iterate through resources (only loading of first resource in the list will be attempted)
                 try {
                     // Load the content of the resource, and define a class from it
-                    final ByteBuffer resourceByteBuffer = resource.read();
-                    return defineClass(className, resourceByteBuffer, null);
+                    try {
+                        final ByteBuffer resourceByteBuffer = resource.read();
+                        return defineClass(className, resourceByteBuffer, null);
+                    } finally {
+                        resource.close();
+                    }
                 } catch (final IOException e) {
                     throw new ClassNotFoundException("Could not load classfile for class " + className + " : " + e);
                 } finally {

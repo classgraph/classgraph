@@ -256,11 +256,9 @@ public class ScanSpec {
     public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
 
     /**
-     * If true, use a {@link RandomAccessFile} rather than a {@link MappedByteBuffer} to open jarfiles, which is
-     * slower, but does not use up virtual memory space. You can disable memory mapping if you get
-     * {@link OutOfMemoryError} when scanning.
+     * If true, use a {@link MappedByteBuffer} rather than the {@link RandomAccessFile} API to access file content.
      */
-    public boolean disableMemoryMapping = false;
+    public boolean enableMemoryMapping;
 
     // -------------------------------------------------------------------------------------------------------------
 

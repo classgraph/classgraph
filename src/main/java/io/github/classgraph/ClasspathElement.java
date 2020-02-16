@@ -50,6 +50,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract class ClasspathElement {
+    /** The index of the classpath element within the classpath or module path. */
+    int classpathElementIdx;
+
     /**
      * If non-null, contains a list of resolved paths for any classpath element roots nested inside this classpath
      * element. (Scanning should stop at a nested classpath element root, otherwise that subtree will be scanned
@@ -343,26 +346,22 @@ abstract class ClasspathElement {
      *
      * @param workQueue
      *            the work queue
-     * @param classpathElementIdx
-     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      * @throws InterruptedException
      *             if the thread was interrupted while trying to open the classpath element.
      */
-    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathElementIdx,
-            final LogNode log) throws InterruptedException;
+    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log)
+            throws InterruptedException;
 
     /**
      * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for
      * whitelisted and non-blacklisted resources and classfiles.
      *
-     * @param classpathElementIdx
-     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
-    abstract void scanPaths(final int classpathElementIdx, final LogNode log);
+    abstract void scanPaths(final LogNode log);
 
     /**
      * Get the {@link Resource} for a given relative path.

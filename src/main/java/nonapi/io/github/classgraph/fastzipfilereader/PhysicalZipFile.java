@@ -78,7 +78,7 @@ class PhysicalZipFile {
         this.file = file;
         this.nestedJarHandler = nestedJarHandler;
         this.path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
-        this.slice = new FileSlice(file, nestedJarHandler);
+        this.slice = new FileSlice(file, nestedJarHandler, log);
     }
 
     /**

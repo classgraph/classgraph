@@ -355,9 +355,8 @@ public class NestedJarHandler {
         }
     };
 
-    /** {@link RandomAccessFile} instances that are currently open (typically one per classpath element). */
-    private Set<RandomAccessFile> openFiles = Collections
-            .newSetFromMap(new ConcurrentHashMap<RandomAccessFile, Boolean>());
+    /** {@link FileSlice} instances that are currently open. */
+    private Set<FileSlice> openFileSlices = Collections.newSetFromMap(new ConcurrentHashMap<FileSlice, Boolean>());
 
     /** Any temporary files created while scanning. */
     private Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<File, Boolean>());
@@ -459,35 +458,23 @@ public class NestedJarHandler {
     }
 
     /**
-     * Open a file as a {@link RandomAccessFile}.
+     * Mark a {@link FileSlice} as open.
      * 
-     * @param file
-     *            the file to open.
+     * @param fileSlice
+     *            the {@link FileSlice} that was just opened.
      */
-    public RandomAccessFile openFile(final File file) throws IOException {
-        try {
-            final RandomAccessFile raf = new RandomAccessFile(file, "r");
-            openFiles.add(raf);
-            return raf;
-        } catch (final SecurityException e) {
-            throw new IOException("Could not open file " + file + " : " + e.getMessage());
-        }
+    public void markFileSliceAsOpen(final FileSlice fileSlice) throws IOException {
+        openFileSlices.add(fileSlice);
     }
 
     /**
-     * Close an open {@link RandomAccessFile}, and remove it from the list of files to close when
-     * {@link #close(LogNode)} is called.
+     * Mark a {@link FileSlice} as closed.
      * 
-     * @param raf
-     *            the {@link RandomAccessFile} to close.
+     * @param fileSlice
+     *            the {@link FileSlice} to close.
      */
-    public void closeOpenFile(final RandomAccessFile raf) {
-        openFiles.remove(raf);
-        try {
-            raf.close();
-        } catch (final IOException e) {
-            // Ignore
-        }
+    public void markFileSliceAsClosed(final FileSlice fileSlice) {
+        openFileSlices.remove(fileSlice);
     }
 
     /**
@@ -605,7 +592,7 @@ public class NestedJarHandler {
                     return 0;
                 }
                 try {
-                    // Keep fetching data from rawInputStream until 
+                    // Keep fetching data from rawInputStream until buffer is full or inflater has finished
                     int totInflatedBytes = 0;
                     while (!inflater.finished() && totInflatedBytes < len) {
                         final int numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes,
@@ -826,7 +813,7 @@ public class NestedJarHandler {
         }
 
         // Return a new FileSlice for the temporary file
-        return new FileSlice(tempFile, this);
+        return new FileSlice(tempFile, this, log);
     }
 
     /**
@@ -842,10 +829,10 @@ public class NestedJarHandler {
      */
     public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
             throws IOException {
+        if (uncompressedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
+            throw new IOException("InputStream is too large to read");
+        }
         try (InputStream inptStream = inputStream) {
-            if (uncompressedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
-                throw new IOException("InputStream is too large to read");
-            }
             final int bufferSize = uncompressedLengthHint < 1L
                     // If fileSizeHint is zero or unknown, use default buffer size 
                     ? DEFAULT_BUFFER_SIZE
@@ -937,19 +924,15 @@ public class NestedJarHandler {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            if (openFiles != null) {
-                while (!openFiles.isEmpty()) {
-                    for (final RandomAccessFile openFile : new ArrayList<>(openFiles)) {
-                        try {
-                            openFile.close();
-                        } catch (final IOException e) {
-                            // Ignore
-                        }
-                        openFiles.remove(openFile);
+            if (openFileSlices != null) {
+                while (!openFileSlices.isEmpty()) {
+                    for (final FileSlice fileSlice : new ArrayList<>(openFileSlices)) {
+                        fileSlice.close();
+                        markFileSliceAsClosed(fileSlice);
                     }
                 }
-                openFiles.clear();
-                openFiles = null;
+                openFileSlices.clear();
+                openFileSlices = null;
             }
             if (inflaterRecycler != null) {
                 inflaterRecycler.forceClose();

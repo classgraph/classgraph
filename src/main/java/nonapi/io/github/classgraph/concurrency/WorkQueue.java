@@ -104,14 +104,11 @@ public class WorkQueue<T> implements AutoCloseable {
      *            The type of work unit to process.
      */
     public interface WorkUnitProcessor<T> {
-
         /**
          * Process a work unit.
          *
          * @param workUnit
          *            The work unit.
-         * @param workUnitIndex
-         *            the index of the work unit from the original start of the work queue.
          * @param workQueue
          *            The work queue.
          * @param log
@@ -119,8 +116,7 @@ public class WorkQueue<T> implements AutoCloseable {
          * @throws InterruptedException
          *             If the worker thread is interrupted.
          */
-        void processWorkUnit(T workUnit, int workUnitIndex, WorkQueue<T> workQueue, LogNode log)
-                throws InterruptedException;
+        void processWorkUnit(T workUnit, WorkQueue<T> workQueue, LogNode log) throws InterruptedException;
     }
 
     /**
@@ -174,7 +170,7 @@ public class WorkQueue<T> implements AutoCloseable {
      * @param workUnitProcessor
      *            the work unit processor
      * @param numWorkers
-     *            the num workers
+     *            the number of workers
      * @param interruptionChecker
      *            the interruption checker
      * @param log
@@ -232,7 +228,7 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private void runWorkLoop() throws InterruptedException, ExecutionException {
         // Get next work unit from queue
-        for (int workUnitIdx = 0;; workUnitIdx++) {
+        for (;;) {
             // Check for interruption
             interruptionChecker.check();
 
@@ -247,7 +243,7 @@ public class WorkQueue<T> implements AutoCloseable {
             // Process the work unit
             try {
                 // Process the work unit (may throw InterruptedException) 
-                workUnitProcessor.processWorkUnit(workUnitWrapper.workUnit, workUnitIdx, this, log);
+                workUnitProcessor.processWorkUnit(workUnitWrapper.workUnit, this, log);
 
             } catch (InterruptedException | OutOfMemoryError e) {
                 // On InterruptedException or OutOfMemoryError, drain work queue, send poison pills, and re-throw

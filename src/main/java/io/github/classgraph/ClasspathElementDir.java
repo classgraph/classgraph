@@ -31,7 +31,6 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -93,7 +92,7 @@ class ClasspathElementDir extends ClasspathElement {
      * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathElementIdx, final LogNode log) {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
                 log(classpathElementIdx,
@@ -167,8 +166,8 @@ class ClasspathElementDir extends ClasspathElement {
     private Resource newResource(final String relativePath, final File resourceFile,
             final NestedJarHandler nestedJarHandler, final LogNode log) {
         return new Resource(this, resourceFile.length()) {
-            /** The {@link RandomAccessFile} opened on the file. */
-            private RandomAccessFile raf;
+            /** The {@link FileSlice} opened on the file. */
+            private FileSlice fileSlice;
 
             @Override
             public String getPath() {
@@ -199,63 +198,81 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
-            public synchronized ByteBuffer read() throws IOException {
+            public ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Parent directory could not be opened");
                 }
-                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
-                raf = fileSlice.raf;
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
+                }
+                fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
+                length = fileSlice.sliceLength;
                 byteBuffer = fileSlice.read();
                 return byteBuffer;
             }
 
             @Override
-            synchronized ClassfileReader openClassfile() throws IOException {
+            ClassfileReader openClassfile() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Parent directory could not be opened");
                 }
-                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
-                raf = fileSlice.raf;
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
+                }
+                // Classfile won't be compressed, so wrap it in a new FileSlice and then open it
+                fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
+                length = fileSlice.sliceLength;
                 return new ClassfileReader(fileSlice);
             }
 
             @Override
-            public synchronized InputStream open() throws IOException {
+            public InputStream open() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Parent directory could not be opened");
                 }
-                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
-                raf = fileSlice.raf;
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
+                }
+                fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
                 inputStream = fileSlice.open();
+                length = fileSlice.sliceLength;
                 return inputStream;
             }
 
             @Override
-            public synchronized byte[] load() throws IOException {
-                if (skipClasspathElement) {
-                    // Shouldn't happen
-                    throw new IOException("Parent directory could not be opened");
+            public byte[] load() throws IOException {
+                try {
+                    read();
+                    fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
+                    final byte[] bytes = fileSlice.load();
+                    length = bytes.length;
+                    return bytes;
+                } finally {
+                    close();
                 }
-                final FileSlice fileSlice = new FileSlice(resourceFile, nestedJarHandler);
-                raf = fileSlice.raf;
-                return fileSlice.load();
             }
 
             @Override
-            public synchronized void close() {
+            public void close() {
                 super.close(); // Close inputStream
-                if (byteBuffer != null) {
-                    // All ByteBuffers should wrap arrays, so they don't need to be cleaned
-                    byteBuffer = null;
+                if (isOpen.get()) {
+                    if (byteBuffer != null) {
+                        // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
+                        byteBuffer = null;
+                    }
+                    if (fileSlice != null) {
+                        fileSlice.close();
+                        nestedJarHandler.markFileSliceAsClosed(fileSlice);
+                        fileSlice = null;
+                    }
+                    isOpen.getAndSet(false);
                 }
-                if (raf != null) {
-                    nestedJarHandler.closeOpenFile(raf);
-                    raf = null;
-                }
-                markAsClosed();
             }
         };
     }
@@ -431,13 +448,11 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Hierarchically scan directory structure for classfiles and matching files.
      *
-     * @param classpathElementIdx
-     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
     @Override
-    void scanPaths(final int classpathElementIdx, final LogNode log) {
+    void scanPaths(final LogNode log) {
         if (skipClasspathElement) {
             return;
         }

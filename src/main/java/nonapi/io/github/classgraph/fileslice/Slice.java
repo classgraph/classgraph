@@ -234,7 +234,7 @@ public abstract class Slice {
     @Override
     public int hashCode() {
         if (hashCode == 0) {
-            hashCode = (parentSlice == null ? 1 : parentSlice.hashCode) ^ ((int) sliceStartPos * 7)
+            hashCode = (parentSlice == null ? 1 : parentSlice.hashCode()) ^ ((int) sliceStartPos * 7)
                     ^ ((int) sliceLength * 15);
             if (hashCode == 0) {
                 hashCode = 1;

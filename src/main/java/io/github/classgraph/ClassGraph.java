@@ -1128,14 +1128,13 @@ public class ClassGraph {
     }
 
     /**
-     * If true, use a {@link RandomAccessFile} rather than a {@link MappedByteBuffer} to open jarfiles, which is
-     * slower, but does not use up virtual memory space. You can call this method to disable memory mapping if you
-     * run into an {@link OutOfMemoryError} when scanning.
+     * If true, use a {@link MappedByteBuffer} rather than the {@link RandomAccessFile} API to open files, which may
+     * be faster, but uses up virtual memory space.
      * 
      * @return this (for method chaining).
      */
-    public ClassGraph disableMemoryMapping() {
-        scanSpec.disableMemoryMapping = true;
+    public ClassGraph enableMemoryMapping() {
+        scanSpec.enableMemoryMapping = true;
         return this;
     }
 

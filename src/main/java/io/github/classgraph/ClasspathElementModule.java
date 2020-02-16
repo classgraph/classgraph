@@ -90,8 +90,8 @@ class ClasspathElementModule extends ClasspathElement {
      * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final int classpathElementIdx,
-            final LogNode log) throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log)
+            throws InterruptedException {
         if (!scanSpec.scanModules) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
@@ -144,12 +144,15 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public synchronized ByteBuffer read() throws IOException {
+            public ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Module could not be opened");
                 }
-                markAsOpen();
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
+                }
                 try {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
                     // ModuleReader#read(String name) internally calls:
@@ -165,21 +168,20 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            synchronized ClassfileReader openClassfile() throws IOException {
-                if (skipClasspathElement) {
-                    // Shouldn't happen
-                    throw new IOException("Module could not be opened");
-                }
+            ClassfileReader openClassfile() throws IOException {
                 return new ClassfileReader(open());
             }
 
             @Override
-            public synchronized InputStream open() throws IOException {
+            public InputStream open() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Module could not be opened");
                 }
-                markAsOpen();
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
+                }
                 try {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
                     inputStream = moduleReaderProxy.open(resourcePath);
@@ -194,7 +196,7 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public synchronized byte[] load() throws IOException {
+            public byte[] load() throws IOException {
                 try {
                     read();
                     final byte[] byteArray;
@@ -213,21 +215,22 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public synchronized void close() {
+            public void close() {
                 super.close(); // Close inputStream
-                if (moduleReaderProxy != null) {
-                    if (byteBuffer != null) {
-                        // Release any open ByteBuffer
-                        moduleReaderProxy.release(byteBuffer);
+                if (isOpen.get()) {
+                    if (moduleReaderProxy != null) {
+                        if (byteBuffer != null) {
+                            // Release any open ByteBuffer
+                            moduleReaderProxy.release(byteBuffer);
+                        }
+                        // Recycle the (open) ModuleReaderProxy instance.
+                        moduleReaderProxyRecycler.recycle(moduleReaderProxy);
+                        // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
+                        // Just set the ref to null here. The ModuleReaderProxy will be closed by
+                        // ClasspathElementModule#close().
+                        moduleReaderProxy = null;
                     }
-                    // Recycle the (open) ModuleReaderProxy instance.
-                    moduleReaderProxyRecycler.recycle(moduleReaderProxy);
-                    // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
-                    // Just set the ref to null here. The ModuleReaderProxy will be closed by
-                    // ClasspathElementModule#close().
-                    moduleReaderProxy = null;
                 }
-                markAsClosed();
             }
         };
     }
@@ -254,7 +257,7 @@ class ClasspathElementModule extends ClasspathElement {
      *            the log
      */
     @Override
-    void scanPaths(final int classpathElementIdx, final LogNode log) {
+    void scanPaths(final LogNode log) {
         if (skipClasspathElement) {
             return;
         }

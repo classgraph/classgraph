@@ -110,8 +110,7 @@ class ClasspathElementZip extends ClasspathElement {
      * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final int classpathElementIdx, final LogNode log)
-            throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) throws InterruptedException {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping classpath element, since jar scanning is disabled: " + rawPath,
@@ -349,12 +348,15 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public synchronized InputStream open() throws IOException {
+            public InputStream open() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Jarfile could not be opened");
                 }
-                markAsOpen();
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
+                }
                 try {
                     inputStream = zipEntry.getSlice().open();
                     length = zipEntry.uncompressedSize;
@@ -367,19 +369,19 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            synchronized ClassfileReader openClassfile() throws IOException {
-                if (skipClasspathElement) {
-                    // Shouldn't happen
-                    throw new IOException("Jarfile could not be opened");
-                }
+            ClassfileReader openClassfile() throws IOException {
                 return new ClassfileReader(open());
             }
 
             @Override
-            public synchronized ByteBuffer read() throws IOException {
+            public ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Jarfile could not be opened");
+                }
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
                 }
                 try {
                     byteBuffer = zipEntry.getSlice().read();
@@ -392,29 +394,34 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public synchronized byte[] load() throws IOException {
+            public byte[] load() throws IOException {
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Jarfile could not be opened");
+                }
+                if (isOpen.getAndSet(true)) {
+                    throw new IOException(
+                            "Resource is already open -- cannot open it again without first calling close()");
                 }
                 try {
                     final byte[] byteArray = zipEntry.getSlice().load();
                     length = byteArray.length;
                     return byteArray;
-                } catch (final IOException e) {
+                } finally {
                     close();
-                    throw e;
                 }
             }
 
             @Override
-            public synchronized void close() {
+            public void close() {
                 super.close(); // Close inputStream
-                if (byteBuffer != null) {
-                    // All ByteBuffers should wrap arrays, so they don't need to be cleaned
-                    byteBuffer = null;
+                if (isOpen.getAndSet(false)) {
+                    if (byteBuffer != null) {
+                        // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't
+                        // need to be unmapped
+                        byteBuffer = null;
+                    }
                 }
-                markAsClosed();
             }
         };
     }
@@ -435,13 +442,11 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Scan for path matches within jarfile, and record ZipEntry objects of matching files.
      *
-     * @param classpathElementIdx
-     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
     @Override
-    void scanPaths(final int classpathElementIdx, final LogNode log) {
+    void scanPaths(final LogNode log) {
         if (logicalZipFile == null) {
             skipClasspathElement = true;
         }

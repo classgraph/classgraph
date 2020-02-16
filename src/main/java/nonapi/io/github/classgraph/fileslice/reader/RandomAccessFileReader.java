@@ -63,13 +63,14 @@ public class RandomAccessFileReader implements RandomAccessReader {
             return 0;
         }
         try {
-            if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength) {
+            if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
                 throw new IOException("Read index out of bounds");
             }
             final long srcStart = sliceStartPos + srcOffset;
             dstBuf.position(dstBufStart);
             dstBuf.limit(dstBufStart + numBytes);
-            return fileChannel.read(dstBuf, srcStart);
+            final int numBytesRead = fileChannel.read(dstBuf, srcStart);
+            return numBytesRead == 0 ? -1 : numBytesRead;
 
         } catch (BufferUnderflowException | IndexOutOfBoundsException e) {
             throw new IOException("Read index out of bounds");
@@ -83,6 +84,9 @@ public class RandomAccessFileReader implements RandomAccessReader {
             return 0;
         }
         try {
+            if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
+                throw new IOException("Read index out of bounds");
+            }
             if (reusableByteBuffer == null || reusableByteBuffer.array() != dstArr) {
                 // If reusableByteBuffer is not set, or wraps a different array from a previous operation,
                 // wrap dstArr with a new ByteBuffer
