@@ -1129,7 +1129,7 @@ public class ClassGraph {
 
     /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to open files, which may be
-     * faster, but uses up virtual memory space.
+     * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space.
      * 
      * @return this (for method chaining).
      */
