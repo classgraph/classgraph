@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -104,8 +105,8 @@ public class FileSlice extends Slice implements Closeable {
         if (parentSlice.backingByteBuffer != null) {
             // Duplicate and slice the backing byte buffer, if there is one
             this.backingByteBuffer = parentSlice.backingByteBuffer.duplicate();
-            this.backingByteBuffer.position((int) sliceStartPos);
-            this.backingByteBuffer.limit((int) (sliceStartPos + sliceLength));
+            ((Buffer) this.backingByteBuffer).position((int) sliceStartPos);
+            ((Buffer) this.backingByteBuffer).limit((int) (sliceStartPos + sliceLength));
         }
 
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since

@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.fileslice.reader;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
@@ -102,8 +103,8 @@ public class RandomAccessArrayReader implements RandomAccessReader {
                 return -1;
             }
             final int srcStart = (int) (sliceStartPos + srcOffset);
-            dstBuf.position(dstBufStart);
-            dstBuf.limit(dstBufStart + numBytesToRead);
+            ((Buffer) dstBuf).position(dstBufStart);
+            ((Buffer) dstBuf).limit(dstBufStart + numBytesToRead);
             dstBuf.put(arr, srcStart, numBytesToRead);
             return numBytesToRead;
         } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {

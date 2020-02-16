@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.fileslice.reader;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -90,8 +91,8 @@ public class RandomAccessFileReader implements RandomAccessReader {
                 throw new IOException("Read index out of bounds");
             }
             final long srcStart = sliceStartPos + srcOffset;
-            dstBuf.position(dstBufStart);
-            dstBuf.limit(dstBufStart + numBytes);
+            ((Buffer) dstBuf).position(dstBufStart);
+            ((Buffer) dstBuf).limit(dstBufStart + numBytes);
             final int numBytesRead = fileChannel.read(dstBuf, srcStart);
             return numBytesRead == 0 ? -1 : numBytesRead;
 

@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.fileslice.reader;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -66,8 +67,8 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         this.byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         this.sliceStartPos = (int) sliceStartPos;
         this.sliceLength = (int) sliceLength;
-        this.byteBuffer.position(this.sliceStartPos);
-        this.byteBuffer.limit(this.sliceStartPos + this.sliceLength);
+        ((Buffer) this.byteBuffer).position(this.sliceStartPos);
+        ((Buffer) this.byteBuffer).limit(this.sliceStartPos + this.sliceLength);
     }
 
     @Override
@@ -85,9 +86,9 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
                 return -1;
             }
             final int srcStart = (int) srcOffset;
-            byteBuffer.position(sliceStartPos + srcStart);
+            ((Buffer) byteBuffer).position(sliceStartPos + srcStart);
             byteBuffer.get(dstArr, dstArrStart, numBytesToRead);
-            byteBuffer.position(sliceStartPos);
+            ((Buffer) byteBuffer).position(sliceStartPos);
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
             throw new IOException("Read index out of bounds");
@@ -109,12 +110,12 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
                 return -1;
             }
             final int srcStart = (int) (sliceStartPos + srcOffset);
-            byteBuffer.position(srcStart);
-            dstBuf.position(dstBufStart);
-            dstBuf.limit(dstBufStart + numBytesToRead);
+            ((Buffer) byteBuffer).position(srcStart);
+            ((Buffer) dstBuf).position(dstBufStart);
+            ((Buffer) dstBuf).limit(dstBufStart + numBytesToRead);
             dstBuf.put(byteBuffer);
-            byteBuffer.limit(sliceStartPos + sliceLength);
-            byteBuffer.position(sliceStartPos);
+            ((Buffer) byteBuffer).limit(sliceStartPos + sliceLength);
+            ((Buffer) byteBuffer).position(sliceStartPos);
             return numBytesToRead;
         } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {
             throw new IOException("Read index out of bounds");
