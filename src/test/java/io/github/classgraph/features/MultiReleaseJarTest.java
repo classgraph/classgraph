@@ -35,7 +35,8 @@ public class MultiReleaseJarTest {
     public void multiReleaseJar() throws Exception {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
             // Multi-release jar sections are ignored by ClassGraph if JDK<9 
-            System.out.println("Skipping test, as JDK version is less than 9");
+            System.err.println("Skipping multi-release jar test, as JDK version " + VersionFinder.JAVA_VERSION
+                    + " is less than 9");
         } else {
             try (ScanResult scanResult = new ClassGraph()
                     .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).enableAllInfo().scan()) {
@@ -74,10 +75,8 @@ public class MultiReleaseJarTest {
      */
     @Test
     public void multiReleaseVersioningOfResources() throws Exception {
-        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
-            // Multi-release jar sections are ignored by ClassGraph if JDK<9 
-            System.out.println("Skipping test, as JDK version is less than 9");
-        } else {
+        // Multi-release jar sections are ignored by ClassGraph if JDK<9 
+        if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
             try (ScanResult scanResult = new ClassGraph()
                     .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
                     .whitelistPaths("nonexistent_path").scan()) {
