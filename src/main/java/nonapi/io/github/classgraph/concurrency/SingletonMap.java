@@ -249,7 +249,9 @@ public abstract class SingletonMap<K, V, E extends Exception> {
 
     /**
      * Remove the singleton for a given key.
-     * 
+     *
+     * @param key
+     *            the key
      * @return the old singleton from the map, if one was present, otherwise null.
      * @throws InterruptedException
      *             if interrupted.

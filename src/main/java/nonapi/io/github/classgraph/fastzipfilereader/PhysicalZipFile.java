@@ -157,6 +157,8 @@ class PhysicalZipFile {
     /**
      * Get the length of the mapped file, or the initial remaining bytes in the wrapped ByteBuffer if a buffer was
      * wrapped.
+     *
+     * @return the length of the mapped file
      */
     public long length() {
         return slice.sliceLength;

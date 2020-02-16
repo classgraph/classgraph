@@ -41,7 +41,23 @@ public class ArraySlice extends Slice {
     /** The wrapped byte array. */
     public byte[] arr;
 
-    /** Constructor. */
+    /**
+     * Constructor for treating a range of an array as a slice.
+     *
+     * @param parentSlice
+     *            the parent slice
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     */
     private ArraySlice(final ArraySlice parentSlice, final long offset, final long length,
             final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) {
@@ -49,13 +65,39 @@ public class ArraySlice extends Slice {
         this.arr = parentSlice.arr;
     }
 
-    /** Constructor. */
+    /**
+     * Constructor for treating a whole array as a slice.
+     *
+     * @param arr
+     *            the array containing the slice.
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     */
     public ArraySlice(final byte[] arr, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) {
         super(arr.length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
         this.arr = arr;
     }
 
+    /**
+     * Slice this slice to form a sub-slice.
+     *
+     * @param offset
+     *            the offset relative to the start of this slice to use as the start of the sub-slice.
+     * @param length
+     *            the length of the sub-slice.
+     * @param isDeflatedZipEntry
+     *            the is deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @return the slice
+     */
     @Override
     public Slice slice(final long offset, final long length, final boolean isDeflatedZipEntry,
             final long inflatedLengthHint) {
@@ -65,6 +107,13 @@ public class ArraySlice extends Slice {
         return new ArraySlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
     }
 
+    /**
+     * Load the slice as a byte array.
+     *
+     * @return the byte[]
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Override
     public byte[] load() throws IOException {
         if (isDeflatedZipEntry) {
@@ -81,6 +130,11 @@ public class ArraySlice extends Slice {
         }
     }
 
+    /**
+     * Return a new random access reader.
+     *
+     * @return the random access reader
+     */
     @Override
     public RandomAccessReader randomAccessReader() {
         return new RandomAccessArrayReader(arr, (int) sliceStartPos, (int) sliceLength);

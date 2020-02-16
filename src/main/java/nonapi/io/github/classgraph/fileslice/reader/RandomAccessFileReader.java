@@ -41,15 +41,38 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * format.
  */
 public class RandomAccessFileReader implements RandomAccessReader {
+
+    /** The file channel. */
     private final FileChannel fileChannel;
+
+    /** The slice start pos. */
     private final long sliceStartPos;
+
+    /** The slice length. */
     private final long sliceLength;
+
+    /** The reusable byte buffer. */
     private ByteBuffer reusableByteBuffer;
+
+    /** The scratch arr. */
     private final byte[] scratchArr = new byte[8];
+
+    /** The scratch byte buf. */
     private final ByteBuffer scratchByteBuf = ByteBuffer.wrap(scratchArr);
+
+    /** The utf 8 bytes. */
     private byte[] utf8Bytes;
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * @param fileChannel
+     *            the file channel
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
+     */
     public RandomAccessFileReader(final FileChannel fileChannel, final long sliceStartPos, final long sliceLength) {
         this.fileChannel = fileChannel;
         this.sliceStartPos = sliceStartPos;
@@ -100,7 +123,6 @@ public class RandomAccessFileReader implements RandomAccessReader {
         }
     }
 
-    @Override
     public byte readByte(final long offset) throws IOException {
         if (read(offset, scratchByteBuf, 0, 1) < 1) {
             throw new IOException("Premature EOF");

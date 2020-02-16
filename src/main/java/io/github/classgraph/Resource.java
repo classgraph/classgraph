@@ -337,6 +337,11 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         }
     }
 
+    /**
+     * Hash code.
+     *
+     * @return the int
+     */
     /* (non-Javadoc)
      * @see java.lang.Object#hashCode()
      */
@@ -345,6 +350,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         return toString().hashCode();
     }
 
+    /**
+     * Equals.
+     *
+     * @param obj the obj
+     * @return true, if successful
+     */
     /* (non-Javadoc)
      * @see java.lang.Object#equals(java.lang.Object)
      */
@@ -358,6 +369,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         return this.toString().equals(obj.toString());
     }
 
+    /**
+     * Compare to.
+     *
+     * @param o the o
+     * @return the int
+     */
     /* (non-Javadoc)
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */

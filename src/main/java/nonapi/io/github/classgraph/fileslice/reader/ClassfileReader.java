@@ -153,6 +153,11 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     /**
      * Called when there is a buffer underrun to ensure there are sufficient bytes available in the array to read
      * the given number of bytes at the given start index.
+     *
+     * @param targetArrUsed
+     *            the target value for {@link #arrUsed} (i.e. the number of bytes that must be filled in the array)
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     private void readTo(final int targetArrUsed) throws IOException {
         // Array does not need to grow larger than the length hint (if the uncompressed size of the zip entry
@@ -206,7 +211,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     /**
      * Ensure that the given number of bytes have been read into the buffer from the beginning of the slice.
-     * 
+     *
+     * @param numBytes
+     *            the number of bytes to ensure have been buffered
      * @throws IOException
      *             on EOF or if the bytes could not be read.
      */

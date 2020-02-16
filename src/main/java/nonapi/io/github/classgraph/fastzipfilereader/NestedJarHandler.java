@@ -459,9 +459,11 @@ public class NestedJarHandler {
 
     /**
      * Mark a {@link FileSlice} as open.
-     * 
+     *
      * @param fileSlice
      *            the {@link FileSlice} that was just opened.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     public void markFileSliceAsOpen(final FileSlice fileSlice) throws IOException {
         openFileSlices.add(fileSlice);
@@ -489,6 +491,8 @@ public class NestedJarHandler {
      *         {@link PhysicalZipFile} instance.
      * @throws IOException
      *             If the jar could not be downloaded, or the jar URL is malformed.
+     * @throws InterruptedException
+     *             if the thread was interrupted
      * @throws IllegalArgumentException
      *             If the temp dir is not writeable, or has insufficient space to download the jar. (This is thrown
      *             as a separate exception from IOException, so that the case of an unwriteable temp dir can be
@@ -557,7 +561,15 @@ public class NestedJarHandler {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Wrap an {@link InputStream} with an {@link InflaterInputStream}, recycling the {@link Inflater} instance. */
+    /**
+     * Wrap an {@link InputStream} with an {@link InflaterInputStream}, recycling the {@link Inflater} instance.
+     *
+     * @param rawInputStream
+     *            the raw input stream
+     * @return the inflater input stream
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     public InputStream openInflaterInputStream(final InputStream rawInputStream) throws IOException {
         return new InputStream() {
             // Gen Inflater instance with nowrap set to true (needed by zip entries)
@@ -769,7 +781,7 @@ public class NestedJarHandler {
 
     /**
      * Spill an {@link InputStream} to disk if the stream is too large to fit in RAM.
-     * 
+     *
      * @param inputStream
      *            The {@link InputStream}.
      * @param tempFileBaseName
@@ -781,6 +793,7 @@ public class NestedJarHandler {
      *            nullity as buf.)
      * @param log
      *            The log.
+     * @return the file slice
      * @throws IOException
      *             If anything went wrong creating or writing to the temp file.
      */

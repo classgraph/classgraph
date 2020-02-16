@@ -74,6 +74,8 @@ class ClasspathElementModule extends ClasspathElement {
      *            the module ref
      * @param classLoader
      *            the classloader
+     * @param moduleRefToModuleReaderProxyRecyclerMap
+     *            the module ref to module reader proxy recycler map
      * @param scanSpec
      *            the scan spec
      */
@@ -251,8 +253,6 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Scan for package matches within module.
      *
-     * @param classpathElementIdx
-     *            the index of the classpath element within the classpath or module path.
      * @param log
      *            the log
      */
@@ -449,6 +449,13 @@ class ClasspathElementModule extends ClasspathElement {
         return moduleRef.toString();
     }
 
+    /**
+     * Equals.
+     *
+     * @param obj
+     *            the obj
+     * @return true, if successful
+     */
     /* (non-Javadoc)
      * @see java.lang.Object#equals(java.lang.Object)
      */
@@ -463,6 +470,11 @@ class ClasspathElementModule extends ClasspathElement {
         return this.getModuleNameOrEmpty().equals(other.getModuleNameOrEmpty());
     }
 
+    /**
+     * Hash code.
+     *
+     * @return the int
+     */
     /* (non-Javadoc)
      * @see java.lang.Object#hashCode()
      */

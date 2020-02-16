@@ -631,6 +631,14 @@ class Scanner implements Callable<ScanResult> {
             this.scannedClassfiles = scannedClassfiles;
         }
 
+        /**
+         * Process work unit.
+         *
+         * @param workUnit the work unit
+         * @param workQueue the work queue
+         * @param log the log
+         * @throws InterruptedException the interrupted exception
+         */
         /* (non-Javadoc)
          * @see nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor#processWorkUnit(
          * java.lang.Object, nonapi.io.github.classgraph.concurrency.WorkQueue)

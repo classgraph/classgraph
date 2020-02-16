@@ -34,10 +34,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessByteBufferReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileReader;
@@ -53,19 +55,41 @@ public class FileSlice extends Slice implements Closeable {
     /** The {@link RandomAccessFile} opened on the {@link File}. */
     public RandomAccessFile raf;
 
+    /** The file length. */
     private final long fileLength;
 
+    /** The file channel. */
     private FileChannel fileChannel;
 
+    /** The backing byte buffer, if any. */
     private ByteBuffer backingByteBuffer;
 
+    /** True if this is a top level file slice. */
     private final boolean isTopLevelFileSlice;
 
+    /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
 
+    /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
 
-    /** Constructor for sub-slice of file. */
+    /**
+     * Constructor for treating a range of a file as a slice.
+     *
+     * @param parentSlice
+     *            the parent slice
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     */
     private FileSlice(final FileSlice parentSlice, final long offset, final long length,
             final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) {
@@ -90,7 +114,18 @@ public class FileSlice extends Slice implements Closeable {
 
     /**
      * Constructor for toplevel file slice.
-     * 
+     *
+     * @param file
+     *            the file
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log
      * @throws IOException
      *             if the file cannot be opened.
      */
@@ -133,7 +168,13 @@ public class FileSlice extends Slice implements Closeable {
 
     /**
      * Constructor for toplevel file slice.
-     * 
+     *
+     * @param file
+     *            the file
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log
      * @throws IOException
      *             if the file cannot be opened.
      */
@@ -142,7 +183,20 @@ public class FileSlice extends Slice implements Closeable {
         this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
     }
 
-    /** Slice the file. */
+    /**
+     * Slice the file.
+     *
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @return the slice
+     */
     @Override
     public Slice slice(final long offset, final long length, final boolean isDeflatedZipEntry,
             final long inflatedLengthHint) {
@@ -152,7 +206,11 @@ public class FileSlice extends Slice implements Closeable {
         return new FileSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
     }
 
-    /** Read directly from FileChannel (slow path, but handles >2GB). */
+    /**
+     * Read directly from FileChannel (slow path, but handles >2GB).
+     *
+     * @return the random access reader
+     */
     @Override
     public RandomAccessReader randomAccessReader() {
         if (backingByteBuffer == null) {
@@ -164,6 +222,13 @@ public class FileSlice extends Slice implements Closeable {
         }
     }
 
+    /**
+     * Load the slice as a byte array.
+     *
+     * @return the byte[]
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Override
     public byte[] load() throws IOException {
         if (isDeflatedZipEntry) {
@@ -189,6 +254,14 @@ public class FileSlice extends Slice implements Closeable {
         }
     }
 
+    /**
+     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, if
+     * {@link ClassGraph#enableMemoryMapping()} was called.)
+     *
+     * @return the byte buffer
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Override
     public ByteBuffer read() throws IOException {
         if (isDeflatedZipEntry) {
@@ -210,7 +283,7 @@ public class FileSlice extends Slice implements Closeable {
         }
     }
 
-    // TOOD: close this in NestedJarHandler and ClasspathElementDir
+    /** Close the slice. Unmaps any backing {@link MappedByteBuffer}. */
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {

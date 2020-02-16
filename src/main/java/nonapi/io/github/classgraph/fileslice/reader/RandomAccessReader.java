@@ -151,8 +151,7 @@ public interface RandomAccessReader {
      * @param offset
      *            The start offset of the string.
      * @param numBytes
-     *            The number of bytes of the UTF8 encoding of the string, or if -1, read the length of the string as
-     *            a short in the first two bytes at offset.
+     *            The number of bytes of the UTF8 encoding of the string.
      * @param replaceSlashWithDot
      *            If true, replace '/' with '.'.
      * @param stripLSemicolon
@@ -170,8 +169,7 @@ public interface RandomAccessReader {
      * @param offset
      *            The start offset of the string.
      * @param numBytes
-     *            The number of bytes of the UTF8 encoding of the string, or if -1, read the length of the string as
-     *            a short in the first two bytes at offset.
+     *            The number of bytes of the UTF8 encoding of the string.
      * @return The string.
      * @throws IOException
      *             If an I/O exception occurs.

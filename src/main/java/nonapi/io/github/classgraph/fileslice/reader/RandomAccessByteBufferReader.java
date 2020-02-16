@@ -41,11 +41,25 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * zipfile format.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
+    /** The byte buffer. */
     private final ByteBuffer byteBuffer;
+
+    /** The slice start pos. */
     private final int sliceStartPos;
+
+    /** The slice length. */
     private final int sliceLength;
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
+     */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength) {
         this.byteBuffer = byteBuffer.duplicate();

@@ -43,8 +43,10 @@ public final class StringUtils {
      * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
      * optionally removing the prefix "L" and the suffix ";".
      *
+     * @param arr
+     *            the array to read the string from
      * @param startOffset
-     *            The start offset of the string.
+     *            The start offset of the string within the array.
      * @param numBytes
      *            The number of bytes of the UTF8 encoding of the string.
      * @param replaceSlashWithDot

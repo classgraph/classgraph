@@ -68,7 +68,23 @@ public abstract class Slice {
     /** The cached hashCode. */
     private int hashCode;
 
-    /** Constructor. */
+    /**
+     * Constructor for treating a range of a slice as a sub-slice.
+     *
+     * @param parentSlice
+     *            the parent slice
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     */
     protected Slice(final Slice parentSlice, final long offset, final long length, final boolean isDeflatedZipEntry,
             final long inflatedLengthHint, final NestedJarHandler nestedJarHandler) {
         this.parentSlice = parentSlice;
@@ -91,7 +107,19 @@ public abstract class Slice {
         }
     }
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * @param length
+     *            the length
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     */
     protected Slice(final long length, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) {
         this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
@@ -106,10 +134,10 @@ public abstract class Slice {
      * @param length
      *            The length of the slice.
      * @param isDeflatedZipEntry
-     *            True if the slice is a deflated zip entry.
+     *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            If this is a deflated zip entry, the expected length of the inflated content, or -1L if unknown.
-     *            If this is not a deflated zip entry, 0L.
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
      * @return The child slice.
      */
     public abstract Slice slice(long offset, long length, boolean isDeflatedZipEntry,
@@ -117,7 +145,8 @@ public abstract class Slice {
 
     /**
      * Open this {@link Slice} as an {@link InputStream}.
-     * 
+     *
+     * @return the input stream
      * @throws IOException
      *             if an inflater cannot be created for this {@link Slice}.
      */
@@ -198,12 +227,20 @@ public abstract class Slice {
         return isDeflatedZipEntry ? nestedJarHandler.openInflaterInputStream(rawInputStream) : rawInputStream;
     }
 
-    /** Create a new {@link RandomAccessReader} for this {@link Slice}. */
+    /**
+     * Create a new {@link RandomAccessReader} for this {@link Slice}.
+     *
+     * @return the random access reader
+     */
     public abstract RandomAccessReader randomAccessReader();
 
     /**
      * Open this {@link Slice} for buffered sequential reading. Make sure you close this when you have finished with
      * it, in order to recycle any {@link Inflater} instances.
+     *
+     * @return the classfile reader
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     public ClassfileReader openClassfileReader() throws IOException {
         if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
@@ -213,12 +250,19 @@ public abstract class Slice {
         return new ClassfileReader(this);
     }
 
-    /** Load this {@link Slice} into a byte array. */
+    /**
+     * Load the slice as a byte array.
+     *
+     * @return the byte[]
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     public abstract byte[] load() throws IOException;
 
     /**
-     * Read this {@link Slice} as a {@link String}.
-     * 
+     * Load the slice as a string.
+     *
+     * @return the string
      * @throws IOException
      *             if slice cannot be read.
      */
@@ -226,7 +270,13 @@ public abstract class Slice {
         return new String(load(), StandardCharsets.UTF_8);
     }
 
-    /** Read this {@link Slice} into a {@link ByteBuffer}. */
+    /**
+     * Read the slice into a {@link ByteBuffer}.
+     *
+     * @return the byte buffer
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     public ByteBuffer read() throws IOException {
         return ByteBuffer.wrap(load());
     }

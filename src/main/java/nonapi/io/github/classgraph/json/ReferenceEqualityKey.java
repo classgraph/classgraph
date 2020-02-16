@@ -59,6 +59,11 @@ public class ReferenceEqualityKey<K> {
         return wrappedKey;
     }
 
+    /**
+     * Hash code.
+     *
+     * @return the int
+     */
     /* (non-Javadoc)
      * @see java.lang.Object#hashCode()
      */
@@ -70,6 +75,12 @@ public class ReferenceEqualityKey<K> {
         return key == null ? 0 : System.identityHashCode(key);
     }
 
+    /**
+     * Equals.
+     *
+     * @param obj the obj
+     * @return true, if successful
+     */
     /* (non-Javadoc)
      * @see java.lang.Object#equals(java.lang.Object)
      */
@@ -83,6 +94,11 @@ public class ReferenceEqualityKey<K> {
         return wrappedKey == ((ReferenceEqualityKey<?>) obj).wrappedKey;
     }
 
+    /**
+     * To string.
+     *
+     * @return the string
+     */
     /* (non-Javadoc)
      * @see java.lang.Object#toString()
      */

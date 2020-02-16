@@ -40,11 +40,25 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * zipfile format.
  */
 public class RandomAccessArrayReader implements RandomAccessReader {
+    /** The array. */
     private final byte[] arr;
+
+    /** The start index of the slice within the array. */
     private final int sliceStartPos;
+
+    /** The length of the slice within the array. */
     private final int sliceLength;
 
-    /** Constructor. */
+    /**
+     * Constructor for slicing an array.
+     *
+     * @param arr
+     *            the array to slice.
+     * @param sliceStartPos
+     *            the start index of the slice within the array.
+     * @param sliceLength
+     *            the length of the slice within the array.
+     */
     public RandomAccessArrayReader(final byte[] arr, final int sliceStartPos, final int sliceLength) {
         this.arr = arr;
         this.sliceStartPos = sliceStartPos;
@@ -104,14 +118,14 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     }
 
     @Override
-    public short readShort(final long offset) throws IOException {
-        return (short) readUnsignedShort(offset);
-    }
-
-    @Override
     public int readUnsignedByte(final long offset) throws IOException {
         final int idx = sliceStartPos + (int) offset;
         return arr[idx] & 0xff;
+    }
+
+    @Override
+    public short readShort(final long offset) throws IOException {
+        return (short) readUnsignedShort(offset);
     }
 
     @Override
