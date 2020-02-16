@@ -40,7 +40,7 @@ public class ZipFileSlice {
     /** The parent slice, or null if this is the toplevel slice (the whole zipfile). */
     private final ZipFileSlice parentZipFileSlice;
     /** The underlying physical zipfile. */
-    public final PhysicalZipFile physicalZipFile;
+    protected final PhysicalZipFile physicalZipFile;
     /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name/path of the zipfile entry. */
     private final String pathWithinParentZipFileSlice;
     /** The {@link Slice} containing the zipfile. */

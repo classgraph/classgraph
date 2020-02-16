@@ -137,7 +137,7 @@ public class NestedJarHandler {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, log);
+            return new LogicalZipFile(zipFileSlice, NestedJarHandler.this, log);
         }
     };
 
@@ -630,7 +630,7 @@ public class NestedJarHandler {
             }
 
             @Override
-            public int read(final byte outBuf[], final int off, final int len) throws IOException {
+            public int read(final byte[] outBuf, final int off, final int len) throws IOException {
                 if (closed.get()) {
                     throw new IOException("Already closed");
                 } else if (len < 0) {
@@ -901,20 +901,13 @@ public class NestedJarHandler {
                     break;
                 }
 
-                // Reached end of stream, and buf is full
-                final int extraByte;
-                try {
-                    // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
-                    // reached, or the buffer was too small. Need to try reading one more byte to see which is
-                    // the case.
-                    extraByte = inptStream.read();
-                    if (extraByte == -1) {
-                        // Reached end of stream
-                        break;
-                    }
-                } catch (final ZipException e) {
-                    // FIXME temp
-                    throw new RuntimeException(e);
+                // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
+                // reached, or the buffer was too small. Need to try reading one more byte to see which is
+                // the case.
+                final int extraByte = inptStream.read();
+                if (extraByte == -1) {
+                    // Reached end of stream
+                    break;
                 }
 
                 // Haven't reached end of stream yet. Need to grow the buffer (double its size), and append

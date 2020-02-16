@@ -37,6 +37,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -125,6 +126,9 @@ class ClasspathElementModule extends ClasspathElement {
             /** The module reader proxy. */
             private ModuleReaderProxy moduleReaderProxy;
 
+            /** True if the resource is open. */
+            protected AtomicBoolean isOpen = new AtomicBoolean();
+
             @Override
             public String getPath() {
                 return resourcePath;
@@ -199,8 +203,8 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public byte[] load() throws IOException {
-                try {
-                    read();
+                read();
+                try (Resource res = this) { // Close this after use
                     final byte[] byteArray;
                     if (byteBuffer.hasArray() && byteBuffer.position() == 0
                             && byteBuffer.limit() == byteBuffer.capacity()) {
@@ -211,27 +215,23 @@ class ClasspathElementModule extends ClasspathElement {
                     }
                     length = byteArray.length;
                     return byteArray;
-                } finally {
-                    close();
                 }
             }
 
             @Override
             public void close() {
                 super.close(); // Close inputStream
-                if (isOpen.get()) {
-                    if (moduleReaderProxy != null) {
-                        if (byteBuffer != null) {
-                            // Release any open ByteBuffer
-                            moduleReaderProxy.release(byteBuffer);
-                        }
-                        // Recycle the (open) ModuleReaderProxy instance.
-                        moduleReaderProxyRecycler.recycle(moduleReaderProxy);
-                        // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
-                        // Just set the ref to null here. The ModuleReaderProxy will be closed by
-                        // ClasspathElementModule#close().
-                        moduleReaderProxy = null;
+                if (isOpen.getAndSet(false) && moduleReaderProxy != null) {
+                    if (byteBuffer != null) {
+                        // Release any open ByteBuffer
+                        moduleReaderProxy.release(byteBuffer);
                     }
+                    // Recycle the (open) ModuleReaderProxy instance.
+                    moduleReaderProxyRecycler.recycle(moduleReaderProxy);
+                    // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
+                    // Just set the ref to null here. The ModuleReaderProxy will be closed by
+                    // ClasspathElementModule#close().
+                    moduleReaderProxy = null;
                 }
             }
         };

@@ -283,6 +283,16 @@ public class FileSlice extends Slice implements Closeable {
         }
     }
 
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
     /** Close the slice. Unmaps any backing {@link MappedByteBuffer}. */
     @Override
     public void close() {

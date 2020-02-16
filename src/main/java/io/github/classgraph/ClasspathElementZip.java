@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -289,6 +290,9 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
         return new Resource(this, zipEntry.uncompressedSize) {
+            /** True if the resource is open. */
+            protected AtomicBoolean isOpen = new AtomicBoolean();
+
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.
@@ -403,24 +407,20 @@ class ClasspathElementZip extends ClasspathElement {
                     throw new IOException(
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
-                try {
+                try (Resource res = this) { // Close this after use
                     final byte[] byteArray = zipEntry.getSlice().load();
                     length = byteArray.length;
                     return byteArray;
-                } finally {
-                    close();
                 }
             }
 
             @Override
             public void close() {
                 super.close(); // Close inputStream
-                if (isOpen.getAndSet(false)) {
-                    if (byteBuffer != null) {
-                        // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't
-                        // need to be unmapped
-                        byteBuffer = null;
-                    }
+                if (isOpen.getAndSet(false) && byteBuffer != null) {
+                    // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't
+                    // need to be unmapped
+                    byteBuffer = null;
                 }
             }
         };

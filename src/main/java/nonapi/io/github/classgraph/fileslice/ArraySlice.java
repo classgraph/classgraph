@@ -139,4 +139,14 @@ public class ArraySlice extends Slice {
     public RandomAccessReader randomAccessReader() {
         return new RandomAccessArrayReader(arr, (int) sliceStartPos, (int) sliceLength);
     }
+
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
 }

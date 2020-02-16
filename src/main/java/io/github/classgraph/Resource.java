@@ -40,7 +40,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
@@ -63,9 +62,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /** The length, or -1L for unknown. */
     protected long length;
-
-    /** True if the resource is open. */
-    protected AtomicBoolean isOpen = new AtomicBoolean();
 
     /** The cached result of toString(). */
     private String toString;

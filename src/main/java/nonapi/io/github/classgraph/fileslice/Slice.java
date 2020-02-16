@@ -169,7 +169,7 @@ public abstract class Slice {
             // InputStream's default implementation of this method is very slow -- it calls read()
             // for every byte. This method reads the maximum number of bytes possible in one call.
             @Override
-            public int read(final byte buf[], final int off, final int len) throws IOException {
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
                 if (closed.get()) {
                     throw new IOException("Already closed");
                 } else if (len == 0) {

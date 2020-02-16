@@ -140,6 +140,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *
      * @param zipFileSlice
      *            the zipfile slice
+     * @param nestedJarHandler
+     *            the nested jar handler
      * @param log
      *            the log
      * @throws IOException
@@ -147,9 +149,10 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final LogNode log) throws IOException, InterruptedException {
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler, final LogNode log)
+            throws IOException, InterruptedException {
         super(zipFileSlice);
-        readCentralDirectory(log);
+        readCentralDirectory(nestedJarHandler, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -421,7 +424,9 @@ public class LogicalZipFile extends ZipFileSlice {
 
     /**
      * Read the central directory of the zipfile.
-     *
+     * 
+     * @param nestedJarHandler
+     *            the nested jar handler
      * @param log
      *            the log
      * @throws IOException
@@ -429,7 +434,8 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    private void readCentralDirectory(final LogNode log) throws IOException, InterruptedException {
+    private void readCentralDirectory(final NestedJarHandler nestedJarHandler, final LogNode log)
+            throws IOException, InterruptedException {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");
         }
@@ -449,7 +455,7 @@ public class LogicalZipFile extends ZipFileSlice {
         if (eocdPos < 0) {
             // If EOCD signature was not found, read the last 64kB of file to RAM in a single chunk
             // so that we can scan back through it at higher speed to locate the EOCD signature
-            final int bytesToRead = (int) Math.min(slice.sliceLength, 22 + (1 << 16));
+            final int bytesToRead = (int) Math.min(slice.sliceLength, 22L + (1 << 16));
             final byte[] eocdBytes = new byte[bytesToRead];
             final long readStartOff = slice.sliceLength - bytesToRead;
             if (reader.read(readStartOff, eocdBytes, 0, bytesToRead) < bytesToRead) {
@@ -457,7 +463,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 throw new IOException("Zipfile is truncated");
             }
             final RandomAccessReader eocdReader = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, physicalZipFile.nestedJarHandler).randomAccessReader();
+                    /* inflatedLengthHint = */ 0L, nestedJarHandler).randomAccessReader();
             for (long i = eocdBytes.length - 22; i >= 0; --i) {
                 if (eocdReader.readInt(i) == 0x06054b50) {
                     eocdPos = i + readStartOff;
@@ -550,7 +556,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 throw new IOException("Zipfile is truncated");
             }
             cenReader = new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
-                    physicalZipFile.nestedJarHandler).randomAccessReader();
+                    nestedJarHandler).randomAccessReader();
         }
 
         if (numEnt == -1L) {
@@ -822,6 +828,16 @@ public class LogicalZipFile extends ZipFileSlice {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#toString()

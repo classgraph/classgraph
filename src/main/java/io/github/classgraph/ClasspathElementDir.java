@@ -39,6 +39,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -159,15 +160,16 @@ class ClasspathElementDir extends ClasspathElement {
      *            the {@link File} for the resource
      * @param nestedJarHandler
      *            the nested jar handler
-     * @param log
-     *            the log
      * @return the resource
      */
     private Resource newResource(final String relativePath, final File resourceFile,
-            final NestedJarHandler nestedJarHandler, final LogNode log) {
+            final NestedJarHandler nestedJarHandler) {
         return new Resource(this, resourceFile.length()) {
             /** The {@link FileSlice} opened on the file. */
             private FileSlice fileSlice;
+
+            /** True if the resource is open. */
+            protected AtomicBoolean isOpen = new AtomicBoolean();
 
             @Override
             public String getPath() {
@@ -247,21 +249,19 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public byte[] load() throws IOException {
-                try {
-                    read();
+                read();
+                try (Resource res = this) { // Close this after use
                     fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
                     final byte[] bytes = fileSlice.load();
                     length = bytes.length;
                     return bytes;
-                } finally {
-                    close();
                 }
             }
 
             @Override
             public void close() {
                 super.close(); // Close inputStream
-                if (isOpen.get()) {
+                if (isOpen.getAndSet(false)) {
                     if (byteBuffer != null) {
                         // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
                         byteBuffer = null;
@@ -271,7 +271,6 @@ class ClasspathElementDir extends ClasspathElement {
                         nestedJarHandler.markFileSliceAsClosed(fileSlice);
                         fileSlice = null;
                     }
-                    isOpen.getAndSet(false);
                 }
             }
         };
@@ -288,8 +287,7 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     Resource getResource(final String relativePath) {
         final File resourceFile = new File(classpathEltDir, relativePath);
-        return FileUtils.canReadAndIsFile(resourceFile)
-                ? newResource(relativePath, resourceFile, nestedJarHandler, /* log = */ null)
+        return FileUtils.canReadAndIsFile(resourceFile) ? newResource(relativePath, resourceFile, nestedJarHandler)
                 : null;
     }
 
@@ -400,8 +398,7 @@ class ClasspathElementDir extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyWhitelisted(fileInDirRelativePath))) {
                         // Resource is whitelisted
-                        final Resource resource = newResource(fileInDirRelativePath, fileInDir, nestedJarHandler,
-                                subLog);
+                        final Resource resource = newResource(fileInDirRelativePath, fileInDir, nestedJarHandler);
                         addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
 
                         // Save last modified time  
@@ -417,7 +414,7 @@ class ClasspathElementDir extends ClasspathElement {
             // Always check for module descriptor in package root, even if package root isn't in whitelist
             for (final File fileInDir : filesInDir) {
                 if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
-                    final Resource resource = newResource("module-info.class", fileInDir, nestedJarHandler, subLog);
+                    final Resource resource = newResource("module-info.class", fileInDir, nestedJarHandler);
                     addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
                 }
