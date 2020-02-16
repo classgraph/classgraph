@@ -353,7 +353,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Equals.
      *
-     * @param obj the obj
+     * @param obj
+     *            the obj
      * @return true, if successful
      */
     /* (non-Javadoc)
@@ -372,7 +373,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Compare to.
      *
-     * @param o the o
+     * @param o
+     *            the o
      * @return the int
      */
     /* (non-Javadoc)

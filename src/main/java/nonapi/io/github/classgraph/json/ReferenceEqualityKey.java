@@ -78,7 +78,8 @@ public class ReferenceEqualityKey<K> {
     /**
      * Equals.
      *
-     * @param obj the obj
+     * @param obj
+     *            the obj
      * @return true, if successful
      */
     /* (non-Javadoc)

@@ -123,6 +123,7 @@ public class RandomAccessFileReader implements RandomAccessReader {
         }
     }
 
+    @Override
     public byte readByte(final long offset) throws IOException {
         if (read(offset, scratchByteBuf, 0, 1) < 1) {
             throw new IOException("Premature EOF");

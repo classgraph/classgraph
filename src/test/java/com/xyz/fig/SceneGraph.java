@@ -25,7 +25,8 @@ public class SceneGraph implements Drawable {
     /**
      * Draw.
      *
-     * @param g the g
+     * @param g
+     *            the g
      */
     /* (non-Javadoc)
      * @see com.xyz.fig.Drawable#draw(java.awt.Graphics2D)

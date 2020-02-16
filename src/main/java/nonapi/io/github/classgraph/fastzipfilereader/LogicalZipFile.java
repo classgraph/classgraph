@@ -433,7 +433,7 @@ public class LogicalZipFile extends ZipFileSlice {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");
         }
-        
+
         final RandomAccessReader reader = slice.randomAccessReader();
 
         // Scan for End Of Central Directory (EOCD) signature. Final comment can be up to 64kB in length,
