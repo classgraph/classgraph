@@ -35,7 +35,7 @@ public class MultiReleaseJarTest {
     public void multiReleaseJar() throws Exception {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
             // Multi-release jar sections are ignored by ClassGraph if JDK<9 
-            System.err.println("Skipping multi-release jar test, as JDK version " + VersionFinder.JAVA_VERSION
+            System.out.println("Skipping multi-release jar test, as JDK version " + VersionFinder.JAVA_VERSION
                     + " is less than 9");
         } else {
             try (ScanResult scanResult = new ClassGraph()
