@@ -29,12 +29,12 @@
 package nonapi.io.github.classgraph.scanspec;
 
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -255,9 +255,7 @@ public class ScanSpec {
      */
     public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
 
-    /**
-     * If true, use a {@link MappedByteBuffer} rather than the {@link RandomAccessFile} API to access file content.
-     */
+    /** If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content. */
     public boolean enableMemoryMapping;
 
     // -------------------------------------------------------------------------------------------------------------

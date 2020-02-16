@@ -30,11 +30,11 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -1128,8 +1128,8 @@ public class ClassGraph {
     }
 
     /**
-     * If true, use a {@link MappedByteBuffer} rather than the {@link RandomAccessFile} API to open files, which may
-     * be faster, but uses up virtual memory space.
+     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to open files, which may be
+     * faster, but uses up virtual memory space.
      * 
      * @return this (for method chaining).
      */
