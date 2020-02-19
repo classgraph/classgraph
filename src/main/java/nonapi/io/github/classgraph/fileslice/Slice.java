@@ -203,13 +203,13 @@ public abstract class Slice {
             }
 
             @Override
-            public void mark(final int readlimit) {
+            public synchronized void mark(final int readlimit) {
                 // Ignore readlimit
                 markOff = currOff;
             }
 
             @Override
-            public void reset() {
+            public synchronized void reset() {
                 currOff = markOff;
             }
 

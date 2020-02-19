@@ -92,10 +92,8 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      */
     public boolean containsName(final String name) {
         for (final T i : this) {
-            if (i != null) {
-                if (i.getName().equals(name)) {
-                    return true;
-                }
+            if (i != null && i.getName().equals(name)) {
+                return true;
             }
         }
         return false;

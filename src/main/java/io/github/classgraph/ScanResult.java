@@ -462,9 +462,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // Index Resource objects by path
             final ResourceList whitelistedResourcesList = new ResourceList();
             for (final ClasspathElement classpathElt : classpathOrder) {
-                if (classpathElt.whitelistedResources != null) {
-                    whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
-                }
+                whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
             }
             // Set atomically for thread safety
             allWhitelistedResourcesCached = whitelistedResourcesList;
@@ -516,14 +514,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // If just a few calls are made, directly search for resource with the requested path
             ResourceList matchingResources = null;
             for (final ClasspathElement classpathElt : classpathOrder) {
-                if (classpathElt.whitelistedResources != null) {
-                    for (final Resource res : classpathElt.whitelistedResources) {
-                        if (res.getPath().equals(path)) {
-                            if (matchingResources == null) {
-                                matchingResources = new ResourceList();
-                            }
-                            matchingResources.add(res);
+                for (final Resource res : classpathElt.whitelistedResources) {
+                    if (res.getPath().equals(path)) {
+                        if (matchingResources == null) {
+                            matchingResources = new ResourceList();
                         }
+                        matchingResources.add(res);
                     }
                 }
             }
