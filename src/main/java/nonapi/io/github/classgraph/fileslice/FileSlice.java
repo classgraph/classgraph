@@ -68,9 +68,6 @@ public class FileSlice extends Slice implements Closeable {
     /** True if this is a top level file slice. */
     private final boolean isTopLevelFileSlice;
 
-    /** The nested jar handler. */
-    private final NestedJarHandler nestedJarHandler;
-
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
 
@@ -99,7 +96,6 @@ public class FileSlice extends Slice implements Closeable {
         this.raf = parentSlice.raf;
         this.fileChannel = parentSlice.fileChannel;
         this.fileLength = parentSlice.fileLength;
-        this.nestedJarHandler = nestedJarHandler;
         this.isTopLevelFileSlice = false;
 
         if (parentSlice.backingByteBuffer != null) {
@@ -140,7 +136,6 @@ public class FileSlice extends Slice implements Closeable {
         this.fileChannel = raf.getChannel();
         this.fileLength = file.length();
         this.isTopLevelFileSlice = true;
-        this.nestedJarHandler = nestedJarHandler;
 
         if (nestedJarHandler.scanSpec.enableMemoryMapping) {
             try {

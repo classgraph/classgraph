@@ -662,7 +662,7 @@ class Classfile {
             return "";
         }
         return intern(
-                reader.readString(constantPoolStringOffset + 2, utfLen, replaceSlashWithDot, stripLSemicolon));
+                reader.readString(constantPoolStringOffset + 2L, utfLen, replaceSlashWithDot, stripLSemicolon));
     }
 
     /**
@@ -689,7 +689,7 @@ class Classfile {
         if (utfLen == 0) {
             return "";
         }
-        return intern(reader.readString(constantPoolStringOffset + 2, utfLen, /* replaceSlashWithDot = */ false,
+        return intern(reader.readString(constantPoolStringOffset + 2L, utfLen, /* replaceSlashWithDot = */ false,
                 /* stripLSemicolon = */ false));
     }
 
@@ -728,7 +728,7 @@ class Classfile {
         if (utfLen == 0) {
             return '\0';
         }
-        return reader.readByte(constantPoolStringOffset + 2);
+        return reader.readByte(constantPoolStringOffset + 2L);
     }
 
     /**

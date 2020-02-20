@@ -464,7 +464,7 @@ public class LogicalZipFile extends ZipFileSlice {
             }
             final RandomAccessReader eocdReader = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
                     /* inflatedLengthHint = */ 0L, nestedJarHandler).randomAccessReader();
-            for (long i = eocdBytes.length - 22; i >= 0; --i) {
+            for (long i = eocdBytes.length - 22L; i >= 0L; --i) {
                 if (eocdReader.readInt(i) == 0x06054b50) {
                     eocdPos = i + readStartOff;
                     break;
