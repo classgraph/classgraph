@@ -139,7 +139,7 @@ public class ModulePathInfo {
                         /* throwException = */ false);
         @SuppressWarnings("unchecked")
         final List<String> commandlineArguments = runtimeMXBean == null ? null
-                : (List<String>) ReflectionUtils.invokeStaticMethod(runtimeMXBean.getClass(), "getInputArguments",
+                : (List<String>) ReflectionUtils.invokeMethod(runtimeMXBean, "getInputArguments",
                         /* throwException = */ false);
         if (commandlineArguments != null) {
             for (final String arg : commandlineArguments) {
