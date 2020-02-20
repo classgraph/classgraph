@@ -258,7 +258,7 @@ public final class ReflectionUtils {
             }
             try {
                 return oneArg ? method.invoke(obj, param) : method.invoke(obj);
-            } catch (final IllegalAccessException e) {
+            } catch (final IllegalAccessException | SecurityException e) {
                 if (throwException) {
                     throw new IllegalArgumentException(
                             "Can't call " + (obj == null ? "static " : "") + "method \"" + methodName + "\": " + e);

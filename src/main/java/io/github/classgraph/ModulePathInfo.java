@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.io.File;
-import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,6 +36,7 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.Join;
+import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /**
  * Information on the module path. Note that this will only include module system parameters actually listed in
@@ -128,22 +128,36 @@ public class ModulePathInfo {
 
     /** Construct a {@link ModulePathInfo}. */
     public ModulePathInfo() {
-        final List<String> commandlineArguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
-        for (final String arg : commandlineArguments) {
-            for (int i = 0; i < fields.size(); i++) {
-                final String argSwitch = argSwitches.get(i);
-                if (arg.startsWith(argSwitch)) {
-                    final String argParam = arg.substring(argSwitch.length());
-                    final Set<String> argField = fields.get(i);
-                    final char sepChar = argPartSeparatorChars.get(i);
-                    if (sepChar == '\0') {
-                        // Only one param per switch
-                        argField.add(argParam);
-                    } else {
-                        // Split arg param into parts
-                        for (final String argPart : JarUtils.smartPathSplit(argParam, sepChar,
-                                /* scanSpec = */ null)) {
-                            argField.add(argPart);
+        // Read the raw commandline arguments to get the module path override parameters.
+        // If the java.management module is not present in the deployed runtime (for JDK 9+), or the runtime
+        // does not contain the java.lang.management package (e.g. the Android build system, which also does
+        // not support JPMS currently), then skip trying to read the commandline arguments (#404).
+        final Class<?> managementFactory = ReflectionUtils
+                .classForNameOrNull("java.lang.management.ManagementFactory");
+        final Object runtimeMXBean = managementFactory == null ? null
+                : ReflectionUtils.invokeStaticMethod(managementFactory, "getRuntimeMXBean",
+                        /* throwException = */ false);
+        @SuppressWarnings("unchecked")
+        final List<String> commandlineArguments = runtimeMXBean == null ? null
+                : (List<String>) ReflectionUtils.invokeStaticMethod(runtimeMXBean.getClass(), "getInputArguments",
+                        /* throwException = */ false);
+        if (commandlineArguments != null) {
+            for (final String arg : commandlineArguments) {
+                for (int i = 0; i < fields.size(); i++) {
+                    final String argSwitch = argSwitches.get(i);
+                    if (arg.startsWith(argSwitch)) {
+                        final String argParam = arg.substring(argSwitch.length());
+                        final Set<String> argField = fields.get(i);
+                        final char sepChar = argPartSeparatorChars.get(i);
+                        if (sepChar == '\0') {
+                            // Only one param per switch
+                            argField.add(argParam);
+                        } else {
+                            // Split arg param into parts
+                            for (final String argPart : JarUtils.smartPathSplit(argParam, sepChar,
+                                    /* scanSpec = */ null)) {
+                                argField.add(argPart);
+                            }
                         }
                     }
                 }
