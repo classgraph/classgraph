@@ -526,6 +526,7 @@
                     <artifactId>maven-release-plugin</artifactId>
                     <configuration>
                         <autoVersionSubmodules>true</autoVersionSubmodules>
+                        <!-- Activate release profile -->
                         <releaseProfiles>release</releaseProfiles>
                         <phase>deploy</phase>
                         <goals>deploy</goals>
@@ -548,6 +549,36 @@
             <activation>
                 <jdk>[9,)</jdk>
             </activation>
+        </profile>
+
+        <!-- Sign jars for release (./mvnw clean release:prepare release:perform) -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <configuration>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                            <keyname>${gpg.keyname}</keyname>
+                            <passphraseServerId>${gpg.keyname}</passphraseServerId>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
         <!-- Lifecycle mapping for eclipse m2e compatibility. -->
