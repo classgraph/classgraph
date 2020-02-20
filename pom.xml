@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -230,6 +233,9 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
+                    <!-- Handle m2e lifecycle mapping. See: -->
+                    <!-- https://www.eclipse.org/m2e/documentation/release-notes-17.html#new-syntax-for-specifying-lifecycle-mapping-metadata -->
+                    <?m2e execute onConfiguration,onIncremental?>
                     <dependencies>
                         <dependency>
                             <groupId>org.codehaus.mojo</groupId>
@@ -238,7 +244,7 @@
                         </dependency>
                     </dependencies>
                     <executions>
-                        <!-- Require Maven version -->
+                        <!-- Require Maven version. -->
                         <execution>
                             <id>enforce-versions</id>
                             <phase>validate</phase>
@@ -251,7 +257,18 @@
                                         <version>[3.6.2,)</version>
                                     </requireMavenVersion>
                                 </rules>
+                                <!-- This is disabled currently because of a bug in maven-enforcer-prugin-3.0.0-M3: -->
+                                <!-- https://issues.apache.org/jira/browse/MENFORCER-351 -->
+                                <skip>true</skip>
                             </configuration>
+                        </execution>
+                        <!-- Display environment info -->
+                        <execution>
+                            <id>display-info</id>
+                            <phase>compile</phase>
+                            <goals>
+                                <goal>display-info</goal>
+                            </goals>
                         </execution>
                         <!-- Check main project for compatibility with JDK 7 API -->
                         <execution>
@@ -262,7 +279,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <!-- Check against JDK 7 API -->
@@ -341,8 +359,13 @@
                             </goals>
                             <configuration>
                                 <target>
-                                    <jar update="true" destfile="${project.build.directory}/${project.build.finalName}.jar">
-                                        <zipfileset prefix="META-INF/versions/9" dir="${project.basedir}/src/module-info/io.github.classgraph" includes="module-info.class" />
+                                    <jar
+                                        update="true"
+                                        destfile="${project.build.directory}/${project.build.finalName}.jar">
+                                        <zipfileset
+                                            prefix="META-INF/versions/9"
+                                            dir="${project.basedir}/src/module-info/io.github.classgraph"
+                                            includes="module-info.class" />
                                     </jar>
                                 </target>
                             </configuration>
@@ -557,54 +580,6 @@
                         </executions>
                     </plugin>
                 </plugins>
-            </build>
-        </profile>
-
-        <!-- Lifecycle mapping for eclipse m2e compatibility. -->
-        <!-- See: https://stackoverflow.com/a/23707050/3950982 -->
-        <profile>
-            <id>only-eclipse</id>
-            <activation>
-                <property>
-                    <!-- Only activate in m2e -->
-                    <name>m2e.version</name>
-                </property>
-            </activation>
-            <build>
-                <!-- Putting this in pluginManagement causes Maven and IDEA to ignore this "plugin" -->
-                <!-- (the lifecycle-mapping plugin doesn't actually exist, it is a special artifactId -->
-                <!-- recognized only by m2e). -->
-                <pluginManagement>
-                    <plugins>
-                        <plugin>
-                            <groupId>org.eclipse.m2e</groupId>
-                            <artifactId>lifecycle-mapping</artifactId>
-                            <version>1.0.0</version>
-                            <configuration>
-                                <!-- Cause m2e to ignore maven-enforcer-plugin (which does not have a -->
-                                <!-- corresponding m2e connector, so otherwise triggers a warning). -->
-                                <!-- See: https://stackoverflow.com/a/13043842/3950982 -->
-                                <lifecycleMappingMetadata>
-                                    <pluginExecutions>
-                                        <pluginExecution>
-                                            <pluginExecutionFilter>
-                                                <groupId>org.apache.maven.plugins</groupId>
-                                                <artifactId>maven-enforcer-plugin</artifactId>
-                                                <versionRange>[1.0.0,)</versionRange>
-                                                <goals>
-                                                    <goal>enforce</goal>
-                                                </goals>
-                                            </pluginExecutionFilter>
-                                            <action>
-                                                <ignore />
-                                            </action>
-                                        </pluginExecution>
-                                    </pluginExecutions>
-                                </lifecycleMappingMetadata>
-                            </configuration>
-                        </plugin>
-                    </plugins>
-                </pluginManagement>
             </build>
         </profile>
     </profiles>
