@@ -257,7 +257,7 @@
                                         <version>[3.6.3,)</version>
                                     </requireMavenVersion>
                                 </rules>
-                                <!-- This is disabled currently because of a bug in maven-enforcer-prugin-3.0.0-M3: -->
+                                <!-- This is disabled currently because of a bug in maven-enforcer-plugin-3.0.0-M3: -->
                                 <!-- https://issues.apache.org/jira/browse/MENFORCER-351 -->
                                 <skip>true</skip>
                             </configuration>
