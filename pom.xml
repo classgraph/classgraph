@@ -528,9 +528,7 @@
                         <autoVersionSubmodules>true</autoVersionSubmodules>
                         <releaseProfiles>release</releaseProfiles>
                         <phase>deploy</phase>
-                        <goals>
-                            <goal>deploy</goal>
-                        </goals>
+                        <goals>deploy</goals>
                     </configuration>
                 </plugin>
             </plugins>
