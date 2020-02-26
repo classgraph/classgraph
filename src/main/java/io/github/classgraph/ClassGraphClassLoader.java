@@ -210,6 +210,8 @@ class ClassGraphClassLoader extends ClassLoader {
                     // Load the content of the resource, and define a class from it
                     try {
                         final ByteBuffer resourceByteBuffer = resource.read();
+                        // TODO: is there any need to try java.lang.invoke.MethodHandles.Lookup.defineClass
+                        // if the following fails? See: https://bugs.openjdk.java.net/browse/JDK-8202999
                         return defineClass(className, resourceByteBuffer, null);
                     } finally {
                         resource.close();
