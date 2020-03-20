@@ -58,6 +58,7 @@ public class ClassLoaderHandlerRegistry {
                     new ClassLoaderHandlerRegistryEntry(SpringBootRestartClassLoaderHandler.class),
                     new ClassLoaderHandlerRegistryEntry(TomcatWebappClassLoaderBaseHandler.class),
                     new ClassLoaderHandlerRegistryEntry(PlexusClassWorldsClassRealmClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(QuarkusClassLoaderHandler.class),
 
                     // For unit testing of PARENT_LAST delegation order
                     new ClassLoaderHandlerRegistryEntry(ParentLastDelegationOrderTestClassLoaderHandler.class),
