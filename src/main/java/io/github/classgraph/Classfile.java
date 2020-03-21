@@ -1509,6 +1509,9 @@ class Classfile {
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
+                // No need to read record_components_info entries -- there is a 1:1 correspondence between
+                // record components and fields/methods of the same name and type as the record component,
+                // so we can just rely on the field and method reading code to work correctly with records.
                 reader.skip(attributeLength);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 final int numInnerClasses = reader.readUnsignedShort();
@@ -1520,9 +1523,10 @@ class Classfile {
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
                         final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
                         final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
-                        // Record types have a Lookup inner class (that is not really an inner class)
+                        // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop this
                         if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
                                 && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
+                            // Store relationship between inner class and outer class
                             if (classContainmentEntries == null) {
                                 classContainmentEntries = new ArrayList<>();
                             }
