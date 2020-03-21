@@ -56,24 +56,29 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Can handle.
      *
-     * @param classLoaderClass the classloader class
-     * @param log              the log
+     * @param classLoaderClass
+     *            the classloader class
+     * @param log
+     *            the log
      * @return true, if classLoaderClass is the Quarkus RuntimeClassloader or QuarkusClassloader
      */
     public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return RUNTIME_CLASSLOADER.equals(classLoaderClass.getName())
-            || QUARKUS_CLASSLOADER.equals(classLoaderClass.getName());
+                || QUARKUS_CLASSLOADER.equals(classLoaderClass.getName());
     }
 
     /**
      * Find classloader order.
      *
-     * @param classLoader      the class loader
-     * @param classLoaderOrder the classloader order
-     * @param log              the log
+     * @param classLoader
+     *            the class loader
+     * @param classLoaderOrder
+     *            the classloader order
+     * @param log
+     *            the log
      */
     public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-                                            final LogNode log) {
+            final LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -81,15 +86,19 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Find the classpath entries for the associated {@link ClassLoader}.
      *
-     * @param classLoader    the {@link ClassLoader} to find the classpath entries order for.
-     * @param classpathOrder a {@link ClasspathOrder} object to update.
-     * @param scanSpec       the {@link ScanSpec}.
-     * @param log            the log.
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-                                          final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final LogNode log) {
 
-        String classLoaderName = classLoader.getClass().getName();
+        final String classLoaderName = classLoader.getClass().getName();
         if (RUNTIME_CLASSLOADER.equals(classLoaderName)) {
             findClasspathOrderForRuntimeClassloader(classLoader, classpathOrder, scanSpec, log);
         } else if (QUARKUS_CLASSLOADER.equals(classLoaderName)) {
@@ -98,21 +107,26 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @SuppressWarnings("unchecked")
-    private static void findClasspathOrderForQuarkusClassloader(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log) {
-        for (Object element : (Collection<Object>) ReflectionUtils.getFieldVal(classLoader, "elements", false)) {
-            String elementClassName = element.getClass().getName();
+    private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
+            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
+        for (final Object element : (Collection<Object>) ReflectionUtils.getFieldVal(classLoader, "elements",
+                false)) {
+            final String elementClassName = element.getClass().getName();
             if ("io.quarkus.bootstrap.classloading.JarClassPathElement".equals(elementClassName)) {
-                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(element, "file", false), classLoader, scanSpec, log);
+                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(element, "file", false), classLoader,
+                        scanSpec, log);
             } else if ("io.quarkus.bootstrap.classloading.DirectoryClassPathElement".equals(elementClassName)) {
-                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(element, "root", false), classLoader, scanSpec, log);
+                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(element, "root", false), classLoader,
+                        scanSpec, log);
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static void findClasspathOrderForRuntimeClassloader(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log) {
+    private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
+            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
         final Collection<Path> applicationClassDirectories = (Collection<Path>) ReflectionUtils
-            .getFieldVal(classLoader, "applicationClassDirectories", false);
+                .getFieldVal(classLoader, "applicationClassDirectories", false);
         if (applicationClassDirectories != null) {
             for (final Path path : applicationClassDirectories) {
                 classpathOrder.addClasspathEntryObject(path.toUri(), classLoader, scanSpec, log);
