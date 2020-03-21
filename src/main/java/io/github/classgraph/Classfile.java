@@ -1521,8 +1521,8 @@ class Classfile {
                         final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
                         final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
                         // Record types have a Lookup inner class (that is not really an inner class)
-                        if (!(innerClassName.equals("java.lang.invoke.MethodHandles$Lookup")
-                                && outerClassName.equals("java.lang.invoke.MethodHandles"))) {
+                        if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
+                                && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
                             if (classContainmentEntries == null) {
                                 classContainmentEntries = new ArrayList<>();
                             }
