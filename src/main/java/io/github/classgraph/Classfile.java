@@ -1523,6 +1523,14 @@ class Classfile {
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
                         final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
                         final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
+                        if (innerClassName == null || outerClassName == null) {
+                            // Should not happen (fix static analyzer warning)
+                            throw new ClassfileFormatException("Inner and/or outer class name is null");
+                        }
+                        if (innerClassName.equals(outerClassName)) {
+                            // Invalid according to spec
+                            throw new ClassfileFormatException("Inner and outer class name cannot be the same");
+                        }
                         // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop this
                         if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
                                 && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
