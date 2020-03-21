@@ -85,6 +85,9 @@ class Classfile {
     /** Whether this class is an interface. */
     private boolean isInterface;
 
+    /** Whether this class is a record. */
+    private boolean isRecord;
+
     /** Whether this class is an annotation. */
     private boolean isAnnotation;
 
@@ -464,6 +467,7 @@ class Classfile {
             classInfo.setModifiers(classModifiers);
             classInfo.setIsInterface(isInterface);
             classInfo.setIsAnnotation(isAnnotation);
+            classInfo.setIsRecord(isRecord);
             if (superclassName != null) {
                 classInfo.addSuperclass(superclassName, classNameToClassInfo);
             }
@@ -1503,6 +1507,9 @@ class Classfile {
                         classAnnotations.add(readAnnotation());
                     }
                 }
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
+                isRecord = true;
+                reader.skip(attributeLength);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 final int numInnerClasses = reader.readUnsignedShort();
                 for (int j = 0; j < numInnerClasses; j++) {
@@ -1513,11 +1520,15 @@ class Classfile {
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
                         final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
                         final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
-                        if (classContainmentEntries == null) {
-                            classContainmentEntries = new ArrayList<>();
+                        // Record types have a Lookup inner class (that is not really an inner class)
+                        if (!(innerClassName.equals("java.lang.invoke.MethodHandles$Lookup")
+                                && outerClassName.equals("java.lang.invoke.MethodHandles"))) {
+                            if (classContainmentEntries == null) {
+                                classContainmentEntries = new ArrayList<>();
+                            }
+                            classContainmentEntries.add(
+                                    new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
                         }
-                        classContainmentEntries
-                                .add(new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
                     }
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {

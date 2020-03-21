@@ -21,7 +21,7 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * MultiReleaseJar.
  */
 public class MultiReleaseJarTest {
-    /** The Constant jarURL. */
+    /** The jar URL. */
     private static final URL jarURL = MultiReleaseJarTest.class.getClassLoader()
             .getResource("multi-release-jar.jar");
 

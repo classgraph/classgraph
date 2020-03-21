@@ -64,6 +64,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** Class modifier flags, e.g. Modifier.PUBLIC */
     private int modifiers;
 
+    /** True if the class is a record. */
+    private boolean isRecord;
+
     /**
      * This annotation has the {@link Inherited} meta-annotation, which means that any class that this annotation is
      * applied to also implicitly causes the annotation to annotate all subclasses too.
@@ -365,7 +368,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Set isInterface status.
+     * Set isAnnotation status.
      *
      * @param isAnnotation
      *            true if this is an annotation
@@ -373,6 +376,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     void setIsAnnotation(final boolean isAnnotation) {
         if (isAnnotation) {
             this.modifiers |= ANNOTATION_CLASS_MODIFIER;
+        }
+    }
+
+    /**
+     * Set isRecord status.
+     *
+     * @param isRecord
+     *            true if this is a record
+     */
+    void setIsRecord(final boolean isRecord) {
+        if (isRecord) {
+            this.isRecord = isRecord;
         }
     }
 
@@ -670,6 +685,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         ANNOTATION,
         /** An interface or annotation (used since you can actually implement an annotation). */
         INTERFACE_OR_ANNOTATION,
+        /** An enum. */
+        ENUM,
+        /** A record type. */
+        RECORD
     }
 
     /**
@@ -694,6 +713,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         boolean includeStandardClasses = false;
         boolean includeImplementedInterfaces = false;
         boolean includeAnnotations = false;
+        boolean includeEnums = false;
+        boolean includeRecords = false;
         for (final ClassType classType : classTypes) {
             switch (classType) {
             case ALL:
@@ -711,6 +732,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             case INTERFACE_OR_ANNOTATION:
                 includeImplementedInterfaces = includeAnnotations = true;
                 break;
+            case ENUM:
+                includeEnums = true;
+                break;
+            case RECORD:
+                includeRecords = true;
+                break;
             default:
                 throw new IllegalArgumentException("Unknown ClassType: " + classType);
             }
@@ -722,9 +749,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final ClassInfo classInfo : classes) {
             // Check class type against requested type(s)
             if ((includeAllTypes //
-                    || includeStandardClasses && classInfo.isStandardClass()
-                    || includeImplementedInterfaces && classInfo.isImplementedInterface()
-                    || includeAnnotations && classInfo.isAnnotation()) //
+                    || includeStandardClasses && classInfo.isStandardClass() //
+                    || includeImplementedInterfaces && classInfo.isImplementedInterface() //
+                    || includeAnnotations && classInfo.isAnnotation() //
+                    || includeEnums && classInfo.isEnum() //
+                    || includeRecords && classInfo.isRecord()) //
                     // Always check blacklist 
                     && !scanSpec.classOrPackageIsBlacklisted(classInfo.name) //
                     // Always return whitelisted classes, or external classes if enableExternalClasses is true
@@ -870,6 +899,36 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     static ClassInfoList getAllClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
                 ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ALL),
+                /* sortByName = */ true);
+    }
+
+    /**
+     * Get all {@link Enum} classes found during the scan.
+     *
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all {@link Enum} classes found during the scan, or the empty list if none.
+     */
+    static ClassInfoList getAllEnums(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
+        return new ClassInfoList(
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ENUM),
+                /* sortByName = */ true);
+    }
+
+    /**
+     * Get all {@code record} classes found during the scan.
+     *
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all {@code record} classes found during the scan, or the empty list if none.
+     */
+    static ClassInfoList getAllRecords(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
+        return new ClassInfoList(
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.RECORD),
                 /* sortByName = */ true);
     }
 
@@ -1110,6 +1169,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean isEnum() {
         return (modifiers & 0x4000) != 0;
+    }
+
+    /**
+     * Checks if is the class is a record (JDK 14+).
+     *
+     * @return true if this class is a record.
+     */
+    public boolean isRecord() {
+        return isRecord;
     }
 
     /**
@@ -2867,8 +2935,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append(isAnnotation() ? "@interface "
-                        : isInterface() ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
+                buf.append(isRecord() ? "record " //
+                        : isEnum() ? "enum " //
+                                : isAnnotation() ? "@interface " //
+                                        : isInterface() ? "interface " //
+                                                : "class ");
                 buf.append(name);
                 final ClassInfo superclass = getSuperclass();
                 if (superclass != null && !superclass.getName().equals("java.lang.Object")) {

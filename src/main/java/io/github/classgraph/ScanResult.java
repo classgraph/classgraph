@@ -802,6 +802,36 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get all {@link Enum} classes found during the scan.
+     *
+     * @return A list of all {@link Enum} classes found during the scan, or the empty list if none.
+     */
+    public ClassInfoList getAllEnums() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+        }
+        return ClassInfo.getAllEnums(classNameToClassInfo.values(), scanSpec);
+    }
+
+    /**
+     * Get all {@code record} classes found during the scan (JDK 14+).
+     *
+     * @return A list of all {@code record} classes found during the scan, or the empty list if none.
+     */
+    public ClassInfoList getAllRecords() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+        }
+        return ClassInfo.getAllRecords(classNameToClassInfo.values(), scanSpec);
+    }
+
+    /**
      * Get a map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
      * during the scan.
      *

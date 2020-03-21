@@ -493,6 +493,20 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
+     * Filter this {@link ClassInfoList} to include only {@code record} classes.
+     * 
+     * @return The filtered list, containing only {@code record} classes.
+     */
+    public ClassInfoList getRecords() {
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isRecord();
+            }
+        });
+    }
+
+    /**
      * Filter this {@link ClassInfoList} to include only classes that are assignable to the requested class,
      * assignableToClass (i.e. where assignableToClass is a superclass or implemented interface of the list
      * element).
