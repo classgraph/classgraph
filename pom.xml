@@ -373,10 +373,9 @@
                         </execution>
 
                         <execution>
-                            <!-- Strip out m2e directives from pom.xml, since Sonatype and Scrutinizer -->
-                            <!-- can't handle them. This has to be done after the jar is built, since Maven -->
-                            <!-- adds the pom.xml file to the jarfile directly, rather than first creating it -->
-                            <!-- in the target directory. -->
+                            <!-- Strip out m2e directives from pom.xml, since Sonatype can't handle them. -->
+                            <!-- This has to be done after the jar is built, since Maven adds the pom.xml file -->
+                            <!-- to the jarfile directly, rather than first creating it in the target directory. -->
                             <id>strip-m2e-directives</id>
                             <phase>package</phase>
                             <goals>
