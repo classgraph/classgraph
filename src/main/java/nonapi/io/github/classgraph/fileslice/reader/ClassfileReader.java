@@ -178,13 +178,17 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
                 maxArrLen);
 
         // Double the size of the array if it's too small to contain the new chunk of bytes
-        if (arr.length < maxNewArrUsed) {
-            arr = Arrays.copyOf(arr, (int) Math.min(arr.length * 2L, maxArrLen));
+        long newArrLength = arr.length;
+        while (newArrLength < maxNewArrUsed) {
+            newArrLength = Math.min(maxNewArrUsed, newArrLength * 2L);
         }
+        if (newArrLength > FileUtils.MAX_BUFFER_SIZE) {
+            throw new IOException("Hit 2GB limit while trying to grow buffer array");
+        }
+        arr = Arrays.copyOf(arr, (int) Math.min(newArrLength, maxArrLen));
 
-        // Figure out the maximum number of bytes that can be read into the array (which is the minimum
-        // of the number of requested bytes, and the space left in the array)
-        final int maxBytesToRead = Math.min(maxNewArrUsed - arrUsed, arr.length - arrUsed);
+        // Figure out the maximum number of bytes that can be read into the array
+        final int maxBytesToRead = arr.length - arrUsed;
 
         // Read a new chunk into the buffer, starting at position arrUsed
         if (inflaterInputStream != null) {
