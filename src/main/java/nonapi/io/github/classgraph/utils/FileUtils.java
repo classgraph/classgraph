@@ -361,18 +361,21 @@ public final class FileUtils {
                 // See: https://stackoverflow.com/a/19447758/3950982
                 cleanMethod = Class.forName("sun.misc.Cleaner").getMethod("clean");
                 cleanMethod.setAccessible(true);
-                final Class<?> directByteBufferClass = Class.forName("sun.nio.ch.DirectBuffer");
-                attachmentMethod = directByteBufferClass.getMethod("attachment");
+                attachmentMethod = Class.forName("sun.nio.ch.DirectBuffer").getMethod("attachment");
                 attachmentMethod.setAccessible(true);
             } catch (final SecurityException e) {
                 throw ClassGraphException.newClassGraphException(
-                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
+                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
+                                + "RuntimePermission(\"accessClassInPackage.sun.nio.ch\"), "
                                 + "and ReflectPermission(\"suppressAccessChecks\")",
                         e);
-            } catch (final ReflectiveOperationException | LinkageError ex) {
+            } catch (final ReflectiveOperationException | LinkageError e) {
                 // Ignore
             }
         } else {
+            // In JDK9+, calling sun.misc.Cleaner.clean() gives a reflection warning on stderr,
+            // so we need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) instead, which makes
+            // the same call, but does not print the reflection warning.
             try {
                 Class<?> unsafeClass;
                 try {
@@ -382,11 +385,11 @@ public final class FileUtils {
                     // but that method should be added if sun.misc.Unsafe is removed.
                     unsafeClass = Class.forName("jdk.internal.misc.Unsafe");
                 }
-                cleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-                cleanMethod.setAccessible(true);
                 final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
                 theUnsafeField.setAccessible(true);
                 theUnsafe = theUnsafeField.get(null);
+                cleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
+                cleanMethod.setAccessible(true);
             } catch (final SecurityException e) {
                 throw ClassGraphException.newClassGraphException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
@@ -480,9 +483,6 @@ public final class FileUtils {
                     }
                     return false;
                 }
-                // In JDK9+, calling the above code gives a reflection warning on stderr,
-                // need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) , which makes
-                // the same call, but does not print the reflection warning.
                 try {
                     cleanMethod.invoke(theUnsafe, byteBuffer);
                     return true;
