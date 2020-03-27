@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.67-SNAPSHOT</version>
+    <version>4.8.66-SNAPSHOT</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -544,6 +544,7 @@
                         <serverId>ossrh</serverId>
                         <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                         <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                        <stagingProgressTimeoutMinutes>10</stagingProgressTimeoutMinutes>
                     </configuration>
                 </plugin>
 
