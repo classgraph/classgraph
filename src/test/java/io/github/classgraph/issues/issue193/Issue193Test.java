@@ -40,8 +40,6 @@ import org.junit.jupiter.api.Test;
 import org.ops4j.pax.url.mvn.MavenResolvers;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -72,12 +70,8 @@ public class Issue193Test {
                 .scan()) {
             final List<String> classes = scanResult //
                     .getAllClasses() //
-                    .filter(new ClassInfoFilter() {
-                        @Override
-                        public boolean accept(final ClassInfo ci) {
-                            return ci.getName().endsWith("$");
-                        }
-                    }).getNames();
+                    .filter(ci -> ci.getName().endsWith("$")) //
+                    .getNames();
             assertThat(classes).contains("scala.collection.immutable.Stack$");
         }
     }
