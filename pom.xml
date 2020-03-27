@@ -503,9 +503,11 @@
                                 <Bundle-Version>${project.version}</Bundle-Version>
                                 <Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=1.7))"</Require-Capability>
                                 <Export-Package>io.github.classgraph;version="${project.version}"</Export-Package>
-                                <!-- N.B. make sure the module-info "requires" entries match these imports -->
+                                <!-- Make sure "requires" entries in the module descriptor match these imports: -->
+                                <!-- src/main/module-info/io.github.classgraph/module-info.java -->
                                 <Import-Package>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,jdk.internal.misc;resolution:="optional",sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional"</Import-Package>
-                                <!-- This is a multi-release jar, since module-info.class will be added to META-INF/versions/9 -->
+                                <!-- This is a multi-release jar, since module-info.class will be added to -->
+                                <!-- META-INF/versions/9 , so we need to set the Multi-Release entry to true -->
                                 <Multi-Release>true</Multi-Release>
                             </manifestEntries>
                         </archive>
