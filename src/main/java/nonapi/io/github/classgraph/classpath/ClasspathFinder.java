@@ -120,6 +120,7 @@ public class ClasspathFinder {
                 // Thread.currentThread().getContextClassLoader() [.getParent()] or similar
                 if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")) {
                     scanModules = true;
+                    break;
                 } else if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
                     scanModules = true;
                     // The platform classloader was passed in, so specifically enable system module scanning
@@ -131,6 +132,7 @@ public class ClasspathFinder {
                         }
                         scanSpec.enableSystemJarsAndModules = true;
                     }
+                    break;
                 }
             }
         } else {
