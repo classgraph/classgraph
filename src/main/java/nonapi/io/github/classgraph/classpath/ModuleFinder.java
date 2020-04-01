@@ -245,9 +245,7 @@ public class ModuleFinder {
      *            The log.
      */
     public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final LogNode log) {
-        final boolean disableModules = scanSpec.overrideClassLoaders != null || scanSpec.overrideClasspath != null;
-
-        if (!disableModules) {
+        if (scanSpec.scanModules) {
             // Get the module resolution order
             List<ModuleRef> allModuleRefsList = null;
             if (scanSpec.overrideModuleLayers == null) {
