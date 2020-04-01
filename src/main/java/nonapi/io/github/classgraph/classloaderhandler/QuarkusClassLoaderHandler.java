@@ -43,7 +43,7 @@ import nonapi.io.github.classgraph.utils.ReflectionUtils;
 class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     // Classloader until Quarkus 1.2
     private static final String RUNTIME_CLASSLOADER = "io.quarkus.runner.RuntimeClassLoader";
-    
+
     // Classloader since Quarkus 1.3
     private static final String QUARKUS_CLASSLOADER = "io.quarkus.bootstrap.classloading.QuarkusClassLoader";
 
