@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.68-SNAPSHOT</version>
+    <version>4.8.67-SNAPSHOT</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -31,7 +31,6 @@
         <connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
         <developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
         <url>https://github.com/classgraph/classgraph</url>
-        <tag>classgraph-4.8.66</tag>
     </scm>
 
     <issueManagement>
@@ -230,9 +229,6 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <!-- Handle m2e lifecycle mapping. See: -->
-                    <!-- https://www.eclipse.org/m2e/documentation/release-notes-17.html#new-syntax-for-specifying-lifecycle-mapping-metadata -->
-                    <?m2e execute onConfiguration,onIncremental?>
                     <dependencies>
                         <dependency>
                             <groupId>org.codehaus.mojo</groupId>
