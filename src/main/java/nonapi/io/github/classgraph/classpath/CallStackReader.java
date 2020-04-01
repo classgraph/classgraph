@@ -41,6 +41,7 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find the unique ordered classpath elements. */
 class CallStackReader {
+    private static Class<?>[] callStack;
 
     /**
      * Constructor.
@@ -141,65 +142,66 @@ class CallStackReader {
      * @return The classes in the call stack.
      */
     static Class<?>[] getClassContext(final LogNode log) {
-        // For JRE 9+, use StackWalker to get call stack.
-        // N.B. need to work around StackWalker bug fixed in JDK 13, and backported to 12.0.2 and 11.0.4
-        // (probably introduced in JDK 9, when StackWalker was introduced):
-        // https://github.com/classgraph/classgraph/issues/341
-        // https://bugs.openjdk.java.net/browse/JDK-8210457
-        Class<?>[] stackClasses = null;
-        if ((VersionFinder.JAVA_MAJOR_VERSION == 11
-                && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 4)
-                && !VersionFinder.JAVA_IS_EA_VERSION)
-                || (VersionFinder.JAVA_MAJOR_VERSION == 12
-                        && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 2)
-                        && !VersionFinder.JAVA_IS_EA_VERSION)
-                || (VersionFinder.JAVA_MAJOR_VERSION == 13 && !VersionFinder.JAVA_IS_EA_VERSION)
-                || VersionFinder.JAVA_MAJOR_VERSION > 13) {
-            // Invoke with doPrivileged -- see:
-            // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
-            stackClasses = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
-                @Override
-                public Class<?>[] run() {
-                    return getCallStackViaStackWalker();
-                }
-            });
-        }
+        if (callStack == null) {
+            // For JRE 9+, use StackWalker to get call stack.
+            // N.B. need to work around StackWalker bug fixed in JDK 13, and backported to 12.0.2 and 11.0.4
+            // (probably introduced in JDK 9, when StackWalker was introduced):
+            // https://github.com/classgraph/classgraph/issues/341
+            // https://bugs.openjdk.java.net/browse/JDK-8210457
+            if ((VersionFinder.JAVA_MAJOR_VERSION == 11
+                    && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 4)
+                    && !VersionFinder.JAVA_IS_EA_VERSION)
+                    || (VersionFinder.JAVA_MAJOR_VERSION == 12
+                            && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 2)
+                            && !VersionFinder.JAVA_IS_EA_VERSION)
+                    || (VersionFinder.JAVA_MAJOR_VERSION == 13 && !VersionFinder.JAVA_IS_EA_VERSION)
+                    || VersionFinder.JAVA_MAJOR_VERSION > 13) {
+                // Invoke with doPrivileged -- see:
+                // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
+                callStack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
+                    @Override
+                    public Class<?>[] run() {
+                        return getCallStackViaStackWalker();
+                    }
+                });
+            }
 
-        // For JRE 7 and 8, use SecurityManager to get call stack
-        if (stackClasses == null || stackClasses.length == 0) {
-            stackClasses = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
-                @Override
-                public Class<?>[] run() {
-                    return getCallStackViaSecurityManager(log);
-                }
-            });
-        }
+            // For JRE 7 and 8, use SecurityManager to get call stack
+            if (callStack == null || callStack.length == 0) {
+                callStack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
+                    @Override
+                    public Class<?>[] run() {
+                        return getCallStackViaSecurityManager(log);
+                    }
+                });
+            }
 
-        // As a fallback, use getStackTrace() to try to get the call stack
-        if (stackClasses == null || stackClasses.length == 0) {
-            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-            if (stackTrace == null || stackTrace.length == 0) {
-                try {
-                    throw new Exception();
-                } catch (final Exception e) {
-                    stackTrace = e.getStackTrace();
+            // As a fallback, use getStackTrace() to try to get the call stack
+            if (callStack == null || callStack.length == 0) {
+                StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+                if (stackTrace == null || stackTrace.length == 0) {
+                    try {
+                        throw new Exception();
+                    } catch (final Exception e) {
+                        stackTrace = e.getStackTrace();
+                    }
                 }
-            }
-            final List<Class<?>> stackClassesList = new ArrayList<>();
-            for (final StackTraceElement elt : stackTrace) {
-                try {
-                    stackClassesList.add(Class.forName(elt.getClassName()));
-                } catch (final ClassNotFoundException | LinkageError ignored) {
-                    // Ignored
+                final List<Class<?>> stackClassesList = new ArrayList<>();
+                for (final StackTraceElement elt : stackTrace) {
+                    try {
+                        stackClassesList.add(Class.forName(elt.getClassName()));
+                    } catch (final ClassNotFoundException | LinkageError ignored) {
+                        // Ignored
+                    }
                 }
-            }
-            if (!stackClassesList.isEmpty()) {
-                stackClasses = stackClassesList.toArray(new Class<?>[0]);
-            } else {
-                // Last-ditch effort -- include just this class in the call stack
-                stackClasses = new Class<?>[] { CallStackReader.class };
+                if (!stackClassesList.isEmpty()) {
+                    callStack = stackClassesList.toArray(new Class<?>[0]);
+                } else {
+                    // Last-ditch effort -- include just this class in the call stack
+                    callStack = new Class<?>[] { CallStackReader.class };
+                }
             }
         }
-        return stackClasses;
+        return callStack;
     }
 }

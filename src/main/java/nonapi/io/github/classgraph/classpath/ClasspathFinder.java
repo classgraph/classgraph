@@ -97,11 +97,6 @@ public class ClasspathFinder {
     public ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
-        // Only look for environment classloaders if classpath and classloaders are not overridden
-        final ClassLoaderFinder classLoaderFinder = scanSpec.overrideClasspath == null
-                && scanSpec.overrideClassLoaders == null ? new ClassLoaderFinder(scanSpec, classpathFinderLog)
-                        : null;
-
         // If classloaders are overridden, check if the override classloader(s) is/are JPMS classloaders.
         // If so, need to enable module scanning. If not, disable module scanning, since only the provided
         // classloader(s) should be scanned. (#382)
@@ -139,18 +134,21 @@ public class ClasspathFinder {
             scanModules = scanSpec.scanModules;
         }
 
-        moduleFinder = scanModules && classLoaderFinder != null
-                ? new ModuleFinder(classLoaderFinder.getCallStack(), scanSpec, classpathFinderLog)
+        moduleFinder = scanModules
+                ? new ModuleFinder(CallStackReader.getClassContext(classpathFinderLog), scanSpec,
+                        classpathFinderLog)
                 : null;
 
         classpathOrder = new ClasspathOrder(scanSpec);
         final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec);
 
+        // Only look for environment classloaders if classpath and classloaders are not overridden
+        final ClassLoaderFinder classLoaderFinder = scanSpec.overrideClasspath == null
+                && scanSpec.overrideClassLoaders == null ? new ClassLoaderFinder(scanSpec, classpathFinderLog)
+                        : null;
         final ClassLoader[] contextClassLoaders = classLoaderFinder == null ? new ClassLoader[0]
                 : classLoaderFinder.getContextClassLoaders();
-        final ClassLoader defaultClassLoader = contextClassLoaders != null && contextClassLoaders.length > 0
-                ? contextClassLoaders[0]
-                : null;
+        final ClassLoader defaultClassLoader = contextClassLoaders.length > 0 ? contextClassLoaders[0] : null;
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             if (scanSpec.overrideClassLoaders != null && classpathFinderLog != null) {

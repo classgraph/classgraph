@@ -38,9 +38,6 @@ public class ClassLoaderFinder {
     /** The context class loaders. */
     private final ClassLoader[] contextClassLoaders;
 
-    /** The callstack. */
-    private Class<?>[] callStack;
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -50,15 +47,6 @@ public class ClassLoaderFinder {
      */
     public ClassLoader[] getContextClassLoaders() {
         return contextClassLoaders;
-    }
-
-    /**
-     * Get classes in the callstack.
-     *
-     * @return classes in the callstack.
-     */
-    public Class<?>[] getCallStack() {
-        return callStack;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -113,7 +101,7 @@ public class ClassLoaderFinder {
 
             // Find classloaders for classes on callstack, in case any were missed
             try {
-                callStack = CallStackReader.getClassContext(log);
+                final Class<?>[] callStack = CallStackReader.getClassContext(log);
                 for (int i = callStack.length - 1; i >= 0; --i) {
                     final ClassLoader callerClassLoader = callStack[i].getClassLoader();
                     if (callerClassLoader != null) {
