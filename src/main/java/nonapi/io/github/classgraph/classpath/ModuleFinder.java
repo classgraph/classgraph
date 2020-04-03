@@ -139,11 +139,15 @@ public class ModuleFinder {
         final Deque<Object> /* Deque<ModuleLayer> */ layerOrder = new ArrayDeque<>();
         final Set<Object> /* Set<ModuleLayer */ parentLayers = new HashSet<>();
         for (final Object layer : layers) {
-            findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+            if (layer != null) {
+                findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+            }
         }
         if (scanSpec.addedModuleLayers != null) {
             for (final Object layer : scanSpec.addedModuleLayers) {
-                findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+                if (layer != null) {
+                    findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+                }
             }
         }
 
@@ -206,7 +210,7 @@ public class ModuleFinder {
      *            the log
      * @return the list
      */
-    private static List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
+    private List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
             final LogNode log) {
         final LinkedHashSet<Object> layers = new LinkedHashSet<>();
         if (callStack != null) {
@@ -216,9 +220,13 @@ public class ModuleFinder {
                 if (module != null) {
                     final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
                             /* throwException = */ true);
-                    // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
-                    // so we can get classes from java.class.path 
-                    layers.add(layer);
+                    if (layer != null) {
+                        layers.add(layer);
+                    } else {
+                        // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
+                        // so we can get classes from java.class.path 
+                        forceScanJavaClassPath = true;
+                    }
                 }
             }
         }
@@ -234,6 +242,11 @@ public class ModuleFinder {
                     /* throwException = */ false);
             if (bootLayer != null) {
                 layers.add(bootLayer);
+            } else {
+                // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
+                // so we can get classes from java.class.path. (I'm not sure if the boot layer can ever
+                // actually be null, but this is here for completeness.)
+                forceScanJavaClassPath = true;
             }
         }
         return findModuleRefs(layers, scanSpec, log);
@@ -275,13 +288,12 @@ public class ModuleFinder {
                 systemModuleRefs = new ArrayList<>();
                 nonSystemModuleRefs = new ArrayList<>();
                 for (final ModuleRef moduleRef : allModuleRefsList) {
-                    if (moduleRef == null) {
-                        // getLayer() returns null for unnamed modules -- have to get classes from java.class.path
-                        forceScanJavaClassPath = true;
-                    } else if (moduleRef.isSystemModule()) {
-                        systemModuleRefs.add(moduleRef);
-                    } else {
-                        nonSystemModuleRefs.add(moduleRef);
+                    if (moduleRef != null) {
+                        if (moduleRef.isSystemModule()) {
+                            systemModuleRefs.add(moduleRef);
+                        } else {
+                            nonSystemModuleRefs.add(moduleRef);
+                        }
                     }
                 }
             }
