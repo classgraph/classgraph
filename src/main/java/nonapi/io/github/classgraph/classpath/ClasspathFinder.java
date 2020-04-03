@@ -264,8 +264,11 @@ public class ClasspathFinder {
 
         // Get classpath elements from java.class.path, but don't add them if the element is in an ignored
         // parent classloader and not in a child classloader (and don't use java.class.path at all if
-        // overrideClassLoaders is true or overrideClasspath is set)
-        if (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null) {
+        // overrideClassLoaders is true or overrideClasspath is set). However, if only module scanning was
+        // enabled, and an unnamed module layer was encountered, have to forcibly scan java.class.path,
+        // since the ModuleLayer API doesn't allow you to open unnamed modules.
+        if ((scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null)
+                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
             final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"), scanSpec);
             if (pathElements.length > 0) {
                 final LogNode sysPropLog = classpathFinderLog == null ? null

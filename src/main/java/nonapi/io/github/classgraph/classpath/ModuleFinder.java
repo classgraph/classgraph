@@ -51,6 +51,9 @@ public class ModuleFinder {
     /** The non system module refs. */
     private List<ModuleRef> nonSystemModuleRefs;
 
+    /** If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer. */
+    private boolean forceScanJavaClassPath;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -71,6 +74,11 @@ public class ModuleFinder {
      */
     public List<ModuleRef> getNonSystemModuleRefs() {
         return nonSystemModuleRefs;
+    }
+
+    /** @return If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer. */
+    public boolean forceScanJavaClassPath() {
+        return forceScanJavaClassPath;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -208,10 +216,9 @@ public class ModuleFinder {
                 if (module != null) {
                     final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
                             /* throwException = */ true);
-                    // getLayer() returns null for unnamed modules -- have to get their classes from java.class.path 
-                    if (layer != null) {
-                        layers.add(layer);
-                    }
+                    // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
+                    // so we can get classes from java.class.path 
+                    layers.add(layer);
                 }
             }
         }
@@ -268,7 +275,10 @@ public class ModuleFinder {
                 systemModuleRefs = new ArrayList<>();
                 nonSystemModuleRefs = new ArrayList<>();
                 for (final ModuleRef moduleRef : allModuleRefsList) {
-                    if (moduleRef.isSystemModule()) {
+                    if (moduleRef == null) {
+                        // getLayer() returns null for unnamed modules -- have to get classes from java.class.path
+                        forceScanJavaClassPath = true;
+                    } else if (moduleRef.isSystemModule()) {
                         systemModuleRefs.add(moduleRef);
                     } else {
                         nonSystemModuleRefs.add(moduleRef);
