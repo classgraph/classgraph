@@ -131,7 +131,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private Set<String> referencedClassNames;
 
-    /** A list of ClassInfo objects for classes referenced by this class. */
+    /**
+     * A list of ClassInfo objects for classes referenced by this class. Derived from {@link #referencedClassNames}
+     * when the relevant {@link ClassInfo} objects are created.
+     */
     private ClassInfoList referencedClasses;
 
     /**
@@ -2822,7 +2825,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final Set<ClassInfo> refdClassInfo) {
         // Add this class to the set of references
         super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
-
         if (this.referencedClassNames != null) {
             for (final String refdClassName : this.referencedClassNames) {
                 final ClassInfo classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
