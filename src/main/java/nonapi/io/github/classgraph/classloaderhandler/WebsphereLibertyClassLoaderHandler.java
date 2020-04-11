@@ -3,13 +3,15 @@
  *
  * Author: R. Kempees
  *
+ * With contributions from @cpierceworld (#414)
+ *
  * Hosted at: https://github.com/classgraph/classgraph
  *
  * --
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2017 R. Kempees
+ * Copyright (c) 2017 R. Kempees (contributed to the ClassGraph project)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -190,7 +192,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                     return allUrls;
                 }
             } catch (final UnsupportedOperationException e) {
-                /* ignore */}
+                /* ignore */
+            }
         }
         return null;
     }
