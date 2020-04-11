@@ -34,6 +34,7 @@ import java.io.File;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -109,7 +110,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      */
     private static Collection<Object> getPaths(final Object containerClassLoader) {
         if (containerClassLoader == null) {
-            return null;
+            return Collections.<Object> emptyList();
         }
 
         // Expecting this to be an instance of
@@ -123,7 +124,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         // "getContainerURLs" didn't work, try getting the container object...
         final Object container = ReflectionUtils.getFieldVal(containerClassLoader, "container", false);
         if (container == null) {
-            return null;
+            return Collections.<Object> emptyList();
         }
 
         // Should be an instance of "com.ibm.wsspi.adaptable.module.Container".
@@ -136,7 +137,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         // "getURLs" did not work, reverting to previous logic of introspection of the "delegate".
         final Object delegate = ReflectionUtils.getFieldVal(container, "delegate", false);
         if (delegate == null) {
-            return null;
+            return Collections.<Object> emptyList();
         }
 
         final String path = (String) ReflectionUtils.getFieldVal(delegate, "path", false);
@@ -147,7 +148,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         final Object base = ReflectionUtils.getFieldVal(delegate, "base", false);
         if (base == null) {
             // giving up.
-            return null;
+            return Collections.<Object> emptyList();
         }
 
         final Object archiveFile = ReflectionUtils.getFieldVal(base, "archiveFile", false);
@@ -155,7 +156,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             final File file = (File) archiveFile;
             return Arrays.asList((Object) file.getAbsolutePath());
         }
-        return null;
+        return Collections.<Object> emptyList();
     }
 
     /**
@@ -195,7 +196,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 /* ignore */
             }
         }
-        return null;
+        return Collections.<Object> emptyList();
     }
 
     /**
@@ -223,7 +224,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             // "com.ibm.ws.classloading.internal.ContainerClassLoader$SmartClassPath" 
             // interface specifies a "getClassPath" to return all urls that makeup its path.
             final Collection<Object> paths = callGetUrls(smartClassPath, "getClassPath");
-            if (paths != null && !paths.isEmpty()) {
+            if (!paths.isEmpty()) {
                 for (final Object path : paths) {
                     classpathOrder.addClasspathEntry(path, classLoader, scanSpec, log);
                 }
