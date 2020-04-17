@@ -228,6 +228,9 @@
             <plugins>
                 <!-- Enforce minimum Maven version, and JDK 7 API -->
                 <plugin>
+                    <!-- Handle m2e lifecycle mapping. See: -->
+                    <!-- https://www.eclipse.org/m2e/documentation/release-notes-17.html#new-syntax-for-specifying-lifecycle-mapping-metadata -->
+                    <?m2e execute onConfiguration,onIncremental?>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
                     <dependencies>
@@ -357,39 +360,6 @@
                                         <zipfileset prefix="META-INF/versions/9" dir="${project.basedir}/src/module-info/io.github.classgraph" includes="module-info.class" />
                                     </jar>
                                 </target>
-                            </configuration>
-                        </execution>
-
-                        <execution>
-                            <!-- Strip out m2e directives from pom.xml, since Sonatype can't handle them. -->
-                            <!-- This has to be done after the jar is built, since Maven adds the pom.xml file -->
-                            <!-- to the jarfile directly, rather than first creating it in the target directory. -->
-                            <id>strip-m2e-directives</id>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>run</goal>
-                            </goals>
-                            <configuration>
-                                <tasks>
-                                    <!-- Unzip pom.xml, and replace m2e directives with comments -->
-                                    <copy todir="${project.build.directory}/tmp">
-                                        <zipfileset src="${project.build.directory}/${project.build.finalName}.jar">
-                                            <patternset>
-                                                <include name="META-INF/maven/io.github.classgraph/classgraph/pom.xml" />
-                                            </patternset>
-                                        </zipfileset>
-                                        <filterchain>
-                                            <tokenfilter>
-                                                <replacestring from="&lt;?" to="&lt;-- " />
-                                            </tokenfilter>
-                                            <tokenfilter>
-                                                <replacestring from="?&gt;" to=" --&gt;" />
-                                            </tokenfilter>
-                                        </filterchain>
-                                    </copy>
-                                    <!-- Update jarfile with modified pom.xml -->
-                                    <zip basedir="${project.build.directory}/tmp" destfile="${project.build.directory}/${project.build.finalName}.jar" update="true" />
-                                </tasks>
                             </configuration>
                         </execution>
                     </executions>
