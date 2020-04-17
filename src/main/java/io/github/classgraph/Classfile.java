@@ -76,6 +76,12 @@ class Classfile {
     /** The name of the class. */
     private String className;
 
+    /** The minor version of the classfile format. */
+    private int minorVersion;
+
+    /** The major version of the classfile format. */
+    private int majorVersion;
+
     /** Whether this is an external class. */
     private final boolean isExternalClass;
 
@@ -464,6 +470,7 @@ class Classfile {
             // Handle regular classfile
             classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass, classNameToClassInfo,
                     classpathElement, classfileResource);
+            classInfo.setClassfileVersion(minorVersion, majorVersion);
             classInfo.setModifiers(classModifiers);
             classInfo.setIsInterface(isInterface);
             classInfo.setIsAnnotation(isAnnotation);
@@ -1644,8 +1651,8 @@ class Classfile {
             }
 
             // Read classfile minor and major version
-            reader.readUnsignedShort();
-            reader.readUnsignedShort();
+            minorVersion = reader.readUnsignedShort();
+            majorVersion = reader.readUnsignedShort();
 
             // Read the constant pool
             readConstantPoolEntries();

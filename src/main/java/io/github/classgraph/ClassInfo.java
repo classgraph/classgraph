@@ -73,6 +73,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     boolean isInherited;
 
+    /** The minor version of the classfile format for this class' classfile. */
+    private int classfileMinorVersion;
+
+    /** The major version of the classfile format for this class' classfile. */
+    private int classfileMajorVersion;
+
     /** The class type signature string. */
     protected String typeSignatureStr;
 
@@ -346,6 +352,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                             : new ArrayClassInfo(new ArrayTypeSignature(baseClassName, numArrayDims)));
         }
         return classInfo;
+    }
+
+    /**
+     * Set classfile version.
+     * 
+     * @param minorVersion
+     *            the minor version of the classfile format for this class' classfile.
+     * @param majorVersion
+     *            the major version of the classfile format for this class' classfile.
+     */
+    void setClassfileVersion(final int minorVersion, final int majorVersion) {
+        this.classfileMinorVersion = minorVersion;
+        this.classfileMajorVersion = majorVersion;
     }
 
     /**
@@ -1068,6 +1087,26 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean isExternalClass() {
         return isExternalClass;
+    }
+
+    /**
+     * Get the minor version of the classfile format for this class' classfile.
+     * 
+     * @return The minor version of the classfile format for this class' classfile, or 0 if this {@link ClassInfo}
+     *         object is a placeholder for a referenced class that was not found or not whitelisted during the scan.
+     */
+    public int getClassfileMinorVersion() {
+        return classfileMinorVersion;
+    }
+
+    /**
+     * Get the major version of the classfile format for this class' classfile.
+     * 
+     * @return The major version of the classfile format for this class' classfile, or 0 if this {@link ClassInfo}
+     *         object is a placeholder for a referenced class that was not found or not whitelisted during the scan.
+     */
+    public int getClassfileMajorVersion() {
+        return classfileMajorVersion;
     }
 
     /**
