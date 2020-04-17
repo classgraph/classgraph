@@ -228,9 +228,6 @@
             <plugins>
                 <!-- Enforce minimum Maven version, and JDK 7 API -->
                 <plugin>
-                    <!-- Handle m2e lifecycle mapping. See: -->
-                    <!-- https://www.eclipse.org/m2e/documentation/release-notes-17.html#new-syntax-for-specifying-lifecycle-mapping-metadata -->
-                    <?m2e execute onConfiguration,onIncremental?>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
                     <dependencies>
