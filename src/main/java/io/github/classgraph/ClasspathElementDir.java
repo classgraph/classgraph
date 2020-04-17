@@ -53,6 +53,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
@@ -324,6 +325,7 @@ class ClasspathElementDir extends ClasspathElement {
         final String dirPath = dir.getPath();
         final String dirRelativePath = ignorePrefixLen > dirPath.length() ? "/" //
                 : dirPath.substring(ignorePrefixLen).replace(File.separatorChar, '/') + "/";
+        final boolean isDefaultPackage = "/".equals(dirRelativePath);
 
         if (nestedClasspathRootPrefixes != null && nestedClasspathRootPrefixes.contains(dirRelativePath)) {
             if (log != null) {
@@ -376,15 +378,24 @@ class ClasspathElementDir extends ClasspathElement {
                 : log.log("1:" + canonicalPath, "Scanning directory: " + dir
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
+        // Determine whether this is a modular jar running under JRE 9+
+        final boolean isModularJar = VersionFinder.JAVA_MAJOR_VERSION >= 9 && getModuleName() != null;
+
         // Only scan files in directory if directory is not only an ancestor of a whitelisted path
         if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
             // Do preorder traversal (files in dir, then subdirs), to reduce filesystem cache misses
             for (final File fileInDir : filesInDir) {
                 // Process files in dir before recursing
                 if (fileInDir.isFile()) {
-                    final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
+                    final String fileInDirRelativePath = dirRelativePath.isEmpty() || isDefaultPackage
                             ? fileInDir.getName()
                             : dirRelativePath + fileInDir.getName();
+                    // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
+                    // default package, since these are disallowed.
+                    if (isModularJar && isDefaultPackage && fileInDirRelativePath.endsWith(".class")
+                            && !fileInDirRelativePath.equals("module-info.class")) {
+                        continue;
+                    }
 
                     // Whitelist/blacklist classpath elements based on file resource paths
                     checkResourcePathWhiteBlackList(fileInDirRelativePath, subLog);

@@ -461,6 +461,21 @@ class ClasspathElementZip extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning jarfile classpath element " + getZipFilePath(), log);
 
+        boolean isModularJar = false;
+        if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
+            // Determine whether this is a modular jar running under JRE 9+
+            String moduleName = moduleNameFromModuleDescriptor;
+            if (moduleName == null || moduleName.isEmpty()) {
+                moduleName = moduleNameFromManifestFile;
+            }
+            if (moduleName != null && moduleName.isEmpty()) {
+                moduleName = null;
+            }
+            if (moduleName != null) {
+                isModularJar = true;
+            }
+        }
+
         Set<String> loggedNestedClasspathRootPrefixes = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
@@ -482,6 +497,13 @@ class ClasspathElementZip extends ClasspathElement {
                                         + "the \"Multi-Release\" key) -- skipping: " + relativePath);
                     }
                 }
+                continue;
+            }
+
+            // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
+            // default package, since these are disallowed.
+            if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
+                    && !relativePath.equals("module-info.class")) {
                 continue;
             }
 

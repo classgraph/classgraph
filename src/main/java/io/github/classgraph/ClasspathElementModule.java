@@ -51,6 +51,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {
@@ -269,6 +270,9 @@ class ClasspathElementModule extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
 
+        // Determine whether this is a modular jar running under JRE 9+
+        final boolean isModularJar = VersionFinder.JAVA_MAJOR_VERSION >= 9 && getModuleName() != null;
+
         try (RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
                 = moduleReaderProxyRecycler.acquireRecycleOnClose()) {
             // Look for whitelisted files in the module.
@@ -308,6 +312,13 @@ class ClasspathElementModule extends ClasspathElement {
                         subLog.log(
                                 "Found unexpected nested versioned entry in module -- skipping: " + relativePath);
                     }
+                    continue;
+                }
+
+                // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
+                // default package, since these are disallowed.
+                if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
+                        && !relativePath.equals("module-info.class")) {
                     continue;
                 }
 
