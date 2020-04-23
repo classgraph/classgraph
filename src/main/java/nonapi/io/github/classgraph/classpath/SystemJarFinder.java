@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -42,16 +41,13 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 /** A class to find rt.jar and any JRE "lib/" or "ext/" jars. */
 public final class SystemJarFinder {
     /** The paths of any "rt.jar" files found in the JRE. */
-    private static Set<String> RT_JARS;
+    private static final Set<String> RT_JARS = new LinkedHashSet<>();
 
     /** The path of the first "rt.jar" found. */
-    private static String RT_JAR;
+    private static final String RT_JAR;
 
     /** The paths of any "lib/" or "ext/" jars found in the JRE. */
-    private static Set<String> JRE_LIB_OR_EXT_JARS;
-
-    /** True if the system jars have already been found. */
-    private static final AtomicBoolean initialized = new AtomicBoolean();
+    private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
 
     /**
      * Constructor.
@@ -100,9 +96,7 @@ public final class SystemJarFinder {
     }
 
     // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
-    private static void initialize() {
-        RT_JARS = new LinkedHashSet<>();
-        JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
+    static {
         String javaHome = VersionFinder.getProperty("java.home");
         if (javaHome == null || javaHome.isEmpty()) {
             javaHome = System.getenv("JAVA_HOME");
@@ -182,9 +176,6 @@ public final class SystemJarFinder {
      * @return The path of rt.jar (in JDK 7 or 8), or null if it wasn't found (e.g. in JDK 9+).
      */
     public static String getJreRtJarPath() {
-        if (!initialized.getAndSet(true)) {
-            initialize();
-        }
         // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
         return RT_JAR;
     }
@@ -195,9 +186,6 @@ public final class SystemJarFinder {
      * @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/" directories.
      */
     public static Set<String> getJreLibOrExtJars() {
-        if (!initialized.getAndSet(true)) {
-            initialize();
-        }
         return JRE_LIB_OR_EXT_JARS;
     }
 }
