@@ -63,12 +63,13 @@ public class Issue420Test {
         try (FileSystem memFs = Jimfs.newFileSystem()) {
             final Path jarPath = Paths
                     .get(getClass().getClassLoader().getResource("multi-release-jar.jar").toURI());
-            final Path memFsRoot = memFs.getPath("/multi-release-jar.jar");
-            final Path inMemCopyOfJar = Files.copy(jarPath, memFsRoot);
-            final URL url = inMemCopyOfJar.toUri().toURL();
-            try (URLClassLoader childClassLoader = new URLClassLoader(new URL[] { url },
+            final Path memFsPath = memFs.getPath("multi-release-jar.jar");
+            final Path memFsCopyOfJar = Files.copy(jarPath, memFsPath);
+            final URL memFsCopyOfJarURL = memFsCopyOfJar.toUri().toURL();
+
+            try (URLClassLoader childClassLoader = new URLClassLoader(new URL[] { memFsCopyOfJarURL },
                     getClass().getClassLoader())) {
-                final ClassGraph classGraph = new ClassGraph().enableURLScheme(url.getProtocol())
+                final ClassGraph classGraph = new ClassGraph().enableURLScheme(memFsCopyOfJarURL.getProtocol())
                         .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders().whitelistPackages("mrj")
                         .enableAllInfo();
                 try (ScanResult scanResult = classGraph.scan()) {
