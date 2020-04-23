@@ -120,6 +120,12 @@
             <version>1.0.2.Final</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.google.jimfs</groupId>
+            <artifactId>jimfs</artifactId>
+            <version>1.1</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
 
@@ -228,7 +234,6 @@
             <plugins>
                 <!-- Enforce minimum Maven version, and JDK 7 API -->
                 <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
                     <dependencies>
                         <dependency>
