@@ -434,6 +434,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
+    @SuppressWarnings("resource")
     private void readCentralDirectory(final NestedJarHandler nestedJarHandler, final LogNode log)
             throws IOException, InterruptedException {
         if (slice.sliceLength < 22) {
