@@ -82,7 +82,7 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    
+
     /**
      * Get the type as a string.
      *
@@ -262,7 +262,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @see io.github.classgraph.ScanResultObject#setScanResult(ScanResult)
      */
     @Override
-    void setScanResult(ScanResult scanResult) {
+    void setScanResult(final ScanResult scanResult) {
         // Don't set ScanResult for BaseTypeSignature objects (#419).
         // The ScanResult is not needed, since this class does not classload through the ScanResult.
         // Also, specific instances of BaseTypeSignature for each primitive type are assigned to static fields
