@@ -234,6 +234,7 @@
             <plugins>
                 <!-- Enforce minimum Maven version, and JDK 7 API -->
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
                     <dependencies>
                         <dependency>
