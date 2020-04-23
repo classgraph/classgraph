@@ -42,6 +42,12 @@ public final class FastPathResolver {
     /** Match %-encoded characters in URLs. */
     private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
 
+    /** Match custom URLs that are followed by two slashes. */
+    private static final Pattern schemeTwoSlashMatcher = Pattern.compile("^[a-zA-Z+\\-.]+://");
+
+    /** Match custom URLs that are followed by one slash. */
+    private static final Pattern schemeOneSlashMatcher = Pattern.compile("^[a-zA-Z+\\-.]+:/");
+
     /** True if we're running on Windows. */
     private static final boolean WINDOWS = File.separatorChar == '\\';
 
@@ -194,33 +200,33 @@ public final class FastPathResolver {
         boolean isAbsolutePath = false;
         boolean isFileOrJarURL = false;
         int startIdx = 0;
-        if (relativePath.regionMatches(true, startIdx, "jar:", 0, 4)) {
+        if (relativePath.regionMatches(true, 0, "jar:", 0, 4)) {
             // "jar:" prefix can be stripped
-            startIdx += 4;
+            startIdx = 4;
             isFileOrJarURL = true;
         }
-        if (relativePath.regionMatches(true, startIdx, "http://", 0, 7)) {
+        if (relativePath.regionMatches(true, 0, "http://", 0, 7)) {
             // Detect http://
-            startIdx += 7;
+            startIdx = 7;
             // Force protocol name to lowercase
             prefix = "http://";
             // Treat the part after the protocol as an absolute path, so the domain is not treated as a directory
             // relative to the current directory.
             isAbsolutePath = true;
             // Don't un-escape percent encoding etc.
-        } else if (relativePath.regionMatches(true, startIdx, "https://", 0, 8)) {
+        } else if (relativePath.regionMatches(true, 0, "https://", 0, 8)) {
             // Detect https://
-            startIdx += 8;
+            startIdx = 8;
             prefix = "https://";
             isAbsolutePath = true;
-        } else if (relativePath.regionMatches(true, startIdx, "jrt:", 0, 5)) {
+        } else if (relativePath.regionMatches(true, 0, "jrt:", 0, 5)) {
             // Detect jrt:
-            startIdx += 4;
+            startIdx = 4;
             prefix = "jrt:";
             isAbsolutePath = true;
-        } else if (relativePath.regionMatches(true, startIdx, "file:", 0, 5)) {
+        } else if (relativePath.regionMatches(true, 0, "file:", 0, 5)) {
             // Strip off any "file:" prefix from relative path
-            startIdx += 5;
+            startIdx = 5;
             if (WINDOWS) {
                 if (relativePath.startsWith("\\\\\\\\", startIdx) || relativePath.startsWith("////", startIdx)) {
                     // Windows UNC URL
@@ -233,19 +239,39 @@ public final class FastPathResolver {
                     }
                 }
             }
-            if (relativePath.startsWith("//", startIdx)) {
+            if (relativePath.startsWith("///", startIdx)) {
                 startIdx += 2;
             }
             isFileOrJarURL = true;
-        } else if (WINDOWS && (relativePath.startsWith("//") || relativePath.startsWith("\\\\"))) {
-            // Windows UNC path
-            startIdx += 2;
-            prefix = "//";
-            isAbsolutePath = true;
+        } else {
+            // Preserve the number of slashes on custom URL schemes (#420)
+            final Matcher m2 = schemeTwoSlashMatcher.matcher(relativePath);
+            if (m2.find()) {
+                final String m2Match = m2.group();
+                startIdx += m2Match.length();
+                prefix = m2Match;
+                // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
+                // as a directory relative to the current directory.
+                isAbsolutePath = true;
+            } else {
+                final Matcher m1 = schemeOneSlashMatcher.matcher(relativePath);
+                if (m1.find()) {
+                    final String m1Match = m1.group();
+                    startIdx += m1Match.length();
+                    prefix = m1Match;
+                    isAbsolutePath = true;
+                }
+            }
         }
+
         // Handle Windows paths starting with a drive designation as an absolute path
         if (WINDOWS) {
-            if (relativePath.length() - startIdx > 2 && Character.isLetter(relativePath.charAt(startIdx))
+            if ((relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx))) {
+                // Windows UNC path
+                startIdx += 2;
+                prefix = "//";
+                isAbsolutePath = true;
+            } else if (relativePath.length() - startIdx > 2 && Character.isLetter(relativePath.charAt(startIdx))
                     && relativePath.charAt(startIdx + 1) == ':') {
                 // Path like "C:/xyz"
                 isAbsolutePath = true;
