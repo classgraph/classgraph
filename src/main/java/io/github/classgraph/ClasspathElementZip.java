@@ -651,7 +651,8 @@ class ClasspathElementZip extends ClasspathElement {
      * Get the {@link File} for the outermost zipfile of this classpath element.
      *
      * @return The {@link File} for the outermost zipfile of this classpath element, or null if this file was
-     *         downloaded from a URL directly to RAM.
+     *         downloaded from a URL directly to RAM, or if the classpath element was backed by a custom filesystem
+     *         that supports the {@link Path} API put not the {@link File} API.
      */
     @Override
     File getFile() {

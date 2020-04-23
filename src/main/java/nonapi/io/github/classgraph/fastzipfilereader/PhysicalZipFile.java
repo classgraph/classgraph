@@ -32,10 +32,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.Objects;
 
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.FileSlice;
+import nonapi.io.github.classgraph.fileslice.PathSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -43,11 +45,14 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
 class PhysicalZipFile {
+    /** The {@link Path} backing this {@link PhysicalZipFile}, if any. */
+    private Path path;
+
     /** The {@link File} backing this {@link PhysicalZipFile}, if any. */
-    private final File file;
+    private File file;
 
     /** The path to the zipfile. */
-    private final String path;
+    private final String pathStr;
 
     /** The {@link Slice} for the zipfile. */
     Slice slice;
@@ -72,13 +77,38 @@ class PhysicalZipFile {
      */
     PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler, final LogNode log)
             throws IOException {
+        this.nestedJarHandler = nestedJarHandler;
+
         // Make sure the File is readable and is a regular file
         FileUtils.checkCanReadAndIsFile(file);
 
         this.file = file;
-        this.nestedJarHandler = nestedJarHandler;
-        this.path = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
+        this.pathStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
         this.slice = new FileSlice(file, nestedJarHandler, log);
+    }
+
+    /**
+     * Construct a {@link PhysicalZipFile} from a {@link Path}.
+     *
+     * @param path
+     *            the path
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    PhysicalZipFile(final Path path, final NestedJarHandler nestedJarHandler, final LogNode log)
+            throws IOException {
+        this.nestedJarHandler = nestedJarHandler;
+
+        // Make sure the File is readable and is a regular file
+        FileUtils.checkCanReadAndIsFile(path);
+
+        this.path = path;
+        this.pathStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path.toString());
+        this.slice = new PathSlice(path, nestedJarHandler, log);
     }
 
     /**
@@ -88,18 +118,18 @@ class PhysicalZipFile {
      *            the array containing the zipfile.
      * @param outermostFile
      *            the outermost file
-     * @param path
+     * @param pathStr
      *            the path
      * @param nestedJarHandler
      *            the nested jar handler
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final byte[] arr, final File outermostFile, final String path,
+    PhysicalZipFile(final byte[] arr, final File outermostFile, final String pathStr,
             final NestedJarHandler nestedJarHandler) throws IOException {
-        this.file = outermostFile;
-        this.path = path;
         this.nestedJarHandler = nestedJarHandler;
+        this.file = outermostFile;
+        this.pathStr = pathStr;
         this.slice = new ArraySlice(arr, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
                 nestedJarHandler);
     }
@@ -112,7 +142,7 @@ class PhysicalZipFile {
      *            the input stream
      * @param inputStreamLengthHint
      *            The number of bytes to read in inputStream, or -1 if unknown.
-     * @param path
+     * @param pathStr
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
      * @param nestedJarHandler
@@ -122,22 +152,32 @@ class PhysicalZipFile {
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String path,
+    PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
             final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
-        this.path = path;
+        this.pathStr = pathStr;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice.
         // If it fails, the InputStream will be spilled to disk, resulting in a FileSlice.
-        this.slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(inputStream, /* tempFileBaseName = */ path,
+        this.slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(inputStream, /* tempFileBaseName = */ pathStr,
                 inputStreamLengthHint, log);
         this.file = this.slice instanceof FileSlice ? ((FileSlice) this.slice).file : null;
+    }
+
+    /**
+     * Get the {@link Path} for the outermost jar file of this PhysicalZipFile.
+     *
+     * @return the {@link Path} for the outermost jar file of this PhysicalZipFile, or null if this file was
+     *         downloaded from a URL directly to RAM, or is backed by a {@link File}.
+     */
+    public Path getPath() {
+        return path;
     }
 
     /**
      * Get the {@link File} for the outermost jar file of this PhysicalZipFile.
      *
      * @return the {@link File} for the outermost jar file of this PhysicalZipFile, or null if this file was
-     *         downloaded from a URL directly to RAM.
+     *         downloaded from a URL directly to RAM, or is backed by a {@link Path}.
      */
     public File getFile() {
         return file;
@@ -150,8 +190,8 @@ class PhysicalZipFile {
      * @return the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a compound nested
      *         jar path, if it is memory-backed.
      */
-    public String getPath() {
-        return path;
+    public String getPathStr() {
+        return pathStr;
     }
 
     /**
@@ -197,6 +237,6 @@ class PhysicalZipFile {
      */
     @Override
     public String toString() {
-        return path;
+        return pathStr;
     }
 }

@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Objects;
 
 import nonapi.io.github.classgraph.fileslice.Slice;
@@ -56,7 +57,7 @@ public class ZipFileSlice {
         this.parentZipFileSlice = null;
         this.physicalZipFile = physicalZipFile;
         this.slice = physicalZipFile.slice;
-        this.pathWithinParentZipFileSlice = physicalZipFile.getPath();
+        this.pathWithinParentZipFileSlice = physicalZipFile.getPathStr();
     }
 
     /**
@@ -174,7 +175,17 @@ public class ZipFileSlice {
      *         from a URL directly to RAM.
      */
     public File getPhysicalFile() {
-        return physicalZipFile.getFile();
+        final Path path = physicalZipFile.getPath();
+        if (path != null) {
+            try {
+                return path.toFile();
+            } catch (final UnsupportedOperationException e) {
+                // Filesystem supports the Path API but not the File API
+                return null;
+            }
+        } else {
+            return physicalZipFile.getFile();
+        }
     }
 
     /* (non-Javadoc)
@@ -207,7 +218,10 @@ public class ZipFileSlice {
     @Override
     public String toString() {
         final String path = getPath();
-        final String fileStr = physicalZipFile.getFile() == null ? null : physicalZipFile.getFile().toString();
+        String fileStr = physicalZipFile.getPath() == null ? null : physicalZipFile.getPath().toString();
+        if (fileStr == null) {
+            fileStr = physicalZipFile.getFile() == null ? null : physicalZipFile.getFile().toString();
+        }
         return "[" + (fileStr == null || !fileStr.equals(path) ? path + " -> " + fileStr : path) + " ; byte range: "
                 + slice.sliceStartPos + ".." + (slice.sliceStartPos + slice.sliceLength) + " / "
                 + physicalZipFile.length() + "]";

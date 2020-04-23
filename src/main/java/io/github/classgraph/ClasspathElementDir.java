@@ -269,7 +269,7 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                     if (fileSlice != null) {
                         fileSlice.close();
-                        nestedJarHandler.markFileSliceAsClosed(fileSlice);
+                        nestedJarHandler.markSliceAsClosed(fileSlice);
                         fileSlice = null;
                     }
                 }

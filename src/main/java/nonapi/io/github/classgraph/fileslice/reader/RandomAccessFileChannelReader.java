@@ -41,7 +41,7 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b> order, as required by the zipfile
  * format.
  */
-public class RandomAccessFileReader implements RandomAccessReader {
+public class RandomAccessFileChannelReader implements RandomAccessReader {
 
     /** The file channel. */
     private final FileChannel fileChannel;
@@ -74,7 +74,8 @@ public class RandomAccessFileReader implements RandomAccessReader {
      * @param sliceLength
      *            the slice length
      */
-    public RandomAccessFileReader(final FileChannel fileChannel, final long sliceStartPos, final long sliceLength) {
+    public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
+            final long sliceLength) {
         this.fileChannel = fileChannel;
         this.sliceStartPos = sliceStartPos;
         this.sliceLength = sliceLength;

@@ -28,41 +28,33 @@
  */
 package nonapi.io.github.classgraph.fileslice;
 
-import java.io.File;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileChannel.MapMode;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.fileslice.reader.RandomAccessByteBufferReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** A {@link File} slice. */
-public class FileSlice extends Slice {
-    /** The {@link File}. */
-    public final File file;
-
-    /** The {@link RandomAccessFile} opened on the {@link File}. */
-    public RandomAccessFile raf;
+/** A {@link Path} slice. */
+public class PathSlice extends Slice implements Closeable {
+    /** The {@link Path}. */
+    public final Path path;
 
     /** The file length. */
     private final long fileLength;
 
-    /** The file channel. */
+    /** The {@link FileChannel} opened on the {@link Path}. */
     private FileChannel fileChannel;
-
-    /** The backing byte buffer, if any. */
-    private ByteBuffer backingByteBuffer;
 
     /** True if this is a top level file slice. */
     private final boolean isTopLevelFileSlice;
@@ -87,22 +79,15 @@ public class FileSlice extends Slice {
      * @param nestedJarHandler
      *            the nested jar handler
      */
-    private FileSlice(final FileSlice parentSlice, final long offset, final long length,
+    private PathSlice(final PathSlice parentSlice, final long offset, final long length,
             final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
-        this.file = parentSlice.file;
-        this.raf = parentSlice.raf;
+
+        this.path = parentSlice.path;
         this.fileChannel = parentSlice.fileChannel;
         this.fileLength = parentSlice.fileLength;
         this.isTopLevelFileSlice = false;
-
-        if (parentSlice.backingByteBuffer != null) {
-            // Duplicate and slice the backing byte buffer, if there is one
-            this.backingByteBuffer = parentSlice.backingByteBuffer.duplicate();
-            ((Buffer) this.backingByteBuffer).position((int) sliceStartPos);
-            ((Buffer) this.backingByteBuffer).limit((int) (sliceStartPos + sliceLength));
-        }
 
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since
         // they don't need to be closed, they just copy the resource references of the toplevel slice) 
@@ -111,8 +96,8 @@ public class FileSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param file
-     *            the file
+     * @param path
+     *            the path
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
@@ -125,37 +110,20 @@ public class FileSlice extends Slice {
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public FileSlice(final File file, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
+    public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
-        super(file.length(), isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+        super(0L, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+
         // Make sure the File is readable and is a regular file
-        FileUtils.checkCanReadAndIsFile(file);
-        this.file = file;
-        this.raf = new RandomAccessFile(file, "r");
-        this.fileChannel = raf.getChannel();
-        this.fileLength = file.length();
+        FileUtils.checkCanReadAndIsFile(path);
+
+        this.path = path;
+        this.fileChannel = FileChannel.open(path, StandardOpenOption.READ);
+        this.fileLength = fileChannel.size();
         this.isTopLevelFileSlice = true;
 
-        if (nestedJarHandler.scanSpec.enableMemoryMapping) {
-            try {
-                // Try mapping file (some operating systems throw OutOfMemoryError if file
-                // can't be mapped, some throw IOException)
-                backingByteBuffer = fileChannel.map(MapMode.READ_ONLY, 0L, fileLength);
-            } catch (IOException | OutOfMemoryError e) {
-                // Try running garbage collection then try mapping the file again
-                System.gc();
-                System.runFinalization();
-                try {
-                    backingByteBuffer = fileChannel.map(MapMode.READ_ONLY, 0L, fileLength);
-                } catch (IOException | OutOfMemoryError e2) {
-                    if (log != null) {
-                        log.log("File " + file + " cannot be memory mapped: " + e2
-                                + " (using RandomAccessFile API instead)");
-                    }
-                    // Fall through -- RandomAccessFile API will be used instead
-                }
-            }
-        }
+        // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
+        this.sliceLength = fileLength;
 
         // Mark toplevel slice as open
         nestedJarHandler.markSliceAsOpen(this);
@@ -164,8 +132,8 @@ public class FileSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param file
-     *            the file
+     * @param path
+     *            the path
      * @param nestedJarHandler
      *            the nested jar handler
      * @param log
@@ -173,9 +141,9 @@ public class FileSlice extends Slice {
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final LogNode log)
+    public PathSlice(final Path path, final NestedJarHandler nestedJarHandler, final LogNode log)
             throws IOException {
-        this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
+        this(path, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
     }
 
     /**
@@ -198,7 +166,7 @@ public class FileSlice extends Slice {
         if (this.isDeflatedZipEntry) {
             throw new IllegalArgumentException("Cannot slice a deflated zip entry");
         }
-        return new FileSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+        return new PathSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
     }
 
     /**
@@ -208,13 +176,8 @@ public class FileSlice extends Slice {
      */
     @Override
     public RandomAccessReader randomAccessReader() {
-        if (backingByteBuffer == null) {
-            // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
-            return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
-        } else {
-            // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer
-            return new RandomAccessByteBufferReader(backingByteBuffer, sliceStartPos, sliceLength);
-        }
+        // Return a RandomAccessReader that uses the FileChannel
+        return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
     }
 
     /**
@@ -235,7 +198,7 @@ public class FileSlice extends Slice {
                 return NestedJarHandler.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else {
-            // Copy from either RandomAccessFile or MappedByteBuffer to byte array
+            // Copy from FileChannel to byte array
             if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("File is larger than 2GB");
             }
@@ -266,16 +229,12 @@ public class FileSlice extends Slice {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
             return ByteBuffer.wrap(load());
-        } else if (backingByteBuffer == null) {
-            // Copy from RandomAccessFile to byte array, then wrap in a ByteBuffer
-            if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
-                throw new IOException("File is larger than 2GB");
-            }
-            return ByteBuffer.wrap(load());
-        } else {
-            // FileSlice is backed with a MappedByteBuffer -- duplicate it and return it (low-cost operation)
-            return backingByteBuffer.duplicate();
         }
+        // Copy from FileChannel to byte array, then wrap in a ByteBuffer
+        if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
+            throw new IOException("File is larger than 2GB");
+        }
+        return ByteBuffer.wrap(load());
     }
 
     @Override
@@ -292,20 +251,19 @@ public class FileSlice extends Slice {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
-            if (isTopLevelFileSlice && backingByteBuffer != null) {
-                // Only close ByteBuffer in toplevel file slice, so that ByteBuffer is only closed once
-                // (also duplicates of MappedByteBuffers cannot be closed by the cleaner API)
-                FileUtils.closeDirectByteBuffer(backingByteBuffer, /* log = */ null);
+            if (isTopLevelFileSlice) {
+                // Only close the FileChannel in the toplevel file slice, so that it is only closed once
+                if (fileChannel != null) {
+                    try {
+                        // Closing raf will also close the associated FileChannel
+                        fileChannel.close();
+                    } catch (final IOException e) {
+                        // Ignore
+                    }
+                    fileChannel = null;
+                }
             }
-            backingByteBuffer = null;
             fileChannel = null;
-            try {
-                // Closing raf will also close the associated FileChannel
-                raf.close();
-            } catch (final IOException e) {
-                // Ignore
-            }
-            raf = null;
             nestedJarHandler.markSliceAsClosed(this);
         }
     }

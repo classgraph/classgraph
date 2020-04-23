@@ -29,6 +29,7 @@
  */
 package nonapi.io.github.classgraph.fileslice;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,7 +47,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
  * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}. A single {@link Slice} instance should only
  * be used by a single thread.
  */
-public abstract class Slice {
+public abstract class Slice implements Closeable {
     /** The {@link NestedJarHandler}. */
     protected final NestedJarHandler nestedJarHandler;
 
@@ -57,7 +58,7 @@ public abstract class Slice {
     public final long sliceStartPos;
 
     /** The length of the slice, or -1L if unknown (for {@link InputStream}). */
-    public final long sliceLength;
+    public long sliceLength;
 
     /** If true, the slice is a deflated zip entry, and needs to be inflated to access the content. */
     public final boolean isDeflatedZipEntry;
@@ -279,6 +280,10 @@ public abstract class Slice {
      */
     public ByteBuffer read() throws IOException {
         return ByteBuffer.wrap(load());
+    }
+
+    @Override
+    public void close() throws IOException {
     }
 
     @Override

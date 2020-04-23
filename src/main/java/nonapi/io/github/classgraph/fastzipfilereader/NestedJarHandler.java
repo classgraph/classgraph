@@ -43,7 +43,11 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -174,9 +178,7 @@ public class NestedJarHandler {
                             }
 
                             // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
-                            final LogNode subLog = log == null ? null
-                                    : log.log("Downloading jar from URL " + nestedJarPath);
-                            physicalZipFile = downloadJarFromURL(nestedJarPath, subLog);
+                            physicalZipFile = downloadJarFromURL(nestedJarPath, log);
 
                         } else {
                             // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
@@ -357,7 +359,7 @@ public class NestedJarHandler {
     };
 
     /** {@link FileSlice} instances that are currently open. */
-    private Set<FileSlice> openFileSlices = Collections.newSetFromMap(new ConcurrentHashMap<FileSlice, Boolean>());
+    private Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<Slice, Boolean>());
 
     /** Any temporary files created while scanning. */
     private Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<File, Boolean>());
@@ -459,25 +461,25 @@ public class NestedJarHandler {
     }
 
     /**
-     * Mark a {@link FileSlice} as open.
+     * Mark a {@link Slice} as open, so it can be closed when the {@link ScanResult} is closed.
      *
-     * @param fileSlice
-     *            the {@link FileSlice} that was just opened.
+     * @param slice
+     *            the {@link Slice} that was just opened.
      * @throws IOException
      *             Signals that an I/O exception has occurred.
      */
-    public void markFileSliceAsOpen(final FileSlice fileSlice) throws IOException {
-        openFileSlices.add(fileSlice);
+    public void markSliceAsOpen(final Slice slice) throws IOException {
+        openSlices.add(slice);
     }
 
     /**
-     * Mark a {@link FileSlice} as closed.
+     * Mark a {@link Slice} as closed.
      * 
-     * @param fileSlice
-     *            the {@link FileSlice} to close.
+     * @param slice
+     *            the {@link Slice} to close.
      */
-    public void markFileSliceAsClosed(final FileSlice fileSlice) {
-        openFileSlices.remove(fileSlice);
+    public void markSliceAsClosed(final Slice slice) {
+        openSlices.remove(slice);
     }
 
     /**
@@ -512,6 +514,26 @@ public class NestedJarHandler {
             }
         }
 
+        final String scheme = url.getProtocol();
+        if (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https")) {
+            // Check if this URL is backed by a filesystem -- if it is, don't download a copy of the file
+            // over the URL; instead, access the filesystem directly 
+            try {
+                final Path path = Paths.get(url.toURI());
+                // Fails with FileSystemNotFoundException if filesystem not registered for URL
+                final FileSystem fs = path.getFileSystem();
+                if (log != null) {
+                    log.log("URL " + jarURL + " is backed by filesystem " + fs.getClass().getName());
+                }
+                // Wrap Path in PhysicalZipFile and return it
+                return new PhysicalZipFile(path, this, log);
+            } catch (final URISyntaxException e) {
+                throw new IOException("Could not convert URL to URI: " + url);
+            } catch (final FileSystemNotFoundException e) {
+                // Not a custom filesystem
+            }
+        }
+
         final URLConnection conn = url.openConnection();
         HttpURLConnection httpConn = null;
         try {
@@ -538,13 +560,14 @@ public class NestedJarHandler {
             }
 
             // Fetch content from URL
+            final LogNode subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
             try (InputStream inputStream = conn.getInputStream()) {
                 // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
                 final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
-                        this, log);
-                if (log != null) {
-                    log.addElapsedTime();
-                    log.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
+                        this, subLog);
+                if (subLog != null) {
+                    subLog.addElapsedTime();
+                    subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
                             + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
                             + "and the same URL must also be separately opened by the ClassLoader *****");
                 }
@@ -967,15 +990,19 @@ public class NestedJarHandler {
                 fastZipEntryToZipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            if (openFileSlices != null) {
-                while (!openFileSlices.isEmpty()) {
-                    for (final FileSlice fileSlice : new ArrayList<>(openFileSlices)) {
-                        fileSlice.close();
-                        markFileSliceAsClosed(fileSlice);
+            if (openSlices != null) {
+                while (!openSlices.isEmpty()) {
+                    for (final Slice slice : new ArrayList<>(openSlices)) {
+                        try {
+                            slice.close();
+                        } catch (final IOException e) {
+                            // Ignore
+                        }
+                        markSliceAsClosed(slice);
                     }
                 }
-                openFileSlices.clear();
-                openFileSlices = null;
+                openSlices.clear();
+                openSlices = null;
             }
             if (inflaterRecycler != null) {
                 inflaterRecycler.forceClose();

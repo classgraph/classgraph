@@ -35,6 +35,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -278,6 +279,27 @@ public final class FileUtils {
         }
         if (!file.isFile()) {
             throw new IOException("Not a regular file: " + file);
+        }
+    }
+
+    /**
+     * Check if a {@link Path} exists, is a regular file, and can be read.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @throws IOException
+     *             if the path does not exist, is not a regular file, or cannot be read.
+     */
+    public static void checkCanReadAndIsFile(final Path path) throws IOException {
+        try {
+            if (!Files.exists(path)) {
+                throw new FileNotFoundException("Path does not exist or cannot be read: " + path);
+            }
+        } catch (final SecurityException e) {
+            throw new FileNotFoundException("Path " + path + " cannot be accessed: " + e);
+        }
+        if (!Files.isRegularFile(path)) {
+            throw new IOException("Not a regular file: " + path);
         }
     }
 
