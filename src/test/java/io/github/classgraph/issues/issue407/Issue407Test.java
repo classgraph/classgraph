@@ -47,7 +47,7 @@ import io.github.classgraph.ScanResult;
  */
 public class Issue407Test {
     /**
-     * Issue 193 test.
+     * Test.
      *
      * @throws IOException
      *             Signals that an I/O exception has occurred.
