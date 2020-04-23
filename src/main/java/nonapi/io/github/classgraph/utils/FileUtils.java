@@ -262,6 +262,24 @@ public final class FileUtils {
     }
 
     /**
+     * Check if a {@link Path} exists, is a regular file, and can be read.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @return true if the file exists, is a regular file, and can be read.
+     */
+    public static boolean canReadAndIsFile(final Path path) {
+        try {
+            if (!Files.exists(path)) {
+                return false;
+            }
+        } catch (final SecurityException e) {
+            return false;
+        }
+        return Files.isRegularFile(path);
+    }
+
+    /**
      * Check if a {@link File} exists, is a regular file, and can be read.
      *
      * @param file
@@ -319,6 +337,24 @@ public final class FileUtils {
             return false;
         }
         return file.isDirectory();
+    }
+
+    /**
+     * Check if a {@link Path} exists, is a directory, and can be read.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @return true if the file exists, is a directory, and can be read.
+     */
+    public static boolean canReadAndIsDir(final Path path) {
+        try {
+            if (!Files.exists(path)) {
+                return false;
+            }
+        } catch (final SecurityException e) {
+            return false;
+        }
+        return Files.isDirectory(path);
     }
 
     /**

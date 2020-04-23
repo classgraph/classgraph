@@ -35,6 +35,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.Map.Entry;
@@ -99,7 +100,7 @@ class ClasspathElementZip extends ClasspathElement {
     ClasspathElementZip(final Object rawPathObj, final ClassLoader classLoader,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
-        // Convert the raw path object (String, URL or URI) to a string.
+        // Convert the raw path object (String, URL, or URI) to a string.
         // Any required URL/URI parsing are done in NestedJarHandler.
         this.rawPath = rawPathObj.toString();
         this.zipFilePath = rawPath; // May change when open() is called

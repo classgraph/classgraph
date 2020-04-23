@@ -32,8 +32,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -413,10 +418,32 @@ class Scanner implements Callable<ScanResult> {
                             return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
                         } else {
-                            // For custom URL schemes, assume it must be for a jar, not a directory
+                            try {
+                                // See if the URL resolves to a Path of type directory
+                                final Path path = Paths.get(classpathEntryURL.toURI());
+                                if (Files.isDirectory(path)) {
+                                    // If URL maps to a directory, use the NIO Path API instead of the File API
+                                    return new ClasspathElementPathDir(path, classpathEntry.classLoader,
+                                            nestedJarHandler, scanSpec);
+                                }
+                            } catch (final URISyntaxException | IllegalArgumentException | SecurityException e) {
+                                throw new IOException(
+                                        "Cannot handle URL " + classpathEntryURL + " : " + e.getMessage());
+                            } catch (final FileSystemNotFoundException e) {
+                                // Fall through to below -- this is a custom URL scheme without a backing FileSystem
+                            }
+
+                            // For custom URL schemes that do not resolve to directories, assume the URL
+                            // points to a jarfile
                             return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
                         }
+                    } else if (classpathEntryObj instanceof Path) {
+                        // classpathEntryObj is a Path (which points to a lib/ext jar inside a parent Path --
+                        // see ClasspathElementPath.java)
+                        return new ClasspathElementZip(((Path) classpathEntryObj).toUri(),
+                                classpathEntry.classLoader, nestedJarHandler, scanSpec);
+
                     } else {
                         // classpathEntryObj is a string
                         classpathEntryPath = classpathEntryObj.toString();
@@ -480,7 +507,7 @@ class Scanner implements Callable<ScanResult> {
                         return isJar
                                 ? new ClasspathElementZip(canonicalPathNormalized, classpathEntry.classLoader,
                                         nestedJarHandler, scanSpec)
-                                : new ClasspathElementDir(fileCanonicalized, classpathEntry.classLoader,
+                                : new ClasspathElementFileDir(fileCanonicalized, classpathEntry.classLoader,
                                         nestedJarHandler, scanSpec);
                     }
                 }
@@ -488,7 +515,7 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Create a WorkUnitProcessor for opening traditional classpath entries (which are mapped to
-     * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule is handled
+     * {@link ClasspathElementFileDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule is handled
      * separately}).
      *
      * @param openedClasspathElementsSet
@@ -763,10 +790,10 @@ class Scanner implements Callable<ScanResult> {
         final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
         final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
-            if (classpathElt instanceof ClasspathElementDir) {
+            if (classpathElt instanceof ClasspathElementFileDir) {
                 // Separate out ClasspathElementDir elements from other types
-                classpathEltDirs.add(
-                        new SimpleEntry<>(((ClasspathElementDir) classpathElt).getFile().getPath(), classpathElt));
+                classpathEltDirs.add(new SimpleEntry<>(((ClasspathElementFileDir) classpathElt).getFile().getPath(),
+                        classpathElt));
 
             } else if (classpathElt instanceof ClasspathElementZip) {
                 // Separate out ClasspathElementZip elements from other types

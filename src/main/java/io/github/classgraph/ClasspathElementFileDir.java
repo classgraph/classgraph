@@ -55,8 +55,8 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
-/** A directory classpath element. */
-class ClasspathElementDir extends ClasspathElement {
+/** A directory classpath element, using the {@link File} API. */
+class ClasspathElementFileDir extends ClasspathElement {
     /** The directory at the root of the classpath element. */
     private final File classpathEltDir;
 
@@ -81,7 +81,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementDir(final File classpathEltDir, final ClassLoader classLoader,
+    ClasspathElementFileDir(final File classpathEltDir, final ClassLoader classLoader,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
         this.classpathEltDir = classpathEltDir;
@@ -428,6 +428,7 @@ class ClasspathElementDir extends ClasspathElement {
                     final Resource resource = newResource("module-info.class", fileInDir, nestedJarHandler);
                     addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
+                    break;
                 }
             }
         }
@@ -523,10 +524,10 @@ class ClasspathElementDir extends ClasspathElement {
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof ClasspathElementDir)) {
+        } else if (!(obj instanceof ClasspathElementFileDir)) {
             return false;
         }
-        final ClasspathElementDir other = (ClasspathElementDir) obj;
+        final ClasspathElementFileDir other = (ClasspathElementFileDir) obj;
         return this.classpathEltDir.equals(other.classpathEltDir);
     }
 
