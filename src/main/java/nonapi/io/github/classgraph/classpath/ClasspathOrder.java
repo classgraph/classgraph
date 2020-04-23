@@ -187,6 +187,7 @@ public class ClasspathOrder {
             }
         } else {
             if (scanSpec.overrideClasspath == null //
+                    && scanSpec.enableSystemJarsAndModules //
                     && (SystemJarFinder.getJreLibOrExtJars().contains(pathElementStr)
                             || pathElementStr.equals(SystemJarFinder.getJreRtJarPath()))) {
                 // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 

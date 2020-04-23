@@ -170,34 +170,35 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
 
         } else if (scanSpec.overrideClassLoaders == null) {
-            // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
-            final String jreRtJar = SystemJarFinder.getJreRtJarPath();
-
-            // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
             final LogNode systemJarsLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("System jars:");
-            if (jreRtJar != null) {
-                if (scanSpec.enableSystemJarsAndModules) {
+            if (scanSpec.enableSystemJarsAndModules) {
+                // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
+                final String jreRtJar = SystemJarFinder.getJreRtJarPath();
+
+                // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
+                if (jreRtJar != null) {
                     classpathOrder.addSystemClasspathEntry(jreRtJar, defaultClassLoader);
                     if (systemJarsLog != null) {
                         systemJarsLog.log("Found rt.jar: " + jreRtJar);
                     }
-                } else if (systemJarsLog != null) {
-                    systemJarsLog.log((scanSpec.enableSystemJarsAndModules ? "" : "Scanning disabled for rt.jar: ")
-                            + jreRtJar);
                 }
+            } else if (systemJarsLog != null) {
+                systemJarsLog.log("Scanning disabled for system jars and modules");
             }
             final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
-            for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-                if (scanAllLibOrExtJars || scanSpec.libOrExtJarWhiteBlackList
-                        .isSpecificallyWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
-                    classpathOrder.addSystemClasspathEntry(libOrExtJarPath, defaultClassLoader);
-                    if (systemJarsLog != null) {
-                        systemJarsLog.log("Found lib or ext jar: " + libOrExtJarPath);
+            if (scanAllLibOrExtJars) {
+                for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
+                    if (scanAllLibOrExtJars || scanSpec.libOrExtJarWhiteBlackList
+                            .isSpecificallyWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
+                        classpathOrder.addSystemClasspathEntry(libOrExtJarPath, defaultClassLoader);
+                        if (systemJarsLog != null) {
+                            systemJarsLog.log("Found lib or ext jar: " + libOrExtJarPath);
+                        }
                     }
-                } else if (systemJarsLog != null) {
-                    systemJarsLog.log("Scanning disabled for lib or ext jar: " + libOrExtJarPath);
                 }
+            } else if (systemJarsLog != null) {
+                systemJarsLog.log("Scanning disabled for lib or ext jars");
             }
         }
 
