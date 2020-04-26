@@ -33,6 +33,7 @@ import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -61,28 +62,50 @@ public class ClasspathOrder {
      * A classpath element and the {@link ClassLoader} it was obtained from.
      */
     public static class ClasspathElementAndClassLoader {
-        /** The classpath element (a {@link String} or {@link URL}). */
-        public final Object classpathElement;
+        /** The classpath element root (a {@link String} or {@link URL} or {@link Path}). */
+        public final Object classpathElementRoot;
+
+        /** The classpath element package root, prefix, e.g. "BOOT-INF/classes" or "". */
+        public final String dirOrPathPackageRoot;
 
         /** The classloader the classpath element was obtained from. */
         public final ClassLoader classLoader;
 
         /**
-         * Constructor.
+         * Constructor for directory or {@link Path} classpath entries.
          *
-         * @param classpathElement
-         *            the classpath element (a {@link String} or {@link URL}).
+         * @param classpathElementRoot
+         *            the classpath element root (a {@link String} or {@link URL} or {@link Path}).
+         * @param dirOrPathPackageRoot
+         *            the classpath element package root prefix, e.g. "BOOT-INF/classes" or "". Only used for
+         *            directory or {@link Path} classpath entries.
          * @param classLoader
          *            the classloader the classpath element was obtained from.
          */
-        public ClasspathElementAndClassLoader(final Object classpathElement, final ClassLoader classLoader) {
-            this.classpathElement = classpathElement;
+        public ClasspathElementAndClassLoader(final Object classpathElementRoot, final String dirOrPathPackageRoot,
+                final ClassLoader classLoader) {
+            this.classpathElementRoot = classpathElementRoot;
+            this.dirOrPathPackageRoot = dirOrPathPackageRoot;
+            this.classLoader = classLoader;
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param classpathElementRoot
+         *            the classpath element root (a {@link String} or {@link URL} or {@link Path}).
+         * @param classLoader
+         *            the classloader the classpath element was obtained from.
+         */
+        public ClasspathElementAndClassLoader(final Object classpathElementRoot, final ClassLoader classLoader) {
+            this.classpathElementRoot = classpathElementRoot;
+            this.dirOrPathPackageRoot = "";
             this.classLoader = classLoader;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(classpathElement, classLoader);
+            return Objects.hash(classpathElementRoot, dirOrPathPackageRoot, classLoader);
         }
 
         @Override
@@ -93,7 +116,8 @@ public class ClasspathOrder {
                 return false;
             }
             final ClasspathElementAndClassLoader other = (ClasspathElementAndClassLoader) obj;
-            return Objects.equals(this.classpathElement, other.classpathElement)
+            return Objects.equals(this.dirOrPathPackageRoot, other.dirOrPathPackageRoot)
+                    && Objects.equals(this.classpathElementRoot, other.classpathElementRoot)
                     && Objects.equals(this.classLoader, other.classLoader);
         }
     }

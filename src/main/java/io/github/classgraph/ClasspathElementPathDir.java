@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -65,6 +66,9 @@ class ClasspathElementPathDir extends ClasspathElement {
     /** The directory at the root of the classpath element. */
     private final Path classpathEltPath;
 
+    /** The package root. */
+    private final Path packageRootPath;
+
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final Set<Path> scannedCanonicalPaths = new HashSet<>();
 
@@ -83,10 +87,11 @@ class ClasspathElementPathDir extends ClasspathElement {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementPathDir(final Path classpathEltPath, final ClassLoader classLoader,
+    ClasspathElementPathDir(final Path classpathEltPath, final String packageRoot, final ClassLoader classLoader,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
         this.classpathEltPath = classpathEltPath;
+        this.packageRootPath = classpathEltPath.resolve(packageRoot);
         this.nestedJarHandler = nestedJarHandler;
     }
 
@@ -118,7 +123,6 @@ class ClasspathElementPathDir extends ClasspathElement {
                                     log(classpathElementIdx, "Found lib jar: " + filePath, log);
                                 }
                                 workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                        /* rawClasspathEntry = */ //
                                         new ClasspathElementAndClassLoader(filePath, classLoader),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
@@ -129,17 +133,20 @@ class ClasspathElementPathDir extends ClasspathElement {
                     }
                 }
             }
-            for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
-                final Path packageRootPath = classpathEltPath.resolve(packageRootPrefix);
-                if (FileUtils.canReadAndIsDir(packageRootPath)) {
-                    if (log != null) {
-                        log(classpathElementIdx, "Found package root: " + packageRootPath, log);
+            // Only look for package roots if the package root is the root of the classpath element
+            if (packageRootPath.equals(classpathEltPath)) {
+                for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
+                    final Path packageRootPath = classpathEltPath.resolve(packageRootPrefix);
+                    if (FileUtils.canReadAndIsDir(packageRootPath)) {
+                        if (log != null) {
+                            log(classpathElementIdx, "Found package root: " + packageRootPrefix, log);
+                        }
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                new ClasspathElementAndClassLoader(classpathEltPath, packageRootPrefix,
+                                        classLoader),
+                                /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                     }
-                    workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                            /* rawClasspathEntry = */ new ClasspathElementAndClassLoader(packageRootPath,
-                                    classLoader),
-                            /* parentClasspathElement = */ this,
-                            /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                 }
             }
         } catch (final SecurityException e) {
@@ -177,7 +184,7 @@ class ClasspathElementPathDir extends ClasspathElement {
 
             @Override
             public String getPath() {
-                String path = resourcePath.toString();
+                String path = packageRootPath.relativize(resourcePath).toString();
                 while (path.startsWith("/")) {
                     path = path.substring(1);
                 }
@@ -302,7 +309,7 @@ class ClasspathElementPathDir extends ClasspathElement {
      */
     @Override
     Resource getResource(final String relativePath) {
-        final Path resourcePath = classpathEltPath.resolve(relativePath);
+        final Path resourcePath = packageRootPath.resolve(relativePath);
         return FileUtils.canReadAndIsFile(resourcePath) ? newResource(resourcePath, nestedJarHandler) : null;
     }
 
@@ -336,7 +343,7 @@ class ClasspathElementPathDir extends ClasspathElement {
             return;
         }
 
-        final Path dirRelativePath = classpathEltPath.relativize(path);
+        final Path dirRelativePath = packageRootPath.relativize(path);
         String dirRelativePathStr = dirRelativePath.toString();
         while (dirRelativePathStr.startsWith("/")) {
             dirRelativePathStr = dirRelativePathStr.substring(1);
@@ -400,7 +407,7 @@ class ClasspathElementPathDir extends ClasspathElement {
 
         final LogNode subLog = log == null ? null
                 // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
-                : log.log("1:" + canonicalPath, "Scanning directory: " + path
+                : log.log("1:" + canonicalPath, "Scanning Path: " + path
                         + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
         // Determine whether this is a modular jar running under JRE 9+
@@ -452,7 +459,7 @@ class ClasspathElementPathDir extends ClasspathElement {
         } else if (scanSpec.enableClassInfo && dirRelativePathStr.equals("/")) {
             // Always check for module descriptor in package root, even if package root isn't in whitelist
             for (final Path subPath : pathsInDir) {
-                if (subPath.getFileName().equals("module-info.class") && Files.isRegularFile(subPath)) {
+                if (subPath.getFileName().toString().equals("module-info.class") && Files.isRegularFile(subPath)) {
                     final Resource resource = newResource(subPath, nestedJarHandler);
                     addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                     try {
@@ -514,9 +521,9 @@ class ClasspathElementPathDir extends ClasspathElement {
         }
 
         final LogNode subLog = log == null ? null
-                : log(classpathElementIdx, "Scanning directory classpath element " + classpathEltPath, log);
+                : log(classpathElementIdx, "Scanning Path classpath element " + getURI(), log);
 
-        scanPathRecursively(classpathEltPath, subLog);
+        scanPathRecursively(packageRootPath, subLog);
 
         finishScanPaths(subLog);
     }
@@ -535,7 +542,8 @@ class ClasspathElementPathDir extends ClasspathElement {
     /**
      * Get the directory {@link File}.
      *
-     * @return The classpath element directory as a {@link File}.
+     * @return The classpath element directory as a {@link File}, or null if this classpath element is not backed by
+     *         a directory (should not happen).
      */
     @Override
     public File getFile() {
@@ -551,7 +559,7 @@ class ClasspathElementPathDir extends ClasspathElement {
      */
     @Override
     URI getURI() {
-        return classpathEltPath.toUri();
+        return packageRootPath.toUri();
     }
 
     /**
@@ -562,10 +570,18 @@ class ClasspathElementPathDir extends ClasspathElement {
     @Override
     public String toString() {
         try {
-            return classpathEltPath.toUri().toString();
+            return packageRootPath.toUri().toString();
         } catch (IOError | SecurityException e) {
-            return classpathEltPath.toString();
+            return packageRootPath.toString();
         }
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#hashCode()
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(classpathEltPath, packageRootPath);
     }
 
     /* (non-Javadoc)
@@ -579,14 +595,7 @@ class ClasspathElementPathDir extends ClasspathElement {
             return false;
         }
         final ClasspathElementPathDir other = (ClasspathElementPathDir) obj;
-        return this.classpathEltPath.equals(other.classpathEltPath);
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#hashCode()
-     */
-    @Override
-    public int hashCode() {
-        return classpathEltPath.hashCode();
+        return Objects.equals(this.classpathEltPath, other.classpathEltPath)
+                && Objects.equals(this.packageRootPath, other.packageRootPath);
     }
 }

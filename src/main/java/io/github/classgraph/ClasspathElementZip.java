@@ -189,6 +189,7 @@ class ClasspathElementZip extends ClasspathElement {
         if (scanSpec.scanNestedJars) {
             for (final FastZipEntry zipEntry : logicalZipFile.entries) {
                 for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
+                    // Even if a package root is given, e.g. BOOT-INF/classes, still look in lib/ etc. for jars
                     if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
                             && zipEntry.entryNameUnversioned.endsWith(".jar")) {
                         final String entryPath = zipEntry.getPath();
@@ -196,8 +197,7 @@ class ClasspathElementZip extends ClasspathElement {
                             subLog.log("Found nested lib jar: " + entryPath);
                         }
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                /* rawClasspathEntry = */ new ClasspathElementAndClassLoader(entryPath,
-                                        classLoader),
+                                new ClasspathElementAndClassLoader(entryPath, classLoader),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
                                 childClasspathEntryIdx++));
@@ -238,8 +238,8 @@ class ClasspathElementZip extends ClasspathElement {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit( //
                                 new ClasspathEntryWorkUnit(
-                                        /* rawClasspathEntry = */ new ClasspathElementAndClassLoader(
-                                                childClassPathEltPathWithPrefix, classLoader),
+                                        new ClasspathElementAndClassLoader(childClassPathEltPathWithPrefix,
+                                                classLoader),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */
                                         childClasspathEntryIdx++));
@@ -269,7 +269,6 @@ class ClasspathElementZip extends ClasspathElement {
                     if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                /* rawClasspathEntry = */ //
                                 new ClasspathElementAndClassLoader(childClassPathEltPath, classLoader),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */

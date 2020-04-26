@@ -41,7 +41,6 @@ import java.nio.file.Paths;
 
 import org.junit.jupiter.api.Test;
 
-import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 
 import io.github.classgraph.ClassGraph;
@@ -52,7 +51,7 @@ import io.github.classgraph.ScanResult;
  */
 public class Issue420Test {
     /**
-     * Test.
+     * Test accessing a jar over Jimfs.
      *
      * @throws IOException
      *             If an I/O exception occurred.
@@ -81,7 +80,44 @@ public class Issue420Test {
     }
 
     /**
-     * Test.
+     * Test accessing a package hierarchy in Jimfs.
+     *
+     * @param packageRootPrefix
+     *            The package root prefix.
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws URISyntaxException
+     *             If a URI is bad.
+     */
+    private void testDir(final String packageRootPrefix) throws IOException, URISyntaxException {
+        try (FileSystem memFs = Jimfs.newFileSystem()) {
+            final String packageName = "io.github.classgraph.issues.issue146";
+            final String className = "CompiledWithJDK8";
+            final String packagePath = packageName.replace('.', '/');
+            final String classFullyQualifiedName = packageName + ".CompiledWithJDK8";
+            final String classFilePath = classFullyQualifiedName.replace('.', '/') + ".class";
+            final Path jarPath = Paths.get(getClass().getClassLoader().getResource(classFilePath).toURI());
+            final Path memFsDirPath = memFs.getPath(packageRootPrefix + packagePath);
+            Files.createDirectories(memFsDirPath);
+            final Path memFsFilePath = memFs.getPath(memFsDirPath + "/" + className + ".class");
+            final Path memFsCopyOfClassFile = Files.copy(jarPath, memFsFilePath);
+            assertThat(Files.exists(memFsCopyOfClassFile));
+            final Path memFsRoot = memFs.getPath("");
+            final URL memFsRootURL = memFsRoot.toUri().toURL();
+            try (URLClassLoader childClassLoader = new URLClassLoader(new URL[] { memFsRootURL },
+                    getClass().getClassLoader())) {
+                final ClassGraph classGraph = new ClassGraph().enableURLScheme(memFsRootURL.getProtocol())
+                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders()
+                        .whitelistPackages(packageName).enableAllInfo();
+                try (ScanResult scanResult = classGraph.scan()) {
+                    assertThat(scanResult.getClassInfo(classFullyQualifiedName)).isNotNull();
+                }
+            }
+        }
+    }
+
+    /**
+     * Test accessing a package hierarchy rooted at the default dir of "work/" in Jimfs.
      *
      * @throws IOException
      *             If an I/O exception occurred.
@@ -90,30 +126,20 @@ public class Issue420Test {
      */
     @Test
     public void testScanningDirBackedByFileSystem() throws IOException, URISyntaxException {
-        try (FileSystem memFs = Jimfs
-                // Change working directory from the default of "/work" to "/"
-                .newFileSystem(Configuration.unix().toBuilder().setWorkingDirectory("/").build())) {
-            final String packageName = "io.github.classgraph.issues.issue146";
-            final String packagePath = packageName.replace('.', '/');
-            final String className = packageName + ".CompiledWithJDK8";
-            final String classFilePath = className.replace('.', '/') + ".class";
-            final Path jarPath = Paths.get(getClass().getClassLoader().getResource(classFilePath).toURI());
-            final Path memFsDirPath = memFs.getPath(packagePath);
-            Files.createDirectories(memFsDirPath);
-            final Path memFsFilePath = memFs.getPath(classFilePath);
-            final Path memFsCopyOfClassFile = Files.copy(jarPath, memFsFilePath);
-            assertThat(Files.exists(memFsCopyOfClassFile));
-            final Path memFsRoot = memFs.getPath("/");
-            final URL memFsRootURL = memFsRoot.toUri().toURL();
-            try (URLClassLoader childClassLoader = new URLClassLoader(new URL[] { memFsRootURL },
-                    getClass().getClassLoader())) {
-                final ClassGraph classGraph = new ClassGraph().enableURLScheme(memFsRootURL.getProtocol())
-                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders()
-                        .whitelistPackages(packageName).enableAllInfo();
-                try (ScanResult scanResult = classGraph.scan()) {
-                    assertThat(scanResult.getClassInfo(className)).isNotNull();
-                }
-            }
-        }
+        testDir("");
+    }
+
+    /**
+     * Test accessing a package hierarchy rooted at "work/classes/" (i.e. with an automatically-detected package
+     * root) in Jimfs.
+     *
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws URISyntaxException
+     *             If a URI is bad.
+     */
+    @Test
+    public void testScanningDirBackedByFileSystemWithPackageRoot() throws IOException, URISyntaxException {
+        testDir("classes/");
     }
 }

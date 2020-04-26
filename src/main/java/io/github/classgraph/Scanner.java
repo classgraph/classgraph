@@ -394,8 +394,26 @@ class Scanner implements Callable<ScanResult> {
                 @Override
                 public ClasspathElement newInstance(final ClasspathElementAndClassLoader classpathEntry,
                         final LogNode log) throws IOException, InterruptedException {
-                    final Object classpathEntryObj = classpathEntry.classpathElement;
-                    String classpathEntryPath;
+                    Object classpathEntryObj = classpathEntry.classpathElementRoot;
+                    String dirOrPathPackageRoot = classpathEntry.dirOrPathPackageRoot;
+                    while (dirOrPathPackageRoot.startsWith("/")) {
+                        dirOrPathPackageRoot = dirOrPathPackageRoot.substring(1);
+                    }
+
+                    // If classpath entry object is a URL-formatted string, convert to a URL instance
+                    if (classpathEntryObj instanceof String) {
+                        final String classpathEntryStr = (String) classpathEntryObj;
+                        if (JarUtils.URL_SCHEME_PATTERN.matcher(classpathEntryStr).matches()) {
+                            try {
+                                classpathEntryObj = new URL(classpathEntryStr);
+                            } catch (final MalformedURLException e) {
+                                throw new IOException("Malformed URL: " + classpathEntryStr);
+                            }
+                        }
+                    }
+
+                    // Check type of classpath entry object
+                    String classpathEntryPathStr;
                     if (classpathEntryObj instanceof URL) {
                         URL classpathEntryURL = (URL) classpathEntryObj;
                         String scheme = classpathEntryURL.getProtocol();
@@ -412,7 +430,8 @@ class Scanner implements Callable<ScanResult> {
                         if ("file".equals(scheme)) {
                             // Extract file path, and use below as a path string to determine if this
                             // classpath element is a file (jar) or directory
-                            classpathEntryPath = URLDecoder.decode(classpathEntryURL.getPath(), "UTF-8");
+                            classpathEntryPathStr = URLDecoder.decode(classpathEntryURL.getPath(), "UTF-8");
+                            // Fall through
                         } else if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
                             return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
@@ -423,14 +442,14 @@ class Scanner implements Callable<ScanResult> {
                                 final Path path = Paths.get(classpathEntryURL.toURI());
                                 if (Files.isDirectory(path)) {
                                     // If URL maps to a directory, use the NIO Path API instead of the File API
-                                    return new ClasspathElementPathDir(path, classpathEntry.classLoader,
-                                            nestedJarHandler, scanSpec);
+                                    return new ClasspathElementPathDir(path, dirOrPathPackageRoot,
+                                            classpathEntry.classLoader, nestedJarHandler, scanSpec);
                                 }
                             } catch (final URISyntaxException | IllegalArgumentException | SecurityException e) {
                                 throw new IOException(
                                         "Cannot handle URL " + classpathEntryURL + " : " + e.getMessage());
                             } catch (final FileSystemNotFoundException e) {
-                                // Fall through to below -- this is a custom URL scheme without a backing FileSystem
+                                // This is a custom URL scheme without a backing FileSystem
                             }
 
                             // For custom URL schemes that do not resolve to directories, assume the URL
@@ -439,25 +458,29 @@ class Scanner implements Callable<ScanResult> {
                                     nestedJarHandler, scanSpec);
                         }
                     } else if (classpathEntryObj instanceof Path) {
-                        // classpathEntryObj is a Path (which points to a lib/ext jar inside a parent Path --
-                        // see ClasspathElementPath.java)
-                        return new ClasspathElementZip(((Path) classpathEntryObj).toUri(),
-                                classpathEntry.classLoader, nestedJarHandler, scanSpec);
+                        final Path classpathEntryPath = (Path) classpathEntryObj;
+                        final Path packageRootPath = classpathEntryPath.resolve(dirOrPathPackageRoot);
+                        if (FileUtils.canReadAndIsFile(packageRootPath)) {
+                            // classpathEntryObj is a Path which points to a lib/ext jar inside a parent Path
+                            return new ClasspathElementZip(classpathEntryPath.toUri(), classpathEntry.classLoader,
+                                    nestedJarHandler, scanSpec);
+                        } else if (FileUtils.canReadAndIsDir(packageRootPath)) {
+                            // classpathEntryObj is a Path which points to a dir -- need to scan it recursively
+                            return new ClasspathElementPathDir((Path) classpathEntryObj, dirOrPathPackageRoot,
+                                    classpathEntry.classLoader, nestedJarHandler, scanSpec);
+                        } else {
+                            throw new IOException("Path is not a directory or file: " + classpathEntryPath);
+                        }
 
                     } else {
                         // classpathEntryObj is a string
-                        classpathEntryPath = classpathEntryObj.toString();
+                        classpathEntryPathStr = classpathEntryObj.toString();
                     }
+                    // Fall through for file paths
 
                     // Normalize path -- strip off any leading "jar:" / "file:", and normalize separators
                     final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-                            classpathEntryPath);
-
-                    // "http:", "https:" or any other URL/URI scheme must indicate a jar
-                    if (JarUtils.URL_SCHEME_PATTERN.matcher(pathNormalized).matches()) {
-                        return new ClasspathElementZip(classpathEntryPath, classpathEntry.classLoader,
-                                nestedJarHandler, scanSpec);
-                    }
+                            classpathEntryPathStr);
 
                     // Strip everything after first "!", to get path of base jarfile or dir
                     final int plingIdx = pathNormalized.indexOf('!');
@@ -472,7 +495,7 @@ class Scanner implements Callable<ScanResult> {
                     if (!FileUtils.canRead(fileCanonicalized)) {
                         throw new IOException("Cannot read file or directory");
                     }
-                    boolean isJar = classpathEntryPath.regionMatches(true, 0, "jar:", 0, 4) || plingIdx > 0;
+                    boolean isJar = classpathEntryPathStr.regionMatches(true, 0, "jar:", 0, 4) || plingIdx > 0;
                     if (fileCanonicalized.isFile()) {
                         // If a file, must be a jar
                         isJar = true;
@@ -495,7 +518,7 @@ class Scanner implements Callable<ScanResult> {
                         // idempotent)
                         try {
                             return this.get(new ClasspathElementAndClassLoader(canonicalPathNormalized,
-                                    classpathEntry.classLoader), log);
+                                    dirOrPathPackageRoot, classpathEntry.classLoader), log);
                         } catch (final NullSingletonException e) {
                             throw new IOException("Cannot get classpath element for canonical path "
                                     + canonicalPathNormalized + " : " + e);
@@ -507,8 +530,8 @@ class Scanner implements Callable<ScanResult> {
                         return isJar
                                 ? new ClasspathElementZip(canonicalPathNormalized, classpathEntry.classLoader,
                                         nestedJarHandler, scanSpec)
-                                : new ClasspathElementFileDir(fileCanonicalized, classpathEntry.classLoader,
-                                        nestedJarHandler, scanSpec);
+                                : new ClasspathElementFileDir(fileCanonicalized, dirOrPathPackageRoot,
+                                        classpathEntry.classLoader, nestedJarHandler, scanSpec);
                     }
                 }
             };
@@ -547,12 +570,15 @@ class Scanner implements Callable<ScanResult> {
                     // multiple classpath elements with different non-canonical paths that map to
                     // the same canonical path, i.e. to the same ClasspathElement)
                     if (openedClasspathElementsSet.add(classpathElt)) {
+                        final LogNode subLog = log == null ? null
+                                : log.log("Opening classpath element " + classpathElt);
+
                         // Check if the classpath element is valid (classpathElt.skipClasspathElement
                         // will be set if not). In case of ClasspathElementZip, open or extract nested
                         // jars as LogicalZipFile instances. Read manifest files for jarfiles to look
                         // for Class-Path manifest entries. Adds extra classpath elements to the work
                         // queue if they are found.
-                        classpathElt.open(workQueue, log);
+                        classpathElt.open(workQueue, subLog);
 
                         // Create a new tuple consisting of the order of the new classpath element
                         // within its parent, and the new classpath element.
@@ -570,7 +596,10 @@ class Scanner implements Callable<ScanResult> {
                     }
                 } catch (final IOException | SecurityException e) {
                     if (log != null) {
-                        log.log("Skipping invalid classpath element " + workUnit.rawClasspathEntry.classpathElement
+                        log.log("Skipping invalid classpath element "
+                                + workUnit.rawClasspathEntry.classpathElementRoot
+                                + (workUnit.rawClasspathEntry.dirOrPathPackageRoot.isEmpty() ? ""
+                                        : "/" + workUnit.rawClasspathEntry.dirOrPathPackageRoot)
                                 + " : " + e);
                     }
                 }
