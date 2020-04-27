@@ -57,6 +57,7 @@ import nonapi.io.github.classgraph.fileslice.PathSlice;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -184,7 +185,7 @@ class ClasspathElementPathDir extends ClasspathElement {
 
             @Override
             public String getPath() {
-                String path = packageRootPath.relativize(resourcePath).toString();
+                String path = FastPathResolver.resolve(packageRootPath.relativize(resourcePath).toString());
                 while (path.startsWith("/")) {
                     path = path.substring(1);
                 }
@@ -193,7 +194,7 @@ class ClasspathElementPathDir extends ClasspathElement {
 
             @Override
             public String getPathRelativeToClasspathElement() {
-                String path = classpathEltPath.relativize(resourcePath).toString();
+                String path = FastPathResolver.resolve(classpathEltPath.relativize(resourcePath).toString());
                 while (path.startsWith("/")) {
                     path = path.substring(1);
                 }
@@ -343,8 +344,7 @@ class ClasspathElementPathDir extends ClasspathElement {
             return;
         }
 
-        final Path dirRelativePath = packageRootPath.relativize(path);
-        String dirRelativePathStr = dirRelativePath.toString();
+        String dirRelativePathStr = FastPathResolver.resolve(packageRootPath.relativize(path).toString());
         while (dirRelativePathStr.startsWith("/")) {
             dirRelativePathStr = dirRelativePathStr.substring(1);
         }
@@ -393,8 +393,10 @@ class ClasspathElementPathDir extends ClasspathElement {
 
         final LogNode subLog = log == null ? null
                 // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
-                : log.log("1:" + canonicalPath, "Scanning Path: " + path
-                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
+                : log.log("1:" + canonicalPath,
+                        "Scanning Path: " + FastPathResolver.resolve(path.toString()) + (path.equals(canonicalPath)
+                                ? ""
+                                : " ; canonical path: " + FastPathResolver.resolve(canonicalPath.toString())));
 
         final List<Path> pathsInDir = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
