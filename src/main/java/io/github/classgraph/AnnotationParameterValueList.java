@@ -34,6 +34,8 @@ import java.util.Set;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link AnnotationParameterValueList}. */
     static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList();

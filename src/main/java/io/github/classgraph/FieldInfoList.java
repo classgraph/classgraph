@@ -34,6 +34,8 @@ import java.util.Set;
 
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link FieldInfoList}. */
     static final FieldInfoList EMPTY_LIST = new FieldInfoList();

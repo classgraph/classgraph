@@ -32,6 +32,9 @@ import java.util.Collection;
 
 /** A list of {@link PackageInfo} objects. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
+
     /**
      * Constructor.
      */
@@ -61,6 +64,9 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
 
     /** An unmodifiable {@link PackageInfoList}. */
     static final PackageInfoList EMPTY_LIST = new PackageInfoList() {
+        /** serialVersionUID */
+        private static final long serialVersionUID = 1L;
+
         @Override
         public boolean add(final PackageInfo e) {
             throw new IllegalArgumentException("List is immutable");

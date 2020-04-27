@@ -67,6 +67,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Whether to sort by name. */
     private final boolean sortByName;
 
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
+
     /** An unmodifiable empty {@link ClassInfoList}. */
     static final ClassInfoList EMPTY_LIST = new ClassInfoList();
     static {

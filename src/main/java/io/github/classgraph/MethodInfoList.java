@@ -35,6 +35,9 @@ import java.util.Set;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
+
     /** An unmodifiable empty {@link MethodInfoList}. */
     static final MethodInfoList EMPTY_LIST = new MethodInfoList();
     static {

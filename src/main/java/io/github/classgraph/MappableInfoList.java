@@ -39,6 +39,9 @@ import java.util.Map;
  *            the element type
  */
 public class MappableInfoList<T extends HasName> extends InfoList<T> {
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
+
     /**
      * Constructor.
      */

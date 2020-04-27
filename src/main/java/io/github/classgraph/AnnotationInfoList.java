@@ -47,6 +47,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     private AnnotationInfoList directlyRelatedAnnotations;
 
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
+
     /** An unmodifiable empty {@link AnnotationInfoList}. */
     static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList();
     static {
