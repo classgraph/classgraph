@@ -52,6 +52,7 @@ import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -178,15 +179,19 @@ class ClasspathElementFileDir extends ClasspathElement {
 
             @Override
             public String getPath() {
-                return pathRelativeToPackageRoot;
+                String path = FastPathResolver.resolve(pathRelativeToPackageRoot);
+                while (path.startsWith("/")) {
+                    path = path.substring(1);
+                }
+                return path;
             }
 
             @Override
             public String getPathRelativeToClasspathElement() {
                 // Relativize resource file to classpath element dir
                 final File resourceFile = new File(packageRootDir, pathRelativeToPackageRoot);
-                String pathRelativeToClasspathElt = resourceFile.getPath()
-                        .substring(classpathEltDir.getPath().length());
+                String pathRelativeToClasspathElt = FastPathResolver
+                        .resolve(resourceFile.getPath().substring(classpathEltDir.getPath().length()));
                 while (pathRelativeToClasspathElt.startsWith("/")) {
                     pathRelativeToClasspathElt = pathRelativeToClasspathElt.substring(1);
                 }
