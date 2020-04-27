@@ -378,6 +378,11 @@ class ClasspathElementFileDir extends ClasspathElement {
             return;
         }
 
+        final LogNode subLog = log == null ? null
+                // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
+                : log.log("1:" + canonicalPath, "Scanning directory: " + dir
+                        + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
+
         final File[] filesInDir = dir.listFiles();
         if (filesInDir == null) {
             if (log != null) {
@@ -386,10 +391,6 @@ class ClasspathElementFileDir extends ClasspathElement {
             return;
         }
         Arrays.sort(filesInDir);
-        final LogNode subLog = log == null ? null
-                // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
-                : log.log("1:" + canonicalPath, "Scanning directory: " + dir
-                        + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
         // Determine whether this is a modular jar running under JRE 9+
         final boolean isModularJar = VersionFinder.JAVA_MAJOR_VERSION >= 9 && getModuleName() != null;

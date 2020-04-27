@@ -391,6 +391,11 @@ class ClasspathElementPathDir extends ClasspathElement {
             return;
         }
 
+        final LogNode subLog = log == null ? null
+                // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
+                : log.log("1:" + canonicalPath, "Scanning Path: " + path
+                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
+
         final List<Path> pathsInDir = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (final Path subPath : stream) {
@@ -404,11 +409,6 @@ class ClasspathElementPathDir extends ClasspathElement {
             return;
         }
         Collections.sort(pathsInDir);
-
-        final LogNode subLog = log == null ? null
-                // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
-                : log.log("1:" + canonicalPath, "Scanning Path: " + path
-                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
         // Determine whether this is a modular jar running under JRE 9+
         final boolean isModularJar = VersionFinder.JAVA_MAJOR_VERSION >= 9 && getModuleName() != null;
