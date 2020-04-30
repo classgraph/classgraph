@@ -453,7 +453,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 break;
             }
         }
-        if (eocdPos < 0) {
+        if (eocdPos < 0 && slice.sliceLength > 22 + 32) {
             // If EOCD signature was not found, read the last 64kB of file to RAM in a single chunk
             // so that we can scan back through it at higher speed to locate the EOCD signature
             final int bytesToRead = (int) Math.min(slice.sliceLength, 22L + (1 << 16));
