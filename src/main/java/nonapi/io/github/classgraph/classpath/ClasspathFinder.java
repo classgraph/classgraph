@@ -243,8 +243,10 @@ public class ClasspathFinder {
                             : classloaderURLLog
                                     .log("Ignoring parent classloader " + classLoader + ", normally handled by "
                                             + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
-                    classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, ignoredClasspathOrder, scanSpec,
+                    if (willReadJavaClassPath(scanSpec)) {
+                        classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, ignoredClasspathOrder, scanSpec,
                             classloaderHandlerLog);
+                    }
                 } else {
                     // Otherwise add classpath entries to classpathOrder, and add the classloader to the
                     // final classloader ordering
@@ -267,8 +269,7 @@ public class ClasspathFinder {
         // overrideClassLoaders is true or overrideClasspath is set). However, if only module scanning was
         // enabled, and an unnamed module layer was encountered, have to forcibly scan java.class.path,
         // since the ModuleLayer API doesn't allow you to open unnamed modules.
-        if ((scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null)
-                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
+        if (willReadJavaClassPath(scanSpec)) {
             final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"), scanSpec);
             if (pathElements.length > 0) {
                 final LogNode sysPropLog = classpathFinderLog == null ? null
@@ -290,5 +291,10 @@ public class ClasspathFinder {
                 }
             }
         }
+    }
+
+    private boolean willReadJavaClassPath(ScanSpec scanSpec) {
+        return (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null)
+                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath());
     }
 }
