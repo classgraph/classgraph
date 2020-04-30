@@ -222,7 +222,7 @@ public class ZipFileSlice {
         if (fileStr == null) {
             fileStr = physicalZipFile.getFile() == null ? null : physicalZipFile.getFile().toString();
         }
-        return "[" + (fileStr == null || !fileStr.equals(path) ? path + " -> " + fileStr : path) + " ; byte range: "
+        return "[" + (fileStr != null && !fileStr.equals(path) ? path + " -> " + fileStr : path) + " ; byte range: "
                 + slice.sliceStartPos + ".." + (slice.sliceStartPos + slice.sliceLength) + " / "
                 + physicalZipFile.length() + "]";
     }
