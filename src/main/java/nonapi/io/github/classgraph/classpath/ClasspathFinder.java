@@ -140,7 +140,6 @@ public class ClasspathFinder {
                 : null;
 
         classpathOrder = new ClasspathOrder(scanSpec);
-        final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec);
 
         // Only look for environment classloaders if classpath and classloaders are not overridden
         final ClassLoaderFinder classLoaderFinder = scanSpec.overrideClasspath == null
@@ -236,18 +235,7 @@ public class ClasspathFinder {
                 final ClassLoader classLoader = ent.getKey();
                 final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry = ent.getValue();
                 // Add classpath entries to ignoredClasspathOrder or classpathOrder
-                if (scanSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
-                    // If this is a parent and parent classloaders are being ignored, add classpath entries
-                    // to ignoredClasspathOrder
-                    final LogNode classloaderHandlerLog = classloaderURLLog == null ? null
-                            : classloaderURLLog
-                                    .log("Ignoring parent classloader " + classLoader + ", normally handled by "
-                                            + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
-                    if (willReadJavaClassPath(scanSpec)) {
-                        classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, ignoredClasspathOrder, scanSpec,
-                            classloaderHandlerLog);
-                    }
-                } else {
+                if (!scanSpec.ignoreParentClassLoaders || !allParentClassLoaders.contains(classLoader)) {
                     // Otherwise add classpath entries to classpathOrder, and add the classloader to the
                     // final classloader ordering
                     final LogNode classloaderHandlerLog = classloaderURLLog == null ? null
@@ -256,6 +244,13 @@ public class ClasspathFinder {
                     classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
                             classloaderHandlerLog);
                     finalClassLoaderOrder.add(classLoader);
+                } else {
+                    // If this is a parent and parent classloaders are being ignored, add classpath entries
+                    // to ignoredClasspathOrder
+                    final LogNode classloaderHandlerLog = classloaderURLLog == null ? null
+                            : classloaderURLLog
+                                    .log("Ignoring parent classloader " + classLoader + ", normally handled by "
+                                            + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
                 }
             }
 
@@ -264,12 +259,13 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
         }
 
-        // Get classpath elements from java.class.path, but don't add them if the element is in an ignored
-        // parent classloader and not in a child classloader (and don't use java.class.path at all if
-        // overrideClassLoaders is true or overrideClasspath is set). However, if only module scanning was
-        // enabled, and an unnamed module layer was encountered, have to forcibly scan java.class.path,
-        // since the ModuleLayer API doesn't allow you to open unnamed modules.
-        if (willReadJavaClassPath(scanSpec)) {
+        // Only scan java.class.path if parent classloaders are not ignored, classloaders are not overridden,
+        // and the classpath is not overridden, unless only module scanning was enabled, and an unnamed module
+        // layer was encountered -- in this case, have to forcibly scan java.class.path, since the ModuleLayer
+        // API doesn't allow for the opening of unnamed modules.
+        if ((!scanSpec.ignoreParentClassLoaders && scanSpec.overrideClassLoaders == null
+                && scanSpec.overrideClasspath == null)
+                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
             final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"), scanSpec);
             if (pathElements.length > 0) {
                 final LogNode sysPropLog = classpathFinderLog == null ? null
@@ -277,24 +273,10 @@ public class ClasspathFinder {
                 for (final String pathElement : pathElements) {
                     final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                             pathElement);
-                    if (!ignoredClasspathOrder.getClasspathEntryUniqueResolvedPaths()
-                            .contains(pathElementResolved)) {
-                        // pathElement is not also listed in an ignored parent classloader
-                        classpathOrder.addClasspathEntry(pathElement, defaultClassLoader, scanSpec, sysPropLog);
-                    } else {
-                        // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
-                        if (sysPropLog != null) {
-                            sysPropLog.log("Found classpath element in java.class.path that will be ignored, "
-                                    + "since it is also found in an ignored parent classloader: " + pathElement);
-                        }
-                    }
+                    // pathElement is not also listed in an ignored parent classloader
+                    classpathOrder.addClasspathEntry(pathElement, defaultClassLoader, scanSpec, sysPropLog);
                 }
             }
         }
-    }
-
-    private boolean willReadJavaClassPath(ScanSpec scanSpec) {
-        return (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null)
-                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath());
     }
 }
