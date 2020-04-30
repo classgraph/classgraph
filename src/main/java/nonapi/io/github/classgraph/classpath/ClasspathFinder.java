@@ -244,13 +244,9 @@ public class ClasspathFinder {
                     classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
                             classloaderHandlerLog);
                     finalClassLoaderOrder.add(classLoader);
-                } else {
-                    // If this is a parent and parent classloaders are being ignored, add classpath entries
-                    // to ignoredClasspathOrder
-                    final LogNode classloaderHandlerLog = classloaderURLLog == null ? null
-                            : classloaderURLLog
-                                    .log("Ignoring parent classloader " + classLoader + ", normally handled by "
-                                            + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
+                } else if (classloaderURLLog != null) {
+                    classloaderURLLog.log("Ignoring parent classloader " + classLoader + ", normally handled by "
+                            + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
                 }
             }
 
@@ -271,10 +267,10 @@ public class ClasspathFinder {
                 final LogNode sysPropLog = classpathFinderLog == null ? null
                         : classpathFinderLog.log("Getting classpath entries from java.class.path");
                 for (final String pathElement : pathElements) {
+                    // pathElement is not also listed in an ignored parent classloader
                     final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                             pathElement);
-                    // pathElement is not also listed in an ignored parent classloader
-                    classpathOrder.addClasspathEntry(pathElement, defaultClassLoader, scanSpec, sysPropLog);
+                    classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, scanSpec, sysPropLog);
                 }
             }
         }
