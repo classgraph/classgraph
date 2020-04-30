@@ -115,7 +115,7 @@ public class NestedJarHandler {
                 // the contents of the entry before its central directory can be read (most of
                 // the time nested zipfiles are stored, not deflated, so this should be rare)
                 if (log != null) {
-                    log.log("Deflating nested zip entry: " + childZipEntry + " ; uncompressed size: "
+                    log.log("Inflating nested zip entry: " + childZipEntry + " ; uncompressed size: "
                             + childZipEntry.uncompressedSize);
                 }
 
