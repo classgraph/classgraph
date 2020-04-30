@@ -447,7 +447,7 @@ public class LogicalZipFile extends ZipFileSlice {
         // so need to scan back that far to determine if this is a valid zipfile. However for speed,
         // initially just try reading back a maximum of 32 characters.
         long eocdPos = -1;
-        for (long i = slice.sliceLength - 22, iMin = slice.sliceLength - 22 - 32; i >= iMin; --i) {
+        for (long i = slice.sliceLength - 22, iMin = slice.sliceLength - 22 - 32; i >= iMin && i >= 0L; --i) {
             if (reader.readInt(i) == 0x06054b50) {
                 eocdPos = i;
                 break;
