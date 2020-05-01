@@ -87,16 +87,16 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
         // For Uno-Jar:
 
-        final String unoJarPath = (String) ReflectionUtils.invokeMethod(classLoader, "getOneJarPath", false);
-        classpathOrder.addClasspathEntry(unoJarPath, classLoader, scanSpec, log);
+        final String unoJarOneJarPath = (String) ReflectionUtils.invokeMethod(classLoader, "getOneJarPath", false);
+        classpathOrder.addClasspathEntry(unoJarOneJarPath, classLoader, scanSpec, log);
 
-        // For One-Jar:
-
-        // If this property is defined, OneJar jar path was specified on commandline. Otherwise, jar path
+        // If this property is defined, Uno-Jar jar path was specified on commandline. Otherwise, jar path
         // should be contained in java.class.path (which will be separately picked up by ClassGraph, as
         // long as classloaders/classpath are not overloaded and parent classloaders are not ignored).
-        final String oneJarJarPath = System.getProperty("one-jar.jar.path");
-        classpathOrder.addClasspathEntry(oneJarJarPath, classLoader, scanSpec, log);
+        final String unoJarJarPath = System.getProperty("uno-jar.jar.path");
+        classpathOrder.addClasspathEntry(unoJarJarPath, classLoader, scanSpec, log);
+
+        // For One-Jar:
 
         // If this property is defined, additional classpath entries were specified in OneJar format
         // on the commandline, with '|' as a separator
@@ -105,7 +105,14 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
             classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, scanSpec, log);
         }
 
+        // If this property is defined, One-Jar jar path was specified on commandline. Otherwise, jar path
+        // should be contained in java.class.path (which will be separately picked up by ClassGraph, as
+        // long as classloaders/classpath are not overloaded and parent classloaders are not ignored).
+        final String oneJarJarPath = System.getProperty("one-jar.jar.path");
+        classpathOrder.addClasspathEntry(oneJarJarPath, classLoader, scanSpec, log);
+
         // For both UnoJar and OneJar, "libs/" and "main/" will be automatically picked up as library roots
-        // for nested jars.
+        // for nested jars, based on ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES.
+        // ("main/" contains "main.jar".) 
     }
 }
