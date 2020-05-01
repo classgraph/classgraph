@@ -60,6 +60,7 @@ public class ClassLoaderHandlerRegistry {
                     new ClassLoaderHandlerRegistryEntry(TomcatWebappClassLoaderBaseHandler.class),
                     new ClassLoaderHandlerRegistryEntry(PlexusClassWorldsClassRealmClassLoaderHandler.class),
                     new ClassLoaderHandlerRegistryEntry(QuarkusClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(UnoOneJarClassLoaderHandler.class),
 
                     // For unit testing of PARENT_LAST delegation order
                     new ClassLoaderHandlerRegistryEntry(ParentLastDelegationOrderTestClassLoaderHandler.class),
@@ -107,7 +108,7 @@ public class ClassLoaderHandlerRegistry {
             "BOOT-INF/classes/",
             // Tomcat
             "WEB-INF/classes/",
-            // UnoJar
+            // UnoJar and One-Jar
             "main/" //
     };
 
