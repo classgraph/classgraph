@@ -105,7 +105,7 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
             classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, scanSpec, log);
         }
 
-        // For both UnoJar and OneJar, "libs/" will be automatically picked up as a library root (containing
-        // nested jars) and "main/" will be automatically picked up as a package root. 
+        // For both UnoJar and OneJar, "libs/" and "main/" will be automatically picked up as library roots
+        // for nested jars.
     }
 }
