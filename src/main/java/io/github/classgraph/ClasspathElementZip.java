@@ -263,8 +263,8 @@ class ClasspathElementZip extends ClasspathElement {
                 // entry that they were obtained from).
                 if (!childBundlePath.isEmpty() && !childBundlePath.equals(".")) {
                     // Resolve Bundle-ClassPath entry within jar
-                    final String childClassPathEltPath = zipFilePathPrefix
-                            + FileUtils.sanitizeEntryPath(childBundlePath, /* removeInitialSlash = */ true);
+                    final String childClassPathEltPath = zipFilePathPrefix + FileUtils.sanitizeEntryPath(
+                            childBundlePath, /* removeInitialSlash = */ true, /* removeFinalSlash = */ true);
                     // Only add child classpath elements once
                     if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
                         // Schedule child classpath element for scanning

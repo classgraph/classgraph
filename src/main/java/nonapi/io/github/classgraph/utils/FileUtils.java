@@ -111,10 +111,13 @@ public final class FileUtils {
      * @param path
      *            The path to sanitize.
      * @param removeInitialSlash
-     *            If true, additionally removes any "/" character(s) from the beginning of the returned path.
+     *            If true, remove any '/' character(s) from the beginning of the returned path.
+     * @param removeFinalSlash
+     *            If true, remove any '/' character(s) from the end of the returned path.
      * @return The sanitized path.
      */
-    public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash) {
+    public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
+            final boolean removeFinalSlash) {
         if (path.isEmpty()) {
             return "";
         }
@@ -209,6 +212,12 @@ public final class FileUtils {
                 startIdx++;
             }
         }
+        if (removeFinalSlash) {
+            while (pathSanitized.length() > 0 && pathSanitized.charAt(pathSanitized.length() - 1) == '/') {
+                pathSanitized.setLength(pathSanitized.length() - 1);
+            }
+        }
+
         return pathSanitized.substring(startIdx);
     }
 

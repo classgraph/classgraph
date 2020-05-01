@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 
@@ -512,7 +513,11 @@ public abstract class WhiteBlackList {
      * @return The normalized path.
      */
     public static String normalizePath(final String path) {
-        return FileUtils.sanitizeEntryPath(path, /* removeInitialSlash = */ true);
+        String pathResolved = FastPathResolver.resolve(path);
+        while (pathResolved.startsWith("/")) {
+            pathResolved = pathResolved.substring(1);
+        }
+        return pathResolved;
     }
 
     /**

@@ -616,7 +616,8 @@ public class LogicalZipFile extends ZipFileSlice {
                     break;
                 }
                 final String entryName = cenReader.readString(filenameStartOff, filenameLen);
-                String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true);
+                String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
+                        /* removeFinalSlash = */ false);
                 if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
                     // Skip directory entries
                     continue;

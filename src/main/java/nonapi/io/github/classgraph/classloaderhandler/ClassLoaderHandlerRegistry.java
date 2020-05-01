@@ -109,8 +109,7 @@ public class ClassLoaderHandlerRegistry {
             // Spring-Boot
             "BOOT-INF/classes/",
             // Tomcat
-            "WEB-INF/classes/",
-    };
+            "WEB-INF/classes/", };
 
     // -------------------------------------------------------------------------------------------------------------
 

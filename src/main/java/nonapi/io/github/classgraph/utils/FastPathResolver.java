@@ -314,12 +314,13 @@ public final class FastPathResolver {
         if (isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
             // There is no base path to resolve against, or path is an absolute path or http(s):// URL
             // (ignore the base path)
-            pathResolved = FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false);
+            pathResolved = FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false,
+                    /* removeFinalSlash = */ true);
         } else {
             // Path is a relative path -- resolve it relative to the base path
             pathResolved = FileUtils.sanitizeEntryPath(
                     resolveBasePath + (resolveBasePath.endsWith("/") ? "" : "/") + pathStr,
-                    /* removeInitialSlash = */ false);
+                    /* removeInitialSlash = */ false, /* removeFinalSlash = */ true);
         }
 
         // Add any prefix back, e.g. "https://"

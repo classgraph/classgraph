@@ -506,7 +506,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
+        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
+                /* removeFinalSlash = */ true);
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
             // If numerous calls are made, produce and cache a single HashMap for O(1) access time
             return getAllResourcesAsMap().get(path);
@@ -530,7 +531,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get the list of all resources found in any classpath element, <i>whether in whitelisted packages or not (as
      * long as the resource is not blacklisted)</i>, that have the given path, relative to the package root of the
-     * classpath element. May match several resources, up to one per classpath element.
+     * classpath element. May match several resources, up to one per classpath element. Note that this may not
+     * return a non-whitelisted resource, particularly when scanning directory classpath elements, because recursive
+     * scanning terminates once there are no possible whitelisted resources below a given directory. However,
+     * resources in ancestral directories of whitelisted directories can be found using this method.
      *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root.
@@ -542,7 +546,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true);
+        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
+                /* removeFinalSlash = */ true);
         final ResourceList matchingResources = new ResourceList();
         for (final ClasspathElement classpathElt : classpathOrder) {
             final Resource matchingResource = classpathElt.getResource(path);
