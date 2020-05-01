@@ -92,7 +92,9 @@ public class ClassLoaderHandlerRegistry {
             // Tomcat and others
             "lib/",
             // Extension dir
-            "lib/ext/" //
+            "lib/ext/",
+            // UnoJar and One-Jar
+            "main/" //
     };
 
     /**
@@ -108,8 +110,6 @@ public class ClassLoaderHandlerRegistry {
             "BOOT-INF/classes/",
             // Tomcat
             "WEB-INF/classes/",
-            // UnoJar and One-Jar
-            "main/" //
     };
 
     // -------------------------------------------------------------------------------------------------------------
