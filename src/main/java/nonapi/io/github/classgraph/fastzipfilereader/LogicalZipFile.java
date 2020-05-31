@@ -456,19 +456,21 @@ public class LogicalZipFile extends ZipFileSlice {
         if (eocdPos < 0 && slice.sliceLength > 22 + 32) {
             // If EOCD signature was not found, read the last 64kB of file to RAM in a single chunk
             // so that we can scan back through it at higher speed to locate the EOCD signature
-            final int bytesToRead = (int) Math.min(slice.sliceLength, 22L + (1 << 16));
+            final int bytesToRead = (int) Math.min(slice.sliceLength, 65536);
             final byte[] eocdBytes = new byte[bytesToRead];
             final long readStartOff = slice.sliceLength - bytesToRead;
             if (reader.read(readStartOff, eocdBytes, 0, bytesToRead) < bytesToRead) {
                 // Should not happen
                 throw new IOException("Zipfile is truncated");
             }
-            final RandomAccessReader eocdReader = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, nestedJarHandler).randomAccessReader();
-            for (long i = eocdBytes.length - 22L; i >= 0L; --i) {
-                if (eocdReader.readInt(i) == 0x06054b50) {
-                    eocdPos = i + readStartOff;
-                    break;
+            try (final ArraySlice arraySlice = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
+                    /* inflatedLengthHint = */ 0L, nestedJarHandler)) {
+                final RandomAccessReader eocdReader = arraySlice.randomAccessReader();
+                for (long i = eocdBytes.length - 22L; i >= 0L; --i) {
+                    if (eocdReader.readInt(i) == 0x06054b50) {
+                        eocdPos = i + readStartOff;
+                        break;
+                    }
                 }
             }
         }

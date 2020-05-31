@@ -133,10 +133,10 @@ class ClasspathElementFileDir extends ClasspathElement {
             // Only look for package roots if the package root is the root of the classpath element
             if (packageRootDir.equals(classpathEltDir)) {
                 for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
-                    final File packageRootDir = new File(classpathEltDir, packageRootPrefix);
-                    if (FileUtils.canReadAndIsDir(packageRootDir)) {
+                    final File packageRoot = new File(classpathEltDir, packageRootPrefix);
+                    if (FileUtils.canReadAndIsDir(packageRoot)) {
                         if (log != null) {
-                            log(classpathElementIdx, "Found package root: " + packageRootDir, log);
+                            log(classpathElementIdx, "Found package root: " + packageRoot, log);
                         }
                         workQueue
                                 .addWorkUnit(new ClasspathEntryWorkUnit(

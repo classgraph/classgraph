@@ -137,8 +137,8 @@ class ClasspathElementPathDir extends ClasspathElement {
             // Only look for package roots if the package root is the root of the classpath element
             if (packageRootPath.equals(classpathEltPath)) {
                 for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
-                    final Path packageRootPath = classpathEltPath.resolve(packageRootPrefix);
-                    if (FileUtils.canReadAndIsDir(packageRootPath)) {
+                    final Path packageRoot = classpathEltPath.resolve(packageRootPrefix);
+                    if (FileUtils.canReadAndIsDir(packageRoot)) {
                         if (log != null) {
                             log(classpathElementIdx, "Found package root: " + packageRootPrefix, log);
                         }
@@ -233,7 +233,7 @@ class ClasspathElementPathDir extends ClasspathElement {
                     throw new IOException(
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
-                pathSlice = new PathSlice(resourcePath, nestedJarHandler, /* log = */ null);
+                pathSlice = new PathSlice(resourcePath, nestedJarHandler);
                 length = pathSlice.sliceLength;
                 byteBuffer = pathSlice.read();
                 return byteBuffer;
@@ -250,7 +250,7 @@ class ClasspathElementPathDir extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 // Classfile won't be compressed, so wrap it in a new PathSlice and then open it
-                pathSlice = new PathSlice(resourcePath, nestedJarHandler, /* log = */ null);
+                pathSlice = new PathSlice(resourcePath, nestedJarHandler);
                 length = pathSlice.sliceLength;
                 return new ClassfileReader(pathSlice);
             }
@@ -265,7 +265,7 @@ class ClasspathElementPathDir extends ClasspathElement {
                     throw new IOException(
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
-                pathSlice = new PathSlice(resourcePath, nestedJarHandler, /* log = */ null);
+                pathSlice = new PathSlice(resourcePath, nestedJarHandler);
                 inputStream = pathSlice.open();
                 length = pathSlice.sliceLength;
                 return inputStream;
@@ -275,7 +275,7 @@ class ClasspathElementPathDir extends ClasspathElement {
             public byte[] load() throws IOException {
                 read();
                 try (Resource res = this) { // Close this after use
-                    pathSlice = new PathSlice(resourcePath, nestedJarHandler, /* log = */ null);
+                    pathSlice = new PathSlice(resourcePath, nestedJarHandler);
                     final byte[] bytes = pathSlice.load();
                     length = bytes.length;
                     return bytes;

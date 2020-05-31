@@ -43,7 +43,6 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A {@link Path} slice. */
 public class PathSlice extends Slice implements Closeable {
@@ -105,13 +104,11 @@ public class PathSlice extends Slice implements Closeable {
      *            zip entry.
      * @param nestedJarHandler
      *            the nested jar handler
-     * @param log
-     *            the log
      * @throws IOException
      *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+            final NestedJarHandler nestedJarHandler) throws IOException {
         super(0L, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
 
         // Make sure the File is readable and is a regular file
@@ -136,14 +133,11 @@ public class PathSlice extends Slice implements Closeable {
      *            the path
      * @param nestedJarHandler
      *            the nested jar handler
-     * @param log
-     *            the log
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public PathSlice(final Path path, final NestedJarHandler nestedJarHandler, final LogNode log)
-            throws IOException {
-        this(path, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
+    public PathSlice(final Path path, final NestedJarHandler nestedJarHandler) throws IOException {
+        this(path, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler);
     }
 
     /**
