@@ -357,8 +357,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
      *             the resources.
-     * @deprecated Use {@link #forEach(ByteArrayConsumer)} or {@link #forEach(ByteArrayConsumerThrowsIOException)}
-     *             instead.
+     * @deprecated Use {@link #forEachByteArrayIgnoringIOException(ByteArrayConsumer)} or
+     *             {@link #forEachByteArrayThrowingIOException(ByteArrayConsumerThrowsIOException)} instead.
      */
     @Deprecated
     public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer, final boolean ignoreIOExceptions) {
@@ -385,7 +385,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *            The {@link ByteArrayConsumer}.
      * @throws IllegalArgumentException
      *             if an {@link IOException} is thrown while trying to load any of the resources.
-     * @deprecated Use {@link #forEach(ByteArrayConsumerThrowsIOException)} instead.
+     * @deprecated Use {@link #forEachByteArrayThrowingIOException(ByteArrayConsumerThrowsIOException)} instead.
      */
     @Deprecated
     public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer) {
@@ -401,7 +401,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
      */
-    public void forEach(final ByteArrayConsumer byteArrayConsumer) {
+    public void forEachByteArrayIgnoringIOException(final ByteArrayConsumer byteArrayConsumer) {
         for (final Resource resource : this) {
             try {
                 final byte[] resourceContent = resource.load();
@@ -424,8 +424,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @throws IOException
      *             if trying to load any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEach(final ByteArrayConsumerThrowsIOException byteArrayConsumerThrowsIOException)
-            throws IOException {
+    public void forEachByteArrayThrowingIOException(
+            final ByteArrayConsumerThrowsIOException byteArrayConsumerThrowsIOException) throws IOException {
         for (final Resource resource : this) {
             try {
                 final byte[] resourceContent = resource.load();
@@ -485,8 +485,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to open any of
      *             the resources.
-     * @deprecated Use {@link #forEach(InputStreamConsumer)} or
-     *             {@link #forEach(InputStreamConsumerThrowsIOException)} instead.
+     * @deprecated Use {@link #forEachInputStreamIgnoringIOException(InputStreamConsumer)} or
+     *             {@link #forEachInputStreamThrowingIOException(InputStreamConsumerThrowsIOException)} instead.
      */
     @Deprecated
     public void forEachInputStream(final InputStreamConsumer inputStreamConsumer,
@@ -513,7 +513,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *            The {@link InputStreamConsumer}.
      * @throws IllegalArgumentException
      *             an {@link IOException} is thrown while trying to open any of the resources.
-     * @deprecated Use {@link #forEach(InputStreamConsumerThrowsIOException)} instead.
+     * @deprecated Use {@link #forEachInputStreamThrowingIOException(InputStreamConsumerThrowsIOException)} instead.
      */
     @Deprecated
     public void forEachInputStream(final InputStreamConsumer inputStreamConsumer) {
@@ -529,7 +529,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
      */
-    public void forEach(final InputStreamConsumer inputStreamConsumer) {
+    public void forEachInputStreamIgnoringIOException(final InputStreamConsumer inputStreamConsumer) {
         for (final Resource resource : this) {
             try {
                 inputStreamConsumer.accept(resource, resource.open());
@@ -552,8 +552,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *             if trying to open or read from any of the resources results in an {@link IOException} being
      *             thrown.
      */
-    public void forEach(final InputStreamConsumerThrowsIOException inputStreamConsumerThrowsIOException)
-            throws IOException {
+    public void forEachInputStreamThrowingIOException(
+            final InputStreamConsumerThrowsIOException inputStreamConsumerThrowsIOException) throws IOException {
         for (final Resource resource : this) {
             try {
                 inputStreamConsumerThrowsIOException.accept(resource, resource.open());
@@ -611,8 +611,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
      *             the resources.
-     * @deprecated Use {@link #forEach(ByteBufferConsumer)} or {@link #forEach(ByteBufferConsumerThrowsIOException)}
-     *             instead.
+     * @deprecated Use {@link #forEachByteBufferIgnoringIOException(ByteBufferConsumer)} or
+     *             {@link #forEachByteBufferThrowingIOException(ByteBufferConsumerThrowsIOException)} instead.
      */
     @Deprecated
     public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer, final boolean ignoreIOExceptions) {
@@ -639,7 +639,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *            The {@link ByteBufferConsumer}.
      * @throws IllegalArgumentException
      *             if an {@link IOException} is thrown while trying to load any of the resources.
-     * @deprecated Use {@link #forEach(ByteBufferConsumerThrowsIOException)} instead.
+     * @deprecated Use {@link #forEachByteBufferThrowingIOException(ByteBufferConsumerThrowsIOException)} instead.
      */
     @Deprecated
     public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) {
@@ -655,7 +655,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
      */
-    public void forEach(final ByteBufferConsumer byteBufferConsumer) {
+    public void forEachByteBufferIgnoringIOException(final ByteBufferConsumer byteBufferConsumer) {
         for (final Resource resource : this) {
             try {
                 final ByteBuffer byteBuffer = resource.read();
@@ -678,8 +678,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @throws IOException
      *             if trying to load any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEach(final ByteBufferConsumerThrowsIOException byteBufferConsumerThrowsIOException)
-            throws IOException {
+    public void forEachByteBufferThrowingIOException(
+            final ByteBufferConsumerThrowsIOException byteBufferConsumerThrowsIOException) throws IOException {
         for (final Resource resource : this) {
             try {
                 final ByteBuffer byteBuffer = resource.read();
