@@ -149,7 +149,7 @@ public class JSONDeserializer {
                 throw new IllegalArgumentException("Expected float; got " + jsonVal.getClass().getName());
             }
             final double doubleValue = (Double) jsonVal;
-            if (doubleValue < Float.MIN_VALUE || doubleValue > Float.MAX_VALUE) {
+            if (doubleValue < -Float.MAX_VALUE || doubleValue > Float.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected float; got out-of-range value " + doubleValue);
             }
             return (float) doubleValue;

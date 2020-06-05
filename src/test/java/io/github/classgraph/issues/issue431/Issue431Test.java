@@ -59,7 +59,9 @@ public class Issue431Test {
         /** g */
         static final float g = 1.0f;
         /** h */
-        static final double h = 1.0d;
+        static final float h = 0.0f;
+        /** i */
+        static final double i = 1.0d;
     }
 
     /**
@@ -89,7 +91,7 @@ public class Issue431Test {
             final ScanResult scanResult2 = ScanResult.fromJSON(jsonResult);
             final ClassInfo classInfo2 = scanResult2.getClassInfo(X.class.getName());
             assertThat(classInfo2).isNotNull();
-            for (char fieldName = 'a'; fieldName <= 'h'; fieldName++) {
+            for (char fieldName = 'a'; fieldName <= 'i'; fieldName++) {
                 testFieldEquality("" + fieldName, classInfo1, classInfo2);
             }
         }
