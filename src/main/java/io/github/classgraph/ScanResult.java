@@ -1308,10 +1308,6 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // and scans classpath element paths (needed for classloading), but does not scan the actual classfiles
         final ClassGraph classGraph = new ClassGraph();
         classGraph.scanSpec = deserialized.scanSpec;
-        if (classGraph.scanSpec.overrideClasspath == null) {
-            // Use the same classpath as before, if classpath was not overridden
-            classGraph.overrideClasspath(deserialized.classpath);
-        }
         final ScanResult scanResult;
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                 ClassGraph.DEFAULT_NUM_WORKER_THREADS)) {
