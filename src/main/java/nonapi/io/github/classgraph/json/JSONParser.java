@@ -142,7 +142,8 @@ final class JSONParser extends Parser {
         while (hasMore()) {
             final char c = getc();
             if (c == '\\') {
-                switch (getc()) {
+                final char c2 = getc();
+                switch (c2) {
                 case 'b':
                     buf.append('\b');
                     break;
@@ -162,7 +163,7 @@ final class JSONParser extends Parser {
                 case '"':
                 case '/':
                 case '\\':
-                    buf.append(c);
+                    buf.append(c2);
                     break;
                 case 'u':
                     int charVal = 0;
