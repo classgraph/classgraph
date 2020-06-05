@@ -270,10 +270,10 @@ final class JSONParser extends Parser {
         final String numberStr = getSubstring(startIdx, endIdx);
         if (hasFractionalPart || hasExponentPart) {
             return Double.valueOf(numberStr);
-        } else if (numIntegralDigits < 9) {
+        } else if (numIntegralDigits < 10) {
             return Integer.valueOf(numberStr);
-        } else if (numIntegralDigits == 9) {
-            // For 9-digit numbers, could be int or long
+        } else if (numIntegralDigits == 10) {
+            // For 10-digit numbers, could be int or long
             final long longVal = Long.parseLong(numberStr);
             if (longVal >= Integer.MIN_VALUE && longVal <= Integer.MAX_VALUE) {
                 return (int) longVal;

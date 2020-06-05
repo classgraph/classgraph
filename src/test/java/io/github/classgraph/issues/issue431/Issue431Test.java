@@ -45,7 +45,7 @@ public class Issue431Test {
     /** Class X */
     public static class X {
         /** a */
-        static final int a = 1;
+        static final int a = Integer.MAX_VALUE;
         /** b */
         static final long b = 2L;
         /** c */
