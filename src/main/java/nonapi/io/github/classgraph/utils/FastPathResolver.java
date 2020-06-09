@@ -205,47 +205,33 @@ public final class FastPathResolver {
             startIdx = 4;
             isFileOrJarURL = true;
         }
-        if (relativePath.regionMatches(true, 0, "http://", 0, 7)) {
+        if (relativePath.regionMatches(true, startIdx, "http://", 0, 7)) {
             // Detect http://
-            startIdx = 7;
+            startIdx += 7;
             // Force protocol name to lowercase
             prefix = "http://";
             // Treat the part after the protocol as an absolute path, so the domain is not treated as a directory
             // relative to the current directory.
             isAbsolutePath = true;
             // Don't un-escape percent encoding etc.
-        } else if (relativePath.regionMatches(true, 0, "https://", 0, 8)) {
+        } else if (relativePath.regionMatches(true, startIdx, "https://", 0, 8)) {
             // Detect https://
-            startIdx = 8;
+            startIdx += 8;
             prefix = "https://";
             isAbsolutePath = true;
-        } else if (relativePath.regionMatches(true, 0, "jrt:", 0, 5)) {
+        } else if (relativePath.regionMatches(true, startIdx, "jrt:", 0, 5)) {
             // Detect jrt:
-            startIdx = 4;
+            startIdx += 4;
             prefix = "jrt:";
             isAbsolutePath = true;
-        } else if (relativePath.regionMatches(true, 0, "file:", 0, 5)) {
+        } else if (relativePath.regionMatches(true, startIdx, "file:", 0, 5)) {
             // Strip off any "file:" prefix from relative path
-            startIdx = 5;
-            if (WINDOWS) {
-                if (relativePath.startsWith("\\\\\\\\", startIdx) || relativePath.startsWith("////", startIdx)) {
-                    // Windows UNC URL
-                    startIdx += 4;
-                    prefix = "//";
-                    isAbsolutePath = true;
-                } else {
-                    if (relativePath.startsWith("\\\\", startIdx)) {
-                        startIdx += 2;
-                    }
-                }
-            }
-            if (relativePath.startsWith("///", startIdx)) {
-                startIdx += 2;
-            }
+            startIdx += 5;
             isFileOrJarURL = true;
         } else {
             // Preserve the number of slashes on custom URL schemes (#420)
-            final Matcher m2 = schemeTwoSlashMatcher.matcher(relativePath);
+            final String relPath = startIdx == 0 ? relativePath : relativePath.substring(startIdx);
+            final Matcher m2 = schemeTwoSlashMatcher.matcher(relPath);
             if (m2.find()) {
                 final String m2Match = m2.group();
                 startIdx += m2Match.length();
@@ -254,13 +240,31 @@ public final class FastPathResolver {
                 // as a directory relative to the current directory.
                 isAbsolutePath = true;
             } else {
-                final Matcher m1 = schemeOneSlashMatcher.matcher(relativePath);
+                final Matcher m1 = schemeOneSlashMatcher.matcher(relPath);
                 if (m1.find()) {
                     final String m1Match = m1.group();
                     startIdx += m1Match.length();
                     prefix = m1Match;
                     isAbsolutePath = true;
                 }
+            }
+        }
+        if (isFileOrJarURL) {
+            if (WINDOWS) {
+                if (relativePath.startsWith("\\\\\\\\", startIdx) || relativePath.startsWith("////", startIdx)) {
+                    // Windows UNC URL
+                    startIdx += 4;
+                    prefix += "//";
+                    isAbsolutePath = true;
+                } else {
+                    if (relativePath.startsWith("\\\\", startIdx)) {
+                        startIdx += 2;
+                    }
+                }
+            }
+            // "file:///" or "jar:///" URL
+            if (relativePath.startsWith("///", startIdx)) {
+                startIdx += 2;
             }
         }
 
