@@ -11,9 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList;
-import io.github.classgraph.ResourceList.ByteArrayConsumer;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
@@ -57,12 +55,8 @@ public class MultiReleaseJarTest {
 
                 final ResourceList resources = scanResult.getResourcesWithPath("resource.txt");
                 assertThat(resources.size()).isEqualTo(1);
-                resources.forEachByteArray(new ByteArrayConsumer() {
-                    @Override
-                    public void accept(final Resource resource, final byte[] byteArray) {
-                        assertThat(new String(byteArray).trim()).isEqualTo("9");
-                    }
-                });
+                resources.forEachByteArrayThrowingIOException(
+                        (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("9"));
             }
         }
     }
