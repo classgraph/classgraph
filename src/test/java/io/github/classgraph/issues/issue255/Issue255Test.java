@@ -30,12 +30,12 @@ package io.github.classgraph.issues.issue255;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList;
-import io.github.classgraph.ResourceList.ByteArrayConsumer;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -46,19 +46,15 @@ public class Issue255Test {
      * Issue 255 test.
      */
     @Test
-    public void issue255Test() {
+    public void issue255Test() throws IOException {
         final String dirPath = Issue255Test.class.getClassLoader().getResource("issue255").getPath()
                 + "/test%20percent%20encoding";
 
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(dirPath).scan()) {
             final ResourceList resources = scanResult.getAllResources();
             assertThat(resources.size()).isEqualTo(1);
-            resources.forEachByteArray(new ByteArrayConsumer() {
-                @Override
-                public void accept(final Resource resource, final byte[] byteArray) {
-                    assertThat(new String(byteArray)).isEqualTo("Issue 255");
-                }
-            });
+            resources.forEachByteArrayThrowingIOException(
+                    (resource, byteArray) -> assertThat(new String(byteArray)).isEqualTo("Issue 255"));
         }
     }
 }
