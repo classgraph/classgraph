@@ -367,11 +367,11 @@ public class ClassGraphTest {
                 scanResult.getResourcesWithLeafName("file-content-test.txt")
                         .forEachByteArrayThrowingIOException(new ByteArrayConsumerThrowsIOException() {
                             @Override
-                            public void accept(Resource resource, byte[] byteArray) throws IOException {
+                            public void accept(final Resource resource, final byte[] byteArray) throws IOException {
                                 readFileContents.set(new String(byteArray).equals("File contents"));
                             }
                         });
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw new RuntimeException(e);
             }
             assertThat(readFileContents.get()).isTrue();
