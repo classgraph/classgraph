@@ -30,6 +30,7 @@ package io.github.classgraph.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,7 +40,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.Resource;
-import io.github.classgraph.ResourceList.ByteArrayConsumer;
+import io.github.classgraph.ResourceList.ByteArrayConsumerThrowsIOException;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.blacklisted.BlacklistedAnnotation;
 import io.github.classgraph.test.blacklisted.BlacklistedSubclass;
@@ -362,12 +363,17 @@ public class ClassGraphTest {
     public void scanFilePattern() {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
         try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("").scan()) {
-            scanResult.getResourcesWithLeafName("file-content-test.txt").forEachByteArray(new ByteArrayConsumer() {
-                @Override
-                public void accept(final Resource res, final byte[] arr) {
-                    readFileContents.set(new String(arr).equals("File contents"));
-                }
-            });
+            try {
+                scanResult.getResourcesWithLeafName("file-content-test.txt")
+                        .forEachByteArrayThrowingIOException(new ByteArrayConsumerThrowsIOException() {
+                            @Override
+                            public void accept(Resource resource, byte[] byteArray) throws IOException {
+                                readFileContents.set(new String(byteArray).equals("File contents"));
+                            }
+                        });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             assertThat(readFileContents.get()).isTrue();
         }
     }
