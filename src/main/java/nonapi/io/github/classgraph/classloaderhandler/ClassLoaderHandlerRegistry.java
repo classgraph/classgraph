@@ -84,7 +84,8 @@ public class ClassLoaderHandlerRegistry {
      */
     public static final String[] AUTOMATIC_LIB_DIR_PREFIXES = {
             // Spring-Boot
-            "BOOT-INF/lib/", "BOOT-INF/lib-provided/",
+            // https://docs.spring.io/spring-boot/docs/2.3.0.RELEASE/reference/html/appendix-executable-jar-format.html
+            "BOOT-INF/lib/",
             // Tomcat
             "WEB-INF/lib/", "WEB-INF/lib-provided/",
             // OSGi
