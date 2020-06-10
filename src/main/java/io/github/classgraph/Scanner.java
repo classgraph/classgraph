@@ -473,7 +473,7 @@ class Scanner implements Callable<ScanResult> {
                         }
 
                     } else {
-                        // classpathEntryObj is a string
+                        // Convert classpathEntryObj to a string
                         classpathEntryPathStr = classpathEntryObj.toString();
                     }
                     // Fall through for file paths

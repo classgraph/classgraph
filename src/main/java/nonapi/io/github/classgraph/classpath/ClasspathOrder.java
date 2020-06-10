@@ -32,8 +32,11 @@ import java.io.File;
 import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +44,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
+import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -58,11 +62,22 @@ public class ClasspathOrder {
     /** The classpath order. Keys are instances of {@link String} or {@link URL}. */
     private final List<ClasspathElementAndClassLoader> order = new ArrayList<>();
 
+    /** Suffixes for automatic package roots, e.g. "!/BOOT-INF/classes". */
+    private static final List<String> AUTOMATIC_PACKAGE_ROOT_SUFFIXES = new ArrayList<>();
+
+    static {
+        for (final String prefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
+            AUTOMATIC_PACKAGE_ROOT_SUFFIXES.add("!/" + prefix.substring(0, prefix.length() - 1));
+        }
+    }
+
     /**
      * A classpath element and the {@link ClassLoader} it was obtained from.
      */
     public static class ClasspathElementAndClassLoader {
-        /** The classpath element root (a {@link String} or {@link URL} or {@link Path}). */
+        /**
+         * The classpath element root (a {@link String} path, {@link Path}, {@link URL} or {@link URI}).
+         */
         public final Object classpathElementRoot;
 
         /** The classpath element package root, prefix, e.g. "BOOT-INF/classes" or "". */
@@ -75,7 +90,7 @@ public class ClasspathOrder {
          * Constructor for directory or {@link Path} classpath entries.
          *
          * @param classpathElementRoot
-         *            the classpath element root (a {@link String} or {@link URL} or {@link Path}).
+         *            the classpath element root (a {@link String} path, {@link Path}, {@link URL} or {@link URI}).
          * @param dirOrPathPackageRoot
          *            the classpath element package root prefix, e.g. "BOOT-INF/classes" or "". Only used for
          *            directory or {@link Path} classpath entries.
@@ -119,6 +134,11 @@ public class ClasspathOrder {
             return Objects.equals(this.dirOrPathPackageRoot, other.dirOrPathPackageRoot)
                     && Objects.equals(this.classpathElementRoot, other.classpathElementRoot)
                     && Objects.equals(this.classLoader, other.classLoader);
+        }
+
+        @Override
+        public String toString() {
+            return classpathElementRoot + " [" + classLoader + "]";
         }
     }
 
@@ -173,7 +193,7 @@ public class ClasspathOrder {
      *
      * @param pathEntry
      *            the system classpath entry -- the path string should already have been run through
-     *            FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path
+     *            FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path)
      * @param classLoader
      *            the classloader
      * @return true, if added and unique
@@ -190,9 +210,8 @@ public class ClasspathOrder {
      * Add a classpath entry.
      *
      * @param pathElement
-     *            the {@link String} path, {@link URL} or {@link URI} of the classpath element. If a string, the
-     *            path string should already have been run through FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
-     *            path)
+     *            the {@link String} path, {@link File}, {@link Path}, {@link URL} or {@link URI} of the classpath
+     *            element.
      * @param pathElementStr
      *            the path element in string format
      * @param classLoader
@@ -203,22 +222,51 @@ public class ClasspathOrder {
      */
     private boolean addClasspathEntry(final Object pathElement, final String pathElementStr,
             final ClassLoader classLoader, final ScanSpec scanSpec) {
-        if (pathElement instanceof URL || pathElement instanceof URI) {
-            // Assume that any custom URLs or URIs passed in are not in lib or ext dir, and are not system jars
-            if (classpathEntryUniqueResolvedPaths.add(pathElementStr)) {
-                order.add(new ClasspathElementAndClassLoader(pathElement, classLoader));
+        // Check if classpath element path ends with an automatic package root. If so, strip it off to
+        // eliminate duplication, since automatic package roots are detected automatically (#435)
+        String pathElementStrWithoutSuffix = pathElementStr;
+        boolean hasSuffix = false;
+        for (final String suffix : AUTOMATIC_PACKAGE_ROOT_SUFFIXES) {
+            if (pathElementStr.endsWith(suffix)) {
+                // Strip off automatic package root suffix
+                pathElementStrWithoutSuffix = pathElementStr.substring(0,
+                        pathElementStr.length() - suffix.length());
+                hasSuffix = true;
+                break;
+            }
+        }
+        if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof Path
+                || pathElement instanceof File) {
+            Object pathElementWithoutSuffix = pathElement;
+            if (hasSuffix) {
+                try {
+                    pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
+                            : pathElement instanceof URI ? new URI(pathElementStrWithoutSuffix)
+                                    : pathElement instanceof Path ? Paths.get(pathElementStrWithoutSuffix)
+                                            // For File, just use path string
+                                            : pathElementStrWithoutSuffix;
+                } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
+                    return false;
+                }
+            }
+            // Deduplicate classpath elements
+            if (classpathEntryUniqueResolvedPaths.add(pathElementStrWithoutSuffix)) {
+                // Record classpath element in classpath order
+                order.add(new ClasspathElementAndClassLoader(pathElementWithoutSuffix, classLoader));
                 return true;
             }
         } else {
+            final String pathElementStrResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                    pathElementStrWithoutSuffix);
             if (scanSpec.overrideClasspath == null //
-                    && (SystemJarFinder.getJreLibOrExtJars().contains(pathElementStr)
-                            || pathElementStr.equals(SystemJarFinder.getJreRtJarPath()))) {
+                    && (SystemJarFinder.getJreLibOrExtJars().contains(pathElementStrResolved)
+                            || pathElementStrResolved.equals(SystemJarFinder.getJreRtJarPath()))) {
                 // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
                 // returned by a system classloader
                 return false;
             }
-            if (classpathEntryUniqueResolvedPaths.add(pathElementStr)) {
-                order.add(new ClasspathElementAndClassLoader(pathElementStr, classLoader));
+            if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
+                order.add(new ClasspathElementAndClassLoader(pathElementStrResolved, classLoader));
                 return true;
             }
         }
@@ -246,7 +294,7 @@ public class ClasspathOrder {
         if (pathElement == null) {
             return false;
         }
-        final String pathElementStr = pathElement.toString();
+        final String pathElementStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, pathElement.toString());
         if (pathElementStr.isEmpty()) {
             return false;
         }
@@ -448,10 +496,10 @@ public class ClasspathOrder {
 
     /**
      * Add classpath entries from an object obtained from reflection. The object may be a {@link URL}, a
-     * {@link URI}, a {@link File} or a {@link String} (containing a single classpath element path, or several paths
-     * separated with File.pathSeparator), a List or other Iterable, or an array object. In the case of Iterables
-     * and arrays, the elements may be any type whose {@code toString()} method returns a path or URL string
-     * (including the {@code URL} and {@code Path} types).
+     * {@link URI}, a {@link File}, a {@link Path} or a {@link String} (containing a single classpath element path,
+     * or several paths separated with File.pathSeparator), a List or other Iterable, or an array object. In the
+     * case of Iterables and arrays, the elements may be any type whose {@code toString()} method returns a path or
+     * URL string (including the {@code URL} and {@code Path} types).
      *
      * @param pathObject
      *            the object containing a classpath string or strings.
@@ -467,7 +515,8 @@ public class ClasspathOrder {
             final ScanSpec scanSpec, final LogNode log) {
         boolean valid = false;
         if (pathObject != null) {
-            if (pathObject instanceof URL || pathObject instanceof URI) {
+            if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path
+                    || pathObject instanceof File) {
                 valid |= addClasspathEntry(pathObject, classLoader, scanSpec, log);
             } else if (pathObject instanceof Iterable) {
                 for (final Object elt : (Iterable<?>) pathObject) {
