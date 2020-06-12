@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.87-SNAPSHOT</version>
+    <version>4.8.86-SNAPSHOT</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -233,7 +233,7 @@
         <pluginManagement>
             <plugins>
                 <!-- Enforce minimum Maven version, and JDK 7 API -->
-                <plugin><?m2e execute?>
+                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
                     <dependencies>
