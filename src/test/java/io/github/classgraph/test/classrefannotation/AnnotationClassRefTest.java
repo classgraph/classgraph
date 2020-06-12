@@ -83,7 +83,7 @@ public class AnnotationClassRefTest {
     @Test
     public void testClassRefAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(AnnotationClassRefTest.class.getPackage().getName()).enableMethodInfo()
+                .acceptPackages(AnnotationClassRefTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
             final ClassInfoList testClasses = scanResult
                     .getClassesWithMethodAnnotation(ClassRefAnnotation.class.getName());

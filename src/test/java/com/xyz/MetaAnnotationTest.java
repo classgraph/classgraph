@@ -49,7 +49,7 @@ class MetaAnnotationTest {
      */
     @BeforeAll
     static void setUp() {
-        scanResult = new ClassGraph().whitelistPackages("com.xyz.meta").enableClassInfo().enableAnnotationInfo()
+        scanResult = new ClassGraph().acceptPackages("com.xyz.meta").enableClassInfo().enableAnnotationInfo()
                 .scan();
     }
 

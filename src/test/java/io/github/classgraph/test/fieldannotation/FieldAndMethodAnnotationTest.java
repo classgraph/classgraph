@@ -58,7 +58,7 @@ public class FieldAndMethodAnnotationTest {
     @Test
     public void testGetNamesOfClassesWithFieldAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
+                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
@@ -72,7 +72,7 @@ public class FieldAndMethodAnnotationTest {
     @Test
     public void testGetNamesOfClassesWithFieldAnnotationIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
+                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
@@ -87,7 +87,7 @@ public class FieldAndMethodAnnotationTest {
     @ExternalAnnotation
     public void testGetNamesOfClassesWithMethodAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
+                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();

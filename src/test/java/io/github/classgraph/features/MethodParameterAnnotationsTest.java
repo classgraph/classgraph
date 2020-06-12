@@ -62,7 +62,7 @@ public class MethodParameterAnnotationsTest {
     @Test
     public void annotationEquality() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableAllInfo()
+                .acceptPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             assertThat(scanResult.getClassInfo(Y.class.getName()).getMethodParameterAnnotations().getNames())
                     .containsOnly(W.class.getName());

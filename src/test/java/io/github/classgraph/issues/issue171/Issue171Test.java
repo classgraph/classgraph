@@ -22,7 +22,7 @@ public class Issue171Test {
         final URL jarURL = Issue171Test.class.getClassLoader().getResource("spring-boot-fully-executable-jar.jar");
 
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackagesNonRecursive("hello", "org.springframework.boot")
+                .acceptPackagesNonRecursive("hello", "org.springframework.boot")
                 .overrideClasspath(jarURL + "!BOOT-INF/classes") //
                 .scan()) {
             final List<String> classNames = scanResult.getAllClasses().getNames();

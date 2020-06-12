@@ -47,7 +47,7 @@ public class Issue209Test {
      */
     @Test
     public void testSpringBootJarWithLibJars() {
-        try (ScanResult result = new ClassGraph().whitelistPackages( //
+        try (ScanResult result = new ClassGraph().acceptPackages( //
                 "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                 .overrideClassLoaders(new URLClassLoader(
                         new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //

@@ -34,7 +34,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 import nonapi.io.github.classgraph.fileslice.Slice;
-import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListLeafname;
+import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 
 /** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
 public class ZipFileSlice {
@@ -107,18 +107,17 @@ public class ZipFileSlice {
     }
 
     /**
-     * Check whether this zipfile slice and all of its parent slices are whitelisted and not blacklisted in the
-     * jarfile white/blacklist.
+     * Check whether this zipfile slice and all of its parent slices are accepted and not rejected in the jarfile
+     * accept/reject criteria.
      *
-     * @param jarWhiteBlackList
-     *            the jar white black list
-     * @return true if this zipfile slice and all of its parent slices are whitelisted and not blacklisted in the
-     *         jarfile white/blacklist.
+     * @param jarAcceptReject
+     *            the jar accept/reject criteria
+     * @return true if this zipfile slice and all of its parent slices are accepted and not rejected in the jarfile
+     *         accept/reject criteria.
      */
-    public boolean isWhitelistedAndNotBlacklisted(final WhiteBlackListLeafname jarWhiteBlackList) {
-        return jarWhiteBlackList.isWhitelistedAndNotBlacklisted(pathWithinParentZipFileSlice) //
-                && (parentZipFileSlice == null
-                        || parentZipFileSlice.isWhitelistedAndNotBlacklisted(jarWhiteBlackList));
+    public boolean isAcceptedAndNotRejected(final AcceptRejectLeafname jarAcceptReject) {
+        return jarAcceptReject.isAcceptedAndNotRejected(pathWithinParentZipFileSlice) //
+                && (parentZipFileSlice == null || parentZipFileSlice.isAcceptedAndNotRejected(jarAcceptReject));
     }
 
     /**

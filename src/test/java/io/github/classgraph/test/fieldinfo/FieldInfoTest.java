@@ -71,7 +71,7 @@ public class FieldInfoTest {
      */
     @Test
     public void fieldInfoNotEnabled() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
                 .scan()) {
             Assertions.assertThrows(IllegalArgumentException.class,
                     () -> scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo());
@@ -83,7 +83,7 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfo() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
                 .scan()) {
             final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
@@ -101,7 +101,7 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfoIgnoringVisibility() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(FieldInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
                 .ignoreFieldVisibility().scan()) {
             final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()

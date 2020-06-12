@@ -48,7 +48,7 @@ public class Issue93 {
     /** Test that both CLASS-retained and RUNTIME-retained annotations are visible by default. */
     @Test
     public void classRetentionIsDefault() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(PKG).enableAnnotationInfo()
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(PKG).enableAnnotationInfo()
                 .ignoreClassVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames())
                     .containsOnly(RetentionClassAnnotated.class.getName());
@@ -63,7 +63,7 @@ public class Issue93 {
      */
     @Test
     public void classRetentionIsNotVisibleWithRetentionPolicyRUNTIME() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(PKG).enableAnnotationInfo()
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(PKG).enableAnnotationInfo()
                 .ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())

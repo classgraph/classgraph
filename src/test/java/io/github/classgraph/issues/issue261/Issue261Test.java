@@ -62,9 +62,8 @@ public class Issue261Test {
      */
     @Test
     public void issue261Test() {
-        // Whitelist only the class Cls, so that SuperCls and SuperSuperCls are external classes
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Cls.class.getName()).enableAllInfo()
-                .scan()) {
+        // Accept only the class Cls, so that SuperCls and SuperSuperCls are external classes
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Cls.class.getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getSubclasses(SuperSuperCls.class.getName()).getNames())
                     .containsOnly(SuperCls.class.getName(), Cls.class.getName());
         }

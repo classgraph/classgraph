@@ -364,27 +364,27 @@ class ClasspathElementFileDir extends ClasspathElement {
             return;
         }
 
-        // Whitelist/blacklist classpath elements based on dir resource paths
-        checkResourcePathWhiteBlackList(dirRelativePath, log);
+        // Accept/reject classpath elements based on dir resource paths
+        checkResourcePathAcceptReject(dirRelativePath, log);
         if (skipClasspathElement) {
             return;
         }
 
-        final ScanSpecPathMatch parentMatchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
-        if (parentMatchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
-            // Reached a non-whitelisted or blacklisted path -- stop the recursive scan
+        final ScanSpecPathMatch parentMatchStatus = scanSpec.dirAcceptMatchStatus(dirRelativePath);
+        if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
+            // Reached a non-accepted or rejected path -- stop the recursive scan
             if (log != null) {
-                log.log("Reached blacklisted directory, stopping recursive scan: " + dirRelativePath);
+                log.log("Reached rejected directory, stopping recursive scan: " + dirRelativePath);
             }
             return;
         }
-        if (parentMatchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH) {
-            // Reached a non-whitelisted and non-blacklisted path -- stop the recursive scan
+        if (parentMatchStatus == ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH) {
+            // Reached a non-accepted and non-rejected path -- stop the recursive scan
             return;
         }
 
         final LogNode subLog = log == null ? null
-                // Log dirs after files (addWhitelistedResources() precedes log entry with "0:")
+                // Log dirs after files (addAcceptedResources() precedes log entry with "0:")
                 : log.log("1:" + canonicalPath, "Scanning directory: " + dir
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
@@ -400,8 +400,8 @@ class ClasspathElementFileDir extends ClasspathElement {
         // Determine whether this is a modular jar running under JRE 9+
         final boolean isModularJar = VersionFinder.JAVA_MAJOR_VERSION >= 9 && getModuleName() != null;
 
-        // Only scan files in directory if directory is not only an ancestor of a whitelisted path
-        if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
+        // Only scan files in directory if directory is not only an ancestor of an accepted path
+        if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
             // Do preorder traversal (files in dir, then subdirs), to reduce filesystem cache misses
             for (final File fileInDir : filesInDir) {
                 // Process files in dir before recursing
@@ -416,36 +416,36 @@ class ClasspathElementFileDir extends ClasspathElement {
                         continue;
                     }
 
-                    // Whitelist/blacklist classpath elements based on file resource paths
-                    checkResourcePathWhiteBlackList(fileInDirRelativePath, subLog);
+                    // Accept/reject classpath elements based on file resource paths
+                    checkResourcePathAcceptReject(fileInDirRelativePath, subLog);
                     if (skipClasspathElement) {
                         return;
                     }
 
-                    // If relative path is whitelisted
-                    if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                            || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                            || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                    && scanSpec.classfileIsSpecificallyWhitelisted(fileInDirRelativePath))) {
-                        // Resource is whitelisted
+                    // If relative path is accepted
+                    if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
+                            || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
+                            || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
+                                    && scanSpec.classfileIsSpecificallyAccepted(fileInDirRelativePath))) {
+                        // Resource is accepted
                         final Resource resource = newResource(fileInDirRelativePath, fileInDir, nestedJarHandler);
-                        addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
+                        addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
 
                         // Save last modified time  
                         fileToLastModified.put(fileInDir, fileInDir.lastModified());
                     } else {
                         if (subLog != null) {
-                            subLog.log("Skipping non-whitelisted file: " + fileInDirRelativePath);
+                            subLog.log("Skipping non-accepted file: " + fileInDirRelativePath);
                         }
                     }
                 }
             }
         } else if (scanSpec.enableClassInfo && dirRelativePath.equals("/")) {
-            // Always check for module descriptor in package root, even if package root isn't in whitelist
+            // Always check for module descriptor in package root, even if package root isn't in accept
             for (final File fileInDir : filesInDir) {
                 if (fileInDir.getName().equals("module-info.class") && fileInDir.isFile()) {
                     final Resource resource = newResource("module-info.class", fileInDir, nestedJarHandler);
-                    addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
+                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                     fileToLastModified.put(fileInDir, fileInDir.lastModified());
                     break;
                 }
@@ -455,7 +455,7 @@ class ClasspathElementFileDir extends ClasspathElement {
         for (final File fileInDir : filesInDir) {
             if (fileInDir.isDirectory()) {
                 scanDirRecursively(fileInDir, subLog);
-                // If a blacklisted classpath element resource path was found, it will set skipClasspathElement
+                // If a rejected classpath element resource path was found, it will set skipClasspathElement
                 if (skipClasspathElement) {
                     if (subLog != null) {
                         subLog.addElapsedTime();

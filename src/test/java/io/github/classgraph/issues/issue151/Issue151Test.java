@@ -53,7 +53,7 @@ public class Issue151Test {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue151Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableAnnotationInfo() //
                 .scan()) {

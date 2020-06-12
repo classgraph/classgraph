@@ -12,17 +12,17 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.test.whitelisted.ClsSub;
-import io.github.classgraph.test.whitelisted.ClsSubSub;
-import io.github.classgraph.test.whitelisted.Iface;
-import io.github.classgraph.test.whitelisted.IfaceSub;
-import io.github.classgraph.test.whitelisted.IfaceSubSub;
-import io.github.classgraph.test.whitelisted.Impl1;
-import io.github.classgraph.test.whitelisted.Impl1Sub;
-import io.github.classgraph.test.whitelisted.Impl1SubSub;
-import io.github.classgraph.test.whitelisted.Impl2;
-import io.github.classgraph.test.whitelisted.Impl2Sub;
-import io.github.classgraph.test.whitelisted.Impl2SubSub;
+import io.github.classgraph.test.accepted.ClsSub;
+import io.github.classgraph.test.accepted.ClsSubSub;
+import io.github.classgraph.test.accepted.Iface;
+import io.github.classgraph.test.accepted.IfaceSub;
+import io.github.classgraph.test.accepted.IfaceSubSub;
+import io.github.classgraph.test.accepted.Impl1;
+import io.github.classgraph.test.accepted.Impl1Sub;
+import io.github.classgraph.test.accepted.Impl1SubSub;
+import io.github.classgraph.test.accepted.Impl2;
+import io.github.classgraph.test.accepted.Impl2Sub;
+import io.github.classgraph.test.accepted.Impl2SubSub;
 
 /**
  * ClassInfoTest.
@@ -36,7 +36,7 @@ public class ClassInfoTest {
      */
     @BeforeAll
     public static void setup() {
-        scanResult = new ClassGraph().whitelistPackages(Impl1.class.getPackage().getName()).scan();
+        scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName()).scan();
     }
 
     /**

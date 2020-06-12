@@ -36,41 +36,41 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.test.whitelisted.Cls;
-import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
+import io.github.classgraph.test.accepted.Cls;
+import io.github.classgraph.test.accepted.rejectedsub.RejectedSub;
 
 /**
  * DefaultPackageTest.
  */
 public class DefaultPackageTest {
-    /** The Constant WHITELIST_PACKAGE. */
-    private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
+    /** The Constant ACCEPT_PACKAGE. */
+    private static final String ACCEPT_PACKAGE = Cls.class.getPackage().getName();
 
     /**
      * Scan.
      */
     @Test
     public void scan() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive("").scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive("").scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(DefaultPackageTest.class.getName());
             assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
             assertThat(allClasses).doesNotContain(Cls.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
             assertThat(allClasses).doesNotContain(String.class.getName());
-            assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
+            assertThat(allClasses).doesNotContain(RejectedSub.class.getName());
         }
     }
 
     /**
-     * Scan with whitelist.
+     * Scan with accept.
      */
     @Test
-    public void scanWithWhitelist() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
+    public void scanWithAccept() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());
-            assertThat(allClasses).contains(BlacklistedSub.class.getName());
+            assertThat(allClasses).contains(RejectedSub.class.getName());
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
             assertThat(allClasses).doesNotContain(String.class.getName());

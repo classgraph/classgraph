@@ -48,8 +48,8 @@ import java.util.regex.Pattern;
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
+import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.scanspec.WhiteBlackList;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -360,9 +360,9 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Causes ClassGraph to return classes that are not in the whitelisted packages, but that are directly referred
-     * to by classes within whitelisted packages as a superclass, implemented interface or annotation.
-     * (Automatically calls {@link #enableClassInfo()}.)
+     * Causes ClassGraph to return classes that are not in the accepted packages, but that are directly referred to
+     * by classes within accepted packages as a superclass, implemented interface or annotation. (Automatically
+     * calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
@@ -598,7 +598,7 @@ public class ClassGraph {
      * Scan one or more specific packages and their sub-packages.
      * 
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #whitelistPaths(String...)} instead if you
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPaths(String...)} instead if you
      * only need to scan resources.
      *
      * @param packageNames
@@ -606,33 +606,46 @@ public class ClassGraph {
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistPackages(final String... packageNames) {
+    public ClassGraph acceptPackages(final String... packageNames) {
         enableClassInfo();
         for (final String packageName : packageNames) {
-            final String packageNameNormalized = WhiteBlackList.normalizePackageOrClassName(packageName);
+            final String packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
             if (packageNameNormalized.startsWith("!") || packageNameNormalized.startsWith("-")) {
                 throw new IllegalArgumentException(
-                        "This style of whitelisting/blacklisting is no longer supported: " + packageNameNormalized);
+                        "This style of accepting/rejecting is no longer supported: " + packageNameNormalized);
             }
-            // Whitelist package
-            scanSpec.packageWhiteBlackList.addToWhitelist(packageNameNormalized);
-            final String path = WhiteBlackList.packageNameToPath(packageNameNormalized);
-            scanSpec.pathWhiteBlackList.addToWhitelist(path + "/");
+            // Accept package
+            scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
+            final String path = AcceptReject.packageNameToPath(packageNameNormalized);
+            scanSpec.pathAcceptReject.addToAccept(path + "/");
             if (packageNameNormalized.isEmpty()) {
-                scanSpec.pathWhiteBlackList.addToWhitelist("");
+                scanSpec.pathAcceptReject.addToAccept("");
             }
             if (!packageNameNormalized.contains("*")) {
-                // Whitelist sub-packages
+                // Accept sub-packages
                 if (packageNameNormalized.isEmpty()) {
-                    scanSpec.packagePrefixWhiteBlackList.addToWhitelist("");
-                    scanSpec.pathPrefixWhiteBlackList.addToWhitelist("");
+                    scanSpec.packagePrefixAcceptReject.addToAccept("");
+                    scanSpec.pathPrefixAcceptReject.addToAccept("");
                 } else {
-                    scanSpec.packagePrefixWhiteBlackList.addToWhitelist(packageNameNormalized + ".");
-                    scanSpec.pathPrefixWhiteBlackList.addToWhitelist(path + "/");
+                    scanSpec.packagePrefixAcceptReject.addToAccept(packageNameNormalized + ".");
+                    scanSpec.pathPrefixAcceptReject.addToAccept(path + "/");
                 }
             }
         }
         return this;
+    }
+
+    /**
+     * @deprecated Use {@link #acceptPackages(String...)} instead.
+     *
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
+     *            wildcard ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistPackages(final String... packageNames) {
+        return acceptPackages(packageNames);
     }
 
     /**
@@ -643,24 +656,24 @@ public class ClassGraph {
      *            separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistPaths(final String... paths) {
+    public ClassGraph acceptPaths(final String... paths) {
         for (final String path : paths) {
-            final String pathNormalized = WhiteBlackList.normalizePath(path);
-            // Whitelist path
-            final String packageName = WhiteBlackList.pathToPackageName(pathNormalized);
-            scanSpec.packageWhiteBlackList.addToWhitelist(packageName);
-            scanSpec.pathWhiteBlackList.addToWhitelist(pathNormalized + "/");
+            final String pathNormalized = AcceptReject.normalizePath(path);
+            // Accept path
+            final String packageName = AcceptReject.pathToPackageName(pathNormalized);
+            scanSpec.packageAcceptReject.addToAccept(packageName);
+            scanSpec.pathAcceptReject.addToAccept(pathNormalized + "/");
             if (pathNormalized.isEmpty()) {
-                scanSpec.pathWhiteBlackList.addToWhitelist("");
+                scanSpec.pathAcceptReject.addToAccept("");
             }
             if (!pathNormalized.contains("*")) {
-                // Whitelist sub-directories / nested paths
+                // Accept sub-directories / nested paths
                 if (pathNormalized.isEmpty()) {
-                    scanSpec.packagePrefixWhiteBlackList.addToWhitelist("");
-                    scanSpec.pathPrefixWhiteBlackList.addToWhitelist("");
+                    scanSpec.packagePrefixAcceptReject.addToAccept("");
+                    scanSpec.pathPrefixAcceptReject.addToAccept("");
                 } else {
-                    scanSpec.packagePrefixWhiteBlackList.addToWhitelist(packageName + ".");
-                    scanSpec.pathPrefixWhiteBlackList.addToWhitelist(pathNormalized + "/");
+                    scanSpec.packagePrefixAcceptReject.addToAccept(packageName + ".");
+                    scanSpec.pathPrefixAcceptReject.addToAccept(pathNormalized + "/");
                 }
             }
         }
@@ -668,11 +681,24 @@ public class ClassGraph {
     }
 
     /**
+     * @deprecated Use {@link #acceptPaths(String...)} instead.
+     *
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     *            separator). May include a glob wildcard ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistPaths(final String... paths) {
+        return acceptPaths(paths);
+    }
+
+    /**
      * Scan one or more specific packages, without recursively scanning sub-packages unless they are themselves
-     * whitelisted.
+     * accepted.
      * 
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #whitelistPathsNonRecursive(String...)}
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPathsNonRecursive(String...)}
      * instead if you only need to scan resources.
      * 
      * <p>
@@ -685,27 +711,40 @@ public class ClassGraph {
      * 
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistPackagesNonRecursive(final String... packageNames) {
+    public ClassGraph acceptPackagesNonRecursive(final String... packageNames) {
         enableClassInfo();
         for (final String packageName : packageNames) {
-            final String packageNameNormalized = WhiteBlackList.normalizePackageOrClassName(packageName);
+            final String packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
             if (packageNameNormalized.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + packageNameNormalized);
             }
-            // Whitelist package, but not sub-packages
-            scanSpec.packageWhiteBlackList.addToWhitelist(packageNameNormalized);
-            scanSpec.pathWhiteBlackList
-                    .addToWhitelist(WhiteBlackList.packageNameToPath(packageNameNormalized) + "/");
+            // Accept package, but not sub-packages
+            scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
+            scanSpec.pathAcceptReject.addToAccept(AcceptReject.packageNameToPath(packageNameNormalized) + "/");
             if (packageNameNormalized.isEmpty()) {
-                scanSpec.pathWhiteBlackList.addToWhitelist("");
+                scanSpec.pathAcceptReject.addToAccept("");
             }
         }
         return this;
     }
 
     /**
+     * @deprecated Use {@link #acceptPackagesNonRecursive(String...)} instead.
+     *
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
+     *            wildcard ({@code '*'}).
+     * 
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistPackagesNonRecursive(final String... packageNames) {
+        return acceptPackagesNonRecursive(packageNames);
+    }
+
+    /**
      * Scan one or more specific paths, without recursively scanning sub-directories or nested paths unless they are
-     * themselves whitelisted.
+     * themselves accepted.
      * 
      * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
@@ -716,85 +755,123 @@ public class ClassGraph {
      *            separator). May not include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistPathsNonRecursive(final String... paths) {
+    public ClassGraph acceptPathsNonRecursive(final String... paths) {
         for (final String path : paths) {
             if (path.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + path);
             }
-            final String pathNormalized = WhiteBlackList.normalizePath(path);
-            // Whitelist path, but not sub-directories / nested paths
-            scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(pathNormalized));
-            scanSpec.pathWhiteBlackList.addToWhitelist(pathNormalized + "/");
+            final String pathNormalized = AcceptReject.normalizePath(path);
+            // Accept path, but not sub-directories / nested paths
+            scanSpec.packageAcceptReject.addToAccept(AcceptReject.pathToPackageName(pathNormalized));
+            scanSpec.pathAcceptReject.addToAccept(pathNormalized + "/");
             if (pathNormalized.isEmpty()) {
-                scanSpec.pathWhiteBlackList.addToWhitelist("");
+                scanSpec.pathAcceptReject.addToAccept("");
             }
         }
         return this;
+    }
+
+    /**
+     * @deprecated Use {@link #acceptPathsNonRecursive(String...)} instead.
+     *
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     *            separator). May not include a glob wildcard ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistPathsNonRecursive(final String... paths) {
+        return acceptPathsNonRecursive(paths);
     }
 
     /**
      * Prevent the scanning of one or more specific packages and their sub-packages.
      * 
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #blacklistPaths(String...)} instead if you
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #rejectPaths(String...)} instead if you
      * only need to scan resources.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to blacklist (with '.' as a separator). May include a glob
+     *            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph blacklistPackages(final String... packageNames) {
+    public ClassGraph rejectPackages(final String... packageNames) {
         enableClassInfo();
         for (final String packageName : packageNames) {
-            final String packageNameNormalized = WhiteBlackList.normalizePackageOrClassName(packageName);
+            final String packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
             if (packageNameNormalized.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "Blacklisting the root package (\"\") will cause nothing to be scanned");
+                        "Rejecting the root package (\"\") will cause nothing to be scanned");
             }
-            // Blacklisting always prevents further recursion, no need to blacklist sub-packages
-            scanSpec.packageWhiteBlackList.addToBlacklist(packageNameNormalized);
-            final String path = WhiteBlackList.packageNameToPath(packageNameNormalized);
-            scanSpec.pathWhiteBlackList.addToBlacklist(path + "/");
+            // Rejecting always prevents further recursion, no need to reject sub-packages
+            scanSpec.packageAcceptReject.addToReject(packageNameNormalized);
+            final String path = AcceptReject.packageNameToPath(packageNameNormalized);
+            scanSpec.pathAcceptReject.addToReject(path + "/");
             if (!packageNameNormalized.contains("*")) {
-                // Blacklist sub-packages (zipfile entries can occur in any order)
-                scanSpec.packagePrefixWhiteBlackList.addToBlacklist(packageNameNormalized + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(path + "/");
+                // Reject sub-packages (zipfile entries can occur in any order)
+                scanSpec.packagePrefixAcceptReject.addToReject(packageNameNormalized + ".");
+                scanSpec.pathPrefixAcceptReject.addToReject(path + "/");
             }
         }
         return this;
+    }
+
+    /**
+     * @deprecated Use {@link #rejectPackages(String...)} instead.
+     *
+     * @param packageNames
+     *            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
+     *            wildcard ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph blacklistPackages(final String... packageNames) {
+        return rejectPackages(packageNames);
     }
 
     /**
      * Prevent the scanning of one or more specific paths and their sub-directories / nested paths.
      *
      * @param paths
-     *            The paths to blacklist (with '/' as a separator). May include a glob wildcard ({@code '*'}).
+     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph blacklistPaths(final String... paths) {
+    public ClassGraph rejectPaths(final String... paths) {
         for (final String path : paths) {
-            final String pathNormalized = WhiteBlackList.normalizePath(path);
+            final String pathNormalized = AcceptReject.normalizePath(path);
             if (pathNormalized.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "Blacklisting the root package (\"\") will cause nothing to be scanned");
+                        "Rejecting the root package (\"\") will cause nothing to be scanned");
             }
-            // Blacklisting always prevents further recursion, no need to blacklist sub-directories / nested paths
-            final String packageName = WhiteBlackList.pathToPackageName(pathNormalized);
-            scanSpec.packageWhiteBlackList.addToBlacklist(packageName);
-            scanSpec.pathWhiteBlackList.addToBlacklist(pathNormalized + "/");
+            // Rejecting always prevents further recursion, no need to reject sub-directories / nested paths
+            final String packageName = AcceptReject.pathToPackageName(pathNormalized);
+            scanSpec.packageAcceptReject.addToReject(packageName);
+            scanSpec.pathAcceptReject.addToReject(pathNormalized + "/");
             if (!pathNormalized.contains("*")) {
-                // Blacklist sub-directories / nested paths
-                scanSpec.packagePrefixWhiteBlackList.addToBlacklist(packageName + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(pathNormalized + "/");
+                // Reject sub-directories / nested paths
+                scanSpec.packagePrefixAcceptReject.addToReject(packageName + ".");
+                scanSpec.pathPrefixAcceptReject.addToReject(pathNormalized + "/");
             }
         }
         return this;
     }
 
     /**
+     * @deprecated Use {@link #rejectPaths(String...)} instead.
+     *
+     * @param paths
+     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph blacklistPaths(final String... paths) {
+        return rejectPaths(paths);
+    }
+
+    /**
      * Scan one or more specific classes, without scanning other classes in the same package unless the package is
-     * itself whitelisted.
+     * itself accepted.
      * 
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
@@ -805,122 +882,173 @@ public class ClassGraph {
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistClasses(final String... classNames) {
+    public ClassGraph acceptClasses(final String... classNames) {
         enableClassInfo();
         for (final String className : classNames) {
             if (className.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);
             }
-            final String classNameNormalized = WhiteBlackList.normalizePackageOrClassName(className);
-            // Whitelist the class itself
-            scanSpec.classWhiteBlackList.addToWhitelist(classNameNormalized);
-            scanSpec.classfilePathWhiteBlackList
-                    .addToWhitelist(WhiteBlackList.classNameToClassfilePath(classNameNormalized));
+            final String classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
+            // Accept the class itself
+            scanSpec.classAcceptReject.addToAccept(classNameNormalized);
+            scanSpec.classfilePathAcceptReject
+                    .addToAccept(AcceptReject.classNameToClassfilePath(classNameNormalized));
             final String packageName = PackageInfo.getParentPackageName(classNameNormalized);
             // Record the package containing the class, so we can recurse to this point even if the package
-            // is not itself whitelisted
-            scanSpec.classPackageWhiteBlackList.addToWhitelist(packageName);
-            scanSpec.classPackagePathWhiteBlackList
-                    .addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
+            // is not itself accepted
+            scanSpec.classPackageAcceptReject.addToAccept(packageName);
+            scanSpec.classPackagePathAcceptReject.addToAccept(AcceptReject.packageNameToPath(packageName) + "/");
         }
         return this;
     }
 
     /**
-     * Specifically blacklist one or more specific classes, preventing them from being scanned even if they are in a
-     * whitelisted package.
+     * @deprecated Use {@link #acceptClasses(String...)} instead.
+     * 
+     * @param classNames
+     *            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
+     *            wildcard ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistClasses(final String... classNames) {
+        return acceptClasses(classNames);
+    }
+
+    /**
+     * Specifically reject one or more specific classes, preventing them from being scanned even if they are in a
+     * accepted package.
      * 
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      * @param classNames
-     *            The fully-qualified names of classes to blacklist (using '.' as a separator). May not include a
-     *            glob wildcard ({@code '*'}).
+     *            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
+     *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph blacklistClasses(final String... classNames) {
+    public ClassGraph rejectClasses(final String... classNames) {
         enableClassInfo();
         for (final String className : classNames) {
             if (className.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);
             }
-            final String classNameNormalized = WhiteBlackList.normalizePackageOrClassName(className);
-            scanSpec.classWhiteBlackList.addToBlacklist(classNameNormalized);
-            scanSpec.classfilePathWhiteBlackList
-                    .addToBlacklist(WhiteBlackList.classNameToClassfilePath(classNameNormalized));
+            final String classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
+            scanSpec.classAcceptReject.addToReject(classNameNormalized);
+            scanSpec.classfilePathAcceptReject
+                    .addToReject(AcceptReject.classNameToClassfilePath(classNameNormalized));
         }
         return this;
     }
 
     /**
-     * Whitelist one or more jars. This will cause only the whitelisted jars to be scanned.
+     * @deprecated Use {@link #rejectClasses(String...)} instead.
+     *
+     * @param classNames
+     *            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
+     *            wildcard ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph blacklistClasses(final String... classNames) {
+        return rejectClasses(classNames);
+    }
+
+    /**
+     * Accept one or more jars. This will cause only the accepted jars to be scanned.
      *
      * @param jarLeafNames
      *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain a
      *            wildcard glob ({@code "mylib-*.jar"}).
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistJars(final String... jarLeafNames) {
+    public ClassGraph acceptJars(final String... jarLeafNames) {
         for (final String jarLeafName : jarLeafNames) {
             final String leafName = JarUtils.leafName(jarLeafName);
             if (!leafName.equals(jarLeafName)) {
-                throw new IllegalArgumentException("Can only whitelist jars by leafname: " + jarLeafName);
+                throw new IllegalArgumentException("Can only accept jars by leafname: " + jarLeafName);
             }
-            scanSpec.jarWhiteBlackList.addToWhitelist(leafName);
+            scanSpec.jarAcceptReject.addToAccept(leafName);
         }
         return this;
     }
 
     /**
-     * Blacklist one or more jars, preventing them from being scanned.
+     * @deprecated Use {@link #acceptJars(String...)} instead.
+     *
+     * @param jarLeafNames
+     *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain a
+     *            wildcard glob ({@code "mylib-*.jar"}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistJars(final String... jarLeafNames) {
+        return acceptJars(jarLeafNames);
+    }
+
+    /**
+     * Reject one or more jars, preventing them from being scanned.
      *
      * @param jarLeafNames
      *            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain a
      *            wildcard glob ({@code "badlib-*.jar"}).
      * @return this (for method chaining).
      */
-    public ClassGraph blacklistJars(final String... jarLeafNames) {
+    public ClassGraph rejectJars(final String... jarLeafNames) {
         for (final String jarLeafName : jarLeafNames) {
             final String leafName = JarUtils.leafName(jarLeafName);
             if (!leafName.equals(jarLeafName)) {
-                throw new IllegalArgumentException("Can only blacklist jars by leafname: " + jarLeafName);
+                throw new IllegalArgumentException("Can only reject jars by leafname: " + jarLeafName);
             }
-            scanSpec.jarWhiteBlackList.addToBlacklist(leafName);
+            scanSpec.jarAcceptReject.addToReject(leafName);
         }
         return this;
     }
 
     /**
-     * Add lib or ext jars to whitelist or blacklist.
+     * @deprecated Use {@link #rejectJars(String...)} instead.
      *
-     * @param whitelist
-     *            if true, add to whitelist, otherwise add to blacklist.
      * @param jarLeafNames
-     *            the jar leaf names to whitelist
+     *            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain a
+     *            wildcard glob ({@code "badlib-*.jar"}).
+     * @return this (for method chaining).
      */
-    private void whitelistOrBlacklistLibOrExtJars(final boolean whitelist, final String... jarLeafNames) {
+    @Deprecated
+    public ClassGraph blacklistJars(final String... jarLeafNames) {
+        return rejectJars(jarLeafNames);
+    }
+
+    /**
+     * Add lib or ext jars to accept or reject.
+     *
+     * @param accept
+     *            if true, add to accept, otherwise add to reject.
+     * @param jarLeafNames
+     *            the jar leaf names to accept
+     */
+    private void acceptOrRejectLibOrExtJars(final boolean accept, final String... jarLeafNames) {
         if (jarLeafNames.length == 0) {
-            // If no jar leafnames are given, whitelist or blacklist all lib or ext jars
+            // If no jar leafnames are given, accept or reject all lib or ext jars
             for (final String libOrExtJar : SystemJarFinder.getJreLibOrExtJars()) {
-                whitelistOrBlacklistLibOrExtJars(whitelist, JarUtils.leafName(libOrExtJar));
+                acceptOrRejectLibOrExtJars(accept, JarUtils.leafName(libOrExtJar));
             }
         } else {
             for (final String jarLeafName : jarLeafNames) {
                 final String leafName = JarUtils.leafName(jarLeafName);
                 if (!leafName.equals(jarLeafName)) {
-                    throw new IllegalArgumentException("Can only " + (whitelist ? "whitelist" : "blacklist")
-                            + " jars by leafname: " + jarLeafName);
+                    throw new IllegalArgumentException(
+                            "Can only " + (accept ? "accept" : "reject") + " jars by leafname: " + jarLeafName);
                 }
                 if (jarLeafName.contains("*")) {
                     // Compare wildcarded pattern against all jars in lib and ext dirs 
-                    final Pattern pattern = WhiteBlackList.globToPattern(jarLeafName);
+                    final Pattern pattern = AcceptReject.globToPattern(jarLeafName);
                     boolean found = false;
                     for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (pattern.matcher(libOrExtJarLeafName).matches()) {
                             // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
                             if (!libOrExtJarLeafName.contains("*")) {
-                                whitelistOrBlacklistLibOrExtJars(whitelist, libOrExtJarLeafName);
+                                acceptOrRejectLibOrExtJars(accept, libOrExtJarLeafName);
                             }
                             found = true;
                         }
@@ -929,18 +1057,18 @@ public class ClassGraph {
                         topLevelLog.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
                     }
                 } else {
-                    // No wildcards, just whitelist or blacklist the named jar, if present
+                    // No wildcards, just accept or reject the named jar, if present
                     boolean found = false;
                     for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (jarLeafName.equals(libOrExtJarLeafName)) {
-                            if (whitelist) {
-                                scanSpec.libOrExtJarWhiteBlackList.addToWhitelist(jarLeafName);
+                            if (accept) {
+                                scanSpec.libOrExtJarAcceptReject.addToAccept(jarLeafName);
                             } else {
-                                scanSpec.libOrExtJarWhiteBlackList.addToBlacklist(jarLeafName);
+                                scanSpec.libOrExtJarAcceptReject.addToReject(jarLeafName);
                             }
                             if (topLevelLog != null) {
-                                topLevelLog.log((whitelist ? "Whitelisting" : "Blacklisting") + " lib or ext jar: "
+                                topLevelLog.log((accept ? "Accepting" : "Rejecting") + " lib or ext jar: "
                                         + libOrExtJarPath);
                             }
                             found = true;
@@ -956,94 +1084,172 @@ public class ClassGraph {
     }
 
     /**
-     * Whitelist one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
+     * Accept one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
      * {@link #enableSystemJarsAndModules()} is called, by association with the JRE/JDK).
      *
      * @param jarLeafNames
      *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
      *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
-     *            "lib/" or "ext/" jars will be whitelisted.
+     *            "lib/" or "ext/" jars will be accepted.
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
-        whitelistOrBlacklistLibOrExtJars(/* whitelist = */ true, jarLeafNames);
+    public ClassGraph acceptLibOrExtJars(final String... jarLeafNames) {
+        acceptOrRejectLibOrExtJars(/* accept = */ true, jarLeafNames);
         return this;
     }
 
     /**
-     * Blacklist one or more jars in a JRE/JDK "lib/" or "ext/" directory, preventing them from being scanned.
+     * @deprecated Use {@link #acceptLibOrExtJars(String...)} instead.
+     *
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
+     *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
+     *            "lib/" or "ext/" jars will be accepted.
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
+        return acceptLibOrExtJars(jarLeafNames);
+    }
+
+    /**
+     * Reject one or more jars in a JRE/JDK "lib/" or "ext/" directory, preventing them from being scanned.
      *
      * @param jarLeafNames
      *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
      *            {@code "jre/lib/badlib.jar"}). May contain a wildcard glob ({@code '*'}). If you call this method
-     *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be blacklisted.
+     *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be rejected.
      * @return this (for method chaining).
      */
-    public ClassGraph blacklistLibOrExtJars(final String... jarLeafNames) {
-        whitelistOrBlacklistLibOrExtJars(/* whitelist = */ false, jarLeafNames);
+    public ClassGraph rejectLibOrExtJars(final String... jarLeafNames) {
+        acceptOrRejectLibOrExtJars(/* accept = */ false, jarLeafNames);
         return this;
     }
 
     /**
-     * Whitelist one or more modules to scan.
+     * @deprecated Use {@link #rejectLibOrExtJars(String...)} instead.
+     *
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
+     *            {@code "jre/lib/badlib.jar"}). May contain a wildcard glob ({@code '*'}). If you call this method
+     *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be rejected.
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph blacklistLibOrExtJars(final String... jarLeafNames) {
+        return rejectLibOrExtJars(jarLeafNames);
+    }
+
+    /**
+     * Accept one or more modules for scanning.
      *
      * @param moduleNames
      *            The names of the modules that should be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistModules(final String... moduleNames) {
+    public ClassGraph acceptModules(final String... moduleNames) {
         for (final String moduleName : moduleNames) {
-            scanSpec.moduleWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(moduleName));
+            scanSpec.moduleAcceptReject.addToAccept(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
     }
 
     /**
-     * Blacklist one or more modules, preventing them from being scanned.
+     * @deprecated Use {@link #acceptModules(String...)} instead.
+     *
+     * @param moduleNames
+     *            The names of the modules that should be scanned. May contain a wildcard glob ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistModules(final String... moduleNames) {
+        return acceptModules(moduleNames);
+    }
+
+    /**
+     * Reject one or more modules, preventing them from being scanned.
      *
      * @param moduleNames
      *            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph blacklistModules(final String... moduleNames) {
+    public ClassGraph rejectModules(final String... moduleNames) {
         for (final String moduleName : moduleNames) {
-            scanSpec.moduleWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePackageOrClassName(moduleName));
+            scanSpec.moduleAcceptReject.addToReject(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
     }
 
     /**
-     * Whitelist classpath elements based on resource paths. Only classpath elements that contain resources with
-     * paths matching the whitelist will be scanned.
+     * @deprecated Use {@link #rejectModules(String...)} instead.
+     *
+     * @param moduleNames
+     *            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph blacklistModules(final String... moduleNames) {
+        return rejectModules(moduleNames);
+    }
+
+    /**
+     * Accept classpath elements based on resource paths. Only classpath elements that contain resources with paths
+     * matching the accept will be scanned.
      *
      * @param resourcePaths
      *            The resource paths, any of which must be present in a classpath element for the classpath element
      *            to be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph whitelistClasspathElementsContainingResourcePath(final String... resourcePaths) {
+    public ClassGraph acceptClasspathElementsContainingResourcePath(final String... resourcePaths) {
         for (final String resourcePath : resourcePaths) {
-            final String resourcePathNormalized = WhiteBlackList.normalizePath(resourcePath);
-            scanSpec.classpathElementResourcePathWhiteBlackList.addToWhitelist(resourcePathNormalized);
+            final String resourcePathNormalized = AcceptReject.normalizePath(resourcePath);
+            scanSpec.classpathElementResourcePathAcceptReject.addToAccept(resourcePathNormalized);
         }
         return this;
     }
 
     /**
-     * Blacklist classpath elements based on resource paths. Classpath elements that contain resources with paths
-     * matching the blacklist will not be scanned.
+     * @deprecated Use {@link #acceptClasspathElementsContainingResourcePath(String...)} instead.
+     *
+     * @param resourcePaths
+     *            The resource paths, any of which must be present in a classpath element for the classpath element
+     *            to be scanned. May contain a wildcard glob ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph whitelistClasspathElementsContainingResourcePath(final String... resourcePaths) {
+        return acceptClasspathElementsContainingResourcePath(resourcePaths);
+    }
+
+    /**
+     * Reject classpath elements based on resource paths. Classpath elements that contain resources with paths
+     * matching the reject will not be scanned.
      *
      * @param resourcePaths
      *            The resource paths which cause a classpath not to be scanned if any are present in a classpath
      *            element for the classpath element. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
-    public ClassGraph blacklistClasspathElementsContainingResourcePath(final String... resourcePaths) {
+    public ClassGraph rejectClasspathElementsContainingResourcePath(final String... resourcePaths) {
         for (final String resourcePath : resourcePaths) {
-            final String resourcePathNormalized = WhiteBlackList.normalizePath(resourcePath);
-            scanSpec.classpathElementResourcePathWhiteBlackList.addToBlacklist(resourcePathNormalized);
+            final String resourcePathNormalized = AcceptReject.normalizePath(resourcePath);
+            scanSpec.classpathElementResourcePathAcceptReject.addToReject(resourcePathNormalized);
         }
         return this;
+    }
+
+    /**
+     * @deprecated Use {@link #rejectClasspathElementsContainingResourcePath(String...)} instead.
+     *
+     * @param resourcePaths
+     *            The resource paths which cause a classpath not to be scanned if any are present in a classpath
+     *            element for the classpath element. May contain a wildcard glob ({@code '*'}).
+     * @return this (for method chaining).
+     */
+    @Deprecated
+    public ClassGraph blacklistClasspathElementsContainingResourcePath(final String... resourcePaths) {
+        return rejectClasspathElementsContainingResourcePath(resourcePaths);
     }
 
     /**

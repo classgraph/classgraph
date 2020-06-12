@@ -72,7 +72,7 @@ class ClasspathElementZip extends ClasspathElement {
     private String packageRootPrefix = "";
     /** The normalized path of the jarfile, "!/"-separated if nested, excluding any package root. */
     private String zipFilePath;
-    /** A map from relative path to {@link Resource} for non-blacklisted zip entries. */
+    /** A map from relative path to {@link Resource} for non-rejected zip entries. */
     private final ConcurrentHashMap<String, Resource> relativePathToResource = new ConcurrentHashMap<>();
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
@@ -125,9 +125,9 @@ class ClasspathElementZip extends ClasspathElement {
         final int plingIdx = rawPath.indexOf('!');
         final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                 plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
-        if (!scanSpec.jarWhiteBlackList.isWhitelistedAndNotBlacklisted(outermostZipFilePathResolved)) {
+        if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(outermostZipFilePathResolved)) {
             if (subLog != null) {
-                subLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+                subLog.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
             }
             skipClasspathElement = true;
             return;
@@ -166,7 +166,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
 
         if (!scanSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
-            // Found a blacklisted JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
+            // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClasspathFinder
             // (the isJREJar value was set by detecting JRE headers in the jar's manifest file)
             if (subLog != null) {
                 subLog.log("Ignoring JRE jar: " + rawPath);
@@ -175,9 +175,9 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        if (!logicalZipFile.isWhitelistedAndNotBlacklisted(scanSpec.jarWhiteBlackList)) {
+        if (!logicalZipFile.isAcceptedAndNotRejected(scanSpec.jarAcceptReject)) {
             if (subLog != null) {
-                subLog.log("Skipping jarfile that is blacklisted or not whitelisted: " + rawPath);
+                subLog.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
             }
             skipClasspathElement = true;
             return;
@@ -551,8 +551,8 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             }
 
-            // Whitelist/blacklist classpath elements based on file resource paths
-            checkResourcePathWhiteBlackList(relativePath, log);
+            // Accept/reject classpath elements based on file resource paths
+            checkResourcePathAcceptReject(relativePath, log);
             if (skipClasspathElement) {
                 return;
             }
@@ -563,15 +563,15 @@ class ClasspathElementZip extends ClasspathElement {
             final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
             final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
             final ScanSpecPathMatch parentMatchStatus = //
-                    parentRelativePathChanged ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
+                    parentRelativePathChanged ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
                             : prevParentMatchStatus;
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
-            if (parentMatchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
-                // The parent dir or one of its ancestral dirs is blacklisted
+            if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
+                // The parent dir or one of its ancestral dirs is rejected
                 if (subLog != null) {
-                    subLog.log("Skipping blacklisted path: " + relativePath);
+                    subLog.log("Skipping rejected path: " + relativePath);
                 }
                 continue;
             }
@@ -579,18 +579,18 @@ class ClasspathElementZip extends ClasspathElement {
             // Add the ZipEntry path as a Resource
             final Resource resource = newResource(zipEntry, relativePath);
             if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
-                // If resource is whitelisted
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                        || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                        || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
-                    // Resource is whitelisted
-                    addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
+                // If resource is accepted
+                if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
+                        || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
+                        || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
+                                && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
+                    // Resource is accepted
+                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
                 } else if (scanSpec.enableClassInfo && relativePath.equals("module-info.class")) {
-                    // Add module descriptor as a whitelisted classfile resource, so that it is scanned,
+                    // Add module descriptor as an accepted classfile resource, so that it is scanned,
                     // but don't add it to the list of resources in the ScanResult, since it is not
-                    // in a whitelisted package (#352)
-                    addWhitelistedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
+                    // in an accepted package (#352)
+                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                 }
             }
         }

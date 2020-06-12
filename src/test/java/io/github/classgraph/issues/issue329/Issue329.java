@@ -28,7 +28,7 @@ public class Issue329 {
     @Test
     public void test() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo().enableInterClassDependencies()
-                .enableExternalClasses().whitelistClasses(Foo.class.getName()).scan()) {
+                .enableExternalClasses().acceptClasses(Foo.class.getName()).scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(Foo.class.getName());
             assertThat(classInfo.getClassDependencies().getNames()).containsOnly(Issue329.class.getName(),
                     Bar.class.getName());

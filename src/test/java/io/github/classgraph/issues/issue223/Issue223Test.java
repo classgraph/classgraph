@@ -56,7 +56,7 @@ public class Issue223Test {
      */
     @Test
     public void testClassloadInnerClasses() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue223Test.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue223Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             final ClassInfoList innerClasses = scanResult.getAllClasses().filter(new ClassInfoFilter() {
                 @Override

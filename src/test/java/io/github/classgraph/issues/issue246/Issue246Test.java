@@ -45,7 +45,7 @@ public class Issue246Test {
     @Test
     public void testMethodParameterAnnotations() {
         try (ScanResult scanResult = new ClassGraph() //
-                .whitelistClasses(Issue246Test.class.getName()) //
+                .acceptClasses(Issue246Test.class.getName()) //
                 .enableAllInfo() //
                 .scan()) {
             assertEquals(0, //

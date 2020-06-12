@@ -61,7 +61,7 @@ public class Issue100Test {
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
         try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .whitelistPackages("issue100").blacklistJars(bJarName).enableFieldInfo().scan()) {
+                .acceptPackages("issue100").rejectJars(bJarName).enableFieldInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 for (final FieldInfo f : ci.getFieldInfo()) {
                     fieldNames1.add(f.getName());
@@ -70,14 +70,14 @@ public class Issue100Test {
         }
         assertThat(fieldNames1).containsOnly("a");
 
-        // However, if "...b.jar" is specifically whitelisted, "...a.jar" should not be visible. Originally, the
+        // However, if "...b.jar" is specifically accepted, "...a.jar" should not be visible. Originally, the
         // version of the class in "...a.jar" was supposed to mask the same class in "...b.jar" (#100). However,
         // this resulted in a slowdown in scan time (#117). Since classloading behavior is undefined if you override
         // the classpath (or in this case, the classloaders), we should only see field "b" in "...b.jar" (which is
-        // what we actually see through scanning the whitelisted jar, "bJarName").
+        // what we actually see through scanning the accepted jar, "bJarName").
         final ArrayList<String> fieldNames2 = new ArrayList<>();
         try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .whitelistPackages("issue100").whitelistJars(bJarName).enableFieldInfo().scan()) {
+                .acceptPackages("issue100").acceptJars(bJarName).enableFieldInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 for (final FieldInfo f : ci.getFieldInfo()) {
                     fieldNames2.add(f.getName());

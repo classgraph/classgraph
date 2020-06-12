@@ -44,21 +44,21 @@ public class Issue99Test {
             .getPath() + "!level2.jar!level3.jar!classpath1/classpath2";
 
     /**
-     * Test without blacklist.
+     * Test without reject.
      */
     @Test
-    public void testWithoutBlacklist() {
+    public void testWithoutReject() {
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }
 
     /**
-     * Test with blacklist.
+     * Test with reject.
      */
     @Test
-    public void testWithBlacklist() {
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).blacklistJars("level3.jar")
+    public void testWithReject() {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).rejectJars("level3.jar")
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }

@@ -54,14 +54,14 @@ public class Issue350 {
     /** Test finding subclasses of classes with annotated methods or fields. */
     @Test
     public void test() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue350.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue350.class.getPackage().getName())
                 .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassesWithFieldAnnotation(SuperclassAnnotation.class.getName()).getNames())
                     .containsOnly(Pub.class.getName(), PubSub.class.getName());
             assertThat(scanResult.getClassesWithMethodAnnotation(SuperclassAnnotation.class.getName()).getNames())
                     .containsOnly(Pub.class.getName(), PubSub.class.getName());
         }
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue350.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue350.class.getPackage().getName())
                 .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
                 .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithFieldAnnotation(SuperclassAnnotation.class.getName()).getNames())

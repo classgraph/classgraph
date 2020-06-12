@@ -65,7 +65,7 @@ public class Issue193Test {
         // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
         // from different class
         try (ScanResult scanResult = new ClassGraph() //
-                .whitelistPackages("scala.collection.immutable") //
+                .acceptPackages("scala.collection.immutable") //
                 .overrideClassLoaders(classLoader) //
                 .scan()) {
             final List<String> classes = scanResult //

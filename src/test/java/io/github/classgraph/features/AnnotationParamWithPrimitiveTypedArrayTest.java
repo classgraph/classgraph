@@ -94,8 +94,7 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
     @Test
     public void primitiveArrayParams() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(AnnotationParamWithPrimitiveTypedArrayTest.class.getPackage().getName())
-                .scan()) {
+                .acceptPackages(AnnotationParamWithPrimitiveTypedArrayTest.class.getPackage().getName()).scan()) {
             final AnnotationInfo annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName())
                     .getAnnotationInfo().get(0);
             final AnnotationParameterValueList annotationParams = annotationInfo.getParameterValues();

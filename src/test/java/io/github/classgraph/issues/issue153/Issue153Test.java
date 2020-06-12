@@ -208,7 +208,7 @@ public class Issue153Test {
     @Test
     public void classAnnotationParameters() {
         try (ScanResult scanResult = new ClassGraph() //
-                .whitelistPackages(pkg) //
+                .acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
                 .enableAnnotationInfo() //

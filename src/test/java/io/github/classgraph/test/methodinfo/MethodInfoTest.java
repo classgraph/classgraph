@@ -103,7 +103,7 @@ public class MethodInfoTest {
     @Test
     public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .scan()) {
             Assertions.assertThrows(IllegalArgumentException.class,
                     () -> scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo());
@@ -115,7 +115,7 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetMethodInfo() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .filter(new MethodInfoFilter() {
@@ -144,7 +144,7 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetConstructorInfo() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
                     .containsOnly("public <init>()");
@@ -156,7 +156,7 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetMethodInfoIgnoringVisibility() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .filter(new MethodInfoFilter() {
@@ -186,7 +186,7 @@ public class MethodInfoTest {
      */
     @Test
     public void testMethodInfoLoadMethodForArrayArg() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             final MethodInfo mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .getSingleMethod("publicMethodWithArgs");

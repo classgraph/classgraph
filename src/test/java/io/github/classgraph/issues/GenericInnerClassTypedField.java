@@ -39,8 +39,7 @@ public class GenericInnerClassTypedField {
     @Test
     public void testGenericInnerClassTypedField() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(GenericInnerClassTypedField.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+                .acceptPackages(GenericInnerClassTypedField.class.getPackage().getName()).enableAllInfo().scan()) {
             final FieldInfoList fields = scanResult.getClassInfo(GenericInnerClassTypedField.class.getName())
                     .getFieldInfo();
             final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) fields.get(0)

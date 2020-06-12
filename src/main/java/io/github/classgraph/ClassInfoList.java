@@ -559,7 +559,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *            The GraphViz layout width in inches.
      * @param includeExternalClasses
      *            If true, and if {@link ClassGraph#enableExternalClasses()} was called before scanning, show
-     *            "external classes" (non-whitelisted classes) within the dependency graph.
+     *            "external classes" (non-accepted classes) within the dependency graph.
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was

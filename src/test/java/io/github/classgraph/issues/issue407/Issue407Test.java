@@ -65,7 +65,7 @@ public class Issue407Test {
         // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
         // from different class
         try (ScanResult scanResult = new ClassGraph() //
-                .whitelistPackages("com.google.thirdparty.publicsuffix") //
+                .acceptPackages("com.google.thirdparty.publicsuffix") //
                 .overrideClassLoaders(classLoader) //
                 .scan()) {
             final List<String> classNames = scanResult //

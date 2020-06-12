@@ -68,8 +68,8 @@ abstract class ClasspathElement {
      */
     boolean skipClasspathElement;
 
-    /** True if classpath element contains a specifically-whitelisted resource path. */
-    boolean containsSpecificallyWhitelistedClasspathElementResourcePath;
+    /** True if classpath element contains a specifically-accepted resource path. */
+    boolean containsSpecificallyAcceptedClasspathElementResourcePath;
 
     /**
      * The child classpath elements, keyed by the order of the child classpath element within the Class-Path entry
@@ -84,16 +84,16 @@ abstract class ClasspathElement {
     List<ClasspathElement> childClasspathElementsOrdered;
 
     /**
-     * Resources found within this classpath element that were whitelisted and not blacklisted. (Only written by one
+     * Resources found within this classpath element that were accepted and not rejected. (Only written by one
      * thread, so doesn't need to be a concurrent list.)
      */
-    protected final List<Resource> whitelistedResources = new ArrayList<>();
+    protected final List<Resource> acceptedResources = new ArrayList<>();
 
     /**
-     * The list of all classfiles found within this classpath element that were whitelisted and not blacklisted.
-     * (Only written by one thread, so doesn't need to be a concurrent list.)
+     * The list of all classfiles found within this classpath element that were accepted and not rejected. (Only
+     * written by one thread, so doesn't need to be a concurrent list.)
      */
-    protected List<Resource> whitelistedClassfileResources = new ArrayList<>();
+    protected List<Resource> acceptedClassfileResources = new ArrayList<>();
 
     /** The map from File to last modified timestamp, if scanFiles is true. */
     protected final Map<File, Long> fileToLastModified = new ConcurrentHashMap<>();
@@ -145,35 +145,34 @@ abstract class ClasspathElement {
      * @return the num classfile matches
      */
     int getNumClassfileMatches() {
-        return whitelistedClassfileResources == null ? 0 : whitelistedClassfileResources.size();
+        return acceptedClassfileResources == null ? 0 : acceptedClassfileResources.size();
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check relativePath against classpathElementResourcePathWhiteBlackList.
+     * Check relativePath against classpathElementResourcePathAcceptReject.
      *
      * @param relativePath
      *            the relative path
      * @param log
      *            the log
      */
-    protected void checkResourcePathWhiteBlackList(final String relativePath, final LogNode log) {
-        // Whitelist/blacklist classpath elements based on file resource paths
-        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistAndBlacklistAreEmpty()) {
-            if (scanSpec.classpathElementResourcePathWhiteBlackList.isBlacklisted(relativePath)) {
+    protected void checkResourcePathAcceptReject(final String relativePath, final LogNode log) {
+        // Accept/reject classpath elements based on file resource paths
+        if (!scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
+            if (scanSpec.classpathElementResourcePathAcceptReject.isRejected(relativePath)) {
                 if (log != null) {
-                    log.log("Reached blacklisted classpath element resource path, stopping scanning: "
-                            + relativePath);
+                    log.log("Reached rejected classpath element resource path, stopping scanning: " + relativePath);
                 }
                 skipClasspathElement = true;
                 return;
             }
-            if (scanSpec.classpathElementResourcePathWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
+            if (scanSpec.classpathElementResourcePathAcceptReject.isSpecificallyAccepted(relativePath)) {
                 if (log != null) {
-                    log.log("Reached specifically whitelisted classpath element resource path: " + relativePath);
+                    log.log("Reached specifically accepted classpath element resource path: " + relativePath);
                 }
-                containsSpecificallyWhitelistedClasspathElementResourcePath = true;
+                containsSpecificallyAcceptedClasspathElementResourcePath = true;
             }
         }
     }
@@ -197,10 +196,10 @@ abstract class ClasspathElement {
         // but actually there is no restriction for paths within a zipfile to be unique, and in fact
         // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
         // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
-        final List<Resource> whitelistedClassfileResourcesFiltered = new ArrayList<>(
-                whitelistedClassfileResources.size());
+        final List<Resource> acceptedClassfileResourcesFiltered = new ArrayList<>(
+                acceptedClassfileResources.size());
         boolean foundMasked = false;
-        for (final Resource res : whitelistedClassfileResources) {
+        for (final Resource res : acceptedClassfileResources) {
             final String pathRelativeToPackageRoot = res.getPath();
             // Don't mask module-info.class or package-info.class, these are read for every module/package,
             // and they don't result in a ClassInfo object, so there will be no duplicate ClassInfo objects
@@ -219,14 +218,14 @@ abstract class ClasspathElement {
                             + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot) + " found at " + res);
                 }
             } else {
-                whitelistedClassfileResourcesFiltered.add(res);
+                acceptedClassfileResourcesFiltered.add(res);
             }
         }
         if (foundMasked) {
             // Remove masked (duplicated) paths. N.B. this replaces the concurrent collection with a non-concurrent
             // collection, but this is the last time the collection is changed during a scan, and this method is
             // run from a single thread.
-            whitelistedClassfileResources = whitelistedClassfileResourcesFiltered;
+            acceptedClassfileResources = acceptedClassfileResourcesFiltered;
         }
     }
 
@@ -245,45 +244,45 @@ abstract class ClasspathElement {
      * @param log
      *            the log
      */
-    protected void addWhitelistedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
+    protected void addAcceptedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final boolean isClassfileOnly, final LogNode log) {
         final String path = resource.getPath();
         final boolean isClassFile = FileUtils.isClassfile(path);
-        boolean isWhitelisted = false;
+        boolean isAccepted = false;
         if (isClassFile) {
-            // Check classfile scanning is enabled, and classfile is not specifically blacklisted
-            if (scanSpec.enableClassInfo && !scanSpec.classfilePathWhiteBlackList.isBlacklisted(path)) {
-                // ClassInfo is enabled, and found a whitelisted classfile
-                whitelistedClassfileResources.add(resource);
-                isWhitelisted = true;
+            // Check classfile scanning is enabled, and classfile is not specifically rejected
+            if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject.isRejected(path)) {
+                // ClassInfo is enabled, and found an accepted classfile
+                acceptedClassfileResources.add(resource);
+                isAccepted = true;
             }
         } else {
-            // Resources are always whitelisted if found in whitelisted directories
-            isWhitelisted = true;
+            // Resources are always accepted if found in accepted directories
+            isAccepted = true;
         }
 
         if (!isClassfileOnly) {
-            // Add resource to list of whitelisted resources, whether for a classfile or non-classfile resource
-            whitelistedResources.add(resource);
+            // Add resource to list of accepted resources, whether for a classfile or non-classfile resource
+            acceptedResources.add(resource);
         }
 
         // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not
-        // a blacklisted classfile
-        if (log != null && isWhitelisted) {
+        // a rejected classfile
+        if (log != null && isAccepted) {
             final String type = isClassFile ? "classfile" : "resource";
             String logStr;
             switch (parentMatchStatus) {
-            case HAS_WHITELISTED_PATH_PREFIX:
-                logStr = "Found " + type + " within subpackage of whitelisted package: ";
+            case HAS_ACCEPTED_PATH_PREFIX:
+                logStr = "Found " + type + " within subpackage of accepted package: ";
                 break;
-            case AT_WHITELISTED_PATH:
-                logStr = "Found " + type + " within whitelisted package: ";
+            case AT_ACCEPTED_PATH:
+                logStr = "Found " + type + " within accepted package: ";
                 break;
-            case AT_WHITELISTED_CLASS_PACKAGE:
-                logStr = "Found specifically-whitelisted " + type + ": ";
+            case AT_ACCEPTED_CLASS_PACKAGE:
+                logStr = "Found specifically-accepted " + type + ": ";
                 break;
             default:
-                logStr = "Found whitelisted " + type + ": ";
+                logStr = "Found accepted " + type + ": ";
                 break;
             }
             // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
@@ -304,13 +303,13 @@ abstract class ClasspathElement {
      */
     protected void finishScanPaths(final LogNode log) {
         if (log != null) {
-            if (whitelistedResources.isEmpty() && whitelistedClassfileResources.isEmpty()) {
-                log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles or resources found"
-                        : "Classfile scanning is disabled, and no whitelisted resources found");
-            } else if (whitelistedResources.isEmpty()) {
-                log.log("No whitelisted resources found");
-            } else if (whitelistedClassfileResources.isEmpty()) {
-                log.log(scanSpec.enableClassInfo ? "No whitelisted classfiles found"
+            if (acceptedResources.isEmpty() && acceptedClassfileResources.isEmpty()) {
+                log.log(scanSpec.enableClassInfo ? "No accepted classfiles or resources found"
+                        : "Classfile scanning is disabled, and no accepted resources found");
+            } else if (acceptedResources.isEmpty()) {
+                log.log("No accepted resources found");
+            } else if (acceptedClassfileResources.isEmpty()) {
+                log.log(scanSpec.enableClassInfo ? "No accepted classfiles found"
                         : "Classfile scanning is disabled");
             }
         }
@@ -355,8 +354,8 @@ abstract class ClasspathElement {
             throws InterruptedException;
 
     /**
-     * Scan paths in the classpath element for whitelist/blacklist criteria, creating Resource objects for
-     * whitelisted and non-blacklisted resources and classfiles.
+     * Scan paths in the classpath element for accept/reject criteria, creating Resource objects for accepted and
+     * non-rejected resources and classfiles.
      *
      * @param log
      *            the log

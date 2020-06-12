@@ -47,7 +47,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
 
 /**
- * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
+ * A classpath or module path resource (i.e. file) that was found in an accepted/non-rejected package inside a
  * classpath element or module.
  */
 public abstract class Resource implements Closeable, Comparable<Resource> {
@@ -68,7 +68,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /**
      * The {@link LogNode} used to log that the resource was found when classpath element paths are scanned. In the
-     * case of whitelisted classfile resources, sublog entries are added when the classfile's contents are scanned.
+     * case of accepted classfile resources, sublog entries are added when the classfile's contents are scanned.
      */
     LogNode scanLog;
 

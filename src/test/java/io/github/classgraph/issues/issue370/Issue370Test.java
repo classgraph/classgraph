@@ -50,7 +50,7 @@ public class Issue370Test {
     @Test
     public void issue370Test() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(ClassWithAnnotation.class.getPackage().getName()).scan()) {
+                .acceptPackages(ClassWithAnnotation.class.getPackage().getName()).scan()) {
             final ClassInfo clazzInfo = scanResult.getClassInfo(ClassWithAnnotation.class.getName());
             assertThat(clazzInfo).isNotNull();
             for (final MethodInfo methodInfo : clazzInfo.getMethodInfo().filter(MethodInfo::isPublic)) {

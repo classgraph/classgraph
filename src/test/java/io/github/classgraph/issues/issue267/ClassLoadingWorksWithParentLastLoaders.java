@@ -61,7 +61,7 @@ public class ClassLoadingWorksWithParentLastLoaders {
                 .isEqualTo(expectedClassLoader);
         assertThat(a.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo(expectedClassLoader);
 
-        final ClassGraph classGraph = new ClassGraph().whitelistPackages("com.xyz.meta").enableAllInfo();
+        final ClassGraph classGraph = new ClassGraph().acceptPackages("com.xyz.meta").enableAllInfo();
 
         // ClassGraph is in that setup not part of the RestartClass loader. That one takes by default only
         // URLs from the current project into consideration and can only be modified by adding additional

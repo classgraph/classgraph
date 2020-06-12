@@ -48,7 +48,7 @@ public class Issue107Test {
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name
         final String pkg = Issue107Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg).enableAnnotationInfo()
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg).enableAnnotationInfo()
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
                 .scan()) {

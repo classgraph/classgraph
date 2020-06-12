@@ -49,7 +49,7 @@ public class Issue146Test {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue146Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(pkg + "." + "CompiledWithJDK8");

@@ -18,7 +18,7 @@ public class ClassGraphGraphVizGenerator {
      */
     public static void main(final String[] args) throws IOException {
         try (ScanResult scanResult = new ClassGraph() //
-                .whitelistPackagesNonRecursive("io.github.classgraph") //
+                .acceptPackagesNonRecursive("io.github.classgraph") //
                 .enableMethodInfo() //
                 .ignoreMethodVisibility() //
                 .enableFieldInfo() //

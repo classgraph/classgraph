@@ -9,7 +9,7 @@ public class ScanEverything {
     //        final long t0 = System.nanoTime();
     //        try (ScanResult scanResult = new ClassGraph() //
     //                // .verbose() //
-    //                // .whitelistPackages("io.github") //
+    //                // .acceptPackages("io.github") //
     //                // .enableAllInfo() //
     //                .enableSystemPackages() //
     //                .disableJarScanning() //

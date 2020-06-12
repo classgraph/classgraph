@@ -97,7 +97,7 @@ class Classfile {
     /** Whether this class is an annotation. */
     private boolean isAnnotation;
 
-    /** The superclass name. (can be null if no superclass, or if superclass is blacklisted.) */
+    /** The superclass name. (can be null if no superclass, or if superclass is rejected.) */
     private String superclassName;
 
     /** The implemented interfaces. */
@@ -127,11 +127,11 @@ class Classfile {
     /** The type signature. */
     private String typeSignature;
 
-    /** The names of whitelisted classes found in the classpath while scanning paths within classpath elements. */
-    private final Set<String> whitelistedClassNamesFound;
+    /** The names of accepted classes found in the classpath while scanning paths within classpath elements. */
+    private final Set<String> acceptedClassNamesFound;
 
     /**
-     * The names of external (non-whitelisted) classes scheduled for extended scanning (where scanning is extended
+     * The names of external (non-accepted) classes scheduled for extended scanning (where scanning is extended
      * upwards to superclasses, interfaces and annotations).
      */
     private final Set<String> classNamesScheduledForExtendedScanning;
@@ -276,14 +276,14 @@ class Classfile {
             final LogNode log) {
         // Don't scan Object
         if (className != null && !className.equals("java.lang.Object")
-        // Don't schedule a class for scanning that was already found to be whitelisted
-                && !whitelistedClassNamesFound.contains(className)
+        // Don't schedule a class for scanning that was already found to be accepted
+                && !acceptedClassNamesFound.contains(className)
                 // Only schedule each external class once for scanning, across all threads
                 && classNamesScheduledForExtendedScanning.add(className)) {
-            if (scanSpec.classWhiteBlackList.isBlacklisted(className)) {
+            if (scanSpec.classAcceptReject.isRejected(className)) {
                 if (log != null) {
                     log.log("Cannot extend scanning upwards to external " + relationship + " " + className
-                            + ", since it is blacklisted");
+                            + ", since it is rejected");
                 }
             } else {
                 // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
@@ -328,7 +328,7 @@ class Classfile {
                 } else {
                     if (log != null) {
                         log.log("External " + relationship + " " + className + " was not found in "
-                                + "non-blacklisted packages -- cannot extend scanning to this class");
+                                + "non-rejected packages -- cannot extend scanning to this class");
                     }
                 }
             }
@@ -1597,11 +1597,11 @@ class Classfile {
      *            the classpath element
      * @param classpathOrder
      *            the classpath order
-     * @param whitelistedClassNamesFound
-     *            the names of whitelisted classes found in the classpath while scanning paths within classpath
+     * @param acceptedClassNamesFound
+     *            the names of accepted classes found in the classpath while scanning paths within classpath
      *            elements.
      * @param classNamesScheduledForExtendedScanning
-     *            the names of external (non-whitelisted) classes scheduled for extended scanning (where scanning is
+     *            the names of external (non-accepted) classes scheduled for extended scanning (where scanning is
      *            extended upwards to superclasses, interfaces and annotations).
      * @param relativePath
      *            the relative path
@@ -1626,7 +1626,7 @@ class Classfile {
      *             false)
      */
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
-            final Set<String> whitelistedClassNamesFound, final Set<String> classNamesScheduledForExtendedScanning,
+            final Set<String> acceptedClassNamesFound, final Set<String> classNamesScheduledForExtendedScanning,
             final String relativePath, final Resource classfileResource, final boolean isExternalClass,
             final ConcurrentHashMap<String, String> stringInternMap,
             final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final LogNode log)
@@ -1634,7 +1634,7 @@ class Classfile {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
         this.relativePath = relativePath;
-        this.whitelistedClassNamesFound = whitelistedClassNamesFound;
+        this.acceptedClassNamesFound = acceptedClassNamesFound;
         this.classNamesScheduledForExtendedScanning = classNamesScheduledForExtendedScanning;
         this.classfileResource = classfileResource;
         this.isExternalClass = isExternalClass;
@@ -1730,10 +1730,10 @@ class Classfile {
             }
         }
 
-        // Check if any superclasses, interfaces or annotations are external (non-whitelisted) classes
+        // Check if any superclasses, interfaces or annotations are external (non-accepted) classes
         // that need to be scheduled for scanning, so that all of the "upwards" direction of the class
-        // graph is scanned for any whitelisted class, even if the superclasses / interfaces / annotations
-        // are not themselves whitelisted.
+        // graph is scanned for any accepted class, even if the superclasses / interfaces / annotations
+        // are not themselves accepted.
         if (scanSpec.extendScanningUpwardsToExternalClasses) {
             extendScanningUpwards(subLog);
             // If any external classes were found, schedule them for scanning

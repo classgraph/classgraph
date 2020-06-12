@@ -394,7 +394,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     intArrayValue[j] = objectArrayValue[j].integerValue;
@@ -408,7 +408,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     longArrayValue[j] = objectArrayValue[j].longValue;
@@ -422,7 +422,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     shortArrayValue[j] = objectArrayValue[j].shortValue;
@@ -436,7 +436,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     charArrayValue[j] = objectArrayValue[j].characterValue;
@@ -450,7 +450,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     floatArrayValue[j] = objectArrayValue[j].floatValue;
@@ -464,7 +464,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     doubleArrayValue[j] = objectArrayValue[j].doubleValue;
@@ -478,7 +478,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     booleanArrayValue[j] = objectArrayValue[j].booleanValue;
@@ -492,7 +492,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside whitelist>"
+                                + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
                     byteArrayValue[j] = objectArrayValue[j].byteValue;

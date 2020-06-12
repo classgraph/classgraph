@@ -82,7 +82,7 @@ public class Issue431Test {
     /** Test serializing and deserializing primitive types. */
     @Test
     public void primitiveTypeSerialization() {
-        final ClassGraph classGraph = new ClassGraph().whitelistPackages(Issue431Test.class.getPackage().getName())
+        final ClassGraph classGraph = new ClassGraph().acceptPackages(Issue431Test.class.getPackage().getName())
                 .enableAllInfo();
         try (ScanResult scanResult1 = classGraph.scan()) {
             final ClassInfo classInfo1 = scanResult1.getClassInfo(X.class.getName());

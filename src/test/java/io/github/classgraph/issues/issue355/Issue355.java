@@ -44,7 +44,7 @@ public class Issue355 {
     @Test
     public void test() throws IOException {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackagesNonRecursive(Issue355.class.getPackage().getName()).enableClassInfo()
+                .acceptPackagesNonRecursive(Issue355.class.getPackage().getName()).enableClassInfo()
                 .enableInterClassDependencies().scan()) {
             final ClassInfo y = scanResult.getClassInfo(Y.class.getName());
             final ClassInfo x = scanResult.getClassInfo(X.class.getName());

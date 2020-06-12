@@ -121,7 +121,7 @@ public class DeclaredVsNonDeclaredTest {
     @Test
     public void declaredVsNonDeclaredMethods() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
+                .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
             assertThat(B.getFieldInfo("x").getClassInfo().getName()).isEqualTo(B.class.getName());
@@ -140,7 +140,7 @@ public class DeclaredVsNonDeclaredTest {
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
+                .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
             final ClassInfo C = scanResult.getClassInfo(C.class.getName());
@@ -181,7 +181,7 @@ public class DeclaredVsNonDeclaredTest {
     @Test
     public void annotationsShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
+                .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo A = scanResult.getClassInfo(A.class.getName());
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
 
@@ -204,7 +204,7 @@ public class DeclaredVsNonDeclaredTest {
     @Test
     public void loadFieldAndMethod() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo()
-                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
+                .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo B = scanResult.getClassInfo(B.class.getName());
             assertThat(B.getFieldInfo("x").loadClassAndGetField().getName()).isEqualTo("x");
             assertThat(B.getMethodInfo("y").get(0).loadClassAndGetMethod().getName()).isEqualTo("y");

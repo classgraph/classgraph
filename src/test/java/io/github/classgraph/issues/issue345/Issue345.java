@@ -33,7 +33,7 @@ public class Issue345 {
      */
     @Test
     public void withIgnoreClassVisibility() {
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Super.class.getName(), Sub.class.getName())
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Super.class.getName(), Sub.class.getName())
                 .ignoreClassVisibility().scan()) {
             final ClassInfo subClassInfo = scanResult.getClassInfo(Sub.class.getName());
             assertThat(subClassInfo).isNotNull();
@@ -50,7 +50,7 @@ public class Issue345 {
      */
     @Test
     public void withoutIgnoreClassVisibility() {
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Super.class.getName(), Sub.class.getName())
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Super.class.getName(), Sub.class.getName())
                 .scan()) {
             final ClassInfo subClassInfo = scanResult.getClassInfo(Sub.class.getName());
             assertThat(subClassInfo).isNotNull();
@@ -66,7 +66,7 @@ public class Issue345 {
      */
     @Test
     public void testExtensionToParent() {
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Sub.class.getName()).ignoreClassVisibility()
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Sub.class.getName()).ignoreClassVisibility()
                 .scan()) {
             final ClassInfo superClassInfo = scanResult.getClassInfo(Super.class.getName());
             assertThat(superClassInfo).isNotNull();
@@ -79,8 +79,8 @@ public class Issue345 {
      */
     @Test
     public void testExtensionToOuterClass() {
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Super.class.getName())
-                .ignoreClassVisibility().scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Super.class.getName()).ignoreClassVisibility()
+                .scan()) {
             final ClassInfo outerClassInfo = scanResult.getClassInfo(Issue345.class.getName());
             assertThat(outerClassInfo).isNotNull();
             assertThat(outerClassInfo.getResource()).isNotNull();
@@ -92,7 +92,7 @@ public class Issue345 {
      */
     @Test
     public void testNonExtensionToInnerClass() {
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Issue345.class.getName())
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Issue345.class.getName())
                 .ignoreClassVisibility().scan()) {
             final ClassInfo innerClassInfo = scanResult.getClassInfo(Super.class.getName());
             assertThat(innerClassInfo).isNotNull();
@@ -110,7 +110,7 @@ public class Issue345 {
     public void issue345b() throws Exception {
         // Find URL of this class' classpath element
         URL classpathURL;
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Issue345.class.getName()).scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Issue345.class.getName()).scan()) {
             classpathURL = scanResult.getClassInfo(Issue345.class.getName()).getClasspathElementURL();
         }
         // Use this to create an override URLClassLoader
@@ -148,7 +148,7 @@ public class Issue345 {
     @Test
     public void issue345c() {
         try (ScanResult scanResult = new ClassGraph().enableClassInfo()
-                .whitelistPackages(Issue345.class.getPackage().getName()).ignoreClassVisibility().scan()) {
+                .acceptPackages(Issue345.class.getPackage().getName()).ignoreClassVisibility().scan()) {
             final ClassInfo ciA = scanResult.getClassInfo(A.class.getName());
             assertThat(ciA.getModifiersStr()).isEqualTo("private static");
             final ClassInfo ciB = scanResult.getClassInfo(B.class.getName());

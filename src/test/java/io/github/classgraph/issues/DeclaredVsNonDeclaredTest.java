@@ -194,7 +194,7 @@ public class DeclaredVsNonDeclaredTest {
         try (ScanResult scanResult = new ClassGraph().enableClassInfo() //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
-                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
+                .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo superClassInfo = scanResult.getClassInfo(SuperClass.class.getName());
             final ClassInfo subClassInfo = scanResult.getClassInfo(SubClass.class.getName());
             compareResults(superClassInfo, subClassInfo, /* ignoreVisibility = */ false);
@@ -210,7 +210,7 @@ public class DeclaredVsNonDeclaredTest {
         try (ScanResult scanResult = new ClassGraph().enableClassInfo() //
                 .enableMethodInfo().ignoreMethodVisibility() //
                 .enableFieldInfo().ignoreFieldVisibility() //
-                .whitelistPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
+                .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final ClassInfo superClassInfo = scanResult.getClassInfo(SuperClass.class.getName());
             final ClassInfo subClassInfo = scanResult.getClassInfo(SubClass.class.getName());
             compareResults(superClassInfo, subClassInfo, /* ignoreVisibility = */ true);

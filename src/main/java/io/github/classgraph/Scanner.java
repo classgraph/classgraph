@@ -149,9 +149,9 @@ class Scanner implements Callable<ScanResult> {
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
         if (topLevelLog != null) {
-            if (scanSpec.pathWhiteBlackList != null
-                    && scanSpec.packagePrefixWhiteBlackList.isSpecificallyWhitelisted("")) {
-                topLevelLog.log("Note: There is no need to whitelist the root package (\"\") -- not whitelisting "
+            if (scanSpec.pathAcceptReject != null
+                    && scanSpec.packagePrefixAcceptReject.isSpecificallyAccepted("")) {
+                topLevelLog.log("Note: There is no need to accept the root package (\"\") -- not accepting "
                         + "anything will have the same effect of causing all packages to be scanned");
             }
             topLevelLog.log("Number of worker threads: " + numParallelTasks);
@@ -188,13 +188,12 @@ class Scanner implements Callable<ScanResult> {
                     for (final ModuleRef systemModuleRef : systemModuleRefs) {
                         final String moduleName = systemModuleRef.getName();
                         if (
-                        // If scanning system packages and modules is enabled and white/blacklist is empty,
+                        // If scanning system packages and modules is enabled and accept/reject criteria are empty,
                         // then scan all system modules
                         (scanSpec.enableSystemJarsAndModules
-                                && scanSpec.moduleWhiteBlackList.whitelistAndBlacklistAreEmpty())
-                                // Otherwise only scan specifically whitelisted system modules
-                                || scanSpec.moduleWhiteBlackList
-                                        .isSpecificallyWhitelistedAndNotBlacklisted(moduleName)) {
+                                && scanSpec.moduleAcceptReject.acceptAndRejectAreEmpty())
+                                // Otherwise only scan specifically accepted system modules
+                                || scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     systemModuleRef, defaultClassLoader,
@@ -204,8 +203,8 @@ class Scanner implements Callable<ScanResult> {
                             classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                         } else {
                             if (classpathFinderLog != null) {
-                                classpathFinderLog.log(
-                                        "Skipping non-whitelisted or blacklisted system module: " + moduleName);
+                                classpathFinderLog
+                                        .log("Skipping non-accepted or rejected system module: " + moduleName);
                             }
                         }
                     }
@@ -217,7 +216,7 @@ class Scanner implements Callable<ScanResult> {
                         if (moduleName == null) {
                             moduleName = "";
                         }
-                        if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
+                        if (scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     nonSystemModuleRef, defaultClassLoader,
@@ -227,8 +226,7 @@ class Scanner implements Callable<ScanResult> {
                             classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                         } else {
                             if (classpathFinderLog != null) {
-                                classpathFinderLog
-                                        .log("Skipping non-whitelisted or blacklisted module: " + moduleName);
+                                classpathFinderLog.log("Skipping non-accepted or rejected module: " + moduleName);
                             }
                         }
                     }
@@ -648,13 +646,13 @@ class Scanner implements Callable<ScanResult> {
         private final List<ClasspathElement> classpathOrder;
 
         /**
-         * The names of whitelisted classes found in the classpath while scanning paths within classpath elements.
+         * The names of accepted classes found in the classpath while scanning paths within classpath elements.
          */
-        private final Set<String> whitelistedClassNamesFound;
+        private final Set<String> acceptedClassNamesFound;
 
         /**
-         * The names of external (non-whitelisted) classes scheduled for extended scanning (where scanning is
-         * extended upwards to superclasses, interfaces and annotations).
+         * The names of external (non-accepted) classes scheduled for extended scanning (where scanning is extended
+         * upwards to superclasses, interfaces and annotations).
          */
         private final Set<String> classNamesScheduledForExtendedScanning = Collections
                 .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -672,18 +670,18 @@ class Scanner implements Callable<ScanResult> {
          *            the scan spec
          * @param classpathOrder
          *            the classpath order
-         * @param whitelistedClassNamesFound
-         *            the names of whitelisted classes found in the classpath while scanning paths within classpath
+         * @param acceptedClassNamesFound
+         *            the names of accepted classes found in the classpath while scanning paths within classpath
          *            elements.
          * @param scannedClassfiles
          *            the {@link Classfile} objects created by scanning classfiles
          */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec,
-                final List<ClasspathElement> classpathOrder, final Set<String> whitelistedClassNamesFound,
+                final List<ClasspathElement> classpathOrder, final Set<String> acceptedClassNamesFound,
                 final Queue<Classfile> scannedClassfiles) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
-            this.whitelistedClassNamesFound = whitelistedClassNamesFound;
+            this.acceptedClassNamesFound = acceptedClassNamesFound;
             this.scannedClassfiles = scannedClassfiles;
         }
 
@@ -716,7 +714,7 @@ class Scanner implements Callable<ScanResult> {
             try {
                 // Parse classfile binary format, creating a Classfile object
                 final Classfile classfile = new Classfile(workUnit.classpathElement, classpathOrder,
-                        whitelistedClassNamesFound, classNamesScheduledForExtendedScanning,
+                        acceptedClassNamesFound, classNamesScheduledForExtendedScanning,
                         workUnit.classfileResource.getPath(), workUnit.classfileResource, workUnit.isExternalClass,
                         stringInternMap, workQueue, scanSpec, subLog);
 
@@ -874,10 +872,10 @@ class Scanner implements Callable<ScanResult> {
      *            the mask log
      */
     private void maskClassfiles(final List<ClasspathElement> classpathElementOrder, final LogNode maskLog) {
-        final Set<String> whitelistedClasspathRelativePathsFound = new HashSet<>();
+        final Set<String> acceptedClasspathRelativePathsFound = new HashSet<>();
         for (int classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
             final ClasspathElement classpathElement = classpathElementOrder.get(classpathIdx);
-            classpathElement.maskClassfiles(classpathIdx, whitelistedClasspathRelativePathsFound, maskLog);
+            classpathElement.maskClassfiles(classpathIdx, acceptedClasspathRelativePathsFound, maskLog);
         }
         if (maskLog != null) {
             maskLog.addElapsedTime();
@@ -925,16 +923,16 @@ class Scanner implements Callable<ScanResult> {
         final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
         final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
         if (scanSpec.enableClassInfo) {
-            // Get whitelisted classfile order
+            // Get accepted classfile order
             final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-            final Set<String> whitelistedClassNamesFound = new HashSet<String>();
+            final Set<String> acceptedClassNamesFound = new HashSet<String>();
             for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
                 // Get classfile scan order across all classpath elements
-                for (final Resource resource : classpathElement.whitelistedClassfileResources) {
-                    // Create a set of names of all whitelisted classes found in classpath element paths,
+                for (final Resource resource : classpathElement.acceptedClassfileResources) {
+                    // Create a set of names of all accepted classes found in classpath element paths,
                     // and double-check that a class is not going to be scanned twice
                     final String className = JarUtils.classfilePathToClassName(resource.getPath());
-                    if (!whitelistedClassNamesFound.add(className) && !className.equals("module-info")
+                    if (!acceptedClassNamesFound.add(className) && !className.equals("module-info")
                             && !className.equals("package-info") && !className.endsWith(".package-info")) {
                         // The class should not be scheduled more than once for scanning, since classpath
                         // masking was already applied
@@ -953,7 +951,7 @@ class Scanner implements Callable<ScanResult> {
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
             final ClassfileScannerWorkUnitProcessor classfileWorkUnitProcessor = //
                     new ClassfileScannerWorkUnitProcessor(scanSpec, finalClasspathEltOrder,
-                            Collections.unmodifiableSet(whitelistedClassNamesFound), scannedClassfiles);
+                            Collections.unmodifiableSet(acceptedClassNamesFound), scannedClassfiles);
             processWorkUnits(classfileScanWorkItems,
                     topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"),
                     classfileWorkUnitProcessor);
@@ -1070,7 +1068,7 @@ class Scanner implements Callable<ScanResult> {
             }
         }
 
-        // In parallel, scan paths within each classpath element, comparing them against whitelist/blacklist
+        // In parallel, scan paths within each classpath element, comparing them against accept/reject
         processWorkUnits(finalClasspathEltOrder,
                 topLevelLog == null ? null : topLevelLog.log("Scanning classpath elements"),
                 new WorkUnitProcessor<ClasspathElement>() {
@@ -1083,12 +1081,12 @@ class Scanner implements Callable<ScanResult> {
                     }
                 });
 
-        // Filter out classpath elements that do not contain required whitelisted paths.
+        // Filter out classpath elements that do not contain required accepted paths.
         List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
-        if (!scanSpec.classpathElementResourcePathWhiteBlackList.whitelistIsEmpty()) {
+        if (!scanSpec.classpathElementResourcePathAcceptReject.acceptIsEmpty()) {
             finalClasspathEltOrderFiltered = new ArrayList<>(finalClasspathEltOrder.size());
             for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-                if (classpathElement.containsSpecificallyWhitelistedClasspathElementResourcePath) {
+                if (classpathElement.containsSpecificallyAcceptedClasspathElementResourcePath) {
                     finalClasspathEltOrderFiltered.add(classpathElement);
                 }
             }

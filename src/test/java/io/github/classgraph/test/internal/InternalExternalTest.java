@@ -15,11 +15,11 @@ import io.github.classgraph.test.external.ExternalSuperclass;
  */
 public class InternalExternalTest {
     /**
-     * Test whitelisting external classes.
+     * Test accepting external classes.
      */
     @Test
-    public void testWhitelistingExternalClasses() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(
+    public void testAcceptingExternalClasses() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(
                 InternalExternalTest.class.getPackage().getName(), ExternalAnnotation.class.getName()).scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
@@ -33,7 +33,7 @@ public class InternalExternalTest {
     @Test
     public void testEnableExternalClasses() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(InternalExternalTest.class.getPackage().getName(),
+                .acceptPackages(InternalExternalTest.class.getPackage().getName(),
                         ExternalAnnotation.class.getName())
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
@@ -44,12 +44,12 @@ public class InternalExternalTest {
     }
 
     /**
-     * Test whitelisting external classes without enabling external classes.
+     * Test accepting external classes without enabling external classes.
      */
     @Test
-    public void testWhitelistingExternalClassesWithoutEnablingExternalClasses() {
+    public void testAcceptingExternalClassesWithoutEnablingExternalClasses() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(InternalExternalTest.class.getPackage().getName(),
+                .acceptPackages(InternalExternalTest.class.getPackage().getName(),
                         ExternalAnnotation.class.getName())
                 .enableAllInfo().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
@@ -72,7 +72,7 @@ public class InternalExternalTest {
     @Test
     public void testIncludeReferencedClasses() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(InternalExternalTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(InternalExternalTest.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames())
                     .doesNotContain(ExternalSuperclass.class.getName());
             assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())

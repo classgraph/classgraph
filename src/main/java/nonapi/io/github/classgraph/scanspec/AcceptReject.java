@@ -40,31 +40,31 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 
-/** A class storing whitelist or blacklist criteria. */
-public abstract class WhiteBlackList {
-    /** Whitelisted items (whole-string match). */
-    protected Set<String> whitelist;
-    /** Blacklisted items (whole-string match). */
-    protected Set<String> blacklist;
-    /** Whitelisted items (prefix match), as a set. */
-    protected Set<String> whitelistPrefixesSet;
-    /** Whitelisted items (prefix match), as a sorted list. */
-    protected List<String> whitelistPrefixes;
-    /** Blacklisted items (prefix match). */
-    protected List<String> blacklistPrefixes;
-    /** Whitelist glob strings. (Serialized to JSON, for logging purposes.) */
-    protected Set<String> whitelistGlobs;
-    /** Blacklist glob strings. (Serialized to JSON, for logging purposes.) */
-    protected Set<String> blacklistGlobs;
-    /** Whitelist regexp patterns. (Not serialized to JSON.) */
-    protected transient List<Pattern> whitelistPatterns;
-    /** Blacklist regexp patterns. (Not serialized to JSON.) */
-    protected transient List<Pattern> blacklistPatterns;
+/** A class storing accept or reject criteria. */
+public abstract class AcceptReject {
+    /** Accepted items (whole-string match). */
+    protected Set<String> accept;
+    /** Rejected items (whole-string match). */
+    protected Set<String> reject;
+    /** Accepted items (prefix match), as a set. */
+    protected Set<String> acceptPrefixesSet;
+    /** Accepted items (prefix match), as a sorted list. */
+    protected List<String> acceptPrefixes;
+    /** Rejected items (prefix match). */
+    protected List<String> rejectPrefixes;
+    /** Accept glob strings. (Serialized to JSON, for logging purposes.) */
+    protected Set<String> acceptGlobs;
+    /** Reject glob strings. (Serialized to JSON, for logging purposes.) */
+    protected Set<String> rejectGlobs;
+    /** Accept regexp patterns. (Not serialized to JSON.) */
+    protected transient List<Pattern> acceptPatterns;
+    /** Reject regexp patterns. (Not serialized to JSON.) */
+    protected transient List<Pattern> rejectPatterns;
     /** The separator character. */
     protected char separatorChar;
 
     /** Deserialization constructor. */
-    public WhiteBlackList() {
+    public AcceptReject() {
     }
 
     /**
@@ -73,84 +73,84 @@ public abstract class WhiteBlackList {
      * @param separatorChar
      *            the separator char
      */
-    public WhiteBlackList(final char separatorChar) {
+    public AcceptReject(final char separatorChar) {
         this.separatorChar = separatorChar;
     }
 
-    /** Whitelist/blacklist for prefix strings. */
-    public static class WhiteBlackListPrefix extends WhiteBlackList {
+    /** Accept/reject for prefix strings. */
+    public static class AcceptRejectPrefix extends AcceptReject {
         /** Deserialization constructor. */
-        public WhiteBlackListPrefix() {
+        public AcceptRejectPrefix() {
             super();
         }
 
         /**
-         * Instantiate a new whitelist/blacklist for prefix strings.
+         * Instantiate a new accept/reject for prefix strings.
          *
          * @param separatorChar
          *            the separator char
          */
-        public WhiteBlackListPrefix(final char separatorChar) {
+        public AcceptRejectPrefix(final char separatorChar) {
             super(separatorChar);
         }
 
         /**
-         * Add to the whitelist.
+         * Add to the accept.
          *
          * @param str
-         *            the string to whitelist
+         *            the string to accept
          */
         @Override
-        public void addToWhitelist(final String str) {
+        public void addToAccept(final String str) {
             if (str.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
             }
-            if (this.whitelistPrefixesSet == null) {
-                this.whitelistPrefixesSet = new HashSet<>();
+            if (this.acceptPrefixesSet == null) {
+                this.acceptPrefixesSet = new HashSet<>();
             }
-            this.whitelistPrefixesSet.add(str);
+            this.acceptPrefixesSet.add(str);
         }
 
         /**
-         * Add to the blacklist.
+         * Add to the reject.
          *
          * @param str
-         *            the string to blacklist
+         *            the string to reject
          */
         @Override
-        public void addToBlacklist(final String str) {
+        public void addToReject(final String str) {
             if (str.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
             }
-            if (this.blacklistPrefixes == null) {
-                this.blacklistPrefixes = new ArrayList<>();
+            if (this.rejectPrefixes == null) {
+                this.rejectPrefixes = new ArrayList<>();
             }
-            this.blacklistPrefixes.add(str);
+            this.rejectPrefixes.add(str);
         }
 
         /**
-         * Check if the requested string has a whitelisted/non-blacklisted prefix.
+         * Check if the requested string has an accepted/non-rejected prefix.
          *
          * @param str
          *            the string to test
-         * @return true if string is whitelisted and not blacklisted
+         * @return true if string is accepted and not rejected
          */
         @Override
-        public boolean isWhitelistedAndNotBlacklisted(final String str) {
-            boolean isWhitelisted = whitelistPrefixes == null;
-            if (!isWhitelisted) {
-                for (final String prefix : whitelistPrefixes) {
+        public boolean isAcceptedAndNotRejected(final String str) {
+            boolean isAccepted = acceptPrefixes == null;
+            if (!isAccepted) {
+                for (final String prefix : acceptPrefixes) {
                     if (str.startsWith(prefix)) {
-                        isWhitelisted = true;
+                        isAccepted = true;
                         break;
                     }
                 }
             }
-            if (!isWhitelisted) {
+            if (!isAccepted) {
                 return false;
             }
-            if (blacklistPrefixes != null) {
-                for (final String prefix : blacklistPrefixes) {
+            if (rejectPrefixes != null) {
+                for (final String prefix : rejectPrefixes) {
                     if (str.startsWith(prefix)) {
                         return false;
                     }
@@ -160,24 +160,24 @@ public abstract class WhiteBlackList {
         }
 
         /**
-         * Check if the requested string has a whitelisted prefix.
+         * Check if the requested string has an accepted prefix.
          *
          * @param str
          *            the string to test
-         * @return true if string is whitelisted
+         * @return true if string is accepted
          */
         @Override
-        public boolean isWhitelisted(final String str) {
-            boolean isWhitelisted = whitelistPrefixes == null;
-            if (!isWhitelisted) {
-                for (final String prefix : whitelistPrefixes) {
+        public boolean isAccepted(final String str) {
+            boolean isAccepted = acceptPrefixes == null;
+            if (!isAccepted) {
+                for (final String prefix : acceptPrefixes) {
                     if (str.startsWith(prefix)) {
-                        isWhitelisted = true;
+                        isAccepted = true;
                         break;
                     }
                 }
             }
-            return isWhitelisted;
+            return isAccepted;
         }
 
         /**
@@ -190,21 +190,21 @@ public abstract class WhiteBlackList {
          *             always
          */
         @Override
-        public boolean whitelistHasPrefix(final String str) {
+        public boolean acceptHasPrefix(final String str) {
             throw new IllegalArgumentException("Can only find prefixes of whole strings");
         }
 
         /**
-         * Check if the requested string has a blacklisted prefix.
+         * Check if the requested string has a rejected prefix.
          *
          * @param str
          *            the string to test
-         * @return true if the string has a blacklisted prefix
+         * @return true if the string has a rejected prefix
          */
         @Override
-        public boolean isBlacklisted(final String str) {
-            if (blacklistPrefixes != null) {
-                for (final String prefix : blacklistPrefixes) {
+        public boolean isRejected(final String str) {
+            if (rejectPrefixes != null) {
+                for (final String prefix : rejectPrefixes) {
                     if (str.startsWith(prefix)) {
                         return true;
                     }
@@ -214,53 +214,53 @@ public abstract class WhiteBlackList {
         }
     }
 
-    /** Whitelist/blacklist for whole-strings matches. */
-    public static class WhiteBlackListWholeString extends WhiteBlackList {
+    /** Accept/reject for whole-strings matches. */
+    public static class AcceptRejectWholeString extends AcceptReject {
         /** Deserialization constructor. */
-        public WhiteBlackListWholeString() {
+        public AcceptRejectWholeString() {
             super();
         }
 
         /**
-         * Instantiate a new whitelist/blacklist for whole-string matches.
+         * Instantiate a new accept/reject for whole-string matches.
          *
          * @param separatorChar
          *            the separator char
          */
-        public WhiteBlackListWholeString(final char separatorChar) {
+        public AcceptRejectWholeString(final char separatorChar) {
             super(separatorChar);
         }
 
         /**
-         * Add to the whitelist.
+         * Add to the accept.
          *
          * @param str
-         *            the string to whitelist
+         *            the string to accept
          */
         @Override
-        public void addToWhitelist(final String str) {
+        public void addToAccept(final String str) {
             if (str.contains("*")) {
-                if (this.whitelistGlobs == null) {
-                    this.whitelistGlobs = new HashSet<>();
-                    this.whitelistPatterns = new ArrayList<>();
+                if (this.acceptGlobs == null) {
+                    this.acceptGlobs = new HashSet<>();
+                    this.acceptPatterns = new ArrayList<>();
                 }
-                this.whitelistGlobs.add(str);
-                this.whitelistPatterns.add(globToPattern(str));
+                this.acceptGlobs.add(str);
+                this.acceptPatterns.add(globToPattern(str));
             } else {
-                if (this.whitelist == null) {
-                    this.whitelist = new HashSet<>();
+                if (this.accept == null) {
+                    this.accept = new HashSet<>();
                 }
-                this.whitelist.add(str);
+                this.accept.add(str);
             }
 
-            // For WhiteBlackListWholeString, which doesn't perform prefix matches like WhiteBlackListPrefix,
-            // use whitelistPrefixes to store all parent prefixes of a whitelisted path, so that
-            // whitelistHasPrefix() can operate efficiently on very large whitelists (#338),
-            // in particular where the size of the whitelist is much larger than the maximum path depth.
-            if (this.whitelistPrefixesSet == null) {
-                this.whitelistPrefixesSet = new HashSet<>();
-                whitelistPrefixesSet.add("");
-                whitelistPrefixesSet.add("/");
+            // For AcceptRejectWholeString, which doesn't perform prefix matches like AcceptRejectPrefix,
+            // use acceptPrefixes to store all parent prefixes of an accepted path, so that
+            // acceptHasPrefix() can operate efficiently on very large accepts (#338),
+            // in particular where the size of the accept is much larger than the maximum path depth.
+            if (this.acceptPrefixesSet == null) {
+                this.acceptPrefixesSet = new HashSet<>();
+                acceptPrefixesSet.add("");
+                acceptPrefixesSet.add("/");
             }
             final String separator = Character.toString(separatorChar);
             String prefix = str;
@@ -283,147 +283,147 @@ public abstract class WhiteBlackList {
             }
             // Add str itself as a prefix (this will only match a parent dir for 
             for (; !prefix.isEmpty(); prefix = FileUtils.getParentDirPath(prefix, separatorChar)) {
-                whitelistPrefixesSet.add(prefix + separatorChar);
+                acceptPrefixesSet.add(prefix + separatorChar);
             }
         }
 
         /**
-         * Add to the blacklist.
+         * Add to the reject.
          *
          * @param str
-         *            the string to blacklist
+         *            the string to reject
          */
         @Override
-        public void addToBlacklist(final String str) {
+        public void addToReject(final String str) {
             if (str.contains("*")) {
-                if (this.blacklistGlobs == null) {
-                    this.blacklistGlobs = new HashSet<>();
-                    this.blacklistPatterns = new ArrayList<>();
+                if (this.rejectGlobs == null) {
+                    this.rejectGlobs = new HashSet<>();
+                    this.rejectPatterns = new ArrayList<>();
                 }
-                this.blacklistGlobs.add(str);
-                this.blacklistPatterns.add(globToPattern(str));
+                this.rejectGlobs.add(str);
+                this.rejectPatterns.add(globToPattern(str));
             } else {
-                if (this.blacklist == null) {
-                    this.blacklist = new HashSet<>();
+                if (this.reject == null) {
+                    this.reject = new HashSet<>();
                 }
-                this.blacklist.add(str);
+                this.reject.add(str);
             }
         }
 
         /**
-         * Check if the requested string is whitelisted and not blacklisted.
+         * Check if the requested string is accepted and not rejected.
          *
          * @param str
          *            the string to test
-         * @return true if the string is whitelisted and not blacklisted
+         * @return true if the string is accepted and not rejected
          */
         @Override
-        public boolean isWhitelistedAndNotBlacklisted(final String str) {
-            return isWhitelisted(str) && !isBlacklisted(str);
+        public boolean isAcceptedAndNotRejected(final String str) {
+            return isAccepted(str) && !isRejected(str);
         }
 
         /**
-         * Check if the requested string is whitelisted.
+         * Check if the requested string is accepted.
          *
          * @param str
          *            the string to test
-         * @return true if the string is whitelisted
+         * @return true if the string is accepted
          */
         @Override
-        public boolean isWhitelisted(final String str) {
-            return (whitelist == null && whitelistPatterns == null)
-                    || (whitelist != null && whitelist.contains(str)) || matchesPatternList(str, whitelistPatterns);
+        public boolean isAccepted(final String str) {
+            return (accept == null && acceptPatterns == null) || (accept != null && accept.contains(str))
+                    || matchesPatternList(str, acceptPatterns);
         }
 
         /**
-         * Check if the requested string is a prefix of a whitelisted string.
+         * Check if the requested string is a prefix of an accepted string.
          *
          * @param str
          *            the string to test
-         * @return true if the string is a prefix of a whitelisted string
+         * @return true if the string is a prefix of an accepted string
          */
         @Override
-        public boolean whitelistHasPrefix(final String str) {
-            if (whitelistPrefixesSet == null) {
+        public boolean acceptHasPrefix(final String str) {
+            if (acceptPrefixesSet == null) {
                 return false;
             }
-            return whitelistPrefixesSet.contains(str);
+            return acceptPrefixesSet.contains(str);
         }
 
         /**
-         * Check if the requested string is blacklisted.
+         * Check if the requested string is rejected.
          *
          * @param str
          *            the string to test
-         * @return true if the string is blacklisted
+         * @return true if the string is rejected
          */
         @Override
-        public boolean isBlacklisted(final String str) {
-            return (blacklist != null && blacklist.contains(str)) || matchesPatternList(str, blacklistPatterns);
+        public boolean isRejected(final String str) {
+            return (reject != null && reject.contains(str)) || matchesPatternList(str, rejectPatterns);
         }
     }
 
-    /** Whitelist/blacklist for leaf matches. */
-    public static class WhiteBlackListLeafname extends WhiteBlackListWholeString {
+    /** Accept/reject for leaf matches. */
+    public static class AcceptRejectLeafname extends AcceptRejectWholeString {
         /** Deserialization constructor. */
-        public WhiteBlackListLeafname() {
+        public AcceptRejectLeafname() {
             super();
         }
 
         /**
-         * Instantiates a new whitelist/blacklist for leaf matches.
+         * Instantiates a new accept/reject for leaf matches.
          *
          * @param separatorChar
          *            the separator char
          */
-        public WhiteBlackListLeafname(final char separatorChar) {
+        public AcceptRejectLeafname(final char separatorChar) {
             super(separatorChar);
         }
 
         /**
-         * Add to the whitelist.
+         * Add to the accept.
          *
          * @param str
-         *            the string to whitelist
+         *            the string to accept
          */
         @Override
-        public void addToWhitelist(final String str) {
-            super.addToWhitelist(JarUtils.leafName(str));
+        public void addToAccept(final String str) {
+            super.addToAccept(JarUtils.leafName(str));
         }
 
         /**
-         * Add to the blacklist.
+         * Add to the reject.
          *
          * @param str
-         *            the string to blacklist
+         *            the string to reject
          */
         @Override
-        public void addToBlacklist(final String str) {
-            super.addToBlacklist(JarUtils.leafName(str));
+        public void addToReject(final String str) {
+            super.addToReject(JarUtils.leafName(str));
         }
 
         /**
-         * Check if the requested string is whitelisted and not blacklisted.
+         * Check if the requested string is accepted and not rejected.
          *
          * @param str
          *            the string to test
-         * @return true if the string is whitelisted and not blacklisted
+         * @return true if the string is accepted and not rejected
          */
         @Override
-        public boolean isWhitelistedAndNotBlacklisted(final String str) {
-            return super.isWhitelistedAndNotBlacklisted(JarUtils.leafName(str));
+        public boolean isAcceptedAndNotRejected(final String str) {
+            return super.isAcceptedAndNotRejected(JarUtils.leafName(str));
         }
 
         /**
-         * Check if the requested string is whitelisted.
+         * Check if the requested string is accepted.
          *
          * @param str
          *            the string to test
-         * @return true if the string is whitelisted
+         * @return true if the string is accepted
          */
         @Override
-        public boolean isWhitelisted(final String str) {
-            return super.isWhitelisted(JarUtils.leafName(str));
+        public boolean isAccepted(final String str) {
+            return super.isAccepted(JarUtils.leafName(str));
         }
 
         /**
@@ -436,74 +436,74 @@ public abstract class WhiteBlackList {
          *             always
          */
         @Override
-        public boolean whitelistHasPrefix(final String str) {
+        public boolean acceptHasPrefix(final String str) {
             throw new IllegalArgumentException("Can only find prefixes of whole strings");
         }
 
         /**
-         * Check if the requested string is blacklisted.
+         * Check if the requested string is rejected.
          *
          * @param str
          *            the string to test
-         * @return true if the string is blacklisted
+         * @return true if the string is rejected
          */
         @Override
-        public boolean isBlacklisted(final String str) {
-            return super.isBlacklisted(JarUtils.leafName(str));
+        public boolean isRejected(final String str) {
+            return super.isRejected(JarUtils.leafName(str));
         }
     }
 
     /**
-     * Add to the whitelist.
+     * Add to the accept.
      *
      * @param str
-     *            The string to whitelist.
+     *            The string to accept.
      */
-    public abstract void addToWhitelist(final String str);
+    public abstract void addToAccept(final String str);
 
     /**
-     * Add to the blacklist.
+     * Add to the reject.
      *
      * @param str
-     *            The string to blacklist.
+     *            The string to reject.
      */
-    public abstract void addToBlacklist(final String str);
+    public abstract void addToReject(final String str);
 
     /**
-     * Check if a string is whitelisted and not blacklisted.
+     * Check if a string is accepted and not rejected.
      *
      * @param str
      *            The string to test.
-     * @return true if the string is whitelisted and not blacklisted.
+     * @return true if the string is accepted and not rejected.
      */
-    public abstract boolean isWhitelistedAndNotBlacklisted(final String str);
+    public abstract boolean isAcceptedAndNotRejected(final String str);
 
     /**
-     * Check if a string is whitelisted.
+     * Check if a string is accepted.
      *
      * @param str
      *            The string to test.
-     * @return true if the string is whitelisted.
+     * @return true if the string is accepted.
      */
-    public abstract boolean isWhitelisted(final String str);
+    public abstract boolean isAccepted(final String str);
 
     /**
-     * Check if a string is a prefix of a whitelisted string.
+     * Check if a string is a prefix of an accepted string.
      *
      * @param str
      *            The string to test.
-     * @return true if the string is a prefix of a whitelisted string.
+     * @return true if the string is a prefix of an accepted string.
      */
-    public abstract boolean whitelistHasPrefix(final String str);
+    public abstract boolean acceptHasPrefix(final String str);
 
     /**
-     * Check if a string is blacklisted.
+     * Check if a string is rejected.
      *
      * @param str
      *            The string to test.
-     * @return true if the string is blacklisted.
+     * @return true if the string is rejected.
      */
-    public abstract boolean isBlacklisted(final String str);
+    public abstract boolean isRejected(final String str);
 
     /**
      * Remove initial and final '/' characters, if any.
@@ -597,66 +597,66 @@ public abstract class WhiteBlackList {
     }
 
     /**
-     * Check if the whitelist is empty.
+     * Check if the accept is empty.
      *
-     * @return true if there were no whitelist criteria added.
+     * @return true if there were no accept criteria added.
      */
-    public boolean whitelistIsEmpty() {
-        return whitelist == null && whitelistPrefixes == null && whitelistGlobs == null;
+    public boolean acceptIsEmpty() {
+        return accept == null && acceptPrefixes == null && acceptGlobs == null;
     }
 
     /**
-     * Check if the blacklist is empty.
+     * Check if the reject is empty.
      *
-     * @return true if there were no blacklist criteria added.
+     * @return true if there were no reject criteria added.
      */
-    public boolean blacklistIsEmpty() {
-        return blacklist == null && blacklistPrefixes == null && blacklistGlobs == null;
+    public boolean rejectIsEmpty() {
+        return reject == null && rejectPrefixes == null && rejectGlobs == null;
     }
 
     /**
-     * Check if the whitelist and blacklist are empty.
+     * Check if the accept and reject are empty.
      *
-     * @return true if there were no whitelist or blacklist criteria added.
+     * @return true if there were no accept or reject criteria added.
      */
-    public boolean whitelistAndBlacklistAreEmpty() {
-        return whitelistIsEmpty() && blacklistIsEmpty();
+    public boolean acceptAndRejectAreEmpty() {
+        return acceptIsEmpty() && rejectIsEmpty();
     }
 
     /**
-     * Check if a string is specifically whitelisted and not blacklisted.
+     * Check if a string is specifically accepted and not rejected.
      *
      * @param str
      *            The string to test.
-     * @return true if the requested string is <i>specifically</i> whitelisted and not blacklisted, i.e. will not
-     *         return true if the whitelist is empty, or if the string is blacklisted.
+     * @return true if the requested string is <i>specifically</i> accepted and not rejected, i.e. will not return
+     *         true if the accept is empty, or if the string is rejected.
      */
-    public boolean isSpecificallyWhitelistedAndNotBlacklisted(final String str) {
-        return !whitelistIsEmpty() && isWhitelistedAndNotBlacklisted(str);
+    public boolean isSpecificallyAcceptedAndNotRejected(final String str) {
+        return !acceptIsEmpty() && isAcceptedAndNotRejected(str);
     }
 
     /**
-     * Check if a string is specifically whitelisted.
+     * Check if a string is specifically accepted.
      *
      * @param str
      *            The string to test.
-     * @return true if the requested string is <i>specifically</i> whitelisted, i.e. will not return true if the
-     *         whitelist is empty.
+     * @return true if the requested string is <i>specifically</i> accepted, i.e. will not return true if the accept
+     *         is empty.
      */
-    public boolean isSpecificallyWhitelisted(final String str) {
-        return !whitelistIsEmpty() && isWhitelisted(str);
+    public boolean isSpecificallyAccepted(final String str) {
+        return !acceptIsEmpty() && isAccepted(str);
     }
 
-    /** Need to sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
+    /** Need to sort prefixes to ensure correct accept/reject evaluation (see Issue #167). */
     void sortPrefixes() {
-        if (whitelistPrefixesSet != null) {
-            whitelistPrefixes = new ArrayList<>(whitelistPrefixesSet);
+        if (acceptPrefixesSet != null) {
+            acceptPrefixes = new ArrayList<>(acceptPrefixesSet);
         }
-        if (whitelistPrefixes != null) {
-            CollectionUtils.sortIfNotEmpty(whitelistPrefixes);
+        if (acceptPrefixes != null) {
+            CollectionUtils.sortIfNotEmpty(acceptPrefixes);
         }
-        if (blacklistPrefixes != null) {
-            CollectionUtils.sortIfNotEmpty(blacklistPrefixes);
+        if (rejectPrefixes != null) {
+            CollectionUtils.sortIfNotEmpty(rejectPrefixes);
         }
     }
 
@@ -697,44 +697,44 @@ public abstract class WhiteBlackList {
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
-        if (whitelist != null) {
-            buf.append("whitelist: ");
-            quoteList(whitelist, buf);
+        if (accept != null) {
+            buf.append("accept: ");
+            quoteList(accept, buf);
         }
-        if (whitelistPrefixes != null) {
+        if (acceptPrefixes != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("whitelistPrefixes: ");
-            quoteList(whitelistPrefixes, buf);
+            buf.append("acceptPrefixes: ");
+            quoteList(acceptPrefixes, buf);
         }
-        if (whitelistGlobs != null) {
+        if (acceptGlobs != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("whitelistGlobs: ");
-            quoteList(whitelistGlobs, buf);
+            buf.append("acceptGlobs: ");
+            quoteList(acceptGlobs, buf);
         }
-        if (blacklist != null) {
+        if (reject != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklist: ");
-            quoteList(blacklist, buf);
+            buf.append("reject: ");
+            quoteList(reject, buf);
         }
-        if (blacklistPrefixes != null) {
+        if (rejectPrefixes != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklistPrefixes: ");
-            quoteList(blacklistPrefixes, buf);
+            buf.append("rejectPrefixes: ");
+            quoteList(rejectPrefixes, buf);
         }
-        if (blacklistGlobs != null) {
+        if (rejectGlobs != null) {
             if (buf.length() > 0) {
                 buf.append("; ");
             }
-            buf.append("blacklistGlobs: ");
-            quoteList(blacklistGlobs, buf);
+            buf.append("rejectGlobs: ");
+            quoteList(rejectGlobs, buf);
         }
         return buf.toString();
     }

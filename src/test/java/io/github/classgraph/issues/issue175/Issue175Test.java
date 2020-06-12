@@ -56,7 +56,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.core.contracts") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan()) {
             final List<String> methods = new ArrayList<>();
@@ -83,7 +83,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.core") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
@@ -108,7 +108,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.core") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
@@ -135,7 +135,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.core.contracts") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
@@ -169,7 +169,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.testing.node") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.testing.node") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
@@ -231,7 +231,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.core.node.services.vault") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
@@ -258,7 +258,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.client.jackson") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
@@ -294,7 +294,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.core.node.services.vault") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
@@ -318,7 +318,7 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().whitelistPackages("net.corda.client.jackson") //
+        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {

@@ -52,7 +52,7 @@ public class Issue245Test {
 
         try (ScanResult scanResult = new ClassGraph() //
                 .overrideClasspath(jarURL.toString() + "!/META-INF/maven") //
-                .whitelistPaths("org.springframework/gs-spring-boot") //
+                .acceptPaths("org.springframework/gs-spring-boot") //
                 .disableNestedJarScanning() //
                 .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsOnly(

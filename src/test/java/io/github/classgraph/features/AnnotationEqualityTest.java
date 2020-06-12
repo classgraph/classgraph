@@ -84,7 +84,7 @@ class AnnotationEqualityTest {
     @Test
     void annotationEquality() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(AnnotationEqualityTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(AnnotationEqualityTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(Y.class.getName());
             assertThat(classInfo).isNotNull();
             final Class<?> cls = classInfo.loadClass();

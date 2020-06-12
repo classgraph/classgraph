@@ -63,7 +63,7 @@ public class Issue148Test {
 
         final String pkg = Issue148Test.class.getPackage().getName();
         final StringBuilder buf = new StringBuilder();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg).enableAllInfo().scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg).enableAllInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 buf.append(ci.getName()).append("|");
                 buf.append(ci.isInnerClass()).append(" ").append(ci.isAnonymousInnerClass()).append(" ")

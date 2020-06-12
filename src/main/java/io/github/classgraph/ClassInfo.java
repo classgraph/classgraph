@@ -90,11 +90,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * If true, this class is only being referenced by another class' classfile as a superclass / implemented
-     * interface / annotation, but this class is not itself a whitelisted (non-blacklisted) class, or in a
-     * whitelisted (non-blacklisted) package.
+     * interface / annotation, but this class is not itself an accepted (non-rejected) class, or in a accepted
+     * (non-rejected) package.
      * 
      * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
-     * whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
+     * accepted (and non-rejected) class in an accepted (and non-rejected) package.
      */
     protected boolean isExternalClass = true;
 
@@ -678,7 +678,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Mark the class as scanned
         classInfo.isScannedClass = true;
 
-        // Mark the class as non-external if it is a whitelisted class
+        // Mark the class as non-external if it is an accepted class
         classInfo.isExternalClass = isExternalClass;
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
@@ -720,14 +720,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the classes
      * @param scanSpec
      *            the scan spec
-     * @param strictWhitelist
-     *            If true, exclude class if it is is external, blacklisted, or a system class.
+     * @param strictAccept
+     *            If true, exclude class if it is is external, rejected, or a system class.
      * @param classTypes
      *            the class types
      * @return the filtered classes.
      */
     private static Set<ClassInfo> filterClassInfo(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
-            final boolean strictWhitelist, final ClassType... classTypes) {
+            final boolean strictAccept, final ClassType... classTypes) {
         if (classes == null) {
             return Collections.<ClassInfo> emptySet();
         }
@@ -776,13 +776,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     || includeAnnotations && classInfo.isAnnotation() //
                     || includeEnums && classInfo.isEnum() //
                     || includeRecords && classInfo.isRecord()) //
-                    // Always check blacklist 
-                    && !scanSpec.classOrPackageIsBlacklisted(classInfo.name) //
-                    // Always return whitelisted classes, or external classes if enableExternalClasses is true
+                    // Always check reject 
+                    && !scanSpec.classOrPackageIsRejected(classInfo.name) //
+                    // Always return accepted classes, or external classes if enableExternalClasses is true
                     && (!classInfo.isExternalClass || scanSpec.enableExternalClasses
-                    // Return external (non-whitelisted) classes if viewing class hierarchy "upwards" 
-                            || !strictWhitelist)) {
-                // Class passed strict whitelist criteria
+                    // Return external (non-accepted) classes if viewing class hierarchy "upwards" 
+                            || !strictAccept)) {
+                // Class passed strict accept criteria
                 classInfoSetFiltered.add(classInfo);
             }
         }
@@ -822,13 +822,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @param relType
      *            the rel type
-     * @param strictWhitelist
-     *            the strict whitelist
+     * @param strictAccept
+     *            the strict accept criterion
      * @param classTypes
      *            the class types
      * @return the reachable and directly related classes
      */
-    private ReachableAndDirectlyRelatedClasses filterClassInfo(final RelType relType, final boolean strictWhitelist,
+    private ReachableAndDirectlyRelatedClasses filterClassInfo(final RelType relType, final boolean strictAccept,
             final ClassType... classTypes) {
         Set<ClassInfo> directlyRelatedClasses = this.relatedClasses.get(relType);
         if (directlyRelatedClasses == null) {
@@ -843,7 +843,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // For method and field annotations, need to change the RelType when finding meta-annotations
             for (final ClassInfo annotation : directlyRelatedClasses) {
                 reachableClasses.addAll(
-                        annotation.filterClassInfo(RelType.CLASS_ANNOTATIONS, strictWhitelist).reachableClasses);
+                        annotation.filterClassInfo(RelType.CLASS_ANNOTATIONS, strictAccept).reachableClasses);
             }
         } else if (relType == RelType.CLASSES_WITH_METHOD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION
@@ -853,8 +853,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION) {
             // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
             // look for the methods or fields that they annotate
-            for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
-                    strictWhitelist, ClassType.ANNOTATION).reachableClasses) {
+            for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, strictAccept,
+                    ClassType.ANNOTATION).reachableClasses) {
                 final Set<ClassInfo> annotatedClasses = subAnnotation.relatedClasses.get(relType);
                 if (annotatedClasses != null) {
                     reachableClasses.addAll(annotatedClasses);
@@ -902,8 +902,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
 
         return new ReachableAndDirectlyRelatedClasses(
-                filterClassInfo(reachableClasses, scanResult.scanSpec, strictWhitelist, classTypes),
-                filterClassInfo(directlyRelatedClasses, scanResult.scanSpec, strictWhitelist, classTypes));
+                filterClassInfo(reachableClasses, scanResult.scanSpec, strictAccept, classTypes),
+                filterClassInfo(directlyRelatedClasses, scanResult.scanSpec, strictAccept, classTypes));
 
     }
 
@@ -920,7 +920,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
-                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ALL),
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true, ClassType.ALL),
                 /* sortByName = */ true);
     }
 
@@ -935,7 +935,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllEnums(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
-                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ENUM),
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true, ClassType.ENUM),
                 /* sortByName = */ true);
     }
 
@@ -950,7 +950,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllRecords(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
-                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.RECORD),
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true, ClassType.RECORD),
                 /* sortByName = */ true);
     }
 
@@ -964,8 +964,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A list of all standard classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllStandardClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true,
-                ClassType.STANDARD_CLASS), /* sortByName = */ true);
+        return new ClassInfoList(
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true, ClassType.STANDARD_CLASS),
+                /* sortByName = */ true);
     }
 
     /**
@@ -979,7 +980,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllImplementedInterfaceClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true,
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true,
                 ClassType.IMPLEMENTED_INTERFACE), /* sortByName = */ true);
     }
 
@@ -995,7 +996,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllAnnotationClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
-                ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true, ClassType.ANNOTATION),
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true, ClassType.ANNOTATION),
                 /* sortByName = */ true);
     }
 
@@ -1007,11 +1008,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the classes
      * @param scanSpec
      *            the scan spec
-     * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
+     * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllInterfacesOrAnnotationClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictWhitelist = */ true,
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true,
                 ClassType.INTERFACE_OR_ANNOTATION), /* sortByName = */ true);
     }
 
@@ -1082,8 +1083,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this is an external class.
      *
-     * @return true if this class is an external class, i.e. was referenced by a whitelisted class as a superclass,
-     *         interface, or annotation, but is not itself a whitelisted class.
+     * @return true if this class is an external class, i.e. was referenced by an accepted class as a superclass,
+     *         interface, or annotation, but is not itself an accepted class.
      */
     public boolean isExternalClass() {
         return isExternalClass;
@@ -1093,7 +1094,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get the minor version of the classfile format for this class' classfile.
      * 
      * @return The minor version of the classfile format for this class' classfile, or 0 if this {@link ClassInfo}
-     *         object is a placeholder for a referenced class that was not found or not whitelisted during the scan.
+     *         object is a placeholder for a referenced class that was not found or not accepted during the scan.
      */
     public int getClassfileMinorVersion() {
         return classfileMinorVersion;
@@ -1103,7 +1104,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get the major version of the classfile format for this class' classfile.
      * 
      * @return The major version of the classfile format for this class' classfile, or 0 if this {@link ClassInfo}
-     *         object is a placeholder for a referenced class that was not found or not whitelisted during the scan.
+     *         object is a placeholder for a referenced class that was not found or not accepted during the scan.
      */
     public int getClassfileMajorVersion() {
         return classfileMajorVersion;
@@ -1523,7 +1524,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             return scanResult.getAllClasses();
         } else {
             return new ClassInfoList(
-                    this.filterClassInfo(RelType.SUBCLASSES, /* strictWhitelist = */ !isExternalClass),
+                    this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ !isExternalClass),
                     /* sortByName = */ true);
         }
     }
@@ -1536,7 +1537,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of all superclasses of this class, or the empty list if none.
      */
     public ClassInfoList getSuperclasses() {
-        return new ClassInfoList(this.filterClassInfo(RelType.SUPERCLASSES, /* strictWhitelist = */ false),
+        return new ClassInfoList(this.filterClassInfo(RelType.SUPERCLASSES, /* strictAccept = */ false),
                 /* sortByName = */ false);
     }
 
@@ -1571,7 +1572,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public ClassInfoList getOuterClasses() {
         return new ClassInfoList(
-                this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS, /* strictWhitelist = */ false),
+                this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS, /* strictAccept = */ false),
                 /* sortByName = */ false);
     }
 
@@ -1581,7 +1582,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A list of the inner classes contained within this class, or the empty list if none.
      */
     public ClassInfoList getInnerClasses() {
-        return new ClassInfoList(this.filterClassInfo(RelType.CONTAINS_INNER_CLASS, /* strictWhitelist = */ false),
+        return new ClassInfoList(this.filterClassInfo(RelType.CONTAINS_INNER_CLASS, /* strictAccept = */ false),
                 /* sortByName = */ true);
     }
 
@@ -1610,12 +1611,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public ClassInfoList getInterfaces() {
         // Classes also implement the interfaces of their superclasses
         final ReachableAndDirectlyRelatedClasses implementedInterfaces = this
-                .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictWhitelist = */ false);
+                .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictAccept = */ false);
         final Set<ClassInfo> allInterfaces = new LinkedHashSet<>(implementedInterfaces.reachableClasses);
         for (final ClassInfo superclass : this.filterClassInfo(RelType.SUPERCLASSES,
-                /* strictWhitelist = */ false).reachableClasses) {
-            final Set<ClassInfo> superclassImplementedInterfaces = superclass.filterClassInfo(
-                    RelType.IMPLEMENTED_INTERFACES, /* strictWhitelist = */ false).reachableClasses;
+                /* strictAccept = */ false).reachableClasses) {
+            final Set<ClassInfo> superclassImplementedInterfaces = superclass
+                    .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictAccept = */ false).reachableClasses;
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
         return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses,
@@ -1634,11 +1635,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         // Subclasses of implementing classes also implement the interface
         final ReachableAndDirectlyRelatedClasses implementingClasses = this
-                .filterClassInfo(RelType.CLASSES_IMPLEMENTING, /* strictWhitelist = */ !isExternalClass);
+                .filterClassInfo(RelType.CLASSES_IMPLEMENTING, /* strictAccept = */ !isExternalClass);
         final Set<ClassInfo> allImplementingClasses = new LinkedHashSet<>(implementingClasses.reachableClasses);
         for (final ClassInfo implementingClass : implementingClasses.reachableClasses) {
             final Set<ClassInfo> implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES,
-                    /* strictWhitelist = */ !implementingClass.isExternalClass).reachableClasses;
+                    /* strictAccept = */ !implementingClass.isExternalClass).reachableClasses;
             allImplementingClasses.addAll(implementingSubclasses);
         }
         return new ClassInfoList(allImplementingClasses, implementingClasses.directlyRelatedClasses,
@@ -1668,12 +1669,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
         // Get all annotations on this class
         final ReachableAndDirectlyRelatedClasses annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS,
-                /* strictWhitelist = */ false);
+                /* strictAccept = */ false);
         // Check for any @Inherited annotations on superclasses
         Set<ClassInfo> inheritedSuperclassAnnotations = null;
         for (final ClassInfo superclass : getSuperclasses()) {
             for (final ClassInfo superclassAnnotation : superclass.filterClassInfo(RelType.CLASS_ANNOTATIONS,
-                    /* strictWhitelist = */ false).reachableClasses) {
+                    /* strictAccept = */ false).reachableClasses) {
                 // Check if any of the meta-annotations on this annotation are @Inherited,
                 // which causes an annotation to annotate a class and all of its subclasses.
                 if (superclassAnnotation != null && superclassAnnotation.isInherited) {
@@ -1716,7 +1717,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
         final ReachableAndDirectlyRelatedClasses fieldOrMethodAnnotations = this.filterClassInfo(relType,
-                /* strictWhitelist = */ false, ClassType.ANNOTATION);
+                /* strictAccept = */ false, ClassType.ANNOTATION);
         final Set<ClassInfo> fieldOrMethodAnnotationsAndMetaAnnotations = new LinkedHashSet<>(
                 fieldOrMethodAnnotations.reachableClasses);
         return new ClassInfoList(fieldOrMethodAnnotationsAndMetaAnnotations,
@@ -1745,9 +1746,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
         final ReachableAndDirectlyRelatedClasses classesWithDirectlyAnnotatedFieldsOrMethods = this
-                .filterClassInfo(relType, /* strictWhitelist = */ !isExternalClass);
+                .filterClassInfo(relType, /* strictAccept = */ !isExternalClass);
         final ReachableAndDirectlyRelatedClasses annotationsWithThisMetaAnnotation = this.filterClassInfo(
-                RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ !isExternalClass, ClassType.ANNOTATION);
+                RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ !isExternalClass, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.reachableClasses.isEmpty()) {
             // This annotation does not meta-annotate another annotation that annotates a method
             return new ClassInfoList(classesWithDirectlyAnnotatedFieldsOrMethods, /* sortByName = */ true);
@@ -1759,7 +1760,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses) {
                 allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods
                         .addAll(metaAnnotatedAnnotation.filterClassInfo(relType,
-                                /* strictWhitelist = */ !metaAnnotatedAnnotation.isExternalClass).reachableClasses);
+                                /* strictAccept = */ !metaAnnotatedAnnotation.isExternalClass).reachableClasses);
             }
             return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods,
                     classesWithDirectlyAnnotatedFieldsOrMethods.directlyRelatedClasses, /* sortByName = */ true);
@@ -1867,7 +1868,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
         // Get classes that have this annotation
         final ReachableAndDirectlyRelatedClasses classesWithAnnotation = this
-                .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ !isExternalClass);
+                .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ !isExternalClass);
 
         if (isInherited) {
             // If this is an inherited annotation, add into the result all subclasses of the annotated classes. 
@@ -1892,7 +1893,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     ClassInfoList getClassesWithAnnotationDirectOnly() {
         return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictWhitelist = */ !isExternalClass),
+                this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ !isExternalClass),
                 /* sortByName = */ true);
     }
 
@@ -2355,8 +2356,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithMethodAnnotationDirectOnly() {
-        return new ClassInfoList(this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION,
-                /* strictWhitelist = */ !isExternalClass), /* sortByName = */ true);
+        return new ClassInfoList(
+                this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, /* strictAccept = */ !isExternalClass),
+                /* sortByName = */ true);
     }
 
     /**
@@ -2367,7 +2369,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     ClassInfoList getClassesWithMethodParameterAnnotationDirectOnly() {
         return new ClassInfoList(this.filterClassInfo(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
-                /* strictWhitelist = */ !isExternalClass), /* sortByName = */ true);
+                /* strictAccept = */ !isExternalClass), /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2558,8 +2560,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithFieldAnnotationDirectOnly() {
-        return new ClassInfoList(this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION,
-                /* strictWhitelist = */ !isExternalClass), /* sortByName = */ true);
+        return new ClassInfoList(
+                this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, /* strictAccept = */ !isExternalClass),
+                /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2669,8 +2672,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * The {@link Resource} for the classfile of this class.
      *
      * @return The {@link Resource} for the classfile of this class. Returns null if the classfile for this class
-     *         was not actually read during the scan, e.g. because this class was not itself whitelisted, but was
-     *         referenced by a whitelisted class.
+     *         was not actually read during the scan, e.g. because this class was not itself accepted, but was
+     *         referenced by an accepted class.
      */
     public Resource getResource() {
         return classfileResource;
@@ -2901,8 +2904,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A {@link ClassInfoList} of {@link ClassInfo} objects for all classes referenced by this class. Note
      *         that you need to call {@link ClassGraph#enableInterClassDependencies()} before
      *         {@link ClassGraph#scan()} for this method to work. You should also call
-     *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
-     *         non-whitelisted classes to appear in the result.
+     *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want non-accepted
+     *         classes to appear in the result.
      */
     public ClassInfoList getClassDependencies() {
         if (!scanResult.scanSpec.enableInterClassDependencies) {
@@ -2987,7 +2990,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     buf.append(" extends ").append(superclass.toString(/* typeNameOnly = */ true));
                 }
                 final Set<ClassInfo> interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
-                        /* strictWhitelist = */ false).directlyRelatedClasses;
+                        /* strictAccept = */ false).directlyRelatedClasses;
                 if (!interfaces.isEmpty()) {
                     buf.append(isInterface() ? " extends " : " implements ");
                     boolean first = true;

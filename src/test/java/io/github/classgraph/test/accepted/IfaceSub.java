@@ -1,4 +1,4 @@
-package io.github.classgraph.test.whitelisted;
+package io.github.classgraph.test.accepted;
 
 /**
  * The Interface IfaceSub.

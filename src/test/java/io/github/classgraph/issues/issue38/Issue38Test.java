@@ -27,7 +27,7 @@ class Issue38Test {
      */
     @Test
     void testImplementsSuppressWarnings() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue38Test.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue38Test.class.getPackage().getName())
                 .scan()) {
             assertThat(scanResult.getClassesImplementing(SuppressWarnings.class.getName()).getNames())
                     .containsOnly(ImplementsSuppressWarnings.class.getName());

@@ -89,7 +89,7 @@ public class Issue152Test {
     @Test
     public void issue152Test() {
         final String pkg = Issue152Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
                 .scan()) {

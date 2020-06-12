@@ -15,7 +15,7 @@ public class GenerateClassGraphFigDotFile {
      */
     public static void main(final String[] args) {
         try (ScanResult scanResult = new ClassGraph() //
-                .whitelistPackages("com.xyz.fig") //
+                .acceptPackages("com.xyz.fig") //
                 .ignoreFieldVisibility() //
                 .enableFieldInfo() //
                 .ignoreMethodVisibility() //

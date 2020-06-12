@@ -55,7 +55,7 @@ public class Issue368Test {
      */
     @Test
     public void issue368Test() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue368Test.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue368Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             final String json = JSONSerializer.serializeObject(new InnerClass());
             assertThat(json)

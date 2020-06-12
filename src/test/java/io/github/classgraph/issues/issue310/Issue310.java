@@ -39,7 +39,7 @@ public class Issue310 {
         final String classpathBase = classfileURL.substring(0,
                 classfileURL.length() - (Issue310.class.getName().length() + 6));
         try (ScanResult scanResult1 = new ClassGraph().overrideClasspath(classpathBase)
-                .whitelistClasses(Issue310.class.getName()).enableAllInfo().scan()) {
+                .acceptClasses(Issue310.class.getName()).enableAllInfo().scan()) {
             assertThat(scanResult1.getClassInfo(Issue310.class.getName()).getFieldInfo("B")).isNotNull();
             final String json1 = scanResult1.toJSON(2);
             assertThat(json1).isNotEmpty();

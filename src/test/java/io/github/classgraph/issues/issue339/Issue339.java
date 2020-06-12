@@ -54,7 +54,7 @@ public class Issue339 {
     @Test
     public void test() {
         try (ScanResult scanResult = new ClassGraph().enableAllInfo().enableExternalClasses()
-                .whitelistClasses(Cls.class.getName()).scan()) {
+                .acceptClasses(Cls.class.getName()).scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(Cls.class.getName());
             final AnnotationParameterValueList annotationParamVals = classInfo.getMethodInfo("method").get(0)
                     .getAnnotationInfo().get(0).getParameterValues();

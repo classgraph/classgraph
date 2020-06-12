@@ -36,7 +36,7 @@ public class Issue314 {
         final String classpathBase = classfileURL.substring(0,
                 classfileURL.length() - (Issue314.class.getName().length() + 6));
         try (ScanResult scanResult1 = new ClassGraph().overrideClasspath(classpathBase)
-                .whitelistPackages(Issue314.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue314.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult1.getClassInfo(A.class.getName())).isNotNull();
             assertThat(scanResult1.getClassInfo(B.class.getName())).isNotNull();
             final String json1 = scanResult1.toJSON(2);

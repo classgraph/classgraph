@@ -51,7 +51,7 @@ public class MethodAnnotationTest {
     @Test
     public void testGetNamesOfClassesWithMethodAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
+                .acceptPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();
@@ -65,7 +65,7 @@ public class MethodAnnotationTest {
     @Test
     public void testGetNamesOfClassesWithMethodAnnotationIgnoringVisibility() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
+                .acceptPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
             final ClassInfoList classesWithMethodAnnotation = scanResult
                     .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName());

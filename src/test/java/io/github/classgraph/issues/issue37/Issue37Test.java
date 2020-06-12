@@ -60,7 +60,7 @@ public class Issue37Test {
     public void issue37Test() {
         final List<String> methodNames = new ArrayList<>();
         final String pkg = Issue37Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(pkg) //
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .scan()) {
             final ClassInfoList classes = scanResult.getAllClasses();

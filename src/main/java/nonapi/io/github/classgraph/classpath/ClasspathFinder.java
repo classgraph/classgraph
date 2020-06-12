@@ -169,7 +169,7 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
 
         } else if (scanSpec.overrideClassLoaders == null) {
-            // If system jars are not blacklisted, add JRE rt.jar to the beginning of the classpath
+            // If system jars are not rejected, add JRE rt.jar to the beginning of the classpath
             final String jreRtJar = SystemJarFinder.getJreRtJarPath();
 
             // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
@@ -186,10 +186,10 @@ public class ClasspathFinder {
                             + jreRtJar);
                 }
             }
-            final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarWhiteBlackList.whitelistAndBlacklistAreEmpty();
+            final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarAcceptReject.acceptAndRejectAreEmpty();
             for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-                if (scanAllLibOrExtJars || scanSpec.libOrExtJarWhiteBlackList
-                        .isSpecificallyWhitelistedAndNotBlacklisted(libOrExtJarPath)) {
+                if (scanAllLibOrExtJars
+                        || scanSpec.libOrExtJarAcceptReject.isSpecificallyAcceptedAndNotRejected(libOrExtJarPath)) {
                     classpathOrder.addSystemClasspathEntry(libOrExtJarPath, defaultClassLoader);
                     if (systemJarsLog != null) {
                         systemJarsLog.log("Found lib or ext jar: " + libOrExtJarPath);

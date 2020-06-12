@@ -36,8 +36,8 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.test.whitelisted.Cls;
-import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
+import io.github.classgraph.test.accepted.Cls;
+import io.github.classgraph.test.accepted.rejectedsub.RejectedSub;
 
 /**
  * DisableRecursiveScanningTest.
@@ -51,10 +51,10 @@ public class DisableRecursiveScanningTest {
      */
     @Test
     public void nonRootPackage() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(PKG).scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive(PKG).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
-            assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
+            assertThat(allClasses).doesNotContain(RejectedSub.class.getName());
         }
     }
 
@@ -63,7 +63,7 @@ public class DisableRecursiveScanningTest {
      */
     @Test
     public void rootPackage() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive("").scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive("").scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
             assertThat(allClasses).doesNotContain(Cls.class.getName());

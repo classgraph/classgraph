@@ -1,4 +1,4 @@
-package io.github.classgraph.test.blacklisted;
+package io.github.classgraph.test.rejected;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The Interface BlacklistedAnnotation.
+ * The Interface RejectedAnnotation.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface BlacklistedAnnotation {
+public @interface RejectedAnnotation {
 }

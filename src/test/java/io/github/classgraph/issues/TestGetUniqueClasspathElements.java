@@ -18,7 +18,7 @@ class TestGetUniqueClasspathElements {
      */
     @Test
     void testGetUniqueClasspathElements() {
-        final List<File> classpathElements = new ClassGraph().whitelistPackages("com.xyz").getClasspathFiles();
+        final List<File> classpathElements = new ClassGraph().acceptPackages("com.xyz").getClasspathFiles();
         assertThat(classpathElements).isNotEmpty();
     }
 }

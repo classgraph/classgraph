@@ -282,7 +282,7 @@ public class JSONSerializationTest {
         final String classpathBase = classfileURL.substring(0,
                 classfileURL.length() - (JSONSerializationTest.class.getName().length() + 6));
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathBase)
-                .whitelistPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName())
+                .acceptPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName())
                 .ignoreClassVisibility().scan()) {
             final int indent = 2;
             final String scanResultJSON = scanResult.toJSON(indent);

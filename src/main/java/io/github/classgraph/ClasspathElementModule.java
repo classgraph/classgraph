@@ -275,7 +275,7 @@ class ClasspathElementModule extends ClasspathElement {
 
         try (RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
                 = moduleReaderProxyRecycler.acquireRecycleOnClose()) {
-            // Look for whitelisted files in the module.
+            // Look for accepted files in the module.
             List<String> resourceRelativePaths;
             try {
                 resourceRelativePaths = moduleReaderProxyRecycleOnClose.get().list();
@@ -322,8 +322,8 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // Whitelist/blacklist classpath elements based on file resource paths
-                checkResourcePathWhiteBlackList(relativePath, log);
+                // Accept/reject classpath elements based on file resource paths
+                checkResourcePathAcceptReject(relativePath, log);
                 if (skipClasspathElement) {
                     return;
                 }
@@ -336,34 +336,34 @@ class ClasspathElementModule extends ClasspathElement {
                 final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
                 final ScanSpecPathMatch parentMatchStatus = //
                         prevParentRelativePath == null || parentRelativePathChanged
-                                ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
+                                ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
                                 : prevParentMatchStatus;
                 prevParentRelativePath = parentRelativePath;
                 prevParentMatchStatus = parentMatchStatus;
 
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
-                    // The parent dir or one of its ancestral dirs is blacklisted
+                if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
+                    // The parent dir or one of its ancestral dirs is rejected
                     if (subLog != null) {
-                        subLog.log("Skipping blacklisted path: " + relativePath);
+                        subLog.log("Skipping rejected path: " + relativePath);
                     }
                     continue;
                 }
 
-                // Found non-blacklisted relative path
+                // Found non-rejected relative path
                 if (allResourcePaths.add(relativePath)) {
-                    // If resource is whitelisted
-                    if (parentMatchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                            || parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                            || (parentMatchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                    && scanSpec.classfileIsSpecificallyWhitelisted(relativePath))) {
-                        // Add whitelisted resource
-                        addWhitelistedResource(newResource(relativePath), parentMatchStatus,
+                    // If resource is accepted
+                    if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
+                            || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
+                            || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
+                                    && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
+                        // Add accepted resource
+                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
                                 /* isClassfileOnly = */ false, subLog);
                     } else if (scanSpec.enableClassInfo && relativePath.equals("module-info.class")) {
-                        // Add module descriptor as a whitelisted classfile resource, so that it is scanned,
+                        // Add module descriptor as an accepted classfile resource, so that it is scanned,
                         // but don't add it to the list of resources in the ScanResult, since it is not
-                        // in a whitelisted package (#352)
-                        addWhitelistedResource(newResource(relativePath), parentMatchStatus,
+                        // in an accepted package (#352)
+                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
                                 /* isClassfileOnly = */ true, subLog);
                     }
                 }

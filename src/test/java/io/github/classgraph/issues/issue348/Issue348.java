@@ -20,14 +20,14 @@ public class Issue348 {
     /** Test for wildcarded jars. */
     @Test
     public void testWildcard() {
-        try (ScanResult scanResult1 = new ClassGraph().whitelistPathsNonRecursive("").scan()) {
+        try (ScanResult scanResult1 = new ClassGraph().acceptPathsNonRecursive("").scan()) {
             // Find all resources within classpath elements with ".jar" extension
             final List<String> jarResourceUris = scanResult1.getResourcesWithExtension("jar").stream()
                     .map(r -> r.getURI().toString()).collect(Collectors.toList());
             assertThat(jarResourceUris).isNotEmpty();
 
             try (ScanResult scanResult2 = new ClassGraph().overrideClasspath(jarResourceUris)
-                    .whitelistJars("issue*.jar").scan()) {
+                    .acceptJars("issue*.jar").scan()) {
                 // Find all classpath element URIs for non-nested jars
                 final List<String> cpUris = scanResult2.getClasspathURIs().stream().map(URI::toString)
                         .filter(u -> !u.contains("!")).collect(Collectors.toList());

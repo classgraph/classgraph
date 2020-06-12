@@ -21,14 +21,14 @@ public class Issue83Test {
     private static final URL jarPathURL = Issue83Test.class.getClassLoader().getResource("nested-jars-level1.zip");
 
     /**
-     * Jar whitelist.
+     * Jar accept.
      */
     @Test
-    public void jarWhitelist() {
+    public void jarAccept() {
         assertThat(jarPathURL).isNotNull();
         final List<String> paths = new ArrayList<>();
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPathURL)
-                .whitelistJars("nested-jars-level1.zip").scan()) {
+                .acceptJars("nested-jars-level1.zip").scan()) {
             final ResourceList resources = scanResult.getAllResources();
             for (final Resource res : resources) {
                 paths.add(res.getPath());
@@ -38,14 +38,14 @@ public class Issue83Test {
     }
 
     /**
-     * Jar blacklist.
+     * Jar reject.
      */
     @Test
-    public void jarBlacklist() {
+    public void jarReject() {
         assertThat(jarPathURL).isNotNull();
         final ArrayList<String> paths = new ArrayList<>();
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPathURL)
-                .blacklistJars("nested-jars-level1.zip").scan()) {
+                .rejectJars("nested-jars-level1.zip").scan()) {
             final ResourceList resources = scanResult.getAllResources();
             for (final Resource res : resources) {
                 paths.add(res.getPath());

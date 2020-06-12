@@ -42,26 +42,26 @@ import io.github.classgraph.FieldInfo;
 import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList.ByteArrayConsumerThrowsIOException;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.test.blacklisted.BlacklistedAnnotation;
-import io.github.classgraph.test.blacklisted.BlacklistedSubclass;
-import io.github.classgraph.test.blacklisted.BlacklistedSubinterface;
-import io.github.classgraph.test.blacklisted.BlacklistedSuperclass;
-import io.github.classgraph.test.whitelisted.Cls;
-import io.github.classgraph.test.whitelisted.ClsSub;
-import io.github.classgraph.test.whitelisted.ClsSubSub;
-import io.github.classgraph.test.whitelisted.Iface;
-import io.github.classgraph.test.whitelisted.IfaceSub;
-import io.github.classgraph.test.whitelisted.IfaceSubSub;
-import io.github.classgraph.test.whitelisted.Impl1;
-import io.github.classgraph.test.whitelisted.Impl1Sub;
-import io.github.classgraph.test.whitelisted.Impl1SubSub;
-import io.github.classgraph.test.whitelisted.Impl2;
-import io.github.classgraph.test.whitelisted.Impl2Sub;
-import io.github.classgraph.test.whitelisted.Impl2SubSub;
-import io.github.classgraph.test.whitelisted.StaticField;
-import io.github.classgraph.test.whitelisted.Whitelisted;
-import io.github.classgraph.test.whitelisted.WhitelistedInterface;
-import io.github.classgraph.test.whitelisted.blacklistedsub.BlacklistedSub;
+import io.github.classgraph.test.accepted.Accepted;
+import io.github.classgraph.test.accepted.AcceptedInterface;
+import io.github.classgraph.test.accepted.Cls;
+import io.github.classgraph.test.accepted.ClsSub;
+import io.github.classgraph.test.accepted.ClsSubSub;
+import io.github.classgraph.test.accepted.Iface;
+import io.github.classgraph.test.accepted.IfaceSub;
+import io.github.classgraph.test.accepted.IfaceSubSub;
+import io.github.classgraph.test.accepted.Impl1;
+import io.github.classgraph.test.accepted.Impl1Sub;
+import io.github.classgraph.test.accepted.Impl1SubSub;
+import io.github.classgraph.test.accepted.Impl2;
+import io.github.classgraph.test.accepted.Impl2Sub;
+import io.github.classgraph.test.accepted.Impl2SubSub;
+import io.github.classgraph.test.accepted.StaticField;
+import io.github.classgraph.test.accepted.rejectedsub.RejectedSub;
+import io.github.classgraph.test.rejected.RejectedAnnotation;
+import io.github.classgraph.test.rejected.RejectedSubclass;
+import io.github.classgraph.test.rejected.RejectedSubinterface;
+import io.github.classgraph.test.rejected.RejectedSuperclass;
 
 /**
  * ClassGraphTest.
@@ -70,8 +70,8 @@ public class ClassGraphTest {
     /** The Constant ROOT_PACKAGE. */
     private static final String ROOT_PACKAGE = ClassGraphTest.class.getPackage().getName();
 
-    /** The Constant WHITELIST_PACKAGE. */
-    private static final String WHITELIST_PACKAGE = Whitelisted.class.getPackage().getName();
+    /** The Constant ACCEPT_PACKAGE. */
+    private static final String ACCEPT_PACKAGE = Accepted.class.getPackage().getName();
 
     /**
      * Scan.
@@ -84,38 +84,38 @@ public class ClassGraphTest {
             assertThat(allClasses).contains(ClassGraph.class.getName());
             assertThat(allClasses).contains(ClassGraphTest.class.getName());
             assertThat(allClasses).doesNotContain(String.class.getName());
-            assertThat(allClasses).contains(BlacklistedSub.class.getName());
+            assertThat(allClasses).contains(RejectedSub.class.getName());
         }
     }
 
     /**
-     * Scan with whitelist.
+     * Scan with accept.
      */
     @Test
-    public void scanWithWhitelist() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
+    public void scanWithAccept() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraphTest.class.getName());
             assertThat(allClasses).doesNotContain(String.class.getName());
-            assertThat(allClasses).contains(BlacklistedSub.class.getName());
+            assertThat(allClasses).contains(RejectedSub.class.getName());
         }
     }
 
     /**
-     * Scan with whitelist and blacklist.
+     * Scan with accept and reject.
      */
     @Test
-    public void scanWithWhitelistAndBlacklist() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
-                .blacklistPackages(BlacklistedSub.class.getPackage().getName()).scan()) {
+    public void scanWithAcceptAndReject() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
+                .rejectPackages(RejectedSub.class.getPackage().getName()).scan()) {
             final List<String> allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraphTest.class.getName());
             assertThat(allClasses).doesNotContain(String.class.getName());
-            assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
+            assertThat(allClasses).doesNotContain(RejectedSub.class.getName());
         }
     }
 
@@ -124,7 +124,7 @@ public class ClassGraphTest {
      */
     @Test
     public void scanSubAndSuperclasses() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             final List<String> subclasses = scanResult.getSubclasses(Cls.class.getName()).getNames();
             assertThat(subclasses).doesNotContain(Cls.class.getName());
             assertThat(subclasses).contains(ClsSub.class.getName());
@@ -141,7 +141,7 @@ public class ClassGraphTest {
      */
     @Test
     public void scanSubAndSuperinterface() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             final List<String> subinterfaces = scanResult.getClassesImplementing(Iface.class.getName()).getNames();
             assertThat(subinterfaces).doesNotContain(Iface.class.getName());
             assertThat(subinterfaces).contains(IfaceSub.class.getName());
@@ -158,7 +158,7 @@ public class ClassGraphTest {
      */
     @Test
     public void scanTransitiveImplements() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
                     .doesNotContain(Iface.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
@@ -209,79 +209,74 @@ public class ClassGraphTest {
      */
     @Test
     public void testExternalSuperclassReturned() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
-            assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames())
-                    .containsExactly(BlacklistedSuperclass.class.getName());
-            assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .isEmpty();
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .isEmpty();
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
+                    .containsExactly(RejectedSuperclass.class.getName());
+            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
         }
     }
 
     /**
-     * Test whitelisted without exception without strict whitelist.
+     * Test accepted without exception without strict accept.
      */
     @Test
-    public void testWhitelistedWithoutExceptionWithoutStrictWhitelist() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableExternalClasses()
+    public void testAcceptedWithoutExceptionWithoutStrictAccept() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableExternalClasses()
                 .scan()) {
-            assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames())
-                    .containsExactly(BlacklistedSuperclass.class.getName());
+            assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
+                    .containsExactly(RejectedSuperclass.class.getName());
         }
     }
 
     /**
-     * Test can query with blacklisted annotation.
+     * Test can query with rejected annotation.
      */
-    public void testCanQueryWithBlacklistedAnnotation() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).scan()) {
-            assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getNames())
-                    .containsExactly(Whitelisted.class.getName());
+    public void testCanQueryWithRejectedAnnotation() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+                    .containsExactly(Accepted.class.getName());
         }
     }
 
     /**
-     * Test blacklisted placeholder not returned.
-     */
-    @Test
-    public void testBlacklistedPlaceholderNotReturned() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE)
-                .blacklistPackages(BlacklistedAnnotation.class.getPackage().getName()).enableAnnotationInfo()
-                .scan()) {
-            assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .isEmpty();
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .isEmpty();
-            assertThat(scanResult.getAnnotationsOnClass(WhitelistedInterface.class.getName()).getNames()).isEmpty();
-        }
-    }
-
-    /**
-     * Test blacklisted package overrides whitelisted class with whitelisted override returned.
+     * Test rejected placeholder not returned.
      */
     @Test
-    public void testBlacklistedPackageOverridesWhitelistedClassWithWhitelistedOverrideReturned() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE)
-                .blacklistPackages(BlacklistedAnnotation.class.getPackage().getName())
-                .whitelistClasses(BlacklistedAnnotation.class.getName()).enableAnnotationInfo().scan()) {
-            assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames()).isEmpty();
+    public void testRejectedPlaceholderNotReturned() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
+                .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo().scan()) {
+            assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getAnnotationsOnClass(AcceptedInterface.class.getName()).getNames()).isEmpty();
         }
     }
 
     /**
-     * Test non whitelisted annotation returned without strict whitelist.
+     * Test rejected package overrides accepted class with accepted override returned.
      */
     @Test
-    public void testNonWhitelistedAnnotationReturnedWithoutStrictWhitelist() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableAnnotationInfo()
+    public void testRejectedPackageOverridesAcceptedClassWithAcceptedOverrideReturned() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
+                .rejectPackages(RejectedAnnotation.class.getPackage().getName())
+                .acceptClasses(RejectedAnnotation.class.getName()).enableAnnotationInfo().scan()) {
+            assertThat(scanResult.getAnnotationsOnClass(Accepted.class.getName()).getNames()).isEmpty();
+        }
+    }
+
+    /**
+     * Test non accepted annotation returned without strict accept.
+     */
+    @Test
+    public void testNonAcceptedAnnotationReturnedWithoutStrictAccept() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableAnnotationInfo()
                 .enableExternalClasses().scan()) {
-            assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames())
-                    .containsOnly(BlacklistedAnnotation.class.getName());
+            assertThat(scanResult.getAnnotationsOnClass(Accepted.class.getName()).getNames())
+                    .containsOnly(RejectedAnnotation.class.getName());
         }
     }
 
@@ -290,69 +285,66 @@ public class ClassGraphTest {
      */
     @Test
     public void testExternalAnnotationReturned() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE).enableAnnotationInfo()
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableAnnotationInfo()
                 .scan()) {
-            assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames())
-                    .containsExactly(BlacklistedAnnotation.class.getName());
+            assertThat(scanResult.getAnnotationsOnClass(Accepted.class.getName()).getNames())
+                    .containsExactly(RejectedAnnotation.class.getName());
         }
     }
 
     /**
-     * Test blacklisted package.
+     * Test rejected package.
      */
-    public void testBlacklistedPackage() {
+    public void testRejectedPackage() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(ROOT_PACKAGE, "-" + BlacklistedSuperclass.class.getPackage().getName()).scan()) {
-            assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .isEmpty();
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getNames())
+                .acceptPackages(ROOT_PACKAGE, "-" + RejectedSuperclass.class.getPackage().getName()).scan()) {
+            assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
                     .isEmpty();
         }
     }
 
     /**
-     * Test no exception if querying blacklisted.
+     * Test no exception if querying rejected.
      */
-    public void testNoExceptionIfQueryingBlacklisted() {
+    public void testNoExceptionIfQueryingRejected() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(WHITELIST_PACKAGE, "-" + BlacklistedSuperclass.class.getPackage().getName())
-                .scan()) {
-            assertThat(scanResult.getSuperclasses(BlacklistedSuperclass.class.getName()).getNames()).isEmpty();
+                .acceptPackages(ACCEPT_PACKAGE, "-" + RejectedSuperclass.class.getPackage().getName()).scan()) {
+            assertThat(scanResult.getSuperclasses(RejectedSuperclass.class.getName()).getNames()).isEmpty();
         }
     }
 
     /**
-     * Test no exception if explicitly whitelisted class in blacklisted package.
+     * Test no exception if explicitly accepted class in rejected package.
      */
-    public void testNoExceptionIfExplicitlyWhitelistedClassInBlacklistedPackage() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE,
-                "-" + BlacklistedSuperclass.class.getPackage().getName() + BlacklistedSuperclass.class.getName())
+    public void testNoExceptionIfExplicitlyAcceptedClassInRejectedPackage() {
+        try (ScanResult scanResult = new ClassGraph()
+                .acceptPackages(ACCEPT_PACKAGE,
+                        "-" + RejectedSuperclass.class.getPackage().getName() + RejectedSuperclass.class.getName())
                 .scan()) {
-            assertThat(scanResult.getSuperclasses(BlacklistedSuperclass.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getSuperclasses(RejectedSuperclass.class.getName()).getNames()).isEmpty();
         }
     }
 
     /**
-     * Test visible if not blacklisted.
+     * Test visible if not rejected.
      */
     @Test
-    public void testVisibleIfNotBlacklisted() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE).enableAnnotationInfo()
-                .scan()) {
-            assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames())
-                    .containsExactly(BlacklistedSuperclass.class.getName());
-            assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getNames())
-                    .containsExactly(BlacklistedSubclass.class.getName());
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .containsExactly(BlacklistedSubinterface.class.getName());
-            assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames())
-                    .containsExactly(BlacklistedSubinterface.class.getName());
-            assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getNames())
-                    .containsExactly(Whitelisted.class.getName());
+    public void testVisibleIfNotRejected() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAnnotationInfo().scan()) {
+            assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
+                    .containsExactly(RejectedSuperclass.class.getName());
+            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames())
+                    .containsExactly(RejectedSubclass.class.getName());
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames())
+                    .containsExactly(RejectedSubinterface.class.getName());
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames())
+                    .containsExactly(RejectedSubinterface.class.getName());
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+                    .containsExactly(Accepted.class.getName());
         }
     }
 
@@ -362,7 +354,7 @@ public class ClassGraphTest {
     @Test
     public void scanFilePattern() {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
-        try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("").scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("").scan()) {
             try {
                 scanResult.getResourcesWithLeafName("file-content-test.txt")
                         .forEachByteArrayThrowingIOException(new ByteArrayConsumerThrowsIOException() {
@@ -383,7 +375,7 @@ public class ClassGraphTest {
      */
     @Test
     public void scanStaticFinalFieldName() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
                 .enableStaticFinalFieldConstantInitializerValues().scan()) {
             int numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
@@ -408,7 +400,7 @@ public class ClassGraphTest {
                 "integerField", "booleanField" }) {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);
         }
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(WHITELIST_PACKAGE)
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
                 .enableStaticFinalFieldConstantInitializerValues().ignoreFieldVisibility().scan()) {
             int numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
@@ -445,7 +437,7 @@ public class ClassGraphTest {
      */
     @Test
     public void generateGraphVizFile() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(ROOT_PACKAGE).enableAllInfo().scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAllInfo().scan()) {
             final String dotFile = scanResult.getAllClasses().generateGraphVizDotFile(20, 20);
             assertThat(dotFile).contains("\"" + ClsSub.class.getName() + "\" -> \"" + Cls.class.getName() + "\"");
         }
@@ -456,7 +448,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testGetClasspathElements() {
-        assertThat(new ClassGraph().whitelistPackages(ROOT_PACKAGE).enableAllInfo().getClasspathFiles().size())
+        assertThat(new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAllInfo().getClasspathFiles().size())
                 .isGreaterThan(0);
     }
 
@@ -466,7 +458,7 @@ public class ClassGraphTest {
     @Test
     public void testGetManifest() {
         final AtomicBoolean foundManifest = new AtomicBoolean();
-        try (ScanResult scanResult = new ClassGraph().whitelistPaths("META-INF").enableAllInfo().scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptPaths("META-INF").enableAllInfo().scan()) {
             for (@SuppressWarnings("unused")
             final Resource res : scanResult.getResourcesWithLeafName("MANIFEST.MF")) {
                 foundManifest.set(true);

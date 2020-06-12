@@ -71,8 +71,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /** The order of classpath elements, after inner jars have been extracted to temporary files, etc. */
     private List<ClasspathElement> classpathOrder;
 
-    /** A list of all files that were found in whitelisted packages. */
-    private ResourceList allWhitelistedResourcesCached;
+    /** A list of all files that were found in accepted packages. */
+    private ResourceList allAcceptedResourcesCached;
 
     /** The number of times {@link #getResourcesWithPath(String)} has been called. */
     private final AtomicInteger getResourcesWithPathCallCount = new AtomicInteger();
@@ -80,7 +80,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
      */
-    private Map<String, ResourceList> pathToWhitelistedResourcesCached;
+    private Map<String, ResourceList> pathToAcceptedResourcesCached;
 
     /** The map from class name to {@link ClassInfo}. */
     Map<String, ClassInfo> classNameToClassInfo;
@@ -319,7 +319,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     // Don't add self-references, or references to Object
                     if (refdClassInfo != null && !ci.equals(refdClassInfo)
                             && !refdClassInfo.getName().equals("java.lang.Object")
-                            // Only add class to result if it is whitelisted, or external classes are enabled
+                            // Only add class to result if it is accepted, or external classes are enabled
                             && (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses)) {
                         refdClassInfo.setScanResult(this);
                         refdClassesFiltered.add(refdClassInfo);
@@ -455,52 +455,52 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get the list of all resources.
      *
-     * @return A list of all resources (including classfiles and non-classfiles) found in whitelisted packages.
+     * @return A list of all resources (including classfiles and non-classfiles) found in accepted packages.
      */
     public ResourceList getAllResources() {
-        if (allWhitelistedResourcesCached == null) {
+        if (allAcceptedResourcesCached == null) {
             // Index Resource objects by path
-            final ResourceList whitelistedResourcesList = new ResourceList();
+            final ResourceList acceptedResourcesList = new ResourceList();
             for (final ClasspathElement classpathElt : classpathOrder) {
-                whitelistedResourcesList.addAll(classpathElt.whitelistedResources);
+                acceptedResourcesList.addAll(classpathElt.acceptedResources);
             }
             // Set atomically for thread safety
-            allWhitelistedResourcesCached = whitelistedResourcesList;
+            allAcceptedResourcesCached = acceptedResourcesList;
         }
-        return allWhitelistedResourcesCached;
+        return allAcceptedResourcesCached;
     }
 
     /**
      * Get a map from resource path to {@link Resource} for all resources (including classfiles and non-classfiles)
-     * found in whitelisted packages.
+     * found in accepted packages.
      *
      * @return The map from resource path to {@link Resource} for all resources (including classfiles and
-     *         non-classfiles) found in whitelisted packages.
+     *         non-classfiles) found in accepted packages.
      */
     public Map<String, ResourceList> getAllResourcesAsMap() {
-        if (pathToWhitelistedResourcesCached == null) {
-            final Map<String, ResourceList> pathToWhitelistedResourceListMap = new HashMap<>();
+        if (pathToAcceptedResourcesCached == null) {
+            final Map<String, ResourceList> pathToAcceptedResourceListMap = new HashMap<>();
             for (final Resource res : getAllResources()) {
-                ResourceList resList = pathToWhitelistedResourceListMap.get(res.getPath());
+                ResourceList resList = pathToAcceptedResourceListMap.get(res.getPath());
                 if (resList == null) {
-                    pathToWhitelistedResourceListMap.put(res.getPath(), resList = new ResourceList());
+                    pathToAcceptedResourceListMap.put(res.getPath(), resList = new ResourceList());
                 }
                 resList.add(res);
             }
             // Set atomically for thread safety
-            pathToWhitelistedResourcesCached = pathToWhitelistedResourceListMap;
+            pathToAcceptedResourcesCached = pathToAcceptedResourceListMap;
         }
-        return pathToWhitelistedResourcesCached;
+        return pathToAcceptedResourcesCached;
     }
 
     /**
-     * Get the list of all resources found in whitelisted packages that have the given path, relative to the package
+     * Get the list of all resources found in accepted packages that have the given path, relative to the package
      * root of the classpath element. May match several resources, up to one per classpath element.
      *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root.
-     * @return A list of all resources found in whitelisted packages that have the given path, relative to the
-     *         package root of the classpath element. May match several resources, up to one per classpath element.
+     * @return A list of all resources found in accepted packages that have the given path, relative to the package
+     *         root of the classpath element. May match several resources, up to one per classpath element.
      */
     public ResourceList getResourcesWithPath(final String resourcePath) {
         if (closed.get()) {
@@ -515,7 +515,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // If just a few calls are made, directly search for resource with the requested path
             ResourceList matchingResources = null;
             for (final ClasspathElement classpathElt : classpathOrder) {
-                for (final Resource res : classpathElt.whitelistedResources) {
+                for (final Resource res : classpathElt.acceptedResources) {
                     if (res.getPath().equals(path)) {
                         if (matchingResources == null) {
                             matchingResources = new ResourceList();
@@ -529,20 +529,20 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Get the list of all resources found in any classpath element, <i>whether in whitelisted packages or not (as
-     * long as the resource is not blacklisted)</i>, that have the given path, relative to the package root of the
-     * classpath element. May match several resources, up to one per classpath element. Note that this may not
-     * return a non-whitelisted resource, particularly when scanning directory classpath elements, because recursive
-     * scanning terminates once there are no possible whitelisted resources below a given directory. However,
-     * resources in ancestral directories of whitelisted directories can be found using this method.
+     * Get the list of all resources found in any classpath element, <i>whether in accepted packages or not (as long
+     * as the resource is not rejected)</i>, that have the given path, relative to the package root of the classpath
+     * element. May match several resources, up to one per classpath element. Note that this may not return a
+     * non-accepted resource, particularly when scanning directory classpath elements, because recursive scanning
+     * terminates once there are no possible accepted resources below a given directory. However, resources in
+     * ancestral directories of accepted directories can be found using this method.
      *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root.
-     * @return A list of all resources found in any classpath element, <i>whether in whitelisted packages or not (as
-     *         long as the resource is not blacklisted)</i>, that have the given path, relative to the package root
-     *         of the classpath element. May match several resources, up to one per classpath element.
+     * @return A list of all resources found in any classpath element, <i>whether in accepted packages or not (as
+     *         long as the resource is not rejected)</i>, that have the given path, relative to the package root of
+     *         the classpath element. May match several resources, up to one per classpath element.
      */
-    public ResourceList getResourcesWithPathIgnoringWhitelist(final String resourcePath) {
+    public ResourceList getResourcesWithPathIgnoringAccept(final String resourcePath) {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
@@ -559,22 +559,36 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Get the list of all resources found in whitelisted packages that have the requested leafname.
+     * @deprecated Use {@link #getResourcesWithPathIgnoringAccept(String)} instead.
+     *
+     * @param resourcePath
+     *            A complete resource path, relative to the classpath entry package root.
+     * @return A list of all resources found in any classpath element, <i>whether in accepted packages or not (as
+     *         long as the resource is not rejected)</i>, that have the given path, relative to the package root of
+     *         the classpath element. May match several resources, up to one per classpath element.
+     */
+    @Deprecated
+    public ResourceList getResourcesWithPathIgnoringWhitelist(final String resourcePath) {
+        return getResourcesWithPathIgnoringAccept(resourcePath);
+    }
+
+    /**
+     * Get the list of all resources found in accepted packages that have the requested leafname.
      *
      * @param leafName
      *            A resource leaf filename.
-     * @return A list of all resources found in whitelisted packages that have the requested leafname.
+     * @return A list of all resources found in accepted packages that have the requested leafname.
      */
     public ResourceList getResourcesWithLeafName(final String leafName) {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllResources();
-        if (allWhitelistedResources.isEmpty()) {
+        final ResourceList allAcceptedResources = getAllResources();
+        if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
         } else {
             final ResourceList filteredResources = new ResourceList();
-            for (final Resource classpathResource : allWhitelistedResources) {
+            for (final Resource classpathResource : allAcceptedResources) {
                 final String relativePath = classpathResource.getPath();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
                 if (relativePath.substring(lastSlashIdx + 1).equals(leafName)) {
@@ -586,18 +600,18 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Get the list of all resources found in whitelisted packages that have the requested filename extension.
+     * Get the list of all resources found in accepted packages that have the requested filename extension.
      *
      * @param extension
      *            A filename extension, e.g. "xml" to match all resources ending in ".xml".
-     * @return A list of all resources found in whitelisted packages that have the requested filename extension.
+     * @return A list of all resources found in accepted packages that have the requested filename extension.
      */
     public ResourceList getResourcesWithExtension(final String extension) {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllResources();
-        if (allWhitelistedResources.isEmpty()) {
+        final ResourceList allAcceptedResources = getAllResources();
+        if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
         } else {
             String bareExtension = extension;
@@ -605,7 +619,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 bareExtension = bareExtension.substring(1);
             }
             final ResourceList filteredResources = new ResourceList();
-            for (final Resource classpathResource : allWhitelistedResources) {
+            for (final Resource classpathResource : allAcceptedResources) {
                 final String relativePath = classpathResource.getPath();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
                 final int lastDotIdx = relativePath.lastIndexOf('.');
@@ -619,23 +633,22 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Get the list of all resources found in whitelisted packages that have a path matching the requested pattern.
+     * Get the list of all resources found in accepted packages that have a path matching the requested pattern.
      *
      * @param pattern
      *            A pattern to match {@link Resource} paths with.
-     * @return A list of all resources found in whitelisted packages that have a path matching the requested
-     *         pattern.
+     * @return A list of all resources found in accepted packages that have a path matching the requested pattern.
      */
     public ResourceList getResourcesMatchingPattern(final Pattern pattern) {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final ResourceList allWhitelistedResources = getAllResources();
-        if (allWhitelistedResources.isEmpty()) {
+        final ResourceList allAcceptedResources = getAllResources();
+        if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
         } else {
             final ResourceList filteredResources = new ResourceList();
-            for (final Resource classpathResource : allWhitelistedResources) {
+            for (final Resource classpathResource : allAcceptedResources) {
                 final String relativePath = classpathResource.getPath();
                 if (pattern.matcher(relativePath).matches()) {
                     filteredResources.add(classpathResource);
@@ -721,15 +734,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
     // Class dependencies
 
     /**
-     * Get a map from the {@link ClassInfo} object for each whitelisted class to a list of the classes referenced by
+     * Get a map from the {@link ClassInfo} object for each accepted class to a list of the classes referenced by
      * that class (i.e. returns a map from dependents to dependencies). Note that you need to call
      * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
      * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
-     * non-whitelisted classes to appear in the result. See also {@link #getReverseClassDependencyMap()}, which
-     * inverts the map.
+     * non-accepted classes to appear in the result. See also {@link #getReverseClassDependencyMap()}, which inverts
+     * the map.
      *
-     * @return A map from a {@link ClassInfo} object for each whitelisted class to a list of the classes referenced
-     *         by that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
+     * @return A map from a {@link ClassInfo} object for each accepted class to a list of the classes referenced by
+     *         that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
      *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key.
      */
     public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
@@ -742,15 +755,15 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     /**
      * Get the reverse class dependency map, i.e. a map from the {@link ClassInfo} object for each dependency class
-     * (whitelisted or not) to a list of the whitelisted classes that referenced that class as a dependency (i.e.
-     * returns a map from dependencies to dependents). Note that you need to call
+     * (accepted or not) to a list of the accepted classes that referenced that class as a dependency (i.e. returns
+     * a map from dependencies to dependents). Note that you need to call
      * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
      * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
-     * non-whitelisted classes to appear in the result. See also {@link #getClassDependencyMap}.
+     * non-accepted classes to appear in the result. See also {@link #getClassDependencyMap}.
      *
-     * @return A map from a {@link ClassInfo} object for each dependency class (whitelisted or not) to a list of the
-     *         whitelisted classes that referenced that class as a dependency (i.e. returns a map from dependencies
-     *         to dependents).
+     * @return A map from a {@link ClassInfo} object for each dependency class (accepted or not) to a list of the
+     *         accepted classes that referenced that class as a dependency (i.e. returns a map from dependencies to
+     *         dependents).
      */
     public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
         final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();
@@ -775,7 +788,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     /**
      * Get the {@link ClassInfo} object for the named class, or null if no class of the requested name was found in
-     * a whitelisted/non-blacklisted package during the scan.
+     * an accepted/non-rejected package during the scan.
      * 
      * @param className
      *            The class name.
@@ -794,7 +807,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get all classes, interfaces and annotations found during the scan.
      *
-     * @return A list of all whitelisted classes found during the scan, or the empty list if none.
+     * @return A list of all accepted classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllClasses() {
         if (closed.get()) {
@@ -856,7 +869,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get all standard (non-interface/non-annotation) classes found during the scan.
      *
-     * @return A list of all whitelisted standard classes found during the scan, or the empty list if none.
+     * @return A list of all accepted standard classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllStandardClasses() {
         if (closed.get()) {
@@ -974,7 +987,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * Get all interface classes found during the scan (not including annotations, which are also technically
      * interfaces). See also {@link #getAllInterfacesAndAnnotations()}.
      *
-     * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
+     * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfaces() {
         if (closed.get()) {
@@ -1048,7 +1061,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * Get all interface or annotation classes found during the scan. (Annotations are technically interfaces, and
      * they can be implemented.)
      *
-     * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
+     * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfacesAndAnnotations() {
         if (closed.get()) {
@@ -1110,8 +1123,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
      * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
-     * scan, so cannot detect the addition of directories that newly match whitelist criteria -- you need to perform
-     * a full scan to detect those changes.
+     * scan, so cannot detect the addition of directories that newly match accept criteria -- you need to perform a
+     * full scan to detect those changes.
      *
      * @return true if the classpath contents have been modified since the last scan.
      */
@@ -1132,16 +1145,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Find the maximum last-modified timestamp of any whitelisted file/directory/jarfile encountered during the
-     * scan. Checks the current timestamps, so this should increase between calls if something changes in
-     * whitelisted paths. Assumes both file and system timestamps were generated from clocks whose time was
-     * accurate. Ignores timestamps greater than the system time.
+     * Find the maximum last-modified timestamp of any accepted file/directory/jarfile encountered during the scan.
+     * Checks the current timestamps, so this should increase between calls if something changes in accepted paths.
+     * Assumes both file and system timestamps were generated from clocks whose time was accurate. Ignores
+     * timestamps greater than the system time.
      * 
      * <p>
      * This method cannot in general tell if classpath has changed (or modules have been added or removed) if it is
      * run twice during the same runtime session.
      *
-     * @return the maximum last-modified time for whitelisted files/directories/jars encountered during the scan.
+     * @return the maximum last-modified time for accepted files/directories/jars encountered during the scan.
      */
     public long classpathContentsLastModifiedTime() {
         if (closed.get()) {
@@ -1403,16 +1416,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 classpathOrder.clear();
                 classpathOrder = null;
             }
-            if (allWhitelistedResourcesCached != null) {
-                for (final Resource classpathResource : allWhitelistedResourcesCached) {
+            if (allAcceptedResourcesCached != null) {
+                for (final Resource classpathResource : allAcceptedResourcesCached) {
                     classpathResource.close();
                 }
-                allWhitelistedResourcesCached.clear();
-                allWhitelistedResourcesCached = null;
+                allAcceptedResourcesCached.clear();
+                allAcceptedResourcesCached = null;
             }
-            if (pathToWhitelistedResourcesCached != null) {
-                pathToWhitelistedResourcesCached.clear();
-                pathToWhitelistedResourcesCached = null;
+            if (pathToAcceptedResourcesCached != null) {
+                pathToAcceptedResourcesCached.clear();
+                pathToAcceptedResourcesCached = null;
             }
             classGraphClassLoader = null;
             if (classNameToClassInfo != null) {

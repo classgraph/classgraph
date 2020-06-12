@@ -46,51 +46,51 @@ import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ModulePathInfo;
 import io.github.classgraph.ScanResult;
-import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListLeafname;
-import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListPrefix;
-import nonapi.io.github.classgraph.scanspec.WhiteBlackList.WhiteBlackListWholeString;
+import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
+import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
+import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * The scanning specification.
  */
 public class ScanSpec {
-    /** Package white/blacklist (with separator '.'). */
-    public WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString('.');
+    /** Package accept/reject criteria (with separator '.'). */
+    public AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.');
 
-    /** Package prefix white/blacklist, for recursive scanning (with separator '.', ending in '.'). */
-    public WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix('.');
+    /** Package prefix accept/reject criteria, for recursive scanning (with separator '.', ending in '.'). */
+    public AcceptRejectPrefix packagePrefixAcceptReject = new AcceptRejectPrefix('.');
 
-    /** Path white/blacklist (with separator '/'). */
-    public WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString('/');
+    /** Path accept/reject criteria (with separator '/'). */
+    public AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/');
 
-    /** Path prefix white/blacklist, for recursive scanning (with separator '/', ending in '/'). */
-    public WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix('/');
+    /** Path prefix accept/reject criteria, for recursive scanning (with separator '/', ending in '/'). */
+    public AcceptRejectPrefix pathPrefixAcceptReject = new AcceptRejectPrefix('/');
 
-    /** Class white/blacklist (fully-qualified class names, with separator '.'). */
-    public WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString('.');
+    /** Class accept/reject criteria (fully-qualified class names, with separator '.'). */
+    public AcceptRejectWholeString classAcceptReject = new AcceptRejectWholeString('.');
 
-    /** Classfile white/blacklist (path to classfiles, with separator '/', ending in ".class"). */
-    public WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString('/');
+    /** Classfile accept/reject criteria (path to classfiles, with separator '/', ending in ".class"). */
+    public AcceptRejectWholeString classfilePathAcceptReject = new AcceptRejectWholeString('/');
 
-    /** Package containing white/blacklisted classes (with separator '.'). */
-    public WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString('.');
+    /** Package containing accept/reject criteriaed classes (with separator '.'). */
+    public AcceptRejectWholeString classPackageAcceptReject = new AcceptRejectWholeString('.');
 
-    /** Path to white/blacklisted classes (with separator '/'). */
-    public WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString('/');
+    /** Path to accept/reject criteriaed classes (with separator '/'). */
+    public AcceptRejectWholeString classPackagePathAcceptReject = new AcceptRejectWholeString('/');
 
-    /** Module white/blacklist (with separator '.'). */
-    public WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString('.');
+    /** Module accept/reject criteria (with separator '.'). */
+    public AcceptRejectWholeString moduleAcceptReject = new AcceptRejectWholeString('.');
 
-    /** Jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname('/');
+    /** Jar accept/reject criteria (leafname only, ending in ".jar"). */
+    public AcceptRejectLeafname jarAcceptReject = new AcceptRejectLeafname('/');
 
-    /** Classpath element resource path white/blacklist. */
-    public WhiteBlackListWholeString classpathElementResourcePathWhiteBlackList = //
-            new WhiteBlackListWholeString('/');
+    /** Classpath element resource path accept/reject criteria. */
+    public AcceptRejectWholeString classpathElementResourcePathAcceptReject = //
+            new AcceptRejectWholeString('/');
 
-    /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname('/');
+    /** lib/ext jar accept/reject criteria (leafname only, ending in ".jar"). */
+    public AcceptRejectLeafname libOrExtJarAcceptReject = new AcceptRejectLeafname('/');
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -135,9 +135,9 @@ public class ScanSpec {
     public boolean enableInterClassDependencies;
 
     /**
-     * If true, allow external classes (classes outside of whitelisted packages) to be returned in the ScanResult,
-     * if they are directly referred to by a whitelisted class, as a superclass, implemented interface or
-     * annotation. Disabled by default.
+     * If true, allow external classes (classes outside of accepted packages) to be returned in the ScanResult, if
+     * they are directly referred to by an accepted class, as a superclass, implemented interface or annotation.
+     * Disabled by default.
      */
     public boolean enableExternalClasses;
 
@@ -267,12 +267,12 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
+    /** Sort prefixes to ensure correct accept/reject evaluation (see Issue #167). */
     public void sortPrefixes() {
         for (final Field field : ScanSpec.class.getDeclaredFields()) {
-            if (WhiteBlackList.class.isAssignableFrom(field.getType())) {
+            if (AcceptReject.class.isAssignableFrom(field.getType())) {
                 try {
-                    ((WhiteBlackList) field.get(this)).sortPrefixes();
+                    ((AcceptReject) field.get(this)).sortPrefixes();
                 } catch (final ReflectiveOperationException e) {
                     throw ClassGraphException.newClassGraphException("Field is not accessible: " + field, e);
                 }
@@ -440,104 +440,104 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
+     * Whether a path is a descendant of a rejected path, or an ancestor or descendant of an accepted path.
      */
     public enum ScanSpecPathMatch {
-        /** Path starts with (or is) a blacklisted path prefix. */
-        HAS_BLACKLISTED_PATH_PREFIX,
-        /** Path starts with a whitelisted path prefix. */
-        HAS_WHITELISTED_PATH_PREFIX,
-        /** Path is whitelisted. */
-        AT_WHITELISTED_PATH,
-        /** Path is an ancestor of a whitelisted path. */
-        ANCESTOR_OF_WHITELISTED_PATH,
-        /** Path is the package of a specifically-whitelisted class. */
-        AT_WHITELISTED_CLASS_PACKAGE,
-        /** Path is not whitelisted and not blacklisted. */
-        NOT_WITHIN_WHITELISTED_PATH
+        /** Path starts with (or is) a rejected path prefix. */
+        HAS_REJECTED_PATH_PREFIX,
+        /** Path starts with an accepted path prefix. */
+        HAS_ACCEPTED_PATH_PREFIX,
+        /** Path is accepted. */
+        AT_ACCEPTED_PATH,
+        /** Path is an ancestor of an accepted path. */
+        ANCESTOR_OF_ACCEPTED_PATH,
+        /** Path is the package of a specifically-accepted class. */
+        AT_ACCEPTED_CLASS_PACKAGE,
+        /** Path is not accepted and not rejected. */
+        NOT_WITHIN_ACCEPTED_PATH
     }
 
     /**
-     * Returns true if the given directory path is a descendant of a blacklisted path, or an ancestor or descendant
-     * of a whitelisted path. The path should end in "/".
+     * Returns true if the given directory path is a descendant of a rejected path, or an ancestor or descendant of
+     * an accepted path. The path should end in "/".
      *
      * @param relativePath
      *            the relative path
      * @return the {@link ScanSpecPathMatch}
      */
-    public ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
-        // In blacklisted path
-        if (pathWhiteBlackList.isBlacklisted(relativePath)) {
-            // The directory is blacklisted.
-            return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
+    public ScanSpecPathMatch dirAcceptMatchStatus(final String relativePath) {
+        // In rejected path
+        if (pathAcceptReject.isRejected(relativePath)) {
+            // The directory is rejected.
+            return ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX;
         }
-        if (pathPrefixWhiteBlackList.isBlacklisted(relativePath)) {
-            // An prefix of this path is blacklisted.
-            return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
-        }
-
-        if (pathWhiteBlackList.whitelistIsEmpty() && classPackagePathWhiteBlackList.whitelistIsEmpty()) {
-            // If there are no whitelisted packages, the root package is whitelisted
-            return relativePath.isEmpty() || relativePath.equals("/") ? ScanSpecPathMatch.AT_WHITELISTED_PATH
-                    : ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
+        if (pathPrefixAcceptReject.isRejected(relativePath)) {
+            // An prefix of this path is rejected.
+            return ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX;
         }
 
-        // At whitelisted path
-        if (pathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
-            // Reached a whitelisted path
-            return ScanSpecPathMatch.AT_WHITELISTED_PATH;
-        }
-        if (classPackagePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
-            // Reached a package containing a specifically-whitelisted class
-            return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
+        if (pathAcceptReject.acceptIsEmpty() && classPackagePathAcceptReject.acceptIsEmpty()) {
+            // If there are no accepted packages, the root package is accepted
+            return relativePath.isEmpty() || relativePath.equals("/") ? ScanSpecPathMatch.AT_ACCEPTED_PATH
+                    : ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX;
         }
 
-        // Descendant of whitelisted path
-        if (pathPrefixWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
-            // Path prefix matches one in the whitelist
-            return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
+        // At accepted path
+        if (pathAcceptReject.isSpecificallyAcceptedAndNotRejected(relativePath)) {
+            // Reached an accepted path
+            return ScanSpecPathMatch.AT_ACCEPTED_PATH;
+        }
+        if (classPackagePathAcceptReject.isSpecificallyAcceptedAndNotRejected(relativePath)) {
+            // Reached a package containing a specifically-accepted class
+            return ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE;
         }
 
-        // Ancestor of whitelisted path
+        // Descendant of accepted path
+        if (pathPrefixAcceptReject.isSpecificallyAccepted(relativePath)) {
+            // Path prefix matches one in the accept
+            return ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX;
+        }
+
+        // Ancestor of accepted path
         if (relativePath.equals("/")) {
-            // The default package is always the ancestor of whitelisted paths (need to keep recursing)
-            return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+            // The default package is always the ancestor of accepted paths (need to keep recursing)
+            return ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH;
         }
-        if (pathWhiteBlackList.whitelistHasPrefix(relativePath)) {
-            // relativePath is an ancestor (prefix) of a whitelisted path
-            return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+        if (pathAcceptReject.acceptHasPrefix(relativePath)) {
+            // relativePath is an ancestor (prefix) of an accepted path
+            return ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH;
         }
-        if (classfilePathWhiteBlackList.whitelistHasPrefix(relativePath)) {
-            // relativePath is an ancestor (prefix) of a whitelisted class' parent directory
-            return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+        if (classfilePathAcceptReject.acceptHasPrefix(relativePath)) {
+            // relativePath is an ancestor (prefix) of an accepted class' parent directory
+            return ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH;
         }
 
-        // Not in whitelisted path
-        return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;
+        // Not in accepted path
+        return ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
     }
 
     /**
      * Returns true if the given relative path (for a classfile name, including ".class") matches a
-     * specifically-whitelisted (and non-blacklisted) classfile's relative path.
+     * specifically-accepted (and non-rejected) classfile's relative path.
      *
      * @param relativePath
      *            the relative path
      * @return true if the given relative path (for a classfile name, including ".class") matches a
-     *         specifically-whitelisted (and non-blacklisted) classfile's relative path.
+     *         specifically-accepted (and non-rejected) classfile's relative path.
      */
-    public boolean classfileIsSpecificallyWhitelisted(final String relativePath) {
-        return classfilePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath);
+    public boolean classfileIsSpecificallyAccepted(final String relativePath) {
+        return classfilePathAcceptReject.isSpecificallyAcceptedAndNotRejected(relativePath);
     }
 
     /**
-     * Returns true if the class is specifically blacklisted, or is within a blacklisted package.
+     * Returns true if the class is specifically rejected, or is within a rejected package.
      *
      * @param className
      *            the class name
-     * @return true if the class is specifically blacklisted, or is within a blacklisted package.
+     * @return true if the class is specifically rejected, or is within a rejected package.
      */
-    public boolean classOrPackageIsBlacklisted(final String className) {
-        return classWhiteBlackList.isBlacklisted(className) || packagePrefixWhiteBlackList.isBlacklisted(className);
+    public boolean classOrPackageIsRejected(final String className) {
+        return classAcceptReject.isRejected(className) || packagePrefixAcceptReject.isRejected(className);
     }
 
     // -------------------------------------------------------------------------------------------------------------

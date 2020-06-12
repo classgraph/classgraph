@@ -66,7 +66,7 @@ public class Issue167Test {
      */
     @Test
     public void scanPackagesTest1() {
-        try (ScanResult scanResult = new ClassGraph().whitelistPackagesNonRecursive(packages.toArray(new String[0]))
+        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive(packages.toArray(new String[0]))
                 .enableClassInfo().scan()) {
             assertEquals(classNames, scanResult.getAllClasses().getNames());
         }
@@ -80,7 +80,7 @@ public class Issue167Test {
         final List<String> reversedPackages = new ArrayList<>(packages);
         Collections.reverse(reversedPackages);
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackagesNonRecursive(reversedPackages.toArray(new String[0])).enableClassInfo().scan()) {
+                .acceptPackagesNonRecursive(reversedPackages.toArray(new String[0])).enableClassInfo().scan()) {
             assertEquals(classNames, scanResult.getAllClasses().getNames());
         }
     }

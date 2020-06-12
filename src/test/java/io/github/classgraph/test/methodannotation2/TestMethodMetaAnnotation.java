@@ -105,7 +105,7 @@ public class TestMethodMetaAnnotation {
     @ExternalAnnotation
     public void testMetaAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
                 .scan()) {
             final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class.getName())
                     .getNames();
@@ -121,7 +121,7 @@ public class TestMethodMetaAnnotation {
     @ExternalAnnotation
     public void testMetaAnnotationStandardClassesOnly() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
                 .scan()) {
             final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class.getName())
                     .getStandardClasses().getNames();
@@ -136,7 +136,7 @@ public class TestMethodMetaAnnotation {
     @ExternalAnnotation
     public void testMethodMetaAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
+                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
                     .getClassesWithMethodAnnotation(MetaAnnotation.class.getName()).getNames();

@@ -23,24 +23,24 @@ public class Issue352 {
                 "istack-commons-runtime", null, null, "3.0.7");
         assertThat(resolvedFile).isFile();
 
-        // Test that module-info.class is not included in resource list if the root package ("") is not whitelisted
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(resolvedFile)
-                .whitelistPackagesNonRecursive("").enableClassInfo().scan()) {
+        // Test that module-info.class is not included in resource list if the root package ("") is not accepted
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(resolvedFile).acceptPackagesNonRecursive("")
+                .enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains("module-info.class");
         }
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(resolvedFile)
-                .whitelistPackages("com.sun.istack").enableClassInfo().scan()) {
+                .acceptPackages("com.sun.istack").enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).doesNotContain("module-info.class");
         }
 
-        // Test that package-info.class is only included in resource list for whitelisted packages 
+        // Test that package-info.class is only included in resource list for accepted packages 
         final String pkgInfoPath = Issue107Test.class.getPackage().getName().replace('.', '/')
                 + "/package-info.class";
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue107Test.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue107Test.class.getPackage().getName())
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains(pkgInfoPath);
         }
-        try (ScanResult scanResult = new ClassGraph().whitelistPackages(Issue352.class.getPackage().getName())
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue352.class.getPackage().getName())
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).doesNotContain(pkgInfoPath);
         }

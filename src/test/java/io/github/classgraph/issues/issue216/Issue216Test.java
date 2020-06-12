@@ -49,7 +49,7 @@ public class Issue216Test {
      */
     @Test
     public void testSpringBootJarWithLibJars() {
-        try (ScanResult result = new ClassGraph().whitelistPackages(Issue216Test.class.getPackage().getName())
+        try (ScanResult result = new ClassGraph().acceptPackages(Issue216Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             assertThat(result.getAllClasses().filter(new ClassInfoFilter() {
                 @Override

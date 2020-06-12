@@ -70,7 +70,7 @@ public class Issue420Test {
             try (URLClassLoader childClassLoader = new URLClassLoader(new URL[] { memFsCopyOfJarURL },
                     getClass().getClassLoader())) {
                 final ClassGraph classGraph = new ClassGraph().enableURLScheme(memFsCopyOfJarURL.getProtocol())
-                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders().whitelistPackages("mrj")
+                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders().acceptPackages("mrj")
                         .enableAllInfo();
                 try (ScanResult scanResult = classGraph.scan()) {
                     assertThat(scanResult.getClassInfo("mrj.Cls")).isNotNull();
@@ -108,7 +108,7 @@ public class Issue420Test {
                     getClass().getClassLoader())) {
                 final ClassGraph classGraph = new ClassGraph().enableURLScheme(memFsRootURL.getProtocol())
                         .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders()
-                        .whitelistPackages(packageName).enableAllInfo();
+                        .acceptPackages(packageName).enableAllInfo();
                 try (ScanResult scanResult = classGraph.scan()) {
                     assertThat(scanResult.getClassInfo(classFullyQualifiedName)).isNotNull();
                 }

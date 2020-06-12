@@ -28,7 +28,7 @@ public class ResolveTypeVariableTest<T extends ArrayList<Integer>> {
     @Test
     public void test() {
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPackages(ResolveTypeVariableTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ResolveTypeVariableTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final FieldInfoList fields = scanResult.getClassInfo(ResolveTypeVariableTest.class.getName())
                     .getFieldInfo();
             assertThat(((TypeVariableSignature) fields.get(0).getTypeSignature()).resolve().toString())

@@ -72,10 +72,10 @@ public class MultiReleaseJarTest {
         // Multi-release jar sections are ignored by ClassGraph if JDK<9 
         if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
             try (ScanResult scanResult = new ClassGraph()
-                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                    .whitelistPaths("nonexistent_path").scan()) {
+                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).acceptPaths("nonexistent_path")
+                    .scan()) {
                 assertThat(scanResult.getResourcesWithPath("mrj/Cls.class")).isEmpty();
-                assertThat(scanResult.getResourcesWithPathIgnoringWhitelist("mrj/Cls.class")).isNotEmpty();
+                assertThat(scanResult.getResourcesWithPathIgnoringAccept("mrj/Cls.class")).isNotEmpty();
             }
         }
     }

@@ -16,7 +16,7 @@ public class Issue78Test {
      */
     @Test
     public void issue78() {
-        try (ScanResult scanResult = new ClassGraph().whitelistClasses(Issue78Test.class.getName()).scan()) {
+        try (ScanResult scanResult = new ClassGraph().acceptClasses(Issue78Test.class.getName()).scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly(Issue78Test.class.getName());
         }
     }
