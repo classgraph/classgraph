@@ -99,10 +99,6 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *             if the URI could not be converted to a URL, or the URI had "jrt:" scheme.
      */
     private static URL uriToURL(final URI uri) {
-        if (uri.getScheme().equals("jrt")) {
-            // Currently URL cannot handle the "jrt:" scheme, used by system modules.
-            throw new IllegalArgumentException("Could not create URL from URI with \"jrt:\" scheme: " + uri);
-        }
         try {
             return uri.toURL();
         } catch (final MalformedURLException e) {
@@ -297,7 +293,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * directory entry, if this resource is a file on disk, or from the zipfile central directory, if this resource
      * is a zipfile entry. Timestamps are not available for resources obtained from system modules or jlink'd
      * modules.
-     * 
+     *
      * <p>
      * Note: The ZIP format has no notion of timezone, so timestamps are only meaningful if it is known what
      * timezone they were created in. We arbitrarily assume that zipfile timestamps are in the UTC timezone. This
