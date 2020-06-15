@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -31,8 +34,8 @@
         <connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
         <developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
         <url>https://github.com/classgraph/classgraph</url>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
 
     <issueManagement>
         <url>https://github.com/classgraph/classgraph/issues</url>
@@ -262,14 +265,6 @@
                                 <skip>true</skip>
                             </configuration>
                         </execution>
-                        <!-- Display environment info -->
-                        <execution>
-                            <id>display-info</id>
-                            <phase>compile</phase>
-                            <goals>
-                                <goal>display-info</goal>
-                            </goals>
-                        </execution>
                         <!-- Check main project for compatibility with JDK 7 API -->
                         <execution>
                             <id>check-signatures</id>
@@ -279,7 +274,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <!-- Check against JDK 7 API -->
@@ -359,8 +355,13 @@
                             </goals>
                             <configuration>
                                 <target>
-                                    <jar update="true" destfile="${project.build.directory}/${project.build.finalName}.jar">
-                                        <zipfileset prefix="META-INF/versions/9" dir="${project.basedir}/src/module-info/io.github.classgraph" includes="module-info.class" />
+                                    <jar
+                                        update="true"
+                                        destfile="${project.build.directory}/${project.build.finalName}.jar">
+                                        <zipfileset
+                                            prefix="META-INF/versions/9"
+                                            dir="${project.basedir}/src/module-info/io.github.classgraph"
+                                            includes="module-info.class" />
                                     </jar>
                                 </target>
                             </configuration>
