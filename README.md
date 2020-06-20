@@ -44,7 +44,7 @@ try (ScanResult scanResult =
         new ClassGraph()
             .verbose()                   // Log to stderr
             .enableAllInfo()             // Scan classes, methods, fields, annotations
-            .whitelistPackages(pkg)      // Scan com.xyz and subpackages (omit to scan all packages)
+            .acceptPackages(pkg)         // Scan com.xyz and subpackages (omit to scan all packages)
             .scan()) {                   // Start the scan
     for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
         AnnotationInfo routeAnnotationInfo = routeClassInfo.getAnnotationInfo(routeAnnotation);
@@ -59,7 +59,7 @@ try (ScanResult scanResult =
 The following code finds all JSON files in `META-INF/config` in all ClassLoaders or modules, and calls the method `readJson(String path, String content)` with the path and content of each file.
 
 ```java
-try (ScanResult scanResult = new ClassGraph().whitelistPathsNonRecursive("META-INF/config").scan()) {
+try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("META-INF/config").scan()) {
     scanResult.getResourcesWithExtension("json").forEachByteArray((Resource res, byte[] content) -> {
         readJson(res.getPath(), new String(content, StandardCharsets.UTF_8));
     });
