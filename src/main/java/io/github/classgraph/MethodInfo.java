@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.lang.annotation.Repeatable;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -573,27 +574,70 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Load the class this method is associated with, and get the {@link Method} reference for this method.
+     * Load and return the classes of each of the method parameters.
      * 
-     * @return The {@link Method} reference for this field.
-     * @throws IllegalArgumentException
-     *             if the method does not exist.
+     * @return An array of the {@link Class} references for each method parameter.
      */
-    public Method loadClassAndGetMethod() throws IllegalArgumentException {
+    private Class<?>[] loadParameterClasses() {
         final MethodParameterInfo[] allParameterInfo = getParameterInfo();
         final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
         for (final MethodParameterInfo mpi : allParameterInfo) {
             final TypeSignature parameterType = mpi.getTypeSignatureOrTypeDescriptor();
             parameterClasses.add(parameterType.loadClass());
         }
-        final Class<?>[] parameterClassesArr = parameterClasses.toArray(new Class<?>[0]);
+        return parameterClasses.toArray(new Class<?>[0]);
+    }
+
+    /**
+     * Load the class this method is associated with, and get the {@link Method} reference for this method. Only
+     * call this if {@link #isConstructor()} returns false, otherwise an {@link IllegalArgumentException} will be
+     * thrown. Instead call {@link #loadClassAndGetConstructor()} for constructors.
+     * 
+     * @return The {@link Method} reference for this method.
+     * @throws IllegalArgumentException
+     *             if the method does not exist, or if the method is a constructor.
+     */
+    public Method loadClassAndGetMethod() throws IllegalArgumentException {
+        if (isConstructor()) {
+            throw new IllegalArgumentException(
+                    "Need to call loadClassAndGetConstructor() for constructors, not loadClassAndGetMethod()");
+        }
+        final Class<?>[] parameterClassesArr = loadParameterClasses();
         try {
             return loadClass().getMethod(getName(), parameterClassesArr);
         } catch (final NoSuchMethodException e1) {
             try {
                 return loadClass().getDeclaredMethod(getName(), parameterClassesArr);
             } catch (final NoSuchMethodException es2) {
-                throw new IllegalArgumentException("No such method: " + getClassName() + "." + getName());
+                throw new IllegalArgumentException("Method not found: " + getClassName() + "." + getName());
+            }
+        }
+    }
+
+    /**
+     * Load the class this constructor is associated with, and get the {@link Constructor} reference for this
+     * constructor. Only call this if {@link #isConstructor()} returns true, otherwise an
+     * {@link IllegalArgumentException} will be thrown. Instead call {@link #loadClassAndGetMethod()} for non-method
+     * constructors.
+     * 
+     * @return The {@link Constructor} reference for this constructor.
+     * @throws IllegalArgumentException
+     *             if the constructor does not exist, or if the method is not a constructor.
+     */
+    public Constructor<?> loadClassAndGetConstructor() throws IllegalArgumentException {
+        if (!isConstructor()) {
+            throw new IllegalArgumentException(
+                    "Need to call loadClassAndGetMethod() for non-constructor methods, not "
+                            + "loadClassAndGetConstructor()");
+        }
+        final Class<?>[] parameterClassesArr = loadParameterClasses();
+        try {
+            return loadClass().getConstructor(parameterClassesArr);
+        } catch (final NoSuchMethodException e1) {
+            try {
+                return loadClass().getDeclaredConstructor(parameterClassesArr);
+            } catch (final NoSuchMethodException es2) {
+                throw new IllegalArgumentException("Constructor not found for class " + getClassName());
             }
         }
     }

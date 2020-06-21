@@ -231,10 +231,9 @@ abstract class ScanResultObject {
      * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
      * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class.
      * 
-     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded and
-     *         ignoreExceptions is true.
+     * @return The {@code Class<?>} reference for the referenced class.
      * @throws IllegalArgumentException
-     *             if the class could not be loaded and ignoreExceptions was false.
+     *             if the class could not be loaded.
      */
     Class<?> loadClass() {
         return loadClass(/* ignoreExceptions = */ false);
