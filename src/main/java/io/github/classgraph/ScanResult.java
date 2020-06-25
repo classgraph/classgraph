@@ -1220,7 +1220,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             if (returnNullIfClassNotFound) {
                 return null;
             } else {
-                throw new IllegalArgumentException("Could not load class " + className + " : " + e);
+                throw new IllegalArgumentException("Could not load class " + className + " : " + e, e);
             }
         }
     }
