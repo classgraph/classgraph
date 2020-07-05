@@ -264,8 +264,6 @@ public final class JSONUtils {
             return field.getByte(containingObj);
         } else if (fieldType == Character.TYPE) {
             return field.getChar(containingObj);
-        } else if (fieldType == Class.class) {
-            return field.get(containingObj);
         } else {
             return field.get(containingObj);
         }
