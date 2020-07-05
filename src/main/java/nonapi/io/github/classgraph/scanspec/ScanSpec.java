@@ -295,6 +295,10 @@ public class ScanSpec {
         if (this.overrideClasspath == null) {
             this.overrideClasspath = new ArrayList<>();
         }
+        if (overrideClasspathElement instanceof ClassLoader) {
+            throw new IllegalArgumentException(
+                    "Need to pass ClassLoader instances to overrideClassLoaders, not overrideClasspath");
+        }
         this.overrideClasspath
                 .add(overrideClasspathElement instanceof String || overrideClasspathElement instanceof URL
                         || overrideClasspathElement instanceof URI ? overrideClasspathElement
