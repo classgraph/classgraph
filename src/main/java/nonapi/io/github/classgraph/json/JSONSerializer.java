@@ -377,8 +377,8 @@ public final class JSONSerializer {
             final String[] fieldNames = new String[n];
             final Object[] convertedVals = new Object[n];
             for (int i = 0; i < n; i++) {
-                final FieldTypeInfo fieldInfo = fieldOrder.get(i);
-                final Field field = fieldInfo.field;
+                final FieldTypeInfo fieldTypeInfo = fieldOrder.get(i);
+                final Field field = fieldTypeInfo.field;
                 fieldNames[i] = field.getName();
                 try {
                     convertedVals[i] = JSONUtils.getFieldValue(obj, field);
