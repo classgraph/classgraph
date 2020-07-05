@@ -367,36 +367,36 @@ public final class JSONSerializer {
 
         } else {
             // A standard object -- serialize fields as a JSON associative array.
-            try {
-                // Cache class fields to include in serialization (typeResolutions can be null,
-                // since it's not necessary to resolve type parameters during serialization)
-                final ClassFields resolvedFields = classFieldCache.get(cls);
-                final List<FieldTypeInfo> fieldOrder = resolvedFields.fieldOrder;
-                final int n = fieldOrder.size();
+            // Cache class fields to include in serialization (typeResolutions can be null,
+            // since it's not necessary to resolve type parameters during serialization)
+            final ClassFields resolvedFields = classFieldCache.get(cls);
+            final List<FieldTypeInfo> fieldOrder = resolvedFields.fieldOrder;
+            final int n = fieldOrder.size();
 
-                // Convert field values to JSON values
-                final String[] fieldNames = new String[n];
-                final Object[] convertedVals = new Object[n];
-                for (int i = 0; i < n; i++) {
-                    final FieldTypeInfo fieldInfo = fieldOrder.get(i);
-                    final Field field = fieldInfo.field;
-                    fieldNames[i] = field.getName();
+            // Convert field values to JSON values
+            final String[] fieldNames = new String[n];
+            final Object[] convertedVals = new Object[n];
+            for (int i = 0; i < n; i++) {
+                final FieldTypeInfo fieldInfo = fieldOrder.get(i);
+                final Field field = fieldInfo.field;
+                fieldNames[i] = field.getName();
+                try {
                     convertedVals[i] = JSONUtils.getFieldValue(obj, field);
+                } catch (IllegalArgumentException | IllegalAccessException e) {
+                    throw ClassGraphException.newClassGraphException("Could not get value of field \""
+                            + fieldNames[i] + "\" in object of class " + obj.getClass().getName(), e);
                 }
-                convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
-                        onlySerializePublicFields);
-
-                // Create new JSON object representing the standard object
-                final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
-                for (int i = 0; i < n; i++) {
-                    convertedKeyValPairs.add(new SimpleEntry(fieldNames[i], convertedVals[i]));
-                }
-                jsonVal = new JSONObject(convertedKeyValPairs);
-
-            } catch (IllegalArgumentException | IllegalAccessException e) {
-                throw ClassGraphException.newClassGraphException("Could not get value of field in object: " + obj,
-                        e);
             }
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
+                    onlySerializePublicFields);
+
+            // Create new JSON object representing the standard object
+            final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                convertedKeyValPairs.add(new SimpleEntry(fieldNames[i], convertedVals[i]));
+            }
+            jsonVal = new JSONObject(convertedKeyValPairs);
+
         }
 
         // In the case of a DAG, just serialize the same object multiple times, i.e. remove obj
