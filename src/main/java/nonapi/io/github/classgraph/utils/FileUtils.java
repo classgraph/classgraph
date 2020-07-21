@@ -515,7 +515,7 @@ public final class FileUtils {
                 final Method cleanerMethod = byteBuffer.getClass().getMethod("cleaner");
                 if (cleanerMethod == null) {
                     if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleaner == null");
+                        log.log("Could not unmap ByteBuffer, cleanerMethod == null");
                     }
                     return false;
                 }
@@ -523,14 +523,14 @@ public final class FileUtils {
                     cleanerMethod.setAccessible(true);
                 } catch (final Exception e) {
                     if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleaner.setAccessible(true) failed");
+                        log.log("Could not unmap ByteBuffer, cleanerMethod.setAccessible(true) failed");
                     }
                     return false;
                 }
                 final Object cleaner = cleanerMethod.invoke(byteBuffer);
                 if (cleaner == null) {
                     if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleanerResult == null");
+                        log.log("Could not unmap ByteBuffer, cleaner == null");
                     }
                     return false;
                 }
@@ -539,7 +539,7 @@ public final class FileUtils {
                     return true;
                 } catch (final Exception e) {
                     if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleanMethod.invoke(cleanerResult) failed: " + e);
+                        log.log("Could not unmap ByteBuffer, cleanMethod.invoke(cleaner) failed: " + e);
                     }
                     return false;
                 }
