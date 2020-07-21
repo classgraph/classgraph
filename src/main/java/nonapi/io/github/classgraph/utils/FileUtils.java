@@ -512,30 +512,30 @@ public final class FileUtils {
                     return false;
                 }
                 // Invoke ((DirectBuffer) byteBuffer).cleaner().clean()
-                final Method cleaner = byteBuffer.getClass().getMethod("cleaner");
-                if (cleaner == null) {
+                final Method cleanerMethod = byteBuffer.getClass().getMethod("cleaner");
+                if (cleanerMethod == null) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, cleaner == null");
                     }
                     return false;
                 }
                 try {
-                    cleaner.setAccessible(true);
+                    cleanerMethod.setAccessible(true);
                 } catch (final Exception e) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, cleaner.setAccessible(true) failed");
                     }
                     return false;
                 }
-                final Object cleanerResult = cleaner.invoke(byteBuffer);
-                if (cleanerResult == null) {
+                final Object cleaner = cleanerMethod.invoke(byteBuffer);
+                if (cleaner == null) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, cleanerResult == null");
                     }
                     return false;
                 }
                 try {
-                    cleanMethod.invoke(cleaner.invoke(byteBuffer));
+                    cleanMethod.invoke(cleaner);
                     return true;
                 } catch (final Exception e) {
                     if (log != null) {
