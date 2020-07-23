@@ -50,9 +50,20 @@ import io.github.classgraph.ClassGraphException;
  * File utilities.
  */
 public final class FileUtils {
+    /** The DirectByteBuffer.cleaner() method. */
+    private static Method directByteBufferCleanerMethod;
 
-    /** The clean() method. */
-    private static Method cleanMethod;
+    /** The Cleaner.clean() method. */
+    private static Method cleanerCleanMethod;
+
+    //    /** The jdk.incubator.foreign.MemorySegment class (JDK14+). */
+    //    private static Class<?> memorySegmentClass;
+    //
+    //    /** The jdk.incubator.foreign.MemorySegment.ofByteBuffer method (JDK14+). */
+    //    private static Method memorySegmentOfByteBufferMethod;
+    //
+    //    /** The jdk.incubator.foreign.MemorySegment.ofByteBuffer method (JDK14+). */
+    //    private static Method memorySegmentCloseMethod;
 
     /** The attachment() method. */
     private static Method attachmentMethod;
@@ -425,46 +436,66 @@ public final class FileUtils {
     private static void lookupCleanMethodPrivileged() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
             try {
-                // See: https://stackoverflow.com/a/19447758/3950982
-                cleanMethod = Class.forName("sun.misc.Cleaner").getMethod("clean");
-                cleanMethod.setAccessible(true);
-                attachmentMethod = Class.forName("sun.nio.ch.DirectBuffer").getMethod("attachment");
+                // See:
+                // https://stackoverflow.com/a/19447758/3950982
+                cleanerCleanMethod = Class.forName("sun.misc.Cleaner").getDeclaredMethod("clean");
+                cleanerCleanMethod.setAccessible(true);
+                final Class<?> directByteBufferClass = Class.forName("sun.nio.ch.DirectBuffer");
+                directByteBufferCleanerMethod = directByteBufferClass.getDeclaredMethod("cleaner");
+                attachmentMethod = directByteBufferClass.getMethod("attachment");
                 attachmentMethod.setAccessible(true);
             } catch (final SecurityException e) {
                 throw ClassGraphException.newClassGraphException(
-                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
-                                + "RuntimePermission(\"accessClassInPackage.sun.nio.ch\"), "
+                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")",
                         e);
             } catch (final ReflectiveOperationException | LinkageError e) {
                 // Ignore
             }
         } else {
-            // In JDK9+, calling sun.misc.Cleaner.clean() gives a reflection warning on stderr,
-            // so we need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) instead, which makes
-            // the same call, but does not print the reflection warning.
-            try {
-                Class<?> unsafeClass;
+            boolean jdk14Success = false;
+            //    // TODO: This feature is in incubation now -- enable after it leaves incubation.
+            //    // To enable this feature, need to:
+            //    // -- add whatever the "jdk.incubator.foreign" module name is replaced with to <Import-Package>
+            //    //    in pom.xml, as an optional dependency
+            //    // -- add the same module name to module-info.java as a "requires static" optional dependency
+            //    // -- build two versions of module.java: the existing one, for --release=9, and a new version,
+            //    //    for --release=15 (or whatever the final release version ends up being when the feature is
+            //    //    moved out of incubation). 
+            //    try {
+            //        // JDK 14+ Invoke MemorySegment.ofByteBuffer(myByteBuffer).close()
+            //        // https://stackoverflow.com/a/26777380/3950982
+            //        memorySegmentClass = Class.forName("jdk.incubator.foreign.MemorySegment");
+            //        memorySegmentCloseMethod = AutoCloseable.class.getDeclaredMethod("close");
+            //        memorySegmentOfByteBufferMethod = memorySegmentClass.getMethod("ofByteBuffer",
+            //                ByteBuffer.class);
+            //        jdk14Success = true;
+            //    } catch (ClassNotFoundException | NoSuchMethodException | SecurityException e1) {
+            //        // Fall through
+            //    }
+            if (!jdk14Success) { // In JDK9+, calling sun.misc.Cleaner.clean() gives a reflection warning on stderr,
+                // so we need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) instead, which makes
+                // the same call, but does not print the reflection warning.
                 try {
-                    unsafeClass = Class.forName("sun.misc.Unsafe");
-                } catch (final ReflectiveOperationException | LinkageError e) {
-                    // jdk.internal.misc.Unsafe doesn't yet have an invokeCleaner() method,
-                    // but that method should be added if sun.misc.Unsafe is removed.
-                    unsafeClass = Class.forName("jdk.internal.misc.Unsafe");
+                    Class<?> unsafeClass;
+                    try {
+                        unsafeClass = Class.forName("sun.misc.Unsafe");
+                    } catch (final ReflectiveOperationException | LinkageError e) {
+                        throw ClassGraphException.newClassGraphException("Could not get class sun.misc.Unsafe", e);
+                    }
+                    final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
+                    theUnsafeField.setAccessible(true);
+                    theUnsafe = theUnsafeField.get(null);
+                    cleanerCleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
+                    cleanerCleanMethod.setAccessible(true);
+                } catch (final SecurityException e) {
+                    throw ClassGraphException.newClassGraphException(
+                            "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
+                                    + "and ReflectPermission(\"suppressAccessChecks\")",
+                            e);
+                } catch (final ReflectiveOperationException | LinkageError ex) {
+                    // Ignore
                 }
-                final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
-                theUnsafeField.setAccessible(true);
-                theUnsafe = theUnsafeField.get(null);
-                cleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-                cleanMethod.setAccessible(true);
-            } catch (final SecurityException e) {
-                throw ClassGraphException.newClassGraphException(
-                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\"), "
-                                + "RuntimePermission(\"accessClassInPackage.jdk.internal.misc\") "
-                                + "and ReflectPermission(\"suppressAccessChecks\")",
-                        e);
-            } catch (final ReflectiveOperationException | LinkageError ex) {
-                // Ignore
             }
         }
     }
@@ -489,13 +520,11 @@ public final class FileUtils {
      * @return true if successful
      */
     private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final LogNode log) {
+        if (!byteBuffer.isDirect()) {
+            // Nothing to do
+            return true;
+        }
         try {
-            if (cleanMethod == null) {
-                if (log != null) {
-                    log.log("Could not unmap ByteBuffer, cleanMethod == null");
-                }
-                return false;
-            }
             if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
                 if (attachmentMethod == null) {
                     if (log != null) {
@@ -512,30 +541,35 @@ public final class FileUtils {
                     return false;
                 }
                 // Invoke ((DirectBuffer) byteBuffer).cleaner().clean()
-                final Method cleanerMethod = byteBuffer.getClass().getMethod("cleaner");
-                if (cleanerMethod == null) {
+                if (directByteBufferCleanerMethod == null) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, cleanerMethod == null");
                     }
                     return false;
                 }
                 try {
-                    cleanerMethod.setAccessible(true);
+                    directByteBufferCleanerMethod.setAccessible(true);
                 } catch (final Exception e) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, cleanerMethod.setAccessible(true) failed");
                     }
                     return false;
                 }
-                final Object cleaner = cleanerMethod.invoke(byteBuffer);
-                if (cleaner == null) {
+                final Object cleanerInstance = directByteBufferCleanerMethod.invoke(byteBuffer);
+                if (cleanerInstance == null) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, cleaner == null");
                     }
                     return false;
                 }
+                if (cleanerCleanMethod == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleanMethod == null");
+                    }
+                    return false;
+                }
                 try {
-                    cleanMethod.invoke(cleaner);
+                    cleanerCleanMethod.invoke(cleanerInstance);
                     return true;
                 } catch (final Exception e) {
                     if (log != null) {
@@ -543,6 +577,17 @@ public final class FileUtils {
                     }
                     return false;
                 }
+                //    } else if (memorySegmentOfByteBufferMethod != null) {
+                //        // JDK 14+
+                //        final Object memorySegment = memorySegmentOfByteBufferMethod.invoke(null, byteBuffer);
+                //        if (memorySegment == null) {
+                //            if (log != null) {
+                //                log.log("Got null MemorySegment, could not unmap ByteBuffer");
+                //            }
+                //            return false;
+                //        }
+                //        memorySegmentCloseMethod.invoke(memorySegment);
+                //        return true;
             } else {
                 if (theUnsafe == null) {
                     if (log != null) {
@@ -550,8 +595,14 @@ public final class FileUtils {
                     }
                     return false;
                 }
+                if (cleanerCleanMethod == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleanMethod == null");
+                    }
+                    return false;
+                }
                 try {
-                    cleanMethod.invoke(theUnsafe, byteBuffer);
+                    cleanerCleanMethod.invoke(theUnsafe, byteBuffer);
                     return true;
                 } catch (final IllegalArgumentException e) {
                     // Buffer is a duplicate or slice
