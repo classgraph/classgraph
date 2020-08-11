@@ -20,13 +20,13 @@ ClassGraph is an uber-fast, ultra-lightweight, parallelized classpath scanner an
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
 <br>
-[![Dependencies: none](https://img.shields.io/badge/dependencies-none-lightgrey.svg)](#)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
 [![Dependents](https://badgen.net/github/dependents-repo/classgraph/classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-blue.svg)](https://seladb.github.io/StarTrack-js/#/preload?r=classgraph,classgraph)
 <br>
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/classgraph/Lobby)
 <br>
-[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
 
 | ClassGraph is now fully stable. This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**. |
 |-----------------------------|
