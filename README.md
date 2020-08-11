@@ -22,6 +22,7 @@ ClassGraph is an uber-fast, ultra-lightweight, parallelized classpath scanner an
 <br>
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-lightgrey.svg)](#)
+[![Dependents](https://badgen.net/github/dependents-repo/classgraph/classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
 <br>
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-yellow.svg)](https://seladb.github.io/StarTrack-js/#/preload?r=classgraph,classgraph)
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-yellow.svg)](https://gitter.im/classgraph/Lobby)
