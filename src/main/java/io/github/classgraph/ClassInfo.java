@@ -721,7 +721,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param scanSpec
      *            the scan spec
      * @param strictAccept
-     *            If true, exclude class if it is is external, rejected, or a system class.
+     *            If true, exclude class if it is external, if external classes are not enabled
      * @param classTypes
      *            the class types
      * @return the filtered classes.
@@ -821,7 +821,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param relType
      *            the relationship type
      * @param strictAccept
-     *            If true, exclude class if it is is external, rejected, or a system class.
+     *            If true, exclude class if it is external, if external classes are not enabled
      * @param classTypes
      *            the class types to accept
      * @return the reachable and directly related classes
