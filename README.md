@@ -17,12 +17,12 @@ ClassGraph is an uber-fast, ultra-lightweight, parallelized classpath scanner an
 [![lgtm code quality](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
 [![Codacy Badge](https://img.shields.io/codacy/grade/31d639dd3874454c917f80ea2bff8155.svg?style=flat)](https://www.codacy.com/app/lukehutch/classgraph)
 <br>
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
-[![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
-<br>
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
 [![Dependents](https://badgen.net/github/dependents-repo/classgraph/classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
 [![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-blue.svg)](https://seladb.github.io/StarTrack-js/#/preload?r=classgraph,classgraph)
+<br>
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
+[![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
 <br>
 [![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/classgraph/Lobby)
 <br>
