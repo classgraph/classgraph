@@ -770,19 +770,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final Set<ClassInfo> classInfoSetFiltered = new LinkedHashSet<>(classes.size());
         for (final ClassInfo classInfo : classes) {
             // Check class type against requested type(s)
-            if ((includeAllTypes //
+            boolean includeType = includeAllTypes //
                     || includeStandardClasses && classInfo.isStandardClass() //
                     || includeImplementedInterfaces && classInfo.isImplementedInterface() //
                     || includeAnnotations && classInfo.isAnnotation() //
                     || includeEnums && classInfo.isEnum() //
-                    || includeRecords && classInfo.isRecord()) //
-                    // Always check reject 
-                    && !scanSpec.classOrPackageIsRejected(classInfo.name) //
-                    // Always return accepted classes, or external classes if enableExternalClasses is true
-                    && (!classInfo.isExternalClass || scanSpec.enableExternalClasses
-                    // Return external (non-accepted) classes if viewing class hierarchy "upwards" 
-                            || !strictAccept)) {
-                // Class passed strict accept criteria
+                    || includeRecords && classInfo.isRecord();
+            // Return external (non-accepted) classes if viewing class hierarchy "upwards" 
+            boolean acceptClass = !classInfo.isExternalClass || scanSpec.enableExternalClasses || !strictAccept;
+            // If class is of correct type, and class is accepted, and class/package are not explicitly rejected 
+            if (includeType && acceptClass && !scanSpec.classOrPackageIsRejected(classInfo.name)) {
+                // Class passed accept criteria
                 classInfoSetFiltered.add(classInfo);
             }
         }
@@ -821,11 +819,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * directly related.
      *
      * @param relType
-     *            the rel type
+     *            the relationship type
      * @param strictAccept
-     *            the strict accept criterion
+     *            If true, exclude class if it is is external, rejected, or a system class.
      * @param classTypes
-     *            the class types
+     *            the class types to accept
      * @return the reachable and directly related classes
      */
     private ReachableAndDirectlyRelatedClasses filterClassInfo(final RelType relType, final boolean strictAccept,
