@@ -22,11 +22,11 @@ ClassGraph is an uber-fast, ultra-lightweight, parallelized classpath scanner an
 <br>
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-lightgrey.svg)](#)
 [![Dependents](https://badgen.net/github/dependents-repo/classgraph/classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
+[![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-blue.svg)](https://seladb.github.io/StarTrack-js/#/preload?r=classgraph,classgraph)
+<br>
+[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/classgraph/Lobby)
 <br>
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
-<br>
-[![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-blue.svg)](https://seladb.github.io/StarTrack-js/#/preload?r=classgraph,classgraph)
-[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/classgraph/Lobby)
 
 | ClassGraph is now fully stable. This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**. |
 |-----------------------------|
