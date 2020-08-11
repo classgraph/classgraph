@@ -453,7 +453,7 @@ public final class FileUtils {
                 // Ignore
             }
         } else {
-            boolean jdk14Success = false;
+            //boolean jdkSuccess = false;
             //    // TODO: This feature is in incubation now -- enable after it leaves incubation.
             //    // To enable this feature, need to:
             //    // -- add whatever the "jdk.incubator.foreign" module name is replaced with to <Import-Package>
@@ -473,30 +473,30 @@ public final class FileUtils {
             //    } catch (ClassNotFoundException | NoSuchMethodException | SecurityException e1) {
             //        // Fall through
             //    }
-            if (!jdk14Success) { // In JDK9+, calling sun.misc.Cleaner.clean() gives a reflection warning on stderr,
-                // so we need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) instead, which makes
-                // the same call, but does not print the reflection warning.
+            //if (!jdk14Success) { // In JDK9+, calling sun.misc.Cleaner.clean() gives a reflection warning on stderr,
+            // so we need to call Unsafe.theUnsafe.invokeCleaner(byteBuffer) instead, which makes
+            // the same call, but does not print the reflection warning.
+            try {
+                Class<?> unsafeClass;
                 try {
-                    Class<?> unsafeClass;
-                    try {
-                        unsafeClass = Class.forName("sun.misc.Unsafe");
-                    } catch (final ReflectiveOperationException | LinkageError e) {
-                        throw ClassGraphException.newClassGraphException("Could not get class sun.misc.Unsafe", e);
-                    }
-                    final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
-                    theUnsafeField.setAccessible(true);
-                    theUnsafe = theUnsafeField.get(null);
-                    cleanerCleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-                    cleanerCleanMethod.setAccessible(true);
-                } catch (final SecurityException e) {
-                    throw ClassGraphException.newClassGraphException(
-                            "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
-                                    + "and ReflectPermission(\"suppressAccessChecks\")",
-                            e);
-                } catch (final ReflectiveOperationException | LinkageError ex) {
-                    // Ignore
+                    unsafeClass = Class.forName("sun.misc.Unsafe");
+                } catch (final ReflectiveOperationException | LinkageError e) {
+                    throw ClassGraphException.newClassGraphException("Could not get class sun.misc.Unsafe", e);
                 }
+                final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
+                theUnsafeField.setAccessible(true);
+                theUnsafe = theUnsafeField.get(null);
+                cleanerCleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
+                cleanerCleanMethod.setAccessible(true);
+            } catch (final SecurityException e) {
+                throw ClassGraphException.newClassGraphException(
+                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
+                                + "and ReflectPermission(\"suppressAccessChecks\")",
+                        e);
+            } catch (final ReflectiveOperationException | LinkageError ex) {
+                // Ignore
             }
+            //}
         }
     }
 
