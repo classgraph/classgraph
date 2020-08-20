@@ -770,14 +770,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final Set<ClassInfo> classInfoSetFiltered = new LinkedHashSet<>(classes.size());
         for (final ClassInfo classInfo : classes) {
             // Check class type against requested type(s)
-            boolean includeType = includeAllTypes //
+            final boolean includeType = includeAllTypes //
                     || includeStandardClasses && classInfo.isStandardClass() //
                     || includeImplementedInterfaces && classInfo.isImplementedInterface() //
                     || includeAnnotations && classInfo.isAnnotation() //
                     || includeEnums && classInfo.isEnum() //
                     || includeRecords && classInfo.isRecord();
             // Return external (non-accepted) classes if viewing class hierarchy "upwards" 
-            boolean acceptClass = !classInfo.isExternalClass || scanSpec.enableExternalClasses || !strictAccept;
+            final boolean acceptClass = !classInfo.isExternalClass || scanSpec.enableExternalClasses
+                    || !strictAccept;
             // If class is of correct type, and class is accepted, and class/package are not explicitly rejected 
             if (includeType && acceptClass && !scanSpec.classOrPackageIsRejected(classInfo.name)) {
                 // Class passed accept criteria

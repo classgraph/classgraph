@@ -32,11 +32,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
@@ -411,7 +411,7 @@ class Scanner implements Callable<ScanResult> {
                     }
 
                     // Check type of classpath entry object
-                    String classpathEntryPathStr;
+                    Path classpathEntryPath = null;
                     if (classpathEntryObj instanceof URL) {
                         URL classpathEntryURL = (URL) classpathEntryObj;
                         String scheme = classpathEntryURL.getProtocol();
@@ -425,56 +425,75 @@ class Scanner implements Callable<ScanResult> {
                                 throw new IOException("Could not strip 'jar:' prefix from " + classpathEntryObj, e);
                             }
                         }
-                        if ("file".equals(scheme)) {
-                            // Extract file path, and use below as a path string to determine if this
-                            // classpath element is a file (jar) or directory
-                            classpathEntryPathStr = URLDecoder.decode(classpathEntryURL.getPath(), "UTF-8");
-                            // Fall through
-                        } else if ("http".equals(scheme) || "https".equals(scheme)) {
+                        if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
                             return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
                         } else {
                             try {
-                                // See if the URL resolves to a Path of type directory
-                                final Path path = Paths.get(classpathEntryURL.toURI());
-                                if (Files.isDirectory(path)) {
-                                    // If URL maps to a directory, use the NIO Path API instead of the File API
-                                    return new ClasspathElementPathDir(path, dirOrPathPackageRoot,
-                                            classpathEntry.classLoader, nestedJarHandler, scanSpec);
-                                }
-                            } catch (final URISyntaxException | IllegalArgumentException | SecurityException e) {
+                                // See if the URL resolves to a file or directory via the Path API
+                                classpathEntryPath = Paths.get(classpathEntryURL.toURI());
+                            } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
                                 throw new IOException(
                                         "Cannot handle URL " + classpathEntryURL + " : " + e.getMessage());
                             } catch (final FileSystemNotFoundException e) {
                                 // This is a custom URL scheme without a backing FileSystem
+                                return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
+                                        nestedJarHandler, scanSpec);
                             }
-
-                            // For custom URL schemes that do not resolve to directories, assume the URL
-                            // points to a jarfile
-                            return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
+                        }
+                    } else if (classpathEntryObj instanceof URI) {
+                        URI classpathEntryURI = (URI) classpathEntryObj;
+                        String scheme = classpathEntryURI.getScheme();
+                        if ("jar".equals(scheme)) {
+                            // Strip off "jar:" scheme prefix
+                            try {
+                                classpathEntryURI = new URI(
+                                        URLDecoder.decode(classpathEntryURI.toString(), "UTF-8").substring(4));
+                                scheme = classpathEntryURI.getScheme();
+                            } catch (final URISyntaxException e) {
+                                throw new IOException("Could not strip 'jar:' prefix from " + classpathEntryObj, e);
+                            }
+                        }
+                        if ("http".equals(scheme) || "https".equals(scheme)) {
+                            // Jar URL or URI (remote URLs/URIs must be jars)
+                            return new ClasspathElementZip(classpathEntryURI, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
+                        } else {
+                            try {
+                                // See if the URI resolves to a file or directory via the Path API
+                                classpathEntryPath = Paths.get(classpathEntryURI);
+                            } catch (final IllegalArgumentException | SecurityException e) {
+                                throw new IOException(
+                                        "Cannot handle URI " + classpathEntryURI + " : " + e.getMessage());
+                            } catch (final FileSystemNotFoundException e) {
+                                // This is a custom URI scheme without a backing FileSystem
+                                return new ClasspathElementZip(classpathEntryURI, classpathEntry.classLoader,
+                                        nestedJarHandler, scanSpec);
+                            }
                         }
                     } else if (classpathEntryObj instanceof Path) {
-                        final Path classpathEntryPath = (Path) classpathEntryObj;
+                        classpathEntryPath = (Path) classpathEntryObj;
+                    } else {
+                        // Fall through for any other object type (toString will be used to get path)
+                    }
+
+                    if (classpathEntryPath != null) {
                         final Path packageRootPath = classpathEntryPath.resolve(dirOrPathPackageRoot);
                         if (FileUtils.canReadAndIsFile(packageRootPath)) {
                             // classpathEntryObj is a Path which points to a lib/ext jar inside a parent Path
-                            return new ClasspathElementZip(classpathEntryPath.toUri(), classpathEntry.classLoader,
+                            return new ClasspathElementZip(classpathEntryPath, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
                         } else if (FileUtils.canReadAndIsDir(packageRootPath)) {
                             // classpathEntryObj is a Path which points to a dir -- need to scan it recursively
-                            return new ClasspathElementPathDir((Path) classpathEntryObj, dirOrPathPackageRoot,
+                            return new ClasspathElementPathDir(classpathEntryPath, dirOrPathPackageRoot,
                                     classpathEntry.classLoader, nestedJarHandler, scanSpec);
-                        } else {
-                            throw new IOException("Path is not a directory or file: " + classpathEntryPath);
                         }
-
-                    } else {
-                        // Convert classpathEntryObj to a string
-                        classpathEntryPathStr = classpathEntryObj.toString();
                     }
-                    // Fall through for file paths
+
+                    // Fall through for other object types (including String)
+                    // Convert classpathEntryObj to a string
+                    final String classpathEntryPathStr = classpathEntryObj.toString();
 
                     // Normalize path -- strip off any leading "jar:" / "file:", and normalize separators
                     final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,

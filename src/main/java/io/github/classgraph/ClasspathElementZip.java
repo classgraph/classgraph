@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -64,7 +65,10 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
-    /** The {@link String} representation of the raw path, {@link URL} or {@link URI} for this zipfile. */
+    /**
+     * The {@link String} representation of the path string, {@link URL}, {@link URI}, or {@link Path} for this
+     * zipfile.
+     */
     private final String rawPath;
     /** The logical zipfile for this classpath element. */
     LogicalZipFile logicalZipFile;
@@ -89,7 +93,7 @@ class ClasspathElementZip extends ClasspathElement {
      *
      * @param rawPathObj
      *            the raw path to the jarfile as a {@link String}, possibly including "!"-delimited nested paths, or
-     *            a {@link URL} or {@link URI} for the jarfile
+     *            a {@link URL}, {@link URI} ol {@link Path} for the jarfile.
      * @param classLoader
      *            the classloader
      * @param nestedJarHandler
@@ -100,9 +104,21 @@ class ClasspathElementZip extends ClasspathElement {
     ClasspathElementZip(final Object rawPathObj, final ClassLoader classLoader,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(classLoader, scanSpec);
-        // Convert the raw path object (String, URL, or URI) to a string.
+        // Convert the raw path object (String, URL, URI, or Path) to a string.
         // Any required URL/URI parsing are done in NestedJarHandler.
-        this.rawPath = rawPathObj.toString();
+        String rawPath = null;
+        if (rawPathObj instanceof Path) {
+            // Path.toString does not include URI scheme => turn into a URI so that toString works
+            try {
+                rawPath = ((Path) rawPathObj).toUri().toString();
+            } catch (final IOError e) {
+                // Fall through
+            }
+        }
+        if (rawPath == null) {
+            rawPath = rawPathObj.toString();
+        }
+        this.rawPath = rawPath;
         this.zipFilePath = rawPath; // May change when open() is called
         this.nestedJarHandler = nestedJarHandler;
     }
