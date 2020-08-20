@@ -54,6 +54,8 @@ public final class URLPathEncoder {
         safe['!'] = safe['*'] = safe['\''] = safe['('] = safe[')'] = safe[','] = true;
         // Only include "/" from "fsegment" and "hsegment" rules (exclude ':', '@', '&' and '=' for safety)
         safe['/'] = true;
+        // Also allow  '+' characters (#468)
+        safe['+'] = true;
     }
 
     /** Hexadecimal digits. */
