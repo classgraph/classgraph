@@ -380,6 +380,9 @@ public class NestedJarHandler {
     /** The maximum initial buffer size. */
     private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
+    /** HTTP(S) timeout, ms. */
+    private static final int HTTP_TIMEOUT = 5000;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -542,9 +545,15 @@ public class NestedJarHandler {
             if (conn instanceof HttpURLConnection) {
                 // Get content length from HTTP headers, if available
                 httpConn = (HttpURLConnection) url.openConnection();
-                contentLengthHint = httpConn.getContentLengthLong();
-                if (contentLengthHint < -1L) {
-                    contentLengthHint = -1L;
+                httpConn.setRequestMethod("GET");
+                httpConn.setConnectTimeout(HTTP_TIMEOUT);
+                if (httpConn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    contentLengthHint = httpConn.getContentLengthLong();
+                    if (contentLengthHint < -1L) {
+                        contentLengthHint = -1L;
+                    }
+                } else {
+                    throw new IOException("Got response code " + httpConn.getResponseCode() + " for URL " + url);
                 }
             } else if (conn.getURL().getProtocol().equalsIgnoreCase("file")) {
                 // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that

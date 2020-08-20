@@ -73,16 +73,20 @@ public class Issue128Test {
             if (filesInsideLevel3.isEmpty()) {
                 // If there were no files inside jar, it is possible that remote jar could not be downloaded
                 try {
-                    HttpURLConnection connection = (HttpURLConnection) jarURL.openConnection();
+                    final HttpURLConnection connection = (HttpURLConnection) jarURL.openConnection();
                     connection.setRequestMethod("GET");
+                    connection.setConnectTimeout(2000);
                     connection.connect();
-                    int code = connection.getResponseCode();
+                    final int code = connection.getResponseCode();
                     if (code != 200) {
                         throw new Exception(
                                 "Got bad response code " + code + " when trying to fetch URL " + jarURL);
                     } else {
                         throw new Exception("Able to download remote jar, but could not find files within jar");
                     }
+                } catch (final java.net.SocketTimeoutException e) {
+                    System.err.println("Timeout while trying to download remote jar, skipping test "
+                            + Issue128Test.class.getName() + ": " + e);
                 } catch (final IOException | SecurityException e) {
                     System.err.println("Could not download remote jar, skipping test "
                             + Issue128Test.class.getName() + ": " + e);
