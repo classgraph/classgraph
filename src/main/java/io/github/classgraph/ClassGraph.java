@@ -486,6 +486,22 @@ public class ClassGraph {
     }
 
     /**
+     * Add a classpath element URL filter. The includeClasspathElement method should return true if the {@link URL}
+     * passed to it corresponds to a classpath element that you want to scan.
+     */
+    @FunctionalInterface
+    public interface ClasspathElementURLFilter {
+        /**
+         * Whether or not to include a given classpath element in the scan.
+         *
+         * @param classpathElementURL
+         *            The {@link URL} of a classpath element.
+         * @return true if you want to scan the {@link URL}.
+         */
+        boolean includeClasspathElement(URL classpathElementURL);
+    }
+
+    /**
      * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
      * passed to it is a path you want to scan.
      * 
@@ -496,6 +512,20 @@ public class ClassGraph {
      */
     public ClassGraph filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
         scanSpec.filterClasspathElements(classpathElementFilter);
+        return this;
+    }
+
+    /**
+     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the {@link URL}
+     * passed to it is a URL you want to scan.
+     * 
+     * @param classpathElementURLFilter
+     *            The filter function to use. This function should return true if the classpath element {@link URL}
+     *            should be scanned, and false if not.
+     * @return this (for method chaining).
+     */
+    public ClassGraph filterClasspathElements(final ClasspathElementURLFilter classpathElementURLFilter) {
+        scanSpec.filterClasspathElements(classpathElementURLFilter);
         return this;
     }
 

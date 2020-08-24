@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
+import io.github.classgraph.ClassGraph.ClasspathElementURLFilter;
 import io.github.classgraph.ClassGraphException;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ModulePathInfo;
@@ -209,7 +210,7 @@ public class ScanSpec {
     public List<Object> overrideClasspath;
 
     /** If non-null, a list of filter operations to apply to classpath elements. */
-    public transient List<ClasspathElementFilter> classpathElementFilters;
+    public transient List<Object> classpathElementFilters;
 
     /** Whether to initialize classes when loading them. */
     public boolean initializeLoadedClasses;
@@ -306,8 +307,8 @@ public class ScanSpec {
     }
 
     /**
-     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
-     * passed to it is a path you want to scan.
+     * Add a classpath element filter. The provided {@link ClasspathElementFilter} should return true if the path
+     * string passed to it is a path you want to scan.
      * 
      * @param classpathElementFilter
      *            The classpath element filter to apply to all discovered classpath elements, to decide which should
@@ -318,6 +319,21 @@ public class ScanSpec {
             this.classpathElementFilters = new ArrayList<>(2);
         }
         this.classpathElementFilters.add(classpathElementFilter);
+    }
+
+    /**
+     * Add a classpath element URL filter. The provided {@link ClasspathElementURLFilter} should return true if the
+     * URL passed to it is one you want to scan.
+     * 
+     * @param classpathElementURLFilter
+     *            The classpath element URL filter to apply to all discovered classpath elements, to decide which
+     *            should be scanned.
+     */
+    public void filterClasspathElements(final ClasspathElementURLFilter classpathElementURLFilter) {
+        if (this.classpathElementFilters == null) {
+            this.classpathElementFilters = new ArrayList<>(2);
+        }
+        this.classpathElementFilters.add(classpathElementURLFilter);
     }
 
     /**

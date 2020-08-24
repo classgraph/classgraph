@@ -44,6 +44,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
+import io.github.classgraph.ClassGraph.ClasspathElementURLFilter;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -172,15 +173,21 @@ public class ClasspathOrder {
 
     /**
      * Test to see if a classpath element has been filtered out by the user.
-     *
+     * 
+     * @param classpathElementURL
+     *            the classpath element URL
      * @param classpathElementPath
      *            the classpath element path
      * @return true, if not filtered out
      */
-    private boolean filter(final String classpathElementPath) {
+    private boolean filter(final URL classpathElementURL, final String classpathElementPath) {
         if (scanSpec.classpathElementFilters != null) {
-            for (final ClasspathElementFilter filter : scanSpec.classpathElementFilters) {
-                if (!filter.includeClasspathElement(classpathElementPath)) {
+            for (final Object filterObj : scanSpec.classpathElementFilters) {
+                if ((classpathElementURL != null && filterObj instanceof ClasspathElementURLFilter
+                        && !((ClasspathElementURLFilter) filterObj).includeClasspathElement(classpathElementURL))
+                        || (classpathElementPath != null && filterObj instanceof ClasspathElementFilter
+                                && !((ClasspathElementFilter) filterObj)
+                                        .includeClasspathElement(classpathElementPath))) {
                     return false;
                 }
             }
@@ -301,9 +308,22 @@ public class ClasspathOrder {
         if (pathElementStr.isEmpty()) {
             return false;
         }
+        URL pathElementURL;
+        try {
+            pathElementURL = pathElement instanceof URL ? (URL) pathElement
+                    : pathElement instanceof URI ? ((URI) pathElement).toURL()
+                            : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
+                                    : pathElement instanceof File ? ((File) pathElement).toURI().toURL()
+                                            : new URL(pathElement.toString());
+        } catch (final MalformedURLException e1) {
+            if (log != null) {
+                log.log("Cannot convert from URI to URL: " + pathElementStr);
+            }
+            pathElementURL = null;
+        }
         if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof File
                 || pathElement instanceof Path) {
-            if (!filter(pathElementStr)) {
+            if (!filter(pathElementURL, pathElementStr)) {
                 if (log != null) {
                     log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr);
                 }
@@ -312,16 +332,8 @@ public class ClasspathOrder {
             // For URL objects, use the object itself (so that URL scheme handling can be undertaken later);
             // for URI and Path objects, convert to URL; for File objects, use the toString result (the path)
             final Object classpathElementObj;
-            try {
-                classpathElementObj = pathElement instanceof File ? pathElementStr
-                        : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
-                                : pathElement instanceof URI ? ((URI) pathElement).toURL() : pathElement;
-            } catch (final MalformedURLException e) {
-                if (log != null) {
-                    log.log("Cannot convert from URI to URL: " + pathElementStr);
-                }
-                return false;
-            }
+            classpathElementObj = pathElement instanceof File ? pathElementStr
+                    : pathElement instanceof Path || pathElement instanceof URI ? pathElementURL : pathElement;
             if (addClasspathEntry(classpathElementObj, pathElementStr, classLoader, scanSpec)) {
                 if (log != null) {
                     log.log("Found classpath element: " + pathElementStr);
@@ -346,8 +358,8 @@ public class ClasspathOrder {
                             : pathElementStr.substring(0, pathElementStr.length() - 2);
                     final String baseDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                             baseDirPath);
-                    if (!filter(baseDirPath)
-                            || (!baseDirPathResolved.equals(baseDirPath) && !filter(baseDirPathResolved))) {
+                    if (!filter(pathElementURL, baseDirPath) || (!baseDirPathResolved.equals(baseDirPath)
+                            && !filter(pathElementURL, baseDirPathResolved))) {
                         if (log != null) {
                             log.log("Classpath element did not match filter criterion, skipping: "
                                     + pathElementStr);
@@ -419,8 +431,8 @@ public class ClasspathOrder {
                 // Non-wildcarded (standard) classpath element
                 final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
                         pathElementStr);
-                if (!filter(pathElementStr)
-                        || (!pathElementResolved.equals(pathElementStr) && !filter(pathElementResolved))) {
+                if (!filter(pathElementURL, pathElementStr) || (!pathElementResolved.equals(pathElementStr)
+                        && !filter(pathElementURL, pathElementResolved))) {
                     if (log != null) {
                         log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr
                                 + (pathElementStr.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
