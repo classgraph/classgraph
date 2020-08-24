@@ -294,11 +294,15 @@ public class ClasspathOrder {
         if (pathElement == null) {
             return false;
         }
-        final String pathElementStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, pathElement.toString());
+        // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
+        String pathElementStr = pathElement instanceof Path ? ((Path) pathElement).toUri().toString()
+                : pathElement.toString();
+        pathElementStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, pathElementStr);
         if (pathElementStr.isEmpty()) {
             return false;
         }
-        if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof File) {
+        if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof File
+                || pathElement instanceof Path) {
             if (!filter(pathElementStr)) {
                 if (log != null) {
                     log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr);
@@ -306,11 +310,12 @@ public class ClasspathOrder {
                 return false;
             }
             // For URL objects, use the object itself (so that URL scheme handling can be undertaken later);
-            // for URI objects, convert to URL; for File objects, use the toString result (the path)
+            // for URI and Path objects, convert to URL; for File objects, use the toString result (the path)
             final Object classpathElementObj;
             try {
                 classpathElementObj = pathElement instanceof File ? pathElementStr
-                        : pathElement instanceof URI ? ((URI) pathElement).toURL() : pathElement;
+                        : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
+                                : pathElement instanceof URI ? ((URI) pathElement).toURL() : pathElement;
             } catch (final MalformedURLException e) {
                 if (log != null) {
                     log.log("Cannot convert from URI to URL: " + pathElementStr);
