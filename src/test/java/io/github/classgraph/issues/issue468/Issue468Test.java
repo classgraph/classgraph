@@ -36,23 +36,42 @@ import java.net.URL;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
 
 /**
  * Issue468Test.
  */
 public class Issue468Test {
+    /** Scan */
+    private static void scan(final ClassGraph classGraph) {
+        try (ScanResult scanResult = classGraph.scan()) {
+            final ResourceList resources = scanResult.getAllResources();
+            assertThat(resources.size()).isEqualTo(1);
+            assertThat(resources.getPaths()).containsExactly("innerfile");
+        }
+    }
+
     /** Test '+' signs in URLs. */
     @Test
-    public void issue368Test() throws Exception {
+    public void testPlusSigns() throws Exception {
         final URL url = Issue468Test.class.getClassLoader().getResource("issue468/x+y/z+w.jar");
         if (url == null) {
             throw new FileNotFoundException();
         }
-        System.out.println(url);
-        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(url)
-                .scan()) {
-            assertThat(scanResult.getAllResources().getPaths()).containsExactly("innerfile");
+        scan(new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(url));
+    }
+
+    /** Test "file:" URIs as strings, with and without the scheme. */
+    @Test
+    public void testFileURIs() throws Exception {
+        final URL url = Issue468Test.class.getClassLoader().getResource("issue468/x+y/z+w.jar");
+        if (url == null) {
+            throw new FileNotFoundException();
         }
+        final String urlStr = url.toString();
+        scan(new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(urlStr));
+        assertThat(urlStr).startsWith("file:");
+        scan(new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(urlStr.substring(5)));
     }
 }
