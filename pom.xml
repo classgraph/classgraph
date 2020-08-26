@@ -31,7 +31,6 @@
         <connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
         <developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
         <url>https://github.com/classgraph/classgraph</url>
-        <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
