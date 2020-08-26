@@ -45,14 +45,14 @@ import io.github.classgraph.ScanResult;
  * Issue128Test.
  */
 public class Issue128Test {
-    /** The Constant SITE. */
-    private static final String SITE = "https://githubraw.com/classgraph";
+    /** The site. */
+    private static final String SITE = "https://raw.githubusercontent.com/classgraph";
 
-    /** The Constant JAR_URL. */
+    /** The jar URL. */
     private static final String JAR_URL = SITE + //
             "/classgraph/latest/src/test/resources/nested-jars-level1.zip";
 
-    /** The Constant NESTED_JAR_URL. */
+    /** The nested jar URL. */
     private static final String NESTED_JAR_URL = //
             JAR_URL + "!level2.jar!level3.jar!classpath1/classpath2";
 
