@@ -317,7 +317,7 @@ public class ClasspathOrder {
                                             : new URL(pathElement.toString());
         } catch (final MalformedURLException e1) {
             if (log != null) {
-                log.log("Cannot convert from URI to URL: " + pathElementStr);
+                log.log("Cannot convert to URL: " + pathElement);
             }
             pathElementURL = null;
         }

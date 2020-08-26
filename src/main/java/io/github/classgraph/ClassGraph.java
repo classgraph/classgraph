@@ -524,7 +524,7 @@ public class ClassGraph {
      *            should be scanned, and false if not.
      * @return this (for method chaining).
      */
-    public ClassGraph filterClasspathElements(final ClasspathElementURLFilter classpathElementURLFilter) {
+    public ClassGraph filterClasspathElementsByURL(final ClasspathElementURLFilter classpathElementURLFilter) {
         scanSpec.filterClasspathElements(classpathElementURLFilter);
         return this;
     }

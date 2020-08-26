@@ -307,33 +307,23 @@ public class ScanSpec {
     }
 
     /**
-     * Add a classpath element filter. The provided {@link ClasspathElementFilter} should return true if the path
-     * string passed to it is a path you want to scan.
+     * Add a classpath element filter. The provided {@link ClasspathElementFilter} or
+     * {@link ClasspathElementURLFilter} should return true if the path string or {@link URL} passed to it is a path
+     * that should be scanned.
      * 
-     * @param classpathElementFilter
+     * @param filterLambda
      *            The classpath element filter to apply to all discovered classpath elements, to decide which should
      *            be scanned.
      */
-    public void filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
+    public void filterClasspathElements(final Object filterLambda) {
+        if (!(filterLambda instanceof ClasspathElementFilter
+                || filterLambda instanceof ClasspathElementURLFilter)) {
+            throw new IllegalArgumentException();
+        }
         if (this.classpathElementFilters == null) {
             this.classpathElementFilters = new ArrayList<>(2);
         }
-        this.classpathElementFilters.add(classpathElementFilter);
-    }
-
-    /**
-     * Add a classpath element URL filter. The provided {@link ClasspathElementURLFilter} should return true if the
-     * URL passed to it is one you want to scan.
-     * 
-     * @param classpathElementURLFilter
-     *            The classpath element URL filter to apply to all discovered classpath elements, to decide which
-     *            should be scanned.
-     */
-    public void filterClasspathElements(final ClasspathElementURLFilter classpathElementURLFilter) {
-        if (this.classpathElementFilters == null) {
-            this.classpathElementFilters = new ArrayList<>(2);
-        }
-        this.classpathElementFilters.add(classpathElementURLFilter);
+        this.classpathElementFilters.add(filterLambda);
     }
 
     /**
