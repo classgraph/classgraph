@@ -422,7 +422,7 @@ class ClasspathElementPathDir extends ClasspathElement {
                 // Process files in dir before recursing
                 if (Files.isRegularFile(subPath)) {
                     final Path subPathRelative = classpathEltPath.relativize(subPath);
-                    final String subPathRelativeStr = subPathRelative.toString();
+                    final String subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
                     // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
                     // default package, since these are disallowed.
                     if (isModularJar && isDefaultPackage && subPathRelativeStr.endsWith(".class")
