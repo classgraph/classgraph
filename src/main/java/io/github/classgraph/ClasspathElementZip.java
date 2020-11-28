@@ -586,7 +586,7 @@ class ClasspathElementZip extends ClasspathElement {
                         // Strip package root
                         relativePath = relativePath.substring(packageRoot.length());
                         // Strip final slash from package root
-                        String packageRootWithoutFinalSlash = packageRoot.endsWith("/")
+                        final String packageRootWithoutFinalSlash = packageRoot.endsWith("/")
                                 ? packageRoot.substring(0, packageRoot.length() - 1)
                                 : packageRoot;
                         // Store package root for use by getAllURIs()
