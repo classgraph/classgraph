@@ -581,16 +581,21 @@ class ClasspathElementZip extends ClasspathElement {
             } else {
                 // Strip any package root prefix from the relative path
                 for (int i = 0; i < ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES.length; i++) {
-                    if (relativePath.startsWith(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i])) {
-                        relativePath = relativePath
-                                .substring(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i].length());
-                        strippedAutomaticPackageRootPrefixes
-                                .add(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i]);
+                    final String packageRoot = ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i];
+                    if (relativePath.startsWith(packageRoot)) {
+                        // Strip package root
+                        relativePath = relativePath.substring(packageRoot.length());
+                        // Strip final slash from package root
+                        String packageRootWithoutFinalSlash = packageRoot.endsWith("/")
+                                ? packageRoot.substring(0, packageRoot.length() - 1)
+                                : packageRoot;
+                        // Store package root for use by getAllURIs()
+                        strippedAutomaticPackageRootPrefixes.add(packageRootWithoutFinalSlash);
+                        // 
                         if (strippedPackageRootPrefix.isEmpty()) {
-                            strippedPackageRootPrefix = ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i];
+                            strippedPackageRootPrefix = packageRootWithoutFinalSlash;
                         } else {
-                            strippedPackageRootPrefix += "/"
-                                    + ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i];
+                            strippedPackageRootPrefix += "/" + packageRootWithoutFinalSlash;
                         }
                     }
                 }
