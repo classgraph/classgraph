@@ -564,6 +564,11 @@ class ClasspathElementPathDir extends ClasspathElement {
         return packageRootPath.toUri();
     }
 
+    @Override
+    List<URI> getAllURIs() {
+        return Collections.singletonList(getURI());
+    }
+
     /**
      * Return the classpath element directory as a String.
      *

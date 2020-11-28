@@ -2607,10 +2607,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
      */
     public URI getClasspathElementURI() {
-        if (classpathElement == null) {
-            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
-        }
-        return classpathElement.getURI();
+        // Calling classfileResource.getClasspathElementURI() rather than classpathElement.getURI() will append
+        // any automatically-stripped package root prefix
+        return classfileResource.getClasspathElementURI();
     }
 
     /**
@@ -2625,11 +2624,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             a {@code jrt:/} scheme).
      */
     public URL getClasspathElementURL() {
-        if (classpathElement == null) {
-            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
-        }
         try {
-            return classpathElement.getURI().toURL();
+            return getClasspathElementURI().toURL();
         } catch (final MalformedURLException e) {
             throw new IllegalArgumentException("Could not get classpath element URL", e);
         }

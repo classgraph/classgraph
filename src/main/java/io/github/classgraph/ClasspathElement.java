@@ -382,6 +382,14 @@ abstract class ClasspathElement {
     abstract URI getURI();
 
     /**
+     * Get the URI for this classpath element, and the URIs for any automatic nested package prefixes (e.g.
+     * "spring-boot.jar/BOOT-INF/classes") within this jarfile.
+     *
+     * @return the URI for the classpath element.
+     */
+    abstract List<URI> getAllURIs();
+
+    /**
      * Get the file for this classpath element, or null if this is a module with a "jrt:" URI.
      *
      * @return the file for the classpath element.

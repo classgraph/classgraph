@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -54,6 +55,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A module classpath element. */
+/**
+ * @author luke
+ *
+ */
 class ClasspathElementModule extends ClasspathElement {
 
     /** The module ref. */
@@ -429,6 +434,11 @@ class ClasspathElementModule extends ClasspathElement {
             throw new IllegalArgumentException("Module " + getModuleName() + " has a null location");
         }
         return uri;
+    }
+
+    @Override
+    List<URI> getAllURIs() {
+        return Collections.singletonList(getURI());
     }
 
     /* (non-Javadoc)

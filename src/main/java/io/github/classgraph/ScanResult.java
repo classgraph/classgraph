@@ -379,9 +379,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
         final List<URI> classpathElementOrderURIs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             try {
-                final URI uri = classpathElement.getURI();
-                if (uri != null) {
-                    classpathElementOrderURIs.add(uri);
+                for (final URI uri : classpathElement.getAllURIs()) {
+                    if (uri != null) {
+                        classpathElementOrderURIs.add(uri);
+                    }
                 }
             } catch (final IllegalArgumentException e) {
                 // Skip null location URIs
@@ -402,12 +403,9 @@ public final class ScanResult implements Closeable, AutoCloseable {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
         final List<URL> classpathElementOrderURLs = new ArrayList<>();
-        for (final ClasspathElement classpathElement : classpathOrder) {
+        for (final URI uri : getClasspathURIs()) {
             try {
-                final URI uri = classpathElement.getURI();
-                if (uri != null) {
-                    classpathElementOrderURLs.add(uri.toURL());
-                }
+                classpathElementOrderURLs.add(uri.toURL());
             } catch (final IllegalArgumentException | MalformedURLException e) {
                 // Skip "jrt:" URIs and malformed URLs
             }

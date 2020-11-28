@@ -37,7 +37,9 @@ import java.nio.file.Files;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -524,6 +526,11 @@ class ClasspathElementFileDir extends ClasspathElement {
     @Override
     URI getURI() {
         return packageRootDir.toURI();
+    }
+
+    @Override
+    List<URI> getAllURIs() {
+        return Collections.singletonList(getURI());
     }
 
     /**

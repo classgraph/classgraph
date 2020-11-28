@@ -38,7 +38,10 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,6 +81,8 @@ class ClasspathElementZip extends ClasspathElement {
     private String zipFilePath;
     /** A map from relative path to {@link Resource} for non-rejected zip entries. */
     private final ConcurrentHashMap<String, Resource> relativePathToResource = new ConcurrentHashMap<>();
+    /** A list of all automatic package root prefixes found as prefixes of paths within this zipfile. */
+    private final Set<String> strippedAutomaticPackageRootPrefixes = new HashSet<>();
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
     /**
@@ -304,7 +309,8 @@ class ClasspathElementZip extends ClasspathElement {
      *            the path relative to package root
      * @return the resource
      */
-    private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
+    private Resource newResource(final FastZipEntry zipEntry, final String strippedPackageRootPrefix,
+            final String pathRelativeToPackageRoot) {
         return new Resource(this, zipEntry.uncompressedSize) {
             /** True if the resource is open. */
             protected AtomicBoolean isOpen = new AtomicBoolean();
@@ -321,6 +327,20 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return zipEntry.entryName;
+            }
+
+            @Override
+            public URI getClasspathElementURI() {
+                final URI classpathElementURI = super.getClasspathElementURI();
+                if (strippedPackageRootPrefix.isEmpty()) {
+                    return classpathElementURI;
+                } else {
+                    try {
+                        return new URI(classpathElementURI.toString() + "!/" + strippedPackageRootPrefix);
+                    } catch (final URISyntaxException e) {
+                        throw new IllegalArgumentException("Could not construct valid URI for resource");
+                    }
+                }
             }
 
             @Override
@@ -555,6 +575,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Strip the package root prefix from the relative path
             // N.B. these semantics should mirror those in getResource()
+            String strippedPackageRootPrefix = "";
             if (!packageRootPrefix.isEmpty()) {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
@@ -563,6 +584,14 @@ class ClasspathElementZip extends ClasspathElement {
                     if (relativePath.startsWith(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i])) {
                         relativePath = relativePath
                                 .substring(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i].length());
+                        strippedAutomaticPackageRootPrefixes
+                                .add(ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i]);
+                        if (strippedPackageRootPrefix.isEmpty()) {
+                            strippedPackageRootPrefix = ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i];
+                        } else {
+                            strippedPackageRootPrefix += "/"
+                                    + ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i];
+                        }
                     }
                 }
             }
@@ -593,7 +622,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Add the ZipEntry path as a Resource
-            final Resource resource = newResource(zipEntry, relativePath);
+            final Resource resource = newResource(zipEntry, strippedPackageRootPrefix, relativePath);
             if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
                 // If resource is accepted
                 if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
@@ -660,6 +689,30 @@ class ClasspathElementZip extends ClasspathElement {
             return new URI(URLPathEncoder.normalizeURLPath(getZipFilePath()));
         } catch (final URISyntaxException e) {
             throw new IllegalArgumentException("Could not form URI: " + e);
+        }
+    }
+
+    /**
+     * Return URI for classpath element, plus URIs for any stripped nested automatic package root prefixes, e.g.
+     * "/BOOT-INF/classes".
+     */
+    @Override
+    List<URI> getAllURIs() {
+        if (strippedAutomaticPackageRootPrefixes.isEmpty()) {
+            return Collections.singletonList(getURI());
+        } else {
+            final URI uri = getURI();
+            final List<URI> uris = new ArrayList<>();
+            uris.add(uri);
+            final String uriStr = uri.toString();
+            for (final String prefix : strippedAutomaticPackageRootPrefixes) {
+                try {
+                    uris.add(new URI(uriStr + "!/" + prefix));
+                } catch (final URISyntaxException e) {
+                    // Ignore
+                }
+            }
+            return uris;
         }
     }
 
