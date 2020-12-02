@@ -130,12 +130,6 @@ class ClassGraphClassLoader extends ClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
-        // Use cached class, if it is already loaded
-        final Class<?> loadedClass = findLoadedClass(className);
-        if (loadedClass != null) {
-            return loadedClass;
-        }
-
         // Try environment classloader(s)
         if (!environmentClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
@@ -226,7 +220,7 @@ class ClassGraphClassLoader extends ClassLoader {
         }
         throw new ClassNotFoundException("Could not load classfile for class " + className);
     }
-
+    
     /* (non-Javadoc)
      * @see java.lang.ClassLoader#getResource(java.lang.String)
      */
