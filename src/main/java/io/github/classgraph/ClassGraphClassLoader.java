@@ -52,13 +52,16 @@ class ClassGraphClassLoader extends ClassLoader {
     private final boolean initializeLoadedClasses;
 
     /** The ordered set of environment classloaders to try delegating to. */
-    private final Set<ClassLoader> environmentClassLoaderDelegationOrder;
+    private Set<ClassLoader> environmentClassLoaderDelegationOrder;
 
     /** Any override classloader(s). */
-    private final List<ClassLoader> overrideClassLoaders;
+    private List<ClassLoader> overrideClassLoaders;
+
+    /** A {@link URLClassLoader} consisting of URLs on the classpath. */
+    private final URLClassLoader classpathClassLoader;
 
     /** The ordered set of overridden or added classloaders to try delegating to. */
-    private final Set<ClassLoader> addedClassLoaderDelegationOrder;
+    private Set<ClassLoader> addedClassLoaderDelegationOrder;
 
     /**
      * Constructor.
@@ -81,15 +84,11 @@ class ClassGraphClassLoader extends ClassLoader {
         final boolean clasloadersAdded = scanSpec.addedClassLoaders != null
                 && !scanSpec.addedClassLoaders.isEmpty();
 
-        overrideClassLoaders = classloadersOverridden ? scanSpec.overrideClassLoaders : null;
-
-        // Uniquified order of classloaders to delegate to
-        environmentClassLoaderDelegationOrder = new LinkedHashSet<>();
-
         // Only try environment classloaders if classpath and/or classloaders are not overridden
         if (!classpathOverridden && !classloadersOverridden) {
             // Try the null classloader first (this will default to the context classloader of the class
             // that called ClassGraph)
+            environmentClassLoaderDelegationOrder = new LinkedHashSet<>();
             environmentClassLoaderDelegationOrder.add(null);
 
             // Try environment classloaders
@@ -102,29 +101,33 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // If the classpath is overridden, try loading class from the classpath URLs (this is done before
-        // checking classloader overrides, since classpath override takes precedence over classloader
-        // overrides in the ClasspathFinder class). Some of these URLs might be invalid if the ScanResult
-        // has been closed (e.g. in the rare case that an inner jar had to be extracted to a temporary file
-        // on disk).
-        final URLClassLoader classpathClassLoader = new URLClassLoader(
-                scanResult.getClasspathURLs().toArray(new URL[0]));
-        if (classpathOverridden) {
-            environmentClassLoaderDelegationOrder.add(classpathClassLoader);
+        // Create classloader from URLs on classpath
+        final List<URL> classpathURLs = scanResult.getClasspathURLs();
+        classpathClassLoader = classpathURLs.isEmpty() ? null
+                : new URLClassLoader(classpathURLs.toArray(new URL[0]));
+
+        // If the classloaders were overridden, just use the override classloaders, and then fail if the
+        // class couldn't be found.
+        //
+        // If the classpath is overridden, and classloaders are not overridden, try loading class from
+        // classpath URLs, as the override classloader, then fail if the class couldn't be found.
+        //
+        // N.B. Some classpath URLs might be invalid if the ScanResult has been closed (e.g. in the rare
+        // case that an inner jar had to be extracted to a temporary file on disk).
+        overrideClassLoaders = classloadersOverridden ? scanSpec.overrideClassLoaders : null;
+        if (overrideClassLoaders == null && classpathClassLoader != null) {
+            overrideClassLoaders = Collections.singletonList(classpathClassLoader);
         }
 
         // If classloaders were added, try loading through those classloaders
-        addedClassLoaderDelegationOrder = new LinkedHashSet<>();
         if (clasloadersAdded) {
+            addedClassLoaderDelegationOrder = new LinkedHashSet<>();
             addedClassLoaderDelegationOrder.addAll(scanSpec.addedClassLoaders);
+            // Remove duplicates
+            if (environmentClassLoaderDelegationOrder != null) {
+                addedClassLoaderDelegationOrder.removeAll(environmentClassLoaderDelegationOrder);
+            }
         }
-        if (!classpathOverridden) {
-            // If the classpath was not overridden, now that override classloaders have been attempted and failed,
-            // try to load the class from the classpath URLs before attempting direct classloading from resources
-            addedClassLoaderDelegationOrder.add(classpathClassLoader);
-        }
-        // Remove duplicates
-        addedClassLoaderDelegationOrder.removeAll(environmentClassLoaderDelegationOrder);
     }
 
     /* (non-Javadoc)
@@ -146,7 +149,7 @@ class ClassGraphClassLoader extends ClassLoader {
         }
 
         // Try environment classloader(s) first, since this is the usual default
-        if (!environmentClassLoaderDelegationOrder.isEmpty()) {
+        if (environmentClassLoaderDelegationOrder != null && !environmentClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, envClassLoader);
@@ -188,8 +191,17 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
+        // Try loading from classpath URLs
+        if (classpathClassLoader != null) {
+            try {
+                return Class.forName(className, initializeLoadedClasses, classpathClassLoader);
+            } catch (ClassNotFoundException | LinkageError e) {
+                // Ignore
+            }
+        }
+
         // Try any added classloader(s)
-        if (!addedClassLoaderDelegationOrder.isEmpty()) {
+        if (addedClassLoaderDelegationOrder != null && !addedClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
                 if (additionalClassLoader != classInfoClassLoader) {
                     try {
