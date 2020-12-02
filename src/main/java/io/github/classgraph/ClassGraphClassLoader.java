@@ -44,7 +44,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
-class ClassGraphClassLoader extends URLClassLoader {
+public class ClassGraphClassLoader extends ClassLoader {
 
     /** The scan result. */
     private final ScanResult scanResult;
@@ -59,7 +59,7 @@ class ClassGraphClassLoader extends URLClassLoader {
     private List<ClassLoader> overrideClassLoaders;
 
     /** A {@link URLClassLoader} consisting of URLs on the classpath. */
-    private final URLClassLoader classpathClassLoader;
+    private final ClassLoader classpathClassLoader;
 
     /** The ordered set of overridden or added classloaders to try delegating to. */
     private Set<ClassLoader> addedClassLoaderDelegationOrder;
@@ -109,14 +109,14 @@ class ClassGraphClassLoader extends URLClassLoader {
 
         // If the classloaders were overridden, just use the override classloaders, and then fail if the
         // class couldn't be found.
-        //
+        overrideClassLoaders = classloadersOverridden ? scanSpec.overrideClassLoaders : null;
+
         // If the classpath is overridden, and classloaders are not overridden, try loading class from
         // classpath URLs, as the override classloader, then fail if the class couldn't be found.
         //
         // N.B. Some classpath URLs might be invalid if the ScanResult has been closed (e.g. in the rare
         // case that an inner jar had to be extracted to a temporary file on disk).
-        overrideClassLoaders = classloadersOverridden ? scanSpec.overrideClassLoaders : null;
-        if (overrideClassLoaders == null && classpathClassLoader != null) {
+        if (overrideClassLoaders == null && classpathOverridden && classpathClassLoader != null) {
             overrideClassLoaders = Collections.singletonList(classpathClassLoader);
         }
 
@@ -137,6 +137,17 @@ class ClassGraphClassLoader extends URLClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
+        // First delegate to outer nested ClassGraphClassLoader, if any (#485)
+        final ClassGraphClassLoader delegateClassGraphClassLoader = scanResult.classpathFinder
+                .getDelegateClassGraphClassLoader();
+        if (delegateClassGraphClassLoader != null) {
+            try {
+                return Class.forName(className, initializeLoadedClasses, delegateClassGraphClassLoader);
+            } catch (ClassNotFoundException | LinkageError e) {
+                // Ignore
+            }
+        }
+
         // If overrideClassLoaders is set, only use the override loaders
         if (overrideClassLoaders != null) {
             for (final ClassLoader overrideClassLoader : overrideClassLoaders) {
@@ -146,11 +157,11 @@ class ClassGraphClassLoader extends URLClassLoader {
                     // Ignore
                 }
             }
-            throw new ClassNotFoundException("Could not load classfile for class " + className);
         }
 
         // Try environment classloader(s) first, since this is the usual default
-        if (environmentClassLoaderDelegationOrder != null && !environmentClassLoaderDelegationOrder.isEmpty()) {
+        if (overrideClassLoaders == null && environmentClassLoaderDelegationOrder != null
+                && !environmentClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, envClassLoader);
@@ -171,8 +182,8 @@ class ClassGraphClassLoader extends URLClassLoader {
             classInfoClassLoader = classInfo.classLoader;
             // Try specific classloader for the classpath element that the classfile was obtained from,
             // as long as it wasn't already tried
-            if (classInfoClassLoader != null
-                    && !environmentClassLoaderDelegationOrder.contains(classInfoClassLoader)) {
+            if (classInfoClassLoader != null && (environmentClassLoaderDelegationOrder == null
+                    || !environmentClassLoaderDelegationOrder.contains(classInfoClassLoader))) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, classInfoClassLoader);
                 } catch (ClassNotFoundException | LinkageError e) {
@@ -193,7 +204,7 @@ class ClassGraphClassLoader extends URLClassLoader {
         }
 
         // Try loading from classpath URLs
-        if (classpathClassLoader != null) {
+        if (overrideClassLoaders == null && classpathClassLoader != null) {
             try {
                 return Class.forName(className, initializeLoadedClasses, classpathClassLoader);
             } catch (ClassNotFoundException | LinkageError e) {
@@ -250,7 +261,6 @@ class ClassGraphClassLoader extends URLClassLoader {
     }
 
     /** Get classpath URLs. */
-    @Override
     public URL[] getURLs() {
         return scanResult.getClasspathURLs().toArray(new URL[0]);
     }

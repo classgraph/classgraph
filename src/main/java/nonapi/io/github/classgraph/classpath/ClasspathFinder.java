@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import io.github.classgraph.ClassGraphClassLoader;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -54,6 +55,13 @@ public class ClasspathFinder {
      * delegation order.
      */
     private ClassLoader[] classLoaderOrderRespectingParentDelegation;
+
+    /**
+     * If one of the classloaders that was found was an existing instance of {@link ClassGraphClassLoader}, then
+     * delegate to that classloader first rather than trying to load from the {@link ClassGraphClassLoader} of the
+     * current scan, so that classes are compatible between nested scans (#485).
+     */
+    private ClassGraphClassLoader delegateClassGraphClassLoader;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -82,6 +90,18 @@ public class ClasspathFinder {
      */
     public ClassLoader[] getClassLoaderOrderRespectingParentDelegation() {
         return classLoaderOrderRespectingParentDelegation;
+    }
+
+    /**
+     * If one of the classloaders that was found was an existing instance of {@link ClassGraphClassLoader}, then
+     * delegate to that classloader first rather than trying to load from the {@link ClassGraphClassLoader} of the
+     * current scan, so that classes are compatible between nested scans (#485).
+     * 
+     * @return the {@link ClassGraphClassLoader} to delegate to before loading classes with this scan's own
+     *         {@link ClassGraphClassLoader} (or null if none).
+     */
+    public ClassGraphClassLoader getDelegateClassGraphClassLoader() {
+        return delegateClassGraphClassLoader;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -247,6 +267,10 @@ public class ClasspathFinder {
                 } else if (classloaderURLLog != null) {
                     classloaderURLLog.log("Ignoring parent classloader " + classLoader + ", normally handled by "
                             + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
+                }
+                // See if a previous scan's ClassGraphClassLoader should be delegated to first
+                if (classLoader instanceof ClassGraphClassLoader) {
+                    delegateClassGraphClassLoader = (ClassGraphClassLoader) classLoader;
                 }
             }
 

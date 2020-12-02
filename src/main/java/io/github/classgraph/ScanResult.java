@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import nonapi.io.github.classgraph.classpath.ClasspathFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
@@ -104,11 +105,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /** A custom ClassLoader that can load classes found during the scan. */
     private ClassGraphClassLoader classGraphClassLoader;
 
-    /**
-     * The default order in which ClassLoaders are called to load classes, respecting parent-first/parent-last
-     * delegation order.
-     */
-    private ClassLoader[] classLoaderOrderRespectingParentDelegation;
+    /** The {@link ClasspathFinder}. */
+    ClasspathFinder classpathFinder;
 
     /** The nested jar handler instance. */
     private NestedJarHandler nestedJarHandler;
@@ -244,8 +242,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      *            the toplevel log
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final List<String> rawClasspathEltOrderStrs,
-            final ClassLoader[] classLoaderOrderRespectingParentDelegation,
+            final List<String> rawClasspathEltOrderStrs, final ClasspathFinder classpathFinder,
             final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo, final Map<File, Long> fileToLastModified,
@@ -253,7 +250,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
-        this.classLoaderOrderRespectingParentDelegation = classLoaderOrderRespectingParentDelegation;
+        this.classpathFinder = classpathFinder;
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
         this.packageNameToPackageInfo = packageNameToPackageInfo;
@@ -1179,7 +1176,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @return the class loader order.
      */
     ClassLoader[] getClassLoaderOrderRespectingParentDelegation() {
-        return classLoaderOrderRespectingParentDelegation;
+        return classpathFinder.getClassLoaderOrderRespectingParentDelegation();
     }
 
     /**
@@ -1295,6 +1292,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      *            The JSON string for the serialized {@link ScanResult}.
      * @return The deserialized {@link ScanResult}.
      */
+    @SuppressWarnings("null")
     public static ScanResult fromJSON(final String json) {
         final Matcher matcher = Pattern.compile("\\{[\\n\\r ]*\"format\"[ ]?:[ ]?\"([^\"]+)\"").matcher(json);
         if (!matcher.find()) {
@@ -1310,7 +1308,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         // Deserialize the JSON
         final SerializationFormat deserialized = JSONDeserializer.deserializeObject(SerializationFormat.class,
                 json);
-        if (!deserialized.format.equals(CURRENT_SERIALIZATION_FORMAT)) {
+        if (deserialized == null || !deserialized.format.equals(CURRENT_SERIALIZATION_FORMAT)) {
             // Probably the deserialization failed before now anyway, if fields have changed, etc.
             throw new IllegalArgumentException("JSON was serialized by newer version of ClassGraph");
         }
@@ -1451,7 +1449,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
                 nestedJarHandler = null;
             }
             classGraphClassLoader = null;
-            classLoaderOrderRespectingParentDelegation = null;
+            classpathFinder = null;
             // Flush log on exit, in case additional log entries were generated after scan() completed
             if (topLevelLog != null) {
                 topLevelLog.flush();
