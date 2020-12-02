@@ -145,7 +145,7 @@ class ClassGraphClassLoader extends ClassLoader {
             throw new ClassNotFoundException("Could not load classfile for class " + className);
         }
 
-        // Try environment classloader(s)
+        // Try environment classloader(s) first, since this is the usual default
         if (!environmentClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
                 try {
@@ -188,7 +188,7 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // Try overridden or added classloader(s)
+        // Try any added classloader(s)
         if (!addedClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
                 if (additionalClassLoader != classInfoClassLoader) {
