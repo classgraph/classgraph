@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -53,8 +54,11 @@ class ClassGraphClassLoader extends ClassLoader {
     /** The ordered set of environment classloaders to try delegating to. */
     private final Set<ClassLoader> environmentClassLoaderDelegationOrder;
 
+    /** Any override classloader(s). */
+    private final List<ClassLoader> overrideClassLoaders;
+
     /** The ordered set of overridden or added classloaders to try delegating to. */
-    private final Set<ClassLoader> overriddenOrAddedClassLoaderDelegationOrder;
+    private final Set<ClassLoader> addedClassLoaderDelegationOrder;
 
     /**
      * Constructor.
@@ -76,6 +80,8 @@ class ClassGraphClassLoader extends ClassLoader {
                 && !scanSpec.overrideClassLoaders.isEmpty();
         final boolean clasloadersAdded = scanSpec.addedClassLoaders != null
                 && !scanSpec.addedClassLoaders.isEmpty();
+
+        overrideClassLoaders = classloadersOverridden ? scanSpec.overrideClassLoaders : null;
 
         // Uniquified order of classloaders to delegate to
         environmentClassLoaderDelegationOrder = new LinkedHashSet<>();
@@ -107,21 +113,18 @@ class ClassGraphClassLoader extends ClassLoader {
             environmentClassLoaderDelegationOrder.add(classpathClassLoader);
         }
 
-        // If classloaders are overridden or added, try loading through those classloaders
-        overriddenOrAddedClassLoaderDelegationOrder = new LinkedHashSet<>();
-        if (classloadersOverridden) {
-            overriddenOrAddedClassLoaderDelegationOrder.addAll(scanSpec.overrideClassLoaders);
-        }
+        // If classloaders were added, try loading through those classloaders
+        addedClassLoaderDelegationOrder = new LinkedHashSet<>();
         if (clasloadersAdded) {
-            overriddenOrAddedClassLoaderDelegationOrder.addAll(scanSpec.addedClassLoaders);
+            addedClassLoaderDelegationOrder.addAll(scanSpec.addedClassLoaders);
         }
         if (!classpathOverridden) {
             // If the classpath was not overridden, now that override classloaders have been attempted and failed,
             // try to load the class from the classpath URLs before attempting direct classloading from resources
-            overriddenOrAddedClassLoaderDelegationOrder.add(classpathClassLoader);
+            addedClassLoaderDelegationOrder.add(classpathClassLoader);
         }
         // Remove duplicates
-        overriddenOrAddedClassLoaderDelegationOrder.removeAll(environmentClassLoaderDelegationOrder);
+        addedClassLoaderDelegationOrder.removeAll(environmentClassLoaderDelegationOrder);
     }
 
     /* (non-Javadoc)
@@ -130,6 +133,18 @@ class ClassGraphClassLoader extends ClassLoader {
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
+        // If overrideClassLoaders is set, only use the override loaders
+        if (overrideClassLoaders != null) {
+            for (final ClassLoader overrideClassLoader : overrideClassLoaders) {
+                try {
+                    return Class.forName(className, initializeLoadedClasses, overrideClassLoader);
+                } catch (ClassNotFoundException | LinkageError e) {
+                    // Ignore
+                }
+            }
+            throw new ClassNotFoundException("Could not load classfile for class " + className);
+        }
+
         // Try environment classloader(s)
         if (!environmentClassLoaderDelegationOrder.isEmpty()) {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
@@ -174,8 +189,8 @@ class ClassGraphClassLoader extends ClassLoader {
         }
 
         // Try overridden or added classloader(s)
-        if (!overriddenOrAddedClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader additionalClassLoader : overriddenOrAddedClassLoaderDelegationOrder) {
+        if (!addedClassLoaderDelegationOrder.isEmpty()) {
+            for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
                 if (additionalClassLoader != classInfoClassLoader) {
                     try {
                         return Class.forName(className, initializeLoadedClasses, additionalClassLoader);
@@ -220,7 +235,7 @@ class ClassGraphClassLoader extends ClassLoader {
         }
         throw new ClassNotFoundException("Could not load classfile for class " + className);
     }
-    
+
     /* (non-Javadoc)
      * @see java.lang.ClassLoader#getResource(java.lang.String)
      */
@@ -239,8 +254,8 @@ class ClassGraphClassLoader extends ClassLoader {
         }
 
         // Try loading resource from overridden or added classloader(s)
-        if (!overriddenOrAddedClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader additionalClassLoader : overriddenOrAddedClassLoaderDelegationOrder) {
+        if (!addedClassLoaderDelegationOrder.isEmpty()) {
+            for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
                 final URL resource = additionalClassLoader.getResource(path);
                 if (resource != null) {
                     return resource;
@@ -276,8 +291,8 @@ class ClassGraphClassLoader extends ClassLoader {
         }
 
         // Try loading resources from overridden or added classloader(s)
-        if (!overriddenOrAddedClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader additionalClassLoader : overriddenOrAddedClassLoaderDelegationOrder) {
+        if (!addedClassLoaderDelegationOrder.isEmpty()) {
+            for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
                 final Enumeration<URL> resources = additionalClassLoader.getResources(path);
                 if (resources != null && resources.hasMoreElements()) {
                     return resources;
@@ -326,8 +341,8 @@ class ClassGraphClassLoader extends ClassLoader {
         }
 
         // Try opening resource from overridden or added classloader(s)
-        if (!overriddenOrAddedClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader additionalClassLoader : overriddenOrAddedClassLoaderDelegationOrder) {
+        if (!addedClassLoaderDelegationOrder.isEmpty()) {
+            for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
                 final InputStream inputStream = additionalClassLoader.getResourceAsStream(path);
                 if (inputStream != null) {
                     return inputStream;
