@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
+import java.security.ProtectionDomain;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
@@ -43,7 +44,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
-class ClassGraphClassLoader extends ClassLoader {
+class ClassGraphClassLoader extends URLClassLoader {
 
     /** The scan result. */
     private final ScanResult scanResult;
@@ -234,7 +235,7 @@ class ClassGraphClassLoader extends ClassLoader {
                         // TODO: is there any need to try java.lang.invoke.MethodHandles.Lookup.defineClass
                         // via reflection (it's implemented in JDK 9), if the following fails?
                         // See: https://bugs.openjdk.java.net/browse/JDK-8202999
-                        return defineClass(className, resourceByteBuffer, null);
+                        return defineClass(className, resourceByteBuffer, (ProtectionDomain) null);
                     } finally {
                         resource.close();
                     }
@@ -246,6 +247,12 @@ class ClassGraphClassLoader extends ClassLoader {
             }
         }
         throw new ClassNotFoundException("Could not load classfile for class " + className);
+    }
+
+    /** Get classpath URLs. */
+    @Override
+    public URL[] getURLs() {
+        return scanResult.getClasspathURLs().toArray(new URL[0]);
     }
 
     /* (non-Javadoc)
