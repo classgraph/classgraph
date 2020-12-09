@@ -1249,7 +1249,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class extends the named superclass.
      */
     public boolean extendsSuperclass(final String superclassName) {
-        return superclassName.equals("java.lang.Object") || getSuperclasses().containsName(superclassName);
+        return (superclassName.equals("java.lang.Object") && isStandardClass())
+                || getSuperclasses().containsName(superclassName);
     }
 
     /**
