@@ -1249,7 +1249,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class extends the named superclass.
      */
     public boolean extendsSuperclass(final String superclassName) {
-        return getSuperclasses().containsName(superclassName);
+        return superclassName.equals("java.lang.Object") || getSuperclasses().containsName(superclassName);
     }
 
     /**
@@ -1514,13 +1514,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the subclasses of this class, sorted in order of name. Call {@link ClassInfoList#directOnly()} to get
      * direct subclasses.
+     * 
+     * If this class represents {@link Object}, then returns only standard classes, not interfaces, since interfaces
+     * don't extend {@link Object}.
      *
      * @return the list of subclasses of this class, or the empty list if none.
      */
     public ClassInfoList getSubclasses() {
         if (getName().equals("java.lang.Object")) {
             // Make an exception for querying all subclasses of java.lang.Object
-            return scanResult.getAllClasses();
+            return scanResult.getAllStandardClasses();
         } else {
             return new ClassInfoList(
                     this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ !isExternalClass),
@@ -1529,9 +1532,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get all superclasses of this class, in ascending order in the class hierarchy. Does not include
-     * superinterfaces, if this is an interface (use {@link #getInterfaces()} to get superinterfaces of an
-     * interface.}
+     * Get all superclasses of this class, in ascending order in the class hierarchy, not including {@link Object}
+     * for simplicity, since that is the superclass of all classes.
+     * 
+     * Also does not include superinterfaces, if this is an interface (use {@link #getInterfaces()} to get
+     * superinterfaces of an interface.}
      *
      * @return the list of all superclasses of this class, or the empty list if none.
      */
