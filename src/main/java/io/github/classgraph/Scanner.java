@@ -907,8 +907,8 @@ class Scanner implements Callable<ScanResult> {
      *            the final classpath elt order
      * @param finalClasspathEltOrderStrs
      *            the final classpath elt order strs
-     * @param classLoaderOrderRespectingParentDelegation
-     *            the environment classloader order, respecting parent-first or parent-last delegation order
+     * @param classpathFinder
+     *            the {@link ClasspathFinder}
      * @return the scan result
      * @throws InterruptedException
      *             if the scan was interrupted

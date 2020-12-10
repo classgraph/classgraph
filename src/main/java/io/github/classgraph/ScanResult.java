@@ -226,8 +226,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
      *            the classpath order
      * @param rawClasspathEltOrderStrs
      *            the raw classpath element order
-     * @param classLoaderOrderRespectingParentDelegation
-     *            the environment classloader order, respecting parent-first or parent-last delegation order
+     * @param classpathFinder
+     *            the {@link ClasspathFinder}
      * @param classNameToClassInfo
      *            a map from class name to class info
      * @param packageNameToPackageInfo
