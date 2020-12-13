@@ -198,7 +198,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
             return lastFoundMethod;
         } else {
             throw new IllegalArgumentException("There are multiple methods named \"" + methodName + "\" in class "
-                    + iterator().next().getName());
+                    + iterator().next().getClassInfo().getName());
         }
     }
 
