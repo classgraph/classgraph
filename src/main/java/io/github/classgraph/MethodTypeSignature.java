@@ -78,13 +78,12 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the type parameters for the method. N.B. this is non-public, since the types have to be aligned with
-     * other parameter metadata. The type of a parameter can be obtained post-alignment from the parameter's
-     * {@link MethodParameterInfo} object.
+     * Get the type parameters for the method, if this is a
+     * <a href="https://docs.oracle.com/javase/tutorial/extra/generics/methods.html">generic method</a>.
      * 
-     * @return The type parameters for the method.
+     * @return The type parameters for the method, if any, otherwise null.
      */
-    List<TypeParameter> getTypeParameters() {
+    public List<TypeParameter> getTypeParameters() {
         return typeParameters;
     }
 
