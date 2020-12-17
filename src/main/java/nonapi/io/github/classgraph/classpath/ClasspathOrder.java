@@ -315,10 +315,12 @@ public class ClasspathOrder {
                             : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
                                     : pathElement instanceof File ? ((File) pathElement).toURI().toURL() : null;
             if (pathElementURL == null) {
+                // Fallback -- call toString() on the path element, then try converting to a URL via File
                 final String pathElementToStr = pathElement.toString();
                 try {
-                    pathElementURL = new URL(pathElementToStr);
+                    pathElementURL = new File(pathElementToStr).toURI().toURL();
                 } catch (MalformedURLException e) {
+                    // Final fallback -- try prepending "file:" to create a URL
                     pathElementURL = new URL("file:" + pathElementToStr);
                 }
             }
