@@ -44,10 +44,10 @@ String pkg = "com.xyz";
 String routeAnnotation = pkg + ".Route";
 try (ScanResult scanResult =
         new ClassGraph()
-            .verbose()                   // Log to stderr
-            .enableAllInfo()             // Scan classes, methods, fields, annotations
-            .acceptPackages(pkg)         // Scan com.xyz and subpackages (omit to scan all packages)
-            .scan()) {                   // Start the scan
+            .verbose()               // Log to stderr
+            .enableAllInfo()         // Scan classes, methods, fields, annotations
+            .acceptPackages(pkg)     // Scan com.xyz and subpackages (omit to scan all packages)
+            .scan()) {               // Start the scan
     for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
         AnnotationInfo routeAnnotationInfo = routeClassInfo.getAnnotationInfo(routeAnnotation);
         List<AnnotationParameterValue> routeParamVals = routeAnnotationInfo.getParameterValues();
@@ -62,9 +62,10 @@ The following code finds all JSON files in `META-INF/config` in all ClassLoaders
 
 ```java
 try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("META-INF/config").scan()) {
-    scanResult.getResourcesWithExtension("json").forEachByteArray((Resource res, byte[] content) -> {
-        readJson(res.getPath(), new String(content, StandardCharsets.UTF_8));
-    });
+    scanResult.getResourcesWithExtension("json")
+              .forEachByteArray((Resource res, byte[] content) -> {
+                  readJson(res.getPath(), new String(content, StandardCharsets.UTF_8));
+              });
 }
 ```
 
