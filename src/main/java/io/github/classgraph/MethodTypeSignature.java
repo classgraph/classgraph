@@ -126,86 +126,6 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Parse a method signature.
-     * 
-     * @param typeDescriptor
-     *            The type descriptor of the method.
-     * @param definingClassName
-     *            The name of the defining class (for resolving type variables).
-     * @return The parsed method type signature.
-     * @throws ParseException
-     *             If method type signature could not be parsed.
-     */
-    static MethodTypeSignature parse(final String typeDescriptor, final String definingClassName)
-            throws ParseException {
-        if (typeDescriptor.equals("<init>")) {
-            // Special case for instance initialization method signatures in a CONSTANT_NameAndType_info structure:
-            // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
-            return new MethodTypeSignature(Collections.<TypeParameter> emptyList(),
-                    Collections.<TypeSignature> emptyList(), /* void */ new BaseTypeSignature('V'),
-                    Collections.<ClassRefOrTypeVariableSignature> emptyList());
-        }
-        final Parser parser = new Parser(typeDescriptor);
-        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser, definingClassName);
-        parser.expect('(');
-        final List<TypeSignature> paramTypes = new ArrayList<>();
-        while (parser.peek() != ')') {
-            if (!parser.hasMore()) {
-                throw new ParseException(parser, "Ran out of input while parsing method signature");
-            }
-            final TypeSignature paramType = TypeSignature.parse(parser, definingClassName);
-            if (paramType == null) {
-                throw new ParseException(parser, "Missing method parameter type signature");
-            }
-            paramTypes.add(paramType);
-        }
-        parser.expect(')');
-        final TypeSignature resultType = TypeSignature.parse(parser, definingClassName);
-        if (resultType == null) {
-            throw new ParseException(parser, "Missing method result type signature");
-        }
-        List<ClassRefOrTypeVariableSignature> throwsSignatures;
-        if (parser.peek() == '^') {
-            throwsSignatures = new ArrayList<>();
-            while (parser.peek() == '^') {
-                parser.expect('^');
-                final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parser,
-                        definingClassName);
-                if (classTypeSignature != null) {
-                    throwsSignatures.add(classTypeSignature);
-                } else {
-                    final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parser,
-                            definingClassName);
-                    if (typeVariableSignature != null) {
-                        throwsSignatures.add(typeVariableSignature);
-                    } else {
-                        throw new ParseException(parser, "Missing type variable signature");
-                    }
-                }
-            }
-        } else {
-            throwsSignatures = Collections.emptyList();
-        }
-        if (parser.hasMore()) {
-            throw new ParseException(parser, "Extra characters at end of type descriptor");
-        }
-        final MethodTypeSignature methodSignature = new MethodTypeSignature(typeParameters, paramTypes, resultType,
-                throwsSignatures);
-        // Add back-links from type variable signature to the method signature it is part of,
-        // and to the enclosing class' type signature
-        @SuppressWarnings("unchecked")
-        final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-        if (typeVariableSignatures != null) {
-            for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                typeVariableSignature.containingMethodSignature = methodSignature;
-            }
-        }
-        return methodSignature;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /* (non-Javadoc)
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
@@ -359,5 +279,85 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 buf.append(throwsSignatures.get(i).toString(useSimpleNames));
             }
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Parse a method signature.
+     * 
+     * @param typeDescriptor
+     *            The type descriptor of the method.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
+     * @return The parsed method type signature.
+     * @throws ParseException
+     *             If method type signature could not be parsed.
+     */
+    static MethodTypeSignature parse(final String typeDescriptor, final String definingClassName)
+            throws ParseException {
+        if (typeDescriptor.equals("<init>")) {
+            // Special case for instance initialization method signatures in a CONSTANT_NameAndType_info structure:
+            // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
+            return new MethodTypeSignature(Collections.<TypeParameter> emptyList(),
+                    Collections.<TypeSignature> emptyList(), /* void */ new BaseTypeSignature('V'),
+                    Collections.<ClassRefOrTypeVariableSignature> emptyList());
+        }
+        final Parser parser = new Parser(typeDescriptor);
+        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser, definingClassName);
+        parser.expect('(');
+        final List<TypeSignature> paramTypes = new ArrayList<>();
+        while (parser.peek() != ')') {
+            if (!parser.hasMore()) {
+                throw new ParseException(parser, "Ran out of input while parsing method signature");
+            }
+            final TypeSignature paramType = TypeSignature.parse(parser, definingClassName);
+            if (paramType == null) {
+                throw new ParseException(parser, "Missing method parameter type signature");
+            }
+            paramTypes.add(paramType);
+        }
+        parser.expect(')');
+        final TypeSignature resultType = TypeSignature.parse(parser, definingClassName);
+        if (resultType == null) {
+            throw new ParseException(parser, "Missing method result type signature");
+        }
+        List<ClassRefOrTypeVariableSignature> throwsSignatures;
+        if (parser.peek() == '^') {
+            throwsSignatures = new ArrayList<>();
+            while (parser.peek() == '^') {
+                parser.expect('^');
+                final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parser,
+                        definingClassName);
+                if (classTypeSignature != null) {
+                    throwsSignatures.add(classTypeSignature);
+                } else {
+                    final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parser,
+                            definingClassName);
+                    if (typeVariableSignature != null) {
+                        throwsSignatures.add(typeVariableSignature);
+                    } else {
+                        throw new ParseException(parser, "Missing type variable signature");
+                    }
+                }
+            }
+        } else {
+            throwsSignatures = Collections.emptyList();
+        }
+        if (parser.hasMore()) {
+            throw new ParseException(parser, "Extra characters at end of type descriptor");
+        }
+        final MethodTypeSignature methodSignature = new MethodTypeSignature(typeParameters, paramTypes, resultType,
+                throwsSignatures);
+        // Add back-links from type variable signature to the method signature it is part of,
+        // and to the enclosing class' type signature
+        @SuppressWarnings("unchecked")
+        final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
+        if (typeVariableSignatures != null) {
+            for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
+                typeVariableSignature.containingMethodSignature = methodSignature;
+            }
+        }
+        return methodSignature;
     }
 }

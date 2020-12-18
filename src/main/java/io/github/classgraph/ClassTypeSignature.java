@@ -119,48 +119,6 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Parse a class type signature or class type descriptor.
-     *
-     * @param typeDescriptor
-     *            The class type signature or class type descriptor to parse.
-     * @param classInfo
-     *            the class info
-     * @return The parsed class type signature or class type descriptor.
-     * @throws ParseException
-     *             If the class type signature could not be parsed.
-     */
-    static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
-        final Parser parser = new Parser(typeDescriptor);
-        // The defining class name is used to resolve type variables using the defining class' type descriptor.
-        // But here we are parsing the defining class' type descriptor, so it can't contain variables that
-        // point to itself => just use null as the defining class name.
-        final String definingClassNameNull = null;
-        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser, definingClassNameNull);
-        final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser,
-                definingClassNameNull);
-        List<ClassRefTypeSignature> superinterfaceSignatures;
-        if (parser.hasMore()) {
-            superinterfaceSignatures = new ArrayList<>();
-            while (parser.hasMore()) {
-                final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser,
-                        definingClassNameNull);
-                if (superinterfaceSignature == null) {
-                    throw new ParseException(parser, "Could not parse superinterface signature");
-                }
-                superinterfaceSignatures.add(superinterfaceSignature);
-            }
-        } else {
-            superinterfaceSignatures = Collections.emptyList();
-        }
-        if (parser.hasMore()) {
-            throw new ParseException(parser, "Extra characters at end of type descriptor");
-        }
-        return new ClassTypeSignature(classInfo, typeParameters, superclassSignature, superinterfaceSignatures);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /* (non-Javadoc)
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
@@ -337,5 +295,47 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             final StringBuilder buf) {
         buf.append(toString(classInfo.getName(), useSimpleNames, /* typeNameOnly = */ false,
                 classInfo.getModifiers(), classInfo.isAnnotation(), classInfo.isInterface(), annotationsToExclude));
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Parse a class type signature or class type descriptor.
+     *
+     * @param typeDescriptor
+     *            The class type signature or class type descriptor to parse.
+     * @param classInfo
+     *            the class info
+     * @return The parsed class type signature or class type descriptor.
+     * @throws ParseException
+     *             If the class type signature could not be parsed.
+     */
+    static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
+        final Parser parser = new Parser(typeDescriptor);
+        // The defining class name is used to resolve type variables using the defining class' type descriptor.
+        // But here we are parsing the defining class' type descriptor, so it can't contain variables that
+        // point to itself => just use null as the defining class name.
+        final String definingClassNameNull = null;
+        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser, definingClassNameNull);
+        final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser,
+                definingClassNameNull);
+        List<ClassRefTypeSignature> superinterfaceSignatures;
+        if (parser.hasMore()) {
+            superinterfaceSignatures = new ArrayList<>();
+            while (parser.hasMore()) {
+                final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser,
+                        definingClassNameNull);
+                if (superinterfaceSignature == null) {
+                    throw new ParseException(parser, "Could not parse superinterface signature");
+                }
+                superinterfaceSignatures.add(superinterfaceSignature);
+            }
+        } else {
+            superinterfaceSignatures = Collections.emptyList();
+        }
+        if (parser.hasMore()) {
+            throw new ParseException(parser, "Extra characters at end of type descriptor");
+        }
+        return new ClassTypeSignature(classInfo, typeParameters, superclassSignature, superinterfaceSignatures);
     }
 }
