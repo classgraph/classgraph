@@ -9,9 +9,10 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.MethodParameterInfo;
+import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -116,7 +117,7 @@ class TypeAnnotationTest {
     interface V {
     }
 
-    <@A T extends @B U> @D U t(@E T t) {
+    <@A T extends @B U> @D U t(@E final T t) {
         return null;
     }
 
@@ -139,9 +140,9 @@ class TypeAnnotationTest {
                 .replace("java.util.", "");
     }
 
-    /** Test type annotations. */
+    /** Test field type annotations. */
     @Test
-    void fieldsWithTypeAnnotations() {
+    void fieldTypeAnnotations() {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(TypeAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(TypeAnnotationTest.class.getName());
@@ -180,6 +181,27 @@ class TypeAnnotationTest {
             final ClassInfo pClassInfo = scanResult.getClassInfo(P.class.getName());
 
             assertThat(shortNames(pClassInfo)).isEqualTo("static class P<@A T extends @B U & @C V>");
+
+            final MethodInfo methodInfo = pClassInfo.getMethodInfo("explicitReceiver").get(0);
+            final AnnotationInfo receiverTypeAnnotationInfo = methodInfo.getTypeSignatureOrTypeDescriptor()
+                    .getReceiverTypeAnnotationInfo().get(0);
+            assertThat(shortNames(receiverTypeAnnotationInfo)).isEqualTo("@F");
+        }
+    }
+
+    /** Test class and method type annotations. */
+    @Test
+    void classAndMethodTypeAnnotations() {
+        try (ScanResult scanResult = new ClassGraph()
+                .acceptPackages(TypeAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
+            final ClassInfo classInfo = scanResult.getClassInfo(P.class.getName());
+
+            assertThat(shortNames(classInfo)).isEqualTo("static class P<@A T extends @B U & @C V>");
+
+            final MethodInfo methodInfo = classInfo.getMethodInfo("explicitReceiver").get(0);
+            final AnnotationInfo receiverTypeAnnotationInfo = methodInfo.getTypeSignatureOrTypeDescriptor()
+                    .getReceiverTypeAnnotationInfo().get(0);
+            assertThat(shortNames(receiverTypeAnnotationInfo)).isEqualTo("@F");
         }
     }
 }

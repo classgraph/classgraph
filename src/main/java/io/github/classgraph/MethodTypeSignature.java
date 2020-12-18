@@ -53,6 +53,9 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The throws type signatures. */
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
+    /** Any type annotation(s) on an explicit receiver parameter. */
+    private AnnotationInfoList receiverTypeAnnotationInfo;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -122,6 +125,28 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         // Individual parts of a class' type each have their own addTypeAnnotation methods
         throw new IllegalArgumentException(
                 "Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
+    }
+
+    /**
+     * Add a type annotation for an explicit receiver parameter.
+     *
+     * @param annotationInfo
+     *            the receiver type annotation
+     */
+    void addRecieverTypeAnnotation(final AnnotationInfo annotationInfo) {
+        if (receiverTypeAnnotationInfo == null) {
+            receiverTypeAnnotationInfo = new AnnotationInfoList(1);
+        }
+        receiverTypeAnnotationInfo.add(annotationInfo);
+    }
+
+    /**
+     * Get type annotations on the explicit receiver parameter, or null if none.
+     * 
+     * @return type annotations on the explicit receiver parameter, or null if none.
+     */
+    public AnnotationInfoList getReceiverTypeAnnotationInfo() {
+        return receiverTypeAnnotationInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------

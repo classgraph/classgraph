@@ -1616,15 +1616,7 @@ class Classfile {
                                                     annotationInfo);
                                         } else if (targetType == 0x15) {
                                             // Receiver type of method or constructor (explicit receiver parameter)
-                                            final List<TypeSignature> paramTypeSignatures = methodTypeSignature
-                                                    .getParameterTypeSignatures();
-                                            if (paramTypeSignatures != null && paramTypeSignatures.size() > 0) {
-                                                // TODO: is this the right way to apply a receiver type annotation? **************************
-                                                final TypeSignature receiverParamTypeSignature = paramTypeSignatures
-                                                        .get(0);
-                                                receiverParamTypeSignature.addTypeAnnotation(typePath,
-                                                        annotationInfo);
-                                            }
+                                            methodTypeSignature.addRecieverTypeAnnotation(annotationInfo);
                                         } else if (targetType == 0x16) {
                                             // Type in formal parameter declaration of method, constructor,
                                             // or lambda expression
