@@ -301,7 +301,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
-                    buf.append(annotationInfo);
+                    annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');
                 }
             }

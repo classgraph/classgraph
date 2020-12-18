@@ -314,27 +314,52 @@ public class MethodParameterInfo {
         }
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
+    // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Render to string.
+     *
+     * @param useSimpleNames
+     *            if true, use just the simple name of each class.
+     * @param buf
+     *            the buf
+     */
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {
             for (final AnnotationInfo anAnnotationInfo : annotationInfo) {
-                anAnnotationInfo.toString(buf);
+                anAnnotationInfo.toString(useSimpleNames, buf);
                 buf.append(' ');
             }
         }
 
         modifiersToString(modifiers, buf);
 
-        buf.append(getTypeSignatureOrTypeDescriptor().toString());
+        getTypeSignatureOrTypeDescriptor().toString(useSimpleNames, buf);
 
         buf.append(' ');
         buf.append(name == null ? "_unnamed_param" : name);
+    }
 
+    /**
+     * Render to string with simple names for classes.
+     *
+     * @return the string representation.
+     */
+    public String toStringWithSimpleNames() {
+        final StringBuilder buf = new StringBuilder();
+        toString(/* useSimpleNames = */ true, buf);
+        return buf.toString();
+    }
+
+    /**
+     * Render to string.
+     *
+     * @return the string representation.
+     */
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        toString(/* useSimpleNames = */ false, buf);
         return buf.toString();
     }
 }

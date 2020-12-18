@@ -250,13 +250,15 @@ public final class TypeArgument extends HierarchicalTypeSignature {
                 && (other.typeSignature.equals(this.typeSignature) && other.wildcard.equals(this.wildcard));
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
-                    buf.append(annotationInfo);
+                    annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');
                 }
             }
@@ -270,10 +272,11 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             buf.append(typeSigStr.equals("java.lang.Object") ? "?" : "? extends " + typeSigStr);
             break;
         case SUPER:
-            buf.append("? super " + typeSignature.toString(useSimpleNames));
+            buf.append("? super ");
+            typeSignature.toString(useSimpleNames, buf);
             break;
         case NONE:
-            buf.append(typeSignature.toString(useSimpleNames));
+            typeSignature.toString(useSimpleNames, buf);
             break;
         default:
             // Should not happen

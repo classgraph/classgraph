@@ -180,75 +180,6 @@ public class AnnotationParameterValue extends ScanResultObject
     // -------------------------------------------------------------------------------------------------------------
 
     /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-        toString(buf);
-        return buf.toString();
-    }
-
-    /**
-     * To string.
-     *
-     * @param buf
-     *            the buf
-     */
-    void toString(final StringBuilder buf) {
-        buf.append(name);
-        buf.append("=");
-        toStringParamValueOnly(buf);
-    }
-
-    /**
-     * To string, param value only.
-     *
-     * @param buf
-     *            the buf
-     */
-    void toStringParamValueOnly(final StringBuilder buf) {
-        if (value == null) {
-            buf.append("null");
-        } else {
-            final Object paramVal = value.get();
-            final Class<?> valClass = paramVal.getClass();
-            if (valClass.isArray()) {
-                buf.append('{');
-                for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
-                    if (j > 0) {
-                        buf.append(", ");
-                    }
-                    final Object elt = Array.get(paramVal, j);
-                    buf.append(elt == null ? "null" : elt.toString());
-                }
-                buf.append('}');
-            } else if (paramVal instanceof String) {
-                buf.append('"');
-                buf.append(paramVal.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
-                buf.append('"');
-            } else if (paramVal instanceof Character) {
-                buf.append('\'');
-                buf.append(paramVal.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
-                buf.append('\'');
-            } else {
-                buf.append(paramVal.toString());
-            }
-        }
-    }
-
-    /**
-     * To string, param value only.
-     * 
-     * @return the string.
-     */
-    private String toStringParamValueOnly() {
-        final StringBuilder buf = new StringBuilder();
-        toStringParamValueOnly(buf);
-        return buf.toString();
-    }
-
-    /* (non-Javadoc)
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
     @Override
@@ -292,5 +223,81 @@ public class AnnotationParameterValue extends ScanResultObject
     @Override
     public int hashCode() {
         return Objects.hash(name, value);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        buf.append(name);
+        buf.append("=");
+        toStringParamValueOnly(useSimpleNames, buf);
+    }
+
+    /**
+     * Write an annotation parameter value's string representation to the buffer.
+     *
+     * @param val
+     *            the value
+     * @param useSimpleNames
+     *            the use simple names
+     * @param buf
+     *            the buffer
+     */
+    private static void toString(final Object val, final boolean useSimpleNames, final StringBuilder buf) {
+        if (val == null) {
+            buf.append("null");
+        } else if (val instanceof ScanResultObject) {
+            ((ScanResultObject) val).toString(useSimpleNames, buf);
+        } else {
+            buf.append(val.toString());
+        }
+    }
+
+    /**
+     * To string, param value only.
+     *
+     * @param buf
+     *            the buf
+     */
+    void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
+        if (value == null) {
+            buf.append("null");
+        } else {
+            final Object paramVal = value.get();
+            final Class<?> valClass = paramVal.getClass();
+            if (valClass.isArray()) {
+                buf.append('{');
+                for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
+                    if (j > 0) {
+                        buf.append(", ");
+                    }
+                    final Object elt = Array.get(paramVal, j);
+                    toString(elt, useSimpleNames, buf);
+                }
+                buf.append('}');
+            } else if (paramVal instanceof String) {
+                buf.append('"');
+                buf.append(paramVal.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
+                buf.append('"');
+            } else if (paramVal instanceof Character) {
+                buf.append('\'');
+                buf.append(paramVal.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
+                buf.append('\'');
+            } else {
+                toString(paramVal, useSimpleNames, buf);
+            }
+        }
+    }
+
+    /**
+     * To string, param value only.
+     * 
+     * @return the string.
+     */
+    private String toStringParamValueOnly() {
+        final StringBuilder buf = new StringBuilder();
+        toStringParamValueOnly(false, buf);
+        return buf.toString();
     }
 }

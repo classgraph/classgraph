@@ -836,20 +836,21 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
      * static class initializer blocks are named {@code "<clinit>"}.
      *
-     * @return the string representation of the method.
+     * @param useSimpleNames
+     *            the use simple names
+     * @param buf
+     *            the buf
      */
     @Override
-    public String toString() {
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         final MethodTypeSignature methodType = getTypeSignatureOrTypeDescriptor();
-
-        final StringBuilder buf = new StringBuilder();
 
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                annotation.toString(buf);
+                annotation.toString(useSimpleNames, buf);
             }
         }
 
@@ -870,8 +871,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 if (i > 0) {
                     buf.append(", ");
                 }
-                final String typeParamStr = typeParameters.get(i).toString();
-                buf.append(typeParamStr);
+                typeParameters.get(i).toString(useSimpleNames, buf);
             }
             buf.append('>');
         }
@@ -880,13 +880,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            methodType.getResultType().toStringInternal(/* useSimpleNames = */ false,
-                    /* annotationsToExclude = */ annotationInfo, buf);
+            methodType.getResultType().toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo,
+                    buf);
         }
 
         buf.append(' ');
         if (name != null) {
-            buf.append(name);
+            buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
         }
 
         // If at least one param is named, then use placeholder names for unnamed params,
@@ -926,7 +926,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
             if (paramInfo.annotationInfo != null) {
                 for (final AnnotationInfo ai : paramInfo.annotationInfo) {
-                    ai.toString(buf);
+                    ai.toString(useSimpleNames, buf);
                     buf.append(' ');
                 }
             }
@@ -945,7 +945,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     throw new IllegalArgumentException(
                             "Got a zero-dimension array type for last parameter of varargs method " + name);
                 }
-                buf.append(arrayType.getElementTypeSignature().toString());
+                arrayType.getElementTypeSignature().toString(useSimpleNames, buf);
                 for (int j = 0; j < arrayType.getNumDimensions() - 1; j++) {
                     buf.append("[]");
                 }
@@ -962,7 +962,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                         annotationsToExclude.add(paramInfo.annotationInfo[j]);
                     }
                 }
-                paramTypeSignature.toStringInternal(/* useSimpleNames = */ false, annotationsToExclude, buf);
+                paramTypeSignature.toStringInternal(useSimpleNames, annotationsToExclude, buf);
             }
 
             if (hasParamNames) {
@@ -981,9 +981,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 if (i > 0) {
                     buf.append(", ");
                 }
-                buf.append(methodType.getThrowsSignatures().get(i).toString());
+                methodType.getThrowsSignatures().get(i).toString(useSimpleNames, buf);
             }
         }
-        return buf.toString();
     }
 }

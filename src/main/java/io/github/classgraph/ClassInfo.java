@@ -3010,63 +3010,63 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return name == null ? 0 : name.hashCode();
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * To string.
      *
-     * @param typeNameOnly
-     *            if true, convert type name to string only.
-     * @return the string
+     * @param useSimpleNames
+     *            use simple names
+     * @param buf
+     *            the buf
      */
-    protected String toString(final boolean typeNameOnly) {
-        final ClassTypeSignature typeSig = getTypeSignature();
-        if (typeSig != null) {
-            // Generic classes
-            return typeSig.toString(name, /* useSimpleNames = */ false, typeNameOnly, modifiers, isAnnotation(),
-                    isInterface(), /* annotationsToExclude = */ null);
-        } else {
-            // Non-generic classes
-            final StringBuilder buf = new StringBuilder();
-            if (typeNameOnly) {
-                buf.append(name);
-            } else {
-                TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
+    @Override
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        if (annotationInfo != null) {
+            for (final AnnotationInfo annotation : annotationInfo) {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append(isRecord() ? "record " //
-                        : isEnum() ? "enum " //
-                                : isAnnotation() ? "@interface " //
-                                        : isInterface() ? "interface " //
-                                                : "class ");
-                buf.append(name);
-                final ClassInfo superclass = getSuperclass();
-                if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
-                    buf.append(" extends ").append(superclass.toString(/* typeNameOnly = */ true));
-                }
-                final Set<ClassInfo> interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
-                        /* strictAccept = */ false).directlyRelatedClasses;
-                if (!interfaces.isEmpty()) {
-                    buf.append(isInterface() ? " extends " : " implements ");
-                    boolean first = true;
-                    for (final ClassInfo iface : interfaces) {
-                        if (first) {
-                            first = false;
-                        } else {
-                            buf.append(", ");
-                        }
-                        buf.append(iface.toString(/* typeNameOnly = */ true));
+                annotation.toString(useSimpleNames, buf);
+            }
+        }
+        final ClassTypeSignature typeSig = getTypeSignature();
+        if (typeSig != null) {
+            // Generic classes
+            typeSig.toStringInternal(useSimpleNames ? ClassInfo.getSimpleName(name) : name,
+                    /* useSimpleNames = */ false, modifiers, isAnnotation(), isInterface(),
+                    /* annotationsToExclude = */ annotationInfo, buf);
+        } else {
+            // Non-generic classes
+            TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append(isRecord() ? "record " //
+                    : isEnum() ? "enum " //
+                            : isAnnotation() ? "@interface " //
+                                    : isInterface() ? "interface " //
+                                            : "class ");
+            buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
+            final ClassInfo superclass = getSuperclass();
+            if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
+                buf.append(" extends ");
+                superclass.toString(useSimpleNames, buf);
+            }
+            final Set<ClassInfo> interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
+                    /* strictAccept = */ false).directlyRelatedClasses;
+            if (!interfaces.isEmpty()) {
+                buf.append(isInterface() ? " extends " : " implements ");
+                boolean first = true;
+                for (final ClassInfo iface : interfaces) {
+                    if (first) {
+                        first = false;
+                    } else {
+                        buf.append(", ");
                     }
+                    iface.toString(useSimpleNames, buf);
                 }
             }
-            return buf.toString();
         }
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        return toString(false);
     }
 }

@@ -236,18 +236,20 @@ public final class TypeParameter extends HierarchicalTypeSignature {
                 && other.interfaceBounds.equals(this.interfaceBounds);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
-                    buf.append(annotationInfo);
+                    annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');
                 }
             }
         }
-        buf.append(name);
+        buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
         String classBoundStr;
         if (classBound == null) {
             classBoundStr = null;
@@ -271,7 +273,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
                 buf.append(" &");
             }
             buf.append(' ');
-            buf.append(interfaceBounds.get(i).toString(useSimpleNames));
+            interfaceBounds.get(i).toString(useSimpleNames, buf);
         }
     }
 }

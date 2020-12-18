@@ -613,4 +613,56 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 && Arrays.equals(byteArrayValue, o.byteArrayValue)
                 && Arrays.deepEquals(objectArrayValue, o.objectArrayValue);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        if (annotationEnumValue != null) {
+            annotationEnumValue.toString(useSimpleNames, buf);
+        } else if (annotationClassRef != null) {
+            annotationClassRef.toString(useSimpleNames, buf);
+        } else if (annotationInfo != null) {
+            annotationInfo.toString(useSimpleNames, buf);
+        } else if (stringValue != null) {
+            buf.append(stringValue);
+        } else if (integerValue != null) {
+            buf.append(Integer.toString(integerValue));
+        } else if (longValue != null) {
+            buf.append(Long.toString(longValue));
+        } else if (shortValue != null) {
+            buf.append(Short.toString(shortValue));
+        } else if (booleanValue != null) {
+            buf.append(Boolean.toString(booleanValue));
+        } else if (characterValue != null) {
+            buf.append(Character.toString(characterValue));
+        } else if (floatValue != null) {
+            buf.append(Float.toString(floatValue));
+        } else if (doubleValue != null) {
+            buf.append(Double.toString(doubleValue));
+        } else if (byteValue != null) {
+            buf.append(Byte.toString(byteValue));
+        } else if (stringArrayValue != null) {
+            buf.append(Arrays.toString(stringArrayValue));
+        } else if (intArrayValue != null) {
+            buf.append(Arrays.toString(intArrayValue));
+        } else if (longArrayValue != null) {
+            buf.append(Arrays.toString(longArrayValue));
+        } else if (shortArrayValue != null) {
+            buf.append(Arrays.toString(shortArrayValue));
+        } else if (booleanArrayValue != null) {
+            buf.append(Arrays.toString(booleanArrayValue));
+        } else if (charArrayValue != null) {
+            buf.append(Arrays.toString(charArrayValue));
+        } else if (floatArrayValue != null) {
+            buf.append(Arrays.toString(floatArrayValue));
+        } else if (doubleArrayValue != null) {
+            buf.append(Arrays.toString(doubleArrayValue));
+        } else if (byteArrayValue != null) {
+            buf.append(Arrays.toString(byteArrayValue));
+        } else if (objectArrayValue != null) {
+            // TODO this doesn't handle nested arrays, but this toString() method is only used for debugging
+            buf.append(Arrays.toString(objectArrayValue));
+        }
+    }
 }

@@ -36,7 +36,6 @@ import java.util.Set;
  * A superclass of objects accessible from a {@link ScanResult} that are associated with a {@link ClassInfo} object.
  */
 abstract class ScanResultObject {
-
     /** The scan result. */
     transient protected ScanResult scanResult;
 
@@ -45,6 +44,8 @@ abstract class ScanResultObject {
 
     /** The class ref, once the class is loaded. */
     protected transient Class<?> classRef;
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Set ScanResult backreferences in info objects after scan has completed.
@@ -84,6 +85,8 @@ abstract class ScanResultObject {
             refdClassInfo.add(ci);
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * The name of the class (used by {@link #getClassInfo()} to fetch the {@link ClassInfo} object for the class).
@@ -141,6 +144,8 @@ abstract class ScanResultObject {
         }
         return className;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
@@ -237,5 +242,53 @@ abstract class ScanResultObject {
      */
     Class<?> loadClass() {
         return loadClass(/* ignoreExceptions = */ false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Render to string.
+     *
+     * @param useSimpleNames
+     *            if true, use just the simple name of each class.
+     * @param buf
+     *            the buf
+     */
+    protected abstract void toString(final boolean useSimpleNames, StringBuilder buf);
+
+    /**
+     * Render to string, with simple names for classes if useSimpleNames is true.
+     *
+     * @param useSimpleNames
+     *            if true, use just the simple name of each class.
+     * @return the string representation.
+     */
+    String toString(final boolean useSimpleNames) {
+        final StringBuilder buf = new StringBuilder();
+        toString(useSimpleNames, buf);
+        return buf.toString();
+    }
+
+    /**
+     * Render to string, using only simple names for classes.
+     *
+     * @return the string representation, using simple names for classes.
+     */
+    public String toStringWithSimpleNames() {
+        final StringBuilder buf = new StringBuilder();
+        toString(/* useSimpleNames = */ true, buf);
+        return buf.toString();
+    }
+
+    /**
+     * Render to string.
+     *
+     * @return the string representation.
+     */
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        toString(/* useSimpleNames = */ false, buf);
+        return buf.toString();
     }
 }

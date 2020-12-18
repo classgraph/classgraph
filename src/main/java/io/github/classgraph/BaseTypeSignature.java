@@ -346,13 +346,15 @@ public class BaseTypeSignature extends TypeSignature {
         return typeSignatureChar == ((BaseTypeSignature) other).typeSignatureChar;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
-                    buf.append(annotationInfo);
+                    annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');
                 }
             }

@@ -521,19 +521,16 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         return name.compareTo(other.name);
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
+    // -------------------------------------------------------------------------------------------------------------
 
+    @Override
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append(annotation.toString());
+                annotation.toString(useSimpleNames, buf);
             }
         }
 
@@ -548,7 +545,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             buf.append(' ');
         }
         final TypeSignature typeSig = getTypeSignatureOrTypeDescriptor();
-        typeSig.toStringInternal(/* useSimpleNames = */ false, /* annotationsToExclude = */ annotationInfo, buf);
+        typeSig.toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo, buf);
 
         buf.append(' ');
         buf.append(name);
@@ -562,10 +559,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
                 buf.append('\'').append(((Character) val).toString().replace("\\", "\\\\").replaceAll("'", "\\'"))
                         .append('\'');
             } else {
-                buf.append(val.toString());
+                buf.append(val == null ? "null" : val.toString());
             }
         }
-
-        return buf.toString();
     }
 }

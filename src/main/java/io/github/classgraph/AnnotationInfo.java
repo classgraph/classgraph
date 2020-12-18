@@ -308,7 +308,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 if (instantiatedValue == null) {
                     // Annotations cannot contain null values
                     throw new IllegalArgumentException("Got null value for annotation parameter " + apv.getName()
-                            + " of annotation " + annotationInfo.getName());
+                            + " of annotation " + annotationInfo.name);
                 }
                 this.annotationParameterValuesInstantiated.put(apv.getName(), instantiatedValue);
             }
@@ -466,7 +466,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     @Override
     public int compareTo(final AnnotationInfo o) {
-        final int diff = getName().compareTo(o.getName());
+        final int diff = this.name.compareTo(o.name);
         if (diff != 0) {
             return diff;
         }
@@ -513,7 +513,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     @Override
     public int hashCode() {
-        int h = getName().hashCode();
+        int h = name.hashCode();
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue e : annotationParamValues) {
                 h = h * 7 + e.getName().hashCode() * 3 + e.getValue().hashCode();
@@ -522,14 +522,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return h;
     }
 
-    /**
-     * Render as a string, into a StringBuilder buffer.
-     * 
-     * @param buf
-     *            The buffer.
-     */
-    void toString(final StringBuilder buf) {
-        buf.append('@').append(getName());
+    @Override
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        buf.append('@').append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
         final AnnotationParameterValueList paramVals = getParameterValues();
         if (!paramVals.isEmpty()) {
             buf.append('(');
@@ -539,22 +534,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 }
                 final AnnotationParameterValue paramVal = paramVals.get(i);
                 if (paramVals.size() > 1 || !"value".equals(paramVal.getName())) {
-                    paramVal.toString(buf);
+                    paramVal.toString(useSimpleNames, buf);
                 } else {
-                    paramVal.toStringParamValueOnly(buf);
+                    paramVal.toStringParamValueOnly(useSimpleNames, buf);
                 }
             }
             buf.append(')');
         }
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-        toString(buf);
-        return buf.toString();
     }
 }

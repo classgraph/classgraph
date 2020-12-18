@@ -81,7 +81,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     protected abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 
     /**
-     * {@link #toString()} internal method.
+     * Render type signature to string.
      *
      * @param useSimpleNames
      *            whether to use simple names for classes.
@@ -91,38 +91,19 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      * @param buf
      *            the {@link StringBuilder} to write to.
      */
-    abstract void toStringInternal(final boolean useSimpleNames, AnnotationInfoList annotationsToExclude,
+    protected abstract void toStringInternal(final boolean useSimpleNames, AnnotationInfoList annotationsToExclude,
             StringBuilder buf);
 
     /**
-     * {@link #toString()} that renders only simple names for classes.
-     *
-     * @return the string representation of the type
-     */
-    public String toStringWithSimpleNames() {
-        final StringBuilder buf = new StringBuilder();
-        toStringInternal(true, null, buf);
-        return buf.toString();
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-        toStringInternal(false, null, buf);
-        return buf.toString();
-    }
-
-    /**
-     * {@link #toString()} that renders only simple names for classes if requested.
+     * Render type signature to string.
      *
      * @param useSimpleNames
-     *            if true, use just the simple name of each class.
-     * @return the string representation of the type
+     *            whether to use simple names for classes.
+     * @param buf
+     *            the {@link StringBuilder} to write to.
      */
-    public String toString(final boolean useSimpleNames) {
-        return useSimpleNames ? toStringWithSimpleNames() : toString();
+    @Override
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        toStringInternal(useSimpleNames, /* annotationsToExclude = */ null, buf);
     }
 }

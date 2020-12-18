@@ -370,6 +370,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 && suffixesMatch(o, this);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
@@ -379,7 +381,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             if (typeAnnotationInfo != null) {
                 for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
                     if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
-                        buf.append(annotationInfo);
+                        annotationInfo.toString(useSimpleNames, buf);
                         buf.append(' ');
                     }
                 }
@@ -393,7 +395,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                     if (i > 0) {
                         buf.append(", ");
                     }
-                    buf.append(typeArguments.get(i).toString(useSimpleNames));
+                    typeArguments.get(i).toString(useSimpleNames, buf);
                 }
                 buf.append('>');
             }
@@ -417,7 +419,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 }
                 if (typeAnnotations != null && !typeAnnotations.isEmpty()) {
                     for (final AnnotationInfo annotationInfo : typeAnnotations) {
-                        buf.append(annotationInfo);
+                        annotationInfo.toString(useSimpleNames, buf);
                         buf.append(' ');
                     }
                 }
@@ -431,13 +433,15 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                         if (j > 0) {
                             buf.append(", ");
                         }
-                        buf.append(suffixTypeArgumentsList.get(j).toString(useSimpleNames));
+                        suffixTypeArgumentsList.get(j).toString(useSimpleNames, buf);
                     }
                     buf.append('>');
                 }
             }
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Parse a class type signature.

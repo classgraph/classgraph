@@ -174,11 +174,10 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         return className.hashCode() * 11 + valueName.hashCode();
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
     @Override
-    public String toString() {
-        return className + "." + valueName;
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        buf.append(useSimpleNames ? ClassInfo.getSimpleName(className) : className);
+        buf.append('.');
+        buf.append(valueName);
     }
 }

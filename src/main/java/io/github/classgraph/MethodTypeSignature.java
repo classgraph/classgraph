@@ -266,6 +266,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 && o.resultType.equals(this.resultType) && o.throwsSignatures.equals(this.throwsSignatures);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
@@ -275,8 +277,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                final String typeParamStr = typeParameters.get(i).toString(useSimpleNames);
-                buf.append(typeParamStr);
+                typeParameters.get(i).toString(useSimpleNames, buf);
             }
             buf.append('>');
         }
@@ -291,7 +292,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
             if (i > 0) {
                 buf.append(", ");
             }
-            buf.append(parameterTypeSignatures.get(i).toString(useSimpleNames));
+            parameterTypeSignatures.get(i).toString(useSimpleNames, buf);
         }
         buf.append(')');
 
@@ -301,7 +302,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                buf.append(throwsSignatures.get(i).toString(useSimpleNames));
+                throwsSignatures.get(i).toString(useSimpleNames, buf);
             }
         }
     }

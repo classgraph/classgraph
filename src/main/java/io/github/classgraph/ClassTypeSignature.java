@@ -225,36 +225,36 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Render into String form.
-     * 
+     *
      * @param className
      *            The class name
-     * @param typeNameOnly
-     *            If true, only return the type name (and generic type parameters).
+     * @param useSimpleNames
+     *            the use simple names
      * @param modifiers
      *            The class modifiers.
      * @param isAnnotation
      *            True if the class is an annotation.
      * @param isInterface
      *            True if the class is an interface.
-     * @return The String representation.
+     * @param annotationsToExclude
+     *            the annotations to exclude
+     * @param buf
+     *            the buf
      */
-    String toString(final String className, final boolean useSimpleNames, final boolean typeNameOnly,
-            final int modifiers, final boolean isAnnotation, final boolean isInterface,
-            final AnnotationInfoList annotationsToExclude) {
-        final StringBuilder buf = new StringBuilder();
-        if (!typeNameOnly) {
-            if (modifiers != 0) {
-                TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
-                if (buf.length() > 0) {
-                    buf.append(' ');
-                }
+    void toStringInternal(final String className, final boolean useSimpleNames, final int modifiers,
+            final boolean isAnnotation, final boolean isInterface, final AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
+        if (modifiers != 0) {
+            TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
+            if (buf.length() > 0) {
+                buf.append(' ');
             }
-            buf.append(isAnnotation ? "@interface"
-                    : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
-            buf.append(' ');
         }
+        buf.append(isAnnotation ? "@interface"
+                : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
+        buf.append(' ');
         if (className != null) {
-            buf.append(className);
+            buf.append(useSimpleNames ? ClassInfo.getSimpleName(className) : className);
         }
         if (!typeParameters.isEmpty()) {
             buf.append('<');
@@ -266,34 +266,41 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             }
             buf.append('>');
         }
-        if (!typeNameOnly) {
-            if (superclassSignature != null) {
-                final String superSig = superclassSignature.toString(useSimpleNames);
-                // superSig could have a class type annotation even if the superclass is Object
-                if (!superSig.equals("java.lang.Object") && !(superSig.equals("Object")
-                        && superclassSignature.className.equals("java.lang.Object"))) {
-                    buf.append(" extends ");
-                    buf.append(superSig);
-                }
-            }
-            if (!superinterfaceSignatures.isEmpty()) {
-                buf.append(isInterface ? " extends " : " implements ");
-                for (int i = 0; i < superinterfaceSignatures.size(); i++) {
-                    if (i > 0) {
-                        buf.append(", ");
-                    }
-                    superinterfaceSignatures.get(i).toStringInternal(useSimpleNames, null, buf);
-                }
+        if (superclassSignature != null) {
+            final String superSig = superclassSignature.toString(useSimpleNames);
+            // superSig could have a class type annotation even if the superclass is Object
+            if (!superSig.equals("java.lang.Object")
+                    && !(superSig.equals("Object") && superclassSignature.className.equals("java.lang.Object"))) {
+                buf.append(" extends ");
+                buf.append(superSig);
             }
         }
-        return buf.toString();
+        if (!superinterfaceSignatures.isEmpty()) {
+            buf.append(isInterface ? " extends " : " implements ");
+            for (int i = 0; i < superinterfaceSignatures.size(); i++) {
+                if (i > 0) {
+                    buf.append(", ");
+                }
+                superinterfaceSignatures.get(i).toStringInternal(useSimpleNames, null, buf);
+            }
+        }
     }
 
+    /**
+     * To string internal.
+     *
+     * @param useSimpleNames
+     *            the use simple names
+     * @param annotationsToExclude
+     *            the annotations to exclude
+     * @param buf
+     *            the buf
+     */
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
-        buf.append(toString(classInfo.getName(), useSimpleNames, /* typeNameOnly = */ false,
-                classInfo.getModifiers(), classInfo.isAnnotation(), classInfo.isInterface(), annotationsToExclude));
+        toStringInternal(classInfo.getName(), useSimpleNames, classInfo.getModifiers(), classInfo.isAnnotation(),
+                classInfo.isInterface(), annotationsToExclude, buf);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -360,6 +360,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return this.nestedType.equalsIgnoringTypeParams(o.nestedType);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
@@ -373,7 +375,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
                     if (buf.length() == 0 || buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
-                    buf.append(annotationInfo);
+                    annotationInfo.toString(useSimpleNames, buf);
                 }
                 buf.append(' ');
             }
@@ -387,6 +389,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             }
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Parses the array type signature.
