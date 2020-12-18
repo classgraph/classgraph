@@ -197,9 +197,9 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 skipSuffix = false;
             } else {
                 // For suffix path X.Y, classes are not nested if Y is static
-                final ClassInfo outerClassInfo = scanResult.getClassInfo(typePrefix.toString());
+                final ClassInfo outerClassInfo = scanResult.getClassInfo(typePrefix);
                 typePrefix = typePrefix + '$' + suffixes.get(suffixIdx + 1);
-                final ClassInfo innerClassInfo = scanResult.getClassInfo(typePrefix.toString());
+                final ClassInfo innerClassInfo = scanResult.getClassInfo(typePrefix);
                 skipSuffix = outerClassInfo == null || innerClassInfo == null
                         || outerClassInfo.isInterfaceOrAnnotation() //
                         || innerClassInfo.isInterfaceOrAnnotation() //
