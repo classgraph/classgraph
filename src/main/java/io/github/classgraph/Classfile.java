@@ -1601,11 +1601,19 @@ class Classfile {
                                                         .get(typeParameterIndex);
                                                 // boundIndex == 0 => class bound; boundIndex > 0 => interface bound 
                                                 if (boundIndex == 0) {
-                                                    typeParameter.getClassBound().addTypeAnnotation(typePath,
-                                                            annotationInfo);
+                                                    final ReferenceTypeSignature classBound = typeParameter
+                                                            .getClassBound();
+                                                    if (classBound != null) {
+                                                        classBound.addTypeAnnotation(typePath, annotationInfo);
+                                                    }
                                                 } else {
-                                                    typeParameter.getInterfaceBounds().get(boundIndex - 1)
-                                                            .addTypeAnnotation(typePath, annotationInfo);
+                                                    final List<ReferenceTypeSignature> interfaceBounds = //
+                                                            typeParameter.getInterfaceBounds();
+                                                    if (interfaceBounds != null
+                                                            && boundIndex - 1 < interfaceBounds.size()) {
+                                                        interfaceBounds.get(boundIndex - 1)
+                                                                .addTypeAnnotation(typePath, annotationInfo);
+                                                    }
                                                 }
                                             }
                                             // else this is a method type descriptor, not a method type signature,
@@ -1776,11 +1784,18 @@ class Classfile {
                                         final TypeParameter typeParameter = typeParameters.get(typeParameterIndex);
                                         // boundIndex == 0 => class bound; boundIndex > 0 => interface bound 
                                         if (boundIndex == 0) {
-                                            typeParameter.getClassBound().addTypeAnnotation(typePath,
-                                                    annotationInfo);
+                                            final ReferenceTypeSignature classBound = typeParameter.getClassBound();
+                                            if (classBound != null) {
+                                                classBound.addTypeAnnotation(typePath, annotationInfo);
+                                            }
                                         } else {
-                                            typeParameter.getInterfaceBounds().get(boundIndex - 1)
-                                                    .addTypeAnnotation(typePath, annotationInfo);
+                                            final List<ReferenceTypeSignature> interfaceBounds = typeParameter
+                                                    .getInterfaceBounds();
+                                            if (interfaceBounds != null
+                                                    && boundIndex - 1 < interfaceBounds.size()) {
+                                                typeParameter.getInterfaceBounds().get(boundIndex - 1)
+                                                        .addTypeAnnotation(typePath, annotationInfo);
+                                            }
                                         }
                                     }
                                 }
