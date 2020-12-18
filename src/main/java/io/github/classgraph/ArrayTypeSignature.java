@@ -150,9 +150,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @return a list of {@link AnnotationInfo} objects for the type annotations of on this array type, or null if
      *         none.
      */
-    @Override
     public AnnotationInfoList getTypeAnnotationInfo() {
-        return super.getTypeAnnotationInfo();
+        return typeAnnotationInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------

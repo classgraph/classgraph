@@ -117,13 +117,6 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 "Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
     }
 
-    @Override
-    public AnnotationInfoList getTypeAnnotationInfo() {
-        throw new IllegalArgumentException("Cannot call this method on " + ClassTypeSignature.class.getSimpleName()
-                + " -- type annotations are accessible by calling getTypeParameters(), getSuperclassSignature(), "
-                + "and getSuperinterfaceSignature().");
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /* (non-Javadoc)

@@ -127,13 +127,6 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 "Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
     }
 
-    @Override
-    public AnnotationInfoList getTypeAnnotationInfo() {
-        throw new IllegalArgumentException("Cannot call this method on " + MethodTypeSignature.class.getSimpleName()
-                + " -- type annotations are accessible by calling getTypeParameters(), getResultType(), "
-                + "and getThrowsSignatures().");
-    }
-
     /**
      * Add a type annotation for an explicit receiver parameter.
      *

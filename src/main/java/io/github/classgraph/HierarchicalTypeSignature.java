@@ -39,15 +39,6 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     protected AnnotationInfoList typeAnnotationInfo;
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
-     * 
-     * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
-     */
-    public AnnotationInfoList getTypeAnnotationInfo() {
-        return typeAnnotationInfo;
-    }
-
-    /**
      * Add a type annotation.
      *
      * @param annotationInfo
