@@ -121,7 +121,6 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (typePath.isEmpty()) {
             addTypeAnnotation(annotationInfo);
         } else {
-            // TODO is this right?
             throw new IllegalArgumentException("Type variable should have empty typePath");
         }
     }

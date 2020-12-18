@@ -289,7 +289,6 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         return buf.toString();
     }
 
-    // TODO: useSimpleNames is being ignored
     @Override
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {

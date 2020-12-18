@@ -102,7 +102,6 @@ public final class TypeParameter extends HierarchicalTypeSignature {
         if (typePath.isEmpty()) {
             addTypeAnnotation(annotationInfo);
         } else {
-            // TODO is this right?
             throw new IllegalArgumentException("Type parameter should have empty typePath");
         }
     }
