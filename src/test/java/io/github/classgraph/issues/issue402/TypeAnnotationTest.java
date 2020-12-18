@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ClassRefTypeSignature;
+import io.github.classgraph.FieldInfo;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
 
@@ -19,47 +21,38 @@ import io.github.classgraph.ScanResult;
  * TypeAnnotationTest.
  */
 class TypeAnnotationTest {
-    /** Annotation A. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface A {
     }
 
-    /** Annotation B. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface B {
     }
 
-    /** Annotation C. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface C {
     }
 
-    /** Annotation D. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface D {
     }
 
-    /** Annotation E. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface E {
     }
 
-    /** Annotation F. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface F {
     }
 
-    /** Annotation G. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface G {
     }
 
-    /** Annotation H. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface H {
     }
 
-    /** Annotation I. */
     @Retention(RetentionPolicy.RUNTIME)
     private static @interface I {
     }
@@ -126,6 +119,15 @@ class TypeAnnotationTest {
         }
     }
 
+    @Retention(RetentionPolicy.RUNTIME)
+    private static @interface Size {
+        int max();
+    }
+
+    class Person {
+        List<@Size(max = 50) String> emails;
+    }
+
     /**
      * Convert class names to short names.
      *
@@ -178,14 +180,14 @@ class TypeAnnotationTest {
             assertThat(shortNames(classInfo.getMethodInfo("t").get(0)))
                     .isEqualTo("<@A T extends @B U> @D U t(@E T)");
 
-            final ClassInfo pClassInfo = scanResult.getClassInfo(P.class.getName());
+            final FieldInfo emailsFieldInfo = scanResult.getClassInfo(Person.class.getName())
+                    .getFieldInfo("emails");
 
-            assertThat(shortNames(pClassInfo)).isEqualTo("static class P<@A T extends @B U & @C V>");
+            assertThat(shortNames(emailsFieldInfo)).isEqualTo("List<@Size(max=50) String> emails");
 
-            final MethodInfo methodInfo = pClassInfo.getMethodInfo("explicitReceiver").get(0);
-            final AnnotationInfo receiverTypeAnnotationInfo = methodInfo.getTypeSignatureOrTypeDescriptor()
-                    .getReceiverTypeAnnotationInfo().get(0);
-            assertThat(shortNames(receiverTypeAnnotationInfo)).isEqualTo("@F");
+            assertThat(shortNames(((ClassRefTypeSignature) emailsFieldInfo.getTypeSignatureOrTypeDescriptor())
+                    .getTypeArguments().get(0).getTypeSignature().getTypeAnnotationInfo().get(0)))
+                            .isEqualTo("@Size(max=50)");
         }
     }
 
