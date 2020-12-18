@@ -2036,8 +2036,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             for (final MethodInfo mi : ci.getDeclaredMethodInfo(methodName, getNormalMethods, getConstructorMethods,
                     getStaticInitializerMethods)) {
                 // If method/constructor has not been overridden by method of same name and type descriptor 
-                if (nameAndTypeDescriptorSet
-                        .add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptor().toString()))) {
+                if (nameAndTypeDescriptorSet.add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptorStr()))) {
                     // Add method/constructor to output order
                     methodInfoList.add(mi);
                 }

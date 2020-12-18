@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
+import io.github.classgraph.MethodParameterInfo;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -109,6 +110,28 @@ class TypeAnnotationTest {
 
     List<X3.Y3.@A Z3> xyz4;
 
+    static class U {
+    }
+
+    interface V {
+    }
+
+    <@A T extends @B U> @D U t(@E T t) {
+        return null;
+    }
+
+    static class P<@A T extends @B U & @C V> {
+        public void explicitReceiver(@F P<T> this) {
+        }
+    }
+
+    /**
+     * Convert class names to short names.
+     *
+     * @param type
+     *            the type
+     * @return the class names as short names
+     */
     private static String shortNames(final Object type) {
         return type.toString().replace(TypeAnnotationTest.class.getName() + ".", "")
                 .replace(TypeAnnotationTest.class.getName() + "$", "")
@@ -150,6 +173,13 @@ class TypeAnnotationTest {
             assertThat(shortNames(classInfo.getFieldInfo("xyz3"))).isEqualTo("List<X3.Y3.@A Z3> xyz3");
 
             assertThat(shortNames(classInfo.getFieldInfo("xyz4"))).isEqualTo("List<X3.Y3.@A Z3> xyz4");
+
+            assertThat(shortNames(classInfo.getMethodInfo("t").get(0)))
+                    .isEqualTo("<@A T extends @B U> @D U t(@E T)");
+
+            final ClassInfo pClassInfo = scanResult.getClassInfo(P.class.getName());
+
+            assertThat(shortNames(pClassInfo)).isEqualTo("static class P<@A T extends @B U & @C V>");
         }
     }
 }

@@ -933,14 +933,14 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
 
             MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
-            final TypeSignature paramType = paramInfo.getTypeSignatureOrTypeDescriptor();
+            final TypeSignature paramTypeSignature = paramInfo.getTypeSignatureOrTypeDescriptor();
             if (i == varArgsParamIndex) {
                 // Show varargs params correctly -- replace last "[]" with "..."
-                if (!(paramType instanceof ArrayTypeSignature)) {
+                if (!(paramTypeSignature instanceof ArrayTypeSignature)) {
                     throw new IllegalArgumentException(
                             "Got non-array type for last parameter of varargs method " + name);
                 }
-                final ArrayTypeSignature arrayType = (ArrayTypeSignature) paramType;
+                final ArrayTypeSignature arrayType = (ArrayTypeSignature) paramTypeSignature;
                 if (arrayType.getNumDimensions() == 0) {
                     throw new IllegalArgumentException(
                             "Got a zero-dimension array type for last parameter of varargs method " + name);
@@ -951,7 +951,18 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 }
                 buf.append("...");
             } else {
-                buf.append(paramType.toString());
+                // Exclude parameter annotations from type annotations at toplevel of type signature,
+                // so that annotation is not listed twice
+                final AnnotationInfoList annotationsToExclude;
+                if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
+                    annotationsToExclude = null;
+                } else {
+                    annotationsToExclude = new AnnotationInfoList(paramInfo.annotationInfo.length);
+                    for (int j = 0; j < paramInfo.annotationInfo.length; j++) {
+                        annotationsToExclude.add(paramInfo.annotationInfo[j]);
+                    }
+                }
+                paramTypeSignature.toStringInternal(/* useSimpleNames = */ false, annotationsToExclude, buf);
             }
 
             if (hasParamNames) {

@@ -1581,20 +1581,35 @@ class Classfile {
                                     public void decorate(final MethodTypeSignature methodTypeSignature) {
                                         if (targetType == 0x01) {
                                             // Type parameter declaration of generic method or constructor
-                                            methodTypeSignature.getTypeParameters().get(typeParameterIndex)
-                                                    .addTypeAnnotation(typePath, annotationInfo);
-                                        } else if (targetType == 0x12) {
-                                            // Type in bound of type parameter declaration of generic method or constructor
-                                            final TypeParameter typeParameter = methodTypeSignature
-                                                    .getTypeParameters().get(typeParameterIndex);
-                                            // TODO: documentation does not specify if bound index should be treated this way *******************
-                                            if (boundIndex == 0) {
-                                                typeParameter.getClassBound().addTypeAnnotation(typePath,
+                                            final List<TypeParameter> typeParameters = methodTypeSignature
+                                                    .getTypeParameters();
+                                            if (typeParameters != null
+                                                    && typeParameterIndex < typeParameters.size()) {
+                                                typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
                                                         annotationInfo);
-                                            } else {
-                                                typeParameter.getInterfaceBounds().get(boundIndex - 1)
-                                                        .addTypeAnnotation(typePath, annotationInfo);
                                             }
+                                            // else this is a method type descriptor, not a method type signature,
+                                            // so there are no type parameters
+                                        } else if (targetType == 0x12) {
+                                            // Type in bound of type parameter declaration of generic method or
+                                            // constructor
+                                            final List<TypeParameter> typeParameters = methodTypeSignature
+                                                    .getTypeParameters();
+                                            if (typeParameters != null
+                                                    && typeParameterIndex < typeParameters.size()) {
+                                                final TypeParameter typeParameter = typeParameters
+                                                        .get(typeParameterIndex);
+                                                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound 
+                                                if (boundIndex == 0) {
+                                                    typeParameter.getClassBound().addTypeAnnotation(typePath,
+                                                            annotationInfo);
+                                                } else {
+                                                    typeParameter.getInterfaceBounds().get(boundIndex - 1)
+                                                            .addTypeAnnotation(typePath, annotationInfo);
+                                                }
+                                            }
+                                            // else this is a method type descriptor, not a method type signature,
+                                            // so there are no type parameters
                                         } else if (targetType == 0x14) {
                                             // Return type of method, or type of newly constructed object 
                                             methodTypeSignature.getResultType().addTypeAnnotation(typePath,
@@ -1603,14 +1618,13 @@ class Classfile {
                                             // Receiver type of method or constructor (explicit receiver parameter)
                                             final List<TypeSignature> paramTypeSignatures = methodTypeSignature
                                                     .getParameterTypeSignatures();
-                                            if (paramTypeSignatures.size() == 0) {
-                                                throw new IllegalArgumentException(
-                                                        "No explicit receiver parameter");
+                                            if (paramTypeSignatures != null && paramTypeSignatures.size() > 0) {
+                                                // TODO: is this the right way to apply a receiver type annotation? **************************
+                                                final TypeSignature receiverParamTypeSignature = paramTypeSignatures
+                                                        .get(0);
+                                                receiverParamTypeSignature.addTypeAnnotation(typePath,
+                                                        annotationInfo);
                                             }
-                                            // TODO: is this the right way to apply a receiver type annotation?
-                                            final TypeSignature receiverParamTypeSignature = paramTypeSignatures
-                                                    .get(0);
-                                            receiverParamTypeSignature.addTypeAnnotation(typePath, annotationInfo);
                                         } else if (targetType == 0x16) {
                                             // Type in formal parameter declaration of method, constructor,
                                             // or lambda expression
@@ -1624,8 +1638,13 @@ class Classfile {
                                             }
                                         } else if (targetType == 0x17) {
                                             // Type in throws clause of method or constructor
-                                            methodTypeSignature.getThrowsSignatures().get(throwsTypeIndex)
-                                                    .addTypeAnnotation(typePath, annotationInfo);
+                                            final List<ClassRefOrTypeVariableSignature> throwsSignatures = //
+                                                    methodTypeSignature.getThrowsSignatures();
+                                            if (throwsSignatures != null
+                                                    && throwsTypeIndex < throwsSignatures.size()) {
+                                                throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath,
+                                                        annotationInfo);
+                                            }
                                         }
                                     }
                                 });
@@ -1741,8 +1760,12 @@ class Classfile {
                             public void decorate(final ClassTypeSignature classTypeSignature) {
                                 if (targetType == 0x00) {
                                     // Type parameter declaration of generic class or interface
-                                    classTypeSignature.getTypeParameters().get(typeParameterIndex)
-                                            .addTypeAnnotation(typePath, annotationInfo);
+                                    final List<TypeParameter> typeParameters = classTypeSignature
+                                            .getTypeParameters();
+                                    if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                                        typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
+                                                annotationInfo);
+                                    }
                                 } else if (targetType == 0x10) {
                                     if (supertypeIndex == 65535) {
                                         // Type in extends clause of class declaration
@@ -1755,14 +1778,18 @@ class Classfile {
                                     }
                                 } else if (targetType == 0x11) {
                                     // Type in bound of type parameter declaration of generic class or interface
-                                    final TypeParameter typeParameter = classTypeSignature.getTypeParameters()
-                                            .get(typeParameterIndex);
-                                    // TODO: documentation does not specify if bound index should be treated this way ******************* 
-                                    if (boundIndex == 0) {
-                                        typeParameter.getClassBound().addTypeAnnotation(typePath, annotationInfo);
-                                    } else {
-                                        typeParameter.getInterfaceBounds().get(boundIndex - 1)
-                                                .addTypeAnnotation(typePath, annotationInfo);
+                                    final List<TypeParameter> typeParameters = classTypeSignature
+                                            .getTypeParameters();
+                                    if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                                        final TypeParameter typeParameter = typeParameters.get(typeParameterIndex);
+                                        // boundIndex == 0 => class bound; boundIndex > 0 => interface bound 
+                                        if (boundIndex == 0) {
+                                            typeParameter.getClassBound().addTypeAnnotation(typePath,
+                                                    annotationInfo);
+                                        } else {
+                                            typeParameter.getInterfaceBounds().get(boundIndex - 1)
+                                                    .addTypeAnnotation(typePath, annotationInfo);
+                                        }
                                     }
                                 }
                             }
