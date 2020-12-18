@@ -14,24 +14,34 @@ import io.github.classgraph.ScanResult;
  * Unit test.
  */
 public class Issue350 {
-    /** */
+
+    /**
+     * The Interface SuperclassAnnotation.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public static @interface SuperclassAnnotation {
     }
 
-    /** */
+    /**
+     * The Class Pub.
+     */
     public static class Pub {
-        /** */
+
+        /** The annotated public field. */
         @SuperclassAnnotation
         public int annotatedPublicField;
 
-        /** */
+        /**
+         * Annotated public method.
+         */
         @SuperclassAnnotation
         public void annotatedPublicMethod() {
         }
     }
 
-    /** */
+    /**
+     * The Class Priv.
+     */
     public static class Priv {
         /** */
         @SuperclassAnnotation
@@ -43,11 +53,15 @@ public class Issue350 {
         }
     }
 
-    /** */
+    /**
+     * The Class PubSub.
+     */
     public static class PubSub extends Pub {
     }
 
-    /** */
+    /**
+     * The Class PrivSub.
+     */
     public static class PrivSub extends Priv {
     }
 

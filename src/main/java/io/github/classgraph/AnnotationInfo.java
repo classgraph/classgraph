@@ -477,8 +477,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         } else if (o.annotationParamValues == null) {
             return 1;
         } else {
-            for (int i = 0, max = Math.max(annotationParamValues.size(),
-                    o.annotationParamValues.size()); i < max; i++) {
+            for (int i = 0,
+                    max = Math.max(annotationParamValues.size(), o.annotationParamValues.size()); i < max; i++) {
                 if (i >= annotationParamValues.size()) {
                     return -1;
                 } else if (i >= o.annotationParamValues.size()) {

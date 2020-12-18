@@ -668,7 +668,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptPackages(String...)} instead.
      *
-     * @param packageNames            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPackages(String...)} instead.
@@ -713,7 +714,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptPaths(String...)} instead.
      *
-     * @param paths            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
      *            separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPaths(String...)} instead.
@@ -761,7 +763,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptPackagesNonRecursive(String...)} instead.
      *
-     * @param packageNames            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPackagesNonRecursive(String...)} instead.
@@ -803,7 +806,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptPathsNonRecursive(String...)} instead.
      *
-     * @param paths            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
      *            separator). May not include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPathsNonRecursive(String...)} instead.
@@ -849,7 +853,8 @@ public class ClassGraph {
     /**
      * Use {@link #rejectPackages(String...)} instead.
      *
-     * @param packageNames            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
+     * @param packageNames
+     *            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectPackages(String...)} instead.
@@ -889,7 +894,8 @@ public class ClassGraph {
     /**
      * Use {@link #rejectPaths(String...)} instead.
      *
-     * @param paths            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
+     * @param paths
+     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectPaths(String...)} instead.
      */
@@ -934,7 +940,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptClasses(String...)} instead.
      *
-     * @param classNames            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
+     * @param classNames
+     *            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptClasses(String...)} instead.
@@ -973,7 +980,8 @@ public class ClassGraph {
     /**
      * Use {@link #rejectClasses(String...)} instead.
      *
-     * @param classNames            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
+     * @param classNames
+     *            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectClasses(String...)} instead.
@@ -1005,7 +1013,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptJars(String...)} instead.
      *
-     * @param jarLeafNames            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain a
+     * @param jarLeafNames
+     *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain a
      *            wildcard glob ({@code "mylib-*.jar"}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptJars(String...)} instead.
@@ -1037,7 +1046,8 @@ public class ClassGraph {
     /**
      * Use {@link #rejectJars(String...)} instead.
      *
-     * @param jarLeafNames            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain a
+     * @param jarLeafNames
+     *            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain a
      *            wildcard glob ({@code "badlib-*.jar"}).
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectJars(String...)} instead.
@@ -1130,7 +1140,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptLibOrExtJars(String...)} instead.
      *
-     * @param jarLeafNames            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
      *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
      *            "lib/" or "ext/" jars will be accepted.
      * @return this (for method chaining).
@@ -1158,7 +1169,8 @@ public class ClassGraph {
     /**
      * Use {@link #rejectLibOrExtJars(String...)} instead.
      *
-     * @param jarLeafNames            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
      *            {@code "jre/lib/badlib.jar"}). May contain a wildcard glob ({@code '*'}). If you call this method
      *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be rejected.
      * @return this (for method chaining).
@@ -1186,7 +1198,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptModules(String...)} instead.
      *
-     * @param moduleNames            The names of the modules that should be scanned. May contain a wildcard glob ({@code '*'}).
+     * @param moduleNames
+     *            The names of the modules that should be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptModules(String...)} instead.
      */
@@ -1212,7 +1225,8 @@ public class ClassGraph {
     /**
      * Use {@link #rejectModules(String...)} instead.
      *
-     * @param moduleNames            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
+     * @param moduleNames
+     *            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectModules(String...)} instead.
      */
@@ -1241,7 +1255,8 @@ public class ClassGraph {
     /**
      * Use {@link #acceptClasspathElementsContainingResourcePath(String...)} instead.
      *
-     * @param resourcePaths            The resource paths, any of which must be present in a classpath element for the classpath element
+     * @param resourcePaths
+     *            The resource paths, any of which must be present in a classpath element for the classpath element
      *            to be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptClasspathElementsContainingResourcePath(String...)} instead.
@@ -1271,7 +1286,8 @@ public class ClassGraph {
     /**
      * Use {@link #rejectClasspathElementsContainingResourcePath(String...)} instead.
      *
-     * @param resourcePaths            The resource paths which cause a classpath not to be scanned if any are present in a classpath
+     * @param resourcePaths
+     *            The resource paths which cause a classpath not to be scanned if any are present in a classpath
      *            element for the classpath element. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectClasspathElementsContainingResourcePath(String...)} instead.

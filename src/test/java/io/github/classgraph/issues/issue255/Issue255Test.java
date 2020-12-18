@@ -42,8 +42,12 @@ import io.github.classgraph.ScanResult;
  * Issue255Test.
  */
 public class Issue255Test {
+
     /**
      * Issue 255 test.
+     *
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     @Test
     public void issue255Test() throws IOException {

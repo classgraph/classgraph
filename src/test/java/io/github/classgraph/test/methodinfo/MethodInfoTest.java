@@ -77,6 +77,8 @@ public class MethodInfoTest {
      *            the b
      * @param l
      *            the l
+     * @param xArray
+     *            the x array
      * @param varargs
      *            the varargs
      * @return the int

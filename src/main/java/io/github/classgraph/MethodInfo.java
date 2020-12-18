@@ -468,8 +468,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 } else {
                     // Right-align when not the right length
                     paramModifiersAligned = new int[numParams];
-                    for (int i = 0, lenDiff = numParams
-                            - parameterModifiers.length; i < parameterModifiers.length; i++) {
+                    for (int i = 0,
+                            lenDiff = numParams - parameterModifiers.length; i < parameterModifiers.length; i++) {
                         paramModifiersAligned[lenDiff + i] = parameterModifiers[i];
                     }
                 }

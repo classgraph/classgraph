@@ -42,7 +42,9 @@ import io.github.classgraph.ScanResult;
  * Issue431Test.
  */
 public class Issue431Test {
-    /** Class X */
+    /**
+     * Class X.
+     */
     public static class X {
         /** a */
         static final int a = Integer.MAX_VALUE;

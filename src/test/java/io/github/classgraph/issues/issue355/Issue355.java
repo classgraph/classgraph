@@ -21,26 +21,49 @@ import io.github.classgraph.ScanResult;
  * Unit test.
  */
 public class Issue355 {
-    /** Annotation parameter class */
+
+    /**
+     * Annotation parameter class.
+     */
     public class X {
     }
 
-    /** Annotation with class reference array typed param */
+    /**
+     * Annotation with class reference array typed param.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Ann {
-        /** Annotation parameter */
+
+        /**
+         * Annotation parameter.
+         *
+         * @return the class[]
+         */
         public Class<?>[] value();
     }
 
-    /** Annotated with class reference array */
+    /**
+     * Annotated with class reference array.
+     */
     @Ann({ X.class })
     public class Y {
-        /** method with array-typed param */
+
+        /**
+         * method with array-typed param.
+         *
+         * @param x
+         *            the x
+         */
         public void y(final X[] x) {
         }
     }
 
-    /** Test **/
+    /**
+     * Test.
+     *
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Test
     public void test() throws IOException {
         try (ScanResult scanResult = new ClassGraph()

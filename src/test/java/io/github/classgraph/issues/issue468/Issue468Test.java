@@ -52,7 +52,12 @@ public class Issue468Test {
         }
     }
 
-    /** Test '+' signs in URLs. */
+    /**
+     * Test '+' signs in URLs.
+     *
+     * @throws Exception
+     *             the exception
+     */
     @Test
     public void testPlusSigns() throws Exception {
         final URL url = Issue468Test.class.getClassLoader().getResource("issue468/x+y/z+w.jar");
@@ -62,7 +67,12 @@ public class Issue468Test {
         scan(new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(url));
     }
 
-    /** Test "file:" URIs as strings, with and without the scheme. */
+    /**
+     * Test "file:" URIs as strings, with and without the scheme.
+     *
+     * @throws Exception
+     *             the exception
+     */
     @Test
     public void testFileURIs() throws Exception {
         final URL url = Issue468Test.class.getClassLoader().getResource("issue468/x+y/z+w.jar");

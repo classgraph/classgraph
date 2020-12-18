@@ -19,6 +19,8 @@ public @interface ApiOperation {
     String notes();
 
     /**
+     * Extensions.
+     *
      * @return an optional array of extensions
      */
     Extension[] extensions() default @Extension(properties = @ExtensionProperty(name = "", value = ""));

@@ -65,7 +65,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The last modified date in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L. */
     private final int lastModifiedDateMSDOS;
 
-    /** The file attributes for this resource, or 0 if unknown */
+    /** The file attributes for this resource, or 0 if unknown. */
     public final int fileAttributes;
 
     /** The {@link Slice} for the zip entry's raw data (which can be either stored or deflated). */

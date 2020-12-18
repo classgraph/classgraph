@@ -16,7 +16,13 @@ import io.github.classgraph.issues.issue107.Issue107Test;
  * Unit test.
  */
 public class Issue352 {
-    /** Test **/
+
+    /**
+     * Test *.
+     *
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
     @Test
     public void test() throws IOException {
         final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("com.sun.istack",

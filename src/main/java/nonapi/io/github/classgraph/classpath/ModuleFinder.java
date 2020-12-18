@@ -76,7 +76,11 @@ public class ModuleFinder {
         return nonSystemModuleRefs;
     }
 
-    /** @return If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer. */
+    /**
+     * Force scan java class path.
+     *
+     * @return If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer.
+     */
     public boolean forceScanJavaClassPath() {
         return forceScanJavaClassPath;
     }

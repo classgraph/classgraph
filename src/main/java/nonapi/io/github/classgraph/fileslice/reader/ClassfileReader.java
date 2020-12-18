@@ -141,12 +141,20 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         arr = new byte[INITIAL_BUF_SIZE];
     }
 
-    /** @return the current read position. */
+    /**
+     * Curr pos.
+     *
+     * @return the current read position.
+     */
     public int currPos() {
         return currIdx;
     }
 
-    /** @return the buffer. */
+    /**
+     * Buf.
+     *
+     * @return the buffer.
+     */
     public byte[] buf() {
         return arr;
     }
