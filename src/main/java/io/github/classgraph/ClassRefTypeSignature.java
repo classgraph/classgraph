@@ -152,7 +152,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @return The list of lists of type annotations for the suffixes (nested inner classes), one list per suffix,
      *         or null if none.
      */
-    public List<AnnotationInfoList> getSuffixTypeAnnotations() {
+    public List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
         return suffixTypeAnnotations;
     }
 
