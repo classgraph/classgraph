@@ -1532,10 +1532,10 @@ class Classfile {
                             methodTypeAnnotationDecorators = new ArrayList<>(annotationCount);
                             for (int m = 0; m < annotationCount; m++) {
                                 final int targetType = reader.readUnsignedByte();
-                                int typeParameterIndex;
-                                int boundIndex;
-                                int formalParameterIndex;
-                                int throwsTypeIndex;
+                                final int typeParameterIndex;
+                                final int boundIndex;
+                                final int formalParameterIndex;
+                                final int throwsTypeIndex;
                                 if (targetType == 0x01) {
                                     typeParameterIndex = reader.readUnsignedByte();
                                     boundIndex = -1;
@@ -1731,9 +1731,9 @@ class Classfile {
                     classTypeAnnotationDecorators = new ArrayList<>(annotationCount);
                     for (int m = 0; m < annotationCount; m++) {
                         final int targetType = reader.readUnsignedByte();
-                        int typeParameterIndex;
-                        int supertypeIndex;
-                        int boundIndex;
+                        final int typeParameterIndex;
+                        final int supertypeIndex;
+                        final int boundIndex;
                         if (targetType == 0x00) {
                             typeParameterIndex = reader.readUnsignedByte();
                             supertypeIndex = -1;
