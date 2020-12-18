@@ -2,8 +2,8 @@ package io.github.classgraph.issues.issue402;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Map;
 
@@ -19,39 +19,39 @@ import io.github.classgraph.ScanResult;
  * TypeAnnotationTest.
  */
 class TypeAnnotationTest {
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.FIELD, ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface A {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface B {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface C {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface D {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface E {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface F {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface G {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface H {
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface I {
     }
 
@@ -117,7 +117,7 @@ class TypeAnnotationTest {
         }
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
     private static @interface Size {
         int max();
     }
