@@ -666,12 +666,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptPackages(String...)} instead.
+     * Use {@link #acceptPackages(String...)} instead.
      *
-     * @param packageNames
-     *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
+     * @param packageNames            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptPackages(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistPackages(final String... packageNames) {
@@ -711,12 +711,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptPaths(String...)} instead.
+     * Use {@link #acceptPaths(String...)} instead.
      *
-     * @param paths
-     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     * @param paths            The paths to scan, relative to the package root of the classpath element (with '/' as a
      *            separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptPaths(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistPaths(final String... paths) {
@@ -759,13 +759,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptPackagesNonRecursive(String...)} instead.
+     * Use {@link #acceptPackagesNonRecursive(String...)} instead.
      *
-     * @param packageNames
-     *            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
+     * @param packageNames            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
      *            wildcard ({@code '*'}).
-     * 
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptPackagesNonRecursive(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistPackagesNonRecursive(final String... packageNames) {
@@ -802,12 +801,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptPathsNonRecursive(String...)} instead.
+     * Use {@link #acceptPathsNonRecursive(String...)} instead.
      *
-     * @param paths
-     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     * @param paths            The paths to scan, relative to the package root of the classpath element (with '/' as a
      *            separator). May not include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptPathsNonRecursive(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistPathsNonRecursive(final String... paths) {
@@ -848,12 +847,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #rejectPackages(String...)} instead.
+     * Use {@link #rejectPackages(String...)} instead.
      *
-     * @param packageNames
-     *            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
+     * @param packageNames            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #rejectPackages(String...)} instead.
      */
     @Deprecated
     public ClassGraph blacklistPackages(final String... packageNames) {
@@ -888,11 +887,11 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #rejectPaths(String...)} instead.
+     * Use {@link #rejectPaths(String...)} instead.
      *
-     * @param paths
-     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
+     * @param paths            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #rejectPaths(String...)} instead.
      */
     @Deprecated
     public ClassGraph blacklistPaths(final String... paths) {
@@ -933,12 +932,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptClasses(String...)} instead.
-     * 
-     * @param classNames
-     *            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
+     * Use {@link #acceptClasses(String...)} instead.
+     *
+     * @param classNames            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptClasses(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistClasses(final String... classNames) {
@@ -972,12 +971,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #rejectClasses(String...)} instead.
+     * Use {@link #rejectClasses(String...)} instead.
      *
-     * @param classNames
-     *            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
+     * @param classNames            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
      *            wildcard ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #rejectClasses(String...)} instead.
      */
     @Deprecated
     public ClassGraph blacklistClasses(final String... classNames) {
@@ -1004,12 +1003,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptJars(String...)} instead.
+     * Use {@link #acceptJars(String...)} instead.
      *
-     * @param jarLeafNames
-     *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain a
+     * @param jarLeafNames            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain a
      *            wildcard glob ({@code "mylib-*.jar"}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptJars(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistJars(final String... jarLeafNames) {
@@ -1036,12 +1035,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #rejectJars(String...)} instead.
+     * Use {@link #rejectJars(String...)} instead.
      *
-     * @param jarLeafNames
-     *            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain a
+     * @param jarLeafNames            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain a
      *            wildcard glob ({@code "badlib-*.jar"}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #rejectJars(String...)} instead.
      */
     @Deprecated
     public ClassGraph blacklistJars(final String... jarLeafNames) {
@@ -1129,13 +1128,13 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptLibOrExtJars(String...)} instead.
+     * Use {@link #acceptLibOrExtJars(String...)} instead.
      *
-     * @param jarLeafNames
-     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
+     * @param jarLeafNames            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
      *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
      *            "lib/" or "ext/" jars will be accepted.
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptLibOrExtJars(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistLibOrExtJars(final String... jarLeafNames) {
@@ -1157,13 +1156,13 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #rejectLibOrExtJars(String...)} instead.
+     * Use {@link #rejectLibOrExtJars(String...)} instead.
      *
-     * @param jarLeafNames
-     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
+     * @param jarLeafNames            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
      *            {@code "jre/lib/badlib.jar"}). May contain a wildcard glob ({@code '*'}). If you call this method
      *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be rejected.
      * @return this (for method chaining).
+     * @deprecated Use {@link #rejectLibOrExtJars(String...)} instead.
      */
     @Deprecated
     public ClassGraph blacklistLibOrExtJars(final String... jarLeafNames) {
@@ -1185,11 +1184,11 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptModules(String...)} instead.
+     * Use {@link #acceptModules(String...)} instead.
      *
-     * @param moduleNames
-     *            The names of the modules that should be scanned. May contain a wildcard glob ({@code '*'}).
+     * @param moduleNames            The names of the modules that should be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptModules(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistModules(final String... moduleNames) {
@@ -1211,11 +1210,11 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #rejectModules(String...)} instead.
+     * Use {@link #rejectModules(String...)} instead.
      *
-     * @param moduleNames
-     *            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
+     * @param moduleNames            The names of the modules that should not be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #rejectModules(String...)} instead.
      */
     @Deprecated
     public ClassGraph blacklistModules(final String... moduleNames) {
@@ -1240,12 +1239,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #acceptClasspathElementsContainingResourcePath(String...)} instead.
+     * Use {@link #acceptClasspathElementsContainingResourcePath(String...)} instead.
      *
-     * @param resourcePaths
-     *            The resource paths, any of which must be present in a classpath element for the classpath element
+     * @param resourcePaths            The resource paths, any of which must be present in a classpath element for the classpath element
      *            to be scanned. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #acceptClasspathElementsContainingResourcePath(String...)} instead.
      */
     @Deprecated
     public ClassGraph whitelistClasspathElementsContainingResourcePath(final String... resourcePaths) {
@@ -1270,12 +1269,12 @@ public class ClassGraph {
     }
 
     /**
-     * @deprecated Use {@link #rejectClasspathElementsContainingResourcePath(String...)} instead.
+     * Use {@link #rejectClasspathElementsContainingResourcePath(String...)} instead.
      *
-     * @param resourcePaths
-     *            The resource paths which cause a classpath not to be scanned if any are present in a classpath
+     * @param resourcePaths            The resource paths which cause a classpath not to be scanned if any are present in a classpath
      *            element for the classpath element. May contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
+     * @deprecated Use {@link #rejectClasspathElementsContainingResourcePath(String...)} instead.
      */
     @Deprecated
     public ClassGraph blacklistClasspathElementsContainingResourcePath(final String... resourcePaths) {
