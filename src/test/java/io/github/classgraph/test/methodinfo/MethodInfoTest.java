@@ -129,7 +129,7 @@ public class MethodInfoTest {
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
-                                    + "java.util.List<java.lang.Float>, " + X.class.getName()
+                                    + "java.util.List<java.lang.Float>, " + X.class.getName().replace('$', '.')
                                     + "[][][], java.lang.String[]...)",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
@@ -170,7 +170,7 @@ public class MethodInfoTest {
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs"
                                     + "(java.lang.String, char, long, float[], byte[][], "
-                                    + "java.util.List<java.lang.Float>, " + X.class.getName()
+                                    + "java.util.List<java.lang.Float>, " + X.class.getName().replace('$', '.')
                                     + "[][][], java.lang.String[]...)",
                             "private static java.lang.String[] privateMethod()",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
@@ -204,9 +204,8 @@ public class MethodInfoTest {
                     arrayClassInfoList.add(((ArrayTypeSignature) paramTypeSig).getArrayClassInfo());
                 }
             }
-            assertThat(arrayClassInfoList.toString()).isEqualTo("[class float[], class byte[][], "
-                    + "class io.github.classgraph.test.methodinfo.MethodInfoTest$X[][][], "
-                    + "class java.lang.String[][]]");
+            assertThat(arrayClassInfoList.toString()).isEqualTo("[class float[], class byte[][], " + "class "
+                    + X.class.getName().replace('$', '.') + "[][][], " + "class java.lang.String[][]]");
             final ArrayClassInfo p1 = arrayClassInfoList.get(1);
             assertThat(p1.loadElementClass()).isEqualTo(byte.class);
             assertThat(p1.loadClass()).isEqualTo(byte[][].class);

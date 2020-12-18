@@ -30,8 +30,10 @@ package io.github.classgraph;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
@@ -110,6 +112,18 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         }
         throw new IllegalArgumentException(
                 "Could not resolve " + name + " against parameters of the defining method or enclosing class");
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        if (typePath.isEmpty()) {
+            addTypeAnnotation(annotationInfo);
+        } else {
+            // TODO is this right?
+            throw new IllegalArgumentException("Type variable should have empty typePath");
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -195,8 +209,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         } else if (!(obj instanceof TypeVariableSignature)) {
             return false;
         }
-        final TypeVariableSignature o = (TypeVariableSignature) obj;
-        return o.name.equals(this.name);
+        final TypeVariableSignature other = (TypeVariableSignature) obj;
+        return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo);
     }
 
     /* (non-Javadoc)
@@ -282,11 +296,17 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         }
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.TypeSignature#toStringInternal(boolean)
-     */
     @Override
-    protected String toStringInternal(final boolean useSimpleNames) {
-        return name;
+    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
+        if (typeAnnotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+                if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
+                    buf.append(annotationInfo);
+                    buf.append(' ');
+                }
+            }
+        }
+        buf.append(name);
     }
 }

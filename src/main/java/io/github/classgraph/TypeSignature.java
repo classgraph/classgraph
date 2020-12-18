@@ -29,9 +29,11 @@
 package io.github.classgraph;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
@@ -89,36 +91,6 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     public abstract boolean equalsIgnoringTypeParams(final TypeSignature other);
 
     /**
-     * {@link #toString()} method, possibly returning simple names for classes (i.e. if useSimpleNames is true, the
-     * package names of classes are stripped).
-     *
-     * @param useSimpleNames
-     *            whether or not to use simple names for classes.
-     * @return the string representation of the type signature, with package names stripped.
-     */
-    protected abstract String toStringInternal(boolean useSimpleNames);
-
-    /**
-     * {@link #toString()} method, but returning simple names for classes (i.e. the package names of classes are
-     * stripped).
-     *
-     * @return the string representation of the type signature, with package names stripped.
-     */
-    public String toStringWithSimpleNames() {
-        return toStringInternal(true);
-    }
-
-    /**
-     * {@link #toString()} method for type signature.
-     *
-     * @return the string representation of the type signature.
-     */
-    @Override
-    public String toString() {
-        return toStringInternal(false);
-    }
-
-    /**
      * Parse a type signature.
      * 
      * @param parser
@@ -165,4 +137,15 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         }
         return typeSignature;
     }
+
+    /**
+     * Add a type annotation to this type.
+     * 
+     * @param typePath
+     *            The type path.
+     * @param annotationInfo
+     *            The annotation to add.
+     */
+    @Override
+    protected abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 }

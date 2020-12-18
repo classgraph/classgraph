@@ -28,8 +28,101 @@
  */
 package io.github.classgraph;
 
+import java.util.List;
+
+import io.github.classgraph.Classfile.TypePathNode;
+
 /**
  * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
+    protected AnnotationInfoList typeAnnotationInfo;
+
+    /**
+     * Get a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
+     * 
+     * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
+     */
+    public AnnotationInfoList getTypeAnnotationInfo() {
+        return typeAnnotationInfo;
+    }
+
+    /**
+     * Add a type annotation.
+     *
+     * @param annotationInfo
+     *            the annotation
+     */
+    protected void addTypeAnnotation(final AnnotationInfo annotationInfo) {
+        if (typeAnnotationInfo == null) {
+            typeAnnotationInfo = new AnnotationInfoList(1);
+        }
+        typeAnnotationInfo.add(annotationInfo);
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeAnnotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+                annotationInfo.setScanResult(scanResult);
+            }
+        }
+    }
+
+    /**
+     * Add a type annotation.
+     *
+     * @param typePath
+     *            the type path
+     * @param annotationInfo
+     *            the annotation
+     */
+    protected abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
+
+    /**
+     * {@link #toString()} internal method.
+     *
+     * @param useSimpleNames
+     *            whether to use simple names for classes.
+     * @param annotationsToExclude
+     *            toplevel annotations to exclude, to eliminate duplication (toplevel annotations are both
+     *            class/field/method annotations and type annotations).
+     * @param buf
+     *            the {@link StringBuilder} to write to.
+     */
+    abstract void toStringInternal(final boolean useSimpleNames, AnnotationInfoList annotationsToExclude,
+            StringBuilder buf);
+
+    /**
+     * {@link #toString()} that renders only simple names for classes.
+     *
+     * @return the string representation of the type
+     */
+    public String toStringWithSimpleNames() {
+        final StringBuilder buf = new StringBuilder();
+        toStringInternal(true, null, buf);
+        return buf.toString();
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Object#toString()
+     */
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        toStringInternal(false, null, buf);
+        return buf.toString();
+    }
+
+    /**
+     * {@link #toString()} that renders only simple names for classes if requested.
+     *
+     * @param useSimpleNames
+     *            if true, use just the simple name of each class.
+     * @return the string representation of the type
+     */
+    public String toString(final boolean useSimpleNames) {
+        return useSimpleNames ? toStringWithSimpleNames() : toString();
+    }
 }

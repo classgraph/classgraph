@@ -29,19 +29,16 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Array;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
 /** An array type signature. */
 public class ArrayTypeSignature extends ReferenceTypeSignature {
-    /** The array element type signature. */
-    private final TypeSignature elementTypeSignature;
-
-    /** The number of array dimensions. */
-    private final int numDims;
-
     /** The raw type signature string for the array type. */
     private final String typeSignatureStr;
 
@@ -53,6 +50,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     /** The element class. */
     private Class<?> elementClassRef;
+
+    /** The nested type (another {@link ArrayTypeSignature}, or the base element type). */
+    private final TypeSignature nestedType;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -68,50 +68,18 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims, final String typeSignatureStr) {
         super();
-        this.elementTypeSignature = elementTypeSignature;
-        this.numDims = numDims;
+        final boolean typeSigHasTwoOrMoreDims = typeSignatureStr.startsWith("[[");
+        if (numDims < 1) {
+            throw new IllegalArgumentException("numDims < 1");
+        } else if ((numDims >= 2) != typeSigHasTwoOrMoreDims) {
+            throw new IllegalArgumentException("numDims does not match type signature");
+        }
         this.typeSignatureStr = typeSignatureStr;
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param eltClassName
-     *            The type signature of the array elements.
-     * @param numDims
-     *            The number of array dimensions.
-     */
-    ArrayTypeSignature(final String eltClassName, final int numDims) {
-        super();
-        final BaseTypeSignature baseTypeSignature = BaseTypeSignature.getTypeSignature(eltClassName);
-        String eltTypeSigStr;
-        if (baseTypeSignature != null) {
-            // Element type is a base (primitive) type
-            eltTypeSigStr = baseTypeSignature.getTypeSignatureChar();
-            this.elementTypeSignature = baseTypeSignature;
-        } else {
-            // Element type is not a base (primitive) type -- create a type signature for element type
-            eltTypeSigStr = "L" + eltClassName.replace('.', '/') + ";";
-            try {
-                this.elementTypeSignature = ClassRefTypeSignature.parse(new Parser(eltTypeSigStr),
-                        // No type variables to resolve for generic types
-                        /* definingClassName = */ null);
-                if (this.elementTypeSignature == null) {
-                    throw new IllegalArgumentException(
-                            "Could not form array base type signature for class " + eltClassName);
-                }
-            } catch (final ParseException e) {
-                throw new IllegalArgumentException(
-                        "Could not form array base type signature for class " + eltClassName);
-            }
-        }
-        final StringBuilder buf = new StringBuilder(numDims + eltTypeSigStr.length());
-        for (int i = 0; i < numDims; i++) {
-            buf.append('[');
-        }
-        buf.append(eltTypeSigStr);
-        this.typeSignatureStr = buf.toString();
-        this.numDims = numDims;
+        this.nestedType = typeSigHasTwoOrMoreDims
+                // Strip one array dimension for nested type
+                ? new ArrayTypeSignature(elementTypeSignature, numDims - 1, typeSignatureStr.substring(1))
+                // Nested type for innermost dimension is element type 
+                : elementTypeSignature;
     }
 
     /**
@@ -124,12 +92,16 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Get the type signature of the array elements.
+     * Get the type signature of the innermost element type of the array.
      *
-     * @return The type signature of the array elements.
+     * @return The type signature of the innermost element type.
      */
     public TypeSignature getElementTypeSignature() {
-        return elementTypeSignature;
+        ArrayTypeSignature curr = this;
+        while (curr.nestedType instanceof ArrayTypeSignature) {
+            curr = (ArrayTypeSignature) curr.nestedType;
+        }
+        return curr.getNestedType();
     }
 
     /**
@@ -138,7 +110,49 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @return The number of dimensions of the array.
      */
     public int getNumDimensions() {
+        int numDims = 1;
+        ArrayTypeSignature curr = this;
+        while (curr.nestedType instanceof ArrayTypeSignature) {
+            curr = (ArrayTypeSignature) curr.nestedType;
+            numDims++;
+        }
         return numDims;
+    }
+
+    /**
+     * Get the nested type, which is another {@link ArrayTypeSignature} with one dimension fewer, if this array has
+     * 2 or more dimensions, otherwise this returns the element type.
+     * 
+     * @return The nested type.
+     */
+    public TypeSignature getNestedType() {
+        return nestedType;
+    }
+
+    @Override
+    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        if (typePath.isEmpty()) {
+            addTypeAnnotation(annotationInfo);
+        } else {
+            final TypePathNode head = typePath.get(0);
+            if (head.typePathKind != 0 || head.typeArgumentIdx != 0) {
+                throw new IllegalArgumentException("typePath element contains bad values: " + head);
+            }
+            nestedType.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
+        }
+    }
+
+    /**
+     * Get a list of {@link AnnotationInfo} objects for the type annotations on this array type, or null if none.
+     * 
+     * @see #getNestedType() if you want to read for type annotations on inner (nested) dimensions of the array
+     *      type.
+     * @return a list of {@link AnnotationInfo} objects for the type annotations of on this array type, or null if
+     *         none.
+     */
+    @Override
+    public AnnotationInfoList getTypeAnnotationInfo() {
+        return super.getTypeAnnotationInfo();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -149,7 +163,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     @Override
     protected String getClassName() {
         if (className == null) {
-            className = toStringInternal(/* useSimpleNames = */ false);
+            className = toString();
         }
         return className;
     }
@@ -191,9 +205,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (elementTypeSignature != null) {
-            elementTypeSignature.setScanResult(scanResult);
-        }
+        nestedType.setScanResult(scanResult);
         if (arrayClassInfo != null) {
             arrayClassInfo.setScanResult(scanResult);
         }
@@ -207,23 +219,24 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
-        elementTypeSignature.findReferencedClassNames(refdClassNames);
+        nestedType.findReferencedClassNames(refdClassNames);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a {@code Class<?>} reference for the array element type. Causes the ClassLoader to load the element
+     * Get a {@code Class<?>} reference for the innermost array element type. Causes the ClassLoader to load the
      * class, if it is not already loaded.
      *
      * @param ignoreExceptions
      *            Whether or not to ignore exceptions.
-     * @return a {@code Class<?>} reference for the array element type. Also works for arrays of primitive element
-     *         type.
+     * @return a {@code Class<?>} reference for the innermost array element type. Also works for arrays of primitive
+     *         element type.
      */
     public Class<?> loadElementClass(final boolean ignoreExceptions) {
         if (elementClassRef == null) {
             // Try resolving element type against base types (int, etc.)
+            final TypeSignature elementTypeSignature = getElementTypeSignature();
             if (elementTypeSignature instanceof BaseTypeSignature) {
                 elementClassRef = ((BaseTypeSignature) elementTypeSignature).getType();
             } else {
@@ -231,8 +244,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
                     elementClassRef = elementTypeSignature.loadClass(ignoreExceptions);
                 } else {
                     // Fallback, if scanResult is not set
-                    final String elementTypeName = ((ClassRefTypeSignature) elementTypeSignature)
-                            .getFullyQualifiedClassName();
+                    final String elementTypeName = ((ClassRefTypeSignature) elementTypeSignature).getClassName();
                     try {
                         elementClassRef = Class.forName(elementTypeName);
                     } catch (final Throwable t) {
@@ -284,10 +296,11 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
                 eltClassRef = loadElementClass();
             }
             if (eltClassRef == null) {
-                throw new IllegalArgumentException("Could not load array element class " + elementTypeSignature);
+                throw new IllegalArgumentException(
+                        "Could not load array element class " + getElementTypeSignature());
             }
             // Create an array of the target number of dimensions, with size zero in each dimension
-            final Object eltArrayInstance = Array.newInstance(eltClassRef, new int[numDims]);
+            final Object eltArrayInstance = Array.newInstance(eltClassRef, new int[getNumDimensions()]);
             // Get the class reference from the array instance
             classRef = eltArrayInstance.getClass();
         }
@@ -314,7 +327,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     public int hashCode() {
-        return elementTypeSignature.hashCode() + numDims * 15;
+        return 1 + nestedType.hashCode();
     }
 
     /* (non-Javadoc)
@@ -328,7 +341,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             return false;
         }
         final ArrayTypeSignature other = (ArrayTypeSignature) obj;
-        return other.elementTypeSignature.equals(this.elementTypeSignature) && other.numDims == this.numDims;
+        return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
+                && this.nestedType.equals(other.nestedType);
     }
 
     /* (non-Javadoc)
@@ -343,22 +357,35 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             return false;
         }
         final ArrayTypeSignature o = (ArrayTypeSignature) other;
-        return o.elementTypeSignature.equalsIgnoringTypeParams(this.elementTypeSignature)
-                && o.numDims == this.numDims;
+        return this.nestedType.equalsIgnoringTypeParams(o.nestedType);
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.TypeSignature#toStringInternal(boolean)
-     */
     @Override
-    protected String toStringInternal(final boolean useSimpleNames) {
-        final StringBuilder buf = new StringBuilder();
-        buf.append(
-                useSimpleNames ? elementTypeSignature.toStringWithSimpleNames() : elementTypeSignature.toString());
-        for (int i = 0; i < numDims; i++) {
+    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
+        // Start with innermost array element type
+        getElementTypeSignature().toStringInternal(useSimpleNames, annotationsToExclude, buf);
+
+        // Append array dimensions
+        for (ArrayTypeSignature curr = this;;) {
+            if (curr.typeAnnotationInfo != null && !curr.typeAnnotationInfo.isEmpty()) {
+                for (final AnnotationInfo annotationInfo : curr.typeAnnotationInfo) {
+                    if (buf.length() == 0 || buf.charAt(buf.length() - 1) != ' ') {
+                        buf.append(' ');
+                    }
+                    buf.append(annotationInfo);
+                }
+                buf.append(' ');
+            }
+
             buf.append("[]");
+
+            if (curr.nestedType instanceof ArrayTypeSignature) {
+                curr = (ArrayTypeSignature) curr.nestedType;
+            } else {
+                break;
+            }
         }
-        return buf.toString();
     }
 
     /**

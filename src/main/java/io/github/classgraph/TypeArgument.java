@@ -31,8 +31,10 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
@@ -93,6 +95,20 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      */
     public ReferenceTypeSignature getTypeSignature() {
         return typeSignature;
+    }
+
+    @Override
+    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        if (typePath.size() == 0 && wildcard != Wildcard.NONE) {
+            // Annotation before wildcard
+            addTypeAnnotation(annotationInfo);
+        } else if (typePath.size() > 0 && typePath.get(0).typePathKind == 2) {
+            // Annotation is on the bound of a wildcard type argument of a parameterized type
+            typeSignature.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
+        } else {
+            // Annotation is on a type argument of a parameterized type
+            typeSignature.addTypeAnnotation(typePath, annotationInfo);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -229,48 +245,39 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         } else if (!(obj instanceof TypeArgument)) {
             return false;
         }
-        final TypeArgument o = (TypeArgument) obj;
-        return (o.typeSignature.equals(this.typeSignature) && o.wildcard.equals(this.wildcard));
+        final TypeArgument other = (TypeArgument) obj;
+        return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
+                && (other.typeSignature.equals(this.typeSignature) && other.wildcard.equals(this.wildcard));
     }
 
-    /**
-     * {@link #toString()} internal method.
-     *
-     * @param useSimpleNames
-     *            whether to use simple names for classes.
-     * @return the string
-     */
-    private String toStringInternal(final boolean useSimpleNames) {
+    @Override
+    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
+        if (typeAnnotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+                if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
+                    buf.append(annotationInfo);
+                    buf.append(' ');
+                }
+            }
+        }
         switch (wildcard) {
         case ANY:
-            return "?";
+            buf.append('?');
+            break;
         case EXTENDS:
-            final String typeSigStr = typeSignature.toString();
-            return typeSigStr.equals("java.lang.Object") ? "?" : "? extends " + typeSigStr;
+            final String typeSigStr = typeSignature.toString(useSimpleNames);
+            buf.append(typeSigStr.equals("java.lang.Object") ? "?" : "? extends " + typeSigStr);
+            break;
         case SUPER:
-            return "? super " + typeSignature.toString();
+            buf.append("? super " + typeSignature.toString(useSimpleNames));
+            break;
         case NONE:
-            return useSimpleNames ? typeSignature.toStringWithSimpleNames() : typeSignature.toString();
+            buf.append(typeSignature.toString(useSimpleNames));
+            break;
         default:
             // Should not happen
             throw ClassGraphException.newClassGraphException("Unknown wildcard type " + wildcard);
         }
-    }
-
-    /**
-     * {@link #toString()} with simple names for classes.
-     *
-     * @return the string
-     */
-    public String toStringWithSimpleNames() {
-        return toStringInternal(true);
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
-        return toStringInternal(false);
     }
 }

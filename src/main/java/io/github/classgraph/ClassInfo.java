@@ -49,9 +49,11 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.ClassContainment;
+import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
 import nonapi.io.github.classgraph.json.Id;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
+import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 
@@ -130,6 +132,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** For annotations, the default values of parameters. */
     AnnotationParameterValueList annotationDefaultParamValues;
+
+    /** The type annotation decorators for the {@link ClassTypeSignature} instance. */
+    List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /**
      * Names of classes referenced by this class in class refs and type signatures in the constant pool of the
@@ -346,10 +351,40 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className, //
-                    classInfo = numArrayDims == 0 //
-                            ? new ClassInfo(baseClassName, /* classModifiers = */ 0, /* classfileResource = */ null)
-                            : new ArrayClassInfo(new ArrayTypeSignature(baseClassName, numArrayDims)));
+            if (numArrayDims == 0) {
+                classInfo = new ClassInfo(baseClassName, /* classModifiers = */ 0, /* classfileResource = */ null);
+            } else {
+                final StringBuilder arrayTypeSigStrBuf = new StringBuilder();
+                for (int i = 0; i < numArrayDims; i++) {
+                    arrayTypeSigStrBuf.append('[');
+                }
+                TypeSignature elementTypeSignature;
+                final char baseTypeChar = BaseTypeSignature.getTypeChar(baseClassName);
+                if (baseTypeChar != '\0') {
+                    // Element type is a base (primitive) type
+                    arrayTypeSigStrBuf.append(baseTypeChar);
+                    elementTypeSignature = new BaseTypeSignature(baseTypeChar);
+                } else {
+                    // Element type is not a base (primitive) type -- create a type signature for element type
+                    final String eltTypeSigStr = "L" + baseClassName.replace('.', '/') + ";";
+                    arrayTypeSigStrBuf.append(eltTypeSigStr);
+                    try {
+                        elementTypeSignature = ClassRefTypeSignature.parse(new Parser(eltTypeSigStr),
+                                // No type variables to resolve for generic types
+                                /* definingClassName = */ null);
+                        if (elementTypeSignature == null) {
+                            throw new IllegalArgumentException(
+                                    "Could not form array base type signature for class " + baseClassName);
+                        }
+                    } catch (final ParseException e) {
+                        throw new IllegalArgumentException(
+                                "Could not form array base type signature for class " + baseClassName);
+                    }
+                }
+                classInfo = new ArrayClassInfo(
+                        new ArrayTypeSignature(elementTypeSignature, numArrayDims, arrayTypeSigStrBuf.toString()));
+            }
+            classNameToClassInfo.put(className, classInfo);
         }
         return classInfo;
     }
@@ -411,6 +446,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (isRecord) {
             this.isRecord = isRecord;
         }
+    }
+
+    /**
+     * Add {@link ClassTypeAnnotationDecorator} instances.
+     * 
+     * @param classTypeAnnotationDecorators
+     *            {@link ClassTypeAnnotationDecorator} instances.
+     */
+    void addTypeDecorators(final List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators) {
+        if (typeAnnotationDecorators == null) {
+            typeAnnotationDecorators = new ArrayList<>();
+        }
+        typeAnnotationDecorators.addAll(classTypeAnnotationDecorators);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1029,16 +1077,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get simple name from fully-qualified class name. Returns everything after the last '.' in the class name, or
-     * the whole string if the class is in the root package. (Note that this is not the same as the result of
-     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
+     * Get simple name from fully-qualified class name. Returns everything after the last '.' or the last '$' in the
+     * class name, or the whole string if the class is in the root package. (Note that this is not the same as the
+     * result of {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @param className
      *            the class name
      * @return The simple name of the class.
      */
     static String getSimpleName(final String className) {
-        return className.substring(className.lastIndexOf('.') + 1);
+        return className.substring(Math.max(className.lastIndexOf('.'), className.lastIndexOf('$')) + 1);
     }
 
     /**
@@ -2586,6 +2634,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             try {
                 typeSignature = ClassTypeSignature.parse(typeSignatureStr, this);
                 typeSignature.setScanResult(scanResult);
+                if (typeAnnotationDecorators != null) {
+                    for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                        decorator.decorate(typeSignature);
+                    }
+                }
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -2969,7 +3022,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
             // Generic classes
-            return typeSig.toString(name, typeNameOnly, modifiers, isAnnotation(), isInterface());
+            return typeSig.toString(name, /* useSimpleNames = */ false, typeNameOnly, modifiers, isAnnotation(),
+                    isInterface(), /* annotationsToExclude = */ null);
         } else {
             // Non-generic classes
             final StringBuilder buf = new StringBuilder();

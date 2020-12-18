@@ -313,8 +313,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             if (elementTypeSig instanceof ClassRefTypeSignature) {
                 // Look up the name of the element type, for non-primitive arrays 
                 final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSig;
-                return getClass ? classRefTypeSignature.loadClass()
-                        : classRefTypeSignature.getFullyQualifiedClassName();
+                return getClass ? classRefTypeSignature.loadClass() : classRefTypeSignature.getClassName();
             } else if (elementTypeSig instanceof BaseTypeSignature) {
                 // Look up the name of the primitive class, for primitive arrays
                 final BaseTypeSignature baseTypeSignature = (BaseTypeSignature) elementTypeSig;

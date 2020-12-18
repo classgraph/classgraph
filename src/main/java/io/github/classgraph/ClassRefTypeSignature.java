@@ -31,8 +31,10 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
@@ -42,20 +44,17 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /** The class name. */
     final String className;
 
-    /** The class name and suffixes, without type arguments. */
-    private String fullyQualifiedClassName;
-
     /** The class type arguments. */
     private final List<TypeArgument> typeArguments;
 
-    /** The class type signature suffix(es), or the empty list if no suffixes. */
+    /** Type suffixes. */
     private final List<String> suffixes;
 
-    /**
-     * The suffix type arguments, one per suffix, or the empty list if no suffixes. The element value will be the
-     * empty list if there is no type argument for a given suffix.
-     */
+    /** The suffix type arguments. */
     private final List<List<TypeArgument>> suffixTypeArguments;
+
+    /** The suffix type annotations. */
+    private List<AnnotationInfoList> suffixTypeAnnotations;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -83,9 +82,10 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the name of the base class.
+     * Get the name of the class, without any suffixes.
      * 
-     * @return The name of the base class.
+     * @see #getFullyQualifiedClassName()
+     * @return The name of the class.
      */
     public String getBaseClassName() {
         return className;
@@ -105,16 +105,17 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */
     public String getFullyQualifiedClassName() {
-        if (fullyQualifiedClassName == null) {
+        if (suffixes.isEmpty()) {
+            return className;
+        } else {
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
             for (final String suffix : suffixes) {
                 buf.append('$');
                 buf.append(suffix);
             }
-            fullyQualifiedClassName = buf.toString();
+            return buf.toString();
         }
-        return fullyQualifiedClassName;
     }
 
     /**
@@ -127,21 +128,109 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get any suffixes of the class (typically nested inner class names).
+     * Get all nested suffixes of the class (typically nested inner class names).
      * 
-     * @return The class suffixes (for inner classes).
+     * @return The class suffixes (for inner classes), or the empty list if none.
      */
     public List<String> getSuffixes() {
         return suffixes;
     }
 
     /**
-     * Get any type arguments for any suffixes of the class, one list per suffix.
+     * Get a list of type arguments for all nested suffixes of the class, one list per suffix.
      * 
-     * @return The type arguments for the inner classes, one list per suffix.
+     * @return The list of type arguments for the suffixes (nested inner classes), one list per suffix, or the empty
+     *         list if none.
      */
     public List<List<TypeArgument>> getSuffixTypeArguments() {
         return suffixTypeArguments;
+    }
+
+    /**
+     * Get a list of lists of type annotations for all nested suffixes of the class, one list per suffix.
+     * 
+     * @return The list of lists of type annotations for the suffixes (nested inner classes), one list per suffix,
+     *         or null if none.
+     */
+    public List<AnnotationInfoList> getSuffixTypeAnnotations() {
+        return suffixTypeAnnotations;
+    }
+
+    private void addSuffixTypeAnnotation(final int suffixIdx, final AnnotationInfo annotationInfo) {
+        if (suffixTypeAnnotations == null) {
+            suffixTypeAnnotations = new ArrayList<>(suffixes.size());
+            for (int i = 0; i < suffixes.size(); i++) {
+                suffixTypeAnnotations.add(new AnnotationInfoList(1));
+            }
+        }
+        suffixTypeAnnotations.get(suffixIdx).add(annotationInfo);
+    }
+
+    @Override
+    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        // Find how many deeper nested levels to descend to
+        int numDeeperNestedLevels = 0;
+        int nextTypeArgIdx = -1;
+        for (int i = 0; i < typePath.size(); i++) {
+            final TypePathNode typePathNode = typePath.get(i);
+            if (typePathNode.typePathKind == 1) {
+                numDeeperNestedLevels++;
+            } else if (typePathNode.typePathKind == 3) {
+                nextTypeArgIdx = typePathNode.typeArgumentIdx;
+                break;
+            } else {
+                throw new IllegalArgumentException("Bad typePathKind: " + typePathNode.typePathKind);
+            }
+        }
+
+        // Figure out whether to index the base type or a suffix, skipping over non-nested class pairs
+        int suffixIdx = -1;
+        int nestingLevel = -1;
+        String typePrefix = className;
+        for (;;) {
+            boolean skipSuffix;
+            if (suffixIdx >= suffixes.size()) {
+                throw new IllegalArgumentException("Ran out of nested types while trying to add type annotation");
+            } else if (suffixIdx == suffixes.size() - 1) {
+                // The suffix to the right cannot be static, because there are no suffixes to the right,
+                // so this suffix doesn't need to be skipped
+                skipSuffix = false;
+            } else {
+                // For suffix path X.Y, classes are not nested if Y is static
+                final ClassInfo outerClassInfo = scanResult.getClassInfo(typePrefix.toString());
+                typePrefix = typePrefix + '$' + suffixes.get(suffixIdx + 1);
+                final ClassInfo innerClassInfo = scanResult.getClassInfo(typePrefix.toString());
+                skipSuffix = outerClassInfo == null || innerClassInfo == null
+                        || outerClassInfo.isInterfaceOrAnnotation() //
+                        || innerClassInfo.isInterfaceOrAnnotation() //
+                        || innerClassInfo.isStatic() //
+                        || !outerClassInfo.getInnerClasses().contains(innerClassInfo);
+            }
+            if (!skipSuffix) {
+                // Found nested classes
+                nestingLevel++;
+                if (nestingLevel >= numDeeperNestedLevels) {
+                    break;
+                }
+            }
+            suffixIdx++;
+        }
+
+        if (nextTypeArgIdx == -1) {
+            // Reached end of path -- add type annotation
+            if (suffixIdx == -1) {
+                // Add type annotation to base type
+                addTypeAnnotation(annotationInfo);
+            } else {
+                // Add type annotation to suffix type
+                addSuffixTypeAnnotation(suffixIdx, annotationInfo);
+            }
+        } else {
+            final List<TypeArgument> typeArgumentList = suffixIdx == -1 ? typeArguments
+                    : suffixTypeArguments.get(suffixIdx);
+            typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(
+                    typePath.subList(numDeeperNestedLevels + 1, typePath.size()), annotationInfo);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -176,11 +265,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Get the fully qualified class name (used by {@link #getClassInfo()} and {@link #loadClass()}.
-     * 
-     * @return The fully qualified name of the class.
-     */
+    /** @return the fully-qualified class name, for classloading. */
     @Override
     protected String getClassName() {
         return getFullyQualifiedClassName();
@@ -205,16 +290,12 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (typeArguments != null) {
-            for (final TypeArgument typeArgument : typeArguments) {
-                typeArgument.setScanResult(scanResult);
-            }
+        for (final TypeArgument typeArgument : typeArguments) {
+            typeArgument.setScanResult(scanResult);
         }
-        if (suffixTypeArguments != null) {
-            for (final List<TypeArgument> list : suffixTypeArguments) {
-                for (final TypeArgument typeArgument : list) {
-                    typeArgument.setScanResult(scanResult);
-                }
+        for (final List<TypeArgument> typeArgumentList : suffixTypeArguments) {
+            for (final TypeArgument typeArgument : typeArgumentList) {
+                typeArgument.setScanResult(scanResult);
             }
         }
     }
@@ -231,6 +312,11 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         for (final TypeArgument typeArgument : typeArguments) {
             typeArgument.findReferencedClassNames(refdClassNames);
         }
+        for (final List<TypeArgument> typeArgumentList : suffixTypeArguments) {
+            for (final TypeArgument typeArgument : typeArgumentList) {
+                typeArgument.findReferencedClassNames(refdClassNames);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -240,7 +326,15 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      */
     @Override
     public int hashCode() {
-        return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixes.hashCode();
+        return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixTypeArguments.hashCode()
+                + 31 * (typeAnnotationInfo == null ? 0 : typeAnnotationInfo.hashCode())
+                + 64 * (suffixTypeAnnotations == null ? 0 : suffixTypeAnnotations.hashCode());
+    }
+
+    private static boolean suffixesMatch(final ClassRefTypeSignature a, final ClassRefTypeSignature b) {
+        return a.suffixes.equals(b.suffixes) //
+                && a.suffixTypeArguments.equals(b.suffixTypeArguments) //
+                && Objects.equals(a.suffixTypeAnnotations, b.suffixTypeAnnotations);
     }
 
     /* (non-Javadoc)
@@ -255,7 +349,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         }
         final ClassRefTypeSignature o = (ClassRefTypeSignature) obj;
         return o.className.equals(this.className) && o.typeArguments.equals(this.typeArguments)
-                && o.suffixes.equals(this.suffixes);
+                && Objects.equals(this.typeAnnotationInfo, o.typeAnnotationInfo) && suffixesMatch(o, this);
     }
 
     /* (non-Javadoc)
@@ -272,56 +366,77 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             return false;
         }
         final ClassRefTypeSignature o = (ClassRefTypeSignature) other;
-        if (o.suffixes.equals(this.suffixes)) {
-            return o.className.equals(this.className);
-        } else {
-            return o.getFullyQualifiedClassName().equals(this.getFullyQualifiedClassName());
-        }
+        return o.className.equals(this.className) && Objects.equals(this.typeAnnotationInfo, o.typeAnnotationInfo)
+                && suffixesMatch(o, this);
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.TypeSignature#toStringInternal(boolean)
-     */
     @Override
-    protected String toStringInternal(final boolean useSimpleNames) {
-        final StringBuilder buf = new StringBuilder();
-        // Only append the base class name if not using simple names, or if there are no suffixes
+    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
+        // Only render the base class if not using simple names, or if there are no suffixes
         if (!useSimpleNames || suffixes.isEmpty()) {
+            // Append type annotations
+            if (typeAnnotationInfo != null) {
+                for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+                    if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
+                        buf.append(annotationInfo);
+                        buf.append(' ');
+                    }
+                }
+            }
+            // Append base class name
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(className) : className);
+            // Append base class type arguments
             if (!typeArguments.isEmpty()) {
                 buf.append('<');
                 for (int i = 0; i < typeArguments.size(); i++) {
                     if (i > 0) {
                         buf.append(", ");
                     }
-                    buf.append(useSimpleNames ? typeArguments.get(i).toStringWithSimpleNames()
-                            : typeArguments.get(i).toString());
+                    buf.append(typeArguments.get(i).toString(useSimpleNames));
                 }
                 buf.append('>');
             }
         }
-        // Only use the last suffix if using simple names
-        for (int i = useSimpleNames && !suffixes.isEmpty() ? suffixes.size() - 1 : 0; i < suffixes.size(); i++) {
-            if (!useSimpleNames) {
-                // Use '.' before each suffix in the toString() representation, since that is
-                // how the class name will be shown in Java, e.g. OuterClass<T>.InnerClass
-                buf.append('.');
-            }
-            buf.append(suffixes.get(i));
-            final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
-            if (!suffixTypeArgs.isEmpty()) {
-                buf.append('<');
-                for (int j = 0; j < suffixTypeArgs.size(); j++) {
-                    if (j > 0) {
-                        buf.append(", ");
+
+        // Append suffixes
+        if (!suffixes.isEmpty()) {
+            for (int i = useSimpleNames ? suffixes.size() - 1 : 0; i < suffixes.size(); i++) {
+                final AnnotationInfoList typeAnnotations = suffixTypeAnnotations == null ? null
+                        : suffixTypeAnnotations.get(i);
+                if (!useSimpleNames) {
+                    // Use '.' before each suffix in the toString() representation, since that is
+                    // how the class name will be shown in Java, e.g. OuterClass<T>.InnerClass;
+                    // however, use '$' if the class name is numerical, i.e. "...$1" for anonymous
+                    // inner classes.
+                    if (Character.isDigit(suffixes.get(i).charAt(0))) {
+                        buf.append('$');
+                    } else {
+                        buf.append('.');
                     }
-                    buf.append(useSimpleNames ? suffixTypeArgs.get(j).toStringWithSimpleNames()
-                            : suffixTypeArgs.get(j).toString());
                 }
-                buf.append('>');
+                if (typeAnnotations != null && !typeAnnotations.isEmpty()) {
+                    for (final AnnotationInfo annotationInfo : typeAnnotations) {
+                        buf.append(annotationInfo);
+                        buf.append(' ');
+                    }
+                }
+                // Append suffix name
+                buf.append(suffixes.get(i));
+                // Append suffix type arguments
+                final List<TypeArgument> suffixTypeArgumentsList = suffixTypeArguments.get(i);
+                if (!suffixTypeArgumentsList.isEmpty()) {
+                    buf.append('<');
+                    for (int j = 0; j < suffixTypeArgumentsList.size(); j++) {
+                        if (j > 0) {
+                            buf.append(", ");
+                        }
+                        buf.append(suffixTypeArgumentsList.get(j).toString(useSimpleNames));
+                    }
+                    buf.append('>');
+                }
             }
         }
-        return buf.toString();
     }
 
     /**
@@ -345,11 +460,11 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             final List<TypeArgument> typeArguments = TypeArgument.parseList(parser, definingClassName);
             List<String> suffixes;
             List<List<TypeArgument>> suffixTypeArguments;
-            if (parser.peek() == '.') {
+            if (parser.peek() == '.' || parser.peek() == '$') {
                 suffixes = new ArrayList<>();
                 suffixTypeArguments = new ArrayList<>();
-                while (parser.peek() == '.') {
-                    parser.expect('.');
+                while (parser.peek() == '.' || parser.peek() == '$') {
+                    parser.advance(1);
                     if (!TypeUtils.getIdentifierToken(parser, /* separator = */ '/',
                             /* separatorReplace = */ '.')) {
                         throw new ParseException(parser, "Could not parse identifier token");

@@ -65,7 +65,8 @@ public final class TypeUtils {
                 parser.appendToToken(separatorReplace);
                 parser.next();
                 consumedChar = true;
-            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.') {
+            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.'
+                    && c != '$') {
                 parser.appendToToken(c);
                 parser.next();
                 consumedChar = true;

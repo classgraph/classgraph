@@ -33,6 +33,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -125,7 +126,10 @@ class Classfile {
     private MethodInfoList methodInfoList;
 
     /** The type signature. */
-    private String typeSignature;
+    private String typeSignatureStr;
+
+    /** The type annotation decorators for the {@link ClassTypeSignature} instance. */
+    private List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators;
 
     /** The names of accepted classes found in the classpath while scanning paths within classpath elements. */
     private final Set<String> acceptedClassNamesFound;
@@ -503,11 +507,14 @@ class Classfile {
             if (methodInfoList != null) {
                 classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
             }
-            if (typeSignature != null) {
-                classInfo.setTypeSignature(typeSignature);
+            if (typeSignatureStr != null) {
+                classInfo.setTypeSignature(typeSignatureStr);
             }
             if (refdClassNames != null) {
                 classInfo.addReferencedClassNames(refdClassNames);
+            }
+            if (classTypeAnnotationDecorators != null) {
+                classInfo.addTypeDecorators(classTypeAnnotationDecorators);
             }
         }
 
@@ -1011,6 +1018,50 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    static interface ClassTypeAnnotationDecorator {
+        void decorate(ClassTypeSignature classTypeSignature);
+    }
+
+    static interface MethodTypeAnnotationDecorator {
+        void decorate(MethodTypeSignature methodTypeSignature);
+    }
+
+    static interface TypeAnnotationDecorator {
+        void decorate(TypeSignature typeSignature);
+    }
+
+    static class TypePathNode {
+        short typePathKind;
+        short typeArgumentIdx;
+
+        public TypePathNode(final int typePathKind, final int typeArgumentIdx) {
+            this.typePathKind = (short) typePathKind;
+            this.typeArgumentIdx = (short) typeArgumentIdx;
+        }
+
+        @Override
+        public String toString() {
+            return "(" + typePathKind + "," + typeArgumentIdx + ")";
+        }
+    }
+
+    private List<TypePathNode> readTypePath() throws IOException {
+        final int typePathLength = reader.readUnsignedByte();
+        if (typePathLength == 0) {
+            return Collections.emptyList();
+        } else {
+            final List<TypePathNode> list = new ArrayList<>(typePathLength);
+            for (int i = 0; i < typePathLength; i++) {
+                final int typePathKind = reader.readUnsignedByte();
+                final int typeArgumentIdx = reader.readUnsignedByte();
+                list.add(new TypePathNode(typePathKind, typeArgumentIdx));
+            }
+            return list;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Read constant pool entries.
      *
@@ -1271,6 +1322,7 @@ class Classfile {
             final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
             final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
                     && fieldIsVisible;
+            List<TypeAnnotationDecorator> fieldTypeAnnotationDecorators = null;
             if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field
                 reader.readUnsignedShort(); // fieldNameCpIdx
@@ -1288,7 +1340,7 @@ class Classfile {
                 final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);
                 String fieldTypeDescriptor;
-                String fieldTypeSignature = null;
+                String fieldTypeSignatureStr = null;
                 fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
 
                 Object fieldConstValue = null;
@@ -1312,7 +1364,7 @@ class Classfile {
                         fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
                     } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                        fieldTypeSignature = getConstantPoolString(reader.readUnsignedShort());
+                        fieldTypeSignatureStr = getConstantPoolString(reader.readUnsignedShort());
                     } else if (scanSpec.enableAnnotationInfo //
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
@@ -1328,6 +1380,33 @@ class Classfile {
                                 fieldAnnotationInfo.add(fieldAnnotation);
                             }
                         }
+                    } else if (scanSpec.enableAnnotationInfo //
+                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
+                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
+                                            attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
+                        final int annotationCount = reader.readUnsignedShort();
+                        if (annotationCount > 0) {
+                            fieldTypeAnnotationDecorators = new ArrayList<>();
+                            for (int m = 0; m < annotationCount; m++) {
+                                final int targetType = reader.readUnsignedByte();
+                                if (targetType != 0x13) {
+                                    throw new ClassfileFormatException(
+                                            "Class " + className + " has unknown field type annotation target 0x"
+                                                    + Integer.toHexString(targetType)
+                                                    + ": element size unknown, cannot continue reading class. "
+                                                    + "Please report this at "
+                                                    + "https://github.com/classgraph/classgraph/issues");
+                                }
+                                final List<TypePathNode> typePath = readTypePath();
+                                final AnnotationInfo annotationInfo = readAnnotation();
+                                fieldTypeAnnotationDecorators.add(new TypeAnnotationDecorator() {
+                                    @Override
+                                    public void decorate(final TypeSignature typeSignature) {
+                                        typeSignature.addTypeAnnotation(typePath, annotationInfo);
+                                    }
+                                });
+                            }
+                        }
                     } else {
                         // No match, just skip attribute
                         reader.skip(attributeLength);
@@ -1338,7 +1417,8 @@ class Classfile {
                         fieldInfoList = new FieldInfoList();
                     }
                     fieldInfoList.add(new FieldInfo(className, fieldName, fieldModifierFlags, fieldTypeDescriptor,
-                            fieldTypeSignature, fieldConstValue, fieldAnnotationInfo));
+                            fieldTypeSignatureStr, fieldConstValue, fieldAnnotationInfo,
+                            fieldTypeAnnotationDecorators));
                 }
             }
         }
@@ -1362,10 +1442,10 @@ class Classfile {
             final int methodModifierFlags = reader.readUnsignedShort();
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
-
+            List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators = null;
             String methodName = null;
             String methodTypeDescriptor = null;
-            String methodTypeSignature = null;
+            String methodTypeSignatureStr = null;
             // Always enable MethodInfo for annotations (this is how annotation constants are defined)
             final boolean enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
             if (enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
@@ -1443,6 +1523,114 @@ class Classfile {
                                 methodParameterAnnotations[paramIdx] = NO_ANNOTATIONS;
                             }
                         }
+                    } else if (scanSpec.enableAnnotationInfo //
+                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
+                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
+                                            attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
+                        final int annotationCount = reader.readUnsignedShort();
+                        if (annotationCount > 0) {
+                            methodTypeAnnotationDecorators = new ArrayList<>(annotationCount);
+                            for (int m = 0; m < annotationCount; m++) {
+                                final int targetType = reader.readUnsignedByte();
+                                int typeParameterIndex;
+                                int boundIndex;
+                                int formalParameterIndex;
+                                int throwsTypeIndex;
+                                if (targetType == 0x01) {
+                                    typeParameterIndex = reader.readUnsignedByte();
+                                    boundIndex = -1;
+                                    formalParameterIndex = -1;
+                                    throwsTypeIndex = -1;
+                                } else if (targetType == 0x12) {
+                                    typeParameterIndex = reader.readUnsignedByte();
+                                    boundIndex = reader.readUnsignedByte();
+                                    formalParameterIndex = -1;
+                                    throwsTypeIndex = -1;
+                                } else if (targetType == 0x14) {
+                                    typeParameterIndex = -1;
+                                    boundIndex = -1;
+                                    formalParameterIndex = -1;
+                                    throwsTypeIndex = -1;
+                                } else if (targetType == 0x15) {
+                                    typeParameterIndex = -1;
+                                    boundIndex = -1;
+                                    formalParameterIndex = -1;
+                                    throwsTypeIndex = -1;
+                                } else if (targetType == 0x16) {
+                                    formalParameterIndex = reader.readUnsignedByte();
+                                    typeParameterIndex = -1;
+                                    boundIndex = -1;
+                                    throwsTypeIndex = -1;
+                                } else if (targetType == 0x17) {
+                                    throwsTypeIndex = reader.readUnsignedShort();
+                                    typeParameterIndex = -1;
+                                    boundIndex = -1;
+                                    formalParameterIndex = -1;
+                                } else {
+                                    throw new ClassfileFormatException(
+                                            "Class " + className + " has unknown method type annotation target 0x"
+                                                    + Integer.toHexString(targetType)
+                                                    + ": element size unknown, cannot continue reading class. "
+                                                    + "Please report this at "
+                                                    + "https://github.com/classgraph/classgraph/issues");
+                                }
+                                final List<TypePathNode> typePath = readTypePath();
+                                final AnnotationInfo annotationInfo = readAnnotation();
+                                methodTypeAnnotationDecorators.add(new MethodTypeAnnotationDecorator() {
+                                    @Override
+                                    public void decorate(final MethodTypeSignature methodTypeSignature) {
+                                        if (targetType == 0x01) {
+                                            // Type parameter declaration of generic method or constructor
+                                            methodTypeSignature.getTypeParameters().get(typeParameterIndex)
+                                                    .addTypeAnnotation(typePath, annotationInfo);
+                                        } else if (targetType == 0x12) {
+                                            // Type in bound of type parameter declaration of generic method or constructor
+                                            final TypeParameter typeParameter = methodTypeSignature
+                                                    .getTypeParameters().get(typeParameterIndex);
+                                            // TODO: documentation does not specify if bound index should be treated this way *******************
+                                            if (boundIndex == 0) {
+                                                typeParameter.getClassBound().addTypeAnnotation(typePath,
+                                                        annotationInfo);
+                                            } else {
+                                                typeParameter.getInterfaceBounds().get(boundIndex - 1)
+                                                        .addTypeAnnotation(typePath, annotationInfo);
+                                            }
+                                        } else if (targetType == 0x14) {
+                                            // Return type of method, or type of newly constructed object 
+                                            methodTypeSignature.getResultType().addTypeAnnotation(typePath,
+                                                    annotationInfo);
+                                        } else if (targetType == 0x15) {
+                                            // Receiver type of method or constructor (explicit receiver parameter)
+                                            final List<TypeSignature> paramTypeSignatures = methodTypeSignature
+                                                    .getParameterTypeSignatures();
+                                            if (paramTypeSignatures.size() == 0) {
+                                                throw new IllegalArgumentException(
+                                                        "No explicit receiver parameter");
+                                            }
+                                            // TODO: is this the right way to apply a receiver type annotation?
+                                            final TypeSignature receiverParamTypeSignature = paramTypeSignatures
+                                                    .get(0);
+                                            receiverParamTypeSignature.addTypeAnnotation(typePath, annotationInfo);
+                                        } else if (targetType == 0x16) {
+                                            // Type in formal parameter declaration of method, constructor,
+                                            // or lambda expression
+                                            // N.B. formal parameter indices are dodgy, because not all compilers
+                                            // index parameters the same way -- so be robust here
+                                            final List<TypeSignature> parameterTypeSignatures = methodTypeSignature
+                                                    .getParameterTypeSignatures();
+                                            if (formalParameterIndex < parameterTypeSignatures.size()) {
+                                                parameterTypeSignatures.get(formalParameterIndex)
+                                                        .addTypeAnnotation(typePath, annotationInfo);
+                                            }
+                                        } else if (targetType == 0x17) {
+                                            // Type in throws clause of method or constructor
+                                            methodTypeSignature.getThrowsSignatures().get(throwsTypeIndex)
+                                                    .addTypeAnnotation(typePath, annotationInfo);
+                                        }
+                                    }
+                                });
+                            }
+                        }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                         // Read method parameters. For Java, these are only produced in JDK8+, and only if the
                         // commandline switch `-parameters` is provided at compiletime.
@@ -1457,7 +1645,7 @@ class Classfile {
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         // Add type params to method type signature
-                        methodTypeSignature = getConstantPoolString(reader.readUnsignedShort());
+                        methodTypeSignatureStr = getConstantPoolString(reader.readUnsignedShort());
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
                         if (annotationParamDefaultValues == null) {
                             annotationParamDefaultValues = new AnnotationParameterValueList();
@@ -1478,8 +1666,9 @@ class Classfile {
                         methodInfoList = new MethodInfoList();
                     }
                     methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo,
-                            methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
-                            methodParameterModifiers, methodParameterAnnotations, methodHasBody));
+                            methodModifierFlags, methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
+                            methodParameterModifiers, methodParameterAnnotations, methodHasBody,
+                            methodTypeAnnotationDecorators));
                 }
             }
         }
@@ -1512,6 +1701,72 @@ class Classfile {
                     }
                     for (int m = 0; m < annotationCount; m++) {
                         classAnnotations.add(readAnnotation());
+                    }
+                }
+            } else if (scanSpec.enableAnnotationInfo //
+                    && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
+                            || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
+                                    attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
+                final int annotationCount = reader.readUnsignedShort();
+                if (annotationCount > 0) {
+                    classTypeAnnotationDecorators = new ArrayList<>(annotationCount);
+                    for (int m = 0; m < annotationCount; m++) {
+                        final int targetType = reader.readUnsignedByte();
+                        int typeParameterIndex;
+                        int supertypeIndex;
+                        int boundIndex;
+                        if (targetType == 0x00) {
+                            typeParameterIndex = reader.readUnsignedByte();
+                            supertypeIndex = -1;
+                            boundIndex = -1;
+                        } else if (targetType == 0x10) {
+                            supertypeIndex = reader.readUnsignedShort();
+                            typeParameterIndex = -1;
+                            boundIndex = -1;
+                        } else if (targetType == 0x11) {
+                            typeParameterIndex = reader.readUnsignedByte();
+                            boundIndex = reader.readUnsignedByte();
+                            supertypeIndex = -1;
+                        } else {
+                            throw new ClassfileFormatException("Class " + className
+                                    + " has unknown class type annotation target 0x"
+                                    + Integer.toHexString(targetType)
+                                    + ": element size unknown, cannot continue reading class. "
+                                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+                        }
+                        final List<TypePathNode> typePath = readTypePath();
+                        final AnnotationInfo annotationInfo = readAnnotation();
+                        classTypeAnnotationDecorators.add(new ClassTypeAnnotationDecorator() {
+                            @Override
+                            public void decorate(final ClassTypeSignature classTypeSignature) {
+                                if (targetType == 0x00) {
+                                    // Type parameter declaration of generic class or interface
+                                    classTypeSignature.getTypeParameters().get(typeParameterIndex)
+                                            .addTypeAnnotation(typePath, annotationInfo);
+                                } else if (targetType == 0x10) {
+                                    if (supertypeIndex == 65535) {
+                                        // Type in extends clause of class declaration
+                                        classTypeSignature.getSuperclassSignature().addTypeAnnotation(typePath,
+                                                annotationInfo);
+                                    } else {
+                                        // Type in implements clause of interface declaration
+                                        classTypeSignature.getSuperinterfaceSignatures().get(supertypeIndex)
+                                                .addTypeAnnotation(typePath, annotationInfo);
+                                    }
+                                } else if (targetType == 0x11) {
+                                    // Type in bound of type parameter declaration of generic class or interface
+                                    final TypeParameter typeParameter = classTypeSignature.getTypeParameters()
+                                            .get(typeParameterIndex);
+                                    // TODO: documentation does not specify if bound index should be treated this way ******************* 
+                                    if (boundIndex == 0) {
+                                        typeParameter.getClassBound().addTypeAnnotation(typePath, annotationInfo);
+                                    } else {
+                                        typeParameter.getInterfaceBounds().get(boundIndex - 1)
+                                                .addTypeAnnotation(typePath, annotationInfo);
+                                    }
+                                }
+                            }
+                        });
                     }
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
@@ -1552,7 +1807,7 @@ class Classfile {
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 // Get class type signature, including type variables
-                typeSignature = getConstantPoolString(reader.readUnsignedShort());
+                typeSignatureStr = getConstantPoolString(reader.readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
                 final String innermostEnclosingClassName = getConstantPoolClassName(reader.readUnsignedShort());
                 final int enclosingMethodCpIdx = reader.readUnsignedShort();
@@ -1692,7 +1947,7 @@ class Classfile {
                 subLog.log("Interfaces: " + Join.join(", ", implementedInterfaces));
             }
             if (classAnnotations != null) {
-                subLog.log("Class annotations: " + Join.join(", ", classAnnotations));
+                subLog.log("Class annotations: " + Join.join(", ", classAnnotations.getNames()));
             }
             if (annotationParamDefaultValues != null) {
                 for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
@@ -1701,27 +1956,16 @@ class Classfile {
             }
             if (fieldInfoList != null) {
                 for (final FieldInfo fieldInfo : fieldInfoList) {
-                    subLog.log("Field: " + fieldInfo);
+                    subLog.log("Field: " + fieldInfo.getName());
                 }
             }
             if (methodInfoList != null) {
                 for (final MethodInfo methodInfo : methodInfoList) {
-                    subLog.log("Method: " + methodInfo);
+                    subLog.log("Method: " + methodInfo.getName());
                 }
             }
-            if (typeSignature != null) {
-                ClassTypeSignature typeSig = null;
-                try {
-                    typeSig = ClassTypeSignature.parse(typeSignature, /* classInfo = */ null);
-                    if (refdClassNames != null) {
-                        typeSig.findReferencedClassNames(refdClassNames);
-                    }
-                } catch (final ParseException e) {
-                    // Ignore
-                }
-                subLog.log("Class type signature: " + (typeSig == null ? typeSignature
-                        : typeSig.toString(className, /* typeNameOnly = */ false, classModifiers, isAnnotation,
-                                isInterface)));
+            if (typeSignatureStr != null) {
+                subLog.log("Class type signature: " + typeSignatureStr);
             }
             if (refdClassNames != null) {
                 final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);

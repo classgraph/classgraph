@@ -31,8 +31,10 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
@@ -93,6 +95,16 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      */
     public List<ReferenceTypeSignature> getInterfaceBounds() {
         return interfaceBounds;
+    }
+
+    @Override
+    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        if (typePath.isEmpty()) {
+            addTypeAnnotation(annotationInfo);
+        } else {
+            // TODO is this right?
+            throw new IllegalArgumentException("Type parameter should have empty typePath");
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -218,26 +230,32 @@ public final class TypeParameter extends HierarchicalTypeSignature {
         } else if (!(obj instanceof TypeParameter)) {
             return false;
         }
-        final TypeParameter o = (TypeParameter) obj;
-        return o.name.equals(this.name)
-                && ((o.classBound == null && this.classBound == null)
-                        || (o.classBound != null && o.classBound.equals(this.classBound)))
-                && o.interfaceBounds.equals(this.interfaceBounds);
+        final TypeParameter other = (TypeParameter) obj;
+        return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo)
+                && ((other.classBound == null && this.classBound == null)
+                        || (other.classBound != null && other.classBound.equals(this.classBound)))
+                && other.interfaceBounds.equals(this.interfaceBounds);
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
     @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
+    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
+        if (typeAnnotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+                if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
+                    buf.append(annotationInfo);
+                    buf.append(' ');
+                }
+            }
+        }
         buf.append(name);
         String classBoundStr;
         if (classBound == null) {
             classBoundStr = null;
         } else {
-            classBoundStr = classBound.toString();
-            if (classBoundStr.equals("java.lang.Object")) {
+            classBoundStr = classBound.toString(useSimpleNames);
+            if (classBoundStr.equals("java.lang.Object") || (classBoundStr.equals("Object")
+                    && ((ClassRefTypeSignature) classBound).className.equals("java.lang.Object"))) {
                 // Don't add "extends java.lang.Object"
                 classBoundStr = null;
             }
@@ -254,8 +272,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
                 buf.append(" &");
             }
             buf.append(' ');
-            buf.append(interfaceBounds.get(i).toString());
+            buf.append(interfaceBounds.get(i).toString(useSimpleNames));
         }
-        return buf.toString();
     }
 }

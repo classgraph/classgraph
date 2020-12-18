@@ -31,10 +31,12 @@ package io.github.classgraph;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
+import io.github.classgraph.Classfile.TypeAnnotationDecorator;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
@@ -72,6 +74,9 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     /** The annotation on the field, if any. */
     AnnotationInfoList annotationInfo;
 
+    /** The type annotation decorators for the {@link TypeSignature} instance of this field. */
+    private List<TypeAnnotationDecorator> typeAnnotationDecorators;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Default constructor for deserialization. */
@@ -99,7 +104,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constantInitializerValue,
-            final AnnotationInfoList annotationInfo) {
+            final AnnotationInfoList annotationInfo, final List<TypeAnnotationDecorator> typeAnnotationDecorators) {
         super();
         if (fieldName == null) {
             throw new IllegalArgumentException();
@@ -113,6 +118,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         this.constantInitializerValue = constantInitializerValue == null ? null
                 : new ObjectTypedValueWrapper(constantInitializerValue);
         this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty() ? null : annotationInfo;
+        this.typeAnnotationDecorators = typeAnnotationDecorators;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -210,6 +216,11 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             try {
                 typeDescriptor = TypeSignature.parse(typeDescriptorStr, declaringClassName);
                 typeDescriptor.setScanResult(scanResult);
+                if (typeAnnotationDecorators != null) {
+                    for (final TypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                        decorator.decorate(typeDescriptor);
+                    }
+                }
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -242,6 +253,11 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             try {
                 typeSignature = TypeSignature.parse(typeSignatureStr, declaringClassName);
                 typeSignature.setScanResult(scanResult);
+                if (typeAnnotationDecorators != null) {
+                    for (final TypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                        decorator.decorate(typeSignature);
+                    }
+                }
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -531,7 +547,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         if (buf.length() > 0) {
             buf.append(' ');
         }
-        buf.append(getTypeSignatureOrTypeDescriptor().toString());
+        final TypeSignature typeSig = getTypeSignatureOrTypeDescriptor();
+        typeSig.toStringInternal(/* useSimpleNames = */ false, /* annotationsToExclude = */ annotationInfo, buf);
 
         buf.append(' ');
         buf.append(name);

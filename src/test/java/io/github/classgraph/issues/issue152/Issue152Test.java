@@ -100,9 +100,9 @@ public class Issue152Test {
                             .isEqualTo("public java.util.Set<java.lang.Integer> testMethod("
                                     + "java.util.List<java.lang.String[]>, java.util.Map<java.lang.String, "
                                     + "java.util.Map<java.lang.Integer, java.lang.Boolean>>, double[][][], int, "
-                                    + TestType.class.getName() + "[], java.util.Set<? extends "
-                                    + TestType.class.getName() + ">, java.util.List<? super "
-                                    + TestType.class.getName()
+                                    + TestType.class.getName().replace('$', '.') + "[], java.util.Set<? extends "
+                                    + TestType.class.getName().replace('$', '.') + ">, java.util.List<? super "
+                                    + TestType.class.getName().replace('$', '.')
                                     + ">, java.util.Map<java.lang.Integer, ?>, java.util.Set<java.lang.String>[])");
             assertThat(classInfo //
                     .getFieldInfo("testField").toString()) //

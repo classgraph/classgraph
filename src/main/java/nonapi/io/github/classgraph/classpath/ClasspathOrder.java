@@ -319,7 +319,7 @@ public class ClasspathOrder {
                 final String pathElementToStr = pathElement.toString();
                 try {
                     pathElementURL = new File(pathElementToStr).toURI().toURL();
-                } catch (MalformedURLException e) {
+                } catch (final MalformedURLException e) {
                     // Final fallback -- try prepending "file:" to create a URL
                     pathElementURL = new URL("file:" + pathElementToStr);
                 }

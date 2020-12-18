@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 
@@ -116,6 +117,13 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         return throwsSignatures;
     }
 
+    @Override
+    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        // Individual parts of a class' type each have their own addTypeAnnotation methods
+        throw new IllegalArgumentException(
+                "Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -135,7 +143,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
             // Special case for instance initialization method signatures in a CONSTANT_NameAndType_info structure:
             // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
             return new MethodTypeSignature(Collections.<TypeParameter> emptyList(),
-                    Collections.<TypeSignature> emptyList(), BaseTypeSignature.VOID,
+                    Collections.<TypeSignature> emptyList(), /* void */ new BaseTypeSignature('V'),
                     Collections.<ClassRefOrTypeVariableSignature> emptyList());
         }
         final Parser parser = new Parser(typeDescriptor);
@@ -313,20 +321,16 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 && o.resultType.equals(this.resultType) && o.throwsSignatures.equals(this.throwsSignatures);
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#toString()
-     */
     @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-
+    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
         if (!typeParameters.isEmpty()) {
             buf.append('<');
             for (int i = 0; i < typeParameters.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                final String typeParamStr = typeParameters.get(i).toString();
+                final String typeParamStr = typeParameters.get(i).toString(useSimpleNames);
                 buf.append(typeParamStr);
             }
             buf.append('>');
@@ -342,7 +346,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
             if (i > 0) {
                 buf.append(", ");
             }
-            buf.append(parameterTypeSignatures.get(i).toString());
+            buf.append(parameterTypeSignatures.get(i).toString(useSimpleNames));
         }
         buf.append(')');
 
@@ -352,9 +356,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                buf.append(throwsSignatures.get(i).toString());
+                buf.append(throwsSignatures.get(i).toString(useSimpleNames));
             }
         }
-        return buf.toString();
     }
 }

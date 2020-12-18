@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
+import io.github.classgraph.Classfile.MethodTypeAnnotationDecorator;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
@@ -98,6 +99,9 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** True if this method has a body. */
     private boolean hasBody;
 
+    /** The type annotation decorators for the {@link MethodTypeSignature} instance. */
+    private List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Default constructor for deserialization. */
@@ -132,7 +136,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     MethodInfo(final String definingClassName, final String methodName,
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
-            final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody) {
+            final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody,
+            final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators) {
         super();
         this.declaringClassName = definingClassName;
         this.name = methodName;
@@ -145,6 +150,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty() ? null
                 : methodAnnotationInfo;
         this.hasBody = hasBody;
+        this.typeAnnotationDecorators = methodTypeAnnotationDecorators;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -202,6 +208,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             try {
                 typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, declaringClassName);
                 typeDescriptor.setScanResult(scanResult);
+                if (typeAnnotationDecorators != null) {
+                    for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                        decorator.decorate(typeDescriptor);
+                    }
+                }
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -231,6 +242,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             try {
                 typeSignature = MethodTypeSignature.parse(typeSignatureStr, declaringClassName);
                 typeSignature.setScanResult(scanResult);
+                if (typeAnnotationDecorators != null) {
+                    for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                        decorator.decorate(typeSignature);
+                    }
+                }
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -864,7 +880,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append(methodType.getResultType().toString());
+            methodType.getResultType().toStringInternal(/* useSimpleNames = */ false,
+                    /* annotationsToExclude = */ annotationInfo, buf);
         }
 
         buf.append(' ');
@@ -928,8 +945,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     throw new IllegalArgumentException(
                             "Got a zero-dimension array type for last parameter of varargs method " + name);
                 }
-                buf.append(new ArrayTypeSignature(arrayType.getElementTypeSignature(),
-                        arrayType.getNumDimensions() - 1, /* unused */ null).toString());
+                buf.append(arrayType.getElementTypeSignature().toString());
+                for (int j = 0; j < arrayType.getNumDimensions() - 1; j++) {
+                    buf.append("[]");
+                }
                 buf.append("...");
             } else {
                 buf.append(paramType.toString());
