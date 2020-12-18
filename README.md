@@ -44,10 +44,10 @@ String pkg = "com.xyz";
 String routeAnnotation = pkg + ".Route";
 try (ScanResult scanResult =
         new ClassGraph()
-            .verbose()                   // Log to stderr
-            .enableAllInfo()             // Scan classes, methods, fields, annotations
-            .acceptPackages(pkg)         // Scan com.xyz and subpackages (omit to scan all packages)
-            .scan()) {                   // Start the scan
+            .verbose()               // Log to stderr
+            .enableAllInfo()         // Scan classes, methods, fields, annotations
+            .acceptPackages(pkg)     // Scan com.xyz and subpackages (omit to scan all packages)
+            .scan()) {               // Start the scan
     for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
         AnnotationInfo routeAnnotationInfo = routeClassInfo.getAnnotationInfo(routeAnnotation);
         List<AnnotationParameterValue> routeParamVals = routeAnnotationInfo.getParameterValues();
@@ -62,9 +62,10 @@ The following code finds all JSON files in `META-INF/config` in all ClassLoaders
 
 ```java
 try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("META-INF/config").scan()) {
-    scanResult.getResourcesWithExtension("json").forEachByteArray((Resource res, byte[] content) -> {
-        readJson(res.getPath(), new String(content, StandardCharsets.UTF_8));
-    });
+    scanResult.getResourcesWithExtension("json")
+              .forEachByteArray((Resource res, byte[] content) -> {
+                  readJson(res.getPath(), new String(content, StandardCharsets.UTF_8));
+              });
 }
 ```
 
@@ -74,18 +75,17 @@ See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examp
 
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
-* ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM. This graph can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling some degree of *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
+* ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM, and can even read [type annotations](https://docs.oracle.com/javase/tutorial/java/annotations/type_annotations.html). This graph of class metadata can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling some degree of *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
 * ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
 * ClassGraph is fully compatible with the new JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the module path. However, the code is also fully backwards compatible with JDK 7 and JDK 8 (i.e. the code is compiled in Java 7 compatibility mode, and all interaction with the module system is implemented via reflection for backwards compatibility).
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
-* ClassGraph parses most of the useful metadata in a classfile, including methods, fields, annotations, outer/inner class containment relationships, and even [type annotations](https://docs.oracle.com/javase/tutorial/java/annotations/type_annotations.html).
 * ClassGraph can [find classes that are duplicated or defined more than once in the classpath or module path](https://github.com/classgraph/classgraph/wiki/Code-examples#find-all-duplicate-class-definitions-in-the-classpath-or-module-path), which can help find the cause of strange class resolution behaviors.
-* ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/ClassInfo-API#generating-a-graphviz-dot-file-for-class-graph-visualization), which can help with code understanding: (click to enlarge | [see graph legend here](https://github.com/classgraph/classgraph/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png))
+* ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/ClassInfo-API#generating-a-graphviz-dot-file-for-class-graph-visualization), which can help with code understanding: (click to enlarge; [see graph legend here](https://github.com/classgraph/classgraph/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png))
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png"><img src="https://github.com/classgraph/classgraph/blob/master/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
+  <a href="https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png"><img src="https://raw.githubusercontent.com/classgraph/classgraph/master/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
 </p>
 
 ## Downloading
