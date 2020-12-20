@@ -270,7 +270,9 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Render to string, using only simple names for classes.
+     * Render to string, using only <a href=
+     * "https://docs.oracle.com/en/java/javase/15/docs/api/java.base/java/lang/Class.html#getSimpleName()">simple
+     * names</a> for classes.
      *
      * @return the string representation, using simple names for classes.
      */
