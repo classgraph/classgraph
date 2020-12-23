@@ -247,7 +247,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         }
         final TypeArgument other = (TypeArgument) obj;
         return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
-                && (Objects.equals(this.typeSignature, other.typeSignature) && other.wildcard.equals(this.wildcard));
+                && (Objects.equals(this.typeSignature, other.typeSignature)
+                        && other.wildcard.equals(this.wildcard));
     }
 
     // -------------------------------------------------------------------------------------------------------------
