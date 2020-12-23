@@ -232,7 +232,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      */
     @Override
     public int hashCode() {
-        return typeSignature.hashCode() + 7 * wildcard.hashCode();
+        return (typeSignature != null ? typeSignature.hashCode() : 0) + 7 * wildcard.hashCode();
     }
 
     /* (non-Javadoc)
@@ -247,7 +247,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         }
         final TypeArgument other = (TypeArgument) obj;
         return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
-                && (other.typeSignature.equals(this.typeSignature) && other.wildcard.equals(this.wildcard));
+                && (Objects.equals(this.typeSignature, other.typeSignature) && other.wildcard.equals(this.wildcard));
     }
 
     // -------------------------------------------------------------------------------------------------------------
