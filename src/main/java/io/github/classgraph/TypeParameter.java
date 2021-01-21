@@ -130,7 +130,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
             if (!parser.hasMore()) {
                 throw new ParseException(parser, "Missing '>'");
             }
-            if (!TypeUtils.getIdentifierToken(parser)) {
+            // Scala sometimes uses '$' in the names of internal/implicit type parameters (#495)
+            if (!TypeUtils.getIdentifierToken(parser, /* separator = */ '$', /* separatorReplace = */ '$')) {
                 throw new ParseException(parser, "Could not parse identifier token");
             }
             final String identifier = parser.currToken();
