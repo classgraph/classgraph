@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        java: [ '8', '11', '12', '13', '14' ]
+        java: [ '8', '11', '12', '13', '14', '15' ]
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK
