@@ -45,28 +45,21 @@ public final class TypeUtils {
     }
 
     /**
-     * Parse a Java identifier with the given separator ('.' or '/'). Potentially replaces the separator with a
-     * different character. Appends the identifier to the token buffer in the parser.
+     * Parse a Java identifier, replacing '/' with '.'. Appends the identifier to the token buffer in the parser.
      * 
      * @param parser
      *            The parser.
-     * @param separator
-     *            The separator character.
-     * @param separatorReplace
-     *            The character to replace the separator with.
      * @return true if at least one identifier character was parsed.
      */
-    public static boolean getIdentifierToken(final Parser parser, final char separator,
-            final char separatorReplace) {
+    public static boolean getIdentifierToken(final Parser parser) {
         boolean consumedChar = false;
         while (parser.hasMore()) {
             final char c = parser.peek();
-            if (c == separator) {
-                parser.appendToToken(separatorReplace);
+            if (c == '/') {
+                parser.appendToToken('.');
                 parser.next();
                 consumedChar = true;
-            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.'
-                    && c != '$') {
+            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':') {
                 parser.appendToToken(c);
                 parser.next();
                 consumedChar = true;
@@ -75,20 +68,6 @@ public final class TypeUtils {
             }
         }
         return consumedChar;
-    }
-
-    /**
-     * Parse a Java identifier part (between separators and other non-alphanumeric characters). Appends the
-     * identifier to the token buffer in the parser.
-     * 
-     * @param parser
-     *            The parser.
-     * @return true if at least one identifier character was parsed.
-     * @throws ParseException
-     *             If the parser ran out of input.
-     */
-    public static boolean getIdentifierToken(final Parser parser) throws ParseException {
-        return getIdentifierToken(parser, '\0', '\0');
     }
 
     /** The origin of the modifier bits. */
