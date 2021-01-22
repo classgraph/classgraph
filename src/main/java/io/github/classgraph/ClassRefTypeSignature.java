@@ -228,8 +228,13 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         } else {
             final List<TypeArgument> typeArgumentList = suffixIdx == -1 ? typeArguments
                     : suffixTypeArguments.get(suffixIdx);
-            typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(
-                    typePath.subList(numDeeperNestedLevels + 1, typePath.size()), annotationInfo);
+            // For type descriptors (as opposed to type signatures), typeArguments is the empty list,
+            // so need to bounds-check nextTypeArgIdx
+            if (nextTypeArgIdx < typeArgumentList.size()) {
+                // Add type annotation to type argument  
+                typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(
+                        typePath.subList(numDeeperNestedLevels + 1, typePath.size()), annotationInfo);
+            }
         }
     }
 
