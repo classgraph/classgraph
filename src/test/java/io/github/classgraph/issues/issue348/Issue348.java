@@ -23,14 +23,16 @@ public class Issue348 {
         try (ScanResult scanResult1 = new ClassGraph().acceptPathsNonRecursive("").scan()) {
             // Find all resources within classpath elements with ".jar" extension
             final List<String> jarResourceUris = scanResult1.getResourcesWithExtension("jar").stream()
-                    .map(r -> r.getURI().toString()).collect(Collectors.toList());
+                    .map(r -> r.getURI().toString().replace(":///", ":/").replace("://", ":/"))
+                    .collect(Collectors.toList());
             assertThat(jarResourceUris).isNotEmpty();
 
             try (ScanResult scanResult2 = new ClassGraph().overrideClasspath(jarResourceUris)
                     .acceptJars("issue*.jar").scan()) {
                 // Find all classpath element URIs for non-nested jars
                 final List<String> cpUris = scanResult2.getClasspathURIs().stream().map(URI::toString)
-                        .filter(u -> !u.contains("!")).collect(Collectors.toList());
+                        .filter(u -> !u.contains("!")).map(u -> u.replace(":///", ":/").replace("://", ":/"))
+                        .collect(Collectors.toList());
                 assertThat(cpUris).isNotEmpty();
 
                 // Check that cpUris is a non-empty subset of jarResourceUris
