@@ -462,7 +462,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     static ClassRefTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         if (parser.peek() == 'L') {
             parser.next();
-            if (!TypeUtils.getIdentifierToken(parser)) {
+            if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true)) {
                 throw new ParseException(parser, "Could not parse identifier token");
             }
             final String className = parser.currToken();
@@ -474,7 +474,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 suffixTypeArguments = new ArrayList<>();
                 while (parser.peek() == '.' || parser.peek() == '$') {
                     parser.advance(1);
-                    if (!TypeUtils.getIdentifierToken(parser)) {
+                    if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true)) {
                         throw new ParseException(parser, "Could not parse identifier token");
                     }
                     suffixes.add(parser.currToken());

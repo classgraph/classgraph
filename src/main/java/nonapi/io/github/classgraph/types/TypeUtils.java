@@ -49,9 +49,11 @@ public final class TypeUtils {
      * 
      * @param parser
      *            The parser.
+     * @param stopAtDollarSign
+     *            If true, stop parsing when the first '$' is hit.
      * @return true if at least one identifier character was parsed.
      */
-    public static boolean getIdentifierToken(final Parser parser) {
+    public static boolean getIdentifierToken(final Parser parser, boolean stopAtDollarSign) {
         boolean consumedChar = false;
         while (parser.hasMore()) {
             final char c = parser.peek();
@@ -59,7 +61,8 @@ public final class TypeUtils {
                 parser.appendToToken('.');
                 parser.next();
                 consumedChar = true;
-            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':') {
+            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':'
+                    && (!stopAtDollarSign || c != '$')) {
                 parser.appendToToken(c);
                 parser.next();
                 consumedChar = true;

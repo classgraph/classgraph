@@ -143,7 +143,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (peek == 'T') {
             parser.next();
             // Scala can contain '$' in type variable names (#495)
-            if (!TypeUtils.getIdentifierToken(parser)) {
+            if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ false)) {
                 throw new ParseException(parser, "Could not parse type variable signature");
             }
             parser.expect(';');
