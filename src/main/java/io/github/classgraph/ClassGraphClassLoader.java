@@ -42,6 +42,8 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.VersionFinder;
+import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
 public class ClassGraphClassLoader extends ClassLoader {
@@ -140,11 +142,14 @@ public class ClassGraphClassLoader extends ClassLoader {
         // First delegate to outer nested ClassGraphClassLoader, if any (#485)
         final ClassGraphClassLoader delegateClassGraphClassLoader = scanResult.classpathFinder
                 .getDelegateClassGraphClassLoader();
+        LinkageError linkageError = null;
         if (delegateClassGraphClassLoader != null) {
             try {
                 return Class.forName(className, initializeLoadedClasses, delegateClassGraphClassLoader);
-            } catch (ClassNotFoundException | LinkageError e) {
+            } catch (ClassNotFoundException e) {
                 // Ignore
+            } catch (LinkageError e) {
+                linkageError = e;
             }
         }
 
@@ -153,8 +158,12 @@ public class ClassGraphClassLoader extends ClassLoader {
             for (final ClassLoader overrideClassLoader : overrideClassLoaders) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, overrideClassLoader);
-                } catch (ClassNotFoundException | LinkageError e) {
+                } catch (ClassNotFoundException e) {
                     // Ignore
+                } catch (LinkageError e) {
+                    if (linkageError == null) {
+                        linkageError = e;
+                    }
                 }
             }
         }
@@ -165,8 +174,12 @@ public class ClassGraphClassLoader extends ClassLoader {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, envClassLoader);
-                } catch (ClassNotFoundException | LinkageError e) {
+                } catch (ClassNotFoundException e) {
                     // Ignore
+                } catch (LinkageError e) {
+                    if (linkageError == null) {
+                        linkageError = e;
+                    }
                 }
             }
         }
@@ -186,8 +199,12 @@ public class ClassGraphClassLoader extends ClassLoader {
                     || !environmentClassLoaderDelegationOrder.contains(classInfoClassLoader))) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, classInfoClassLoader);
-                } catch (ClassNotFoundException | LinkageError e) {
+                } catch (ClassNotFoundException e) {
                     // Ignore
+                } catch (LinkageError e) {
+                    if (linkageError == null) {
+                        linkageError = e;
+                    }
                 }
             }
 
@@ -207,8 +224,12 @@ public class ClassGraphClassLoader extends ClassLoader {
         if (overrideClassLoaders == null && classpathClassLoader != null) {
             try {
                 return Class.forName(className, initializeLoadedClasses, classpathClassLoader);
-            } catch (ClassNotFoundException | LinkageError e) {
+            } catch (ClassNotFoundException e) {
                 // Ignore
+            } catch (LinkageError e) {
+                if (linkageError == null) {
+                    linkageError = e;
+                }
             }
         }
 
@@ -218,8 +239,12 @@ public class ClassGraphClassLoader extends ClassLoader {
                 if (additionalClassLoader != classInfoClassLoader) {
                     try {
                         return Class.forName(className, initializeLoadedClasses, additionalClassLoader);
-                    } catch (ClassNotFoundException | LinkageError e) {
+                    } catch (ClassNotFoundException e) {
                         // Ignore
+                    } catch (LinkageError e) {
+                        if (linkageError == null) {
+                            linkageError = e;
+                        }
                     }
                 }
             }
@@ -252,12 +277,40 @@ public class ClassGraphClassLoader extends ClassLoader {
                     }
                 } catch (final IOException e) {
                     throw new ClassNotFoundException("Could not load classfile for class " + className + " : " + e);
+                } catch (LinkageError e) {
+                    if (linkageError == null) {
+                        linkageError = e;
+                    }
                 } finally {
                     resource.close();
                 }
             }
         }
-        throw new ClassNotFoundException("Could not load classfile for class " + className);
+
+        if (linkageError != null) {
+            if (VersionFinder.OS == OperatingSystem.Windows) {
+                // LinkageError indicates that a classfile was found, but the class couldn't be loaded.
+                // Hackily detect the situation where there are two classfiles with the same case insensitive name
+                // on Windows filesystems (#494).
+                final String msg = linkageError.getMessage();
+                if (msg != null) {
+                    final String wrongName = "(wrong name: ";
+                    final int wrongNameIdx = msg.indexOf(wrongName);
+                    if (wrongNameIdx > -1) {
+                        final String theWrongName = msg.substring(wrongNameIdx + wrongName.length(),
+                                msg.length() - 1);
+                        if (theWrongName.replace('/', '.').equalsIgnoreCase(className)) {
+                            throw new LinkageError("You appear to have two classfiles with the same "
+                                    + "case-insensitive name in the same directory on a case-insensitive "
+                                    + "filesystem, for class: " + className, linkageError);
+                        }
+                    }
+                }
+            }
+            throw linkageError;
+        }
+
+        throw new ClassNotFoundException("Could not find or load classfile for class " + className);
     }
 
     /** Get classpath URLs. */
