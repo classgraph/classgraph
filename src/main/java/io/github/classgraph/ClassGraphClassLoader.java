@@ -302,7 +302,8 @@ public class ClassGraphClassLoader extends ClassLoader {
                         if (theWrongName.replace('/', '.').equalsIgnoreCase(className)) {
                             throw new LinkageError("You appear to have two classfiles with the same "
                                     + "case-insensitive name in the same directory on a case-insensitive "
-                                    + "filesystem, for class: " + className, linkageError);
+                                    + "filesystem, for class: " + className + " -- this is not allowed "
+                                    + "on Windows, and therefore your code is not portable", linkageError);
                         }
                     }
                 }
