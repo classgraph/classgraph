@@ -37,4 +37,10 @@ public class A {
      */
     public static class B {
     }
+
+    /**
+     * The Class b.
+     */
+    public static class b {
+    }
 }

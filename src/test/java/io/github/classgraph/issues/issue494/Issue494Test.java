@@ -45,7 +45,12 @@ public class Issue494Test {
     public void testStaticInnerClass() {
         final String pkgName = Issue494Test.class.getPackage().getName();
         try (ScanResult scanResult = new ClassGraph().enableClassInfo().acceptPackages(pkgName).scan()) {
-            final ClassInfo bClassInfo = scanResult.getClassInfo(pkgName + ".A$B");
+            final ClassInfo BClassInfo = scanResult.getClassInfo(pkgName + ".A$B");
+            assertThat(BClassInfo).isNotNull();
+            final Class<?> BClass = BClassInfo.loadClass();
+            assertThat(BClass).isNotNull();
+
+            final ClassInfo bClassInfo = scanResult.getClassInfo(pkgName + ".A$b");
             assertThat(bClassInfo).isNotNull();
             final Class<?> bClass = bClassInfo.loadClass();
             assertThat(bClass).isNotNull();
