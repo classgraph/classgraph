@@ -61,8 +61,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TransferQueue;
 
-import io.github.classgraph.ClassGraphException;
-
 /**
  * A cache of field types and associated constructors for each encountered class, used to speed up constructor
  * lookup.
@@ -95,8 +93,8 @@ class ClassFieldCache {
             NO_CONSTRUCTOR = NoConstructor.class.getDeclaredConstructor();
         } catch (NoSuchMethodException | SecurityException e) {
             // Should not happen
-            throw ClassGraphException.newClassGraphException(
-                    "Could not find or access constructor for " + NoConstructor.class.getName(), e);
+            throw new RuntimeException("Could not find or access constructor for " + NoConstructor.class.getName(),
+                    e);
         }
     }
 

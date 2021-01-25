@@ -36,7 +36,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
@@ -87,8 +86,7 @@ public final class JarUtils {
         for (int i = 0; i < UNIX_NON_PATH_SEPARATORS.length; i++) {
             UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[i] = UNIX_NON_PATH_SEPARATORS[i].indexOf(':');
             if (UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[i] < 0) {
-                throw ClassGraphException
-                        .newClassGraphException("Could not find ':' in \"" + UNIX_NON_PATH_SEPARATORS[i] + "\"");
+                throw new RuntimeException("Could not find ':' in \"" + UNIX_NON_PATH_SEPARATORS[i] + "\"");
             }
         }
     }

@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.types.ParseException;
 
 /**
@@ -72,7 +71,7 @@ public class JSONDeserializer {
         if (jsonVal == null) {
             return null;
         } else if (jsonVal instanceof JSONArray || jsonVal instanceof JSONObject) {
-            throw ClassGraphException.newClassGraphException("Expected a basic value type");
+            throw new RuntimeException("Expected a basic value type");
         }
         if (expectedType instanceof ParameterizedType) {
             if (((ParameterizedType) expectedType).getRawType().getClass() == Class.class) {
@@ -403,7 +402,7 @@ public class JSONDeserializer {
                 itemJsonValue = jsonArray.items.get(i);
             } else {
                 // Can't happen (keep static analyzers happy)
-                throw ClassGraphException.newClassGraphException("This exception should not be thrown");
+                throw new RuntimeException("This exception should not be thrown");
             }
             final boolean itemJsonValueIsJsonObject = itemJsonValue instanceof JSONObject;
             final boolean itemJsonValueIsJsonArray = itemJsonValue instanceof JSONArray;

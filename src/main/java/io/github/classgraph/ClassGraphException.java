@@ -46,7 +46,7 @@ public class ClassGraphException extends IllegalArgumentException {
      * @param message
      *            the message
      */
-    private ClassGraphException(final String message) {
+    ClassGraphException(final String message) {
         super(message);
     }
 
@@ -58,34 +58,7 @@ public class ClassGraphException extends IllegalArgumentException {
      * @param cause
      *            the cause
      */
-    private ClassGraphException(final String message, final Throwable cause) {
+    ClassGraphException(final String message, final Throwable cause) {
         super(message, cause);
-    }
-
-    /**
-     * Static factory method to stop IDEs from auto-completing ClassGraphException after "new ClassGraph".
-     *
-     * @param message
-     *            the message
-     * @return the ClassGraphException
-     */
-    public static ClassGraphException newClassGraphException(final String message) {
-        return new ClassGraphException(message);
-    }
-
-    /**
-     * Static factory method to stop IDEs from auto-completing ClassGraphException after "new ClassGraph".
-     *
-     * @param message
-     *            the message
-     * @param cause
-     *            the cause
-     * @return the ClassGraphException
-     * @throws ClassGraphException
-     *             the class graph exception
-     */
-    public static ClassGraphException newClassGraphException(final String message, final Throwable cause)
-            throws ClassGraphException {
-        return new ClassGraphException(message, cause);
     }
 }

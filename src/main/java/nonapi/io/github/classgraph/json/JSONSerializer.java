@@ -43,7 +43,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /**
@@ -94,14 +93,14 @@ public final class JSONSerializer {
             final Object refdObj = ((JSONReference) jsonVal).idObject;
             if (refdObj == null) {
                 // Should not happen
-                throw ClassGraphException.newClassGraphException("Internal inconsistency");
+                throw new RuntimeException("Internal inconsistency");
             }
             // Look up the JSON object corresponding to the referenced object
             final ReferenceEqualityKey<Object> refdObjKey = new ReferenceEqualityKey<>(refdObj);
             final JSONObject refdJsonVal = objToJSONVal.get(refdObjKey);
             if (refdJsonVal == null) {
                 // Should not happen
-                throw ClassGraphException.newClassGraphException("Internal inconsistency");
+                throw new RuntimeException("Internal inconsistency");
             }
             // See if the JSON object has an @Id field
             // (for serialization, typeResolutions can be null)
@@ -383,8 +382,8 @@ public final class JSONSerializer {
                 try {
                     convertedVals[i] = JSONUtils.getFieldValue(obj, field);
                 } catch (IllegalArgumentException | IllegalAccessException e) {
-                    throw ClassGraphException.newClassGraphException("Could not get value of field \""
-                            + fieldNames[i] + "\" in object of class " + obj.getClass().getName(), e);
+                    throw new RuntimeException("Could not get value of field \"" + fieldNames[i]
+                            + "\" in object of class " + obj.getClass().getName(), e);
                 }
             }
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,

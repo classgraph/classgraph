@@ -35,8 +35,6 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 
-import io.github.classgraph.ClassGraphException;
-
 /** A mapping from {@link TypeVariable} to resolved {@link Type}. */
 class TypeResolutions {
 
@@ -142,10 +140,10 @@ class TypeResolutions {
 
         } else if (type instanceof WildcardType) {
             // TODO: Support WildcardType
-            throw ClassGraphException.newClassGraphException("WildcardType not yet supported: " + type);
+            throw new RuntimeException("WildcardType not yet supported: " + type);
 
         } else {
-            throw ClassGraphException.newClassGraphException("Got unexpected type: " + type);
+            throw new RuntimeException("Got unexpected type: " + type);
         }
     }
 

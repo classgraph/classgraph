@@ -44,7 +44,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.classgraph.ClassGraphException;
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
@@ -225,7 +224,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 val = buf.toString("UTF-8");
             } catch (final UnsupportedEncodingException e) {
                 // Should not happen
-                throw ClassGraphException.newClassGraphException("UTF-8 encoding unsupported", e);
+                throw new RuntimeException("UTF-8 encoding is not supported in your JRE", e);
             }
         }
         return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);

@@ -44,8 +44,6 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github.classgraph.ClassGraphException;
-
 /**
  * File utilities.
  */
@@ -106,8 +104,7 @@ public final class FileUtils {
             currDirPathStr = currDirPath.toString();
             currDirPathStr = FastPathResolver.resolve(currDirPathStr);
         } catch (final IOException e) {
-            throw ClassGraphException
-                    .newClassGraphException("Could not resolve current directory: " + currDirPathStr, e);
+            throw new RuntimeException("Could not resolve current directory: " + currDirPathStr, e);
         }
         CURR_DIR_PATH = currDirPathStr;
     }
@@ -445,7 +442,7 @@ public final class FileUtils {
                 attachmentMethod = directByteBufferClass.getMethod("attachment");
                 attachmentMethod.setAccessible(true);
             } catch (final SecurityException e) {
-                throw ClassGraphException.newClassGraphException(
+                throw new RuntimeException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")",
                         e);
@@ -481,7 +478,7 @@ public final class FileUtils {
                 try {
                     unsafeClass = Class.forName("sun.misc.Unsafe");
                 } catch (final ReflectiveOperationException | LinkageError e) {
-                    throw ClassGraphException.newClassGraphException("Could not get class sun.misc.Unsafe", e);
+                    throw new RuntimeException("Could not get class sun.misc.Unsafe", e);
                 }
                 final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
                 theUnsafeField.setAccessible(true);
@@ -489,7 +486,7 @@ public final class FileUtils {
                 cleanerCleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
                 cleanerCleanMethod.setAccessible(true);
             } catch (final SecurityException e) {
-                throw ClassGraphException.newClassGraphException(
+                throw new RuntimeException(
                         "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
                                 + "and ReflectPermission(\"suppressAccessChecks\")",
                         e);
