@@ -462,23 +462,36 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     static ClassRefTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
         if (parser.peek() == 'L') {
             parser.next();
+            final int startParserPosition = parser.getPosition();
             if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true)) {
                 throw new ParseException(parser, "Could not parse identifier token");
             }
-            final String className = parser.currToken();
+            String className = parser.currToken();
             final List<TypeArgument> typeArguments = TypeArgument.parseList(parser, definingClassName);
             List<String> suffixes;
             List<List<TypeArgument>> suffixTypeArguments;
+            boolean dropSuffixes = false;
             if (parser.peek() == '.' || parser.peek() == '$') {
                 suffixes = new ArrayList<>();
                 suffixTypeArguments = new ArrayList<>();
                 while (parser.peek() == '.' || parser.peek() == '$') {
                     parser.advance(1);
                     if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true)) {
-                        throw new ParseException(parser, "Could not parse identifier token");
+                        // Got the empty string as the next token after '$', i.e. found an empty suffix.
+                        suffixes.add("");
+                        suffixTypeArguments.add(Collections.emptyList());
+                        dropSuffixes = true;
+                    } else {
+                        suffixes.add(parser.currToken());
+                        suffixTypeArguments.add(TypeArgument.parseList(parser, definingClassName));
                     }
-                    suffixes.add(parser.currToken());
-                    suffixTypeArguments.add(TypeArgument.parseList(parser, definingClassName));
+                }
+                if (dropSuffixes) {
+                    // Got an empty suffix -- either "$$", or a class name ending in a '$' (which Scala uses).
+                    // In this case, take the whole class reference as a single class name without suffixes.
+                    className = parser.getSubstring(startParserPosition, parser.getPosition()).replace('/', '.');
+                    suffixes = Collections.emptyList();
+                    suffixTypeArguments = Collections.emptyList();
                 }
             } else {
                 suffixes = Collections.emptyList();

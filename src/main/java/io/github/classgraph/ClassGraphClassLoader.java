@@ -146,9 +146,9 @@ public class ClassGraphClassLoader extends ClassLoader {
         if (delegateClassGraphClassLoader != null) {
             try {
                 return Class.forName(className, initializeLoadedClasses, delegateClassGraphClassLoader);
-            } catch (ClassNotFoundException e) {
+            } catch (final ClassNotFoundException e) {
                 // Ignore
-            } catch (LinkageError e) {
+            } catch (final LinkageError e) {
                 linkageError = e;
             }
         }
@@ -158,9 +158,9 @@ public class ClassGraphClassLoader extends ClassLoader {
             for (final ClassLoader overrideClassLoader : overrideClassLoaders) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, overrideClassLoader);
-                } catch (ClassNotFoundException e) {
+                } catch (final ClassNotFoundException e) {
                     // Ignore
-                } catch (LinkageError e) {
+                } catch (final LinkageError e) {
                     if (linkageError == null) {
                         linkageError = e;
                     }
@@ -174,9 +174,9 @@ public class ClassGraphClassLoader extends ClassLoader {
             for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, envClassLoader);
-                } catch (ClassNotFoundException e) {
+                } catch (final ClassNotFoundException e) {
                     // Ignore
-                } catch (LinkageError e) {
+                } catch (final LinkageError e) {
                     if (linkageError == null) {
                         linkageError = e;
                     }
@@ -199,9 +199,9 @@ public class ClassGraphClassLoader extends ClassLoader {
                     || !environmentClassLoaderDelegationOrder.contains(classInfoClassLoader))) {
                 try {
                     return Class.forName(className, initializeLoadedClasses, classInfoClassLoader);
-                } catch (ClassNotFoundException e) {
+                } catch (final ClassNotFoundException e) {
                     // Ignore
-                } catch (LinkageError e) {
+                } catch (final LinkageError e) {
                     if (linkageError == null) {
                         linkageError = e;
                     }
@@ -224,9 +224,9 @@ public class ClassGraphClassLoader extends ClassLoader {
         if (overrideClassLoaders == null && classpathClassLoader != null) {
             try {
                 return Class.forName(className, initializeLoadedClasses, classpathClassLoader);
-            } catch (ClassNotFoundException e) {
+            } catch (final ClassNotFoundException e) {
                 // Ignore
-            } catch (LinkageError e) {
+            } catch (final LinkageError e) {
                 if (linkageError == null) {
                     linkageError = e;
                 }
@@ -239,9 +239,9 @@ public class ClassGraphClassLoader extends ClassLoader {
                 if (additionalClassLoader != classInfoClassLoader) {
                     try {
                         return Class.forName(className, initializeLoadedClasses, additionalClassLoader);
-                    } catch (ClassNotFoundException e) {
+                    } catch (final ClassNotFoundException e) {
                         // Ignore
-                    } catch (LinkageError e) {
+                    } catch (final LinkageError e) {
                         if (linkageError == null) {
                             linkageError = e;
                         }
@@ -277,7 +277,7 @@ public class ClassGraphClassLoader extends ClassLoader {
                     }
                 } catch (final IOException e) {
                     throw new ClassNotFoundException("Could not load classfile for class " + className + " : " + e);
-                } catch (LinkageError e) {
+                } catch (final LinkageError e) {
                     if (linkageError == null) {
                         linkageError = e;
                     }
