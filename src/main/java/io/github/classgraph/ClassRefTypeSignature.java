@@ -479,7 +479,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                     if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true)) {
                         // Got the empty string as the next token after '$', i.e. found an empty suffix.
                         suffixes.add("");
-                        suffixTypeArguments.add(Collections.emptyList());
+                        suffixTypeArguments.add(Collections.<TypeArgument> emptyList());
                         dropSuffixes = true;
                     } else {
                         suffixes.add(parser.currToken());
