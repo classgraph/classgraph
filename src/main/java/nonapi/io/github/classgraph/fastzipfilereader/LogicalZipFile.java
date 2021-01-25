@@ -49,8 +49,8 @@ import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.StringUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
@@ -803,7 +803,8 @@ public class LogicalZipFile extends ZipFileSlice {
                     }
                     final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
                     CollectionUtils.sortIfNotEmpty(versionsFoundSorted);
-                    log.log("This is a multi-release jar, with versions: " + Join.join(", ", versionsFoundSorted));
+                    log.log("This is a multi-release jar, with versions: "
+                            + StringUtils.join(", ", versionsFoundSorted));
                 }
 
                 // Sort in decreasing order of version in preparation for version masking

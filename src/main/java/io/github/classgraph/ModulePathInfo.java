@@ -35,8 +35,8 @@ import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
+import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
  * Information on the module path. Note that this will only include module system parameters actually listed in
@@ -175,14 +175,14 @@ public class ModulePathInfo {
         final StringBuilder buf = new StringBuilder(1024);
         if (!modulePath.isEmpty()) {
             buf.append("--module-path=");
-            buf.append(Join.join(File.pathSeparator, modulePath));
+            buf.append(StringUtils.join(File.pathSeparator, modulePath));
         }
         if (!addModules.isEmpty()) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
             buf.append("--add-modules=");
-            buf.append(Join.join(",", addModules));
+            buf.append(StringUtils.join(",", addModules));
         }
         for (final String patchModulesEntry : patchModules) {
             if (buf.length() > 0) {

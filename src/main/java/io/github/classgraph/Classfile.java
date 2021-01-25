@@ -47,8 +47,8 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.Join;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
@@ -1978,10 +1978,10 @@ class Classfile {
                         "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
             }
             if (implementedInterfaces != null) {
-                subLog.log("Interfaces: " + Join.join(", ", implementedInterfaces));
+                subLog.log("Interfaces: " + StringUtils.join(", ", implementedInterfaces));
             }
             if (classAnnotations != null) {
-                subLog.log("Class annotations: " + Join.join(", ", classAnnotations.getNames()));
+                subLog.log("Class annotations: " + StringUtils.join(", ", classAnnotations.getNames()));
             }
             if (annotationParamDefaultValues != null) {
                 for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
@@ -2004,7 +2004,7 @@ class Classfile {
             if (refdClassNames != null) {
                 final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
                 CollectionUtils.sortIfNotEmpty(refdClassNamesSorted);
-                subLog.log("Referenced class names: " + Join.join(", ", refdClassNamesSorted));
+                subLog.log("Referenced class names: " + StringUtils.join(", ", refdClassNamesSorted));
             }
         }
 
