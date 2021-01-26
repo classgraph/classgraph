@@ -248,8 +248,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     }
                 }
             } catch (final ParseException e) {
-                throw new IllegalArgumentException("Invalid type signature for class " + getClassInfo()
-                        + ", method " + getName() + ": " + typeSignatureStr, e);
+                throw new IllegalArgumentException("Invalid type signature for method " + getClassName() + "."
+                        + getName() + ": " + typeSignatureStr, e);
             }
         }
         return typeSignature;
