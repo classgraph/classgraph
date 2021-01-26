@@ -188,9 +188,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Get the {@link ClassInfo} object for the declaring class (i.e. the class that declares this method).
+     * Get the {@link ClassInfo} object for the class that declares this method.
      *
-     * @return The {@link ClassInfo} object for the declaring class (i.e. the class that declares this method).
+     * @return The {@link ClassInfo} object for the declaring class.
+     * 
+     * @see #getClassName()
      */
     @Override
     public ClassInfo getClassInfo() {
@@ -703,13 +705,14 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the declaring class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
-     * declaring class.
+     * Get the name of the class that declares this method.
      *
-     * @return the class name
+     * @return The name of the declaring class.
+     * 
+     * @see #getClassInfo()
      */
     @Override
-    protected String getClassName() {
+    public String getClassName() {
         return declaringClassName;
     }
 
