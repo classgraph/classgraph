@@ -248,7 +248,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     }
                 }
             } catch (final ParseException e) {
-                throw new IllegalArgumentException(e);
+                throw new IllegalArgumentException("Invalid type signature for class " + getClassInfo()
+                        + ", method " + getName() + ": " + typeSignatureStr, e);
             }
         }
         return typeSignature;
@@ -417,7 +418,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             final List<TypeSignature> paramTypeSignatures = getTypeSignature() != null
                     ? getTypeSignature().getParameterTypeSignatures()
                     : null;
-            
+
             // Figure out the number of params in the alignment (should be num params in type descriptor)
             final int numParams = paramTypeDescriptors.size();
             if (paramTypeSignatures != null && paramTypeSignatures.size() > numParams) {

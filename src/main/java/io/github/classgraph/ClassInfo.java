@@ -2639,7 +2639,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     }
                 }
             } catch (final ParseException e) {
-                throw new IllegalArgumentException(e);
+                throw new IllegalArgumentException(
+                        "Invalid type signature for class " + getName() + ": " + typeSignatureStr, e);
             }
         }
         return typeSignature;

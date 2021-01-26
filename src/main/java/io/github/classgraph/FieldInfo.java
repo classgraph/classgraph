@@ -259,7 +259,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
                     }
                 }
             } catch (final ParseException e) {
-                throw new IllegalArgumentException(e);
+                throw new IllegalArgumentException("Invalid type signature for class " + getClassInfo() + ", field "
+                        + getName() + ": " + typeSignatureStr, e);
             }
         }
         return typeSignature;
