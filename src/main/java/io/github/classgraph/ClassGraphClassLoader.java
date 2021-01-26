@@ -314,7 +314,11 @@ public class ClassGraphClassLoader extends ClassLoader {
         throw new ClassNotFoundException("Could not find or load classfile for class " + className);
     }
 
-    /** Get classpath URLs. */
+    /**
+     * Get classpath URLs.
+     * 
+     * @return The classpath URLs in the {@link ScanResult} handled by this {@link ClassLoader}.
+     */
     public URL[] getURLs() {
         return scanResult.getClasspathURLs().toArray(new URL[0]);
     }
