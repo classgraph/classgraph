@@ -32,6 +32,8 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /**
  * A superclass of objects accessible from a {@link ScanResult} that are associated with a {@link ClassInfo} object.
  */
@@ -60,12 +62,14 @@ abstract class ScanResultObject {
     /**
      * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
+     * @param log
+     *            the log
      * @return the referenced class info.
      */
-    final Set<ClassInfo> findReferencedClassInfo() {
+    final Set<ClassInfo> findReferencedClassInfo(final LogNode log) {
         final Set<ClassInfo> refdClassInfo = new LinkedHashSet<>();
         if (scanResult != null) {
-            findReferencedClassInfo(scanResult.classNameToClassInfo, refdClassInfo);
+            findReferencedClassInfo(scanResult.classNameToClassInfo, refdClassInfo, log);
         }
         return refdClassInfo;
     }
@@ -77,9 +81,11 @@ abstract class ScanResultObject {
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info
+     * @param log
+     *            the log
      */
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         final ClassInfo ci = getClassInfo();
         if (ci != null) {
             refdClassInfo.add(ci);

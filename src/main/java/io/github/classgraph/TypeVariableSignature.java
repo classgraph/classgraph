@@ -104,7 +104,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         ClassTypeSignature containingClassSignature = null;
         try {
             containingClassSignature = containingClassInfo.getTypeSignature();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // Ignore
         }
         if (containingClassSignature != null && containingClassSignature.typeParameters != null

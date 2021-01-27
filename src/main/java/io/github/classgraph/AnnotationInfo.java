@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Holds metadata about a specific annotation instance on a class, method, method parameter or field. */
@@ -227,11 +228,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
-        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
-                annotationParamValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                annotationParamValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
         }
     }

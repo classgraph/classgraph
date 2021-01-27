@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
@@ -145,9 +147,9 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         if (value != null) {
-            value.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            value.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
     }
 

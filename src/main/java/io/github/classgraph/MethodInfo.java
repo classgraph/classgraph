@@ -42,6 +42,7 @@ import io.github.classgraph.Classfile.MethodTypeAnnotationDecorator;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
@@ -784,33 +785,39 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         try {
             final MethodTypeSignature methodSig = getTypeSignature();
             if (methodSig != null) {
-                methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final Exception e) {
-            // Ignore
+        } catch (final IllegalArgumentException e) {
+            if (log != null) {
+                log.log("Illegal type signature for method " + getClassName() + "." + getName() + ": "
+                        + getTypeSignatureStr());
+            }
         }
         try {
             final MethodTypeSignature methodDesc = getTypeDescriptor();
             if (methodDesc != null) {
-                methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final Exception e) {
-            // Ignore
+        } catch (final IllegalArgumentException e) {
+            if (log != null) {
+                log.log("Illegal type descriptor for method " + getClassName() + "." + getName() + ": "
+                        + getTypeDescriptorStr());
+            }
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
-                ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
         }
         for (final MethodParameterInfo mpi : getParameterInfo()) {
             final AnnotationInfo[] aiArr = mpi.annotationInfo;
             if (aiArr != null) {
                 for (final AnnotationInfo ai : aiArr) {
-                    ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                    ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
                 }
             }
         }

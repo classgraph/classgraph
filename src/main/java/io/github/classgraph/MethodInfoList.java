@@ -33,6 +33,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
     /** serialVersionUID */
@@ -88,11 +90,13 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info
+     * @param log
+     *            the log
      */
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         for (final MethodInfo mi : this) {
-            mi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            mi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
     }
 

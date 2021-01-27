@@ -56,6 +56,7 @@ import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
@@ -190,6 +191,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classfileResource
      *            the classfile resource
      */
+    @SuppressWarnings("null")
     protected ClassInfo(final String name, final int classModifiers, final Resource classfileResource) {
         super();
         this.name = name;
@@ -2915,12 +2917,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info
+     * @param log
+     *            the log
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         // Add this class to the set of references
-        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         if (this.referencedClassNames != null) {
             for (final String refdClassName : this.referencedClassNames) {
                 final ClassInfo classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
@@ -2928,19 +2932,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 refdClassInfo.add(classInfo);
             }
         }
-        getMethodInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
-        getFieldInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
-        getAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        getMethodInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        getFieldInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        getAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         if (annotationDefaultParamValues != null) {
-            annotationDefaultParamValues.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            annotationDefaultParamValues.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
         try {
             final ClassTypeSignature classSig = getTypeSignature();
             if (classSig != null) {
-                classSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                classSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final Exception e) {
-            // Ignore
+        } catch (final IllegalArgumentException e) {
+            if (log != null) {
+                log.log("Illegal type signature for class " + getClassName() + ": " + getTypeSignatureStr());
+            }
         }
     }
 

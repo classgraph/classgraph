@@ -40,6 +40,7 @@ import io.github.classgraph.Classfile.TypeAnnotationDecorator;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
@@ -471,26 +472,32 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         try {
-            final TypeSignature methodSig = getTypeSignature();
-            if (methodSig != null) {
-                methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            final TypeSignature fieldSig = getTypeSignature();
+            if (fieldSig != null) {
+                fieldSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final Exception e) {
-            // Ignore
+        } catch (final IllegalArgumentException e) {
+            if (log != null) {
+                log.log("Illegal type signature for field " + getClassName() + "." + getName() + ": "
+                        + getTypeSignatureStr());
+            }
         }
         try {
-            final TypeSignature methodDesc = getTypeDescriptor();
-            if (methodDesc != null) {
-                methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            final TypeSignature fieldDesc = getTypeDescriptor();
+            if (fieldDesc != null) {
+                fieldDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final Exception e) {
-            // Ignore
+        } catch (final IllegalArgumentException e) {
+            if (log != null) {
+                log.log("Illegal type descriptor for field " + getClassName() + "." + getName() + ": "
+                        + getTypeDescriptorStr());
+            }
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
-                ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
         }
     }

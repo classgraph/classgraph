@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /** A union type, used for typesafe serialization/deserialization to/from JSON. Only one field is ever set. */
 class ObjectTypedValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization
@@ -555,19 +557,19 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         if (annotationEnumValue != null) {
-            annotationEnumValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            annotationEnumValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         } else if (annotationClassRef != null) {
             final ClassInfo classInfo = annotationClassRef.getClassInfo();
             if (classInfo != null) {
                 refdClassInfo.add(classInfo);
             }
         } else if (annotationInfo != null) {
-            annotationInfo.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            annotationInfo.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         } else if (objectArrayValue != null) {
             for (final ObjectTypedValueWrapper item : objectArrayValue) {
-                item.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+                item.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
         }
     }

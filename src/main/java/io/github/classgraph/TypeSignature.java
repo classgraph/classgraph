@@ -36,6 +36,7 @@ import java.util.Set;
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own
@@ -71,7 +72,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     final protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
         for (final String refdClassName : refdClassNames) {

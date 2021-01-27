@@ -32,6 +32,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
     /** serialVersionUID */
@@ -90,11 +92,13 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info
+     * @param log
+     *            the log
      */
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
         for (final AnnotationParameterValue apv : this) {
-            apv.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            apv.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
     }
 

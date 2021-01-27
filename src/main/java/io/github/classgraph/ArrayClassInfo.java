@@ -31,6 +31,8 @@ package io.github.classgraph;
 import java.util.Map;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /**
  * Holds metadata about an array class. This class extends {@link ClassInfo} with additional methods relevant to
  * array classes, in particular {@link #getArrayTypeSignature()}, {@link #getTypeSignatureStr()},
@@ -225,8 +227,8 @@ public class ArrayClassInfo extends ClassInfo {
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo) {
-        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------

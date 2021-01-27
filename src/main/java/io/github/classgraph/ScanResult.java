@@ -259,7 +259,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.topLevelLog = topLevelLog;
 
         if (classNameToClassInfo != null) {
-            indexResourcesAndClassInfo();
+            indexResourcesAndClassInfo(topLevelLog);
         }
 
         if (classNameToClassInfo != null) {
@@ -299,8 +299,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
         nonClosedWeakReferences.add(this.weakReference);
     }
 
-    /** Index {@link Resource} and {@link ClassInfo} objects. */
-    private void indexResourcesAndClassInfo() {
+    /**
+     * Index {@link Resource} and {@link ClassInfo} objects.
+     *
+     * @param log
+     *            the log
+     */
+    private void indexResourcesAndClassInfo(final LogNode log) {
         // Add backrefs from Info objects back to this ScanResult
         final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
         for (final ClassInfo classInfo : allClassInfo) {
@@ -312,7 +317,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (scanSpec.enableInterClassDependencies) {
             for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
                 final Set<ClassInfo> refdClassesFiltered = new HashSet<>();
-                for (final ClassInfo refdClassInfo : ci.findReferencedClassInfo()) {
+                for (final ClassInfo refdClassInfo : ci.findReferencedClassInfo(log)) {
                     // Don't add self-references, or references to Object
                     if (refdClassInfo != null && !ci.equals(refdClassInfo)
                             && !refdClassInfo.getName().equals("java.lang.Object")
@@ -1348,7 +1353,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
 
         // Index Resource and ClassInfo objects 
-        scanResult.indexResourcesAndClassInfo();
+        scanResult.indexResourcesAndClassInfo(/* log = */ null);
 
         scanResult.isObtainedFromDeserialization = true;
         return scanResult;
