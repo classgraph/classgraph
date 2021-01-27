@@ -225,8 +225,13 @@ public final class FastPathResolver {
             prefix = "jrt:";
             isAbsolutePath = true;
         } else if (relativePath.regionMatches(true, startIdx, "file:", 0, 5)) {
-            // Strip off any "file:" prefix from relative path
+            // Strip off "file:" prefix from relative path
             startIdx += 5;
+            while (startIdx < relativePath.length() - 1 && relativePath.charAt(startIdx) == '/'
+                    && relativePath.charAt(startIdx + 1) == '/') {
+                // Strip off all but one '/' after "file:"
+                startIdx++;
+            }
             isFileOrJarURL = true;
         } else {
             // Preserve the number of slashes on custom URL schemes (#420)
