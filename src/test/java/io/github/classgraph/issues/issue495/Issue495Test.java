@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.issues.issue407;
+package io.github.classgraph.issues.issue495;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,7 +37,6 @@ import java.net.URLClassLoader;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.ops4j.pax.url.mvn.MavenResolvers;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
@@ -45,7 +44,7 @@ import io.github.classgraph.ScanResult;
 /**
  * Test.
  */
-public class Issue407Test {
+public class Issue495Test {
     /**
      * Test.
      *
@@ -53,25 +52,23 @@ public class Issue407Test {
      *             Signals that an I/O exception has occurred.
      */
     @Test
-    public void issue407Test() throws IOException {
-        // Resolve and download scala-library
-        final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("com.google.guava",
-                "guava", null, null, "25.0-jre");
-        assertThat(resolvedFile).isFile();
+    public void testScalaTypeSignatures() throws Exception {
+        final File scalaClassfile = new File(
+                getClass().getClassLoader().getResource("scalapackage/ScalaClass.class").toURI());
+        assertThat(scalaClassfile).canRead();
 
-        // Create a new custom class loader
-        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+        final ClassLoader classLoader = new URLClassLoader(
+                new URL[] { scalaClassfile.getParentFile().getParentFile().toURI().toURL() }, null);
 
-        // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
-        // from different class
         try (ScanResult scanResult = new ClassGraph() //
-                .acceptPackages("com.google.thirdparty.publicsuffix") //
+                .enableClassInfo().enableInterClassDependencies() //
+                .acceptPackages("scalapackage") //
                 .overrideClassLoaders(classLoader) //
                 .scan()) {
             final List<String> classNames = scanResult //
                     .getAllClasses() //
                     .getNames();
-            assertThat(classNames).contains("com.google.thirdparty.publicsuffix.PublicSuffixPatterns");
+            assertThat(classNames).containsOnly("scalapackage.ScalaClass");
         }
     }
 }

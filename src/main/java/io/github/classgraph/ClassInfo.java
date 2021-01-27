@@ -2639,8 +2639,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     }
                 }
             } catch (final ParseException e) {
-                throw new IllegalArgumentException(
-                        "Invalid type signature for class " + getName() + ": " + typeSignatureStr, e);
+                throw new IllegalArgumentException("Invalid type signature for class " + getName()
+                        + " in classpath element " + getClasspathElementURI() + " : " + typeSignatureStr, e);
             }
         }
         return typeSignature;
@@ -2934,9 +2934,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (annotationDefaultParamValues != null) {
             annotationDefaultParamValues.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
         }
-        final ClassTypeSignature classSig = getTypeSignature();
-        if (classSig != null) {
-            classSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        try {
+            final ClassTypeSignature classSig = getTypeSignature();
+            if (classSig != null) {
+                classSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            }
+        } catch (final Exception e) {
+            // Ignore
         }
     }
 
@@ -3031,7 +3035,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 annotation.toString(useSimpleNames, buf);
             }
         }
-        final ClassTypeSignature typeSig = getTypeSignature();
+        ClassTypeSignature typeSig = null;
+        try {
+            typeSig = getTypeSignature();
+        } catch (final Exception e) {
+            // Ignore
+        }
         if (typeSig != null) {
             // Generic classes
             typeSig.toStringInternal(useSimpleNames ? ClassInfo.getSimpleName(name) : name,

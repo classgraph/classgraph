@@ -260,8 +260,13 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
                     }
                 }
             } catch (final ParseException e) {
-                throw new IllegalArgumentException("Invalid type signature for field " + getClassName() + "."
-                        + getName() + ": " + typeSignatureStr, e);
+                throw new IllegalArgumentException(
+                        "Invalid type signature for field " + getClassName() + "." + getName()
+                                + (getClassInfo() != null
+                                        ? " in classpath element " + getClassInfo().getClasspathElementURI()
+                                        : "")
+                                + " : " + typeSignatureStr,
+                        e);
             }
         }
         return typeSignature;
@@ -287,12 +292,16 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      *         field.
      */
     public TypeSignature getTypeSignatureOrTypeDescriptor() {
-        final TypeSignature typeSig = getTypeSignature();
-        if (typeSig != null) {
-            return typeSig;
-        } else {
-            return getTypeDescriptor();
+        TypeSignature typeSig = null;
+        try {
+            typeSig = getTypeSignature();
+            if (typeSig != null) {
+                return typeSig;
+            }
+        } catch (final Exception e) {
+            // Ignore
         }
+        return getTypeDescriptor();
     }
 
     /**
@@ -463,13 +472,21 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo) {
-        final TypeSignature methodSig = getTypeSignature();
-        if (methodSig != null) {
-            methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        try {
+            final TypeSignature methodSig = getTypeSignature();
+            if (methodSig != null) {
+                methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            }
+        } catch (final Exception e) {
+            // Ignore
         }
-        final TypeSignature methodDesc = getTypeDescriptor();
-        if (methodDesc != null) {
-            methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        try {
+            final TypeSignature methodDesc = getTypeDescriptor();
+            if (methodDesc != null) {
+                methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            }
+        } catch (final Exception e) {
+            // Ignore
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {

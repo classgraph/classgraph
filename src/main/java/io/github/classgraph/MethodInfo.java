@@ -250,8 +250,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     }
                 }
             } catch (final ParseException e) {
-                throw new IllegalArgumentException("Invalid type signature for method " + getClassName() + "."
-                        + getName() + ": " + typeSignatureStr, e);
+                throw new IllegalArgumentException(
+                        "Invalid type signature for method " + getClassName() + "." + getName()
+                                + (getClassInfo() != null
+                                        ? " in classpath element " + getClassInfo().getClasspathElementURI()
+                                        : "")
+                                + " : " + typeSignatureStr,
+                        e);
             }
         }
         return typeSignature;
@@ -277,12 +282,16 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *         method.
      */
     public MethodTypeSignature getTypeSignatureOrTypeDescriptor() {
-        final MethodTypeSignature typeSig = getTypeSignature();
-        if (typeSig != null) {
-            return typeSig;
-        } else {
-            return getTypeDescriptor();
+        MethodTypeSignature typeSig = null;
+        try {
+            typeSig = getTypeSignature();
+            if (typeSig != null) {
+                return typeSig;
+            }
+        } catch (final Exception e) {
+            // Ignore
         }
+        return getTypeDescriptor();
     }
 
     /**
@@ -416,13 +425,28 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public MethodParameterInfo[] getParameterInfo() {
         if (parameterInfo == null) {
             // Get params from the type descriptor, and from the type signature if available
-            final List<TypeSignature> paramTypeDescriptors = getTypeDescriptor().getParameterTypeSignatures();
-            final List<TypeSignature> paramTypeSignatures = getTypeSignature() != null
-                    ? getTypeSignature().getParameterTypeSignatures()
-                    : null;
+            List<TypeSignature> paramTypeDescriptors = null;
+            int numParams = 0;
+            try {
+                final MethodTypeSignature typeSig = getTypeDescriptor();
+                if (typeSig != null) {
+                    paramTypeDescriptors = typeSig.getParameterTypeSignatures();
+                    numParams = paramTypeDescriptors.size();
+                }
+            } catch (final Exception e) {
+                // Ignore
+            }
+            List<TypeSignature> paramTypeSignatures = null;
+            try {
+                final MethodTypeSignature typeSig = getTypeSignature();
+                if (typeSig != null) {
+                    paramTypeSignatures = typeSig.getParameterTypeSignatures();
+                }
+            } catch (final Exception e) {
+                // Ignore
+            }
 
             // Figure out the number of params in the alignment (should be num params in type descriptor)
-            final int numParams = paramTypeDescriptors.size();
             if (paramTypeSignatures != null && paramTypeSignatures.size() > numParams) {
                 // Should not happen
                 throw new ClassGraphException(
@@ -493,7 +517,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             }
             List<TypeSignature> paramTypeSignaturesAligned = null;
             if (paramTypeSignatures != null && numParams > 0) {
-                if (paramTypeSignatures.size() == paramTypeDescriptors.size()) {
+                if (paramTypeSignatures.size() == numParams) {
                     // No alignment necessary
                     paramTypeSignaturesAligned = paramTypeSignatures;
                 } else {
@@ -512,7 +536,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             for (int i = 0; i < numParams; i++) {
                 parameterInfo[i] = new MethodParameterInfo(this,
                         paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
-                        paramModifiersAligned == null ? 0 : paramModifiersAligned[i], paramTypeDescriptors.get(i),
+                        paramModifiersAligned == null ? 0 : paramModifiersAligned[i],
+                        paramTypeDescriptors == null ? null : paramTypeDescriptors.get(i),
                         paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
                         paramNamesAligned == null ? null : paramNamesAligned[i]);
                 parameterInfo[i].setScanResult(scanResult);
@@ -760,13 +785,21 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo) {
-        final MethodTypeSignature methodSig = getTypeSignature();
-        if (methodSig != null) {
-            methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        try {
+            final MethodTypeSignature methodSig = getTypeSignature();
+            if (methodSig != null) {
+                methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            }
+        } catch (final Exception e) {
+            // Ignore
         }
-        final MethodTypeSignature methodDesc = getTypeDescriptor();
-        if (methodDesc != null) {
-            methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+        try {
+            final MethodTypeSignature methodDesc = getTypeDescriptor();
+            if (methodDesc != null) {
+                methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo);
+            }
+        } catch (final Exception e) {
+            // Ignore
         }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
