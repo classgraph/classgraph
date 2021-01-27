@@ -123,7 +123,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Gets the throws signatures. These are invalid according to the classfile spec (so this method is currently
-     * non-public), but they are added by the Scala compiler.
+     * non-public), but may be added by the Scala compiler. (See bug #495.)
      *
      * @return the throws signatures
      */
@@ -275,7 +275,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append("@throws(classOf[" + throwsSignature + "])");
+                buf.append("@throws(" + throwsSignature + ")");
             }
         }
         if (modifiers != 0) {
