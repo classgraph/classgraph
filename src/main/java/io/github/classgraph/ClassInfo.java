@@ -2626,6 +2626,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return The parsed type signature for the class, including any generic type parameters, or null if not
      *         available (probably indicating the class is not generic).
+     * @throws IllegalArgumentException
+     *             if the class type signature cannot be parsed (this should only be thrown in the case of classfile
+     *             corruption, or a compiler bug that causes an invalid type signature to be written to the
+     *             classfile).
      */
     public ClassTypeSignature getTypeSignature() {
         if (typeSignatureStr == null) {

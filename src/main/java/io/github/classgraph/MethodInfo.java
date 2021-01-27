@@ -239,6 +239,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * instead.
      * 
      * @return The parsed type signature for the method, or null if not available.
+     * @throws IllegalArgumentException
+     *             if the method type signature cannot be parsed (this should only be thrown in the case of
+     *             classfile corruption, or a compiler bug that causes an invalid type signature to be written to
+     *             the classfile).
      */
     public MethodTypeSignature getTypeSignature() {
         if (typeSignature == null && typeSignatureStr != null) {
