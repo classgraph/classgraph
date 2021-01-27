@@ -479,6 +479,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             // and even when they are, they don't always give the right alignment, at least for Kotlin-
             // generated code).
 
+            // Actually the Java spec says specifically: "The signature and descriptor of a given method
+            // or constructor may not correspond exactly, due to compiler-generated artifacts. In particular,
+            // the number of TypeSignatures that encode formal arguments in MethodTypeSignature may be less
+            // than the number of ParameterDescriptors in MethodDescriptor."
+
             String[] paramNamesAligned = null;
             if (parameterNames != null && numParams > 0) {
                 if (parameterNames.length == numParams) {
