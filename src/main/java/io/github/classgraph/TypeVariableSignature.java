@@ -101,7 +101,12 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (containingClassInfo == null) {
             throw new IllegalArgumentException("Could not find ClassInfo object for " + definingClassName);
         }
-        final ClassTypeSignature containingClassSignature = containingClassInfo.getTypeSignature();
+        ClassTypeSignature containingClassSignature = null;
+        try {
+            containingClassSignature = containingClassInfo.getTypeSignature();
+        } catch (Exception e) {
+            // Ignore
+        }
         if (containingClassSignature != null && containingClassSignature.typeParameters != null
                 && !containingClassSignature.typeParameters.isEmpty()) {
             for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {
