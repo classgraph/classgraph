@@ -34,11 +34,11 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -64,10 +64,10 @@ public class Issue495Test {
                 .acceptPackages("scalapackage") //
                 .overrideClassLoaders(classLoader) //
                 .scan()) {
-            final List<String> classNames = scanResult //
-                    .getAllClasses() //
-                    .getNames();
-            assertThat(classNames).containsOnly("scalapackage.ScalaClass");
+            final ClassInfoList allClasses = scanResult.getAllClasses();
+            assertThat(allClasses.getNames()).containsOnly("scalapackage.ScalaClass");
+            Class<?> scalaClassClass = allClasses.get(0).loadClass();
+            assertThat(scalaClassClass).isNotNull();
         }
     }
 }
