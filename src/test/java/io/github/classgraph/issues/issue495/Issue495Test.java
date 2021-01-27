@@ -67,7 +67,6 @@ public class Issue495Test {
             assertThat(allClasses.getNames()).containsOnly("scalapackage.ScalaClass");
             final ClassInfo scalaClassInfo = allClasses.get(0);
             assertThat(scalaClassInfo.getTypeSignature()).isNotNull();
-            System.out.println(scalaClassInfo.getTypeSignature());
             final Class<?> scalaClassClass = scalaClassInfo.loadClass();
             assertThat(scalaClassClass).isNotNull();
         }
