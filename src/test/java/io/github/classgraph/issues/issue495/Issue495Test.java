@@ -38,6 +38,7 @@ import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 
@@ -56,9 +57,7 @@ public class Issue495Test {
         final URL resourceURL = Issue495Test.class.getClassLoader().getResource("scalapackage.zip");
         assertThat(resourceURL).isNotNull();
         assertThat(new File(resourceURL.toURI())).canRead();
-
         final ClassLoader classLoader = new URLClassLoader(new URL[] { resourceURL }, null);
-
         try (ScanResult scanResult = new ClassGraph() //
                 .enableClassInfo().enableInterClassDependencies() //
                 .acceptPackages("scalapackage") //
@@ -66,7 +65,10 @@ public class Issue495Test {
                 .scan()) {
             final ClassInfoList allClasses = scanResult.getAllClasses();
             assertThat(allClasses.getNames()).containsOnly("scalapackage.ScalaClass");
-            Class<?> scalaClassClass = allClasses.get(0).loadClass();
+            final ClassInfo scalaClassInfo = allClasses.get(0);
+            assertThat(scalaClassInfo.getTypeSignature()).isNotNull();
+            System.out.println(scalaClassInfo.getTypeSignature());
+            final Class<?> scalaClassClass = scalaClassInfo.loadClass();
             assertThat(scalaClassClass).isNotNull();
         }
     }
