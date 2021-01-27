@@ -53,8 +53,9 @@ public class Issue495Test {
      */
     @Test
     public void testScalaTypeSignatures() throws Exception {
-        final File scalaClassfile = new File(
-                getClass().getClassLoader().getResource("scalapackage/ScalaClass.class").toURI());
+        final URL resource = getClass().getClassLoader().getResource("scalapackage/ScalaClass.class");
+        assertThat(resource).isNotNull();
+        final File scalaClassfile = new File(resource.toURI());
         assertThat(scalaClassfile).canRead();
 
         final ClassLoader classLoader = new URLClassLoader(
