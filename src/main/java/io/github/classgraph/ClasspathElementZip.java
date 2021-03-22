@@ -387,7 +387,14 @@ class ClasspathElementZip extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 try {
-                    inputStream = zipEntry.getSlice().open();
+                    inputStream = zipEntry.getSlice().open(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (isOpen.getAndSet(false)) {
+                                close();
+                            }
+                        }
+                    });
                     length = zipEntry.uncompressedSize;
                     return inputStream;
 

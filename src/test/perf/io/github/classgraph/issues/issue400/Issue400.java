@@ -19,7 +19,7 @@ import io.github.classgraph.ScanResult;
 public class Issue400 {
 
     private static final long MB = 1024 * 1024;
-    private static final long MEMORY_TOLERANCE = 4 * MB;
+    private static final long MEMORY_TOLERANCE = 5 * MB;
 
     /**
      * @return used JVM heap size allocated in RAM

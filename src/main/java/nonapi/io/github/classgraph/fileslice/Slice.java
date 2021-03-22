@@ -152,6 +152,19 @@ public abstract class Slice implements Closeable {
      *             if an inflater cannot be created for this {@link Slice}.
      */
     public InputStream open() throws IOException {
+        return open(null);
+    }
+
+    /**
+     * Open this {@link Slice} as an {@link InputStream}.
+     *
+     * @param onClose
+     *            a method to run when the returned {@code InputStream} is closed, or null if none.
+     * @return the input stream
+     * @throws IOException
+     *             if an inflater cannot be created for this {@link Slice}.
+     */
+    public InputStream open(final Runnable onClose) throws IOException {
         final InputStream rawInputStream = new InputStream() {
             RandomAccessReader randomAccessReader = randomAccessReader();
             private long currOff;
@@ -222,7 +235,9 @@ public abstract class Slice implements Closeable {
             @Override
             public void close() {
                 closed.getAndSet(true);
-                // Nothing to close
+                if (onClose != null) {
+                    onClose.run();
+                }
             }
         };
         return isDeflatedZipEntry ? nestedJarHandler.openInflaterInputStream(rawInputStream) : rawInputStream;

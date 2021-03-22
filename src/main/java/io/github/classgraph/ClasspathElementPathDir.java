@@ -266,7 +266,14 @@ class ClasspathElementPathDir extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 pathSlice = new PathSlice(resourcePath, nestedJarHandler);
-                inputStream = pathSlice.open();
+                inputStream = pathSlice.open(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isOpen.getAndSet(false)) {
+                            close();
+                        }
+                    }
+                });
                 length = pathSlice.sliceLength;
                 return inputStream;
             }
