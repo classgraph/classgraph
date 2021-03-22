@@ -309,8 +309,7 @@ class ClasspathElementZip extends ClasspathElement {
      *            the path relative to package root
      * @return the resource
      */
-    private Resource newResource(final FastZipEntry zipEntry, final String strippedPackageRootPrefix,
-            final String pathRelativeToPackageRoot) {
+    private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
         return new Resource(this, zipEntry.uncompressedSize) {
             /** True if the resource is open. */
             protected AtomicBoolean isOpen = new AtomicBoolean();
@@ -326,20 +325,10 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public String getPathRelativeToClasspathElement() {
-                return zipEntry.entryName;
-            }
-
-            @Override
-            public URI getClasspathElementURI() {
-                final URI classpathElementURI = super.getClasspathElementURI();
-                if (strippedPackageRootPrefix.isEmpty()) {
-                    return classpathElementURI;
+                if (zipEntry.entryName.startsWith(packageRootPrefix)) {
+                    return zipEntry.entryName.substring(packageRootPrefix.length());
                 } else {
-                    try {
-                        return new URI(classpathElementURI.toString() + "!/" + strippedPackageRootPrefix);
-                    } catch (final URISyntaxException e) {
-                        throw new IllegalArgumentException("Could not construct valid URI for resource");
-                    }
+                    return zipEntry.entryName;
                 }
             }
 
@@ -574,8 +563,6 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Strip the package root prefix from the relative path
-            // N.B. these semantics should mirror those in getResource()
-            String strippedPackageRootPrefix = "";
             if (!packageRootPrefix.isEmpty()) {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
@@ -591,12 +578,6 @@ class ClasspathElementZip extends ClasspathElement {
                                 : packageRoot;
                         // Store package root for use by getAllURIs()
                         strippedAutomaticPackageRootPrefixes.add(packageRootWithoutFinalSlash);
-                        // 
-                        if (strippedPackageRootPrefix.isEmpty()) {
-                            strippedPackageRootPrefix = packageRootWithoutFinalSlash;
-                        } else {
-                            strippedPackageRootPrefix += "/" + packageRootWithoutFinalSlash;
-                        }
                     }
                 }
             }
@@ -627,7 +608,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Add the ZipEntry path as a Resource
-            final Resource resource = newResource(zipEntry, strippedPackageRootPrefix, relativePath);
+            final Resource resource = newResource(zipEntry, relativePath);
             if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
                 // If resource is accepted
                 if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
@@ -699,7 +680,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     /**
      * Return URI for classpath element, plus URIs for any stripped nested automatic package root prefixes, e.g.
-     * "/BOOT-INF/classes".
+     * "!/BOOT-INF/classes".
      */
     @Override
     List<URI> getAllURIs() {
