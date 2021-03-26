@@ -595,7 +595,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
      *             not called before scanning (since there would be nothing to graph).
      */
-    public String generateGraphVizDotFileFromClassDependencies() {
+    public String generateGraphVizDotFileFromInterClassDependencies() {
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
@@ -606,6 +606,20 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         }
         return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, 10.5f, 8.0f,
                 scanSpec.enableExternalClasses);
+    }
+
+    /**
+     * Deprecated: use {@link #generateGraphVizDotFileFromInterClassDependencies()} instead.
+     * 
+     * @deprecated Use {@link #generateGraphVizDotFileFromInterClassDependencies()} instead.
+     * @return the GraphViz file contents.
+     * @throws IllegalArgumentException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
+     *             not called before scanning (since there would be nothing to graph).
+     */
+    @Deprecated
+    public String generateGraphVizDotFileFromClassDependencies() {
+        return generateGraphVizDotFileFromInterClassDependencies();
     }
 
     // -------------------------------------------------------------------------------------------------------------
