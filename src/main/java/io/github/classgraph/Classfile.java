@@ -1981,7 +1981,7 @@ class Classfile {
                 subLog.log("Interfaces: " + StringUtils.join(", ", implementedInterfaces));
             }
             if (classAnnotations != null) {
-                subLog.log("Class annotations: " + StringUtils.join(", ", classAnnotations.getNames()));
+                subLog.log("Class annotations: " + StringUtils.join(", ", classAnnotations));
             }
             if (annotationParamDefaultValues != null) {
                 for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
@@ -1990,12 +1990,12 @@ class Classfile {
             }
             if (fieldInfoList != null) {
                 for (final FieldInfo fieldInfo : fieldInfoList) {
-                    subLog.log("Field: " + fieldInfo.getName());
+                    subLog.log("Field: " + fieldInfo);
                 }
             }
             if (methodInfoList != null) {
                 for (final MethodInfo methodInfo : methodInfoList) {
-                    subLog.log("Method: " + methodInfo.getName());
+                    subLog.log("Method: " + methodInfo);
                 }
             }
             if (typeSignatureStr != null) {
@@ -2004,7 +2004,7 @@ class Classfile {
             if (refdClassNames != null) {
                 final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
                 CollectionUtils.sortIfNotEmpty(refdClassNamesSorted);
-                subLog.log("Referenced class names: " + StringUtils.join(", ", refdClassNamesSorted));
+                subLog.log("Additional referenced class names: " + StringUtils.join(", ", refdClassNamesSorted));
             }
         }
 
