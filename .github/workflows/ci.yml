@@ -3,10 +3,10 @@ name: Java CI
 on:
   pull_request:
     branches:
-      - master
+      - latest
   push:
     branches:
-      - master
+      - latest
 
 jobs:
   build:
@@ -15,14 +15,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        java: [ '8', '11', '12', '13', '14', '15' ]
+        java: [ '8', '11', '12', '13', '14', '15', '16' ]
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK
-      uses: actions/setup-java@v1.4.3
+      uses: actions/setup-java@v2
       with:
+        distribution: 'zulu'
         java-version: ${{ matrix.java }}
     - name: print Java version
       run: java -version
     - name: Build with Maven
-      run: ./mvnw clean test
+      run: ./mvnw --no-transfer-progress -B clean test
