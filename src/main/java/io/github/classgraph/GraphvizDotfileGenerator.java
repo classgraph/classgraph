@@ -319,7 +319,7 @@ final class GraphvizDotfileGenerator {
                         if (buf.charAt(buf.length() - 1) != ' ') {
                             buf.append(' ');
                         }
-                        buf.append(fi.getModifierStr());
+                        buf.append(fi.getModifiersStr());
                     }
 
                     // Field type
