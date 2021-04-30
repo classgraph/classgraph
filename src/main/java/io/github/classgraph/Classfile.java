@@ -1990,12 +1990,15 @@ class Classfile {
             }
             if (fieldInfoList != null) {
                 for (final FieldInfo fieldInfo : fieldInfoList) {
-                    subLog.log("Field: " + fieldInfo);
+                    final String modifierStr = fieldInfo.getModifiersStr();
+                    subLog.log("Field: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + fieldInfo.getName());
                 }
             }
             if (methodInfoList != null) {
                 for (final MethodInfo methodInfo : methodInfoList) {
-                    subLog.log("Method: " + methodInfo);
+                    final String modifierStr = methodInfo.getModifiersStr();
+                    subLog.log(
+                            "Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
                 }
             }
             if (typeSignatureStr != null) {
