@@ -741,14 +741,32 @@ public class LogicalZipFile extends ZipFileSlice {
                     lastModifiedDateMSDOS = cenReader.readUnsignedShort(entOff + 14);
                 }
 
-                if (compressedSize < 0 || pos < 0) {
+                if (compressedSize < 0) {
+                    if (log != null) {
+                        log.log("Skipping zip entry with invalid compressed size (" + compressedSize + "): "
+                                + entryNameSanitized);
+                    }
+                    continue;
+                }
+                if (uncompressedSize < 0) {
+                    if (log != null) {
+                        log.log("Skipping zip entry with invalid uncompressed size (" + uncompressedSize + "): "
+                                + entryNameSanitized);
+                    }
+                    continue;
+                }
+                if (pos < 0) {
+                    if (log != null) {
+                        log.log("Skipping zip entry with invalid pos (" + pos + "): " + entryNameSanitized);
+                    }
                     continue;
                 }
 
                 final long locHeaderPos = locPos + pos;
                 if (locHeaderPos < 0) {
                     if (log != null) {
-                        log.log("Skipping zip entry with invalid loc header position: " + entryNameSanitized);
+                        log.log("Skipping zip entry with invalid loc header position (" + locHeaderPos + "): "
+                                + entryNameSanitized);
                     }
                     continue;
                 }
@@ -757,6 +775,13 @@ public class LogicalZipFile extends ZipFileSlice {
                         log.log("Unexpected EOF when trying to read LOC header: " + entryNameSanitized);
                     }
                     continue;
+                }
+
+                if (getPhysicalFile().getName().endsWith("bigjar.jar")) {
+                    System.out.println(entryNameSanitized);
+                    if (entryNameSanitized.equals("aa/output16.bin")) {
+                        System.out.println("here");
+                    }
                 }
 
                 // Add zip entry
