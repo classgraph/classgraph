@@ -292,7 +292,7 @@ public class ClasspathFinder {
                         : classpathFinderLog.log("Getting classpath entries from java.class.path");
                 for (final String pathElement : pathElements) {
                     // pathElement is not also listed in an ignored parent classloader
-                    final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                    final String pathElementResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                             pathElement);
                     classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, scanSpec, sysPropLog);
                 }

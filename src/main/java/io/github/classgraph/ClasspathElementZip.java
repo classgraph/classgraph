@@ -144,7 +144,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
         final LogNode subLog = log == null ? null : log(classpathElementIdx, "Opening jar: " + rawPath, log);
         final int plingIdx = rawPath.indexOf('!');
-        final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+        final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                 plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
         if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(outermostZipFilePathResolved)) {
             if (subLog != null) {
@@ -171,7 +171,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Get the normalized path of the logical zipfile
-            zipFilePath = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, logicalZipFile.getPath());
+            zipFilePath = FastPathResolver.resolve(FileUtils.currDirPath(), logicalZipFile.getPath());
 
             // Get package root of jarfile
             final String packageRoot = logicalZipFileAndPackageRoot.getValue();
@@ -723,7 +723,7 @@ class ClasspathElementZip extends ClasspathElement {
         } else {
             // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
             final int plingIdx = rawPath.indexOf('!');
-            final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+            final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                     plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
             return new File(outermostZipFilePathResolved);
         }

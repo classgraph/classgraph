@@ -200,7 +200,7 @@ public class ClasspathOrder {
      *
      * @param pathEntry
      *            the system classpath entry -- the path string should already have been run through
-     *            FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path)
+     *            FastPathResolver.resolve(FileUtils.currDirPath(), path)
      * @param classLoader
      *            the classloader
      * @return true, if added and unique
@@ -263,7 +263,7 @@ public class ClasspathOrder {
                 return true;
             }
         } else {
-            final String pathElementStrResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+            final String pathElementStrResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                     pathElementStrWithoutSuffix);
             if (scanSpec.overrideClasspath == null //
                     && (SystemJarFinder.getJreLibOrExtJars().contains(pathElementStrResolved)
@@ -304,7 +304,7 @@ public class ClasspathOrder {
         // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
         String pathElementStr = pathElement instanceof Path ? ((Path) pathElement).toUri().toString()
                 : pathElement.toString();
-        pathElementStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, pathElementStr);
+        pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
         if (pathElementStr.isEmpty()) {
             return false;
         }
@@ -365,7 +365,7 @@ public class ClasspathOrder {
                     // Apply classpath element filters, if any 
                     final String baseDirPath = pathElementStr.length() == 1 ? ""
                             : pathElementStr.substring(0, pathElementStr.length() - 2);
-                    final String baseDirPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                    final String baseDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                             baseDirPath);
                     if (!filter(pathElementURL, baseDirPath) || (!baseDirPathResolved.equals(baseDirPath)
                             && !filter(pathElementURL, baseDirPathResolved))) {
@@ -408,7 +408,7 @@ public class ClasspathOrder {
                                 // Add each directory entry as a classpath element
                                 final String fileInDirPath = fileInDir.getPath();
                                 final String fileInDirPathResolved = FastPathResolver
-                                        .resolve(FileUtils.CURR_DIR_PATH, fileInDirPath);
+                                        .resolve(FileUtils.currDirPath(), fileInDirPath);
                                 if (addClasspathEntry(fileInDirPathResolved, fileInDirPathResolved, classLoader,
                                         scanSpec)) {
                                     if (dirLog != null) {
@@ -438,7 +438,7 @@ public class ClasspathOrder {
                 }
             } else {
                 // Non-wildcarded (standard) classpath element
-                final String pathElementResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                final String pathElementResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                         pathElementStr);
                 if (!filter(pathElementURL, pathElementStr) || (!pathElementResolved.equals(pathElementStr)
                         && !filter(pathElementURL, pathElementResolved))) {

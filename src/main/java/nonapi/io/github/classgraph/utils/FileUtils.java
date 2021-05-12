@@ -30,12 +30,15 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOError;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -73,7 +76,7 @@ public final class FileUtils {
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
      * will not reflect subsequent changes to the current directory).
      */
-    public static final String CURR_DIR_PATH;
+    private static String currDirPath;
 
     /**
      * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
@@ -90,23 +93,47 @@ public final class FileUtils {
         // Cannot be constructed
     }
 
-    static {
-        String currDirPathStr = "";
-        try {
-            // The result is moved to currDirPathStr after each step, so we can provide fine-grained debug info and
-            // a best guess at the path, if the current dir doesn't exist (#109), or something goes wrong while
-            // trying to get the current dir path.
-            Path currDirPath = Paths.get("").toAbsolutePath();
-            currDirPathStr = currDirPath.toString();
-            currDirPath = currDirPath.normalize();
-            currDirPathStr = currDirPath.toString();
-            currDirPath = currDirPath.toRealPath(LinkOption.NOFOLLOW_LINKS);
-            currDirPathStr = currDirPath.toString();
-            currDirPathStr = FastPathResolver.resolve(currDirPathStr);
-        } catch (final IOException e) {
-            throw new RuntimeException("Could not resolve current directory: " + currDirPathStr, e);
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the current directory (only looks at the current directory the first time it is called, then caches this
+     * value for future reads).
+     * 
+     * @return The current directory, as a string
+     */
+    public static String currDirPath() {
+        if (currDirPath == null) {
+            String currDirPathStr = "";
+            // The result is moved to currDirPathStr after each step, so we can provide fine-grained debug info
+            // and a best guess at the path, if the current dir doesn't exist (#109), or something goes wrong
+            // while trying to get the current dir path.
+            Path path = null;
+            try {
+                path = Paths.get("");
+            } catch (final InvalidPathException e) {
+                try {
+                    path = FileSystems.getDefault().getPath(".");
+                } catch (final InvalidPathException e2) {
+                    // Fall through
+                }
+            }
+            if (path != null) {
+                try {
+                    currDirPathStr = path.toAbsolutePath().normalize().toRealPath(LinkOption.NOFOLLOW_LINKS)
+                            .toString();
+                } catch (IOError | SecurityException | IOException e) {
+                    // Fall through
+                }
+            }
+            if (currDirPathStr.isEmpty()) {
+                currDirPathStr = System.getProperty("user.dir");
+                if (currDirPathStr.isEmpty()) {
+                    currDirPathStr = ".";
+                }
+            }
+            currDirPath = FastPathResolver.resolve(currDirPathStr);
         }
-        CURR_DIR_PATH = currDirPathStr;
+        return currDirPath;
     }
 
     // -------------------------------------------------------------------------------------------------------------

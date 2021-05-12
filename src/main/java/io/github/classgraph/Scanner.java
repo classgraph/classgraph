@@ -493,7 +493,7 @@ class Scanner implements Callable<ScanResult> {
                     final String classpathEntryPathStr = classpathEntryObj.toString();
 
                     // Normalize path -- strip off any leading "jar:" / "file:", and normalize separators
-                    final String pathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                    final String pathNormalized = FastPathResolver.resolve(FileUtils.currDirPath(),
                             classpathEntryPathStr);
 
                     // Strip everything after first "!", to get path of base jarfile or dir
@@ -521,7 +521,7 @@ class Scanner implements Callable<ScanResult> {
                         throw new IOException("Not a normal file or directory");
                     }
                     // Check if canonicalized path is the same as pre-canonicalized path
-                    final String baseFileCanonicalPathNormalized = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH,
+                    final String baseFileCanonicalPathNormalized = FastPathResolver.resolve(FileUtils.currDirPath(),
                             fileCanonicalized.getPath());
                     final String canonicalPathNormalized = plingIdx < 0 ? baseFileCanonicalPathNormalized
                             : baseFileCanonicalPathNormalized + pathNormalized.substring(plingIdx);

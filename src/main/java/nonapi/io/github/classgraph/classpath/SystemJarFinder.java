@@ -70,7 +70,7 @@ public final class SystemJarFinder {
                 for (final File file : dirFiles) {
                     final String filePath = file.getPath();
                     if (filePath.endsWith(".jar")) {
-                        final String jarPathResolved = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, filePath);
+                        final String jarPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), filePath);
                         if (jarPathResolved.endsWith("/rt.jar")) {
                             RT_JARS.add(jarPathResolved);
                         } else {
@@ -81,7 +81,7 @@ public final class SystemJarFinder {
                             final String canonicalFilePath = canonicalFile.getPath();
                             if (!canonicalFilePath.equals(filePath)) {
                                 final String canonicalJarPathResolved = FastPathResolver
-                                        .resolve(FileUtils.CURR_DIR_PATH, filePath);
+                                        .resolve(FileUtils.currDirPath(), filePath);
                                 JRE_LIB_OR_EXT_JARS.add(canonicalJarPathResolved);
                             }
                         } catch (IOException | SecurityException e) {

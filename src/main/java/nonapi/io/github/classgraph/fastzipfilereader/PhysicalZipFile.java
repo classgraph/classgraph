@@ -83,7 +83,7 @@ class PhysicalZipFile {
         FileUtils.checkCanReadAndIsFile(file);
 
         this.file = file;
-        this.pathStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, file.getPath());
+        this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
         this.slice = new FileSlice(file, nestedJarHandler, log);
     }
 
@@ -107,7 +107,7 @@ class PhysicalZipFile {
         FileUtils.checkCanReadAndIsFile(path);
 
         this.path = path;
-        this.pathStr = FastPathResolver.resolve(FileUtils.CURR_DIR_PATH, path.toString());
+        this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), path.toString());
         this.slice = new PathSlice(path, nestedJarHandler);
     }
 
