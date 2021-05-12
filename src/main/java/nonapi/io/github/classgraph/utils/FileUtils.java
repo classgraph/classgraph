@@ -104,9 +104,6 @@ public final class FileUtils {
     public static String currDirPath() {
         if (currDirPath == null) {
             String currDirPathStr = "";
-            // The result is moved to currDirPathStr after each step, so we can provide fine-grained debug info
-            // and a best guess at the path, if the current dir doesn't exist (#109), or something goes wrong
-            // while trying to get the current dir path.
             Path path = null;
             try {
                 path = Paths.get("");
