@@ -47,14 +47,13 @@ public class Issue107Test {
     @Test
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name
-        final String pkg = Issue107Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg).enableAnnotationInfo()
+        try (ScanResult scanResult = new ClassGraph().acceptPackages("io.github.classgraph").enableAnnotationInfo()
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
                 .scan()) {
             assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getPackageInfo().getNames()).containsAll(Arrays.asList("", "io", "io.github",
-                    "io.github.classgraph", Issue107Test.class.getPackage().getName()));
+            assertThat(scanResult.getPackageInfo().getNames())
+                    .containsAll(Arrays.asList("io.github.classgraph", Issue107Test.class.getPackage().getName()));
             assertThat(scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo()
                     .getNames()).containsOnly(PackageAnnotation.class.getName());
         }

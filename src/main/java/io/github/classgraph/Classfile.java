@@ -523,7 +523,7 @@ class Classfile {
         if (!isModuleDescriptor) {
             // Get package for this class or package descriptor
             final String packageName = PackageInfo.getParentPackageName(className);
-            packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo);
+            packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo, scanSpec);
             if (isPackageDescriptor) {
                 // Add any class annotations on the package-info.class file to the ModuleInfo
                 packageInfo.addAnnotations(classAnnotations);
