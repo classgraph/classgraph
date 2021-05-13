@@ -225,7 +225,7 @@ public final class ReflectionUtils {
      *            The value of the first parameter to invoke the method with.
      * @param throwException
      *            If true, throw an exception if the field value could not be read.
-     * @return The field value.
+     * @return The result of the method invocation.
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
@@ -285,7 +285,7 @@ public final class ReflectionUtils {
      *            The method name.
      * @param throwException
      *            If true, throw an exception if the field value could not be read.
-     * @return The field value.
+     * @return The result of the method invocation.
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
