@@ -104,11 +104,17 @@ public final class FileUtils {
         if (currDirPath == null) {
             // user.dir should be the current directory at the time the JVM is started, which is
             // where classpath elements should be resolved relative to
+            Path path = null;
             String currDirPathStr = System.getProperty("user.dir");
-            // user.dir should probbly always be set. But just in case it is not, try reading the
-            // actual current directory at the time ClassGraph is first invoked.
-            if (currDirPathStr == null) {
-                Path path = null;
+            if (currDirPathStr != null) {
+                try {
+                    path = Paths.get(currDirPathStr);
+                } catch (final InvalidPathException e2) {
+                    // Fall through
+                }
+            } else {
+                // user.dir should probably always be set. But just in case it is not, try reading the
+                // actual current directory at the time ClassGraph is first invoked.
                 try {
                     path = Paths.get("");
                 } catch (final InvalidPathException e1) {
@@ -118,12 +124,13 @@ public final class FileUtils {
                         // Fall through
                     }
                 }
-                if (path != null) {
-                    try {
-                        currDirPathStr = path.toRealPath(LinkOption.NOFOLLOW_LINKS).toString();
-                    } catch (IOError | SecurityException | IOException e) {
-                        // Fall through
-                    }
+            }
+            // Try normalizing path
+            if (path != null) {
+                try {
+                    currDirPathStr = path.toRealPath(LinkOption.NOFOLLOW_LINKS).toString();
+                } catch (IOError | SecurityException | IOException e) {
+                    // Fall through
                 }
             }
             // Normalize current directory the same way all other paths are normalized in ClassGraph,
