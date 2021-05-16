@@ -139,19 +139,17 @@ public final class FileUtils {
                 }
             }
             // Try normalizing path
+            currDirPathStr = "";
             if (path != null) {
-                currDirPathStr = null;
                 try {
                     currDirPathStr = path.toRealPath(LinkOption.NOFOLLOW_LINKS).toString();
                 } catch (IOError | SecurityException | IOException e) {
                     // Fall through
                 }
-            } else {
-                currDirPathStr = "";
             }
             // Normalize current directory the same way all other paths are normalized in ClassGraph,
             // for consistency
-            currDirPath = currDirPathStr == null ? "" : FastPathResolver.resolve(currDirPathStr);
+            currDirPath = FastPathResolver.resolve(currDirPathStr);
         }
         return currDirPath;
     }
