@@ -109,29 +109,45 @@ public final class FileUtils {
             if (currDirPathStr != null) {
                 try {
                     path = Paths.get(currDirPathStr);
-                } catch (final InvalidPathException e2) {
+                    if (!path.toFile().canRead()) {
+                        path = null;
+                    }
+                } catch (final InvalidPathException | UnsupportedOperationException | SecurityException e) {
                     // Fall through
                 }
-            } else {
+            }
+            if (path == null) {
                 // user.dir should probably always be set. But just in case it is not, try reading the
                 // actual current directory at the time ClassGraph is first invoked.
                 try {
                     path = Paths.get("");
-                } catch (final InvalidPathException e1) {
-                    try {
-                        path = Paths.get(".");
-                    } catch (final InvalidPathException e2) {
-                        // Fall through
+                    if (!path.toFile().canRead()) {
+                        path = null;
                     }
+                } catch (final InvalidPathException | UnsupportedOperationException | SecurityException e) {
+                    // Fall through
+                }
+            }
+            if (path == null) {
+                try {
+                    path = Paths.get(".");
+                    if (!path.toFile().canRead()) {
+                        path = null;
+                    }
+                } catch (final InvalidPathException | UnsupportedOperationException | SecurityException e) {
+                    // Fall through
                 }
             }
             // Try normalizing path
             if (path != null) {
+                currDirPathStr = null;
                 try {
                     currDirPathStr = path.toRealPath(LinkOption.NOFOLLOW_LINKS).toString();
                 } catch (IOError | SecurityException | IOException e) {
                     // Fall through
                 }
+            } else {
+                currDirPathStr = "";
             }
             // Normalize current directory the same way all other paths are normalized in ClassGraph,
             // for consistency
