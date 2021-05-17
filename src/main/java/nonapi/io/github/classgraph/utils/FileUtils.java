@@ -128,16 +128,6 @@ public final class FileUtils {
                     // Fall through
                 }
             }
-            if (path == null) {
-                try {
-                    path = Paths.get(".");
-                    if (!path.toFile().canRead()) {
-                        path = null;
-                    }
-                } catch (final InvalidPathException | UnsupportedOperationException | SecurityException e) {
-                    // Fall through
-                }
-            }
             // Try normalizing path
             currDirPathStr = "";
             if (path != null) {
