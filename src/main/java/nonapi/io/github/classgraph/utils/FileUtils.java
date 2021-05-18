@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOError;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -38,7 +37,6 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
@@ -109,10 +107,7 @@ public final class FileUtils {
             if (currDirPathStr != null) {
                 try {
                     path = Paths.get(currDirPathStr);
-                    if (!path.toFile().canRead()) {
-                        path = null;
-                    }
-                } catch (final InvalidPathException | UnsupportedOperationException | SecurityException e) {
+                } catch (final InvalidPathException e) {
                     // Fall through
                 }
             }
@@ -121,25 +116,14 @@ public final class FileUtils {
                 // actual current directory at the time ClassGraph is first invoked.
                 try {
                     path = Paths.get("");
-                    if (!path.toFile().canRead()) {
-                        path = null;
-                    }
-                } catch (final InvalidPathException | UnsupportedOperationException | SecurityException e) {
+                } catch (final InvalidPathException e) {
                     // Fall through
                 }
             }
-            // Try normalizing path
-            currDirPathStr = "";
-            if (path != null) {
-                try {
-                    currDirPathStr = path.toRealPath(LinkOption.NOFOLLOW_LINKS).toString();
-                } catch (IOError | SecurityException | IOException e) {
-                    // Fall through
-                }
-            }
+            
             // Normalize current directory the same way all other paths are normalized in ClassGraph,
             // for consistency
-            currDirPath = FastPathResolver.resolve(currDirPathStr);
+            currDirPath = FastPathResolver.resolve(path == null ? "" : path.toString());
         }
         return currDirPath;
     }
