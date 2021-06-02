@@ -103,7 +103,7 @@ public final class FileUtils {
             // user.dir should be the current directory at the time the JVM is started, which is
             // where classpath elements should be resolved relative to
             Path path = null;
-            String currDirPathStr = System.getProperty("user.dir");
+            final String currDirPathStr = System.getProperty("user.dir");
             if (currDirPathStr != null) {
                 try {
                     path = Paths.get(currDirPathStr);
@@ -120,7 +120,7 @@ public final class FileUtils {
                     // Fall through
                 }
             }
-            
+
             // Normalize current directory the same way all other paths are normalized in ClassGraph,
             // for consistency
             currDirPath = FastPathResolver.resolve(path == null ? "" : path.toString());
