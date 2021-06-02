@@ -30,8 +30,8 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -52,23 +52,28 @@ public class ClassLoaderOrder {
      * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
      * don't get added twice.
      */
-    private final Set<ClassLoader> added = new HashSet<>();
+    // Need to use IdentityHashMap for maps and sets here, because TomEE weirdly makes instances of
+    // CxfContainerClassLoader equal to (via .equals()) the instance of TomEEWebappClassLoader that it
+    // delegates to (#515)
+    private final Set<ClassLoader> added = Collections.newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
 
     /**
      * The set of all {@link ClassLoader} instances that have been delegated to so far, to prevent an infinite loop
      * in delegation.
      */
-    private final Set<ClassLoader> delegatedTo = new HashSet<>();
+    private final Set<ClassLoader> delegatedTo = Collections
+            .newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
 
     /**
      * The set of all parent {@link ClassLoader} instances that have been delegated to so far, to enable
      * {@link ClassGraph#ignoreParentClassLoaders()}.
      */
-    private final Set<ClassLoader> allParentClassLoaders = new HashSet<>();
+    private final Set<ClassLoader> allParentClassLoaders = Collections
+            .newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
 
     /** A map from {@link ClassLoader} to {@link ClassLoaderHandlerRegistryEntry}. */
     private final Map<ClassLoader, ClassLoaderHandlerRegistryEntry> classLoaderToClassLoaderHandlerRegistryEntry = //
-            new HashMap<>();
+            new IdentityHashMap<ClassLoader, ClassLoaderHandlerRegistryEntry>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -130,7 +135,7 @@ public class ClassLoaderOrder {
     }
 
     /**
-     * Add a {@link ClassLoader} to the {@link ClassLoader} order at the current position.
+     * Add a {@link ClassLoader} to the ClassLoader order at the current position.
      *
      * @param classLoader
      *            the class loader
