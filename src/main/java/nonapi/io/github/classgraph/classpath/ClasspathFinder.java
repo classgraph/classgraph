@@ -259,8 +259,9 @@ public class ClasspathFinder {
                     // Otherwise add classpath entries to classpathOrder, and add the classloader to the
                     // final classloader ordering
                     final LogNode classloaderHandlerLog = classloaderURLLog == null ? null
-                            : classloaderURLLog.log("Classloader " + classLoader + " is handled by "
-                                    + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
+                            : classloaderURLLog
+                                    .log("Classloader " + classLoader.getClass().getName() + " is handled by "
+                                            + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
                     classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
                             classloaderHandlerLog);
                     finalClassLoaderOrder.add(classLoader);
