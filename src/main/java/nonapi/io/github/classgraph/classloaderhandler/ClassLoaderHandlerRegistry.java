@@ -74,7 +74,10 @@ public class ClassLoaderHandlerRegistry {
                     new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class),
 
                     // Placeholder for delegation to a ClassGraphClassLoader instance from an outer nested scan
-                    new ClassLoaderHandlerRegistryEntry(ClassGraphClassLoaderHandler.class)));
+                    new ClassLoaderHandlerRegistryEntry(ClassGraphClassLoaderHandler.class)
+
+            // FallbackClassLoaderHandler.class is registered separately below
+            ));
 
     /** Fallback ClassLoaderHandler. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_HANDLER = new ClassLoaderHandlerRegistryEntry(
