@@ -73,8 +73,10 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         } catch (LinkageError | ClassNotFoundException e) {
             // Ignore
         }
+        // tccl = TomcatClassLoader
         classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(classLoader, "tccl", false),
                 /* isParent = */ false, log);
+        // No need to call classLoaderOrder.add(classLoader, log) because this ClassLoader doesn't load any classes
     }
 
     /**
@@ -91,6 +93,6 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        // Classloader doesn't do any classloading of its own, it only delegates to one or two other classloaders
+        // Classloader doesn't do any classloading of its own, it only delegates to other classloaders
     }
 }
