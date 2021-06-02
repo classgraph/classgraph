@@ -76,7 +76,8 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         // tccl = TomcatClassLoader
         classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(classLoader, "tccl", false),
                 /* isParent = */ false, log);
-        // No need to call classLoaderOrder.add(classLoader, log) because this ClassLoader doesn't load any classes
+        // This classloader doesn't actually load any classes, but add it to the order to improve logging
+        classLoaderOrder.add(classLoader, log);
     }
 
     /**
