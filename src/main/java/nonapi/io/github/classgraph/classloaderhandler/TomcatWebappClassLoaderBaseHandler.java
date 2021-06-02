@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.io.File;
-import java.util.Iterator;
 import java.util.List;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
@@ -181,24 +180,5 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 		// This may or may not duplicate the above
 		final Object urls = ReflectionUtils.invokeMethod(classLoader, "getURLs", false);
 		classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
-		
-		// The following catches a few more jars for org.apache.tomee.catalina.TomEEWebappClassLoader:
-        // Type WebResourceRoot
-        final Object resourcesField = ReflectionUtils.getFieldVal(classLoader, "resources", false);
-        if (resourcesField != null) {
-            // Type List<WebResourceSet>
-            final Object jars = ReflectionUtils.getFieldVal(resourcesField, "jarResources", false);
-            if (jars != null && jars instanceof Iterable) {
-                final Iterable<?> it = (Iterable<?>) jars;
-                // Type Iterator<WebResourceSet>
-                final Iterator<?> jarIt = it.iterator();
-                while (jarIt.hasNext()) {
-                    // Type WebResourceSet
-                    final Object set = jarIt.next();
-                    final Object baseUrl = ReflectionUtils.invokeMethod(set, "getBaseUrl", false);
-                    classpathOrder.addClasspathEntry(baseUrl, classLoader, scanSpec, log);
-                }
-            }
-        }
 	}
 }
