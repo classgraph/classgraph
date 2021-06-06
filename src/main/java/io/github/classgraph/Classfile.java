@@ -928,7 +928,7 @@ class Classfile {
         default:
             // ClassGraph doesn't expect other types
             // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)  
-            throw new ClassfileFormatException("Unknown constant pool tag " + tag + ", "
+            throw new ClassfileFormatException("Unknown field constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
         }
@@ -1097,13 +1097,14 @@ class Classfile {
             entryOffset[i] = reader.currPos();
             switch (entryTag[i]) {
             case 0: // Impossible, probably buffer underflow
-                throw new ClassfileFormatException("Unknown constant pool tag 0 in classfile " + relativePath
+                throw new ClassfileFormatException("Invalid constant pool tag 0 in classfile " + relativePath
                         + " (possible buffer underflow issue). Please report this at "
                         + "https://github.com/classgraph/classgraph/issues");
             case 1: // Modified UTF8
                 final int strLen = reader.readUnsignedShort();
                 reader.skip(strLen);
                 break;
+                // There is no constant pool tag type 2
             case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
             case 4: // float
                 reader.skip(4);
@@ -1145,11 +1146,15 @@ class Classfile {
                 }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
                 break;
+                // There is no constant pool tag type 13 or 14
             case 15: // method handle
                 reader.skip(3);
                 break;
             case 16: // method type
                 reader.skip(2);
+                break;
+            case 17: // dynamic
+                reader.skip(4);
                 break;
             case 18: // invoke dynamic
                 reader.skip(4);
