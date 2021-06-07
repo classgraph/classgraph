@@ -54,6 +54,9 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
  * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
  * sequence, to avoid re-allocating buffer memory.
+ * 
+ * <p>
+ * See <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the class file format spec</a>.
  */
 class Classfile {
     /** The {@link ClassfileReader} for the current classfile. */
@@ -1104,7 +1107,7 @@ class Classfile {
                 final int strLen = reader.readUnsignedShort();
                 reader.skip(strLen);
                 break;
-                // There is no constant pool tag type 2
+            // There is no constant pool tag type 2
             case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
             case 4: // float
                 reader.skip(4);
@@ -1146,7 +1149,7 @@ class Classfile {
                 }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
                 break;
-                // There is no constant pool tag type 13 or 14
+            // There is no constant pool tag type 13 or 14
             case 15: // method handle
                 reader.skip(3);
                 break;
