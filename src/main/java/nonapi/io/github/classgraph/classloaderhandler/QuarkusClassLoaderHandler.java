@@ -28,14 +28,15 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import java.nio.file.Path;
-import java.util.Collection;
-
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
+
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * Extract classpath entries from the Quarkus ClassLoader.
@@ -46,6 +47,9 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
 
     // Classloader since Quarkus 1.3
     private static final String QUARKUS_CLASSLOADER = "io.quarkus.bootstrap.classloading.QuarkusClassLoader";
+
+    // Classloader since Quarkus 1.13
+    private static final String RUNNER_CLASSLOADER = "io.quarkus.bootstrap.runner.RunnerClassLoader";
 
     /**
      * Class cannot be constructed.
@@ -64,7 +68,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      */
     public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return RUNTIME_CLASSLOADER.equals(classLoaderClass.getName())
-                || QUARKUS_CLASSLOADER.equals(classLoaderClass.getName());
+                || QUARKUS_CLASSLOADER.equals(classLoaderClass.getName())
+                || RUNNER_CLASSLOADER.equals(classLoaderClass.getName());
     }
 
     /**
@@ -103,6 +108,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             findClasspathOrderForRuntimeClassloader(classLoader, classpathOrder, scanSpec, log);
         } else if (QUARKUS_CLASSLOADER.equals(classLoaderName)) {
             findClasspathOrderForQuarkusClassloader(classLoader, classpathOrder, scanSpec, log);
+        } else if (RUNNER_CLASSLOADER.equals(classLoaderName)) {
+            findClasspathOrderForRunnerClassloader(classLoader, classpathOrder, scanSpec, log);
         }
     }
 
@@ -130,6 +137,21 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
         if (applicationClassDirectories != null) {
             for (final Path path : applicationClassDirectories) {
                 classpathOrder.addClasspathEntryObject(path.toUri(), classLoader, scanSpec, log);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
+            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
+        for (final Object[] elementArray : ((Map<String, Object[]>) ReflectionUtils.getFieldVal(classLoader,
+                "resourceDirectoryMap", false)).values()) {
+            for (Object element : elementArray) {
+                final String elementClassName = element.getClass().getName();
+                if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {
+                    classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(element, "jarPath", false),
+                            classLoader, scanSpec, log);
+                }
             }
         }
     }
