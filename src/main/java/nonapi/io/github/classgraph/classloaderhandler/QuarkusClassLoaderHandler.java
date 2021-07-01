@@ -28,15 +28,15 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Map;
+
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ReflectionUtils;
-
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Map;
 
 /**
  * Extract classpath entries from the Quarkus ClassLoader.
@@ -146,7 +146,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
         for (final Object[] elementArray : ((Map<String, Object[]>) ReflectionUtils.getFieldVal(classLoader,
                 "resourceDirectoryMap", false)).values()) {
-            for (Object element : elementArray) {
+            for (final Object element : elementArray) {
                 final String elementClassName = element.getClass().getName();
                 if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {
                     classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(element, "jarPath", false),

@@ -476,11 +476,7 @@ public class ScanSpec {
      */
     public ScanSpecPathMatch dirAcceptMatchStatus(final String relativePath) {
         // In rejected path
-        if (pathAcceptReject.isRejected(relativePath)) {
-            // The directory is rejected.
-            return ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX;
-        }
-        if (pathPrefixAcceptReject.isRejected(relativePath)) {
+        if (pathAcceptReject.isRejected(relativePath) || pathPrefixAcceptReject.isRejected(relativePath)) {
             // An prefix of this path is rejected.
             return ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX;
         }
