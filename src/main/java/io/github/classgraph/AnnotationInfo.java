@@ -114,24 +114,28 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Get the parameter values.
      *
+     * @param includeDefaultValues
+     *            if true, include default values for any annotation parameter value that is missing.
      * @return The parameter values of this annotation, including any default parameter values inherited from the
-     *         annotation class definition, or the empty list if none.
+     *         annotation class definition (if requested), or the empty list if none.
      */
-    public AnnotationParameterValueList getParameterValues() {
+    public AnnotationParameterValueList getParameterValues(boolean includeDefaultValues) {
+        final ClassInfo classInfo = getClassInfo();
+        if (classInfo == null) {
+            // ClassInfo has not yet been set, just return values without defaults
+            // (happens when trying to log AnnotationInfo during scanning, before ScanResult is available)
+            return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
+        }
+        // Lazily convert any Object[] arrays of boxed types to primitive arrays
+        if (annotationParamValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
+            annotationParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
+            annotationParamValuesHasBeenConvertedToPrimitive = true;
+        }
+        if (!includeDefaultValues) {
+            // Don't include defaults
+            return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
+        }
         if (annotationParamValuesWithDefaults == null) {
-            final ClassInfo classInfo = getClassInfo();
-            if (classInfo == null) {
-                // ClassInfo has not yet been set, just return values without defaults
-                // (happens when trying to log AnnotationInfo during scanning, before ScanResult is available)
-                return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST
-                        : annotationParamValues;
-            }
-
-            // Lazily convert any Object[] arrays of boxed types to primitive arrays
-            if (annotationParamValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
-                annotationParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
-                annotationParamValuesHasBeenConvertedToPrimitive = true;
-            }
             if (classInfo.annotationDefaultParamValues != null
                     && !classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
                 classInfo.annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
@@ -191,6 +195,16 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             }
         }
         return annotationParamValuesWithDefaults;
+    }
+
+    /**
+     * Get the parameter values.
+     *
+     * @return The parameter values of this annotation, including any default parameter values inherited from the
+     *         annotation class definition, or the empty list if none.
+     */
+    public AnnotationParameterValueList getParameterValues() {
+        return getParameterValues(true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
