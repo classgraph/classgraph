@@ -913,16 +913,13 @@ public class ClassGraph {
      *
      * 
      * @param classNames
-     *            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
-     *            wildcard ({@code '*'}).
+     *            The fully-qualified names of classes to scan (using '.' as a separator). To match a class name by
+     *            suffix in any package, you must include a package glob too, e.g. {@code "*.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasses(final String... classNames) {
         enableClassInfo();
         for (final String className : classNames) {
-            if (className.contains("*")) {
-                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);
-            }
             final String classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             // Accept the class itself
             scanSpec.classAcceptReject.addToAccept(classNameNormalized);
@@ -959,16 +956,13 @@ public class ClassGraph {
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      * @param classNames
-     *            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
-     *            wildcard ({@code '*'}).
+     *            The fully-qualified names of classes to reject (using '.' as a separator). To match a class name
+     *            by suffix in any package, you must include a package glob too, e.g. {@code "*.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasses(final String... classNames) {
         enableClassInfo();
         for (final String className : classNames) {
-            if (className.contains("*")) {
-                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);
-            }
             final String classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             scanSpec.classAcceptReject.addToReject(classNameNormalized);
             scanSpec.classfilePathAcceptReject
