@@ -914,7 +914,7 @@ public class ClassGraph {
      * 
      * @param classNames
      *            The fully-qualified names of classes to scan (using '.' as a separator). To match a class name by
-     *            suffix in any package, you must include a package glob too, e.g. {@code "*.*Suffix"}.
+     *            glob in any package, you must include a package glob too, e.g. {@code "*.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasses(final String... classNames) {
@@ -938,8 +938,7 @@ public class ClassGraph {
      * Use {@link #acceptClasses(String...)} instead.
      *
      * @param classNames
-     *            The fully-qualified names of classes to scan (using '.' as a separator). May not include a glob
-     *            wildcard ({@code '*'}).
+     *            The fully-qualified names of classes to scan (using '.' as a separator).
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptClasses(String...)} instead.
      */
@@ -957,7 +956,7 @@ public class ClassGraph {
      *
      * @param classNames
      *            The fully-qualified names of classes to reject (using '.' as a separator). To match a class name
-     *            by suffix in any package, you must include a package glob too, e.g. {@code "*.*Suffix"}.
+     *            by glob in any package, you must include a package glob too, e.g. {@code "*.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasses(final String... classNames) {
@@ -975,8 +974,7 @@ public class ClassGraph {
      * Use {@link #rejectClasses(String...)} instead.
      *
      * @param classNames
-     *            The fully-qualified names of classes to reject (using '.' as a separator). May not include a glob
-     *            wildcard ({@code '*'}).
+     *            The fully-qualified names of classes to reject (using '.' as a separator).
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectClasses(String...)} instead.
      */
