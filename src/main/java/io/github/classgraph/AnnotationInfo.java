@@ -119,7 +119,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @return The parameter values of this annotation, including any default parameter values inherited from the
      *         annotation class definition (if requested), or the empty list if none.
      */
-    public AnnotationParameterValueList getParameterValues(boolean includeDefaultValues) {
+    public AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
         final ClassInfo classInfo = getClassInfo();
         if (classInfo == null) {
             // ClassInfo has not yet been set, just return values without defaults

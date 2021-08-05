@@ -44,8 +44,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
-
 import javax.xml.xpath.XPathFactoryConfigurationException;
+
 import org.w3c.dom.Document;
 
 import io.github.classgraph.ClassGraph;
@@ -284,12 +284,14 @@ public final class VersionFinder {
      * Helper method to provide a XXE secured DocumentBuilder Factory.
      *
      * reference - https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
+     * 
      * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
+     * 
      * @return DocumentBuilderFactory
      * @throws ParserConfigurationException
      */
     private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws ParserConfigurationException {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setXIncludeAware(false);
         dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
@@ -306,12 +308,13 @@ public final class VersionFinder {
     /**
      * Helper method to provide a XXE secured XPathFactory Factory.
      *
-     * reference - reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
+     * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
+     * 
      * @return XPathFactory
      * @throws XPathFactoryConfigurationException
      */
     private static XPathFactory getSecureXPathFactory() throws XPathFactoryConfigurationException {
-        XPathFactory xPathFactory = XPathFactory.newInstance();
+        final XPathFactory xPathFactory = XPathFactory.newInstance();
         xPathFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         return xPathFactory;
     }

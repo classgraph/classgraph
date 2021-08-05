@@ -504,16 +504,13 @@ public class ScanSpec {
         }
 
         // Ancestor of accepted path
-        if (relativePath.equals("/")) {
-            // The default package is always the ancestor of accepted paths (need to keep recursing)
-            return ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH;
-        }
-        if (pathAcceptReject.acceptHasPrefix(relativePath)) {
-            // relativePath is an ancestor (prefix) of an accepted path
-            return ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH;
-        }
-        if (classfilePathAcceptReject.acceptHasPrefix(relativePath)) {
-            // relativePath is an ancestor (prefix) of an accepted class' parent directory
+        if (
+        // The default package is always the ancestor of accepted paths (need to keep recursing)
+        relativePath.equals("/")
+                // relativePath is an ancestor (prefix) of an accepted path
+                || pathAcceptReject.acceptHasPrefix(relativePath)
+                // relativePath is an ancestor (prefix) of an accepted class' parent directory
+                || classfilePathAcceptReject.acceptHasPrefix(relativePath)) {
             return ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH;
         }
 
