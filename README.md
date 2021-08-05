@@ -171,6 +171,7 @@ Some other classpath scanning mechanisms include:
 * [org.clapper.classutil.ClassFinder](https://github.com/bmc/classutil/blob/master/src/main/scala/org/clapper/classutil/ClassFinder.scala)
 * [com.google.common.reflect.ClassPath](https://github.com/google/guava/blob/master/guava/src/com/google/common/reflect/ClassPath.java)
 * [jdependency](https://github.com/tcurdt/jdependency)
+* [BurningWave Core](https://github.com/burningwave/core#burningwave-core-)
 
 ## License
 
