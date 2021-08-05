@@ -39,10 +39,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
+import javax.xml.xpath.XPathFactoryConfigurationException;
 import org.w3c.dom.Document;
 
 import io.github.classgraph.ClassGraph;
@@ -221,9 +224,9 @@ public final class VersionFinder {
                 for (int i = 0; i < 3 && path != null; i++, path = path.getParent()) {
                     final Path pom = path.resolve("pom.xml");
                     try (InputStream is = Files.newInputStream(pom)) {
-                        final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
+                        final Document doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(is);
                         doc.getDocumentElement().normalize();
-                        String version = (String) XPathFactory.newInstance().newXPath().compile("/project/version")
+                        String version = (String) getSecureXPathFactory().newXPath().compile("/project/version")
                                 .evaluate(doc, XPathConstants.STRING);
                         if (version != null) {
                             version = version.trim();
@@ -275,5 +278,41 @@ public final class VersionFinder {
             }
         }
         return "unknown";
+    }
+
+    /**
+     * Helper method to provide a XXE secured DocumentBuilder Factory.
+     *
+     * reference - https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
+     * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
+     * @return DocumentBuilderFactory
+     * @throws ParserConfigurationException
+     */
+    private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws ParserConfigurationException {
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setXIncludeAware(false);
+        dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        dbf.setExpandEntityReferences(false);
+        dbf.setNamespaceAware(true);
+        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        return dbf;
+    }
+
+    /**
+     * Helper method to provide a XXE secured XPathFactory Factory.
+     *
+     * reference - reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
+     * @return XPathFactory
+     * @throws XPathFactoryConfigurationException
+     */
+    private static XPathFactory getSecureXPathFactory() throws XPathFactoryConfigurationException {
+        XPathFactory xPathFactory = XPathFactory.newInstance();
+        xPathFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        return xPathFactory;
     }
 }
