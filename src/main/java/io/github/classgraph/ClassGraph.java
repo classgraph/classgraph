@@ -640,10 +640,6 @@ public class ClassGraph {
         enableClassInfo();
         for (final String packageName : packageNames) {
             final String packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
-            if (packageNameNormalized.startsWith("!") || packageNameNormalized.startsWith("-")) {
-                throw new IllegalArgumentException(
-                        "This style of accepting/rejecting is no longer supported: " + packageNameNormalized);
-            }
             // Accept package
             scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
             final String path = AcceptReject.packageNameToPath(packageNameNormalized);
