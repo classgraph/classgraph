@@ -1685,9 +1685,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         interface, otherwise returns the empty list.
      */
     public ClassInfoList getClassesImplementing() {
-        if (!isInterface()) {
-            throw new IllegalArgumentException("Class is not an interface: " + getName());
-        }
         // Subclasses of implementing classes also implement the interface
         final ReachableAndDirectlyRelatedClasses implementingClasses = this
                 .filterClassInfo(RelType.CLASSES_IMPLEMENTING, /* strictAccept = */ !isExternalClass);
@@ -1916,9 +1913,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public ClassInfoList getClassesWithAnnotation() {
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-        }
-        if (!isAnnotation()) {
-            throw new IllegalArgumentException("Class is not an annotation: " + getName());
         }
 
         // Get classes that have this annotation
