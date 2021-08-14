@@ -825,24 +825,6 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read an unsigned short from the constant pool.
-     *
-     * @param cpIdx
-     *            the constant pool index.
-     * @return the unsigned short
-     * @throws IOException
-     *             If an I/O exception occurred.
-     */
-    private int cpReadUnsignedShort(final int cpIdx) throws IOException {
-        if (cpIdx < 1 || cpIdx >= cpCount) {
-            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
-                    + (cpCount - 1) + "] -- cannot continue reading class. "
-                    + "Please report this at https://github.com/classgraph/classgraph/issues");
-        }
-        return reader.readUnsignedShort(entryOffset[cpIdx]);
-    }
-
-    /**
      * Read an int from the constant pool.
      *
      * @param cpIdx
@@ -985,7 +967,7 @@ class Classfile {
         case 'J':
             return cpReadLong(reader.readUnsignedShort());
         case 'S':
-            return (short) cpReadUnsignedShort(reader.readUnsignedShort());
+            return (short) cpReadInt(reader.readUnsignedShort());
         case 'Z':
             return cpReadInt(reader.readUnsignedShort()) != 0;
         case 's':
