@@ -42,7 +42,7 @@ public class Issue74Test {
     public void issue74() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue74Test.class.getPackage().getName())
                 .scan()) {
-            assertThat(scanResult.getClassesImplementing(Function.class.getName()).getNames()).containsOnly(
+            assertThat(scanResult.getClassesImplementing(Function.class).getNames()).containsOnly(
                     FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
                     ExtendsFunctionAdapter.class.getName());
         }

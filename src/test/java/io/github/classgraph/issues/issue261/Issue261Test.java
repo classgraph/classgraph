@@ -64,7 +64,7 @@ public class Issue261Test {
     public void issue261Test() {
         // Accept only the class Cls, so that SuperCls and SuperSuperCls are external classes
         try (ScanResult scanResult = new ClassGraph().acceptClasses(Cls.class.getName()).enableAllInfo().scan()) {
-            assertThat(scanResult.getSubclasses(SuperSuperCls.class.getName()).getNames())
+            assertThat(scanResult.getSubclasses(SuperSuperCls.class).getNames())
                     .containsOnly(SuperCls.class.getName(), Cls.class.getName());
         }
     }

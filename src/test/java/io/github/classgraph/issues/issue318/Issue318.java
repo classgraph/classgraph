@@ -82,7 +82,7 @@ public class Issue318 {
             assertThat(scanResult.getClassesWithAnnotation(MyAnn.class).getNames()).containsOnly(
                     With1MyAnn.class.getName(), With2MyAnn.class.getName(), With3MyAnn.class.getName());
             assertThat(scanResult.getClassInfo(With3MyAnn.class.getName())
-                    .getAnnotationInfoRepeatable(MyAnn.class.getName()).size()).isEqualTo(3);
+                    .getAnnotationInfoRepeatable(MyAnn.class).size()).isEqualTo(3);
         }
     }
 }

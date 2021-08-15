@@ -55,10 +55,10 @@ public class InternalExternalTest {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
                     InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
-            assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
+            assertThat(scanResult.getSubclasses(ExternalSuperclass.class).getNames())
                     .containsOnly(InternalExtendsExternal.class.getName());
             assertThat(scanResult.getAllInterfaces()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(ExternalInterface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(ExternalInterface.class).getNames())
                     .containsOnly(InternalImplementsExternal.class.getName());
             assertThat(scanResult.getAllAnnotations().getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(ExternalAnnotation.class).getNames())
@@ -75,10 +75,10 @@ public class InternalExternalTest {
                 .acceptPackages(InternalExternalTest.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames())
                     .doesNotContain(ExternalSuperclass.class.getName());
-            assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
+            assertThat(scanResult.getSubclasses(ExternalSuperclass.class).getNames())
                     .containsOnly(InternalExtendsExternal.class.getName());
             assertThat(scanResult.getAllInterfaces().getNames()).doesNotContain(ExternalInterface.class.getName());
-            assertThat(scanResult.getClassesImplementing(ExternalInterface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(ExternalInterface.class).getNames())
                     .containsOnly(InternalImplementsExternal.class.getName());
             assertThat(scanResult.getAllAnnotations().getNames())
                     .doesNotContain(ExternalAnnotation.class.getName());
