@@ -61,7 +61,7 @@ public class FieldAndMethodAnnotationTest {
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
-                    .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
+                    .getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).isEmpty();
         }
     }
@@ -75,7 +75,7 @@ public class FieldAndMethodAnnotationTest {
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
-                    .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
+                    .getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }
@@ -90,7 +90,7 @@ public class FieldAndMethodAnnotationTest {
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
             final List<String> testClasses = scanResult
-                    .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();
+                    .getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }

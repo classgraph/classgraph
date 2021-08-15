@@ -61,7 +61,7 @@ public class InternalExternalTest {
             assertThat(scanResult.getClassesImplementing(ExternalInterface.class.getName()).getNames())
                     .containsOnly(InternalImplementsExternal.class.getName());
             assertThat(scanResult.getAllAnnotations().getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(ExternalAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(ExternalAnnotation.class).getNames())
                     .containsOnly(InternalAnnotatedByExternal.class.getName());
         }
     }
@@ -82,7 +82,7 @@ public class InternalExternalTest {
                     .containsOnly(InternalImplementsExternal.class.getName());
             assertThat(scanResult.getAllAnnotations().getNames())
                     .doesNotContain(ExternalAnnotation.class.getName());
-            assertThat(scanResult.getClassesWithAnnotation(ExternalAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(ExternalAnnotation.class).getNames())
                     .containsOnly(InternalAnnotatedByExternal.class.getName());
         }
     }

@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.Closeable;
 import java.io.File;
+import java.lang.annotation.Annotation;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -56,10 +57,7 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.*;
 
 /**
  * The result of a scan. You should assign a ScanResult in a try-with-resources block, or manually close it when you
@@ -883,6 +881,16 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get all subclasses of the superclass.
+     *
+     * @param superclass The superclass.
+     * @return A list of subclasses of the superclass, or the empty list if none.
+     */
+    public ClassInfoList getSubclasses(final Class<?> superclass) {
+        return getSubclasses(superclass.getName());
+    }
+
+    /**
      * Get all subclasses of the named superclass.
      *
      * @param superclassName
@@ -926,6 +934,17 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get classes that have a method with an annotation of the named type.
      *
+     * @param methodAnnotation the method annotation.
+     * @return A list of classes with a method that has an annotation of the named type, or the empty list if none.
+     */
+    public ClassInfoList getClassesWithMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
+        Assert.isAnnotation(methodAnnotation);
+        return getClassesWithMethodAnnotation(methodAnnotation.getName());
+    }
+
+    /**
+     * Get classes that have a method with an annotation of the named type.
+     *
      * @param methodAnnotationName
      *            the name of the method annotation.
      * @return A list of classes with a method that has an annotation of the named type, or the empty list if none.
@@ -940,6 +959,18 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final ClassInfo classInfo = classNameToClassInfo.get(methodAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodAnnotation();
+    }
+
+    /**
+     * Get classes that have a method with a parameter that is annotated with an annotation of the named type.
+     *
+     * @param methodParameterAnnotation the method parameter annotation.
+     * @return A list of classes that have a method with a parameter annotated with the named annotation type, or
+     * the empty list if none.
+     */
+    public ClassInfoList getClassesWithMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
+        Assert.isAnnotation(methodParameterAnnotation);
+        return getClassesWithMethodParameterAnnotation(methodParameterAnnotation.getName());
     }
 
     /**
@@ -960,6 +991,17 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final ClassInfo classInfo = classNameToClassInfo.get(methodParameterAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodParameterAnnotation();
+    }
+
+    /**
+     * Get classes that have a field with an annotation of the named type.
+     *
+     * @param fieldAnnotation the field annotation.
+     * @return A list of classes that have a field with an annotation of the named type, or the empty list if none.
+     */
+    public ClassInfoList getClassesWithFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
+        Assert.isAnnotation(fieldAnnotation);
+        return getClassesWithFieldAnnotation(fieldAnnotation.getName());
     }
 
     /**
@@ -1021,6 +1063,18 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get all classes that implement (or have superclasses that implement) the interface (or one of its
+     * subinterfaces).
+     *
+     * @param interfaceClass The interface class.
+     * @return A list of all classes that implement the interface, or the empty list if none.
+     */
+    public ClassInfoList getClassesImplementing(final Class<?> interfaceClass) {
+        Assert.isInterface(interfaceClass);
+        return getClassesImplementing(interfaceClass.getName());
+    }
+
+    /**
      * Get all classes that implement (or have superclasses that implement) the named interface (or one of its
      * subinterfaces).
      *
@@ -1073,6 +1127,18 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
         return ClassInfo.getAllInterfacesOrAnnotationClasses(classNameToClassInfo.values(), scanSpec);
+    }
+
+    /**
+     * Get classes with the class annotation or meta-annotation.
+     *
+     * @param annotation The class annotation or meta-annotation.
+     * @return A list of all non-annotation classes that were found with the class annotation during the scan,
+     * or the empty list if none.
+     */
+    public ClassInfoList getClassesWithAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return getClassesWithAnnotation(annotation.getName());
     }
 
     /**

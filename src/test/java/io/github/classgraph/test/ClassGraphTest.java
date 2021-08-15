@@ -236,7 +236,7 @@ public class ClassGraphTest {
     public void testCanQueryWithRejectedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .containsExactly(Accepted.class.getName());
         }
     }
@@ -302,7 +302,7 @@ public class ClassGraphTest {
             assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .isEmpty();
         }
     }
@@ -343,7 +343,7 @@ public class ClassGraphTest {
                     .containsExactly(RejectedSubinterface.class.getName());
             assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames())
                     .containsExactly(RejectedSubinterface.class.getName());
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .containsExactly(Accepted.class.getName());
         }
     }

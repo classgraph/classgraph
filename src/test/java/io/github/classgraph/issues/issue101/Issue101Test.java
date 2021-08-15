@@ -46,7 +46,7 @@ public class Issue101Test {
     public void nonInheritedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class).getNames())
                     .containsOnly(AnnotatedClass.class.getName());
         }
     }
@@ -58,7 +58,7 @@ public class Issue101Test {
     public void inheritedMetaAnnotation() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class.getName())
+            assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class)
                     .getStandardClasses().getNames()).containsOnly(AnnotatedClass.class.getName(),
                             NonAnnotatedSubclass.class.getName());
         }
@@ -71,7 +71,7 @@ public class Issue101Test {
     public void inheritedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
                 .enableAllInfo().scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class).getNames())
                     .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
                             AnnotatedInterface.class.getName());
         }

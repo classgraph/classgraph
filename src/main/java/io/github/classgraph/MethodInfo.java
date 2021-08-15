@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -42,6 +43,7 @@ import io.github.classgraph.Classfile.MethodTypeAnnotationDecorator;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -573,9 +575,22 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Get a the non-{@link Repeatable} annotation on this method, or null if the method does not have the
+     * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
+     *
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this method, or null if the
+     * method does not have the annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return getAnnotationInfo(annotation.getName());
+    }
+
+    /**
      * Get a the named non-{@link Repeatable} annotation on this method, or null if the method does not have the
      * named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
-     * 
+     *
      * @param annotationName
      *            The annotation name.
      * @return An {@link AnnotationInfo} object representing the named annotation on this method, or null if the
@@ -586,9 +601,22 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
+     * Get a the {@link Repeatable} annotation on this method, or the empty list if the method does not have
+     * the annotation.
+     *
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method, or the
+     * empty list if the method does not have the annotation.
+     */
+    public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return getAnnotationInfoRepeatable(annotation.getName());
+    }
+
+    /**
      * Get a the named {@link Repeatable} annotation on this method, or the empty list if the method does not have
      * the named annotation.
-     * 
+     *
      * @param annotationName
      *            The annotation name.
      * @return An {@link AnnotationInfoList} containing all instances of the named annotation on this method, or the
@@ -596,6 +624,17 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
         return getAnnotationInfo().getRepeatable(annotationName);
+    }
+
+    /**
+     * Check if this method has the annotation.
+     *
+     * @param annotation The annotation.
+     * @return true if this method has the annotation.
+     */
+    public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return hasAnnotation(annotation.getName());
     }
 
     /**
@@ -607,6 +646,17 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public boolean hasAnnotation(final String annotationName) {
         return getAnnotationInfo().containsName(annotationName);
+    }
+
+    /**
+     * Check if this method has a parameter with the annotation.
+     *
+     * @param annotation The method parameter annotation.
+     * @return true if this method has a parameter with the annotation.
+     */
+    public boolean hasParameterAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return hasParameterAnnotation(annotation.getName());
     }
 
     /**

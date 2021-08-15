@@ -112,7 +112,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         final MethodInfo methodInfo = classInfo.getMethodInfo()
                 .getSingleMethod("parameterAnnotation_WithRuntimeRetention");
 
-        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
+        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class)).isTrue();
     }
 
     /**
@@ -142,9 +142,9 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         final MethodInfo methodInfo = classInfo.getMethodInfo()
                 .getSingleMethod("twoAnnotations_WithRuntimeRetention_ForSingleParam");
 
-        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
+        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class)).isTrue();
 
-        assertThat(methodInfo.hasParameterAnnotation(SecondParamAnnoRuntime.class.getName())).isTrue();
+        assertThat(methodInfo.hasParameterAnnotation(SecondParamAnnoRuntime.class)).isTrue();
     }
 
     /**
@@ -168,7 +168,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         final MethodInfo methodInfo = classInfo.getMethodInfo()
                 .getSingleMethod("oneRuntimeRetention_OneClassRetention");
 
-        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
+        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class)).isTrue();
     }
 
     /**
@@ -193,7 +193,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         final MethodInfo methodInfo = classInfo.getMethodInfo()
                 .getSingleMethod("oneRuntimeRetention_OneClassRetention_ChangedAnnotationOrder");
 
-        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
+        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class)).isTrue();
     }
 
     /**
@@ -217,7 +217,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
         final MethodInfo methodInfo = classInfo.getMethodInfo()
                 .getSingleMethod("oneRuntimeRetention_OneSourceRetention");
 
-        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class.getName())).isTrue();
+        assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class)).isTrue();
     }
 
     /**

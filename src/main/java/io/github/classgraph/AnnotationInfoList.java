@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -343,6 +345,17 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the {@link Repeatable} annotation with the given class, or the empty list if none found.
+     *
+     * @param annotationClass The class to search for.
+     * @return The list of annotations with the given class, or the empty list if none found.
+     */
+    public AnnotationInfoList getRepeatable(final Class<? extends Annotation> annotationClass) {
+        Assert.isAnnotation(annotationClass);
+        return getRepeatable(annotationClass.getName());
+    }
 
     /**
      * Get the {@link Repeatable} annotation with the given name, or the empty list if none found.

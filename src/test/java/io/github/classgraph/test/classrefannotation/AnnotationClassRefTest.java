@@ -86,7 +86,7 @@ public class AnnotationClassRefTest {
                 .acceptPackages(AnnotationClassRefTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
             final ClassInfoList testClasses = scanResult
-                    .getClassesWithMethodAnnotation(ClassRefAnnotation.class.getName());
+                    .getClassesWithMethodAnnotation(ClassRefAnnotation.class);
             assertThat(testClasses.size()).isEqualTo(1);
             final ClassInfo testClass = testClasses.get(0);
             final MethodInfo method = testClass.getMethodInfo().getSingleMethod("methodWithAnnotation");

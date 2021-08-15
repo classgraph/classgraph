@@ -54,7 +54,7 @@ public class Issue216Test {
             assertThat(result.getAllClasses().filter(new ClassInfoFilter() {
                 @Override
                 public boolean accept(final ClassInfo ci) {
-                    return ci.hasAnnotation(Entity.class.getName());
+                    return ci.hasAnnotation(Entity.class);
                 }
             }).getNames()).containsOnly(Issue216Test.class.getName());
         }
