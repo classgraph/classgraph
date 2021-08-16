@@ -35,5 +35,5 @@ public interface HasName {
      *
      * @return The name.
      */
-    public String getName();
+    String getName();
 }

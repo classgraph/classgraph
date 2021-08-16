@@ -48,7 +48,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int read(long srcOffset, ByteBuffer dstBuf, int dstBufStart, int numBytes) throws IOException;
+    int read(long srcOffset, ByteBuffer dstBuf, int dstBufStart, int numBytes) throws IOException;
 
     /**
      * Read bytes into a byte array.
@@ -65,7 +65,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int read(long srcOffset, byte[] dstArr, int dstArrStart, int numBytes) throws IOException;
+    int read(long srcOffset, byte[] dstArr, int dstArrStart, int numBytes) throws IOException;
 
     /**
      * Read a byte at a specific offset (without changing the current cursor offset).
@@ -76,7 +76,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public byte readByte(final long offset) throws IOException;
+    byte readByte(final long offset) throws IOException;
 
     /**
      * Read an unsigned byte at a specific offset (without changing the current cursor offset).
@@ -87,7 +87,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int readUnsignedByte(final long offset) throws IOException;
+    int readUnsignedByte(final long offset) throws IOException;
 
     /**
      * Read a short at a specific offset (without changing the current cursor offset).
@@ -98,7 +98,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public short readShort(final long offset) throws IOException;
+    short readShort(final long offset) throws IOException;
 
     /**
      * Read a unsigned short at a specific offset (without changing the current cursor offset).
@@ -109,7 +109,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int readUnsignedShort(final long offset) throws IOException;
+    int readUnsignedShort(final long offset) throws IOException;
 
     /**
      * Read a int at a specific offset (without changing the current cursor offset).
@@ -120,7 +120,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int readInt(final long offset) throws IOException;
+    int readInt(final long offset) throws IOException;
 
     /**
      * Read a unsigned int at a specific offset (without changing the current cursor offset).
@@ -131,7 +131,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public long readUnsignedInt(final long offset) throws IOException;
+    long readUnsignedInt(final long offset) throws IOException;
 
     /**
      * Read a long at a specific offset (without changing the current cursor offset).
@@ -142,7 +142,7 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public long readLong(final long offset) throws IOException;
+    long readLong(final long offset) throws IOException;
 
     /**
      * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
@@ -160,8 +160,8 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IOException;
+    String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
+                      final boolean stripLSemicolon) throws IOException;
 
     /**
      * Reads the "modified UTF8" format defined in the Java classfile spec.
@@ -174,5 +174,5 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    public String readString(final long offset, final int numBytes) throws IOException;
+    String readString(final long offset, final int numBytes) throws IOException;
 }

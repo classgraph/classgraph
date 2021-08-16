@@ -1003,15 +1003,15 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    static interface ClassTypeAnnotationDecorator {
+    interface ClassTypeAnnotationDecorator {
         void decorate(ClassTypeSignature classTypeSignature);
     }
 
-    static interface MethodTypeAnnotationDecorator {
+    interface MethodTypeAnnotationDecorator {
         void decorate(MethodTypeSignature methodTypeSignature);
     }
 
-    static interface TypeAnnotationDecorator {
+    interface TypeAnnotationDecorator {
         void decorate(TypeSignature typeSignature);
     }
 
