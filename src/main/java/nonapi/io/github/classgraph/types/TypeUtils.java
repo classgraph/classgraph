@@ -80,7 +80,7 @@ public final class TypeUtils {
         /** The modifier bits apply to a method. */
         METHOD,
         /** The modifier bits apply to a field. */
-        FIELD;
+        FIELD
     }
 
     /**
