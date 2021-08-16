@@ -937,6 +937,17 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get superclasses of the subclass.
+     *
+     * @param subclass
+     *            The subclass.
+     * @return A list of superclasses of the named subclass, or the empty list if none.
+     */
+    public ClassInfoList getSuperclasses(final Class<?> subclass) {
+        return getSuperclasses(subclass.getName());
+    }
+
+    /**
      * Get classes that have a method with an annotation of the named type.
      *
      * @param methodAnnotation
