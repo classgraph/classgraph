@@ -164,8 +164,7 @@ public class ClassGraphTest {
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .doesNotContain(Cls.class.getName());
 
-            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
-                    .contains(Impl1.class.getName());
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).contains(Impl1.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .contains(Impl1.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
@@ -183,8 +182,7 @@ public class ClassGraphTest {
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .contains(Impl1SubSub.class.getName());
 
-            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
-                    .contains(Impl2.class.getName());
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).contains(Impl2.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .doesNotContain(Impl2.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
@@ -302,8 +300,7 @@ public class ClassGraphTest {
             assertThat(scanResult.getSubclasses(Accepted.class).getNames()).isEmpty();
             assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
             assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
-                    .isEmpty();
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames()).isEmpty();
         }
     }
 

@@ -349,7 +349,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Get the {@link Repeatable} annotation with the given class, or the empty list if none found.
      *
-     * @param annotationClass The class to search for.
+     * @param annotationClass
+     *            The class to search for.
      * @return The list of annotations with the given class, or the empty list if none found.
      */
     public AnnotationInfoList getRepeatable(final Class<? extends Annotation> annotationClass) {

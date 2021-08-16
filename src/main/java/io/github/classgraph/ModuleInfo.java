@@ -236,9 +236,10 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Get a the annotation on this module, or null if the module does not have the annotation.
      *
-     * @param annotation The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this module, or null if the
-     * module does not have the annotation.
+     * @param annotation
+     *            The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this module, or null if the module
+     *         does not have the annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -277,7 +278,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Check if this module has the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation
+     *            The annotation.
      * @return true if this module has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {

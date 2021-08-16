@@ -373,13 +373,13 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Get a the non-{@link Repeatable} annotation on this field, or null if the field does not have the
-     * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
+     * Get a the non-{@link Repeatable} annotation on this field, or null if the field does not have the annotation.
+     * (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
      * 
      * @param annotation
      *            The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this field, or null if the
-     *         field does not have the annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this field, or null if the field does
+     *         not have the annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -405,8 +405,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * 
      * @param annotation
      *            The annotation.
-     * @return An {@link AnnotationInfoList} of all instances of the annotation on this field, or the empty
-     *         list if the field does not have the annotation.
+     * @return An {@link AnnotationInfoList} of all instances of the annotation on this field, or the empty list if
+     *         the field does not have the annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -429,7 +429,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     /**
      * Check if the field has a given annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation
+     *            The annotation.
      * @return true if this field has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {

@@ -578,9 +578,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * Get a the non-{@link Repeatable} annotation on this method, or null if the method does not have the
      * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
      *
-     * @param annotation The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this method, or null if the
-     * method does not have the annotation.
+     * @param annotation
+     *            The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this method, or null if the method
+     *         does not have the annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -601,12 +602,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Get a the {@link Repeatable} annotation on this method, or the empty list if the method does not have
-     * the annotation.
+     * Get a the {@link Repeatable} annotation on this method, or the empty list if the method does not have the
+     * annotation.
      *
-     * @param annotation The annotation.
-     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method, or the
-     * empty list if the method does not have the annotation.
+     * @param annotation
+     *            The annotation.
+     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method, or the empty
+     *         list if the method does not have the annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -629,7 +631,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /**
      * Check if this method has the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation
+     *            The annotation.
      * @return true if this method has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -651,7 +654,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /**
      * Check if this method has a parameter with the annotation.
      *
-     * @param annotation The method parameter annotation.
+     * @param annotation
+     *            The method parameter annotation.
      * @return true if this method has a parameter with the annotation.
      */
     public boolean hasParameterAnnotation(final Class<? extends Annotation> annotation) {

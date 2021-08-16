@@ -53,8 +53,8 @@ public class MethodAnnotationTest {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult
-                    .getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();
+            final List<String> testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class)
+                    .getNames();
             assertThat(testClasses).isEmpty();
         }
     }

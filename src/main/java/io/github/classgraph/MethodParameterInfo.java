@@ -28,14 +28,14 @@
  */
 package io.github.classgraph;
 
-import nonapi.io.github.classgraph.utils.Assert;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
+
+import nonapi.io.github.classgraph.utils.Assert;
 
 /**
  * Information on the parameters of a method.
@@ -182,14 +182,13 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get a the non-{@link Repeatable} annotation on this method, or null if the method parameter does not
-     * have the annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable}
-     * annotations.)
+     * Get a the non-{@link Repeatable} annotation on this method, or null if the method parameter does not have the
+     * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
      * 
      * @param annotation
      *            The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this method parameter, or null
-     *         if the method parameter does not have the annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this method parameter, or null if the
+     *         method parameter does not have the annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -211,13 +210,13 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get a the {@link Repeatable} annotation on this method, or the empty list if the method parameter does
-     * not have the annotation.
+     * Get a the {@link Repeatable} annotation on this method, or the empty list if the method parameter does not
+     * have the annotation.
      * 
      * @param annotation
      *            The annotation.
-     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method
-     *         parameter, or the empty list if the method parameter does not have the annotation.
+     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method parameter, or
+     *         the empty list if the method parameter does not have the annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -240,7 +239,8 @@ public class MethodParameterInfo {
     /**
      * Check whether this method parameter has the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation
+     *            The annotation.
      * @return true if this method parameter has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {

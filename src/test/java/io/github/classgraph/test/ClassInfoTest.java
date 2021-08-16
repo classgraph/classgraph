@@ -113,8 +113,8 @@ public class ClassInfoTest {
      */
     @Test
     public void implementsInterface() {
-        assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).containsOnly(
-                Impl1.class.getName(), Impl1Sub.class.getName(), Impl1SubSub.class.getName(), Impl2.class.getName(),
+        assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).containsOnly(Impl1.class.getName(),
+                Impl1Sub.class.getName(), Impl1SubSub.class.getName(), Impl2.class.getName(),
                 Impl2Sub.class.getName(), Impl2SubSub.class.getName(), IfaceSub.class.getName(),
                 IfaceSubSub.class.getName());
     }

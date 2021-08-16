@@ -129,8 +129,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * 
      * @param annotation
      *            The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this package, or null if the
-     *         package does not have the annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this package, or null if the package
+     *         does not have the annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -169,7 +169,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Check if the package has the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation
+     *            The annotation.
      * @return true if this package has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {

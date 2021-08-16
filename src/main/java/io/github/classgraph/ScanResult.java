@@ -57,7 +57,11 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.*;
+import nonapi.io.github.classgraph.utils.Assert;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
+import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.JarUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * The result of a scan. You should assign a ScanResult in a try-with-resources block, or manually close it when you
@@ -883,7 +887,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get all subclasses of the superclass.
      *
-     * @param superclass The superclass.
+     * @param superclass
+     *            The superclass.
      * @return A list of subclasses of the superclass, or the empty list if none.
      */
     public ClassInfoList getSubclasses(final Class<?> superclass) {
@@ -934,7 +939,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get classes that have a method with an annotation of the named type.
      *
-     * @param methodAnnotation the method annotation.
+     * @param methodAnnotation
+     *            the method annotation.
      * @return A list of classes with a method that has an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
@@ -964,11 +970,13 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get classes that have a method with a parameter that is annotated with an annotation of the named type.
      *
-     * @param methodParameterAnnotation the method parameter annotation.
+     * @param methodParameterAnnotation
+     *            the method parameter annotation.
      * @return A list of classes that have a method with a parameter annotated with the named annotation type, or
-     * the empty list if none.
+     *         the empty list if none.
      */
-    public ClassInfoList getClassesWithMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
+    public ClassInfoList getClassesWithMethodParameterAnnotation(
+            final Class<? extends Annotation> methodParameterAnnotation) {
         Assert.isAnnotation(methodParameterAnnotation);
         return getClassesWithMethodParameterAnnotation(methodParameterAnnotation.getName());
     }
@@ -996,7 +1004,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get classes that have a field with an annotation of the named type.
      *
-     * @param fieldAnnotation the field annotation.
+     * @param fieldAnnotation
+     *            the field annotation.
      * @return A list of classes that have a field with an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
@@ -1066,7 +1075,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * Get all classes that implement (or have superclasses that implement) the interface (or one of its
      * subinterfaces).
      *
-     * @param interfaceClass The interface class.
+     * @param interfaceClass
+     *            The interface class.
      * @return A list of all classes that implement the interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing(final Class<?> interfaceClass) {
@@ -1132,9 +1142,10 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Get classes with the class annotation or meta-annotation.
      *
-     * @param annotation The class annotation or meta-annotation.
-     * @return A list of all non-annotation classes that were found with the class annotation during the scan,
-     * or the empty list if none.
+     * @param annotation
+     *            The class annotation or meta-annotation.
+     * @return A list of all non-annotation classes that were found with the class annotation during the scan, or
+     *         the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);

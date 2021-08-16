@@ -1296,7 +1296,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class extends the superclass.
      *
-     * @param superclass A superclass.
+     * @param superclass
+     *            A superclass.
      * @return true if this class extends the superclass.
      */
     public boolean extendsSuperclass(final Class<?> superclass) {
@@ -1363,7 +1364,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class implements the interface.
      *
-     * @param interfaceClazz An interface.
+     * @param interfaceClazz
+     *            An interface.
      * @return true if this class implements the interface.
      */
     public boolean implementsInterface(final Class<?> interfaceClazz) {
@@ -1385,7 +1387,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class has the annotation.
      *
-     * @param annotation An annotation.
+     * @param annotation
+     *            An annotation.
      * @return true if this class has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -1434,7 +1437,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a field with the annotation.
      *
-     * @param annotation A field annotation.
+     * @param annotation
+     *            A field annotation.
      * @return true if this class declares a field with the annotation.
      */
     public boolean hasDeclaredFieldAnnotation(final Class<? extends Annotation> annotation) {
@@ -1461,7 +1465,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class or one of its superclasses declares a field with the annotation.
      *
-     * @param fieldAnnotation A field annotation.
+     * @param fieldAnnotation
+     *            A field annotation.
      * @return true if this class or one of its superclasses declares a field with the annotation.
      */
     public boolean hasFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
@@ -1515,7 +1520,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a method with the annotation.
      *
-     * @param methodAnnotation A method annotation.
+     * @param methodAnnotation
+     *            A method annotation.
      * @return true if this class declares a method with the annotation.
      */
     public boolean hasDeclaredMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
@@ -1540,12 +1546,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces declares a method with the
-     * annotation.
+     * Checks whether this class or one of its superclasses or interfaces declares a method with the annotation.
      *
-     * @param methodAnnotation A method annotation.
-     * @return true if this class or one of its superclasses or interfaces declares a method with the
-     * annotation.
+     * @param methodAnnotation
+     *            A method annotation.
+     * @return true if this class or one of its superclasses or interfaces declares a method with the annotation.
      */
     public boolean hasMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.isAnnotation(methodAnnotation);
@@ -1573,10 +1578,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a method with the annotation.
      *
-     * @param methodParameterAnnotation A method annotation.
+     * @param methodParameterAnnotation
+     *            A method annotation.
      * @return true if this class declares a method with the annotation.
      */
-    public boolean hasDeclaredMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
+    public boolean hasDeclaredMethodParameterAnnotation(
+            final Class<? extends Annotation> methodParameterAnnotation) {
         Assert.isAnnotation(methodParameterAnnotation);
         return hasDeclaredMethodParameterAnnotation(methodParameterAnnotation.getName());
     }
@@ -1600,7 +1607,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class or one of its superclasses or interfaces has a method with the annotation.
      *
-     * @param methodParameterAnnotation A method annotation.
+     * @param methodParameterAnnotation
+     *            A method annotation.
      * @return true if this class or one of its superclasses or interfaces has a method with the annotation.
      */
     public boolean hasMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
@@ -1939,22 +1947,22 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a the non-{@link Repeatable} annotation on this class, or null if the class does not have the
-     * annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
+     * Get a the non-{@link Repeatable} annotation on this class, or null if the class does not have the annotation.
+     * (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      * 
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
      * its subclasses.
      * 
      * <p>
-     * Note that if you need to get multiple annotations, it is faster to call {@link #getAnnotationInfo()},
-     * and then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list
-     * doesn't have to be built multiple times.
+     * Note that if you need to get multiple annotations, it is faster to call {@link #getAnnotationInfo()}, and
+     * then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list doesn't have
+     * to be built multiple times.
      * 
      * @param annotation
      *            The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this class, or null if the
-     *         class does not have the annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this class, or null if the class does
+     *         not have the annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -1992,14 +2000,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * its subclasses.
      * 
      * <p>
-     * Note that if you need to get multiple annotations, it is faster to call {@link #getAnnotationInfo()},
-     * and then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list
-     * doesn't have to be built multiple times.
+     * Note that if you need to get multiple annotations, it is faster to call {@link #getAnnotationInfo()}, and
+     * then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list doesn't have
+     * to be built multiple times.
      * 
      * @param annotation
      *            The annotation.
-     * @return An {@link AnnotationInfoList} of all instances of the annotation on this class, or the empty
-     *         list if the class does not have the annotation.
+     * @return An {@link AnnotationInfoList} of all instances of the annotation on this class, or the empty list if
+     *         the class does not have the annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);

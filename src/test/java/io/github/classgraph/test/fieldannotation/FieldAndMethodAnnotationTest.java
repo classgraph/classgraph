@@ -60,8 +60,8 @@ public class FieldAndMethodAnnotationTest {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult
-                    .getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
+            final List<String> testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class)
+                    .getNames();
             assertThat(testClasses).isEmpty();
         }
     }
@@ -74,8 +74,8 @@ public class FieldAndMethodAnnotationTest {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult
-                    .getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
+            final List<String> testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class)
+                    .getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }
@@ -89,8 +89,8 @@ public class FieldAndMethodAnnotationTest {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult
-                    .getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();
+            final List<String> testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class)
+                    .getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }
