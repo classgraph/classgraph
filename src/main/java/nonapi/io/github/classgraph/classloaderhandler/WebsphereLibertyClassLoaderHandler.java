@@ -110,7 +110,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      */
     private static Collection<Object> getPaths(final Object containerClassLoader) {
         if (containerClassLoader == null) {
-            return Collections.<Object> emptyList();
+            return Collections.emptyList();
         }
 
         // Expecting this to be an instance of
@@ -124,7 +124,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         // "getContainerURLs" didn't work, try getting the container object...
         final Object container = ReflectionUtils.getFieldVal(containerClassLoader, "container", false);
         if (container == null) {
-            return Collections.<Object> emptyList();
+            return Collections.emptyList();
         }
 
         // Should be an instance of "com.ibm.wsspi.adaptable.module.Container".
@@ -137,7 +137,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         // "getURLs" did not work, reverting to previous logic of introspection of the "delegate".
         final Object delegate = ReflectionUtils.getFieldVal(container, "delegate", false);
         if (delegate == null) {
-            return Collections.<Object> emptyList();
+            return Collections.emptyList();
         }
 
         final String path = (String) ReflectionUtils.getFieldVal(delegate, "path", false);
@@ -148,7 +148,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         final Object base = ReflectionUtils.getFieldVal(delegate, "base", false);
         if (base == null) {
             // giving up.
-            return Collections.<Object> emptyList();
+            return Collections.emptyList();
         }
 
         final Object archiveFile = ReflectionUtils.getFieldVal(base, "archiveFile", false);
@@ -156,7 +156,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             final File file = (File) archiveFile;
             return Collections.singletonList((Object) file.getAbsolutePath());
         }
-        return Collections.<Object> emptyList();
+        return Collections.emptyList();
     }
 
     /**
@@ -196,7 +196,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 /* ignore */
             }
         }
-        return Collections.<Object> emptyList();
+        return Collections.emptyList();
     }
 
     /**

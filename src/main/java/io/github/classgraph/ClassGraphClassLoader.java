@@ -389,7 +389,7 @@ public class ClassGraphClassLoader extends ClassLoader {
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList == null || resourceList.isEmpty()) {
-            return Collections.<URL> emptyEnumeration();
+            return Collections.emptyEnumeration();
         } else {
             return new Enumeration<URL>() {
                 /** The idx. */

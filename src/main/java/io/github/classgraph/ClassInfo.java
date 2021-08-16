@@ -780,7 +780,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private static Set<ClassInfo> filterClassInfo(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final boolean strictAccept, final ClassType... classTypes) {
         if (classes == null) {
-            return Collections.<ClassInfo> emptySet();
+            return Collections.emptySet();
         }
         boolean includeAllTypes = classTypes.length == 0;
         boolean includeStandardClasses = false;
