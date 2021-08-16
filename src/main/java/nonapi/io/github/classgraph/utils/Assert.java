@@ -7,7 +7,7 @@ public final class Assert {
      * 
      * @param clazz
      *            the class.
-     * @throw {@link IllegalArgumentException} if the class is not an annotation.
+     * @throws {@link IllegalArgumentException} if the class is not an annotation.
      */
     public static void isAnnotation(final Class<?> clazz) {
         if (!clazz.isAnnotation()) {
@@ -20,7 +20,7 @@ public final class Assert {
      * 
      * @param clazz
      *            the class.
-     * @throw {@link IllegalArgumentException} if the class is not an interface.
+     * @throws {@link IllegalArgumentException} if the class is not an interface.
      */
     public static void isInterface(final Class<?> clazz) {
         if (!clazz.isInterface()) {
