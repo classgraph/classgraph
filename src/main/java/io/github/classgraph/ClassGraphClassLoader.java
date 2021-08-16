@@ -98,9 +98,7 @@ public class ClassGraphClassLoader extends ClassLoader {
             final ClassLoader[] envClassLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
             if (envClassLoaderOrder != null) {
                 // Try environment classloaders
-                for (final ClassLoader envClassLoader : envClassLoaderOrder) {
-                    environmentClassLoaderDelegationOrder.add(envClassLoader);
-                }
+                environmentClassLoaderDelegationOrder.addAll(Arrays.asList(envClassLoaderOrder));
             }
         }
 
