@@ -275,7 +275,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append("@throws(" + throwsSignature + ")");
+                buf.append("@throws(").append(throwsSignature).append(")");
             }
         }
         if (modifiers != 0) {

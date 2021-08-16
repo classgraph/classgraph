@@ -214,6 +214,7 @@ public class AnnotationClassRef extends ScanResultObject {
         //            }
         //        }
 
-        buf.append(/* prefix + */ getTypeSignature().toString(useSimpleNames) + ".class");
+        /* prefix + */
+        buf.append(getTypeSignature().toString(useSimpleNames)).append(".class");
     }
 }
