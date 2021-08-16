@@ -54,10 +54,10 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
-/** A module classpath element. */
 /**
- * @author luke
+ * A module classpath element.
  *
+ * @author luke
  */
 class ClasspathElementModule extends ClasspathElement {
 
