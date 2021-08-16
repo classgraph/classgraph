@@ -937,6 +937,17 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
+     * Get superclasses of the subclass.
+     *
+     * @param subclass
+     *            The subclass.
+     * @return A list of superclasses of the named subclass, or the empty list if none.
+     */
+    public ClassInfoList getSuperclasses(final Class<?> subclass) {
+        return getSuperclasses(subclass.getName());
+    }
+
+    /**
      * Get classes that have a method with an annotation of the named type.
      *
      * @param methodAnnotation
@@ -1052,8 +1063,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Get all interfaces implemented by the named class or by one of its superclasses, if this is a standard class,
-     * or the superinterfaces extended by this interface, if this is an interface.
+     * Get all interfaces implemented by the named class or by one of its superclasses, if the named class is a
+     * standard class, or the superinterfaces extended by this interface, if it is an interface.
      *
      * @param className
      *            The class name.
@@ -1069,6 +1080,19 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getInterfaces();
+    }
+
+    /**
+     * Get all interfaces implemented by the class or by one of its superclasses, if the given class is a standard
+     * class, or the superinterfaces extended by this interface, if it is an interface.
+     *
+     * @param classRef
+     *            The class.
+     * @return A list of interfaces implemented by the given class (or superinterfaces extended by the given
+     *         interface), or the empty list if none.
+     */
+    public ClassInfoList getInterfaces(final Class<?> classRef) {
+        return getInterfaces(classRef.getName());
     }
 
     /**
