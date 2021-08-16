@@ -630,8 +630,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 for (int i = 0; i < mi.parameterAnnotationInfo.length; i++) {
                     final AnnotationInfo[] paramAnnotationInfoArr = mi.parameterAnnotationInfo[i];
                     if (paramAnnotationInfoArr != null) {
-                        for (int j = 0; j < paramAnnotationInfoArr.length; j++) {
-                            final AnnotationInfo methodParamAnnotationInfo = paramAnnotationInfoArr[j];
+                        for (final AnnotationInfo methodParamAnnotationInfo : paramAnnotationInfoArr) {
                             final ClassInfo annotationClassInfo = getOrCreateClassInfo(
                                     methodParamAnnotationInfo.getName(), classNameToClassInfo);
                             annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);

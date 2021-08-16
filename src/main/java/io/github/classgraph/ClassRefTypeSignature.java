@@ -171,8 +171,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         // Find how many deeper nested levels to descend to
         int numDeeperNestedLevels = 0;
         int nextTypeArgIdx = -1;
-        for (int i = 0; i < typePath.size(); i++) {
-            final TypePathNode typePathNode = typePath.get(i);
+        for (final TypePathNode typePathNode : typePath) {
             if (typePathNode.typePathKind == 1) {
                 numDeeperNestedLevels++;
             } else if (typePathNode.typePathKind == 3) {
