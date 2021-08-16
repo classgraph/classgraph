@@ -133,7 +133,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
             if (ownerType instanceof Class) {
                 buf.append(((Class<?>) ownerType).getName());
             } else {
-                buf.append(ownerType.toString());
+                buf.append(ownerType);
             }
             buf.append('$');
             if (ownerType instanceof ParameterizedTypeImpl) {

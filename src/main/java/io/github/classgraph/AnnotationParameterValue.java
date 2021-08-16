@@ -252,7 +252,7 @@ public class AnnotationParameterValue extends ScanResultObject
         } else if (val instanceof ScanResultObject) {
             ((ScanResultObject) val).toString(useSimpleNames, buf);
         } else {
-            buf.append(val.toString());
+            buf.append(val);
         }
     }
 
