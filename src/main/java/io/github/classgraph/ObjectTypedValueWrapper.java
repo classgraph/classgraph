@@ -629,21 +629,21 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         } else if (stringValue != null) {
             buf.append(stringValue);
         } else if (integerValue != null) {
-            buf.append(Integer.toString(integerValue));
+            buf.append(integerValue);
         } else if (longValue != null) {
-            buf.append(Long.toString(longValue));
+            buf.append(longValue);
         } else if (shortValue != null) {
-            buf.append(Short.toString(shortValue));
+            buf.append(shortValue);
         } else if (booleanValue != null) {
-            buf.append(Boolean.toString(booleanValue));
+            buf.append(booleanValue);
         } else if (characterValue != null) {
-            buf.append(Character.toString(characterValue));
+            buf.append(characterValue);
         } else if (floatValue != null) {
-            buf.append(Float.toString(floatValue));
+            buf.append(floatValue);
         } else if (doubleValue != null) {
-            buf.append(Double.toString(doubleValue));
+            buf.append(doubleValue);
         } else if (byteValue != null) {
-            buf.append(Byte.toString(byteValue));
+            buf.append(byteValue);
         } else if (stringArrayValue != null) {
             buf.append(Arrays.toString(stringArrayValue));
         } else if (intArrayValue != null) {
