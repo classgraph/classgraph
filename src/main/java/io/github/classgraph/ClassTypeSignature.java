@@ -415,8 +415,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         if (parser.hasMore()) {
             throw new ParseException(parser, "Extra characters at end of type descriptor");
         }
-        final ClassTypeSignature classTypeSignature = new ClassTypeSignature(classInfo, typeParameters,
+        return new ClassTypeSignature(classInfo, typeParameters,
                 superclassSignature, superinterfaceSignatures, throwsSignatures);
-        return classTypeSignature;
     }
 }
