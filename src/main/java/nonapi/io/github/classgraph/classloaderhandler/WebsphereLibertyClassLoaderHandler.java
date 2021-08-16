@@ -142,7 +142,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
         final String path = (String) ReflectionUtils.getFieldVal(delegate, "path", false);
         if (path != null && path.length() > 0) {
-            return Arrays.asList((Object) path);
+            return Collections.singletonList((Object) path);
         }
 
         final Object base = ReflectionUtils.getFieldVal(delegate, "base", false);
@@ -154,7 +154,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         final Object archiveFile = ReflectionUtils.getFieldVal(base, "archiveFile", false);
         if (archiveFile != null) {
             final File file = (File) archiveFile;
-            return Arrays.asList((Object) file.getAbsolutePath());
+            return Collections.singletonList((Object) file.getAbsolutePath());
         }
         return Collections.<Object> emptyList();
     }
