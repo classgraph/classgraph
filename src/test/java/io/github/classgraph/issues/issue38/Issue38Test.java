@@ -29,7 +29,7 @@ class Issue38Test {
     void testImplementsSuppressWarnings() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue38Test.class.getPackage().getName())
                 .scan()) {
-            assertThat(scanResult.getClassesImplementing(SuppressWarnings.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(SuppressWarnings.class).getNames())
                     .containsOnly(ImplementsSuppressWarnings.class.getName());
         }
     }

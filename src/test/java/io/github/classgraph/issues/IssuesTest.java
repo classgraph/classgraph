@@ -21,7 +21,7 @@ public class IssuesTest {
     @Test
     public void issue70() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName()).scan()) {
-            assertThat(scanResult.getSubclasses(Object.class.getName()).getNames()).contains(Impl1.class.getName());
+            assertThat(scanResult.getSubclasses(Object.class).getNames()).contains(Impl1.class.getName());
         }
     }
 
@@ -32,7 +32,7 @@ public class IssuesTest {
     public void issue70EnableExternalClasses() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName())
                 .enableExternalClasses().scan()) {
-            assertThat(scanResult.getSubclasses(Object.class.getName()).getNames()).contains(Impl1.class.getName());
+            assertThat(scanResult.getSubclasses(Object.class).getNames()).contains(Impl1.class.getName());
             assertThat(scanResult.getSuperclasses(Impl1Sub.class.getName()).getNames())
                     .containsOnly(Impl1.class.getName());
         }
@@ -70,7 +70,7 @@ public class IssuesTest {
     public void extendsExternalSubclass() {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
-            assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
+            assertThat(scanResult.getSubclasses(ExternalSuperclass.class).getNames())
                     .containsOnly(InternalExtendsExternal.class.getName());
         }
     }
@@ -83,7 +83,7 @@ public class IssuesTest {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
                 .scan()) {
-            assertThat(scanResult.getSubclasses(ExternalSuperclass.class.getName()).getNames())
+            assertThat(scanResult.getSubclasses(ExternalSuperclass.class).getNames())
                     .containsOnly(InternalExtendsExternal.class.getName());
         }
     }

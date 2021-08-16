@@ -125,7 +125,7 @@ public class ClassGraphTest {
     @Test
     public void scanSubAndSuperclasses() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            final List<String> subclasses = scanResult.getSubclasses(Cls.class.getName()).getNames();
+            final List<String> subclasses = scanResult.getSubclasses(Cls.class).getNames();
             assertThat(subclasses).doesNotContain(Cls.class.getName());
             assertThat(subclasses).contains(ClsSub.class.getName());
             assertThat(subclasses).contains(ClsSubSub.class.getName());
@@ -142,7 +142,7 @@ public class ClassGraphTest {
     @Test
     public void scanSubAndSuperinterface() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            final List<String> subinterfaces = scanResult.getClassesImplementing(Iface.class.getName()).getNames();
+            final List<String> subinterfaces = scanResult.getClassesImplementing(Iface.class).getNames();
             assertThat(subinterfaces).doesNotContain(Iface.class.getName());
             assertThat(subinterfaces).contains(IfaceSub.class.getName());
             assertThat(subinterfaces).contains(IfaceSubSub.class.getName());
@@ -159,47 +159,47 @@ public class ClassGraphTest {
     @Test
     public void scanTransitiveImplements() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
                     .doesNotContain(Iface.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .doesNotContain(Cls.class.getName());
 
-            assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
                     .contains(Impl1.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .contains(Impl1.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .contains(Impl1.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
                     .contains(Impl1Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .contains(Impl1Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .contains(Impl1Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
                     .contains(Impl1SubSub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .contains(Impl1SubSub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .contains(Impl1SubSub.class.getName());
 
-            assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
                     .contains(Impl2.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .doesNotContain(Impl2.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .doesNotContain(Impl2.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
                     .contains(Impl2Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .doesNotContain(Impl2Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .doesNotContain(Impl2Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
                     .contains(Impl2SubSub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .contains(Impl2SubSub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .contains(Impl2SubSub.class.getName());
         }
     }
@@ -212,9 +212,9 @@ public class ClassGraphTest {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName());
-            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getSubclasses(Accepted.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
         }
     }
 
@@ -236,7 +236,7 @@ public class ClassGraphTest {
     public void testCanQueryWithRejectedAnnotation() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .containsExactly(Accepted.class.getName());
         }
     }
@@ -249,9 +249,9 @@ public class ClassGraphTest {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
                 .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getSubclasses(Accepted.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
             assertThat(scanResult.getAnnotationsOnClass(AcceptedInterface.class.getName()).getNames()).isEmpty();
         }
     }
@@ -299,10 +299,10 @@ public class ClassGraphTest {
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(ROOT_PACKAGE, "-" + RejectedSuperclass.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getSubclasses(Accepted.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .isEmpty();
         }
     }
@@ -337,13 +337,13 @@ public class ClassGraphTest {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName());
-            assertThat(scanResult.getSubclasses(Accepted.class.getName()).getNames())
+            assertThat(scanResult.getSubclasses(Accepted.class).getNames())
                     .containsExactly(RejectedSubclass.class.getName());
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames())
                     .containsExactly(RejectedSubinterface.class.getName());
-            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class.getName()).getNames())
+            assertThat(scanResult.getClassesImplementing(AcceptedInterface.class).getNames())
                     .containsExactly(RejectedSubinterface.class.getName());
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .containsExactly(Accepted.class.getName());
         }
     }

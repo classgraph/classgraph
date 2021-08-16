@@ -28,11 +28,13 @@
  */
 package io.github.classgraph;
 
+import java.lang.annotation.Annotation;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** Holds metadata about a package encountered during a scan. */
@@ -232,8 +234,20 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
+     * Get a the annotation on this module, or null if the module does not have the annotation.
+     *
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this module, or null if the
+     * module does not have the annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return getAnnotationInfo(annotation.getName());
+    }
+
+    /**
      * Get a the named annotation on this module, or null if the module does not have the named annotation.
-     * 
+     *
      * @param annotationName
      *            The annotation name.
      * @return An {@link AnnotationInfo} object representing the named annotation on this module, or null if the
@@ -261,8 +275,19 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
+     * Check if this module has the annotation.
+     *
+     * @param annotation The annotation.
+     * @return true if this module has the annotation.
+     */
+    public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return hasAnnotation(annotation.getName());
+    }
+
+    /**
      * Check if this module has the named annotation.
-     * 
+     *
      * @param annotationName
      *            The name of an annotation.
      * @return true if this module has the named annotation.

@@ -68,9 +68,9 @@ public class MethodParameterAnnotationsTest {
                     .containsOnly(W.class.getName());
             assertThat(scanResult.getClassInfo(Z.class.getName()).getMethodParameterAnnotations().getNames())
                     .containsOnly(X.class.getName());
-            assertThat(scanResult.getClassesWithMethodParameterAnnotation(W.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithMethodParameterAnnotation(W.class).getNames())
                     .containsOnly(Y.class.getName());
-            assertThat(scanResult.getClassesWithMethodParameterAnnotation(X.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithMethodParameterAnnotation(X.class).getNames())
                     .containsOnly(Z.class.getName());
         }
     }

@@ -51,7 +51,7 @@ public class Issue107Test {
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
                 .scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames()).isEmpty();
+            assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class).getNames()).isEmpty();
             assertThat(scanResult.getPackageInfo().getNames())
                     .containsAll(Arrays.asList("io.github.classgraph", Issue107Test.class.getPackage().getName()));
             assertThat(scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo()

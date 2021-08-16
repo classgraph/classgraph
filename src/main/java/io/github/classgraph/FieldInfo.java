@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -40,6 +41,7 @@ import io.github.classgraph.Classfile.TypeAnnotationDecorator;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -371,9 +373,23 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Get a the non-{@link Repeatable} annotation on this field, or null if the field does not have the
+     * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
+     * 
+     * @param annotation
+     *            The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this field, or null if the
+     *         field does not have the annotation.
+     */
+    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return getAnnotationInfo(annotation.getName());
+    }
+
+    /**
      * Get a the named non-{@link Repeatable} annotation on this field, or null if the field does not have the named
      * annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
-     * 
+     *
      * @param annotationName
      *            The annotation name.
      * @return An {@link AnnotationInfo} object representing the named annotation on this field, or null if the
@@ -384,9 +400,23 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Get a the {@link Repeatable} annotation on this field, or the empty list if the field does not have the
+     * annotation.
+     * 
+     * @param annotation
+     *            The annotation.
+     * @return An {@link AnnotationInfoList} of all instances of the annotation on this field, or the empty
+     *         list if the field does not have the annotation.
+     */
+    public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return getAnnotationInfoRepeatable(annotation.getName());
+    }
+
+    /**
      * Get a the named {@link Repeatable} annotation on this field, or the empty list if the field does not have the
      * named annotation.
-     * 
+     *
      * @param annotationName
      *            The annotation name.
      * @return An {@link AnnotationInfoList} of all instances of the named annotation on this field, or the empty
@@ -394,6 +424,17 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
         return getAnnotationInfo().getRepeatable(annotationName);
+    }
+
+    /**
+     * Check if the field has a given annotation.
+     *
+     * @param annotation The annotation.
+     * @return true if this field has the annotation.
+     */
+    public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.isAnnotation(annotation);
+        return hasAnnotation(annotation.getName());
     }
 
     /**

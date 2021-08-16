@@ -50,9 +50,9 @@ public class Issue93 {
     public void classRetentionIsDefault() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(PKG).enableAnnotationInfo()
                 .ignoreClassVisibility().scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class).getNames())
                     .containsOnly(RetentionClassAnnotated.class.getName());
-            assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class).getNames())
                     .containsOnly(RetentionRuntimeAnnotated.class.getName());
         }
     }
@@ -65,8 +65,8 @@ public class Issue93 {
     public void classRetentionIsNotVisibleWithRetentionPolicyRUNTIME() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(PKG).enableAnnotationInfo()
                 .ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
+            assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class).getNames()).isEmpty();
+            assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class).getNames())
                     .containsOnly(RetentionRuntimeAnnotated.class.getName());
         }
     }
