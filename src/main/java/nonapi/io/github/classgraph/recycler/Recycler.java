@@ -98,7 +98,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      *             If anything goes wrong when trying to allocate a new object instance.
      */
     public RecycleOnClose<T, E> acquireRecycleOnClose() throws E {
-        return new RecycleOnClose<T, E>(this, acquire());
+        return new RecycleOnClose<>(this, acquire());
     }
 
     /**

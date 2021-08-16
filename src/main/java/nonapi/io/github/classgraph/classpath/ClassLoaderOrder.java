@@ -73,7 +73,7 @@ public class ClassLoaderOrder {
 
     /** A map from {@link ClassLoader} to {@link ClassLoaderHandlerRegistryEntry}. */
     private final Map<ClassLoader, ClassLoaderHandlerRegistryEntry> classLoaderToClassLoaderHandlerRegistryEntry = //
-            new IdentityHashMap<ClassLoader, ClassLoaderHandlerRegistryEntry>();
+            new IdentityHashMap<>();
 
     // -------------------------------------------------------------------------------------------------------------
 

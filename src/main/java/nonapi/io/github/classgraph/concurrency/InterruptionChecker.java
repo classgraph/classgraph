@@ -42,7 +42,7 @@ public class InterruptionChecker {
 
     /** The first {@link ExecutionException} that was thrown. */
     private final AtomicReference<ExecutionException> thrownExecutionException = //
-            new AtomicReference<ExecutionException>();
+            new AtomicReference<>();
 
     /** Interrupt all threads that share this InterruptionChecker. */
     public void interrupt() {

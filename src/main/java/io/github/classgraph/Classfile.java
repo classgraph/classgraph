@@ -1058,8 +1058,8 @@ class Classfile {
         List<Integer> classNameCpIdxs = null;
         List<Integer> typeSignatureIdxs = null;
         if (scanSpec.enableInterClassDependencies) {
-            classNameCpIdxs = new ArrayList<Integer>();
-            typeSignatureIdxs = new ArrayList<Integer>();
+            classNameCpIdxs = new ArrayList<>();
+            typeSignatureIdxs = new ArrayList<>();
         }
 
         // Read size of constant pool
