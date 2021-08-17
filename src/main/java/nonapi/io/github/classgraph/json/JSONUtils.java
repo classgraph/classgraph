@@ -76,7 +76,7 @@ public final class JSONUtils {
             final char hexDigit1 = nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10);
             final int nibble0 = c & 0xf;
             final char hexDigit0 = nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10);
-            JSON_CHAR_REPLACEMENTS[c] = "\\u00" + hexDigit1 + hexDigit0;
+            JSON_CHAR_REPLACEMENTS[c] = "\\u00" + hexDigit1 + "" + hexDigit0;
         }
         JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
         JSON_CHAR_REPLACEMENTS['\\'] = "\\\\";
