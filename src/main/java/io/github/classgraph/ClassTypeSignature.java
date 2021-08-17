@@ -275,7 +275,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append("@throws(" + throwsSignature + ")");
+                buf.append("@throws(").append(throwsSignature).append(")");
             }
         }
         if (modifiers != 0) {
@@ -415,8 +415,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         if (parser.hasMore()) {
             throw new ParseException(parser, "Extra characters at end of type descriptor");
         }
-        final ClassTypeSignature classTypeSignature = new ClassTypeSignature(classInfo, typeParameters,
+        return new ClassTypeSignature(classInfo, typeParameters,
                 superclassSignature, superinterfaceSignatures, throwsSignatures);
-        return classTypeSignature;
     }
 }

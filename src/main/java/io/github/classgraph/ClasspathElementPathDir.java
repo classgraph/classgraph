@@ -526,7 +526,7 @@ class ClasspathElementPathDir extends ClasspathElement {
         }
         if (scanned.getAndSet(true)) {
             // Should not happen
-            throw new IllegalArgumentException("Already scanned classpath element " + toString());
+            throw new IllegalArgumentException("Already scanned classpath element " + this);
         }
 
         final LogNode subLog = log == null ? null

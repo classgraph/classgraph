@@ -107,9 +107,9 @@ public class AnnotationClassRef extends ScanResultObject {
         if (typeSignature instanceof BaseTypeSignature) {
             return ((BaseTypeSignature) typeSignature).getType();
         } else if (typeSignature instanceof ClassRefTypeSignature) {
-            return ((ClassRefTypeSignature) typeSignature).loadClass(ignoreExceptions);
+            return typeSignature.loadClass(ignoreExceptions);
         } else if (typeSignature instanceof ArrayTypeSignature) {
-            return ((ArrayTypeSignature) typeSignature).loadClass(ignoreExceptions);
+            return typeSignature.loadClass(ignoreExceptions);
         } else {
             throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
                     + " for ref type signature: " + typeDescriptorStr);
@@ -142,7 +142,7 @@ public class AnnotationClassRef extends ScanResultObject {
             } else if (typeSignature instanceof ClassRefTypeSignature) {
                 className = ((ClassRefTypeSignature) typeSignature).getFullyQualifiedClassName();
             } else if (typeSignature instanceof ArrayTypeSignature) {
-                className = ((ArrayTypeSignature) typeSignature).getClassName();
+                className = typeSignature.getClassName();
             } else {
                 throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
                         + " for ref type signature: " + typeDescriptorStr);
@@ -214,6 +214,7 @@ public class AnnotationClassRef extends ScanResultObject {
         //            }
         //        }
 
-        buf.append(/* prefix + */ getTypeSignature().toString(useSimpleNames) + ".class");
+        /* prefix + */
+        buf.append(getTypeSignature().toString(useSimpleNames)).append(".class");
     }
 }

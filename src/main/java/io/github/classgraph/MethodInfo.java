@@ -34,6 +34,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -777,9 +778,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     }
                     if (hasRepeatableAnnotation) {
                         final AnnotationInfoList aiList = new AnnotationInfoList(pai.length);
-                        for (final AnnotationInfo ai : pai) {
-                            aiList.add(ai);
-                        }
+                        aiList.addAll(Arrays.asList(pai));
                         aiList.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
                                 RelType.METHOD_PARAMETER_ANNOTATIONS,
                                 RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
@@ -1065,9 +1064,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     annotationsToExclude = null;
                 } else {
                     annotationsToExclude = new AnnotationInfoList(paramInfo.annotationInfo.length);
-                    for (int j = 0; j < paramInfo.annotationInfo.length; j++) {
-                        annotationsToExclude.add(paramInfo.annotationInfo[j]);
-                    }
+                    annotationsToExclude.addAll(Arrays.asList(paramInfo.annotationInfo));
                 }
                 paramTypeSignature.toStringInternal(useSimpleNames, annotationsToExclude, buf);
             }

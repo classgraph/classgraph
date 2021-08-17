@@ -774,7 +774,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             for (final ClassInfo dep : ci.getClassDependencies()) {
                 Set<ClassInfo> set = revMapSet.get(dep);
                 if (set == null) {
-                    revMapSet.put(dep, set = new HashSet<ClassInfo>());
+                    revMapSet.put(dep, set = new HashSet<>());
                 }
                 set.add(ci);
             }

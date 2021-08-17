@@ -34,6 +34,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.security.ProtectionDomain;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
@@ -98,9 +99,7 @@ public class ClassGraphClassLoader extends ClassLoader {
             final ClassLoader[] envClassLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
             if (envClassLoaderOrder != null) {
                 // Try environment classloaders
-                for (final ClassLoader envClassLoader : envClassLoaderOrder) {
-                    environmentClassLoaderDelegationOrder.add(envClassLoader);
-                }
+                environmentClassLoaderDelegationOrder.addAll(Arrays.asList(envClassLoaderOrder));
             }
         }
 
@@ -391,7 +390,7 @@ public class ClassGraphClassLoader extends ClassLoader {
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList == null || resourceList.isEmpty()) {
-            return Collections.<URL> emptyEnumeration();
+            return Collections.emptyEnumeration();
         } else {
             return new Enumeration<URL>() {
                 /** The idx. */

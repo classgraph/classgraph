@@ -118,15 +118,15 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         try {
             field = classRef.getDeclaredField(valueName);
         } catch (final ReflectiveOperationException | SecurityException e) {
-            throw new IllegalArgumentException("Could not find enum constant " + toString(), e);
+            throw new IllegalArgumentException("Could not find enum constant " + this, e);
         }
         if (!field.isEnumConstant()) {
-            throw new IllegalArgumentException("Field " + toString() + " is not an enum constant");
+            throw new IllegalArgumentException("Field " + this + " is not an enum constant");
         }
         try {
             return field.get(null);
         } catch (final ReflectiveOperationException | SecurityException e) {
-            throw new IllegalArgumentException("Field " + toString() + " is not accessible", e);
+            throw new IllegalArgumentException("Field " + this + " is not accessible", e);
         }
     }
 

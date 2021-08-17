@@ -170,7 +170,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     public ClassInfoList(final Collection<ClassInfo> classInfoCollection) {
         this(classInfoCollection instanceof Set //
                 ? (Set<ClassInfo>) classInfoCollection
-                : new HashSet<ClassInfo>(classInfoCollection), //
+                : new HashSet<>(classInfoCollection), //
                 /* directlyRelatedClasses = */ null, /* sortByName = */ true);
     }
 

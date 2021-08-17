@@ -456,7 +456,7 @@ public final class JSONSerializer {
         } else {
             // Serialize a numeric or Boolean type (Integer, Long, Short, Float, Double, Boolean, Byte) to string
             // (doesn't need quoting or escaping)
-            buf.append(jsonVal.toString());
+            buf.append(jsonVal);
         }
     }
 

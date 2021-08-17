@@ -39,7 +39,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public byte readByte() throws IOException;
+    byte readByte() throws IOException;
 
     /**
      * Read an unsigned byte at the current cursor position.
@@ -48,7 +48,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int readUnsignedByte() throws IOException;
+    int readUnsignedByte() throws IOException;
 
     /**
      * Read a short at the current cursor position.
@@ -57,7 +57,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public short readShort() throws IOException;
+    short readShort() throws IOException;
 
     /**
      * Read a unsigned short at the current cursor position.
@@ -66,7 +66,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int readUnsignedShort() throws IOException;
+    int readUnsignedShort() throws IOException;
 
     /**
      * Read a int at the current cursor position.
@@ -75,7 +75,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public int readInt() throws IOException;
+    int readInt() throws IOException;
 
     /**
      * Read a unsigned int at the current cursor position.
@@ -84,7 +84,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public long readUnsignedInt() throws IOException;
+    long readUnsignedInt() throws IOException;
 
     /**
      * Read a long at the current cursor position.
@@ -93,7 +93,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public long readLong() throws IOException;
+    long readLong() throws IOException;
 
     /**
      * Skip the given number of bytes.
@@ -103,7 +103,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If there was an exception while reading.
      */
-    public void skip(final int bytesToSkip) throws IOException;
+    void skip(final int bytesToSkip) throws IOException;
 
     /**
      * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
@@ -119,7 +119,7 @@ public interface SequentialReader {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    public String readString(final int numBytes, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
+    String readString(final int numBytes, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
             throws IOException;
 
     /**
@@ -131,5 +131,5 @@ public interface SequentialReader {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    public String readString(final int numBytes) throws IOException;
+    String readString(final int numBytes) throws IOException;
 }

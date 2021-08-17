@@ -244,7 +244,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
                     elementClassRef = elementTypeSignature.loadClass(ignoreExceptions);
                 } else {
                     // Fallback, if scanResult is not set
-                    final String elementTypeName = ((ClassRefTypeSignature) elementTypeSignature).getClassName();
+                    final String elementTypeName = elementTypeSignature.getClassName();
                     try {
                         elementClassRef = Class.forName(elementTypeName);
                     } catch (final Throwable t) {

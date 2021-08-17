@@ -154,10 +154,8 @@ public class ModulePathInfo {
                             argField.add(argParam);
                         } else {
                             // Split arg param into parts
-                            for (final String argPart : JarUtils.smartPathSplit(argParam, sepChar,
-                                    /* scanSpec = */ null)) {
-                                argField.add(argPart);
-                            }
+                            argField.addAll(Arrays.asList(JarUtils.smartPathSplit(argParam, sepChar,
+                                    /* scanSpec = */ null)));
                         }
                     }
                 }

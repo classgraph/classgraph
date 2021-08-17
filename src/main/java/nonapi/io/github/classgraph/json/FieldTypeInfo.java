@@ -98,7 +98,7 @@ class FieldTypeInfo {
         /** Character type. */
         CHARACTER,
         /** Class reference */
-        CLASS_REF;
+        CLASS_REF
     }
 
     /**

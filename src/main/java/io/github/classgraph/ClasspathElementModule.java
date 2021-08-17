@@ -54,10 +54,10 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
-/** A module classpath element. */
 /**
- * @author luke
+ * A module classpath element.
  *
+ * @author luke
  */
 class ClasspathElementModule extends ClasspathElement {
 
@@ -269,7 +269,7 @@ class ClasspathElementModule extends ClasspathElement {
         }
         if (scanned.getAndSet(true)) {
             // Should not happen
-            throw new IllegalArgumentException("Already scanned classpath element " + toString());
+            throw new IllegalArgumentException("Already scanned classpath element " + this);
         }
 
         final LogNode subLog = log == null ? null

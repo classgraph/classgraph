@@ -127,7 +127,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                                 sep = "!/";
                             }
                         }
-                        final String pathElement = base.toString() + sep + fieldVal.toString();
+                        final String pathElement = base + sep + fieldVal;
                         classpathOrderOut.addClasspathEntry(pathElement, classLoader, scanSpec, log);
                         break;
                     }

@@ -835,7 +835,7 @@ class Scanner implements Callable<ScanResult> {
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
             if (classpathElt instanceof ClasspathElementFileDir) {
                 // Separate out ClasspathElementDir elements from other types
-                classpathEltDirs.add(new SimpleEntry<>(((ClasspathElementFileDir) classpathElt).getFile().getPath(),
+                classpathEltDirs.add(new SimpleEntry<>(classpathElt.getFile().getPath(),
                         classpathElt));
 
             } else if (classpathElt instanceof ClasspathElementZip) {
@@ -940,7 +940,7 @@ class Scanner implements Callable<ScanResult> {
         if (scanSpec.enableClassInfo) {
             // Get accepted classfile order
             final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-            final Set<String> acceptedClassNamesFound = new HashSet<String>();
+            final Set<String> acceptedClassNamesFound = new HashSet<>();
             for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
                 // Get classfile scan order across all classpath elements
                 for (final Resource resource : classpathElement.acceptedClassfileResources) {

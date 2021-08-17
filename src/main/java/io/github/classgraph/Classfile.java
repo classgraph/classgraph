@@ -1003,15 +1003,15 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    static interface ClassTypeAnnotationDecorator {
+    interface ClassTypeAnnotationDecorator {
         void decorate(ClassTypeSignature classTypeSignature);
     }
 
-    static interface MethodTypeAnnotationDecorator {
+    interface MethodTypeAnnotationDecorator {
         void decorate(MethodTypeSignature methodTypeSignature);
     }
 
-    static interface TypeAnnotationDecorator {
+    interface TypeAnnotationDecorator {
         void decorate(TypeSignature typeSignature);
     }
 
@@ -1058,8 +1058,8 @@ class Classfile {
         List<Integer> classNameCpIdxs = null;
         List<Integer> typeSignatureIdxs = null;
         if (scanSpec.enableInterClassDependencies) {
-            classNameCpIdxs = new ArrayList<Integer>();
-            typeSignatureIdxs = new ArrayList<Integer>();
+            classNameCpIdxs = new ArrayList<>();
+            typeSignatureIdxs = new ArrayList<>();
         }
 
         // Read size of constant pool
