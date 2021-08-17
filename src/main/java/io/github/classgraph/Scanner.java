@@ -835,8 +835,7 @@ class Scanner implements Callable<ScanResult> {
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
             if (classpathElt instanceof ClasspathElementFileDir) {
                 // Separate out ClasspathElementDir elements from other types
-                classpathEltDirs.add(new SimpleEntry<>(classpathElt.getFile().getPath(),
-                        classpathElt));
+                classpathEltDirs.add(new SimpleEntry<>(classpathElt.getFile().getPath(), classpathElt));
 
             } else if (classpathElt instanceof ClasspathElementZip) {
                 // Separate out ClasspathElementZip elements from other types

@@ -161,7 +161,7 @@ public interface RandomAccessReader {
      *             If an I/O exception occurs.
      */
     String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
-                      final boolean stripLSemicolon) throws IOException;
+            final boolean stripLSemicolon) throws IOException;
 
     /**
      * Reads the "modified UTF8" format defined in the Java classfile spec.

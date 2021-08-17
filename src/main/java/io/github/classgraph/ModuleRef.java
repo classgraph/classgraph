@@ -93,8 +93,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor() should not return null");
         }
-        this.name = (String) ReflectionUtils.invokeMethod(this.descriptor, "name",
-                /* throwException = */ true);
+        this.name = (String) ReflectionUtils.invokeMethod(this.descriptor, "name", /* throwException = */ true);
         @SuppressWarnings("unchecked")
         final Set<String> modulePackages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
                 /* throwException = */ true);
