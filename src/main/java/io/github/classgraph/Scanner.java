@@ -749,6 +749,10 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.log(workUnit.classfileResource.getPath(), "Could not read classfile: " + e);
                 }
+            } catch (final Exception e) {
+                if (subLog != null) {
+                    subLog.log(workUnit.classfileResource.getPath(), "Could not read classfile", e);
+                }
             } finally {
                 if (subLog != null) {
                     subLog.addElapsedTime();
