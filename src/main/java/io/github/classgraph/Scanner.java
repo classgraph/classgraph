@@ -482,6 +482,13 @@ class Scanner implements Callable<ScanResult> {
                             return new ClasspathElementZip(classpathEntryPath, classpathEntry.classLoader,
                                     nestedJarHandler, scanSpec);
                         } else if (FileUtils.canReadAndIsDir(packageRootPath)) {
+                            if ("JrtFileSystem"
+                                    .equals(packageRootPath.getFileSystem().getClass().getSimpleName())) {
+                                // Ignore JrtFileSystem (#553) -- paths are of form:
+                                // /modules/java.base/module-info.class
+                                throw new IOException("Ignoring JrtFS filesystem path " + packageRootPath
+                                        + " (modules are scanned using the JPMS API)");
+                            }
                             // classpathEntryObj is a Path which points to a dir -- need to scan it recursively
                             return new ClasspathElementPathDir(classpathEntryPath, dirOrPathPackageRoot,
                                     classpathEntry.classLoader, nestedJarHandler, scanSpec);
