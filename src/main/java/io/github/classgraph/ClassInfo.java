@@ -1956,7 +1956,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
-        return annotationInfo;
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
     /**
