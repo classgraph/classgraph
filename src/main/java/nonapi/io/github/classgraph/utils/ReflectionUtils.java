@@ -30,11 +30,11 @@ package nonapi.io.github.classgraph.utils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.github.toolfactory.jvm.DefaultDriver;
 import io.github.toolfactory.jvm.Driver;
@@ -147,21 +147,28 @@ public final class ReflectionUtils {
         return getFieldVal(cls, null, fieldName, throwException);
     }
 
+    /** Iterator applied to each method of a class and its superclasses/interfaces. */
+    private static interface MethodIterator {
+        /** @return true to stop iterating, or false to continue iterating */
+        boolean foundMethod(Method m);
+    }
+
     /**
-     * Get order in which to attempt invoking methods.
+     * Iterate through all methods in the given class, ignoring visibility and bypassing security checks. Also
+     * iterates up through superclasses, to collect all methods of the class and its superclasses.
      *
      * @param cls
      *            the class
-     * @return the order in which method calls would be attempted by the JRE.
      */
-    private static List<Method> enumerateMethods(final Class<?> cls) {
+    private static void forAllMethods(final Class<?> cls, final MethodIterator methodIter) {
         // Iterate from class to its superclasses, and find initial interfaces to start traversing from
-        final List<Method> methodOrder = new ArrayList<>();
         final Set<Class<?>> visited = new HashSet<>();
         final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
         for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-            for (Method m : reflectionDriver.getDeclaredMethods(c)) {
-                methodOrder.add(m);
+            for (final Method m : reflectionDriver.getDeclaredMethods(c)) {
+                if (methodIter.foundMethod(m)) {
+                    return;
+                }
             }
             // Find interfaces and superinterfaces implemented by this class or its superclasses
             if (c.isInterface() && visited.add(c)) {
@@ -176,8 +183,10 @@ public final class ReflectionUtils {
         // Traverse through interfaces looking for default methods
         while (!interfaceQueue.isEmpty()) {
             final Class<?> iface = interfaceQueue.remove();
-            for (Method m : reflectionDriver.getDeclaredMethods(iface)) {
-                methodOrder.add(m);
+            for (final Method m : reflectionDriver.getDeclaredMethods(iface)) {
+                if (methodIter.foundMethod(m)) {
+                    return;
+                }
             }
             for (final Class<?> superIface : iface.getInterfaces()) {
                 if (visited.add(superIface)) {
@@ -185,7 +194,41 @@ public final class ReflectionUtils {
                 }
             }
         }
-        return methodOrder;
+    }
+
+    /**
+     * Find a method by name and parameter types in the given class, ignoring visibility and bypassing security
+     * checks.
+     *
+     * @param cls
+     *            the class
+     * @param methodName
+     *            the method name.
+     * @param paramTypes
+     *            the parameter types of the method.
+     * @return the {@link Method}
+     * @throws NoSuchMethodException
+     *             if the class does not contain a method of the given name
+     */
+    private static Method findMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
+            throws NoSuchMethodException {
+        final AtomicReference<Method> method = new AtomicReference<>();
+        forAllMethods(cls, new MethodIterator() {
+            @Override
+            public boolean foundMethod(final Method m) {
+                if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
+                    method.set(m);
+                    return true;
+                }
+                return false;
+            }
+        });
+        final Method m = method.get();
+        if (m != null) {
+            return m;
+        } else {
+            throw new NoSuchMethodException(methodName);
+        }
     }
 
     /**
@@ -202,7 +245,7 @@ public final class ReflectionUtils {
      *            If true, throw an exception if the field value could not be read.
      * @return The result of the method invocation.
      * @throws IllegalArgumentException
-     *             If the field value could not be read.
+     *             If the method could not be invoked.
      */
     public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException)
             throws IllegalArgumentException {
@@ -214,17 +257,13 @@ public final class ReflectionUtils {
             }
         }
         try {
-            for (Method m : enumerateMethods(obj.getClass())) {
-                if (m.getName().equals(methodName) && m.getParameterTypes().length == 0) {
-                    return reflectionDriver.invoke(m, obj, new Object[0]);
-                }
-            }
+            return reflectionDriver.invoke(findMethod(obj.getClass(), methodName), obj, new Object[0]);
         } catch (Exception e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }
+            return null;
         }
-        return null;
     }
 
     /**
@@ -257,18 +296,14 @@ public final class ReflectionUtils {
             }
         }
         try {
-            for (Method m : enumerateMethods(obj.getClass())) {
-                if (m.getName().equals(methodName) && m.getParameterTypes().length == 1
-                        && m.getParameterTypes()[0] == argType) {
-                    return reflectionDriver.invoke(m, obj, new Object[] { param });
-                }
-            }
+            return reflectionDriver.invoke(findMethod(obj.getClass(), methodName, argType), obj,
+                    new Object[] { param });
         } catch (Exception e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }
+            return null;
         }
-        return null;
     }
 
     /**
@@ -297,17 +332,13 @@ public final class ReflectionUtils {
             }
         }
         try {
-            for (Method m : enumerateMethods(cls)) {
-                if (m.getName().equals(methodName) && m.getParameterTypes().length == 0) {
-                    return reflectionDriver.invoke(m, null, new Object[0]);
-                }
-            }
+            return reflectionDriver.invoke(findMethod(cls, methodName), null, new Object[0]);
         } catch (Exception e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }
+            return null;
         }
-        return null;
     }
 
     /**
@@ -340,18 +371,13 @@ public final class ReflectionUtils {
             }
         }
         try {
-            for (Method m : enumerateMethods(cls)) {
-                if (m.getName().equals(methodName) && m.getParameterTypes().length == 1
-                        && m.getParameterTypes()[0] == argType) {
-                    return reflectionDriver.invoke(m, null, new Object[] { param });
-                }
-            }
+            return reflectionDriver.invoke(findMethod(cls, methodName, argType), null, new Object[] { param });
         } catch (Exception e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }
+            return null;
         }
-        return null;
     }
 
     /**
