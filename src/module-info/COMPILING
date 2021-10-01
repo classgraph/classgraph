@@ -1,3 +1,4 @@
 # This is compiled separately from ClassGraph, so that ClassGraph can be built on JDK 8 in JDK 7 mode
 
-javac --release 9 io.github.classgraph/module-info.java io.github.classgraph/io/github/classgraph/Placeholder.java
+# Replace 6.2.2 with the latest cached version of jvm-driver
+javac -p ~/.m2/repository/io/github/toolfactory/jvm-driver/6.2.2/jvm-driver-6.2.2.jar --release 9 io.github.classgraph/module-info.java io.github.classgraph/io/github/classgraph/Placeholder.java

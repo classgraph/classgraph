@@ -36,6 +36,8 @@
 // Compile this in JDK 9 compatibility mode
 module io.github.classgraph {
     exports io.github.classgraph;
+    
+    // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements
     // VersionFinder requires java.xml
     requires java.xml;
     // FileUtils requires jdk.unsupported (for usage of Unsafe)
@@ -44,6 +46,6 @@ module io.github.classgraph {
     requires java.management;
     // LogNode requires java.logging
     requires java.logging;
-
-    // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements
+    // ReflectionUtils requires jvm.driver
+    requires jvm.driver;
 }
