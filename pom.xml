@@ -69,7 +69,7 @@
         <dependency>
             <groupId>io.github.toolfactory</groupId>
             <artifactId>jvm-driver</artifactId>
-            <version>5.1.3</version>
+            <version>6.2.2</version>
         </dependency>
         
         <!-- Test dependencies: -->
