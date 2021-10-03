@@ -64,8 +64,7 @@ public final class ReflectionUtils {
     /** Reflection driver */
     private static abstract class ReflectionDriver {
         /**
-         * Finds a class by name (e.g. {@code "com.xyz.MyClass"}) using the current classloader or the system
-         * classloader.
+         * Find a class by name.
          *
          * @param className
          *            the class name
@@ -114,8 +113,7 @@ public final class ReflectionUtils {
         abstract Object getField(final Object object, final Field field) throws Exception;
 
         /**
-         * Get the value of a static field, ignoring visibility and bypassing security checks, boxing the value if
-         * necessary.
+         * Get the value of a static field, boxing the value if necessary.
          *
          * @param field
          *            the static field
@@ -124,7 +122,7 @@ public final class ReflectionUtils {
         abstract Object getStaticField(final Field field) throws Exception;
 
         /**
-         * Invoke a non-static {@link Object}-return-type method, boxing the result if necessary.
+         * Invoke a non-static method, boxing the result if necessary.
          *
          * @param object
          *            the object instance to invoke the method on
@@ -138,7 +136,7 @@ public final class ReflectionUtils {
                 throws Exception;
 
         /**
-         * Invoke a static {@link Object}-return-type method, boxing the result if necessary.
+         * Invoke a static method, boxing the result if necessary.
          *
          * @param method
          *            the static method
@@ -164,8 +162,8 @@ public final class ReflectionUtils {
         }
 
         /**
-         * Iterate through all methods in the given class, ignoring visibility and bypassing security checks. Also
-         * iterates up through superclasses, to collect all methods of the class and its superclasses.
+         * Iterate through all methods in the given class. Also iterates up through superclasses and interfaces, to
+         * collect all methods of the class and its superclasses, and any default methods defined in interfaces.
          *
          * @param cls
          *            the class
@@ -207,8 +205,7 @@ public final class ReflectionUtils {
         }
 
         /**
-         * Find a method by name and parameter types in the given class, ignoring visibility and bypassing security
-         * checks.
+         * Find a method by name and parameter types in the given class.
          *
          * @param cls
          *            the class
@@ -245,7 +242,7 @@ public final class ReflectionUtils {
         }
 
         /**
-         * Find a field by name in the given class, ignoring visibility and bypassing security checks.
+         * Find a field by name in the given class.
          *
          * @param cls
          *            the class
