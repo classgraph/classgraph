@@ -102,7 +102,7 @@ public final class ReflectionUtils {
         abstract Field[] getDeclaredFields(Class<?> cls) throws Exception;
 
         /**
-         * Get the value of an object field, boxing the value if necessary.
+         * Get the value of a non-static field, boxing the value if necessary.
          *
          * @param object
          *            the object instance to get the field value from
@@ -120,6 +120,28 @@ public final class ReflectionUtils {
          * @return the static field
          */
         abstract Object getStaticField(final Field field) throws Exception;
+
+        /**
+         * Set the value of a non-static field, unboxing the value if necessary.
+         *
+         * @param object
+         *            the object instance to get the field value from
+         * @param field
+         *            the non-static field
+         * @param value
+         *            the value to set
+         */
+        abstract void setField(final Object object, final Field field, Object value) throws Exception;
+
+        /**
+         * Set the value of a static field, unboxing the value if necessary.
+         *
+         * @param field
+         *            the static field
+         * @param the
+         *            value to set
+         */
+        abstract void setStaticField(final Field field, Object value) throws Exception;
 
         /**
          * Invoke a non-static method, boxing the result if necessary.
@@ -325,6 +347,18 @@ public final class ReflectionUtils {
         }
 
         @Override
+        void setField(final Object object, final Field field, Object value) throws Exception {
+            makeAccessible(field);
+            field.set(object, value);
+        }
+
+        @Override
+        void setStaticField(final Field field, Object value) throws Exception {
+            makeAccessible(field);
+            field.set(null, value);
+        }
+
+        @Override
         Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
             makeAccessible(method);
             return method.invoke(object, args);
@@ -350,6 +384,8 @@ public final class ReflectionUtils {
         private final Method getDeclaredFields;
         private final Method getField;
         private final Method getStaticField;
+        private final Method setField;
+        private final Method setStaticField;
         private final Method invokeMethod;
         private final Method invokeStaticMethod;
 
@@ -363,6 +399,8 @@ public final class ReflectionUtils {
             getDeclaredFields = drv.findMethod(narcissusClass, "getDeclaredFields", Class.class);
             getField = drv.findMethod(narcissusClass, "getField", Object.class, Field.class);
             getStaticField = drv.findMethod(narcissusClass, "getStaticField", Field.class);
+            setField = drv.findMethod(narcissusClass, "setField", Object.class, Field.class, Object.class);
+            setStaticField = drv.findMethod(narcissusClass, "getStaticField", Field.class, Object.class);
             invokeMethod = drv.findMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
                     Object[].class);
             invokeStaticMethod = drv.findMethod(narcissusClass, "invokeStaticMethod", Method.class, Object[].class);
@@ -402,6 +440,16 @@ public final class ReflectionUtils {
         @Override
         Object getStaticField(final Field field) throws Exception {
             return getStaticField.invoke(null, field);
+        }
+
+        @Override
+        void setField(final Object object, final Field field, Object value) throws Exception {
+            setField.invoke(null, object, field, value);
+        }
+
+        @Override
+        void setStaticField(final Field field, Object value) throws Exception {
+            setStaticField.invoke(null, field, value);
         }
 
         @Override
