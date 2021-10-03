@@ -148,10 +148,19 @@ public final class ReflectionUtils {
          */
         abstract Object invokeStaticMethod(final Method method, final Object... args) throws Exception;
 
+        /**
+         * Make a field or method accessible.
+         * 
+         * @param accessibleObject
+         *            the field or method.
+         * @return true if successful.
+         */
+        abstract boolean makeAccessible(final AccessibleObject accessibleObject);
+
         /** Iterator applied to each method of a class and its superclasses/interfaces. */
         private static interface MethodIterator {
             /** @return true to stop iterating, or false to continue iterating */
-            boolean foundMethod(Method m);
+            boolean foundMethod(Method m) throws Exception;
         }
 
         /**
@@ -167,8 +176,13 @@ public final class ReflectionUtils {
             final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
                 for (final Method m : getDeclaredMethods(c)) {
-                    if (methodIter.foundMethod(m)) {
-                        return;
+                    try {
+                        if (methodIter.foundMethod(m)) {
+                            return;
+                        }
+                    } catch (IllegalAccessException | SecurityException e) {
+                        // Fall through to keep looking for method in superclass, if subclass throws an access
+                        // exception
                     }
                 }
                 // Find interfaces and superinterfaces implemented by this class or its superclasses
@@ -185,8 +199,13 @@ public final class ReflectionUtils {
             while (!interfaceQueue.isEmpty()) {
                 final Class<?> iface = interfaceQueue.remove();
                 for (final Method m : getDeclaredMethods(iface)) {
-                    if (methodIter.foundMethod(m)) {
-                        return;
+                    try {
+                        if (methodIter.foundMethod(m)) {
+                            return;
+                        }
+                    } catch (IllegalAccessException | SecurityException e) {
+                        // Fall through to keep looking for method in superclass, if subclass throws an access
+                        // exception
                     }
                 }
                 for (final Class<?> superIface : iface.getInterfaces()) {
@@ -217,7 +236,10 @@ public final class ReflectionUtils {
             forAllMethods(cls, new MethodIterator() {
                 @Override
                 public boolean foundMethod(final Method m) {
-                    if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
+                    if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())
+                    // If method is not accessible, fall through and try superclass method of same
+                    // name and paramTypes
+                            && makeAccessible(m)) {
                         method.set(m);
                         return true;
                     }
@@ -259,7 +281,7 @@ public final class ReflectionUtils {
             return cls.getDeclaredFields();
         }
 
-        private void makeAccessible(final AccessibleObject obj) throws Exception {
+        boolean makeAccessible(final AccessibleObject obj) {
             if (!obj.isAccessible()) {
                 try {
                     AccessController.doPrivileged(new PrivilegedAction<Void>() {
@@ -269,10 +291,15 @@ public final class ReflectionUtils {
                             return null;
                         }
                     });
-                } catch (final Exception e) {
-                    obj.setAccessible(true);
+                } catch (final Throwable e) {
+                    try {
+                        obj.setAccessible(true);
+                    } catch (final Throwable e2) {
+                        return false;
+                    }
                 }
             }
+            return obj.isAccessible();
         }
 
         @Override
@@ -312,6 +339,7 @@ public final class ReflectionUtils {
         private final Method getDeclaredConstructors;
         private final Method getDeclaredFields;
         private final Method getField;
+        private final Method getStaticField;
         private final Method invokeMethod;
         private final Method invokeStaticMethod;
 
@@ -319,14 +347,20 @@ public final class ReflectionUtils {
             // Access Narcissus via reflection, so that there is no runtime dependency
             final StandardReflectionDriver drv = new StandardReflectionDriver();
             narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
-            getDeclaredMethods = drv.findMethod(narcissusClass, "getDeclaredMethods");
             findClass = drv.findMethod(narcissusClass, "findClass", String.class);
-            getDeclaredConstructors = drv.findMethod(narcissusClass, "getDeclaredConstructors");
-            getDeclaredFields = drv.findMethod(narcissusClass, "getDeclaredFields");
+            getDeclaredMethods = drv.findMethod(narcissusClass, "getDeclaredMethods", Class.class);
+            getDeclaredConstructors = drv.findMethod(narcissusClass, "getDeclaredConstructors", Class.class);
+            getDeclaredFields = drv.findMethod(narcissusClass, "getDeclaredFields", Class.class);
             getField = drv.findMethod(narcissusClass, "getField", Object.class, Field.class);
+            getStaticField = drv.findMethod(narcissusClass, "getStaticField", Field.class);
             invokeMethod = drv.findMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
                     Object[].class);
             invokeStaticMethod = drv.findMethod(narcissusClass, "invokeStaticMethod", Method.class, Object[].class);
+        }
+
+        @Override
+        boolean makeAccessible(AccessibleObject accessibleObject) {
+            return true;
         }
 
         @Override
@@ -336,38 +370,38 @@ public final class ReflectionUtils {
 
         @Override
         Method[] getDeclaredMethods(final Class<?> cls) throws Exception {
-            return (Method[]) getDeclaredMethods.invoke(cls);
+            return (Method[]) getDeclaredMethods.invoke(null, cls);
         }
 
         @SuppressWarnings("unchecked")
         @Override
         <T> Constructor<T>[] getDeclaredConstructors(final Class<T> cls) throws Exception {
-            return (Constructor<T>[]) getDeclaredConstructors.invoke(cls);
+            return (Constructor<T>[]) getDeclaredConstructors.invoke(null, cls);
         }
 
         @Override
         Field[] getDeclaredFields(final Class<?> cls) throws Exception {
-            return (Field[]) getDeclaredFields.invoke(cls);
+            return (Field[]) getDeclaredFields.invoke(null, cls);
         }
 
         @Override
         Object getField(final Object object, final Field field) throws Exception {
-            return getField.invoke(object, field);
+            return getField.invoke(null, object, field);
         }
 
         @Override
         Object getStaticField(final Field field) throws Exception {
-            return findMethod(narcissusClass, "getStaticField", Field.class).invoke(field);
+            return getStaticField.invoke(null, field);
         }
 
         @Override
         Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
-            return invokeMethod.invoke(object, method, args);
+            return invokeMethod.invoke(null, object, method, args);
         }
 
         @Override
         Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
-            return invokeStaticMethod.invoke(method, args);
+            return invokeStaticMethod.invoke(null, method, args);
         }
     }
 
