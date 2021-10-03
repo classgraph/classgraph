@@ -128,7 +128,7 @@ Narcissus is a collaboration between:
 * Luke Hutchison (@lukehutch), author of ClassGraph
 * Roberto Gentili (@burningwave), author of [Burningwave Core](https://github.com/burningwave/core) and [toolfactory/jvm-driver](https://github.com/toolfactory/jvm-driver), which is an alternative to Narcissus
 
-JDK 16's strong encapsulation is just the first step of trying to lock down Java's internals, so further restrictions are possible (e.g. it is likely that `setAccessible(true)` will fail in future JDK releases, even within a module, and probably the JNI API will be locked down soon, making Narcissus require a commandline flag to work). Therefore, **please convince your upstream runtime environment to expose the full classpath from their classloader using a public method or field, otherwise ClassGraph may stop working for your runtime environment in the future.**
+JDK 16's strong encapsulation is just the first step of trying to lock down Java's internals, so further restrictions are possible (e.g. it is likely that `setAccessible(true)` will fail in future JDK releases, even within a module, and probably the JNI API will be locked down soon, making Narcissus require a commandline flag to work). Therefore, **please convince your upstream runtime environment maintainers to expose the full classpath from their classloader using a public method or field, otherwise ClassGraph may stop working for your runtime environment in the future.**
 
 ### Pre-built JARs
 
