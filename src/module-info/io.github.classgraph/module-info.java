@@ -46,6 +46,7 @@ module io.github.classgraph {
     requires java.management;
     // LogNode requires java.logging
     requires java.logging;
-    // ReflectionUtils requires jvm.driver
-    requires jvm.driver;
+    
+    // ReflectionUtils may use io.github.toolfactory.narcissus if it is available
+    requires static io.github.toolfactory.narcissus;
 }

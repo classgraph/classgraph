@@ -28,24 +28,348 @@
  */
 package nonapi.io.github.classgraph.utils;
 
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.github.toolfactory.jvm.DefaultDriver;
-import io.github.toolfactory.jvm.Driver;
+import io.github.classgraph.ClassGraph;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public final class ReflectionUtils {
+    /** The reflection driver to use. */
+    private static ReflectionDriver reflectionDriver;
+
+    static {
+        if (ClassGraph.CIRCUMVENT_ENCAPSULATION) {
+            try {
+                reflectionDriver = new NarcissusReflectionDriver();
+            } catch (final Throwable t) {
+                System.err.println("Could not load Narcissus reflection driver: " + t);
+                // Fall back to standard reflection driver
+            }
+        }
+        if (reflectionDriver == null) {
+            reflectionDriver = new StandardReflectionDriver();
+        }
+    }
+
+    /** Reflection driver */
+    private static abstract class ReflectionDriver {
+        /**
+         * Finds a class by name (e.g. {@code "com.xyz.MyClass"}) using the current classloader or the system
+         * classloader.
+         *
+         * @param className
+         *            the class name
+         * @return the class reference
+         */
+        abstract Class<?> findClass(final String className) throws Exception;
+
+        /**
+         * Get declared methods for class.
+         *
+         * @param cls
+         *            the class
+         * @return the declared methods
+         */
+        abstract Method[] getDeclaredMethods(Class<?> cls) throws Exception;
+
+        /**
+         * Get declared constructors for class.
+         *
+         * @param <T>
+         *            the generic type
+         * @param cls
+         *            the class
+         * @return the declared constructors
+         */
+        abstract <T> Constructor<T>[] getDeclaredConstructors(Class<T> cls) throws Exception;
+
+        /**
+         * Get declared fields for class.
+         *
+         * @param cls
+         *            the class
+         * @return the declared fields
+         */
+        abstract Field[] getDeclaredFields(Class<?> cls) throws Exception;
+
+        /**
+         * Get the value of an object field, boxing the value if necessary.
+         *
+         * @param object
+         *            the object instance to get the field value from
+         * @param field
+         *            the non-static field
+         * @return the value of the field
+         */
+        abstract Object getField(final Object object, final Field field) throws Exception;
+
+        /**
+         * Get the value of a static field, ignoring visibility and bypassing security checks, boxing the value if
+         * necessary.
+         *
+         * @param field
+         *            the static field
+         * @return the static field
+         */
+        abstract Object getStaticField(final Field field) throws Exception;
+
+        /**
+         * Invoke a non-static {@link Object}-return-type method, boxing the result if necessary.
+         *
+         * @param object
+         *            the object instance to invoke the method on
+         * @param method
+         *            the non-static method
+         * @param args
+         *            the method arguments (or {@code new Object[0]} if there are no args)
+         * @return the return value (possibly a boxed value)
+         */
+        abstract Object invokeMethod(final Object object, final Method method, final Object... args)
+                throws Exception;
+
+        /**
+         * Invoke a static {@link Object}-return-type method, boxing the result if necessary.
+         *
+         * @param method
+         *            the static method
+         * @param args
+         *            the method arguments (or {@code new Object[0]} if there are no args)
+         * @return the return value (possibly a boxed value)
+         */
+        abstract Object invokeStaticMethod(final Method method, final Object... args) throws Exception;
+
+        /** Iterator applied to each method of a class and its superclasses/interfaces. */
+        private static interface MethodIterator {
+            /** @return true to stop iterating, or false to continue iterating */
+            boolean foundMethod(Method m);
+        }
+
+        /**
+         * Iterate through all methods in the given class, ignoring visibility and bypassing security checks. Also
+         * iterates up through superclasses, to collect all methods of the class and its superclasses.
+         *
+         * @param cls
+         *            the class
+         */
+        void forAllMethods(final Class<?> cls, final MethodIterator methodIter) throws Exception {
+            // Iterate from class to its superclasses, and find initial interfaces to start traversing from
+            final Set<Class<?>> visited = new HashSet<>();
+            final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
+            for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+                for (final Method m : getDeclaredMethods(c)) {
+                    if (methodIter.foundMethod(m)) {
+                        return;
+                    }
+                }
+                // Find interfaces and superinterfaces implemented by this class or its superclasses
+                if (c.isInterface() && visited.add(c)) {
+                    interfaceQueue.add(c);
+                }
+                for (final Class<?> iface : c.getInterfaces()) {
+                    if (visited.add(iface)) {
+                        interfaceQueue.add(iface);
+                    }
+                }
+            }
+            // Traverse through interfaces looking for default methods
+            while (!interfaceQueue.isEmpty()) {
+                final Class<?> iface = interfaceQueue.remove();
+                for (final Method m : getDeclaredMethods(iface)) {
+                    if (methodIter.foundMethod(m)) {
+                        return;
+                    }
+                }
+                for (final Class<?> superIface : iface.getInterfaces()) {
+                    if (visited.add(superIface)) {
+                        interfaceQueue.add(superIface);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Find a method by name and parameter types in the given class, ignoring visibility and bypassing security
+         * checks.
+         *
+         * @param cls
+         *            the class
+         * @param methodName
+         *            the method name.
+         * @param paramTypes
+         *            the parameter types of the method.
+         * @return the {@link Method}
+         * @throws NoSuchMethodException
+         *             if the class does not contain a method of the given name
+         */
+        Method findMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
+                throws Exception {
+            final AtomicReference<Method> method = new AtomicReference<>();
+            forAllMethods(cls, new MethodIterator() {
+                @Override
+                public boolean foundMethod(final Method m) {
+                    if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
+                        method.set(m);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+            final Method m = method.get();
+            if (m != null) {
+                return m;
+            } else {
+                throw new NoSuchMethodException(methodName);
+            }
+        }
+    }
+
     /**
-     * Use jvm-driver to bypass Java visibility restrictions, security manager limitations, and strong
-     * encapsulation.
+     * Standard reflection driver (uses {@link AccessibleObject#setAccessible(boolean)} to access non-public fields
+     * if necessary).
      */
-    private static Driver reflectionDriver = new DefaultDriver();
+    private static class StandardReflectionDriver extends ReflectionDriver {
+        @Override
+        Class<?> findClass(final String className) throws Exception {
+            return Class.forName(className);
+        }
+
+        @Override
+        Method[] getDeclaredMethods(final Class<?> cls) throws Exception {
+            return cls.getDeclaredMethods();
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        <T> Constructor<T>[] getDeclaredConstructors(final Class<T> cls) throws Exception {
+            return (Constructor<T>[]) cls.getDeclaredConstructors();
+        }
+
+        @Override
+        Field[] getDeclaredFields(final Class<?> cls) throws Exception {
+            return cls.getDeclaredFields();
+        }
+
+        private void makeAccessible(final AccessibleObject obj) throws Exception {
+            if (!obj.isAccessible()) {
+                try {
+                    AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                        @Override
+                        public Void run() {
+                            obj.setAccessible(true);
+                            return null;
+                        }
+                    });
+                } catch (final Exception e) {
+                    obj.setAccessible(true);
+                }
+            }
+        }
+
+        @Override
+        Object getField(final Object object, final Field field) throws Exception {
+            makeAccessible(field);
+            return field.get(object);
+        }
+
+        @Override
+        Object getStaticField(final Field field) throws Exception {
+            makeAccessible(field);
+            return field.get(null);
+        }
+
+        @Override
+        Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
+            makeAccessible(method);
+            return method.invoke(object, args);
+        }
+
+        @Override
+        Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
+            makeAccessible(method);
+            return method.invoke(null, args);
+        }
+    }
+
+    /**
+     * Narcissus reflection driver (uses the <a href="https://github.com/toolfactory/narcissus">Narcissus</a>
+     * library, if it is available, which allows access to non-public fields and methods, circumventing
+     * encapsulation and visibility controls via JNI).
+     */
+    private static class NarcissusReflectionDriver extends ReflectionDriver {
+        private final Class<?> narcissusClass;
+        private final Method getDeclaredMethods;
+        private final Method findClass;
+        private final Method getDeclaredConstructors;
+        private final Method getDeclaredFields;
+        private final Method getField;
+        private final Method invokeMethod;
+        private final Method invokeStaticMethod;
+
+        NarcissusReflectionDriver() throws Exception {
+            // Access Narcissus via reflection, so that there is no runtime dependency
+            final StandardReflectionDriver drv = new StandardReflectionDriver();
+            narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
+            getDeclaredMethods = drv.findMethod(narcissusClass, "getDeclaredMethods");
+            findClass = drv.findMethod(narcissusClass, "findClass", String.class);
+            getDeclaredConstructors = drv.findMethod(narcissusClass, "getDeclaredConstructors");
+            getDeclaredFields = drv.findMethod(narcissusClass, "getDeclaredFields");
+            getField = drv.findMethod(narcissusClass, "getField", Object.class, Field.class);
+            invokeMethod = drv.findMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
+                    Object[].class);
+            invokeStaticMethod = drv.findMethod(narcissusClass, "invokeStaticMethod", Method.class, Object[].class);
+        }
+
+        @Override
+        Class<?> findClass(final String className) throws Exception {
+            return (Class<?>) findClass.invoke(null, className);
+        }
+
+        @Override
+        Method[] getDeclaredMethods(final Class<?> cls) throws Exception {
+            return (Method[]) getDeclaredMethods.invoke(cls);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        <T> Constructor<T>[] getDeclaredConstructors(final Class<T> cls) throws Exception {
+            return (Constructor<T>[]) getDeclaredConstructors.invoke(cls);
+        }
+
+        @Override
+        Field[] getDeclaredFields(final Class<?> cls) throws Exception {
+            return (Field[]) getDeclaredFields.invoke(cls);
+        }
+
+        @Override
+        Object getField(final Object object, final Field field) throws Exception {
+            return getField.invoke(object, field);
+        }
+
+        @Override
+        Object getStaticField(final Field field) throws Exception {
+            return findMethod(narcissusClass, "getStaticField", Field.class).invoke(field);
+        }
+
+        @Override
+        Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
+            return invokeMethod.invoke(object, method, args);
+        }
+
+        @Override
+        Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
+            return invokeStaticMethod.invoke(method, args);
+        }
+    }
 
     /**
      * Constructor.
@@ -76,13 +400,13 @@ public final class ReflectionUtils {
             final boolean throwException) throws IllegalArgumentException {
         try {
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-                for (Field field : reflectionDriver.getDeclaredFields(c)) {
+                for (final Field field : reflectionDriver.getDeclaredFields(c)) {
                     if (field.getName().equals(fieldName)) {
-                        return reflectionDriver.getFieldValue(obj, field);
+                        return reflectionDriver.getField(obj, field);
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException(
                         "Can't read " + (obj == null ? "static " : "") + " field \"" + fieldName + "\": " + e);
@@ -147,90 +471,6 @@ public final class ReflectionUtils {
         return getFieldVal(cls, null, fieldName, throwException);
     }
 
-    /** Iterator applied to each method of a class and its superclasses/interfaces. */
-    private static interface MethodIterator {
-        /** @return true to stop iterating, or false to continue iterating */
-        boolean foundMethod(Method m);
-    }
-
-    /**
-     * Iterate through all methods in the given class, ignoring visibility and bypassing security checks. Also
-     * iterates up through superclasses, to collect all methods of the class and its superclasses.
-     *
-     * @param cls
-     *            the class
-     */
-    private static void forAllMethods(final Class<?> cls, final MethodIterator methodIter) {
-        // Iterate from class to its superclasses, and find initial interfaces to start traversing from
-        final Set<Class<?>> visited = new HashSet<>();
-        final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
-        for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-            for (final Method m : reflectionDriver.getDeclaredMethods(c)) {
-                if (methodIter.foundMethod(m)) {
-                    return;
-                }
-            }
-            // Find interfaces and superinterfaces implemented by this class or its superclasses
-            if (c.isInterface() && visited.add(c)) {
-                interfaceQueue.add(c);
-            }
-            for (final Class<?> iface : c.getInterfaces()) {
-                if (visited.add(iface)) {
-                    interfaceQueue.add(iface);
-                }
-            }
-        }
-        // Traverse through interfaces looking for default methods
-        while (!interfaceQueue.isEmpty()) {
-            final Class<?> iface = interfaceQueue.remove();
-            for (final Method m : reflectionDriver.getDeclaredMethods(iface)) {
-                if (methodIter.foundMethod(m)) {
-                    return;
-                }
-            }
-            for (final Class<?> superIface : iface.getInterfaces()) {
-                if (visited.add(superIface)) {
-                    interfaceQueue.add(superIface);
-                }
-            }
-        }
-    }
-
-    /**
-     * Find a method by name and parameter types in the given class, ignoring visibility and bypassing security
-     * checks.
-     *
-     * @param cls
-     *            the class
-     * @param methodName
-     *            the method name.
-     * @param paramTypes
-     *            the parameter types of the method.
-     * @return the {@link Method}
-     * @throws NoSuchMethodException
-     *             if the class does not contain a method of the given name
-     */
-    private static Method findMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
-            throws NoSuchMethodException {
-        final AtomicReference<Method> method = new AtomicReference<>();
-        forAllMethods(cls, new MethodIterator() {
-            @Override
-            public boolean foundMethod(final Method m) {
-                if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
-                    method.set(m);
-                    return true;
-                }
-                return false;
-            }
-        });
-        final Method m = method.get();
-        if (m != null) {
-            return m;
-        } else {
-            throw new NoSuchMethodException(methodName);
-        }
-    }
-
     /**
      * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
      * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
@@ -257,8 +497,9 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invoke(findMethod(obj.getClass(), methodName), obj, new Object[0]);
-        } catch (Exception e) {
+            return reflectionDriver.invokeMethod(obj, reflectionDriver.findMethod(obj.getClass(), methodName),
+                    new Object[0]);
+        } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }
@@ -296,9 +537,9 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invoke(findMethod(obj.getClass(), methodName, argType), obj,
-                    new Object[] { param });
-        } catch (Exception e) {
+            return reflectionDriver.invokeMethod(obj,
+                    reflectionDriver.findMethod(obj.getClass(), methodName, argType), param);
+        } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }
@@ -332,8 +573,8 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invoke(findMethod(cls, methodName), null, new Object[0]);
-        } catch (Exception e) {
+            return reflectionDriver.invokeStaticMethod(reflectionDriver.findMethod(cls, methodName));
+        } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }
@@ -371,8 +612,9 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invoke(findMethod(cls, methodName, argType), null, new Object[] { param });
-        } catch (Exception e) {
+            return reflectionDriver.invokeStaticMethod(reflectionDriver.findMethod(cls, methodName, argType),
+                    param);
+        } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
             }

@@ -80,7 +80,24 @@ public class ClassGraph {
                             Runtime.getRuntime().availableProcessors() * 1.25) //
     );
 
-    /** If non-null, log while scanning. */
+    /**
+     * If you are running on JDK 16+, the JDK enforces strong encapsulation, and ClassGraph may be unable to read
+     * the classpath from your classloader if the classloader does not make the classpath available via a public
+     * method or field.
+     * 
+     * <a>To enable a workaround to this, set this static field to to true before interacting with ClassGraph in any
+     * other way, and also include the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on
+     * the classpath or module path.
+     * 
+     * <a>Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a
+     * native code library, and is currently only compiled for Linux 32/64 bit, Windows 32/64 bit, and Mac OS X 64
+     * bit.
+     */
+    public static final boolean CIRCUMVENT_ENCAPSULATION = false;
+
+    /**
+     * If non-null, log while scanning.
+     */
     private LogNode topLevelLog;
 
     // -------------------------------------------------------------------------------------------------------------
