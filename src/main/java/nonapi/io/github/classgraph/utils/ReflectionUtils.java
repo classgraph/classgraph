@@ -288,8 +288,9 @@ public final class ReflectionUtils {
                         return false;
                     }
                 }
+                return obj.isAccessible();
             }
-            return obj.isAccessible();
+            return true;
         }
 
         @Override
