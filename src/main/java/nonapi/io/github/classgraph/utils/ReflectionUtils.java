@@ -218,7 +218,7 @@ public final class ReflectionUtils {
          *            the parameter types of the method.
          * @return the {@link Method}
          * @throws NoSuchMethodException
-         *             if the class does not contain a method of the given name
+         *             if the class does not contain a method of the given name and parameter types
          */
         Method findMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
                 throws Exception {
@@ -242,6 +242,28 @@ public final class ReflectionUtils {
             } else {
                 throw new NoSuchMethodException(methodName);
             }
+        }
+
+        /**
+         * Find a field by name in the given class, ignoring visibility and bypassing security checks.
+         *
+         * @param cls
+         *            the class
+         * @param fieldName
+         *            the field name.
+         * @return the {@link Field}
+         * @throws NoSuchFieldException
+         *             if the class does not contain a field of the given name
+         */
+        Field findField(final Class<?> cls, final String fieldName) throws Exception {
+            for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+                for (final Field field : getDeclaredFields(c)) {
+                    if (field.getName().equals(fieldName)) {
+                        return field;
+                    }
+                }
+            }
+            throw new NoSuchFieldException(fieldName);
         }
     }
 
@@ -408,43 +430,6 @@ public final class ReflectionUtils {
      * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
      * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
      * throwException is true, then throws IllegalArgumentException.
-     *
-     * @param cls
-     *            The class.
-     * @param obj
-     *            The object, or null to get the value of a static field.
-     * @param fieldName
-     *            The field name.
-     * @param throwException
-     *            If true, throw an exception if the field value could not be read.
-     * @return The field value.
-     * @throws IllegalArgumentException
-     *             If the field value could not be read.
-     */
-    private static Object getFieldVal(final Class<?> cls, final Object obj, final String fieldName,
-            final boolean throwException) throws IllegalArgumentException {
-        try {
-            for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-                for (final Field field : reflectionDriver.getDeclaredFields(c)) {
-                    if (field.getName().equals(fieldName)) {
-                        return reflectionDriver.getField(obj, field);
-                    }
-                }
-            }
-        } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException(
-                        "Can't read " + (obj == null ? "static " : "") + " field \"" + fieldName + "\": " + e);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
-     * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
-     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
-     * throwException is true, then throws IllegalArgumentException.
      * 
      * @param obj
      *            The object.
@@ -465,7 +450,15 @@ public final class ReflectionUtils {
                 return null;
             }
         }
-        return getFieldVal(obj.getClass(), obj, fieldName, throwException);
+        try {
+            return reflectionDriver.getField(obj, reflectionDriver.findField(obj.getClass(), fieldName));
+        } catch (final Throwable e) {
+            if (throwException) {
+                throw new IllegalArgumentException(
+                        "Can't read field " + obj.getClass().getName() + "." + fieldName + ": " + e);
+            }
+        }
+        return null;
     }
 
     /**
@@ -493,7 +486,15 @@ public final class ReflectionUtils {
                 return null;
             }
         }
-        return getFieldVal(cls, null, fieldName, throwException);
+        try {
+            return reflectionDriver.getStaticField(reflectionDriver.findField(cls, fieldName));
+        } catch (final Throwable e) {
+            if (throwException) {
+                throw new IllegalArgumentException(
+                        "Can't read static field " + cls.getName() + "." + fieldName + ": " + e);
+            }
+        }
+        return null;
     }
 
     /**
@@ -601,7 +602,8 @@ public final class ReflectionUtils {
             return reflectionDriver.invokeStaticMethod(reflectionDriver.findMethod(cls, methodName));
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
+                throw new IllegalArgumentException(
+                        "Static method \"" + methodName + "\" could not be invoked: " + e);
             }
             return null;
         }
@@ -641,7 +643,8 @@ public final class ReflectionUtils {
                     param);
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
+                throw new IllegalArgumentException(
+                        "Static method \"" + methodName + "\" could not be invoked: " + e);
             }
             return null;
         }
