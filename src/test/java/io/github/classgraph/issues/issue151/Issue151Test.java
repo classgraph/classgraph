@@ -62,9 +62,9 @@ public class Issue151Test {
                     .getMethodInfo("method") //
                     .get(0);
             assertThat(methodInfo.toString()) //
-                    .isEqualTo("public void method(@" + ParamAnnotation0.class.getName() + " java.lang.String, @"
-                            + ParamAnnotation1.class.getName() + " @" + ParamAnnotation2.class.getName()
-                            + " java.lang.String)");
+                    .isEqualTo("public void method(@" + ParamAnnotation0.class.getName()
+                            + " final java.lang.String annotatedValue0, @" + ParamAnnotation1.class.getName() + " @"
+                            + ParamAnnotation2.class.getName() + " final java.lang.String annotatedValue1)");
         }
     }
 

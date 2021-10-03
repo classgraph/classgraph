@@ -129,10 +129,11 @@ public class MethodInfoTest {
                         }
                     }).getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
-                                    + " public final int publicMethodWithArgs"
-                                    + "(java.lang.String, char, long, float[], byte[][], "
-                                    + "java.util.List<java.lang.Float>, " + X.class.getName().replace('$', '.')
-                                    + "[][][], java.lang.String[]...)",
+                                    + " public final int publicMethodWithArgs(final java.lang.String str, "
+                                    + "final char c, final long j, final float[] f, final byte[][] b, "
+                                    + "final java.util.List<java.lang.Float> l, "
+                                    + "final io.github.classgraph.test.methodinfo.MethodInfoTest.X[][][] xArray, "
+                                    + "final java.lang.String[]... varargs)",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
@@ -170,10 +171,11 @@ public class MethodInfoTest {
                         }
                     }).getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
-                                    + " public final int publicMethodWithArgs"
-                                    + "(java.lang.String, char, long, float[], byte[][], "
-                                    + "java.util.List<java.lang.Float>, " + X.class.getName().replace('$', '.')
-                                    + "[][][], java.lang.String[]...)",
+                                    + " public final int publicMethodWithArgs(final java.lang.String str, "
+                                    + "final char c, final long j, final float[] f, final byte[][] b, "
+                                    + "final java.util.List<java.lang.Float> l, "
+                                    + "final io.github.classgraph.test.methodinfo.MethodInfoTest.X[][][] xArray, "
+                                    + "final java.lang.String[]... varargs)",
                             "private static java.lang.String[] privateMethod()",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",

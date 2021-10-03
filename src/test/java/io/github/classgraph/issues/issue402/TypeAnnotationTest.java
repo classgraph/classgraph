@@ -187,10 +187,10 @@ class TypeAnnotationTest {
             assertThat(shortNames(classInfo.getFieldInfo("xyz4"))).isEqualTo("List<X3.Y3.@A Z3> xyz4");
 
             assertThat(shortNames(classInfo.getMethodInfo("t").get(0)))
-                    .isEqualTo("<@A T extends @B U> @D U t(@E T)");
+                    .isEqualTo("<@A T extends @B U> @D U t(final @E T t)");
 
             assertThat(classInfo.getMethodInfo("t").get(0).toStringWithSimpleNames())
-                    .isEqualTo("<@A T extends @B U> @D U t(@E T)");
+                    .isEqualTo("<@A T extends @B U> @D U t(final @E T t)");
 
             final ClassInfo personClassInfo = scanResult.getClassInfo(Person.class.getName());
 
