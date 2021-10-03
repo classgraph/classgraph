@@ -104,6 +104,32 @@ Replace `X.Y.Z` below with the latest [release number](https://github.com/classg
 
 See instructions for [use as a module](https://github.com/classgraph/classgraph/wiki#use-as-a-module).
 
+### Running on JDK 16+
+
+The JDK team decided to start enforcing strong encapsulation in JDK 16+. That will means that by default, ClassGraph will not be able to find the classpath of your project, if all of the following are true:
+
+* You are running on JDK 16+
+* You are using a legacy classloader (rather than the module system)
+* The legacy classloader does not expose its classpath via a public field or method
+* The classloader is loaded in a different module from your user code
+
+**If your ClassGraph code works in JDK versions less than 16 but breaks in JDK 16+ (meaning that ClassGraph can no longer find your classes), you have probably run into this problem.**
+
+You can circumvent this restriction by:
+
+* Upgrading ClassGraph to at least version 4.8.120
+* Adding the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
+* Setting `ClassGraph.CIRCUMVENT_ENCAPSULATION = true;` before interacting with ClassGraph in any other way (this will load the Narcissus library as ClassGraph's reflection driver).
+
+ClassGraph uses Narcissus to silently circumvent all of Java's security mechanisms (visibility/access checks, security manager restrictions, and strong encapsulation) by using the JNI API, in order to read the classpath from private fields and methods of classloaders.
+
+Narcissus is a collaboration between:
+
+* Luke Hutchison (@lukehutch), author of ClassGraph
+* Roberto Gentili (@burningwave), author of [Burningwave Core](https://github.com/burningwave/core) and [toolfactory/jvm-driver](https://github.com/toolfactory/jvm-driver), which is an alternative to Narcissus
+
+JDK 16's strong encapsulation is just the first step of trying to lock down Java's internals, so further restrictions are possible (e.g. it is likely that `setAccessible(true)` will fail in future JDK releases, even within a module, and probably the JNI API will be locked down soon, making Narcissus require a commandline flag to work). Therefore, **please convince your upstream runtime environment to expose the full classpath from their classloader using a public method or field, otherwise ClassGraph may stop working for your runtime environment in the future.**
+
 ### Pre-built JARs
 
 You can get pre-built JARs (usable on JRE 7 or newer) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~io.github.classgraph).
