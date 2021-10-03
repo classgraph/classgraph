@@ -176,13 +176,8 @@ public final class ReflectionUtils {
             final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
                 for (final Method m : getDeclaredMethods(c)) {
-                    try {
-                        if (methodIter.foundMethod(m)) {
-                            return;
-                        }
-                    } catch (IllegalAccessException | SecurityException e) {
-                        // Fall through to keep looking for method in superclass, if subclass throws an access
-                        // exception
+                    if (methodIter.foundMethod(m)) {
+                        return;
                     }
                 }
                 // Find interfaces and superinterfaces implemented by this class or its superclasses
@@ -199,13 +194,8 @@ public final class ReflectionUtils {
             while (!interfaceQueue.isEmpty()) {
                 final Class<?> iface = interfaceQueue.remove();
                 for (final Method m : getDeclaredMethods(iface)) {
-                    try {
-                        if (methodIter.foundMethod(m)) {
-                            return;
-                        }
-                    } catch (IllegalAccessException | SecurityException e) {
-                        // Fall through to keep looking for method in superclass, if subclass throws an access
-                        // exception
+                    if (methodIter.foundMethod(m)) {
+                        return;
                     }
                 }
                 for (final Class<?> superIface : iface.getInterfaces()) {
