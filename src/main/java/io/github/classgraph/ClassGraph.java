@@ -85,13 +85,14 @@ public class ClassGraph {
      * the classpath from your classloader if the classloader does not make the classpath available via a public
      * method or field.
      * 
-     * <p>To enable a workaround to this, set this static field to to true before interacting with ClassGraph in any
+     * <p>
+     * To enable a workaround to this, set this static field to to true before interacting with ClassGraph in any
      * other way, and also include the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on
      * the classpath or module path.
      * 
-     * <p>Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a
-     * native code library, and is currently only compiled for Linux 32/64 bit, Windows 32/64 bit, and Mac OS X 64
-     * bit.
+     * <p>
+     * Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a native
+     * code library, and is currently only compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
      */
     public static final boolean CIRCUMVENT_ENCAPSULATION = false;
 
