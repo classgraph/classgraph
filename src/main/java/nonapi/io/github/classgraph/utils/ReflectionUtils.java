@@ -34,9 +34,13 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -113,15 +117,6 @@ public final class ReflectionUtils {
         abstract Object getField(final Object object, final Field field) throws Exception;
 
         /**
-         * Get the value of a static field, boxing the value if necessary.
-         *
-         * @param field
-         *            the static field
-         * @return the static field
-         */
-        abstract Object getStaticField(final Field field) throws Exception;
-
-        /**
          * Set the value of a non-static field, unboxing the value if necessary.
          *
          * @param object
@@ -132,6 +127,15 @@ public final class ReflectionUtils {
          *            the value to set
          */
         abstract void setField(final Object object, final Field field, Object value) throws Exception;
+
+        /**
+         * Get the value of a static field, boxing the value if necessary.
+         *
+         * @param field
+         *            the static field
+         * @return the static field
+         */
+        abstract Object getStaticField(final Field field) throws Exception;
 
         /**
          * Set the value of a static field, unboxing the value if necessary.
@@ -264,6 +268,26 @@ public final class ReflectionUtils {
         }
 
         /**
+         * Enumerate all methods in the given class, ignoring visibility and bypassing security checks. Also
+         * iterates up through superclasses, to collect all methods of the class and its superclasses.
+         *
+         * @param cls
+         *            the class
+         * @return a list of {@link Method} objects representing all methods declared by the class or a superclass.
+         */
+        List<Method> enumerateMethods(final Class<?> cls) throws Exception {
+            final List<Method> methodOrder = new ArrayList<>();
+            forAllMethods(cls, new MethodIterator() {
+                @Override
+                public boolean foundMethod(final Method m) {
+                    methodOrder.add(m);
+                    return false;
+                }
+            });
+            return methodOrder;
+        }
+
+        /**
          * Find a field by name in the given class.
          *
          * @param cls
@@ -312,6 +336,7 @@ public final class ReflectionUtils {
             return cls.getDeclaredFields();
         }
 
+        @Override
         boolean makeAccessible(final AccessibleObject obj) {
             if (!obj.isAccessible()) {
                 try {
@@ -341,19 +366,19 @@ public final class ReflectionUtils {
         }
 
         @Override
+        void setField(final Object object, final Field field, final Object value) throws Exception {
+            makeAccessible(field);
+            field.set(object, value);
+        }
+
+        @Override
         Object getStaticField(final Field field) throws Exception {
             makeAccessible(field);
             return field.get(null);
         }
 
         @Override
-        void setField(final Object object, final Field field, Object value) throws Exception {
-            makeAccessible(field);
-            field.set(object, value);
-        }
-
-        @Override
-        void setStaticField(final Field field, Object value) throws Exception {
+        void setStaticField(final Field field, final Object value) throws Exception {
             makeAccessible(field);
             field.set(null, value);
         }
@@ -377,40 +402,67 @@ public final class ReflectionUtils {
      * encapsulation and visibility controls via JNI).
      */
     private static class NarcissusReflectionDriver extends ReflectionDriver {
+        private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
         private final Class<?> narcissusClass;
         private final Method getDeclaredMethods;
         private final Method findClass;
         private final Method getDeclaredConstructors;
         private final Method getDeclaredFields;
         private final Method getField;
-        private final Method getStaticField;
         private final Method setField;
+        private final Method getStaticField;
         private final Method setStaticField;
         private final Method invokeMethod;
         private final Method invokeStaticMethod;
 
+        private Method findIndexedMethod(final String methodName, final Class<?>... paramTypes)
+                throws NoSuchMethodException {
+            final List<Method> methods = methodNameToMethods.get(methodName);
+            if (methods != null) {
+                for (final Method method : methods) {
+                    if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
+                        return method;
+                    }
+                }
+            }
+            throw new NoSuchMethodException(methodName);
+        }
+
+        private void indexMethods(final List<Method> methods) {
+            // Index Narcissus methods by name
+            for (final Method method : methods) {
+                List<Method> methodsForName = methodNameToMethods.get(method.getName());
+                if (methodsForName == null) {
+                    methodNameToMethods.put(method.getName(), methodsForName = new ArrayList<>());
+                }
+                methodsForName.add(method);
+            }
+        }
+
         NarcissusReflectionDriver() throws Exception {
-            // Access Narcissus via reflection, so that there is no runtime dependency
+            // Load Narcissus class via reflection, so that there is no runtime dependency
             final StandardReflectionDriver drv = new StandardReflectionDriver();
             narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
             if (!(Boolean) drv.getStaticField(drv.findField(narcissusClass, "libraryLoaded"))) {
                 throw new IllegalArgumentException("Could not load Narcissus native library");
             }
-            findClass = drv.findMethod(narcissusClass, "findClass", String.class);
-            getDeclaredMethods = drv.findMethod(narcissusClass, "getDeclaredMethods", Class.class);
-            getDeclaredConstructors = drv.findMethod(narcissusClass, "getDeclaredConstructors", Class.class);
-            getDeclaredFields = drv.findMethod(narcissusClass, "getDeclaredFields", Class.class);
-            getField = drv.findMethod(narcissusClass, "getField", Object.class, Field.class);
-            getStaticField = drv.findMethod(narcissusClass, "getStaticField", Field.class);
-            setField = drv.findMethod(narcissusClass, "setField", Object.class, Field.class, Object.class);
-            setStaticField = drv.findMethod(narcissusClass, "getStaticField", Field.class, Object.class);
-            invokeMethod = drv.findMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
-                    Object[].class);
-            invokeStaticMethod = drv.findMethod(narcissusClass, "invokeStaticMethod", Method.class, Object[].class);
+
+            // Look up needed methods
+            indexMethods(drv.enumerateMethods(narcissusClass));
+            findClass = findIndexedMethod("findClass", String.class);
+            getDeclaredMethods = findIndexedMethod("getDeclaredMethods", Class.class);
+            getDeclaredConstructors = findIndexedMethod("getDeclaredConstructors", Class.class);
+            getDeclaredFields = findIndexedMethod("getDeclaredFields", Class.class);
+            getField = findIndexedMethod("getField", Object.class, Field.class);
+            setField = findIndexedMethod("setField", Object.class, Field.class, Object.class);
+            getStaticField = findIndexedMethod("getStaticField", Field.class);
+            setStaticField = findIndexedMethod("setStaticField", Field.class, Object.class);
+            invokeMethod = findIndexedMethod("invokeMethod", Object.class, Method.class, Object[].class);
+            invokeStaticMethod = findIndexedMethod("invokeStaticMethod", Method.class, Object[].class);
         }
 
         @Override
-        boolean makeAccessible(AccessibleObject accessibleObject) {
+        boolean makeAccessible(final AccessibleObject accessibleObject) {
             return true;
         }
 
@@ -441,17 +493,17 @@ public final class ReflectionUtils {
         }
 
         @Override
+        void setField(final Object object, final Field field, final Object value) throws Exception {
+            setField.invoke(null, object, field, value);
+        }
+
+        @Override
         Object getStaticField(final Field field) throws Exception {
             return getStaticField.invoke(null, field);
         }
 
         @Override
-        void setField(final Object object, final Field field, Object value) throws Exception {
-            setField.invoke(null, object, field, value);
-        }
-
-        @Override
-        void setStaticField(final Field field, Object value) throws Exception {
+        void setStaticField(final Field field, final Object value) throws Exception {
             setStaticField.invoke(null, field, value);
         }
 
