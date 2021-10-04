@@ -393,6 +393,9 @@ public final class ReflectionUtils {
             // Access Narcissus via reflection, so that there is no runtime dependency
             final StandardReflectionDriver drv = new StandardReflectionDriver();
             narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
+            if (!(Boolean) drv.getStaticField(drv.findField(narcissusClass, "libraryLoaded"))) {
+                throw new IllegalArgumentException("Could not load Narcissus native library");
+            }
             findClass = drv.findMethod(narcissusClass, "findClass", String.class);
             getDeclaredMethods = drv.findMethod(narcissusClass, "getDeclaredMethods", Class.class);
             getDeclaredConstructors = drv.findMethod(narcissusClass, "getDeclaredConstructors", Class.class);
