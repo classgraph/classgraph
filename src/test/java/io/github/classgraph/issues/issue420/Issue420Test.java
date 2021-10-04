@@ -50,6 +50,9 @@ import io.github.classgraph.ScanResult;
  * Issue193Test.
  */
 public class Issue420Test {
+    static  {
+        ClassGraph.CIRCUMVENT_ENCAPSULATION = true;
+    }
     /**
      * Test accessing a jar over Jimfs.
      *
