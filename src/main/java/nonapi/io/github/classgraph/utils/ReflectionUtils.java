@@ -623,8 +623,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findMethod(obj.getClass(), methodName),
-                    new Object[0]);
+            return reflectionDriver.invokeMethod(obj, reflectionDriver.findMethod(obj.getClass(), methodName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
