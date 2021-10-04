@@ -759,8 +759,8 @@ public final class ReflectionUtils {
      */
     public static Class<?> classForNameOrNull(final String className) {
         try {
-            return Class.forName(className);
-        } catch (final ReflectiveOperationException | LinkageError e) {
+            return reflectionDriver.findClass(className);
+        } catch (final Throwable e) {
             return null;
         }
     }
