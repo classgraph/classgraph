@@ -43,6 +43,7 @@ public class ClassLoaderHandlerRegistry {
     /**
      * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
      */
+    @SuppressWarnings("null")
     public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = //
             Collections.unmodifiableList(Arrays.asList(
                     // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
