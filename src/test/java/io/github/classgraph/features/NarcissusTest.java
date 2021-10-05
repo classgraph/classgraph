@@ -16,6 +16,7 @@ class NarcissusTest {
     @Test
     void annotationEquality() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = true;
+        ReflectionUtils.loadReflectionDriver();
         assertThat(ReflectionUtils.getStaticFieldVal(ReflectionUtils.class, "reflectionDriver", true).getClass()
                 .getSimpleName()).isEqualTo("NarcissusReflectionDriver");
         try (ScanResult scanResult = new ClassGraph().acceptPackages(NarcissusTest.class.getPackage().getName())
@@ -23,6 +24,7 @@ class NarcissusTest {
             assertThat(scanResult.getAllClasses().getNames()).isNotEmpty();
         } finally {
             ClassGraph.CIRCUMVENT_ENCAPSULATION = false;
+            ReflectionUtils.loadReflectionDriver();
         }
     }
 }

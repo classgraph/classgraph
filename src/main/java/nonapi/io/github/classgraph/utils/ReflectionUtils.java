@@ -52,6 +52,11 @@ public final class ReflectionUtils {
     private static ReflectionDriver reflectionDriver;
 
     static {
+        loadReflectionDriver();
+    }
+
+    /** Call this if you change the value of {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}. */
+    public static void loadReflectionDriver() {
         if (ClassGraph.CIRCUMVENT_ENCAPSULATION) {
             try {
                 reflectionDriver = new NarcissusReflectionDriver();
