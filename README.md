@@ -117,7 +117,7 @@ The JDK team decided to start enforcing strong encapsulation in JDK 16+. That wi
 
 You can circumvent this restriction by:
 
-* Upgrading ClassGraph to at least version 4.8.120
+* Upgrading ClassGraph to at least version 4.8.123
 * Adding the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
 * Setting `ClassGraph.CIRCUMVENT_ENCAPSULATION = true;` before interacting with ClassGraph in any other way (this will load the Narcissus library as ClassGraph's reflection driver).
 
