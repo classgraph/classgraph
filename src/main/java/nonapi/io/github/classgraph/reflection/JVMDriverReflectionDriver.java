@@ -63,7 +63,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         //        if (driverInstance == null) {
         //            throw new IllegalArgumentException("Could not load jvm-driver library");
         //        }
-        Class<?> driverClass = drv.findClass("io.github.toolfactory.jvm.DefaultDriver");
+        final Class<?> driverClass = drv.findClass("io.github.toolfactory.jvm.DefaultDriver");
         driver = driverClass.newInstance();
 
         // Look up needed methods
@@ -77,35 +77,35 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         setAccessibleMethod = findDriverMethod("setAccessible", AccessibleObject.class, boolean.class);
         try {
             // JDK 8
-            Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
+            final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
                     ClassLoader.class);
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             classFinder = new ClassFinder() {
                 @Override
-                public Class<?> findClass(String className) throws Exception {
+                public Class<?> findClass(final String className) throws Exception {
                     return (Class<?>) forName0_method.invoke(null, className, true, classLoader);
                 }
             };
-        } catch (Throwable t1) {
+        } catch (final Throwable t1) {
             // JDK 16
             try {
-                Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
+                final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
                         ClassLoader.class, Class.class);
-                ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 classFinder = new ClassFinder() {
                     @Override
-                    public Class<?> findClass(String className) throws Exception {
+                    public Class<?> findClass(final String className) throws Exception {
                         return (Class<?>) forName0_method.invoke(null, className, true, classLoader,
                                 JVMDriverReflectionDriver.class);
                     }
                 };
-            } catch (Throwable t2) {
+            } catch (final Throwable t2) {
                 // Fallback if the above fails: just use Class.forName. 
                 // This won't find private non-exported classes in other modules.
-                Method forName_method = findMethod(Class.class, "forName", String.class);
+                final Method forName_method = findMethod(Class.class, "forName", String.class);
                 classFinder = new ClassFinder() {
                     @Override
-                    public Class<?> findClass(String className) throws Exception {
+                    public Class<?> findClass(final String className) throws Exception {
                         return (Class<?>) forName_method.invoke(null, className);
                     }
                 };
@@ -117,7 +117,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
     boolean makeAccessible(final AccessibleObject accessibleObject) {
         try {
             setAccessibleMethod.invoke(driver, accessibleObject, true);
-        } catch (Throwable t) {
+        } catch (final Throwable t) {
             return false;
         }
         return true;
