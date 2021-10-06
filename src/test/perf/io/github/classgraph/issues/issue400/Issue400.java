@@ -57,15 +57,19 @@ public class Issue400 {
         }
         final long ramAtEnd = usedRam();
 
-        assertThat(ramAtStart)
-                .withFailMessage("Memory usage while using ScanResult should stay within reasonable range: "
-                        + "went from %s to %s MB.", ramAtStart / MB, ramAfterScan / MB)
-                .isCloseTo(ramAfterScan, offset(MEMORY_TOLERANCE));
+        if (ramAtStart < ramAfterScan) {
+            assertThat(ramAtStart)
+                    .withFailMessage("Memory usage while using ScanResult should stay within reasonable range: "
+                            + "went from %s to %s MB.", ramAtStart / MB, ramAfterScan / MB)
+                    .isCloseTo(ramAfterScan, offset(MEMORY_TOLERANCE));
+        }
 
-        assertThat(ramAtStart)
-                .withFailMessage("Memory usage after cleaning up should stay within reasonable range: "
-                        + "went from %s to %s MB.", ramAtStart / MB, ramAtEnd / MB)
-                .isCloseTo(ramAtEnd, offset(MEMORY_TOLERANCE));
+        if (ramAtStart < ramAtEnd) {
+            assertThat(ramAtStart)
+                    .withFailMessage("Memory usage after cleaning up should stay within reasonable range: "
+                            + "went from %s to %s MB.", ramAtStart / MB, ramAtEnd / MB)
+                    .isCloseTo(ramAtEnd, offset(MEMORY_TOLERANCE));
+        }
     }
 
     /**
