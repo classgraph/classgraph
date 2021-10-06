@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.AccessibleObject;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -81,20 +82,49 @@ public class ClassGraph {
     );
 
     /**
+     * Method to use to attempt to circumvent encapsulation in JDK 16+, in order to get access to a classloader's
+     * private classpath.
+     */
+    public enum CircumventEncapsulationMethod {
+        /**
+         * Use the reflection API and {@link AccessibleObject#setAccessible(boolean)} to try to gain access to
+         * private classpath fields or methods in order to determine the classpath.
+         */
+        NONE,
+
+        /**
+         * Use the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library to try to gain access to
+         * private classloader fields or methods in order to determine the classpath.
+         */
+        NARCISSUS,
+
+        /**
+         * Use the <a href="https://github.com/toolfactory/jvm-driver">JVM-Driver</a> library to try to gain access
+         * to private classloader fields or methods in order to determine the classpath.
+         */
+        JVM_DRIVER;
+    }
+
+    /**
      * If you are running on JDK 16+, the JDK enforces strong encapsulation, and ClassGraph may be unable to read
      * the classpath from your classloader if the classloader does not make the classpath available via a public
      * method or field.
      * 
      * <p>
-     * To enable a workaround to this, set this static field to to true before interacting with ClassGraph in any
-     * other way, and also include the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on
-     * the classpath or module path.
+     * To enable a workaround to this, set this static field to {@link CircumventEncapsulationMethod#NARCISSUS} or
+     * {@link CircumventEncapsulationMethod#JVM_DRIVER} before interacting with ClassGraph in any other way, and
+     * also include the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> or
+     * <a href="https://github.com/toolfactory/jvm-driver">JVM-Driver</a> library respectively on the classpath or
+     * module path.
      * 
      * <p>
      * Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a native
      * code library, and is currently only compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
+     * 
+     * <p>
+     * JVM-Driver uses a pure JVM solution to try to circumvent encapsulation and security controls.
      */
-    public static boolean CIRCUMVENT_ENCAPSULATION = false;
+    public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.JVM_DRIVER;
 
     /**
      * If non-null, log while scanning.

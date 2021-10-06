@@ -32,11 +32,6 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Narcissus reflection driver (uses the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library,
@@ -44,7 +39,6 @@ import java.util.Map;
  * visibility controls via JNI).
  */
 class NarcissusReflectionDriver extends ReflectionDriver {
-    private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
     private final Class<?> narcissusClass;
     private final Method getDeclaredMethods;
     private final Method findClass;
@@ -57,30 +51,6 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     private final Method invokeMethod;
     private final Method invokeStaticMethod;
 
-    private Method findIndexedMethod(final String methodName, final Class<?>... paramTypes)
-            throws NoSuchMethodException {
-        final List<Method> methods = methodNameToMethods.get(methodName);
-        if (methods != null) {
-            for (final Method method : methods) {
-                if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
-                    return method;
-                }
-            }
-        }
-        throw new NoSuchMethodException(methodName);
-    }
-
-    private void indexMethods(final List<Method> methods) {
-        // Index Narcissus methods by name
-        for (final Method method : methods) {
-            List<Method> methodsForName = methodNameToMethods.get(method.getName());
-            if (methodsForName == null) {
-                methodNameToMethods.put(method.getName(), methodsForName = new ArrayList<>());
-            }
-            methodsForName.add(method);
-        }
-    }
-
     NarcissusReflectionDriver() throws Exception {
         // Load Narcissus class via reflection, so that there is no runtime dependency
         final StandardReflectionDriver drv = new StandardReflectionDriver();
@@ -90,17 +60,17 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         }
 
         // Look up needed methods
-        indexMethods(drv.enumerateMethods(narcissusClass));
-        findClass = findIndexedMethod("findClass", String.class);
-        getDeclaredMethods = findIndexedMethod("getDeclaredMethods", Class.class);
-        getDeclaredConstructors = findIndexedMethod("getDeclaredConstructors", Class.class);
-        getDeclaredFields = findIndexedMethod("getDeclaredFields", Class.class);
-        getField = findIndexedMethod("getField", Object.class, Field.class);
-        setField = findIndexedMethod("setField", Object.class, Field.class, Object.class);
-        getStaticField = findIndexedMethod("getStaticField", Field.class);
-        setStaticField = findIndexedMethod("setStaticField", Field.class, Object.class);
-        invokeMethod = findIndexedMethod("invokeMethod", Object.class, Method.class, Object[].class);
-        invokeStaticMethod = findIndexedMethod("invokeStaticMethod", Method.class, Object[].class);
+        indexMethods(drv.enumerateDriverMethods(narcissusClass));
+        findClass = findDriverMethod("findClass", String.class);
+        getDeclaredMethods = findDriverMethod("getDeclaredMethods", Class.class);
+        getDeclaredConstructors = findDriverMethod("getDeclaredConstructors", Class.class);
+        getDeclaredFields = findDriverMethod("getDeclaredFields", Class.class);
+        getField = findDriverMethod("getField", Object.class, Field.class);
+        setField = findDriverMethod("setField", Object.class, Field.class, Object.class);
+        getStaticField = findDriverMethod("getStaticField", Field.class);
+        setStaticField = findDriverMethod("setStaticField", Field.class, Object.class);
+        invokeMethod = findDriverMethod("invokeMethod", Object.class, Method.class, Object[].class);
+        invokeStaticMethod = findDriverMethod("invokeStaticMethod", Method.class, Object[].class);
     }
 
     @Override

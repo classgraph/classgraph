@@ -34,14 +34,18 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Reflection driver */
 abstract class ReflectionDriver {
+    private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
+
     /**
      * Find a class by name.
      *
@@ -162,6 +166,47 @@ abstract class ReflectionDriver {
     }
 
     /**
+     * Find an indexed method.
+     * 
+     * @param methodName
+     *            The method name.
+     * @param paramTypes
+     *            The parameter types.
+     * @return The method, if found.
+     * @throws NoSuchMethodException
+     *             If not found.
+     */
+    protected Method findDriverMethod(final String methodName, final Class<?>... paramTypes)
+            throws NoSuchMethodException {
+        final List<Method> methods = methodNameToMethods.get(methodName);
+        if (methods != null) {
+            for (final Method method : methods) {
+                if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
+                    return method;
+                }
+            }
+        }
+        throw new NoSuchMethodException(methodName);
+    }
+
+    /**
+     * Index a list of methods.
+     * 
+     * @param methods
+     *            The methods to index.
+     */
+    protected void indexMethods(final List<Method> methods) {
+        // Index Narcissus methods by name
+        for (final Method method : methods) {
+            List<Method> methodsForName = methodNameToMethods.get(method.getName());
+            if (methodsForName == null) {
+                methodNameToMethods.put(method.getName(), methodsForName = new ArrayList<>());
+            }
+            methodsForName.add(method);
+        }
+    }
+
+    /**
      * Iterate through all methods in the given class. Also iterates up through superclasses and interfaces, to
      * collect all methods of the class and its superclasses, and any default methods defined in interfaces.
      *
@@ -248,7 +293,7 @@ abstract class ReflectionDriver {
      *            the class
      * @return a list of {@link Method} objects representing all methods declared by the class or a superclass.
      */
-    List<Method> enumerateMethods(final Class<?> cls) throws Exception {
+    List<Method> enumerateDriverMethods(final Class<?> cls) throws Exception {
         final List<Method> methodOrder = new ArrayList<>();
         forAllMethods(cls, new MethodIterator() {
             @Override

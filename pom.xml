@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.classgraph</groupId>
@@ -70,6 +73,12 @@
             <groupId>io.github.toolfactory</groupId>
             <artifactId>narcissus</artifactId>
             <version>1.0.6</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.github.toolfactory</groupId>
+            <artifactId>jvm-driver</artifactId>
+            <version>7.1.4</version>
             <optional>true</optional>
         </dependency>
 
@@ -276,7 +285,8 @@
                             </goals>
                             <configuration>
                                 <rules>
-                                    <checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+                                    <checkSignatureRule
+                                        implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
                                         <signature>
                                             <groupId>org.codehaus.mojo.signature</groupId>
                                             <artifactId>java17</artifactId>
@@ -355,8 +365,13 @@
                             </goals>
                             <configuration>
                                 <target>
-                                    <jar update="true" destfile="${project.build.directory}/${project.build.finalName}.jar">
-                                        <zipfileset prefix="META-INF/versions/9" dir="${project.basedir}/src/module-info/io.github.classgraph" includes="module-info.class" />
+                                    <jar
+                                        update="true"
+                                        destfile="${project.build.directory}/${project.build.finalName}.jar">
+                                        <zipfileset
+                                            prefix="META-INF/versions/9"
+                                            dir="${project.basedir}/src/module-info/io.github.classgraph"
+                                            includes="module-info.class" />
                                     </jar>
                                 </target>
                             </configuration>
