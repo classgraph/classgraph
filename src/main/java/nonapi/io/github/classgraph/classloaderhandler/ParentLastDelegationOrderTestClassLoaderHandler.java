@@ -30,9 +30,9 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
 class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
@@ -84,8 +84,8 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath",
-                /* throwException = */ true);
+        final String classpath = (String) ReflectionUtils.invokeMethod(/* throwException = */ true, classLoader,
+                "getClasspath");
         classpathOrder.addClasspathEntry(classpath, classLoader, scanSpec, log);
     }
 }

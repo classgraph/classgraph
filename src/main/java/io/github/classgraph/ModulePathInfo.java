@@ -34,8 +34,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
@@ -135,12 +135,12 @@ public class ModulePathInfo {
         final Class<?> managementFactory = ReflectionUtils
                 .classForNameOrNull("java.lang.management.ManagementFactory");
         final Object runtimeMXBean = managementFactory == null ? null
-                : ReflectionUtils.invokeStaticMethod(managementFactory, "getRuntimeMXBean",
-                        /* throwException = */ false);
+                : ReflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
+                        "getRuntimeMXBean");
         @SuppressWarnings("unchecked")
         final List<String> commandlineArguments = runtimeMXBean == null ? null
-                : (List<String>) ReflectionUtils.invokeMethod(runtimeMXBean, "getInputArguments",
-                        /* throwException = */ false);
+                : (List<String>) ReflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
+                        "getInputArguments");
         if (commandlineArguments != null) {
             for (final String arg : commandlineArguments) {
                 for (int i = 0; i < fields.size(); i++) {

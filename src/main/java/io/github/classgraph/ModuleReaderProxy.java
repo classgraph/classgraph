@@ -34,7 +34,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleReaderProxy implements Closeable {
@@ -51,8 +51,8 @@ public class ModuleReaderProxy implements Closeable {
         collectorClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collector");
         final Class<?> collectorsClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collectors");
         if (collectorsClass != null) {
-            collectorsToList = ReflectionUtils.invokeStaticMethod(collectorsClass, "toList",
-                    /* throwException = */ true);
+            collectorsToList = ReflectionUtils.invokeStaticMethod(/* throwException = */ true, collectorsClass,
+                    "toList");
         }
     }
 
@@ -66,8 +66,8 @@ public class ModuleReaderProxy implements Closeable {
      */
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         try {
-            moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef.getReference(), "open",
-                    /* throwException = */ true);
+            moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(/* throwException = */ true,
+                    moduleRef.getReference(), "open");
             if (moduleReader == null) {
                 throw new IllegalArgumentException("moduleReference.open() should not return null");
             }
@@ -104,13 +104,13 @@ public class ModuleReaderProxy implements Closeable {
         if (collectorsToList == null) {
             throw new IllegalArgumentException("Could not call Collectors.toList()");
         }
-        final Object /* Stream<String> */ resourcesStream = ReflectionUtils.invokeMethod(moduleReader, "list",
-                /* throwException = */ true);
+        final Object /* Stream<String> */ resourcesStream = ReflectionUtils
+                .invokeMethod(/* throwException = */ true, moduleReader, "list");
         if (resourcesStream == null) {
             throw new IllegalArgumentException("Could not call moduleReader.list()");
         }
-        final Object resourcesList = ReflectionUtils.invokeMethod(resourcesStream, "collect", collectorClass,
-                collectorsToList, /* throwException = */ true);
+        final Object resourcesList = ReflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
+                "collect", collectorClass, collectorsToList);
         if (resourcesList == null) {
             throw new IllegalArgumentException("Could not call moduleReader.list().collect(Collectors.toList())");
         }
@@ -133,13 +133,13 @@ public class ModuleReaderProxy implements Closeable {
      */
     private Object openOrRead(final String path, final boolean open) throws SecurityException {
         final String methodName = open ? "open" : "read";
-        final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils.invokeMethod(moduleReader,
-                methodName, String.class, path, /* throwException = */ true);
+        final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils
+                .invokeMethod(/* throwException = */ true, moduleReader, methodName, String.class, path);
         if (optionalInputStream == null) {
             throw new IllegalArgumentException("Got null result from moduleReader." + methodName + "(name)");
         }
-        final Object /* InputStream */ inputStream = ReflectionUtils.invokeMethod(optionalInputStream, "get",
-                /* throwException = */ true);
+        final Object /* InputStream */ inputStream = ReflectionUtils.invokeMethod(/* throwException = */ true,
+                optionalInputStream, "get");
         if (inputStream == null) {
             throw new IllegalArgumentException("Got null result from moduleReader." + methodName + "(name).get()");
         }
@@ -182,7 +182,7 @@ public class ModuleReaderProxy implements Closeable {
      *            The {@link ByteBuffer} to release.
      */
     public void release(final ByteBuffer byteBuffer) {
-        ReflectionUtils.invokeMethod(moduleReader, "release", ByteBuffer.class, byteBuffer,
-                /* throwException = */ true);
+        ReflectionUtils.invokeMethod(/* throwException = */ true, moduleReader, "release", ByteBuffer.class,
+                byteBuffer);
     }
 }

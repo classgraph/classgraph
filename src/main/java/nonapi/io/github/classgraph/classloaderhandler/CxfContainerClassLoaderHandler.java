@@ -30,9 +30,9 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** ClassLoaderHandler that is able to extract the URLs from a CxfContainerClassLoader. */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
@@ -74,7 +74,7 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
             // Ignore
         }
         // tccl = TomcatClassLoader
-        classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(classLoader, "tccl", false),
+        classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(false, classLoader, "tccl"),
                 /* isParent = */ false, log);
         // This classloader doesn't actually load any classes, but add it to the order to improve logging
         classLoaderOrder.add(classLoader, log);

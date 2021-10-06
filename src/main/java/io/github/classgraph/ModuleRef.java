@@ -35,8 +35,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A ModuleReference proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleRef implements Comparable<ModuleRef> {
@@ -88,46 +88,46 @@ public class ModuleRef implements Comparable<ModuleRef> {
         this.reference = moduleReference;
         this.layer = moduleLayer;
 
-        this.descriptor = ReflectionUtils.invokeMethod(moduleReference, "descriptor", /* throwException = */ true);
+        this.descriptor = ReflectionUtils.invokeMethod(/* throwException = */ true, moduleReference, "descriptor");
         if (this.descriptor == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor() should not return null");
         }
-        this.name = (String) ReflectionUtils.invokeMethod(this.descriptor, "name", /* throwException = */ true);
+        this.name = (String) ReflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor, "name");
         @SuppressWarnings("unchecked")
-        final Set<String> modulePackages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
-                /* throwException = */ true);
+        final Set<String> modulePackages = (Set<String>) ReflectionUtils.invokeMethod(/* throwException = */ true,
+                this.descriptor, "packages");
         if (modulePackages == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor().packages() should not return null");
         }
         this.packages = new ArrayList<>(modulePackages);
         CollectionUtils.sortIfNotEmpty(this.packages);
-        final Object optionalRawVersion = ReflectionUtils.invokeMethod(this.descriptor, "rawVersion",
-                /* throwException = */ true);
+        final Object optionalRawVersion = ReflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor,
+                "rawVersion");
         if (optionalRawVersion != null) {
-            final Boolean isPresent = (Boolean) ReflectionUtils.invokeMethod(optionalRawVersion, "isPresent",
-                    /* throwException = */ true);
+            final Boolean isPresent = (Boolean) ReflectionUtils.invokeMethod(/* throwException = */ true,
+                    optionalRawVersion, "isPresent");
             if (isPresent != null && isPresent) {
-                this.rawVersion = (String) ReflectionUtils.invokeMethod(optionalRawVersion, "get",
-                        /* throwException = */ true);
+                this.rawVersion = (String) ReflectionUtils.invokeMethod(/* throwException = */ true,
+                        optionalRawVersion, "get");
             }
         }
-        final Object moduleLocationOptional = ReflectionUtils.invokeMethod(moduleReference, "location",
-                /* throwException = */ true);
+        final Object moduleLocationOptional = ReflectionUtils.invokeMethod(/* throwException = */ true,
+                moduleReference, "location");
         if (moduleLocationOptional == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.location() should not return null");
         }
-        final Object moduleLocationIsPresent = ReflectionUtils.invokeMethod(moduleLocationOptional, "isPresent",
-                /* throwException = */ true);
+        final Object moduleLocationIsPresent = ReflectionUtils.invokeMethod(/* throwException = */ true,
+                moduleLocationOptional, "isPresent");
         if (moduleLocationIsPresent == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.location().isPresent() should not return null");
         }
         if ((Boolean) moduleLocationIsPresent) {
-            this.location = (URI) ReflectionUtils.invokeMethod(moduleLocationOptional, "get",
-                    /* throwException = */ true);
+            this.location = (URI) ReflectionUtils.invokeMethod(/* throwException = */ true, moduleLocationOptional,
+                    "get");
             if (this.location == null) {
                 // Should not happen
                 throw new IllegalArgumentException("moduleReference.location().get() should not return null");
@@ -137,8 +137,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
 
         // Find the classloader for the module
-        this.classLoader = (ClassLoader) ReflectionUtils.invokeMethod(moduleLayer, "findLoader", String.class,
-                this.name, /* throwException = */ true);
+        this.classLoader = (ClassLoader) ReflectionUtils.invokeMethod(/* throwException = */ true, moduleLayer,
+                "findLoader", String.class, this.name);
     }
 
     /**

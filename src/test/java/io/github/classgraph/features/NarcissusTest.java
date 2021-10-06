@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
  * NarcissusTest.
@@ -17,7 +17,7 @@ class NarcissusTest {
     void annotationEquality() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = true;
         ReflectionUtils.loadReflectionDriver();
-        assertThat(ReflectionUtils.getStaticFieldVal(ReflectionUtils.class, "reflectionDriver", true).getClass()
+        assertThat(ReflectionUtils.getStaticFieldVal(true, ReflectionUtils.class, "reflectionDriver").getClass()
                 .getSimpleName()).isEqualTo("NarcissusReflectionDriver");
         try (ScanResult scanResult = new ClassGraph().acceptPackages(NarcissusTest.class.getPackage().getName())
                 .enableAllInfo().scan()) {

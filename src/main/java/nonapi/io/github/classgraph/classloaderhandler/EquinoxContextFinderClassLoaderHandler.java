@@ -30,9 +30,9 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Eclipse Equinox ContextFinder ClassLoader. */
 class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
@@ -66,7 +66,7 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
         classLoaderOrder.delegateTo(
-                (ClassLoader) ReflectionUtils.getFieldVal(classLoader, "parentContextClassLoader", false),
+                (ClassLoader) ReflectionUtils.getFieldVal(false, classLoader, "parentContextClassLoader"),
                 /* isParent = */ true, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);

@@ -30,9 +30,9 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Ant ClassLoader. */
 class AntClassLoaderHandler implements ClassLoaderHandler {
@@ -84,7 +84,7 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         classpathOrder.addClasspathPathStr(
-                (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, scanSpec,
+                (String) ReflectionUtils.invokeMethod(false, classLoader, "getClasspath"), classLoader, scanSpec,
                 log);
     }
 }

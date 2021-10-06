@@ -40,8 +40,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** Holds metadata about a specific annotation instance on a class, method, method parameter or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
@@ -354,8 +354,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
                         final String paramName = ent.getKey();
                         final Object paramVal = ent.getValue();
-                        final Object otherParamVal = ReflectionUtils.invokeMethod(args[0], paramName,
-                                /* throwException = */ false);
+                        final Object otherParamVal = ReflectionUtils.invokeMethod(/* throwException = */ false,
+                                args[0], paramName);
                         if ((paramVal == null) != (otherParamVal == null)) {
                             // Annotation values should never be null, but just to be safe
                             return false;

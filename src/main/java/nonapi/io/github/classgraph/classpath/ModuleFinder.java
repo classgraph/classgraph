@@ -38,10 +38,10 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ModuleRef;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /** A class to find the visible modules. */
 public class ModuleFinder {
@@ -110,8 +110,8 @@ public class ModuleFinder {
             final Deque<Object> /* Deque<ModuleLayer> */ layerOrderOut) {
         if (layerVisited.add(layer)) {
             @SuppressWarnings("unchecked")
-            final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
-                    "parents", /* throwException = */ true);
+            final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils
+                    .invokeMethod(/* throwException = */ true, layer, "parents");
             if (parents != null) {
                 parentLayers.addAll(parents);
                 for (final Object parent : parents) {
@@ -172,18 +172,18 @@ public class ModuleFinder {
         final Set<Object> /* Set<ModuleReference> */ addedModules = new HashSet<>();
         final LinkedHashSet<ModuleRef> moduleRefOrder = new LinkedHashSet<>();
         for (final Object /* ModuleLayer */ layer : layerOrderFinal) {
-            final Object /* Configuration */ configuration = ReflectionUtils.invokeMethod(layer, "configuration",
-                    /* throwException = */ true);
+            final Object /* Configuration */ configuration = ReflectionUtils
+                    .invokeMethod(/* throwException = */ true, layer, "configuration");
             if (configuration != null) {
                 // Get ModuleReferences from layer configuration
                 @SuppressWarnings("unchecked")
                 final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) ReflectionUtils
-                        .invokeMethod(configuration, "modules", /* throwException = */ true);
+                        .invokeMethod(/* throwException = */ true, configuration, "modules");
                 if (modules != null) {
                     final List<ModuleRef> modulesInLayer = new ArrayList<>();
                     for (final Object /* ResolvedModule */ module : modules) {
-                        final Object /* ModuleReference */ moduleReference = ReflectionUtils.invokeMethod(module,
-                                "reference", /* throwException = */ true);
+                        final Object /* ModuleReference */ moduleReference = ReflectionUtils
+                                .invokeMethod(/* throwException = */ true, module, "reference");
                         if (moduleReference != null && addedModules.add(moduleReference)) {
                             try {
                                 modulesInLayer.add(new ModuleRef(moduleReference, layer));
@@ -219,11 +219,11 @@ public class ModuleFinder {
         final LinkedHashSet<Object> layers = new LinkedHashSet<>();
         if (callStack != null) {
             for (final Class<?> stackFrameClass : callStack) {
-                final Object /* Module */ module = ReflectionUtils.invokeMethod(stackFrameClass, "getModule",
-                        /* throwException = */ false);
+                final Object /* Module */ module = ReflectionUtils.invokeMethod(/* throwException = */ false,
+                        stackFrameClass, "getModule");
                 if (module != null) {
-                    final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
-                            /* throwException = */ true);
+                    final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(/* throwException = */ true,
+                            module, "getLayer");
                     if (layer != null) {
                         layers.add(layer);
                     } else {
@@ -242,8 +242,8 @@ public class ModuleFinder {
             // Ignored
         }
         if (moduleLayerClass != null) {
-            final Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
-                    /* throwException = */ false);
+            final Object /* ModuleLayer */ bootLayer = ReflectionUtils
+                    .invokeStaticMethod(/* throwException = */ false, moduleLayerClass, "boot");
             if (bootLayer != null) {
                 layers.add(bootLayer);
             } else {

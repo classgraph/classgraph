@@ -35,9 +35,9 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ReflectionUtils;
 
 /**
  * Custom Class Loader Handler for OSGi Felix ClassLoader.
@@ -92,7 +92,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      * @return the content location
      */
     private static File getContentLocation(final Object content) {
-        return (File) ReflectionUtils.invokeMethod(content, "getFile", false);
+        return (File) ReflectionUtils.invokeMethod(false, content, "getFile");
     }
 
     /**
@@ -118,17 +118,17 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         bundles.add(bundleWiring);
 
         // Get the revision for this wiring
-        final Object revision = ReflectionUtils.invokeMethod(bundleWiring, "getRevision", false);
+        final Object revision = ReflectionUtils.invokeMethod(false, bundleWiring, "getRevision");
         // Get the contents
-        final Object content = ReflectionUtils.invokeMethod(revision, "getContent", false);
+        final Object content = ReflectionUtils.invokeMethod(false, revision, "getContent");
         final File location = content != null ? getContentLocation(content) : null;
         if (location != null) {
             // Add the bundle object
             classpathOrderOut.addClasspathEntry(location, classLoader, scanSpec, log);
 
             // And any embedded content
-            final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(revision, "getContentPath",
-                    false);
+            final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(false, revision,
+                    "getContentPath");
             if (embeddedContent != null) {
                 for (final Object embedded : embeddedContent) {
                     if (embedded != content) {
@@ -158,17 +158,17 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             final ScanSpec scanSpec, final LogNode log) {
         // Get the wiring for the ClassLoader's bundle
         final Set<Object> bundles = new HashSet<>();
-        final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring", false);
+        final Object bundleWiring = ReflectionUtils.getFieldVal(false, classLoader, "m_wiring");
         addBundle(bundleWiring, classLoader, classpathOrder, bundles, scanSpec, log);
 
         // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to narrow down the list of wires
         // that we follow.
 
-        final List<?> requiredWires = (List<?>) ReflectionUtils.invokeMethod(bundleWiring, "getRequiredWires",
-                String.class, null, false);
+        final List<?> requiredWires = (List<?>) ReflectionUtils.invokeMethod(false, bundleWiring,
+                "getRequiredWires", String.class, null);
         if (requiredWires != null) {
             for (final Object wire : requiredWires) {
-                final Object provider = ReflectionUtils.invokeMethod(wire, "getProviderWiring", false);
+                final Object provider = ReflectionUtils.invokeMethod(false, wire, "getProviderWiring");
                 if (!bundles.contains(provider)) {
                     addBundle(provider, classLoader, classpathOrder, bundles, scanSpec, log);
                 }
