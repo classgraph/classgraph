@@ -73,7 +73,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         getDeclaredFields = findDriverMethod("getDeclaredFields", Class.class);
         getField = findDriverMethod("getFieldValue", Object.class, Field.class);
         setField = findDriverMethod("setFieldValue", Object.class, Field.class, Object.class);
-        invokeMethod = findDriverMethod("invoke", Method.class, Object.class, Object[].class);
+        invokeMethod = findDriverMethod("invoke", Object.class, Method.class, Object[].class);
         setAccessibleMethod = findDriverMethod("setAccessible", AccessibleObject.class, boolean.class);
         try {
             // JDK 8
@@ -166,11 +166,11 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
 
     @Override
     Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
-        return invokeMethod.invoke(driver, method, object, args);
+        return invokeMethod.invoke(driver, object, method, args);
     }
 
     @Override
     Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
-        return invokeMethod.invoke(driver, method, null, args);
+        return invokeMethod.invoke(driver, null, method, args);
     }
 }
