@@ -115,18 +115,20 @@ The JDK team decided to start enforcing strong encapsulation in JDK 16+. That wi
 
 **If your ClassGraph code works in JDK versions less than 16 but breaks in JDK 16+ (meaning that ClassGraph can no longer find your classes), you have probably run into this problem.**
 
-You can circumvent this restriction by:
+ClassGraph can use either of the following libraries to silently circumvent all of Java's security mechanisms (visibility/access checks, security manager restrictions, and strong encapsulation), in order to read the classpath from private fields and methods of classloaders.
 
-* Upgrading ClassGraph to at least version 4.8.123
-* Adding the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
-* Setting `ClassGraph.CIRCUMVENT_ENCAPSULATION = true;` before interacting with ClassGraph in any other way (this will load the Narcissus library as ClassGraph's reflection driver).
+* Narcissus by Luke Hutchison (@lukehutch), author of ClassGraph
+* JVM-Driver is by Roberto Gentili (@burningwave), author of [Burningwave Core](https://github.com/burningwave/core).
 
-ClassGraph uses Narcissus to silently circumvent all of Java's security mechanisms (visibility/access checks, security manager restrictions, and strong encapsulation) by using the JNI API, in order to read the classpath from private fields and methods of classloaders.
+To use one of these libraries:
 
-Narcissus is a collaboration between:
-
-* Luke Hutchison (@lukehutch), author of ClassGraph
-* Roberto Gentili (@burningwave), author of [Burningwave Core](https://github.com/burningwave/core) and [toolfactory/jvm-driver](https://github.com/toolfactory/jvm-driver), which is an alternative to Narcissus
+* Upgrade ClassGraph to at least version 4.8.124
+* Either:
+  1. Add the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (this includes a native library, and only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
+  2. Set `ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulation.NARCISSUS;` before interacting with ClassGraph in any other way (this will load the Narcissus library as ClassGraph's reflection driver).
+* Or:
+  1. Add the [JVM-Driver](https://github.com/toolfactory/jvm-driver) library to your project as an extra dependency (this uses only Java code, but only works to circumvent encapsulation without native code in JDK 16 currently).
+  2. Set `ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulation.JVM_DRIVER;` before interacting with ClassGraph in any other way (this will load the JVM-Driver library as ClassGraph's reflection driver).
 
 JDK 16's strong encapsulation is just the first step of trying to lock down Java's internals, so further restrictions are possible (e.g. it is likely that `setAccessible(true)` will fail in future JDK releases, even within a module, and probably the JNI API will be locked down soon, making Narcissus require a commandline flag to work). Therefore, **please convince your upstream runtime environment maintainers to expose the full classpath from their classloader using a public method or field, otherwise ClassGraph may stop working for your runtime environment in the future.**
 
