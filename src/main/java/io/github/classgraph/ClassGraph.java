@@ -124,7 +124,7 @@ public class ClassGraph {
      * <p>
      * JVM-Driver uses a pure JVM solution to try to circumvent encapsulation and security controls.
      */
-    public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.JVM_DRIVER;
+    public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
 
     /**
      * If non-null, log while scanning.
