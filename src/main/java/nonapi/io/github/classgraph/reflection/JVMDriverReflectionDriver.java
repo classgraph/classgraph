@@ -87,8 +87,11 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
                 }
             };
         } catch (final Throwable t1) {
-            // JDK 16
+            // Fall through
+        }
+        if (classFinder == null) {
             try {
+                // JDK 16
                 final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
                         ClassLoader.class, Class.class);
                 final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -100,16 +103,35 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
                     }
                 };
             } catch (final Throwable t2) {
-                // Fallback if the above fails: just use Class.forName. 
-                // This won't find private non-exported classes in other modules.
-                final Method forName_method = findMethod(Class.class, "forName", String.class);
+                // Fall through
+            }
+        }
+        if (classFinder == null) {
+            try {
+                // IBM Semeru
+                final Method forNameImpl_method = findMethod(Class.class, "forNameImpl", String.class,
+                        boolean.class, ClassLoader.class);
+                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 classFinder = new ClassFinder() {
                     @Override
                     public Class<?> findClass(final String className) throws Exception {
-                        return (Class<?>) forName_method.invoke(null, className);
+                        return (Class<?>) forNameImpl_method.invoke(null, className, true, classLoader);
                     }
                 };
+            } catch (final Throwable t2) {
+                // Fall through
             }
+        }
+        if (classFinder == null) {
+            // Fallback if the above fails: just use Class.forName. 
+            // This won't find private non-exported classes in other modules.
+            final Method forName_method = findMethod(Class.class, "forName", String.class);
+            classFinder = new ClassFinder() {
+                @Override
+                public Class<?> findClass(final String className) throws Exception {
+                    return (Class<?>) forName_method.invoke(null, className);
+                }
+            };
         }
     }
 
