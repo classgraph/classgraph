@@ -86,7 +86,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
                     return (Class<?>) forName0_method.invoke(null, className, true, classLoader);
                 }
             };
-        } catch (final Throwable t1) {
+        } catch (final Throwable t) {
             // Fall through
         }
         if (classFinder == null) {
@@ -102,7 +102,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
                                 JVMDriverReflectionDriver.class);
                     }
                 };
-            } catch (final Throwable t2) {
+            } catch (final Throwable t) {
                 // Fall through
             }
         }
@@ -118,7 +118,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
                         return (Class<?>) forNameImpl_method.invoke(null, className, true, classLoader);
                     }
                 };
-            } catch (final Throwable t2) {
+            } catch (final Throwable t) {
                 // Fall through
             }
         }
