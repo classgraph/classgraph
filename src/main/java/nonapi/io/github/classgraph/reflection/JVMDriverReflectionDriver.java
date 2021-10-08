@@ -59,7 +59,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         final StandardReflectionDriver drv = new StandardReflectionDriver();
         //        driverClass = drv.findClass("io.github.toolfactory.jvm.Driver");
         //        Class<?> driverFactoryClass = drv.findClass("io.github.toolfactory.jvm.Driver$Factory");
-        //        Object driverInstance = drv.invokeStaticMethod(drv.findMethod(driverFactoryClass, "getNew"));
+        //        driver = drv.invokeStaticMethod(drv.findMethod(driverFactoryClass, "getNew"));
         //        if (driverInstance == null) {
         //            throw new IllegalArgumentException("Could not load jvm-driver library");
         //        }
