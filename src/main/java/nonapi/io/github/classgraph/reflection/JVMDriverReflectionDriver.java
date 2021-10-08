@@ -79,11 +79,11 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
             // JDK 7 and 8
             final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
                     ClassLoader.class);
-            final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             classFinder = new ClassFinder() {
                 @Override
                 public Class<?> findClass(final String className) throws Exception {
-                    return (Class<?>) forName0_method.invoke(null, className, true, classLoader);
+                    return (Class<?>) forName0_method.invoke(null, className, true,
+                            Thread.currentThread().getContextClassLoader());
                 }
             };
         } catch (final Throwable t) {
@@ -94,12 +94,11 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
                 // JDK 16 (and possibly earlier)
                 final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
                         ClassLoader.class, Class.class);
-                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 classFinder = new ClassFinder() {
                     @Override
                     public Class<?> findClass(final String className) throws Exception {
-                        return (Class<?>) forName0_method.invoke(null, className, true, classLoader,
-                                JVMDriverReflectionDriver.class);
+                        return (Class<?>) forName0_method.invoke(null, className, true,
+                                Thread.currentThread().getContextClassLoader(), JVMDriverReflectionDriver.class);
                     }
                 };
             } catch (final Throwable t) {
@@ -111,11 +110,11 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
                 // IBM Semeru
                 final Method forNameImpl_method = findMethod(Class.class, "forNameImpl", String.class,
                         boolean.class, ClassLoader.class);
-                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 classFinder = new ClassFinder() {
                     @Override
                     public Class<?> findClass(final String className) throws Exception {
-                        return (Class<?>) forNameImpl_method.invoke(null, className, true, classLoader);
+                        return (Class<?>) forNameImpl_method.invoke(null, className, true,
+                                Thread.currentThread().getContextClassLoader());
                     }
                 };
             } catch (final Throwable t) {
