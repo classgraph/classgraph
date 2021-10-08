@@ -76,7 +76,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         invokeMethod = findDriverMethod("invoke", Object.class, Method.class, Object[].class);
         setAccessibleMethod = findDriverMethod("setAccessible", AccessibleObject.class, boolean.class);
         try {
-            // JDK 8
+            // JDK 7 and 8
             final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
                     ClassLoader.class);
             final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -91,7 +91,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         }
         if (classFinder == null) {
             try {
-                // JDK 16
+                // JDK 16 (and possibly earlier)
                 final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
                         ClassLoader.class, Class.class);
                 final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
