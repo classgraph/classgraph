@@ -28,9 +28,6 @@
  */
 package nonapi.io.github.classgraph.reflection;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -43,19 +40,19 @@ import java.security.PrivilegedAction;
  * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
-    private MethodHandle isAccessible;
-    private MethodHandle setAccessible;
+    private Method isAccessible;
+    private Method setAccessible;
 
     {
-        // Find deprecated methods, to remove compile-time warnings
-        final MethodHandles.Lookup lookup = MethodHandles.lookup();
+        // Find deprecated methods isAccessible/setAccessible, to remove compile-time warnings
+        // TODO Switch to using  MethodHandles until once this is fixed:
+        // https://github.com/mojohaus/animal-sniffer/issues/67
         try {
-            isAccessible = lookup.findVirtual(AccessibleObject.class, "isAccessible",
-                    MethodType.methodType(boolean.class));
-            setAccessible = lookup.findVirtual(AccessibleObject.class, "setAccessible",
-                    MethodType.methodType(void.class, boolean.class));
+            isAccessible = AccessibleObject.class.getMethod("isAccessible");
+            setAccessible = AccessibleObject.class.getMethod("setAccessible", boolean.class);
         } catch (final Exception e) {
-            // StandardReflectionDriver will stop working eventually, in some future version of Java
+            // StandardReflectionDriver will eventually stop working for non-public fields,
+            // in some future version of Java, when these methods are removed
         }
     }
 
@@ -82,14 +79,14 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     private boolean isAccessible(final Object obj) {
         try {
-            return (Boolean) isAccessible.invokeExact(obj);
+            return (Boolean) isAccessible.invoke(obj);
         } catch (final Throwable t) {
             return false;
         }
     }
 
     private void setAccessible(final Object obj, final boolean flag) throws Throwable {
-        setAccessible.invokeExact(obj, flag);
+        setAccessible.invoke(obj, flag);
     }
 
     @Override
