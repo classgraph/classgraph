@@ -28,6 +28,9 @@
  */
 package nonapi.io.github.classgraph.reflection;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -40,6 +43,22 @@ import java.security.PrivilegedAction;
  * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
+    private MethodHandle isAccessible;
+    private MethodHandle setAccessible;
+
+    {
+        // Find deprecated methods, to remove compile-time warnings
+        final MethodHandles.Lookup lookup = MethodHandles.lookup();
+        try {
+            isAccessible = lookup.findVirtual(AccessibleObject.class, "isAccessible",
+                    MethodType.methodType(boolean.class));
+            setAccessible = lookup.findVirtual(AccessibleObject.class, "setAccessible",
+                    MethodType.methodType(void.class, boolean.class));
+        } catch (final Exception e) {
+            // StandardReflectionDriver will stop working eventually, in some future version of Java
+        }
+    }
+
     @Override
     Class<?> findClass(final String className) throws Exception {
         return Class.forName(className);
@@ -61,9 +80,21 @@ class StandardReflectionDriver extends ReflectionDriver {
         return cls.getDeclaredFields();
     }
 
+    private boolean isAccessible(final Object obj) {
+        try {
+            return (Boolean) isAccessible.invoke();
+        } catch (final Throwable t) {
+            return false;
+        }
+    }
+
+    private void setAccessible(final Object obj, final boolean flag) throws Throwable {
+        setAccessible.invoke(obj, flag);
+    }
+
     @Override
     boolean makeAccessible(final AccessibleObject obj) {
-        if (!obj.isAccessible()) {
+        if (!isAccessible(obj)) {
             try {
                 AccessController.doPrivileged(new PrivilegedAction<Void>() {
                     @Override
@@ -74,12 +105,12 @@ class StandardReflectionDriver extends ReflectionDriver {
                 });
             } catch (final Throwable e) {
                 try {
-                    obj.setAccessible(true);
+                    setAccessible(obj, true);
                 } catch (final Throwable e2) {
                     return false;
                 }
             }
-            return obj.isAccessible();
+            return isAccessible(obj);
         }
         return true;
     }

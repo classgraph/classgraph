@@ -64,7 +64,15 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         //            throw new IllegalArgumentException("Could not load jvm-driver library");
         //        }
         final Class<?> driverClass = drv.findClass("io.github.toolfactory.jvm.DefaultDriver");
-        driver = driverClass.newInstance();
+        for (final Constructor<?> constructor : drv.getDeclaredConstructors(driverClass)) {
+            if (constructor.getParameterCount() == 0) {
+                driver = constructor.newInstance();
+                break;
+            }
+        }
+        if (driver == null) {
+            throw new IllegalArgumentException("Could not instantiate jvm.DefaultDriver");
+        }
 
         // Look up needed methods
         indexMethods(drv.enumerateDriverMethods(driverClass));
