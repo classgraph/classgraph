@@ -43,7 +43,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Reflection driver */
-abstract class ReflectionDriver {
+public abstract class ReflectionDriver {
     private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
 
     /**
@@ -157,7 +157,7 @@ abstract class ReflectionDriver {
      *            the field or method.
      * @return true if successful.
      */
-    abstract boolean makeAccessible(final AccessibleObject accessibleObject);
+    public abstract boolean makeAccessible(final AccessibleObject accessibleObject);
 
     /** Iterator applied to each method of a class and its superclasses/interfaces. */
     private static interface MethodIterator {

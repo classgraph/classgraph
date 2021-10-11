@@ -32,28 +32,89 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.util.concurrent.Callable;
 
 /**
  * Standard reflection driver (uses {@link AccessibleObject#setAccessible(boolean)} to access non-public fields if
  * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
-    private Method isAccessible;
-    private Method setAccessible;
+    private static Method isAccessibleMethod;
+    private static Method setAccessibleMethod;
+    private static Method trySetAccessibleMethod;
 
-    {
+    static {
         // Find deprecated methods isAccessible/setAccessible, to remove compile-time warnings
         // TODO Switch to using  MethodHandles once this is fixed:
         // https://github.com/mojohaus/animal-sniffer/issues/67
         try {
-            isAccessible = AccessibleObject.class.getMethod("isAccessible");
-            setAccessible = AccessibleObject.class.getMethod("setAccessible", boolean.class);
-        } catch (final Exception e) {
-            // StandardReflectionDriver will eventually stop working for non-public fields,
-            // in some future version of Java, when these methods are removed
+            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible");
+        } catch (final Throwable t) {
+            // Ignore
         }
+        try {
+            setAccessibleMethod = AccessibleObject.class.getDeclaredMethod("setAccessible", boolean.class);
+        } catch (final Throwable t) {
+            // Ignore
+        }
+        try {
+            trySetAccessibleMethod = AccessibleObject.class.getDeclaredMethod("trySetAccessible");
+        } catch (final Throwable t) {
+            // Ignore
+        }
+    }
+
+    private static boolean isAccessible(final AccessibleObject obj) {
+        if (isAccessibleMethod != null) {
+            // JDK 7/8: use isAccessible (deprecated in JDK 9+)
+            try {
+                if ((Boolean) isAccessibleMethod.invoke(obj)) {
+                    return true;
+                }
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        return false;
+    }
+
+    private static boolean tryMakeAccessible(final AccessibleObject obj) {
+        if (setAccessibleMethod != null) {
+            try {
+                setAccessibleMethod.invoke(obj, true);
+                return true;
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        if (trySetAccessibleMethod != null) {
+            try {
+                if ((Boolean) trySetAccessibleMethod.invoke(obj)) {
+                    return true;
+                }
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean makeAccessible(final AccessibleObject obj) {
+        if (isAccessible(obj) || tryMakeAccessible(obj)) {
+            return true;
+        }
+        try {
+            return ReflectionUtils.doPrivileged(new Callable<Boolean>() {
+                @Override
+                public Boolean call() throws Exception {
+                    return tryMakeAccessible(obj);
+                }
+            });
+        } catch (final Throwable t) {
+            // Fall through
+        }
+        return false;
     }
 
     @Override
@@ -75,41 +136,6 @@ class StandardReflectionDriver extends ReflectionDriver {
     @Override
     Field[] getDeclaredFields(final Class<?> cls) throws Exception {
         return cls.getDeclaredFields();
-    }
-
-    private boolean isAccessible(final Object obj) {
-        try {
-            return (Boolean) isAccessible.invoke(obj);
-        } catch (final Throwable t) {
-            return false;
-        }
-    }
-
-    private void setAccessible(final Object obj, final boolean flag) throws Throwable {
-        setAccessible.invoke(obj, flag);
-    }
-
-    @Override
-    boolean makeAccessible(final AccessibleObject obj) {
-        if (!isAccessible(obj)) {
-            try {
-                AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                    @Override
-                    public Void run() {
-                        obj.setAccessible(true);
-                        return null;
-                    }
-                });
-            } catch (final Throwable e) {
-                try {
-                    setAccessible(obj, true);
-                } catch (final Throwable e2) {
-                    return false;
-                }
-            }
-            return isAccessible(obj);
-        }
-        return true;
     }
 
     @Override

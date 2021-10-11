@@ -143,7 +143,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    boolean makeAccessible(final AccessibleObject accessibleObject) {
+    public boolean makeAccessible(final AccessibleObject accessibleObject) {
         try {
             setAccessibleMethod.invoke(driver, accessibleObject, true);
         } catch (final Throwable t) {

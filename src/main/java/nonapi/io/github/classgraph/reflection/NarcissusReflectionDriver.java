@@ -74,7 +74,7 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    boolean makeAccessible(final AccessibleObject accessibleObject) {
+    public boolean makeAccessible(final AccessibleObject accessibleObject) {
         return true;
     }
 

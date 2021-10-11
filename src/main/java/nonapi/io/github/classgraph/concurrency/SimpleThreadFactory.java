@@ -28,6 +28,7 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
+import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -36,7 +37,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Johno Crawford (johno@sulake.com)
  */
 public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
-
     /** The thread name prefix. */
     private final String threadNamePrefix;
 
@@ -68,10 +68,22 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
      */
     @Override
     public Thread newThread(final Runnable runnable) {
-        final SecurityManager s = System.getSecurityManager();
+        // Call System.getSecurityManager().getThreadGroup() via reflection, since it is deprecated in JDK 17
+        ThreadGroup securityManagerThreadGroup = null;
+        try {
+            final Method getSecurityManager = System.class.getDeclaredMethod("getSecurityManager");
+            final Object securityManager = getSecurityManager.invoke(null);
+            if (securityManager != null) {
+                final Method getThreadGroup = securityManager.getClass().getDeclaredMethod("getThreadGroup");
+                securityManagerThreadGroup = (ThreadGroup) getThreadGroup.invoke(securityManager);
+            }
+        } catch (final Throwable t) {
+            // Fall through
+        }
         final Thread thread = new Thread(
-                s != null ? s.getThreadGroup() : new ThreadGroup("ClassGraph-thread-group"), runnable,
-                threadNamePrefix + threadIdx.getAndIncrement());
+                securityManagerThreadGroup != null ? securityManagerThreadGroup
+                        : new ThreadGroup("ClassGraph-thread-group"),
+                runnable, threadNamePrefix + threadIdx.getAndIncrement());
         thread.setDaemon(daemon);
         return thread;
     }

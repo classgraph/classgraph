@@ -28,14 +28,15 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
@@ -96,24 +97,7 @@ class CallStackReader {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
-     * 
-     * https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
-     *
-     * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
-     */
-    private static final class CallerResolver extends SecurityManager {
-        /* (non-Javadoc)
-         * @see java.lang.SecurityManager#getClassContext()
-         */
-        @Override
-        protected Class<?>[] getClassContext() {
-            return super.getClassContext();
-        }
-    }
-
-    /**
-     * Get the call stack via the SecurityManager API.
+     * Get the call stack via the SecurityManager.getClassContext() native method.
      *
      * @param log
      *            the log
@@ -121,12 +105,27 @@ class CallStackReader {
      */
     private static Class<?>[] getCallStackViaSecurityManager(final LogNode log) {
         try {
-            return new CallerResolver().getClassContext();
-        } catch (final SecurityException e) {
+            // Call method via reflection, since SecurityManager is deprecated in JDK 17.
+            final Class<?> securityManagerClass = Class.forName("java.lang.SecurityManager");
+            Object securityManager = null;
+            for (final Constructor<?> constructor : securityManagerClass.getDeclaredConstructors()) {
+                if (constructor.getParameterTypes().length == 0) {
+                    securityManager = constructor.newInstance();
+                    break;
+                }
+            }
+            if (securityManager != null) {
+                final Method getClassContext = securityManager.getClass().getDeclaredMethod("getClassContext");
+                getClassContext.setAccessible(true);
+                return (Class<?>[]) getClassContext.invoke(securityManager);
+            } else {
+                return null;
+            }
+        } catch (final Throwable t) {
             // Creating a SecurityManager can fail if the current SecurityManager does not allow
             // RuntimePermission("createSecurityManager")
             if (log != null) {
-                log.log("Exception while trying to obtain call stack via SecurityManager", e);
+                log.log("Exception while trying to obtain call stack via SecurityManager", t);
             }
             return null;
         }
@@ -158,22 +157,30 @@ class CallStackReader {
                     || VersionFinder.JAVA_MAJOR_VERSION > 13) {
                 // Invoke with doPrivileged -- see:
                 // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
-                callStack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
-                    @Override
-                    public Class<?>[] run() {
-                        return getCallStackViaStackWalker();
-                    }
-                });
+                try {
+                    callStack = ReflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
+                        @Override
+                        public Class<?>[] call() throws Exception {
+                            return getCallStackViaStackWalker();
+                        }
+                    });
+                } catch (final Throwable e) {
+                    // Fall through
+                }
             }
 
             // For JRE 7 and 8, use SecurityManager to get call stack
             if (callStack == null || callStack.length == 0) {
-                callStack = AccessController.doPrivileged(new PrivilegedAction<Class<?>[]>() {
-                    @Override
-                    public Class<?>[] run() {
-                        return getCallStackViaSecurityManager(log);
-                    }
-                });
+                try {
+                    callStack = ReflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
+                        @Override
+                        public Class<?>[] call() throws Exception {
+                            return getCallStackViaSecurityManager(log);
+                        }
+                    });
+                } catch (final Throwable e) {
+                    // Fall through
+                }
             }
 
             // As a fallback, use getStackTrace() to try to get the call stack

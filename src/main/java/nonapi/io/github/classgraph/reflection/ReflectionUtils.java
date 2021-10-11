@@ -28,16 +28,34 @@
  */
 package nonapi.io.github.classgraph.reflection;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.concurrent.Callable;
+
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public final class ReflectionUtils {
     /** The reflection driver to use. */
-    private static ReflectionDriver reflectionDriver;
+    public static ReflectionDriver reflectionDriver;
+
+    private static Class<?> accessControllerClass;
+    private static Class<?> privilegedActionClass;
+    private static Method accessControllerDoPrivileged;
 
     static {
         loadReflectionDriver();
+
+        try {
+            accessControllerClass = Class.forName("java.security.AccessController");
+            privilegedActionClass = Class.forName("java.security.PrivilegedAction");
+            accessControllerDoPrivileged = accessControllerClass.getMethod("doPrivileged", privilegedActionClass);
+        } catch (final Throwable t) {
+            // Ignore
+        }
     }
 
     /** Call this if you change the value of {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}. */
@@ -67,6 +85,43 @@ public final class ReflectionUtils {
      */
     private ReflectionUtils() {
         // Cannot be constructed
+    }
+
+    /**
+     * Get the value of the field in the class of the given object or any of its superclasses. If an exception is
+     * thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
+     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
+     * throwException is true, then throws IllegalArgumentException.
+     * 
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @param obj
+     *            The object.
+     * @param field
+     *            The field.
+     * 
+     * @return The field value.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
+     */
+    public static Object getFieldVal(final boolean throwException, final Object obj, final Field field)
+            throws IllegalArgumentException {
+        if (obj == null || field == null) {
+            if (throwException) {
+                throw new NullPointerException();
+            } else {
+                return null;
+            }
+        }
+        try {
+            return reflectionDriver.getField(obj, field);
+        } catch (final Throwable e) {
+            if (throwException) {
+                throw new IllegalArgumentException(
+                        "Can't read field " + obj.getClass().getName() + "." + field.getName() + ": " + e);
+            }
+        }
+        return null;
     }
 
     /**
@@ -311,6 +366,37 @@ public final class ReflectionUtils {
             return reflectionDriver.findClass(className);
         } catch (final Throwable e) {
             return null;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
+        private final Callable<T> callable;
+
+        public PrivilegedActionInvocationHandler(final Callable<T> callable) {
+            this.callable = callable;
+        }
+
+        @Override
+        public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
+            return callable.call();
+        }
+    }
+
+    /**
+     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
+     * (AccessController is deprecated in JDK 17).
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T doPrivileged(final Callable<T> callable) throws Throwable {
+        if (accessControllerDoPrivileged != null) {
+            final Object privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
+                    new Class[] { privilegedActionClass }, new PrivilegedActionInvocationHandler<T>(callable));
+            return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
+        } else {
+            // Fall back to invoking in a non-privileged context
+            return callable.call();
         }
     }
 

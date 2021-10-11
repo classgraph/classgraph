@@ -28,23 +28,100 @@
  */
 package nonapi.io.github.classgraph.json;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Collection;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Callable;
+
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /** Utils for Java serialization and deserialization. */
 public final class JSONUtils {
+    private static Method isAccessibleMethod;
+    private static Method setAccessibleMethod;
+    private static Method trySetAccessibleMethod;
+
+    static {
+        // Find deprecated methods isAccessible/setAccessible, to remove compile-time warnings
+        // TODO Switch to using  MethodHandles once this is fixed:
+        // https://github.com/mojohaus/animal-sniffer/issues/67
+        try {
+            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible");
+        } catch (final Throwable t) {
+            // Ignore
+        }
+        try {
+            setAccessibleMethod = AccessibleObject.class.getDeclaredMethod("setAccessible", boolean.class);
+        } catch (final Throwable t) {
+            // Ignore
+        }
+        try {
+            trySetAccessibleMethod = AccessibleObject.class.getDeclaredMethod("trySetAccessible");
+        } catch (final Throwable t) {
+            // Ignore
+        }
+    }
+
+    private static boolean isAccessible(final AccessibleObject obj) {
+        if (isAccessibleMethod != null) {
+            // JDK 7/8: use isAccessible (deprecated in JDK 9+)
+            try {
+                if ((Boolean) isAccessibleMethod.invoke(obj)) {
+                    return true;
+                }
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        return false;
+    }
+
+    private static boolean tryMakeAccessible(final AccessibleObject obj) {
+        if (setAccessibleMethod != null) {
+            try {
+                setAccessibleMethod.invoke(obj, true);
+                return true;
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        if (trySetAccessibleMethod != null) {
+            try {
+                if ((Boolean) trySetAccessibleMethod.invoke(obj)) {
+                    return true;
+                }
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        return false;
+    }
+
+    public static boolean makeAccessible(final AccessibleObject obj) {
+        // This reflection code is duplicated from StandardReflectionDriver, because calling
+        // ReflectionUtils.reflectionDriver.makeAccessible(obj) does not work when called from here
+        // (private fields can't be accessed from outside this package even after calling setAccessible(true))
+        if (isAccessible(obj) || tryMakeAccessible(obj)) {
+            return true;
+        }
+        try {
+            return ReflectionUtils.doPrivileged(new Callable<Boolean>() {
+                @Override
+                public Boolean call() throws Exception {
+                    return tryMakeAccessible(obj);
+                }
+            });
+        } catch (final Throwable t) {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
      * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
@@ -59,13 +136,6 @@ public final class JSONUtils {
 
     /** JSON character-to-string escaping replacements -- see http://www.json.org/ under "string". */
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
-
-    //    private static MethodHandle canAccessMethodHandle = null;
-    //    private static Method canAccessMethod = null;
-    private static MethodHandle isAccessibleMethodHandle = null;
-    private static Method isAccessibleMethod = null;
-    private static MethodHandle trySetAccessibleMethodHandle = null;
-    private static Method trySetAccessibleMethod = null;
 
     static {
         for (int c = 0; c < 256; c++) {
@@ -85,46 +155,6 @@ public final class JSONUtils {
         JSON_CHAR_REPLACEMENTS['\t'] = "\\t";
         JSON_CHAR_REPLACEMENTS['\b'] = "\\b";
         JSON_CHAR_REPLACEMENTS['\f'] = "\\f";
-
-        final Lookup lookup = MethodHandles.lookup();
-        //        try {
-        //            // JDK 9+: use AccessibleObject::canAccess(instance)
-        //            canAccessMethodHandle = lookup.findVirtual(AccessibleObject.class, "canAccess",
-        //                    MethodType.methodType(boolean.class, Object.class));
-        //        } catch (NoSuchMethodException | IllegalAccessException e) {
-        //            // Ignore
-        //        }
-        //        try {
-        //            canAccessMethod = AccessibleObject.class.getDeclaredMethod("canAccess");
-        //        } catch (NoSuchMethodException | SecurityException e1) {
-        //            // Ignore
-        //        }
-        try {
-            // JDK 7/8: use AccessibleObject::isAccessible()
-            isAccessibleMethodHandle = lookup.findVirtual(AccessibleObject.class, "isAccessible",
-                    MethodType.methodType(boolean.class));
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            // Ignore
-        }
-
-        try {
-            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible", Object.class);
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
-        try {
-            // JDK 9+: use AccessibleObject::trySetAccessible() rather than
-            // AccessibleObject::setAccessible(true)
-            trySetAccessibleMethodHandle = lookup.findVirtual(AccessibleObject.class, "trySetAccessible",
-                    MethodType.methodType(boolean.class));
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            // Ignore
-        }
-        try {
-            trySetAccessibleMethod = AccessibleObject.class.getDeclaredMethod("trySetAccessible");
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
     }
 
     /** Lookup table for fast indenting. */
@@ -247,6 +277,7 @@ public final class JSONUtils {
      */
     static Object getFieldValue(final Object containingObj, final Field field)
             throws IllegalArgumentException, IllegalAccessException {
+        // return ReflectionUtils.getFieldVal(true, containingObj, field.getName());
         final Class<?> fieldType = field.getType();
         if (fieldType == Integer.TYPE) {
             return field.getInt(containingObj);
@@ -359,114 +390,6 @@ public final class JSONUtils {
     }
 
     /**
-     * Return true if the field is accessible, or can be made accessible (and make it accessible if so).
-     *
-     * @param fieldOrConstructor
-     *            the field or constructor
-     * @return true if accessible
-     */
-    static boolean isAccessibleOrMakeAccessible(final AccessibleObject fieldOrConstructor) {
-        // Test if field or constructor is already accessible
-        final AtomicBoolean accessible = new AtomicBoolean(false);
-        //        // TODO: this method needs to take an object instance reference before canAccess can be used
-        //        if (canAccessMethodHandle != null) {
-        //            // JDK 9+: use canAccess(instance)
-        //            try {
-        //                accessible.set((Boolean) canAccessMethodHandle.invokeExact(fieldOrConstructor, instance));
-        //            } catch (Throwable e) {
-        //                // Ignore
-        //            }
-        //        }
-        //        if (canAccessMethod != null) {
-        //            accessible.set((Boolean) canAccessMethod.invoke(fieldOrConstructor, instance));
-        //        }
-        if (!accessible.get()) {
-            if (isAccessibleMethodHandle != null) {
-                // JDK 7/8: use isAccessible (deprecated in JDK 9+)
-                try {
-                    // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
-                    // https://github.com/mojohaus/animal-sniffer/issues/67
-                    final Object invokeResult = isAccessibleMethodHandle
-                            .invoke(new Object[] { fieldOrConstructor });
-                    accessible.set((Boolean) invokeResult);
-                } catch (final Throwable e) {
-                    // Ignore
-                }
-            } else if (isAccessibleMethod != null) {
-                // JDK 7/8: use isAccessible (deprecated in JDK 9+)
-                try {
-                    accessible.set((Boolean) isAccessibleMethod.invoke(fieldOrConstructor));
-                } catch (final Throwable e) {
-                    // Ignore
-                }
-            }
-        }
-
-        // Only set accessible if field or constructor is not yet accessible
-        if (!accessible.get()) {
-            if (trySetAccessibleMethodHandle != null) {
-                try {
-                    // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
-                    // https://github.com/mojohaus/animal-sniffer/issues/67
-                    final Object invokeResult = trySetAccessibleMethodHandle
-                            .invoke(new Object[] { fieldOrConstructor });
-                    accessible.set((Boolean) invokeResult);
-                } catch (final Throwable e) {
-                    // Ignore
-                }
-            } else if (trySetAccessibleMethod != null) {
-                try {
-                    accessible.set((Boolean) trySetAccessibleMethod.invoke(fieldOrConstructor));
-                } catch (final Throwable e) {
-                    // Ignore
-                }
-            }
-            if (!accessible.get()) {
-                try {
-                    fieldOrConstructor.setAccessible(true);
-                    accessible.set(true);
-                } catch (final Throwable t) {
-                    // Ignore
-                }
-            }
-            if (!accessible.get()) {
-                AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                    @Override
-                    public Void run() {
-                        if (trySetAccessibleMethodHandle != null) {
-                            try {
-                                // Have to use double casting and wrap in new Object[] due to Animal Sniffer bug:
-                                // https://github.com/mojohaus/animal-sniffer/issues/67
-                                final Object invokeResult = trySetAccessibleMethodHandle
-                                        .invoke(new Object[] { fieldOrConstructor });
-                                accessible.set((Boolean) invokeResult);
-                            } catch (final Throwable e) {
-                                // Ignore
-                            }
-                        } else if (trySetAccessibleMethod != null) {
-                            try {
-                                accessible.set((Boolean) trySetAccessibleMethod.invoke(fieldOrConstructor));
-                            } catch (final Throwable e) {
-                                // Ignore
-                            }
-                        }
-                        if (!accessible.get()) {
-                            try {
-                                fieldOrConstructor.setAccessible(true);
-                                accessible.set(true);
-                            } catch (final Throwable t) {
-                                // Ignore
-                            }
-                        }
-                        return null;
-                    }
-                });
-            }
-        }
-        return accessible.get();
-    }
-
-    /**
      * Check if a field is serializable. Don't serialize transient, final, synthetic, or inaccessible fields.
      * 
      * <p>
@@ -483,7 +406,7 @@ public final class JSONUtils {
         final int modifiers = field.getModifiers();
         if ((!onlySerializePublicFields || Modifier.isPublic(modifiers)) && !Modifier.isTransient(modifiers)
                 && !Modifier.isFinal(modifiers) && ((modifiers & 0x1000 /* synthetic */) == 0)) {
-            return JSONUtils.isAccessibleOrMakeAccessible(field);
+            return makeAccessible(field);
         }
         return false;
     }

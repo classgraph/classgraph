@@ -204,7 +204,7 @@ class ClassFieldCache {
                 && (c != Object.class || cls == Object.class); c = c.getSuperclass()) {
             try {
                 final Constructor<?> defaultConstructor = c.getDeclaredConstructor();
-                JSONUtils.isAccessibleOrMakeAccessible(defaultConstructor);
+                JSONUtils.makeAccessible(defaultConstructor);
                 // Store found constructor in cache
                 defaultConstructorForConcreteType.put(cls, defaultConstructor);
                 return defaultConstructor;
@@ -239,7 +239,7 @@ class ClassFieldCache {
                     && (c != Object.class || cls == Object.class); c = c.getSuperclass()) {
                 try {
                     final Constructor<?> constructorWithSizeHint = c.getDeclaredConstructor(Integer.TYPE);
-                    JSONUtils.isAccessibleOrMakeAccessible(constructorWithSizeHint);
+                    JSONUtils.makeAccessible(constructorWithSizeHint);
                     // Store found constructor in cache
                     constructorForConcreteTypeWithSizeHint.put(cls, constructorWithSizeHint);
                     return constructorWithSizeHint;
