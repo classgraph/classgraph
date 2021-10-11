@@ -1946,20 +1946,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a list of the direct annotations on this class (i.e. not including meta-annotations or inherited
-     * annotations), or the empty list if none.
-     * 
-     * @return A list of {@link AnnotationInfo} objects for the direct annotations on this class, or the empty list
-     *         if none.
-     */
-    public AnnotationInfoList getAnnotationInfoDirectOnly() {
-        if (!scanResult.scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-        }
-        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
-    }
-
-    /**
      * Get a the non-{@link Repeatable} annotation on this class, or null if the class does not have the annotation.
      * (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      * 
