@@ -45,7 +45,7 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     {
         // Find deprecated methods isAccessible/setAccessible, to remove compile-time warnings
-        // TODO Switch to using  MethodHandles until once this is fixed:
+        // TODO Switch to using  MethodHandles once this is fixed:
         // https://github.com/mojohaus/animal-sniffer/issues/67
         try {
             isAccessible = AccessibleObject.class.getMethod("isAccessible");
