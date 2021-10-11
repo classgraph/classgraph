@@ -82,14 +82,14 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     private boolean isAccessible(final Object obj) {
         try {
-            return (Boolean) isAccessible.invoke();
+            return (Boolean) isAccessible.invokeExact(obj);
         } catch (final Throwable t) {
             return false;
         }
     }
 
     private void setAccessible(final Object obj, final boolean flag) throws Throwable {
-        setAccessible.invoke(obj, flag);
+        setAccessible.invokeExact(obj, flag);
     }
 
     @Override
