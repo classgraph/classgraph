@@ -65,7 +65,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         //        }
         final Class<?> driverClass = drv.findClass("io.github.toolfactory.jvm.DefaultDriver");
         for (final Constructor<?> constructor : drv.getDeclaredConstructors(driverClass)) {
-            if (constructor.getParameterCount() == 0) {
+            if (constructor.getParameterTypes().length == 0) {
                 driver = constructor.newInstance();
                 break;
             }
