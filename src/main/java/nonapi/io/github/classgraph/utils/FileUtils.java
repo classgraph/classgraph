@@ -39,10 +39,11 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
  * File utilities.
@@ -517,13 +518,17 @@ public final class FileUtils {
     }
 
     static {
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            @Override
-            public Object run() {
-                lookupCleanMethodPrivileged();
-                return null;
-            }
-        });
+        try {
+            ReflectionUtils.doPrivileged(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    lookupCleanMethodPrivileged();
+                    return null;
+                }
+            });
+        } catch (Throwable e) {
+            // Ignore
+        }
     }
 
     /**
@@ -644,12 +649,16 @@ public final class FileUtils {
      */
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
-            return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-                @Override
-                public Boolean run() {
-                    return closeDirectByteBufferPrivileged(byteBuffer, log);
-                }
-            });
+            try {
+                return ReflectionUtils.doPrivileged(new Callable<Boolean>() {
+                    @Override
+                    public Boolean call() throws Exception {
+                        return closeDirectByteBufferPrivileged(byteBuffer, log);
+                    }
+                });
+            } catch (Throwable t) {
+                return false;
+            }
         } else {
             // Nothing to unmap
             return false;
