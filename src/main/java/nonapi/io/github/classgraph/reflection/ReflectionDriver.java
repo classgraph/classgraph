@@ -267,11 +267,12 @@ public abstract class ReflectionDriver {
      * @param methodIter
      *            The {@link MethodIter} to apply for each declared method
      */
-    void forAllMethods(final Class<?> cls, boolean includeInterfaceDefaultMethods,
+    void forAllMethods(final Class<?> cls, final boolean includeInterfaceDefaultMethods,
             final ReflectionDriver.MethodIterator methodIter) throws Exception {
         // Iterate from class to its superclasses, and find initial interfaces to start traversing from
         final Set<Class<?>> visited = new HashSet<>();
-        final LinkedList<Class<?>> interfaceQueue = includeInterfaceDefaultMethods ? new LinkedList<>() : null;
+        final LinkedList<Class<?>> interfaceQueue = includeInterfaceDefaultMethods ? new LinkedList<Class<?>>()
+                : null;
         for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
             for (final Method m : getDeclaredMethods(c)) {
                 if (methodIter.foundMethod(m)) {
