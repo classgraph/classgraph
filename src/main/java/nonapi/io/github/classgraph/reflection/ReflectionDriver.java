@@ -226,7 +226,7 @@ public abstract class ReflectionDriver {
      * @throws NoSuchMethodException
      *             If not found.
      */
-    protected Method findDriverMethod(final String methodName, final Class<?>... paramTypes)
+    protected Method findIndexedDriverMethod(final String methodName, final Class<?>... paramTypes)
             throws NoSuchMethodException {
         final List<Method> methods = methodNameToMethods.get(methodName);
         if (methods != null) {
@@ -245,7 +245,7 @@ public abstract class ReflectionDriver {
      * @param methods
      *            The methods to index.
      */
-    protected void indexMethods(final List<Method> methods) {
+    protected void indexDriverMethods(final List<Method> methods) {
         // Index Narcissus methods by name
         for (final Method method : methods) {
             List<Method> methodsForName = methodNameToMethods.get(method.getName());

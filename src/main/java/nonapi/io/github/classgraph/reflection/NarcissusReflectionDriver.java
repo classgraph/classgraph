@@ -60,17 +60,17 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         }
 
         // Look up needed methods
-        indexMethods(drv.enumerateDriverMethods(narcissusClass));
-        findClass = findDriverMethod("findClass", String.class);
-        getDeclaredMethods = findDriverMethod("getDeclaredMethods", Class.class);
-        getDeclaredConstructors = findDriverMethod("getDeclaredConstructors", Class.class);
-        getDeclaredFields = findDriverMethod("getDeclaredFields", Class.class);
-        getField = findDriverMethod("getField", Object.class, Field.class);
-        setField = findDriverMethod("setField", Object.class, Field.class, Object.class);
-        getStaticField = findDriverMethod("getStaticField", Field.class);
-        setStaticField = findDriverMethod("setStaticField", Field.class, Object.class);
-        invokeMethod = findDriverMethod("invokeMethod", Object.class, Method.class, Object[].class);
-        invokeStaticMethod = findDriverMethod("invokeStaticMethod", Method.class, Object[].class);
+        indexDriverMethods(drv.enumerateDriverMethods(narcissusClass));
+        findClass = findIndexedDriverMethod("findClass", String.class);
+        getDeclaredMethods = findIndexedDriverMethod("getDeclaredMethods", Class.class);
+        getDeclaredConstructors = findIndexedDriverMethod("getDeclaredConstructors", Class.class);
+        getDeclaredFields = findIndexedDriverMethod("getDeclaredFields", Class.class);
+        getField = findIndexedDriverMethod("getField", Object.class, Field.class);
+        setField = findIndexedDriverMethod("setField", Object.class, Field.class, Object.class);
+        getStaticField = findIndexedDriverMethod("getStaticField", Field.class);
+        setStaticField = findIndexedDriverMethod("setStaticField", Field.class, Object.class);
+        invokeMethod = findIndexedDriverMethod("invokeMethod", Object.class, Method.class, Object[].class);
+        invokeStaticMethod = findIndexedDriverMethod("invokeStaticMethod", Method.class, Object[].class);
     }
 
     @Override

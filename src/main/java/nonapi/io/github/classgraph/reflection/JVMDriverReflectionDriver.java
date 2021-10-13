@@ -75,14 +75,14 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         }
 
         // Look up needed methods
-        indexMethods(drv.enumerateDriverMethods(driverClass));
-        getDeclaredMethods = findDriverMethod("getDeclaredMethods", Class.class);
-        getDeclaredConstructors = findDriverMethod("getDeclaredConstructors", Class.class);
-        getDeclaredFields = findDriverMethod("getDeclaredFields", Class.class);
-        getField = findDriverMethod("getFieldValue", Object.class, Field.class);
-        setField = findDriverMethod("setFieldValue", Object.class, Field.class, Object.class);
-        invokeMethod = findDriverMethod("invoke", Object.class, Method.class, Object[].class);
-        setAccessibleMethod = findDriverMethod("setAccessible", AccessibleObject.class, boolean.class);
+        indexDriverMethods(drv.enumerateDriverMethods(driverClass));
+        getDeclaredMethods = findIndexedDriverMethod("getDeclaredMethods", Class.class);
+        getDeclaredConstructors = findIndexedDriverMethod("getDeclaredConstructors", Class.class);
+        getDeclaredFields = findIndexedDriverMethod("getDeclaredFields", Class.class);
+        getField = findIndexedDriverMethod("getFieldValue", Object.class, Field.class);
+        setField = findIndexedDriverMethod("setFieldValue", Object.class, Field.class, Object.class);
+        invokeMethod = findIndexedDriverMethod("invoke", Object.class, Method.class, Object[].class);
+        setAccessibleMethod = findIndexedDriverMethod("setAccessible", AccessibleObject.class, boolean.class);
         try {
             // JDK 7 and 8
             final Method forName0_method = findStaticMethod(Class.class, "forName0", String.class, boolean.class,
