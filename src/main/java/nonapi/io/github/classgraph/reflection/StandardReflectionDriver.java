@@ -39,19 +39,13 @@ import java.util.concurrent.Callable;
  * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
-    private static Method isAccessibleMethod;
     private static Method setAccessibleMethod;
     private static Method trySetAccessibleMethod;
 
     static {
-        // Find deprecated methods isAccessible/setAccessible, to remove compile-time warnings
+        // Find deprecated methods to remove compile-time warnings
         // TODO Switch to using  MethodHandles once this is fixed:
         // https://github.com/mojohaus/animal-sniffer/issues/67
-        try {
-            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible");
-        } catch (final Throwable t) {
-            // Ignore
-        }
         try {
             setAccessibleMethod = AccessibleObject.class.getDeclaredMethod("setAccessible", boolean.class);
         } catch (final Throwable t) {
@@ -64,34 +58,20 @@ class StandardReflectionDriver extends ReflectionDriver {
         }
     }
 
-    private static boolean isAccessible(final AccessibleObject obj) {
-        if (isAccessibleMethod != null) {
-            // JDK 7/8: use isAccessible (deprecated in JDK 9+)
+    private static boolean tryMakeAccessible(final AccessibleObject obj) {
+        if (trySetAccessibleMethod != null) {
+            // JDK 9+
             try {
-                if ((Boolean) isAccessibleMethod.invoke(obj)) {
-                    return true;
-                }
+                return (Boolean) trySetAccessibleMethod.invoke(obj);
             } catch (final Throwable e) {
                 // Ignore
             }
         }
-        return false;
-    }
-
-    private static boolean tryMakeAccessible(final AccessibleObject obj) {
         if (setAccessibleMethod != null) {
+            // JDK 7/8
             try {
                 setAccessibleMethod.invoke(obj, true);
                 return true;
-            } catch (final Throwable e) {
-                // Ignore
-            }
-        }
-        if (trySetAccessibleMethod != null) {
-            try {
-                if ((Boolean) trySetAccessibleMethod.invoke(obj)) {
-                    return true;
-                }
             } catch (final Throwable e) {
                 // Ignore
             }
@@ -100,8 +80,8 @@ class StandardReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    public boolean makeAccessible(final AccessibleObject obj) {
-        if (isAccessible(obj) || tryMakeAccessible(obj)) {
+    public boolean makeAccessible(final Object instance, final AccessibleObject obj) {
+        if (isAccessible(instance, obj)) {
             return true;
         }
         try {
@@ -113,8 +93,8 @@ class StandardReflectionDriver extends ReflectionDriver {
             });
         } catch (final Throwable t) {
             // Fall through
+            return tryMakeAccessible(obj);
         }
-        return false;
     }
 
     @Override
@@ -140,37 +120,37 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     @Override
     Object getField(final Object object, final Field field) throws Exception {
-        makeAccessible(field);
+        makeAccessible(object, field);
         return field.get(object);
     }
 
     @Override
     void setField(final Object object, final Field field, final Object value) throws Exception {
-        makeAccessible(field);
+        makeAccessible(object, field);
         field.set(object, value);
     }
 
     @Override
     Object getStaticField(final Field field) throws Exception {
-        makeAccessible(field);
+        makeAccessible(null, field);
         return field.get(null);
     }
 
     @Override
     void setStaticField(final Field field, final Object value) throws Exception {
-        makeAccessible(field);
+        makeAccessible(null, field);
         field.set(null, value);
     }
 
     @Override
     Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
-        makeAccessible(method);
+        makeAccessible(object, method);
         return method.invoke(object, args);
     }
 
     @Override
     Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
-        makeAccessible(method);
+        makeAccessible(null, method);
         return method.invoke(null, args);
     }
 }

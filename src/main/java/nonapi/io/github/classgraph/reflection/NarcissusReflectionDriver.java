@@ -55,7 +55,7 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         // Load Narcissus class via reflection, so that there is no runtime dependency
         final StandardReflectionDriver drv = new StandardReflectionDriver();
         narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
-        if (!(Boolean) drv.getStaticField(drv.findField(narcissusClass, "libraryLoaded"))) {
+        if (!(Boolean) drv.getStaticField(drv.findStaticField(narcissusClass, "libraryLoaded"))) {
             throw new IllegalArgumentException("Could not load Narcissus native library");
         }
 
@@ -74,7 +74,12 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    public boolean makeAccessible(final AccessibleObject accessibleObject) {
+    public boolean isAccessible(final Object instance, final AccessibleObject obj) {
+        return true;
+    }
+
+    @Override
+    public boolean makeAccessible(final Object instance, final AccessibleObject accessibleObject) {
         return true;
     }
 

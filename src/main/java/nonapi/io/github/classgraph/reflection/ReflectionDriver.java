@@ -45,6 +45,23 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Reflection driver */
 public abstract class ReflectionDriver {
     private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
+    private static Method isAccessibleMethod;
+    private static Method canAccessMethod;
+
+    static {
+        // TODO Switch to using  MethodHandles once this is fixed:
+        // https://github.com/mojohaus/animal-sniffer/issues/67
+        try {
+            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible");
+        } catch (final Throwable t) {
+            // Ignore
+        }
+        try {
+            canAccessMethod = AccessibleObject.class.getDeclaredMethod("canAccess", Object.class);
+        } catch (final Throwable t) {
+            // Ignore
+        }
+    }
 
     /**
      * Find a class by name.
@@ -151,13 +168,46 @@ public abstract class ReflectionDriver {
     abstract Object invokeStaticMethod(final Method method, final Object... args) throws Exception;
 
     /**
+     * Check whether a field or method is accessible.
+     * 
+     * @param instance
+     *            the object instance, or null if static.
+     * @param fieldOrMethod
+     *            the field or method.
+     * 
+     * @return true if accessible.
+     */
+    public boolean isAccessible(final Object instance, final AccessibleObject fieldOrMethod) {
+        if (canAccessMethod != null) {
+            // JDK 9+: use canAccess
+            try {
+                return (Boolean) canAccessMethod.invoke(fieldOrMethod, instance);
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        if (isAccessibleMethod != null) {
+            // JDK 7/8: use isAccessible (deprecated in JDK 9+)
+            try {
+                return (Boolean) isAccessibleMethod.invoke(fieldOrMethod);
+            } catch (final Throwable e) {
+                // Ignore
+            }
+        }
+        return false;
+    }
+
+    /**
      * Make a field or method accessible.
      * 
-     * @param accessibleObject
+     * @param instance
+     *            the object instance, or null if static.
+     * @param fieldOrMethod
      *            the field or method.
+     * 
      * @return true if successful.
      */
-    public abstract boolean makeAccessible(final AccessibleObject accessibleObject);
+    public abstract boolean makeAccessible(final Object instance, final AccessibleObject fieldOrMethod);
 
     /** Iterator applied to each method of a class and its superclasses/interfaces. */
     private static interface MethodIterator {
@@ -250,7 +300,7 @@ public abstract class ReflectionDriver {
     }
 
     /**
-     * Find a method by name and parameter types in the given class.
+     * Find a static method by name and parameter types in the given class.
      *
      * @param cls
      *            the class
@@ -262,27 +312,109 @@ public abstract class ReflectionDriver {
      * @throws NoSuchMethodException
      *             if the class does not contain a method of the given name and parameter types
      */
-    Method findMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes) throws Exception {
-        final AtomicReference<Method> method = new AtomicReference<>();
+    Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
+            throws Exception {
+        final AtomicReference<Boolean> methodFound = new AtomicReference<>(false);
+        final AtomicReference<Method> accessibleMethod = new AtomicReference<>();
+        // First try to find an accessible version of the method, without calling setAccessible
+        // (this is needed for JPMS, since the implementing subclass of ModuleReference
+        // is not accessible, but its superclass is)
         forAllMethods(cls, new MethodIterator() {
             @Override
             public boolean foundMethod(final Method m) {
-                if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())
-                // If method is not accessible, fall through and try superclass method of same
-                // name and paramTypes
-                        && makeAccessible(m)) {
-                    method.set(m);
-                    return true;
+                if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
+                    methodFound.set(true);
+                    if (isAccessible(null, m)) {
+                        accessibleMethod.set(m);
+                        // Stop iterating through methods
+                        return true;
+                    }
                 }
                 return false;
             }
         });
-        final Method m = method.get();
-        if (m != null) {
-            return m;
-        } else {
-            throw new NoSuchMethodException(methodName);
+        if (accessibleMethod.get() != null) {
+            return accessibleMethod.get();
         }
+        if (methodFound.get()) {
+            // Method was found, but was not accessible -- try making method accessible
+            forAllMethods(cls, new MethodIterator() {
+                @Override
+                public boolean foundMethod(final Method m) {
+                    if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
+                        if (makeAccessible(null, m)) {
+                            accessibleMethod.set(m);
+                            // Stop iterating through methods
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
+            if (accessibleMethod.get() != null) {
+                return accessibleMethod.get();
+            }
+        }
+        throw new NoSuchMethodException(methodName);
+    }
+
+    /**
+     * Find a method by name and parameter types in the class of the given object.
+     *
+     * @param obj
+     *            the object
+     * @param methodName
+     *            the method name.
+     * @param paramTypes
+     *            the parameter types of the method.
+     * @return the {@link Method}
+     * @throws NoSuchMethodException
+     *             if the class does not contain a method of the given name and parameter types
+     */
+    Method findInstanceMethod(final Object obj, final String methodName, final Class<?>... paramTypes)
+            throws Exception {
+        final AtomicReference<Boolean> methodFound = new AtomicReference<>(false);
+        final AtomicReference<Method> accessibleMethod = new AtomicReference<>();
+        // First try to find an accessible version of the method, without calling setAccessible
+        // (this is needed for JPMS, since the implementing subclass of ModuleReference
+        // is not accessible, but its superclass is)
+        forAllMethods(obj.getClass(), new MethodIterator() {
+            @Override
+            public boolean foundMethod(final Method m) {
+                if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
+                    methodFound.set(true);
+                    if (isAccessible(obj, m)) {
+                        accessibleMethod.set(m);
+                        // Stop iterating through methods
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+        if (accessibleMethod.get() != null) {
+            return accessibleMethod.get();
+        }
+        if (methodFound.get()) {
+            // Method was found, but was not accessible -- try making method accessible
+            forAllMethods(obj.getClass(), new MethodIterator() {
+                @Override
+                public boolean foundMethod(final Method m) {
+                    if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
+                        if (makeAccessible(obj, m)) {
+                            accessibleMethod.set(m);
+                            // Stop iterating through methods
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
+            if (accessibleMethod.get() != null) {
+                return accessibleMethod.get();
+            }
+        }
+        throw new NoSuchMethodException(methodName);
     }
 
     /**
@@ -316,10 +448,34 @@ public abstract class ReflectionDriver {
      * @throws NoSuchFieldException
      *             if the class does not contain a field of the given name
      */
-    Field findField(final Class<?> cls, final String fieldName) throws Exception {
+    Field findStaticField(final Class<?> cls, final String fieldName) throws Exception {
         for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
             for (final Field field : getDeclaredFields(c)) {
                 if (field.getName().equals(fieldName)) {
+                    makeAccessible(null, field);
+                    return field;
+                }
+            }
+        }
+        throw new NoSuchFieldException(fieldName);
+    }
+
+    /**
+     * Find a field by name in the class of the given object.
+     *
+     * @param obj
+     *            the object
+     * @param fieldName
+     *            the field name.
+     * @return the {@link Field}
+     * @throws NoSuchFieldException
+     *             if the class does not contain a field of the given name
+     */
+    Field findInstanceField(final Object obj, final String fieldName) throws Exception {
+        for (Class<?> c = obj.getClass(); c != null; c = c.getSuperclass()) {
+            for (final Field field : getDeclaredFields(c)) {
+                if (field.getName().equals(fieldName)) {
+                    makeAccessible(obj, field);
                     return field;
                 }
             }

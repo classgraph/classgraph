@@ -526,7 +526,7 @@ public final class FileUtils {
                     return null;
                 }
             });
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             // Ignore
         }
     }
@@ -656,7 +656,7 @@ public final class FileUtils {
                         return closeDirectByteBufferPrivileged(byteBuffer, log);
                     }
                 });
-            } catch (Throwable t) {
+            } catch (final Throwable t) {
                 return false;
             }
         } else {
