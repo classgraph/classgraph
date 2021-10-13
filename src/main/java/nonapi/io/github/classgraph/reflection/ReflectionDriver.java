@@ -262,38 +262,47 @@ public abstract class ReflectionDriver {
      *
      * @param cls
      *            the class
+     * @param includeInterfaceDefaultMethods
+     *            iterate through default methods in interfaces
+     * @param methodIter
+     *            The {@link MethodIter} to apply for each declared method
      */
-    void forAllMethods(final Class<?> cls, final ReflectionDriver.MethodIterator methodIter) throws Exception {
+    void forAllMethods(final Class<?> cls, boolean includeInterfaceDefaultMethods,
+            final ReflectionDriver.MethodIterator methodIter) throws Exception {
         // Iterate from class to its superclasses, and find initial interfaces to start traversing from
         final Set<Class<?>> visited = new HashSet<>();
-        final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
+        final LinkedList<Class<?>> interfaceQueue = includeInterfaceDefaultMethods ? new LinkedList<>() : null;
         for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
             for (final Method m : getDeclaredMethods(c)) {
                 if (methodIter.foundMethod(m)) {
                     return;
                 }
             }
-            // Find interfaces and superinterfaces implemented by this class or its superclasses
-            if (c.isInterface() && visited.add(c)) {
-                interfaceQueue.add(c);
-            }
-            for (final Class<?> iface : c.getInterfaces()) {
-                if (visited.add(iface)) {
-                    interfaceQueue.add(iface);
+            if (interfaceQueue != null) {
+                // Find interfaces and superinterfaces implemented by this class or its superclasses
+                if (c.isInterface() && visited.add(c)) {
+                    interfaceQueue.add(c);
+                }
+                for (final Class<?> iface : c.getInterfaces()) {
+                    if (visited.add(iface)) {
+                        interfaceQueue.add(iface);
+                    }
                 }
             }
         }
-        // Traverse through interfaces looking for default methods
-        while (!interfaceQueue.isEmpty()) {
-            final Class<?> iface = interfaceQueue.remove();
-            for (final Method m : getDeclaredMethods(iface)) {
-                if (methodIter.foundMethod(m)) {
-                    return;
+        if (interfaceQueue != null) {
+            // Traverse through interfaces looking for default methods
+            while (!interfaceQueue.isEmpty()) {
+                final Class<?> iface = interfaceQueue.remove();
+                for (final Method m : getDeclaredMethods(iface)) {
+                    if (methodIter.foundMethod(m)) {
+                        return;
+                    }
                 }
-            }
-            for (final Class<?> superIface : iface.getInterfaces()) {
-                if (visited.add(superIface)) {
-                    interfaceQueue.add(superIface);
+                for (final Class<?> superIface : iface.getInterfaces()) {
+                    if (visited.add(superIface)) {
+                        interfaceQueue.add(superIface);
+                    }
                 }
             }
         }
@@ -319,7 +328,7 @@ public abstract class ReflectionDriver {
         // First try to find an accessible version of the method, without calling setAccessible
         // (this is needed for JPMS, since the implementing subclass of ModuleReference
         // is not accessible, but its superclass is)
-        forAllMethods(cls, new MethodIterator() {
+        forAllMethods(cls, /* includeInterfaceDefaultMethods = */ false, new MethodIterator() {
             @Override
             public boolean foundMethod(final Method m) {
                 if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
@@ -338,7 +347,7 @@ public abstract class ReflectionDriver {
         }
         if (methodFound.get()) {
             // Method was found, but was not accessible -- try making method accessible
-            forAllMethods(cls, new MethodIterator() {
+            forAllMethods(cls, /* includeInterfaceDefaultMethods = */ false, new MethodIterator() {
                 @Override
                 public boolean foundMethod(final Method m) {
                     if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
@@ -378,7 +387,7 @@ public abstract class ReflectionDriver {
         // First try to find an accessible version of the method, without calling setAccessible
         // (this is needed for JPMS, since the implementing subclass of ModuleReference
         // is not accessible, but its superclass is)
-        forAllMethods(obj.getClass(), new MethodIterator() {
+        forAllMethods(obj.getClass(), /* includeInterfaceDefaultMethods = */ true, new MethodIterator() {
             @Override
             public boolean foundMethod(final Method m) {
                 if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
@@ -397,7 +406,7 @@ public abstract class ReflectionDriver {
         }
         if (methodFound.get()) {
             // Method was found, but was not accessible -- try making method accessible
-            forAllMethods(obj.getClass(), new MethodIterator() {
+            forAllMethods(obj.getClass(), /* includeInterfaceDefaultMethods = */ true, new MethodIterator() {
                 @Override
                 public boolean foundMethod(final Method m) {
                     if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
@@ -427,7 +436,7 @@ public abstract class ReflectionDriver {
      */
     List<Method> enumerateDriverMethods(final Class<?> cls) throws Exception {
         final List<Method> methodOrder = new ArrayList<>();
-        forAllMethods(cls, new MethodIterator() {
+        forAllMethods(cls, /* includeInterfaceDefaultMethods = */ true, new MethodIterator() {
             @Override
             public boolean foundMethod(final Method m) {
                 methodOrder.add(m);
