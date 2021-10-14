@@ -60,17 +60,18 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         }
 
         // Look up needed methods
-        indexDriverMethods(drv.enumerateDriverMethods(narcissusClass));
-        findClass = findIndexedDriverMethod("findClass", String.class);
-        getDeclaredMethods = findIndexedDriverMethod("getDeclaredMethods", Class.class);
-        getDeclaredConstructors = findIndexedDriverMethod("getDeclaredConstructors", Class.class);
-        getDeclaredFields = findIndexedDriverMethod("getDeclaredFields", Class.class);
-        getField = findIndexedDriverMethod("getField", Object.class, Field.class);
-        setField = findIndexedDriverMethod("setField", Object.class, Field.class, Object.class);
-        getStaticField = findIndexedDriverMethod("getStaticField", Field.class);
-        setStaticField = findIndexedDriverMethod("setStaticField", Field.class, Object.class);
-        invokeMethod = findIndexedDriverMethod("invokeMethod", Object.class, Method.class, Object[].class);
-        invokeStaticMethod = findIndexedDriverMethod("invokeStaticMethod", Method.class, Object[].class);
+        findClass = drv.findStaticMethod(narcissusClass, "findClass", String.class);
+        getDeclaredMethods = drv.findStaticMethod(narcissusClass, "getDeclaredMethods", Class.class);
+        getDeclaredConstructors = drv.findStaticMethod(narcissusClass, "getDeclaredConstructors", Class.class);
+        getDeclaredFields = drv.findStaticMethod(narcissusClass, "getDeclaredFields", Class.class);
+        getField = drv.findStaticMethod(narcissusClass, "getField", Object.class, Field.class);
+        setField = drv.findStaticMethod(narcissusClass, "setField", Object.class, Field.class, Object.class);
+        getStaticField = drv.findStaticMethod(narcissusClass, "getStaticField", Field.class);
+        setStaticField = drv.findStaticMethod(narcissusClass, "setStaticField", Field.class, Object.class);
+        invokeMethod = drv.findStaticMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
+                Object[].class);
+        invokeStaticMethod = drv.findStaticMethod(narcissusClass, "invokeStaticMethod", Method.class,
+                Object[].class);
     }
 
     @Override
