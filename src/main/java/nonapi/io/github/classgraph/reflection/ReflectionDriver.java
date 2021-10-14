@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /** Reflection driver */
 public abstract class ReflectionDriver {
-    private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
+    private final Map<String, List<Method>> driverMethodNameToMethods = new HashMap<>();
     private static Method isAccessibleMethod;
     private static Method canAccessMethod;
 
@@ -209,51 +209,12 @@ public abstract class ReflectionDriver {
      */
     public abstract boolean makeAccessible(final Object instance, final AccessibleObject fieldOrMethod);
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Iterator applied to each method of a class and its superclasses/interfaces. */
-    private static interface MethodIterator {
+    protected static interface MethodIterator {
         /** @return true to stop iterating, or false to continue iterating */
         boolean foundMethod(Method m) throws Exception;
-    }
-
-    /**
-     * Find an indexed method.
-     * 
-     * @param methodName
-     *            The method name.
-     * @param paramTypes
-     *            The parameter types.
-     * @return The method, if found.
-     * @throws NoSuchMethodException
-     *             If not found.
-     */
-    protected Method findIndexedDriverMethod(final String methodName, final Class<?>... paramTypes)
-            throws NoSuchMethodException {
-        final List<Method> methods = methodNameToMethods.get(methodName);
-        if (methods != null) {
-            for (final Method method : methods) {
-                if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
-                    return method;
-                }
-            }
-        }
-        throw new NoSuchMethodException(methodName);
-    }
-
-    /**
-     * Index a list of methods.
-     * 
-     * @param methods
-     *            The methods to index.
-     */
-    protected void indexDriverMethods(final List<Method> methods) {
-        // Index Narcissus methods by name
-        for (final Method method : methods) {
-            List<Method> methodsForName = methodNameToMethods.get(method.getName());
-            if (methodsForName == null) {
-                methodNameToMethods.put(method.getName(), methodsForName = new ArrayList<>());
-            }
-            methodsForName.add(method);
-        }
     }
 
     /**
@@ -267,8 +228,8 @@ public abstract class ReflectionDriver {
      * @param methodIter
      *            The {@link MethodIter} to apply for each declared method
      */
-    void forAllMethods(final Class<?> cls, final boolean includeInterfaceDefaultMethods,
-            final ReflectionDriver.MethodIterator methodIter) throws Exception {
+    protected void forAllMethods(final Class<?> cls, final boolean includeInterfaceDefaultMethods,
+            final MethodIterator methodIter) throws Exception {
         // Iterate from class to its superclasses, and find initial interfaces to start traversing from
         final Set<Class<?>> visited = new HashSet<>();
         final LinkedList<Class<?>> interfaceQueue = includeInterfaceDefaultMethods ? new LinkedList<Class<?>>()
@@ -309,70 +270,78 @@ public abstract class ReflectionDriver {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Find a static method by name and parameter types in the given class.
-     *
-     * @param cls
-     *            the class
+     * Find an indexed method.
+     * 
      * @param methodName
-     *            the method name.
+     *            The method name.
      * @param paramTypes
-     *            the parameter types of the method.
-     * @return the {@link Method}
+     *            The parameter types.
+     * @return The method, if found.
      * @throws NoSuchMethodException
-     *             if the class does not contain a method of the given name and parameter types
+     *             If not found.
      */
-    Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
-            throws Exception {
-        final AtomicReference<Boolean> methodFound = new AtomicReference<>(false);
-        final AtomicReference<Method> accessibleMethod = new AtomicReference<>();
-        // First try to find an accessible version of the method, without calling setAccessible
-        // (this is needed for JPMS, since the implementing subclass of ModuleReference
-        // is not accessible, but its superclass is)
-        forAllMethods(cls, /* includeInterfaceDefaultMethods = */ false, new MethodIterator() {
-            @Override
-            public boolean foundMethod(final Method m) {
-                if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
-                    methodFound.set(true);
-                    if (isAccessible(null, m)) {
-                        accessibleMethod.set(m);
-                        // Stop iterating through methods
-                        return true;
-                    }
+    protected Method findIndexedDriverMethod(final String methodName, final Class<?>... paramTypes)
+            throws NoSuchMethodException {
+        final List<Method> methods = driverMethodNameToMethods.get(methodName);
+        if (methods != null) {
+            for (final Method method : methods) {
+                if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
+                    return method;
                 }
-                return false;
-            }
-        });
-        if (accessibleMethod.get() != null) {
-            return accessibleMethod.get();
-        }
-        if (methodFound.get()) {
-            // Method was found, but was not accessible -- try making method accessible
-            forAllMethods(cls, /* includeInterfaceDefaultMethods = */ false, new MethodIterator() {
-                @Override
-                public boolean foundMethod(final Method m) {
-                    if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
-                        if (makeAccessible(null, m)) {
-                            accessibleMethod.set(m);
-                            // Stop iterating through methods
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-            });
-            if (accessibleMethod.get() != null) {
-                return accessibleMethod.get();
             }
         }
         throw new NoSuchMethodException(methodName);
     }
 
     /**
-     * Find a method by name and parameter types in the class of the given object.
+     * Index a list of methods.
+     * 
+     * @param methods
+     *            The methods to index.
+     */
+    protected void indexDriverMethods(final List<Method> methods) {
+        // Index Narcissus methods by name
+        for (final Method method : methods) {
+            List<Method> methodsForName = driverMethodNameToMethods.get(method.getName());
+            if (methodsForName == null) {
+                driverMethodNameToMethods.put(method.getName(), methodsForName = new ArrayList<>());
+            }
+            methodsForName.add(method);
+        }
+    }
+
+    /**
+     * Enumerate all methods in the given class, ignoring visibility and bypassing security checks. Also iterates up
+     * through superclasses, to collect all methods of the class and its superclasses.
      *
+     * @param cls
+     *            the class
+     * @return a list of {@link Method} objects representing all methods declared by the class or a superclass.
+     */
+    protected List<Method> enumerateDriverMethods(final Class<?> cls) throws Exception {
+        final List<Method> methodOrder = new ArrayList<>();
+        forAllMethods(cls, /* includeInterfaceDefaultMethods = */ true, new MethodIterator() {
+            @Override
+            public boolean foundMethod(final Method m) {
+                methodOrder.add(m);
+                return false;
+            }
+        });
+        return methodOrder;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Find a static method by name and parameter types in the given class.
+     *
+     * @param cls
+     *            the class
      * @param obj
-     *            the object
+     *            the object instance
      * @param methodName
      *            the method name.
      * @param paramTypes
@@ -381,14 +350,14 @@ public abstract class ReflectionDriver {
      * @throws NoSuchMethodException
      *             if the class does not contain a method of the given name and parameter types
      */
-    Method findInstanceMethod(final Object obj, final String methodName, final Class<?>... paramTypes)
-            throws Exception {
+    private Method findMethod(final Class<?> cls, final Object obj, final String methodName,
+            final Class<?>... paramTypes) throws Exception {
         final AtomicReference<Boolean> methodFound = new AtomicReference<>(false);
         final AtomicReference<Method> accessibleMethod = new AtomicReference<>();
         // First try to find an accessible version of the method, without calling setAccessible
         // (this is needed for JPMS, since the implementing subclass of ModuleReference
         // is not accessible, but its superclass is)
-        forAllMethods(obj.getClass(), /* includeInterfaceDefaultMethods = */ true, new MethodIterator() {
+        forAllMethods(cls, /* includeInterfaceDefaultMethods = */ obj != null, new MethodIterator() {
             @Override
             public boolean foundMethod(final Method m) {
                 if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
@@ -407,7 +376,7 @@ public abstract class ReflectionDriver {
         }
         if (methodFound.get()) {
             // Method was found, but was not accessible -- try making method accessible
-            forAllMethods(obj.getClass(), /* includeInterfaceDefaultMethods = */ true, new MethodIterator() {
+            forAllMethods(cls, /* includeInterfaceDefaultMethods = */ obj != null, new MethodIterator() {
                 @Override
                 public boolean foundMethod(final Method m) {
                     if (m.getName().equals(methodName) && Arrays.equals(paramTypes, m.getParameterTypes())) {
@@ -428,23 +397,64 @@ public abstract class ReflectionDriver {
     }
 
     /**
-     * Enumerate all methods in the given class, ignoring visibility and bypassing security checks. Also iterates up
-     * through superclasses, to collect all methods of the class and its superclasses.
+     * Find a static method by name and parameter types in the given class.
      *
      * @param cls
      *            the class
-     * @return a list of {@link Method} objects representing all methods declared by the class or a superclass.
+     * @param methodName
+     *            the method name.
+     * @param paramTypes
+     *            the parameter types of the method.
+     * @return the {@link Method}
+     * @throws NoSuchMethodException
+     *             if the class does not contain a method of the given name and parameter types
      */
-    List<Method> enumerateDriverMethods(final Class<?> cls) throws Exception {
-        final List<Method> methodOrder = new ArrayList<>();
-        forAllMethods(cls, /* includeInterfaceDefaultMethods = */ true, new MethodIterator() {
-            @Override
-            public boolean foundMethod(final Method m) {
-                methodOrder.add(m);
-                return false;
+    Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
+            throws Exception {
+        return findMethod(cls, null, methodName, paramTypes);
+    }
+
+    /**
+     * Find a method by name and parameter types in the class of the given object.
+     *
+     * @param obj
+     *            the object
+     * @param methodName
+     *            the method name.
+     * @param paramTypes
+     *            the parameter types of the method.
+     * @return the {@link Method}
+     * @throws NoSuchMethodException
+     *             if the class does not contain a method of the given name and parameter types
+     */
+    Method findInstanceMethod(final Object obj, final String methodName, final Class<?>... paramTypes)
+            throws Exception {
+        return findMethod(obj.getClass(), obj, methodName, paramTypes);
+    }
+
+    /**
+     * Find a field by name in the given class.
+     *
+     * @param cls
+     *            the class
+     * @param obj
+     *            the object instance
+     * @param fieldName
+     *            the field name.
+     * @return the {@link Field}
+     * @throws NoSuchFieldException
+     *             if the class does not contain a field of the given name
+     */
+    private Field findField(final Class<?> cls, final Object obj, final String fieldName) throws Exception {
+        for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+            for (final Field field : getDeclaredFields(c)) {
+                if (field.getName().equals(fieldName)) {
+                    makeAccessible(obj, field);
+                    return field;
+                }
             }
-        });
-        return methodOrder;
+        }
+        throw new NoSuchFieldException(fieldName);
     }
 
     /**
@@ -459,15 +469,7 @@ public abstract class ReflectionDriver {
      *             if the class does not contain a field of the given name
      */
     Field findStaticField(final Class<?> cls, final String fieldName) throws Exception {
-        for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-            for (final Field field : getDeclaredFields(c)) {
-                if (field.getName().equals(fieldName)) {
-                    makeAccessible(null, field);
-                    return field;
-                }
-            }
-        }
-        throw new NoSuchFieldException(fieldName);
+        return findField(cls, null, fieldName);
     }
 
     /**
@@ -482,14 +484,6 @@ public abstract class ReflectionDriver {
      *             if the class does not contain a field of the given name
      */
     Field findInstanceField(final Object obj, final String fieldName) throws Exception {
-        for (Class<?> c = obj.getClass(); c != null; c = c.getSuperclass()) {
-            for (final Field field : getDeclaredFields(c)) {
-                if (field.getName().equals(fieldName)) {
-                    makeAccessible(obj, field);
-                    return field;
-                }
-            }
-        }
-        throw new NoSuchFieldException(fieldName);
+        return findField(obj.getClass(), obj, fieldName);
     }
 }
