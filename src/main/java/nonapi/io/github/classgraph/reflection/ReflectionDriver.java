@@ -134,7 +134,9 @@ abstract class ReflectionDriver {
         private void cacheField(final Field field) {
             // Only put a field name to field mapping if it is absent, so that subclasses mask fields 
             // of the same name in superclasses
-            fieldNameToField.putIfAbsent(field.getName(), field);
+            if (!fieldNameToField.containsKey(field.getName())) {
+                fieldNameToField.put(field.getName(), field);
+            }
         }
     }
 
