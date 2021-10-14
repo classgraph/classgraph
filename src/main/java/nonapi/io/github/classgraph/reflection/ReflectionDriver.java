@@ -46,7 +46,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Reflection driver */
 abstract class ReflectionDriver {
-    private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToFieldMethodCache //
+    private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToClassMemberCache //
             = new SingletonMap<Class<?>, ClassMemberCache, Exception>() {
                 @Override
                 public ClassMemberCache newInstance(final Class<?> cls, final LogNode log)
@@ -259,6 +259,9 @@ abstract class ReflectionDriver {
     /**
      * Check whether a field or method is accessible.
      * 
+     * <p>
+     * N.B. this is overridden in Narcissus driver to just return true, since everything is accessible to JNI.
+     * 
      * @param instance
      *            the object instance, or null if static.
      * @param fieldOrMethod
@@ -267,7 +270,6 @@ abstract class ReflectionDriver {
      * @return true if accessible.
      */
     boolean isAccessible(final Object instance, final AccessibleObject fieldOrMethod) {
-        // Overridden in Narcissus driver to just return true, since everything is accessible to JNI
         if (canAccessMethod != null) {
             // JDK 9+: use canAccess
             try {
@@ -302,7 +304,7 @@ abstract class ReflectionDriver {
      *             if the field could not be found
      */
     private Field findField(final Class<?> cls, final Object obj, final String fieldName) throws Exception {
-        final Field field = classToFieldMethodCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
+        final Field field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
         if (field != null) {
             if (!isAccessible(obj, field)) {
                 // If field was found but is not accessible, try making it accessible and then returning it
@@ -366,11 +368,12 @@ abstract class ReflectionDriver {
      */
     private Method findMethod(final Class<?> cls, final Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
-        final List<Method> methods = classToFieldMethodCache.get(cls, null).methodNameToMethods.get(methodName);
-        if (methods != null) {
+        final List<Method> methodsForName = classToClassMemberCache.get(cls, null).methodNameToMethods
+                .get(methodName);
+        if (methodsForName != null) {
             // Return the first method that matches the signature that is already accessible
             boolean found = false;
-            for (final Method method : methods) {
+            for (final Method method : methodsForName) {
                 if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
                     found = true;
                     if (isAccessible(obj, method)) {
@@ -381,7 +384,7 @@ abstract class ReflectionDriver {
             // If method was found but is not accessible, try making it accessible and then returning it
             // (may result in a reflective access warning on stderr)
             if (found) {
-                for (final Method method : methods) {
+                for (final Method method : methodsForName) {
                     if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
                         if (makeAccessible(obj, method)) {
                             return method;
