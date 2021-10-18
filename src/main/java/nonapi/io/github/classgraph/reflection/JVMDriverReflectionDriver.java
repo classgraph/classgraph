@@ -75,17 +75,17 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         }
 
         // Look up needed methods
-        indexMethods(drv.enumerateDriverMethods(driverClass));
-        getDeclaredMethods = findDriverMethod("getDeclaredMethods", Class.class);
-        getDeclaredConstructors = findDriverMethod("getDeclaredConstructors", Class.class);
-        getDeclaredFields = findDriverMethod("getDeclaredFields", Class.class);
-        getField = findDriverMethod("getFieldValue", Object.class, Field.class);
-        setField = findDriverMethod("setFieldValue", Object.class, Field.class, Object.class);
-        invokeMethod = findDriverMethod("invoke", Object.class, Method.class, Object[].class);
-        setAccessibleMethod = findDriverMethod("setAccessible", AccessibleObject.class, boolean.class);
+        getDeclaredMethods = drv.findInstanceMethod(driver, "getDeclaredMethods", Class.class);
+        getDeclaredConstructors = drv.findInstanceMethod(driver, "getDeclaredConstructors", Class.class);
+        getDeclaredFields = drv.findInstanceMethod(driver, "getDeclaredFields", Class.class);
+        getField = drv.findInstanceMethod(driver, "getFieldValue", Object.class, Field.class);
+        setField = drv.findInstanceMethod(driver, "setFieldValue", Object.class, Field.class, Object.class);
+        invokeMethod = drv.findInstanceMethod(driver, "invoke", Object.class, Method.class, Object[].class);
+        setAccessibleMethod = drv.findInstanceMethod(driver, "setAccessible", AccessibleObject.class,
+                boolean.class);
         try {
             // JDK 7 and 8
-            final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
+            final Method forName0_method = findStaticMethod(Class.class, "forName0", String.class, boolean.class,
                     ClassLoader.class);
             classFinder = new ClassFinder() {
                 @Override
@@ -100,8 +100,8 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         if (classFinder == null) {
             try {
                 // JDK 16 (and possibly earlier)
-                final Method forName0_method = findMethod(Class.class, "forName0", String.class, boolean.class,
-                        ClassLoader.class, Class.class);
+                final Method forName0_method = findStaticMethod(Class.class, "forName0", String.class,
+                        boolean.class, ClassLoader.class, Class.class);
                 classFinder = new ClassFinder() {
                     @Override
                     public Class<?> findClass(final String className) throws Exception {
@@ -116,7 +116,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         if (classFinder == null) {
             try {
                 // IBM Semeru
-                final Method forNameImpl_method = findMethod(Class.class, "forNameImpl", String.class,
+                final Method forNameImpl_method = findStaticMethod(Class.class, "forNameImpl", String.class,
                         boolean.class, ClassLoader.class);
                 classFinder = new ClassFinder() {
                     @Override
@@ -132,7 +132,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
         if (classFinder == null) {
             // Fallback if the above fails: just use Class.forName. 
             // This won't find private non-exported classes in other modules.
-            final Method forName_method = findMethod(Class.class, "forName", String.class);
+            final Method forName_method = findStaticMethod(Class.class, "forName", String.class);
             classFinder = new ClassFinder() {
                 @Override
                 public Class<?> findClass(final String className) throws Exception {
@@ -143,7 +143,7 @@ class JVMDriverReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    public boolean makeAccessible(final AccessibleObject accessibleObject) {
+    public boolean makeAccessible(final Object instance, final AccessibleObject accessibleObject) {
         try {
             setAccessibleMethod.invoke(driver, accessibleObject, true);
         } catch (final Throwable t) {

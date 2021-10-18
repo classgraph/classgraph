@@ -151,7 +151,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.getField(obj, reflectionDriver.findField(obj.getClass(), fieldName));
+            return reflectionDriver.getField(obj, reflectionDriver.findInstanceField(obj, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException(
@@ -188,7 +188,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.getStaticField(reflectionDriver.findField(cls, fieldName));
+            return reflectionDriver.getStaticField(reflectionDriver.findStaticField(cls, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException(
@@ -225,7 +225,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findMethod(obj.getClass(), methodName));
+            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
@@ -265,8 +265,8 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj,
-                    reflectionDriver.findMethod(obj.getClass(), methodName, argType), param);
+            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName, argType),
+                    param);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked: " + e);
@@ -302,7 +302,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeStaticMethod(reflectionDriver.findMethod(cls, methodName));
+            return reflectionDriver.invokeStaticMethod(reflectionDriver.findStaticMethod(cls, methodName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException(
@@ -343,7 +343,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeStaticMethod(reflectionDriver.findMethod(cls, methodName, argType),
+            return reflectionDriver.invokeStaticMethod(reflectionDriver.findStaticMethod(cls, methodName, argType),
                     param);
         } catch (final Throwable e) {
             if (throwException) {

@@ -55,26 +55,32 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         // Load Narcissus class via reflection, so that there is no runtime dependency
         final StandardReflectionDriver drv = new StandardReflectionDriver();
         narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
-        if (!(Boolean) drv.getStaticField(drv.findField(narcissusClass, "libraryLoaded"))) {
+        if (!(Boolean) drv.getStaticField(drv.findStaticField(narcissusClass, "libraryLoaded"))) {
             throw new IllegalArgumentException("Could not load Narcissus native library");
         }
 
         // Look up needed methods
-        indexMethods(drv.enumerateDriverMethods(narcissusClass));
-        findClass = findDriverMethod("findClass", String.class);
-        getDeclaredMethods = findDriverMethod("getDeclaredMethods", Class.class);
-        getDeclaredConstructors = findDriverMethod("getDeclaredConstructors", Class.class);
-        getDeclaredFields = findDriverMethod("getDeclaredFields", Class.class);
-        getField = findDriverMethod("getField", Object.class, Field.class);
-        setField = findDriverMethod("setField", Object.class, Field.class, Object.class);
-        getStaticField = findDriverMethod("getStaticField", Field.class);
-        setStaticField = findDriverMethod("setStaticField", Field.class, Object.class);
-        invokeMethod = findDriverMethod("invokeMethod", Object.class, Method.class, Object[].class);
-        invokeStaticMethod = findDriverMethod("invokeStaticMethod", Method.class, Object[].class);
+        findClass = drv.findStaticMethod(narcissusClass, "findClass", String.class);
+        getDeclaredMethods = drv.findStaticMethod(narcissusClass, "getDeclaredMethods", Class.class);
+        getDeclaredConstructors = drv.findStaticMethod(narcissusClass, "getDeclaredConstructors", Class.class);
+        getDeclaredFields = drv.findStaticMethod(narcissusClass, "getDeclaredFields", Class.class);
+        getField = drv.findStaticMethod(narcissusClass, "getField", Object.class, Field.class);
+        setField = drv.findStaticMethod(narcissusClass, "setField", Object.class, Field.class, Object.class);
+        getStaticField = drv.findStaticMethod(narcissusClass, "getStaticField", Field.class);
+        setStaticField = drv.findStaticMethod(narcissusClass, "setStaticField", Field.class, Object.class);
+        invokeMethod = drv.findStaticMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
+                Object[].class);
+        invokeStaticMethod = drv.findStaticMethod(narcissusClass, "invokeStaticMethod", Method.class,
+                Object[].class);
     }
 
     @Override
-    public boolean makeAccessible(final AccessibleObject accessibleObject) {
+    public boolean isAccessible(final Object instance, final AccessibleObject obj) {
+        return true;
+    }
+
+    @Override
+    public boolean makeAccessible(final Object instance, final AccessibleObject accessibleObject) {
         return true;
     }
 
