@@ -637,7 +637,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Get the list of all resources found in accepted packages that have a path matching the requested regexp
+     * Get the list of all resources found in accepted packages that have a path matching the requested regex
      * pattern. See also {{@link #getResourcesMatchingWildcard(String)}.
      *
      * @param pattern
