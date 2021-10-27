@@ -56,6 +56,7 @@ import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
+import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
@@ -636,7 +637,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     }
 
     /**
-     * Get the list of all resources found in accepted packages that have a path matching the requested pattern.
+     * Get the list of all resources found in accepted packages that have a path matching the requested regexp
+     * pattern. See also {{@link #getResourcesMatchingWildcard(String)}.
      *
      * @param pattern
      *            A pattern to match {@link Resource} paths with.
@@ -659,6 +661,26 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
             return filteredResources;
         }
+    }
+
+    /**
+     * Get the list of all resources found in accepted packages that have a path matching the requested wildcard
+     * string. The wildcard string may contain globs (asterisk wildcards). No other character has a special meaning.
+     * 
+     * <p>
+     * The wildcard string is translated in a simplistic way into a regex. If you need more complex pattern
+     * matching, use a regex directly, via {@link #getResourcesMatchingPattern(Pattern)}.
+     *
+     * @param wildcardString
+     *            A wildcard (glob) pattern to match {@link Resource} paths with.
+     * @return A list of all resources found in accepted packages that have a path matching the requested wildcard
+     *         string.
+     */
+    public ResourceList getResourcesMatchingWildcard(final String wildcardString) {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        return getResourcesMatchingPattern(AcceptReject.globToPattern(wildcardString));
     }
 
     // -------------------------------------------------------------------------------------------------------------
