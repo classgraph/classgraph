@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.130-SNAPSHOT</version>
+    <version>4.8.129-SNAPSHOT</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -31,7 +31,6 @@
         <connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
         <developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
         <url>https://github.com/classgraph/classgraph</url>
-        <tag>classgraph-4.8.129-SNAPSHOT</tag>
     </scm>
 
     <issueManagement>
@@ -371,8 +370,9 @@
                             <!-- Make duplicate copy of Javadoc into a subdirectory with the name of the module, -->
                             <!-- since Eclipse (and possibly other tools) detects the presence of the module -->
                             <!-- descriptor, and expects the Javadoc files to use modular paths (#583). -->
+                            <!-- Needs to happen before maven-gpg-plugin runs, otherwise signature will be invalid. -->
                             <id>add-modular-javadoc</id>
-                            <phase>deploy</phase>
+                            <phase>verify</phase>
                             <goals>
                                 <goal>run</goal>
                             </goals>
