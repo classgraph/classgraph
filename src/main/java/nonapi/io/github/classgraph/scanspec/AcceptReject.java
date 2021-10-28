@@ -573,9 +573,12 @@ public abstract class AcceptReject {
      * @return The Pattern created from the glob string.
      */
     public static Pattern globToPattern(final String glob) {
-        return Pattern.compile(
-                "^" + glob.replace(".", "\\.").replace("*", "[^/]*").replace("[^/]*[^/]*", ".*").replace('?', '.')
-                        + "$");
+        return Pattern.compile("^" //
+                + glob.replace(".", "\\.") //
+                        .replace("*", "[^/]*") //
+                        .replace("[^/]*[^/]*", ".*") //
+                        .replace('?', '.') //
+                + "$");
     }
 
     /**
