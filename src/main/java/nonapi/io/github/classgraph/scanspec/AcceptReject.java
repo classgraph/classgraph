@@ -578,8 +578,10 @@ public abstract class AcceptReject {
      * @return The Pattern created from the glob string.
      */
     public static Pattern globToPattern(final String glob, final boolean simpleGlob) {
-        // TODO: when API is next broken, make all glob behavior consistent between accept/reject criteria
-        // and resource filtering (i.e. enforce simpleGlob == false)
+        // TODO: when API is next changed, make all glob behavior consistent between accept/reject criteria
+        // and resource filtering (i.e. enforce simpleGlob == false, at least for accept/reject criteria for
+        // paths, although packages/classes would need different handling because ** should work across
+        // packages of any depth, rather than paths of any number of segments)
         return Pattern.compile("^" //
                 + (simpleGlob //
                         ? glob.replace(".", "\\.") //
