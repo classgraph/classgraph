@@ -665,7 +665,17 @@ public final class ScanResult implements Closeable, AutoCloseable {
 
     /**
      * Get the list of all resources found in accepted packages that have a path matching the requested wildcard
-     * string. The wildcard string may contain globs (asterisk wildcards). No other character has a special meaning.
+     * string.
+     * 
+     * <p>
+     * The wildcard string may contain:
+     * <ul>
+     * <li>Single asterisks, to match zero or more of any character other than '/'</li>
+     * <li>Double asterisks, to match zero or more of any character</li>
+     * <li>Question marks, to match one character</li>
+     * <li>Any other regexp-style syntax, such as character sets (denoted by square brackets) -- the remainder of
+     * the expression is passed through to the Java regex parser, after escaping dot characters.</li>
+     * </ul>
      * 
      * <p>
      * The wildcard string is translated in a simplistic way into a regex. If you need more complex pattern
