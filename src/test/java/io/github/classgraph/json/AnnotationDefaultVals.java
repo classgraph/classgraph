@@ -4,17 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
-import nonapi.io.github.classgraph.json.JSONDeserializer;
-import nonapi.io.github.classgraph.json.JSONSerializer;
 
 /**
  */
