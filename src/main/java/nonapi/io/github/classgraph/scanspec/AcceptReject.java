@@ -565,15 +565,17 @@ public abstract class AcceptReject {
     }
 
     /**
-     * Convert a spec with a '*' glob character into a regular expression. Replaces "." with "\." and "*" with ".*",
-     * then compiles a regular expression.
+     * Convert a spec with a '*' glob character into a regular expression. Replaces "." with "\.", "**" with ".*",
+     * "*" with "[^/]*", and "?" with ".", then compiles a regular expression.
      * 
      * @param glob
      *            The glob string.
      * @return The Pattern created from the glob string.
      */
     public static Pattern globToPattern(final String glob) {
-        return Pattern.compile("^" + glob.replace(".", "\\.").replace("*", ".*").replace('?', '.') + "$");
+        return Pattern.compile(
+                "^" + glob.replace(".", "\\.").replace("*", "[^/]*").replace("[^/]*[^/]*", ".*").replace('?', '.')
+                        + "$");
     }
 
     /**
