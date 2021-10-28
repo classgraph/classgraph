@@ -690,7 +690,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        return getResourcesMatchingPattern(AcceptReject.globToPattern(wildcardString));
+        return getResourcesMatchingPattern(AcceptReject.globToPattern(wildcardString, /* simpleGlob = */ false));
     }
 
     // -------------------------------------------------------------------------------------------------------------

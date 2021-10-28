@@ -1116,7 +1116,7 @@ public class ClassGraph {
                 }
                 if (jarLeafName.contains("*")) {
                     // Compare wildcarded pattern against all jars in lib and ext dirs 
-                    final Pattern pattern = AcceptReject.globToPattern(jarLeafName);
+                    final Pattern pattern = AcceptReject.globToPattern(jarLeafName, /* simpleGlob = */ true);
                     boolean found = false;
                     for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
