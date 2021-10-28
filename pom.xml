@@ -159,7 +159,8 @@
         <plugins>
             <!-- Plugins are listed here, but configured in pluginManagement, for compatibility with Eclipse. -->
             <!-- See: https://stackoverflow.com/a/10483284/3950982 -->
-            <!-- Find updates with: ./mvnw versions:display-plugin-updates -->
+            <!-- Find plugin updates with: ./mvnw versions:display-plugin-updates -->
+            <!-- List order of plugin execution with: ./mvnw -Prelease fr.jcgay.maven.plugins:buildplan-maven-plugin:list-phase -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
