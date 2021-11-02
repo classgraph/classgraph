@@ -215,8 +215,8 @@ abstract class ReflectionDriver {
      *
      * @param field
      *            the static field
-     * @param the
-     *            value to set
+     * @param value
+     *            the value to set
      */
     abstract void setStaticField(final Field field, Object value) throws Exception;
 
