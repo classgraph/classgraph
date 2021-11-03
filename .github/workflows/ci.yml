@@ -17,7 +17,7 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
         java: [ '8', '11', '12', '13', '14', '15', '16', '17', '18-ea' ]
     steps:
-    - uses: actions/checkout@v2.3.5
+    - uses: actions/checkout@v2.4.0
     - name: Set up JDK
       uses: actions/setup-java@v2
       with:
