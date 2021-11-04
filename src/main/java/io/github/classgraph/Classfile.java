@@ -1920,9 +1920,9 @@ class Classfile {
         this.stringInternMap = stringInternMap;
         this.scanSpec = scanSpec;
 
-        try {
-            // Open a BufferedSequentialReader for the classfile
-            reader = classfileResource.openClassfile();
+        // Open a BufferedSequentialReader for the classfile
+        try (ClassfileReader classfileReader = classfileResource.openClassfile()) {
+            reader = classfileReader;
 
             // Check magic number
             if (reader.readInt() != 0xCAFEBABE) {
@@ -1951,9 +1951,6 @@ class Classfile {
             // Read class attributes
             readClassAttributes();
 
-        } finally {
-            // Close BufferedSequentialReader
-            classfileResource.close();
             reader = null;
         }
 

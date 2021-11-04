@@ -74,6 +74,26 @@ public abstract class SingletonMap<K, V, E extends Exception> {
         }
     }
 
+    /** Thrown when {@link SingletonMap#newInstance(Object, LogNode)} throws an exception. */
+    public static class NewInstanceException extends Exception {
+        /** serialVersionUID. */
+        static final long serialVersionUID = 1L;
+
+        /**
+         * Constructor.
+         *
+         * @param <K>
+         *            the key type
+         * @param key
+         *            the key
+         * @param t
+         *            the Throwable that was thrown
+         */
+        public <K> NewInstanceException(final K key, final Throwable t) {
+            super("newInstance threw an exception for key " + key, t);
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -166,8 +186,11 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *             thread.
      * @throws NullSingletonException
      *             if {@link #newInstance(Object, LogNode)} returned null.
+     * @throws NewInstanceException
+     *             if {@link #newInstance(Object, LogNode)} threw an exception.
      */
-    public V get(final K key, final LogNode log) throws E, InterruptedException, NullSingletonException {
+    public V get(final K key, final LogNode log)
+            throws E, InterruptedException, NullSingletonException, NewInstanceException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         @SuppressWarnings("null")
         V instance = null;
@@ -188,13 +211,15 @@ public abstract class SingletonMap<K, V, E extends Exception> {
                     // Create a new instance
                     instance = newInstance(key, log);
 
-                } finally {
+                } catch (final Throwable t) {
                     // Initialize newSingletonHolder with the new instance.
                     // Always need to call .set() even if an exception is thrown by newInstance()
                     // or newInstance() returns null, since .set() calls initialized.countDown().
                     // Otherwise threads that call .get() may end up waiting forever.
                     newSingletonHolder.set(instance);
+                    throw new NewInstanceException(key, t);
                 }
+                newSingletonHolder.set(instance);
             }
         }
         if (instance == null) {

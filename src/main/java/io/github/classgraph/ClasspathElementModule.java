@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
@@ -114,6 +115,12 @@ class ClasspathElementModule extends ClasspathElement {
         } catch (final IOException | NullSingletonException e) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : " + e, log);
+            }
+            skipClasspathElement = true;
+            return;
+        } catch (final NewInstanceException e) {
+            if (log != null) {
+                log(classpathElementIdx, "Skipping invalid module " + getModuleName(), e, log);
             }
             skipClasspathElement = true;
             return;

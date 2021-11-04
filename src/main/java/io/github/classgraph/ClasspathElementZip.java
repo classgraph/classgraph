@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
@@ -163,6 +164,9 @@ class ClasspathElementZip extends ClasspathElement {
             } catch (final NullSingletonException e) {
                 // Generally thrown on the second and subsequent attempt to call .get(), after the first failed
                 throw new IOException("Could not get logical zipfile " + rawPath + " : " + e);
+            } catch (final NewInstanceException e) {
+                // newInstance() threw an exception
+                throw new IOException("Could not get logical zipfile " + rawPath, e);
             }
             logicalZipFile = logicalZipFileAndPackageRoot.getKey();
             if (logicalZipFile == null) {

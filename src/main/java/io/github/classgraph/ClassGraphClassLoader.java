@@ -263,25 +263,19 @@ public class ClassGraphClassLoader extends ClassLoader {
         if (classfileResources != null) {
             for (final Resource resource : classfileResources) {
                 // Iterate through resources (only loading of first resource in the list will be attempted)
-                try {
-                    // Load the content of the resource, and define a class from it
-                    try {
-                        final ByteBuffer resourceByteBuffer = resource.read();
-                        // TODO: is there any need to try java.lang.invoke.MethodHandles.Lookup.defineClass
-                        // via reflection (it's implemented in JDK 9), if the following fails?
-                        // See: https://bugs.openjdk.java.net/browse/JDK-8202999
-                        return defineClass(className, resourceByteBuffer, (ProtectionDomain) null);
-                    } finally {
-                        resource.close();
-                    }
+                // Load the content of the resource, and define a class from it
+                try (Resource resourceToClose = resource) {
+                    final ByteBuffer resourceByteBuffer = resource.read();
+                    // TODO: is there any need to try java.lang.invoke.MethodHandles.Lookup.defineClass
+                    // via reflection (it's implemented in JDK 9), if the following fails?
+                    // See: https://bugs.openjdk.java.net/browse/JDK-8202999
+                    return defineClass(className, resourceByteBuffer, (ProtectionDomain) null);
                 } catch (final IOException e) {
                     throw new ClassNotFoundException("Could not load classfile for class " + className + " : " + e);
                 } catch (final LinkageError e) {
                     if (linkageError == null) {
                         linkageError = e;
                     }
-                } finally {
-                    resource.close();
                 }
             }
         }
@@ -349,7 +343,7 @@ public class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // Finally if the above attempts fail, try retrieving resource from ScanResult.
+        // If the above attempts fail, try retrieving resource from ScanResult.
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList == null || resourceList.isEmpty()) {
@@ -386,7 +380,7 @@ public class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // Finally if the above attempts fail, try retrieving resource from ScanResult.
+        // If the above attempts fail, try retrieving resource from ScanResult.
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList == null || resourceList.isEmpty()) {
@@ -436,7 +430,7 @@ public class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // Finally if the above attempts fail, try opening resource from ScanResult.
+        // If the above attempts fail, try opening resource from ScanResult.
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList == null || resourceList.isEmpty()) {

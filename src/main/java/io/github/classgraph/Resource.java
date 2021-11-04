@@ -212,11 +212,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *             If an I/O exception occurred.
      */
     public String getContentAsString() throws IOException {
-        try {
-            return new String(load(), StandardCharsets.UTF_8);
-        } finally {
-            close();
-        }
+        final String content = new String(load(), StandardCharsets.UTF_8);
+        close();
+        return content;
     }
 
     // -------------------------------------------------------------------------------------------------------------

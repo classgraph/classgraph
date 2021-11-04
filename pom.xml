@@ -69,7 +69,7 @@
         <dependency>
             <groupId>io.github.toolfactory</groupId>
             <artifactId>narcissus</artifactId>
-            <version>1.0.6</version>
+            <version>1.0.7</version>
             <optional>true</optional>
         </dependency>
         <dependency>

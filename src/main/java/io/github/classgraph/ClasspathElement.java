@@ -335,6 +335,23 @@ abstract class ClasspathElement {
         return log.log(String.format("%07d", classpathElementIdx), msg);
     }
 
+    /**
+     * Write entries to log in classpath / module path order.
+     *
+     * @param classpathElementIdx
+     *            the classpath element idx
+     * @param msg
+     *            the log message
+     * @param t
+     *            The exception that was thrown
+     * @param log
+     *            the log
+     * @return the new {@link LogNode}
+     */
+    protected LogNode log(final int classpathElementIdx, final String msg, final Throwable t, final LogNode log) {
+        return log.log(String.format("%07d", classpathElementIdx), msg, t);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

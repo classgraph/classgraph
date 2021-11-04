@@ -229,39 +229,40 @@ public class WorkQueue<T> implements AutoCloseable {
     private void runWorkLoop() throws InterruptedException, ExecutionException {
         // Get next work unit from queue
         for (;;) {
-            // Check for interruption
-            interruptionChecker.check();
-
-            // Get next work unit
-            final WorkUnitWrapper<T> workUnitWrapper = workUnits.take();
-
-            if (workUnitWrapper.workUnit == null) {
-                // Received poison pill
-                break;
-            }
-
             // Process the work unit
             try {
+                // Check for interruption
+                interruptionChecker.check();
+
+                // Get next work unit
+                final WorkUnitWrapper<T> workUnitWrapper = workUnits.take();
+
+                if (workUnitWrapper.workUnit == null) {
+                    // Received poison pill
+                    break;
+                }
+
                 // Process the work unit (may throw InterruptedException) 
                 workUnitProcessor.processWorkUnit(workUnitWrapper.workUnit, this, log);
 
-            } catch (InterruptedException | OutOfMemoryError e) {
+            } catch (InterruptedException | Error e) {
                 // On InterruptedException or OutOfMemoryError, drain work queue, send poison pills, and re-throw
                 workUnits.clear();
+                numIncompleteWorkUnits.set(0);
                 sendPoisonPills();
                 throw e;
 
             } catch (final RuntimeException e) {
                 // On unchecked exception, drain work queue, send poison pills, and throw ExecutionException
                 workUnits.clear();
+                numIncompleteWorkUnits.set(0);
                 sendPoisonPills();
                 throw new ExecutionException("Worker thread threw unchecked exception", e);
 
-            } finally {
-                if (numIncompleteWorkUnits.decrementAndGet() == 0) {
-                    // No more work units -- send poison pills
-                    sendPoisonPills();
-                }
+            }
+            if (numIncompleteWorkUnits.decrementAndGet() == 0) {
+                // No more work units -- send poison pills
+                sendPoisonPills();
             }
         }
     }

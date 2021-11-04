@@ -403,45 +403,51 @@ final class JSONParser extends Parser {
      */
     private Object parseJSON() throws ParseException {
         skipWhitespace();
-        try {
-            final char c = peek();
-            if (c == '{') {
-                // Parse a JSON object
-                return parseJSONObject();
-
-            } else if (c == '[') {
-                // Parse a JSON array
-                return parseJSONArray();
-
-            } else if (c == '"') {
-                // Parse a JSON string or object reference
-                final CharSequence charSequence = parseString();
-                if (charSequence == null) {
-                    throw new ParseException(this, "Invalid string");
-                }
-                return charSequence;
-
-            } else if (peekMatches("true")) {
-                // Parse true value
-                advance(4);
-                return Boolean.TRUE;
-
-            } else if (peekMatches("false")) {
-                // Parse true value
-                advance(5);
-                return Boolean.FALSE;
-
-            } else if (peekMatches("null")) {
-                advance(4);
-                // Parse null value (in string representation)
-                return null;
-
-            } else {
-                // The only remaining option is that the value must be a number
-                return parseNumber();
-            }
-        } finally {
+        final char c = peek();
+        if (c == '{') {
+            // Parse a JSON object
+            final JSONObject obj = parseJSONObject();
             skipWhitespace();
+            return obj;
+
+        } else if (c == '[') {
+            // Parse a JSON array
+            final JSONArray arr = parseJSONArray();
+            skipWhitespace();
+            return arr;
+
+        } else if (c == '"') {
+            // Parse a JSON string or object reference
+            final CharSequence charSequence = parseString();
+            skipWhitespace();
+            if (charSequence == null) {
+                throw new ParseException(this, "Invalid string");
+            }
+            return charSequence;
+
+        } else if (peekMatches("true")) {
+            // Parse true value
+            advance(4);
+            skipWhitespace();
+            return Boolean.TRUE;
+
+        } else if (peekMatches("false")) {
+            // Parse true value
+            advance(5);
+            skipWhitespace();
+            return Boolean.FALSE;
+
+        } else if (peekMatches("null")) {
+            // Parse null value (in string representation)
+            advance(4);
+            skipWhitespace();
+            return null;
+
+        } else {
+            // The only remaining option is that the value must be a number
+            final Number num = parseNumber();
+            skipWhitespace();
+            return num;
         }
     }
 

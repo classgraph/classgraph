@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.BufferedOutputStream;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -191,6 +192,9 @@ public class NestedJarHandler {
                                 // If getting PhysicalZipFile failed, re-wrap in IOException
                                 throw new IOException(
                                         "Could not get PhysicalZipFile for path " + nestedJarPath + " : " + e);
+                            } catch (final NewInstanceException e) {
+                                // If getting PhysicalZipFile failed, re-wrap in IOException
+                                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath, e);
                             } catch (final SecurityException e) {
                                 // getCanonicalFile() failed (it may have also failed with IOException)
                                 throw new IOException(
@@ -205,6 +209,8 @@ public class NestedJarHandler {
                             logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
                         } catch (final NullSingletonException e) {
                             throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + e);
+                        } catch (final NewInstanceException e) {
+                            throw new IOException("Could not get toplevel slice " + topLevelSlice, e);
                         }
 
                         // Return new logical zipfile with an empty package root
@@ -228,6 +234,8 @@ public class NestedJarHandler {
                                     .get(parentPath, log);
                         } catch (final NullSingletonException e) {
                             throw new IOException("Could not get parent logical zipfile " + parentPath + " : " + e);
+                        } catch (final NewInstanceException e) {
+                            throw new IOException("Could not get parent logical zipfile " + parentPath, e);
                         }
 
                         // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must
@@ -312,6 +320,8 @@ public class NestedJarHandler {
                         } catch (final NullSingletonException e) {
                             throw new IOException(
                                     "Could not get child zip entry slice " + childZipEntry + " : " + e);
+                        } catch (final NewInstanceException e) {
+                            throw new IOException("Could not get child zip entry slice " + childZipEntry, e);
                         }
 
                         final LogNode zipSliceLog = log == null ? null
@@ -326,6 +336,8 @@ public class NestedJarHandler {
                         } catch (final NullSingletonException e) {
                             throw new IOException(
                                     "Could not get child logical zipfile " + childZipEntrySlice + " : " + e);
+                        } catch (final NewInstanceException e) {
+                            throw new IOException("Could not get child logical zipfile " + childZipEntrySlice, e);
                         }
 
                         // Return new logical zipfile with an empty package root
@@ -453,12 +465,8 @@ public class NestedJarHandler {
      *             If the temporary file is inaccessible.
      */
     void removeTempFile(final File tempFile) throws IOException, SecurityException {
-        if (tempFiles.contains(tempFile)) {
-            try {
-                Files.delete(tempFile.toPath());
-            } finally {
-                tempFiles.remove(tempFile);
-            }
+        if (tempFiles.remove(tempFile)) {
+            Files.delete(tempFile.toPath());
         } else {
             throw new IOException("Not a temp file: " + tempFile);
         }
@@ -539,12 +547,18 @@ public class NestedJarHandler {
         }
 
         final URLConnection conn = url.openConnection();
-        HttpURLConnection httpConn = null;
-        try {
-            long contentLengthHint = -1L;
-            if (conn instanceof HttpURLConnection) {
-                // Get content length from HTTP headers, if available
-                httpConn = (HttpURLConnection) url.openConnection();
+        long contentLengthHint = -1L;
+        if (conn instanceof HttpURLConnection) {
+            // Get content length from HTTP headers, if available
+            final HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
+            try (Closeable httpConnCloser = new Closeable() {
+                @Override
+                public void close() {
+                    if (httpConn != null) {
+                        httpConn.disconnect();
+                    }
+                }
+            }) {
                 httpConn.setRequestMethod("GET");
                 httpConn.setConnectTimeout(HTTP_TIMEOUT);
                 if (httpConn.getResponseCode() == HttpURLConnection.HTTP_OK) {
@@ -555,41 +569,37 @@ public class NestedJarHandler {
                 } else {
                     throw new IOException("Got response code " + httpConn.getResponseCode() + " for URL " + url);
                 }
-            } else if (conn.getURL().getProtocol().equalsIgnoreCase("file")) {
-                // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that
-                // rewrites its URLs into "file:" URLs (see Issue400.java).
-                try {
-                    // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
-                    // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
-                    final File file = new File(conn.getURL().toURI());
-                    return new PhysicalZipFile(file, this, log);
-
-                } catch (final URISyntaxException e) {
-                    // Fall through to open URL as InputStream below
-                }
             }
+        } else if (conn.getURL().getProtocol().equalsIgnoreCase("file")) {
+            // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that
+            // rewrites its URLs into "file:" URLs (see Issue400.java).
+            try {
+                // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
+                // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
+                final File file = new File(conn.getURL().toURI());
+                return new PhysicalZipFile(file, this, log);
 
-            // Fetch content from URL
-            final LogNode subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
-            try (InputStream inputStream = conn.getInputStream()) {
-                // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
-                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
-                        this, subLog);
-                if (subLog != null) {
-                    subLog.addElapsedTime();
-                    subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
-                            + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
-                            + "and the same URL must also be separately opened by the ClassLoader *****");
-                }
-                return physicalZipFile;
+            } catch (final URISyntaxException e) {
+                // Fall through to open URL as InputStream below
+            }
+        }
 
-            } catch (final MalformedURLException e) {
-                throw new IOException("Malformed URL: " + jarURL);
+        // Fetch content from URL
+        final LogNode subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
+        try (InputStream inputStream = conn.getInputStream()) {
+            // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
+            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
+                    this, subLog);
+            if (subLog != null) {
+                subLog.addElapsedTime();
+                subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
+                        + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
+                        + "and the same URL must also be separately opened by the ClassLoader *****");
             }
-        } finally {
-            if (httpConn != null) {
-                httpConn.disconnect();
-            }
+            return physicalZipFile;
+
+        } catch (final MalformedURLException e) {
+            throw new IOException("Malformed URL: " + jarURL);
         }
     }
 
@@ -766,12 +776,11 @@ public class NestedJarHandler {
                 if (!closed.getAndSet(true)) {
                     try {
                         rawInputStream.close();
-                    } catch (final IOException e) {
+                    } catch (final Exception e) {
                         // Ignore
-                    } finally {
-                        // Reset and recycle inflater instance
-                        inflaterRecycler.recycle(recyclableInflater);
                     }
+                    // Reset and recycle inflater instance
+                    inflaterRecycler.recycle(recyclableInflater);
                 }
             }
         };

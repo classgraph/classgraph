@@ -68,6 +68,7 @@ import nonapi.io.github.classgraph.classpath.ModuleFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
@@ -543,6 +544,10 @@ class Scanner implements Callable<ScanResult> {
                         } catch (final NullSingletonException e) {
                             throw new IOException("Cannot get classpath element for canonical path "
                                     + canonicalPathNormalized + " : " + e);
+                        } catch (final NewInstanceException e) {
+                            throw new IOException(
+                                    "Cannot get classpath element for canonical path " + canonicalPathNormalized,
+                                    e);
                         }
                     } else {
                         // Otherwise path is already canonical, and this is the first time this path has
@@ -585,6 +590,10 @@ class Scanner implements Callable<ScanResult> {
                     } catch (final NullSingletonException e) {
                         throw new IOException("Cannot get classpath element for classpath entry "
                                 + workUnit.rawClasspathEntry + " : " + e);
+                    } catch (final NewInstanceException e) {
+                        throw new IOException(
+                                "Cannot get classpath element for classpath entry " + workUnit.rawClasspathEntry,
+                                e);
                     }
 
                     // Only run open() once per ClasspathElement (it is possible for there to be
@@ -744,24 +753,27 @@ class Scanner implements Callable<ScanResult> {
                 // Enqueue the classfile for linking
                 scannedClassfiles.add(classfile);
 
+                if (subLog != null) {
+                    subLog.addElapsedTime();
+                }
             } catch (final SkipClassException e) {
                 if (subLog != null) {
                     subLog.log(workUnit.classfileResource.getPath(), "Skipping classfile: " + e.getMessage());
+                    subLog.addElapsedTime();
                 }
             } catch (final ClassfileFormatException e) {
                 if (subLog != null) {
                     subLog.log(workUnit.classfileResource.getPath(), "Invalid classfile: " + e.getMessage());
+                    subLog.addElapsedTime();
                 }
             } catch (final IOException e) {
                 if (subLog != null) {
                     subLog.log(workUnit.classfileResource.getPath(), "Could not read classfile: " + e);
+                    subLog.addElapsedTime();
                 }
             } catch (final Exception e) {
                 if (subLog != null) {
                     subLog.log(workUnit.classfileResource.getPath(), "Could not read classfile", e);
-                }
-            } finally {
-                if (subLog != null) {
                     subLog.addElapsedTime();
                 }
             }
@@ -1166,9 +1178,11 @@ class Scanner implements Callable<ScanResult> {
             if (scanResultProcessor != null) {
                 try {
                     scanResultProcessor.processScanResult(scanResult);
-                } finally {
+                } catch (final Exception e) {
                     scanResult.close();
+                    throw new ExecutionException(e);
                 }
+                scanResult.close();
             }
 
         } catch (final Throwable e) {
@@ -1191,6 +1205,11 @@ class Scanner implements Callable<ScanResult> {
             interruptionChecker.interrupt();
 
             if (failureHandler == null) {
+                if (removeTemporaryFilesAfterScan) {
+                    // If removeTemporaryFilesAfterScan was set, remove temp files and close resources,
+                    // zipfiles and modules
+                    nestedJarHandler.close(topLevelLog);
+                }
                 // If there is no failure handler set, re-throw the exception
                 throw e;
             } else {
@@ -1208,19 +1227,23 @@ class Scanner implements Callable<ScanResult> {
                     final ExecutionException failureHandlerException = new ExecutionException(
                             "Exception while calling failure handler", f);
                     failureHandlerException.addSuppressed(e);
+                    if (removeTemporaryFilesAfterScan) {
+                        // If removeTemporaryFilesAfterScan was set, remove temp files and close resources,
+                        // zipfiles and modules
+                        nestedJarHandler.close(topLevelLog);
+                    }
                     // Throw a new ExecutionException (although this will probably be ignored,
                     // since any job with a FailureHandler was started with ExecutorService::execute
                     // rather than ExecutorService::submit)  
                     throw failureHandlerException;
                 }
             }
+        }
 
-        } finally {
-            if (removeTemporaryFilesAfterScan) {
-                // If removeTemporaryFilesAfterScan was set, remove temp files and close resources,
-                // zipfiles and modules
-                nestedJarHandler.close(topLevelLog);
-            }
+        if (removeTemporaryFilesAfterScan) {
+            // If removeTemporaryFilesAfterScan was set, remove temp files and close resources,
+            // zipfiles and modules
+            nestedJarHandler.close(topLevelLog);
         }
         return scanResult;
     }

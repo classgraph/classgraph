@@ -75,7 +75,7 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
         // classloader order first
         classLoaderOrder.add(classLoader, log);
 
-        // Finally delegate to the parent of the RestartClassLoader
+        // Delegate to the parent of the RestartClassLoader
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
     }
 
