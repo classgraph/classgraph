@@ -187,9 +187,10 @@ public class ClasspathFinder {
                         + "context classloader");
             }
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
+        }
 
-        } else if (scanSpec.overrideClassLoaders == null) {
-            // If system jars are not rejected, add JRE rt.jar to the beginning of the classpath
+        // If system jars are enabled, add JRE rt.jar to the beginning of the classpath
+        if (scanSpec.enableSystemJarsAndModules) {
             final String jreRtJar = SystemJarFinder.getJreRtJarPath();
 
             // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
