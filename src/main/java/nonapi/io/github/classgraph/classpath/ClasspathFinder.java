@@ -284,16 +284,15 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
         }
 
+        // Never scan java.class.path if classloaders or classpath are overridden
+        if (scanSpec.overrideClassLoaders != null || scanSpec.overrideClasspath != null) {
+            return;
+        }
 
-
-        // Only scan java.class.path if parent classloaders are not ignored, classloaders are not overridden,
-        // and the classpath is not overridden, unless only module scanning was enabled, and an unnamed module
+        // Scan java.class.path if parent classloaders are not ignored, or if module scanning was enabled and an unnamed module
         // layer was encountered -- in this case, have to forcibly scan java.class.path, since the ModuleLayer
         // API doesn't allow for the opening of unnamed modules.
-        if ((!scanSpec.ignoreParentClassLoaders && scanSpec.overrideClassLoaders == null
-                && scanSpec.overrideClasspath == null)
-                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath()&& scanSpec.overrideClassLoaders == null
-                && scanSpec.overrideClasspath == null)) {
+        if ((!scanSpec.ignoreParentClassLoaders) || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
             final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"), scanSpec);
             if (pathElements.length > 0) {
                 final LogNode sysPropLog = classpathFinderLog == null ? null
