@@ -319,14 +319,18 @@ public class ClasspathOrder {
                 final String pathElementToStr = pathElement.toString();
                 try {
                     pathElementURL = new File(pathElementToStr).toURI().toURL();
-                } catch (final MalformedURLException e) {
+                } catch (final MalformedURLException | SecurityException e) {
+                    if (log != null) {
+                        log.log("Failed to convert classpath element to URL, "
+                                + "Try prepending \"file:\" to create a URL (" + e + "): " + pathElementStr );
+                    }
                     // Final fallback -- try prepending "file:" to create a URL
                     pathElementURL = new URL("file:" + pathElementToStr);
                 }
             }
-        } catch (final MalformedURLException e1) {
+        } catch (final MalformedURLException |SecurityException e1) {
             if (log != null) {
-                log.log("Cannot convert to URL: " + pathElement);
+                log.log("Cannot convert to URL (" + e1 + "): " + pathElement );
             }
             pathElementURL = null;
         }
