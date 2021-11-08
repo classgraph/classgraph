@@ -217,7 +217,7 @@ public class ModuleFinder {
      * @return the list
      */
     private List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
-                                                        boolean scanNonSystemModules, final LogNode log) {
+            final boolean scanNonSystemModules, final LogNode log) {
         final LinkedHashSet<Object> layers = new LinkedHashSet<>();
         if (callStack != null) {
             for (final Class<?> stackFrameClass : callStack) {
@@ -272,7 +272,8 @@ public class ModuleFinder {
      * @param log
      *            The log.
      */
-    public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, boolean scanNonSystemModules, final LogNode log) {
+    public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final boolean scanNonSystemModules,
+            final LogNode log) {
         if (scanSpec.scanModules) {
             // Get the module resolution order
             List<ModuleRef> allModuleRefsList = null;

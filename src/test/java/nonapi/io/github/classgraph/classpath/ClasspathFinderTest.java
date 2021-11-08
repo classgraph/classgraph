@@ -1,11 +1,9 @@
 package nonapi.io.github.classgraph.classpath;
 
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.LogNode;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledForJreRange;
-import org.junit.jupiter.api.condition.JRE;
-import org.junit.jupiter.api.io.TempDir;
+import static nonapi.io.github.classgraph.classpath.SystemJarFinder.getJreRtJarPath;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -15,10 +13,13 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
-import static nonapi.io.github.classgraph.classpath.SystemJarFinder.getJreRtJarPath;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
+import org.junit.jupiter.api.io.TempDir;
+
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 public class ClasspathFinderTest {
 
@@ -30,7 +31,7 @@ public class ClasspathFinderTest {
      */
     @Test
     @EnabledForJreRange(max = JRE.JAVA_8)
-    public void testOverrideClasspathAndEnableSystemJars(@TempDir Path tmpDir) throws Exception {
+    public void testOverrideClasspathAndEnableSystemJars(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final Path classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
         final ScanSpec scanSpec = new ScanSpec();
@@ -43,13 +44,12 @@ public class ClasspathFinderTest {
 
         // Assert
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classpathFinder
-                .getClasspathOrder()
-                .getClasspathEntryUniqueResolvedPaths()) {
+        for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
             paths.add(Paths.get(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
-        assertTrue(paths.remove(Paths.get(getJreRtJarPath())), "Classpath should have contained system jars: " + paths);
+        assertTrue(paths.remove(Paths.get(getJreRtJarPath())),
+                "Classpath should have contained system jars: " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);
     }
 
@@ -61,26 +61,25 @@ public class ClasspathFinderTest {
      */
     @Test
     @EnabledForJreRange(max = JRE.JAVA_8)
-    public void testOverrideClassLoaderAndEnableSystemJars(@TempDir Path tmpDir) throws Exception {
+    public void testOverrideClassLoaderAndEnableSystemJars(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final Path classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
         final ScanSpec scanSpec = new ScanSpec();
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
-        scanSpec.overrideClassLoaders(new URLClassLoader(new URL[]{classesDir.toUri().toURL()}));
+        scanSpec.overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
         final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
 
         // Assert
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classpathFinder
-                .getClasspathOrder()
-                .getClasspathEntryUniqueResolvedPaths()) {
+        for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
             paths.add(Paths.get(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
-        assertTrue(paths.remove(Paths.get(getJreRtJarPath())), "Classpath should have contained system jars: " + paths);
+        assertTrue(paths.remove(Paths.get(getJreRtJarPath())),
+                "Classpath should have contained system jars: " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);
     }
 
@@ -92,13 +91,13 @@ public class ClasspathFinderTest {
      */
     @Test
     @EnabledForJreRange(min = JRE.JAVA_9)
-    public void testOverrideClasspathAndEnableSystemModules(@TempDir Path tmpDir) throws Exception {
+    public void testOverrideClasspathAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final Path classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
         final ScanSpec scanSpec = new ScanSpec();
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
-        scanSpec.overrideClasspath = Collections.<Object>singletonList(classesDir);
+        scanSpec.overrideClasspath = Collections.<Object> singletonList(classesDir);
 
         // Act
         final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
@@ -109,9 +108,7 @@ public class ClasspathFinderTest {
         assertTrue(moduleFinder.getSystemModuleRefs().size() > 0, "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classpathFinder
-                .getClasspathOrder()
-                .getClasspathEntryUniqueResolvedPaths()) {
+        for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
             paths.add(Paths.get(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
@@ -126,13 +123,13 @@ public class ClasspathFinderTest {
      */
     @Test
     @EnabledForJreRange(min = JRE.JAVA_9)
-    public void testOverrideClassLoaderAndEnableSystemModules(@TempDir Path tmpDir) throws Exception {
+    public void testOverrideClassLoaderAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final Path classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
         final ScanSpec scanSpec = new ScanSpec();
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
-        scanSpec.overrideClassLoaders(new URLClassLoader(new URL[]{classesDir.toUri().toURL()}));
+        scanSpec.overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
         final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
@@ -143,9 +140,7 @@ public class ClasspathFinderTest {
         assertTrue(moduleFinder.getSystemModuleRefs().size() > 0, "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classpathFinder
-                .getClasspathOrder()
-                .getClasspathEntryUniqueResolvedPaths()) {
+        for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
             paths.add(Paths.get(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
