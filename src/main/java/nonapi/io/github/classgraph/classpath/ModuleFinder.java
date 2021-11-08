@@ -210,12 +210,14 @@ public class ModuleFinder {
      *            the call stack
      * @param scanSpec
      *            the scan spec
+     * @param scanNonSystemModules
+     *            whether to include unnamed and non-system modules
      * @param log
      *            the log
      * @return the list
      */
     private List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
-            final LogNode log) {
+                                                        boolean scanNonSystemModules, final LogNode log) {
         final LinkedHashSet<Object> layers = new LinkedHashSet<>();
         if (callStack != null) {
             for (final Class<?> stackFrameClass : callStack) {
@@ -226,7 +228,7 @@ public class ModuleFinder {
                             module, "getLayer");
                     if (layer != null) {
                         layers.add(layer);
-                    } else {
+                    } else if (scanNonSystemModules) {
                         // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
                         // so we can get classes from java.class.path 
                         forceScanJavaClassPath = true;
@@ -246,7 +248,7 @@ public class ModuleFinder {
                     .invokeStaticMethod(/* throwException = */ false, moduleLayerClass, "boot");
             if (bootLayer != null) {
                 layers.add(bootLayer);
-            } else {
+            } else if (scanNonSystemModules) {
                 // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
                 // so we can get classes from java.class.path. (I'm not sure if the boot layer can ever
                 // actually be null, but this is here for completeness.)
@@ -265,17 +267,19 @@ public class ModuleFinder {
      *            the callstack.
      * @param scanSpec
      *            The scan spec.
+     * @param scanNonSystemModules
+     *            whether to include unnamed and non-system modules
      * @param log
      *            The log.
      */
-    public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final LogNode log) {
+    public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, boolean scanNonSystemModules, final LogNode log) {
         if (scanSpec.scanModules) {
             // Get the module resolution order
             List<ModuleRef> allModuleRefsList = null;
             if (scanSpec.overrideModuleLayers == null) {
                 // Find module references for classes on callstack, and from system (for JDK9+)
                 if (callStack != null && callStack.length > 0) {
-                    allModuleRefsList = findModuleRefsFromCallstack(callStack, scanSpec, log);
+                    allModuleRefsList = findModuleRefsFromCallstack(callStack, scanSpec, scanNonSystemModules, log);
                 }
             } else {
                 if (log != null) {
@@ -294,9 +298,13 @@ public class ModuleFinder {
                 for (final ModuleRef moduleRef : allModuleRefsList) {
                     if (moduleRef != null) {
                         if (moduleRef.isSystemModule()) {
-                            systemModuleRefs.add(moduleRef);
+                            if (scanSpec.enableSystemJarsAndModules) {
+                                systemModuleRefs.add(moduleRef);
+                            }
                         } else {
-                            nonSystemModuleRefs.add(moduleRef);
+                            if (scanNonSystemModules) {
+                                nonSystemModuleRefs.add(moduleRef);
+                            }
                         }
                     }
                 }
