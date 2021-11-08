@@ -268,51 +268,49 @@ public class ModuleFinder {
      * @param scanSpec
      *            The scan spec.
      * @param scanNonSystemModules
-     *            whether to include unnamed and non-system modules
+     *            whether to scan unnamed and non-system modules
+     * @param scanSystemModules
+     *            whether to scan system modules
      * @param log
      *            The log.
      */
     public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final boolean scanNonSystemModules,
-            final LogNode log) {
-        if (scanSpec.scanModules) {
-            // Get the module resolution order
-            List<ModuleRef> allModuleRefsList = null;
-            if (scanSpec.overrideModuleLayers == null) {
-                // Find module references for classes on callstack, and from system (for JDK9+)
-                if (callStack != null && callStack.length > 0) {
-                    allModuleRefsList = findModuleRefsFromCallstack(callStack, scanSpec, scanNonSystemModules, log);
-                }
-            } else {
-                if (log != null) {
-                    final LogNode subLog = log.log("Overriding module layers");
-                    for (final Object moduleLayer : scanSpec.overrideModuleLayers) {
-                        subLog.log(moduleLayer.toString());
-                    }
-                }
-                allModuleRefsList = findModuleRefs(new LinkedHashSet<>(scanSpec.overrideModuleLayers), scanSpec,
-                        log);
+            final boolean scanSystemModules, final LogNode log) {
+        // Get the module resolution order
+        List<ModuleRef> allModuleRefsList = null;
+        if (scanSpec.overrideModuleLayers == null) {
+            // Find module references for classes on callstack, and from system (for JDK9+)
+            if (callStack != null && callStack.length > 0) {
+                allModuleRefsList = findModuleRefsFromCallstack(callStack, scanSpec, scanNonSystemModules, log);
             }
-            if (allModuleRefsList != null) {
-                // Split modules into system modules and non-system modules
-                systemModuleRefs = new ArrayList<>();
-                nonSystemModuleRefs = new ArrayList<>();
-                for (final ModuleRef moduleRef : allModuleRefsList) {
-                    if (moduleRef != null) {
-                        if (moduleRef.isSystemModule()) {
-                            if (scanSpec.enableSystemJarsAndModules) {
-                                systemModuleRefs.add(moduleRef);
-                            }
-                        } else {
-                            if (scanNonSystemModules) {
-                                nonSystemModuleRefs.add(moduleRef);
-                            }
-                        }
-                    }
-                }
-            }
-            // Log any identified modules
+        } else {
             if (log != null) {
-                final LogNode sysSubLog = log.log("Found system modules:");
+                final LogNode subLog = log.log("Overriding module layers");
+                for (final Object moduleLayer : scanSpec.overrideModuleLayers) {
+                    subLog.log(moduleLayer.toString());
+                }
+            }
+            allModuleRefsList = findModuleRefs(new LinkedHashSet<>(scanSpec.overrideModuleLayers), scanSpec, log);
+        }
+        if (allModuleRefsList != null) {
+            // Split modules into system modules and non-system modules
+            systemModuleRefs = new ArrayList<>();
+            nonSystemModuleRefs = new ArrayList<>();
+            for (final ModuleRef moduleRef : allModuleRefsList) {
+                if (moduleRef != null) {
+                    final boolean isSystemModule = moduleRef.isSystemModule();
+                    if (isSystemModule && scanSystemModules) {
+                        systemModuleRefs.add(moduleRef);
+                    } else if (!isSystemModule && scanNonSystemModules) {
+                        nonSystemModuleRefs.add(moduleRef);
+                    }
+                }
+            }
+        }
+        // Log any identified modules
+        if (log != null) {
+            if (scanSystemModules) {
+                final LogNode sysSubLog = log.log("System modules found:");
                 if (systemModuleRefs != null && !systemModuleRefs.isEmpty()) {
                     for (final ModuleRef moduleRef : systemModuleRefs) {
                         sysSubLog.log(moduleRef.toString());
@@ -320,7 +318,11 @@ public class ModuleFinder {
                 } else {
                     sysSubLog.log("[None]");
                 }
-                final LogNode nonSysSubLog = log.log("Found non-system modules:");
+            } else {
+                log.log("Scanning of system modules is not enabled");
+            }
+            if (scanNonSystemModules) {
+                final LogNode nonSysSubLog = log.log("Non-system modules found:");
                 if (nonSystemModuleRefs != null && !nonSystemModuleRefs.isEmpty()) {
                     for (final ModuleRef moduleRef : nonSystemModuleRefs) {
                         nonSysSubLog.log(moduleRef.toString());
@@ -328,10 +330,8 @@ public class ModuleFinder {
                 } else {
                     nonSysSubLog.log("[None]");
                 }
-            }
-        } else {
-            if (log != null) {
-                log.log("Module scanning is disabled, because classloaders or classpath was overridden");
+            } else {
+                log.log("Scanning of non-system modules is not enabled");
             }
         }
     }

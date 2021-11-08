@@ -159,9 +159,10 @@ public class ClasspathFinder {
         }
 
         // Only instantiate a module finder if requested
-        moduleFinder = scanSpec.enableSystemJarsAndModules || scanSpec.scanModules
+        moduleFinder = scanNonSystemModules || scanSpec.enableSystemJarsAndModules
                 ? new ModuleFinder(CallStackReader.getClassContext(classpathFinderLog), scanSpec,
-                        scanNonSystemModules, classpathFinderLog)
+                        scanNonSystemModules, /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules,
+                        classpathFinderLog)
                 : null;
 
         classpathOrder = new ClasspathOrder(scanSpec);
@@ -194,7 +195,7 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
         }
 
-        // If system jars are enabled, add JRE rt.jar to the beginning of the classpath
+        // If system jars and modules are enabled, add JRE rt.jar to the beginning of the classpath
         if (scanSpec.enableSystemJarsAndModules) {
             final String jreRtJar = SystemJarFinder.getJreRtJarPath();
 
