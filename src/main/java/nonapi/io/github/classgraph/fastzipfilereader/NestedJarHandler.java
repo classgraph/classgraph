@@ -521,7 +521,7 @@ public class NestedJarHandler {
         } catch (final MalformedURLException e1) {
             try {
                 url = new URI(jarURL).toURL();
-            } catch (final URISyntaxException e2) {
+            } catch (final MalformedURLException | IllegalArgumentException | URISyntaxException e2) {
                 throw new IOException("Could not parse URL: " + jarURL);
             }
         }
@@ -539,8 +539,8 @@ public class NestedJarHandler {
                 }
                 // Wrap Path in PhysicalZipFile and return it
                 return new PhysicalZipFile(path, this, log);
-            } catch (final URISyntaxException e) {
-                throw new IOException("Could not convert URL to URI: " + url);
+            } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
+                throw new IOException("Could not convert URL to URI (" + e + "): " + url);
             } catch (final FileSystemNotFoundException e) {
                 // Not a custom filesystem
             }

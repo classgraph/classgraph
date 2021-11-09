@@ -33,6 +33,7 @@ import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -568,7 +569,15 @@ class ClasspathElementPathDir extends ClasspathElement {
      */
     @Override
     URI getURI() {
-        return packageRootPath.toUri();
+        try {
+            return packageRootPath.toUri();
+        } catch (IOError | SecurityException e) {
+            try {
+                return new URI("file:" + packageRootPath);
+            } catch (final URISyntaxException e1) {
+                throw new IllegalArgumentException("Could not convert to URI: " + packageRootPath);
+            }
+        }
     }
 
     @Override

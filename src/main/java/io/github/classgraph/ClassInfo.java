@@ -2840,7 +2840,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public URL getClasspathElementURL() {
         try {
             return getClasspathElementURI().toURL();
-        } catch (final MalformedURLException e) {
+        } catch (final IllegalArgumentException | MalformedURLException e) {
             throw new IllegalArgumentException("Could not get classpath element URL", e);
         }
     }

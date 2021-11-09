@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
+import java.io.IOError;
 import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -301,9 +302,14 @@ public class ClasspathOrder {
         if (pathElement == null) {
             return false;
         }
-        // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
-        String pathElementStr = pathElement instanceof Path ? ((Path) pathElement).toUri().toString()
-                : pathElement.toString();
+        String pathElementStr;
+        try {
+            // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
+            pathElementStr = pathElement instanceof Path ? ((Path) pathElement).toUri().toString()
+                    : pathElement.toString();
+        } catch (IOError | SecurityException e) {
+            pathElementStr = pathElement.toString();
+        }
         pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
         if (pathElementStr.isEmpty()) {
             return false;
@@ -319,18 +325,18 @@ public class ClasspathOrder {
                 final String pathElementToStr = pathElement.toString();
                 try {
                     pathElementURL = new File(pathElementToStr).toURI().toURL();
-                } catch (final MalformedURLException | SecurityException e) {
+                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
                     if (log != null) {
                         log.log("Failed to convert classpath element to URL, "
-                                + "Try prepending \"file:\" to create a URL (" + e + "): " + pathElementStr );
+                                + "Try prepending \"file:\" to create a URL (" + e + "): " + pathElementStr);
                     }
                     // Final fallback -- try prepending "file:" to create a URL
                     pathElementURL = new URL("file:" + pathElementToStr);
                 }
             }
-        } catch (final MalformedURLException |SecurityException e1) {
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e1) {
             if (log != null) {
-                log.log("Cannot convert to URL (" + e1 + "): " + pathElement );
+                log.log("Cannot convert to URL (" + e1 + "): " + pathElement);
             }
             pathElementURL = null;
         }

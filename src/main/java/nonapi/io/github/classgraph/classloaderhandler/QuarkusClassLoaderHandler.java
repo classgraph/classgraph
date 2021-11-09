@@ -28,6 +28,8 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import java.io.IOError;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
@@ -136,7 +138,14 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
                 classLoader, "applicationClassDirectories");
         if (applicationClassDirectories != null) {
             for (final Path path : applicationClassDirectories) {
-                classpathOrder.addClasspathEntryObject(path.toUri(), classLoader, scanSpec, log);
+                try {
+                    final URI uri = path.toUri();
+                    classpathOrder.addClasspathEntryObject(uri, classLoader, scanSpec, log);
+                } catch (IOError | SecurityException e) {
+                    if (log != null) {
+                        log.log("Could not convert path to URI: " + path);
+                    }
+                }
             }
         }
     }
