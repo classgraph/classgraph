@@ -263,7 +263,7 @@ public abstract class Slice implements Closeable {
             throw new IllegalArgumentException(
                     "Cannot open slices larger than 2GB for sequential buffered reading");
         }
-        return new ClassfileReader(this);
+        return new ClassfileReader(this, null);
     }
 
     /**
