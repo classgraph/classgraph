@@ -203,7 +203,7 @@ class ClasspathElementModule extends ClasspathElement {
                 }
                 try {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                    inputStream = moduleReaderProxy.open(resourcePath);
+                    inputStream = moduleReaderProxy.open(resourcePath, onClose());
                     // Length cannot be obtained from ModuleReader
                     length = -1L;
                     return inputStream;
@@ -217,7 +217,7 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public byte[] load() throws IOException {
                 try (Resource res = this) { // Close this after use
-                    read();  // Fill byteBuffer
+                    read(); // Fill byteBuffer
                     final byte[] byteArray;
                     if (byteBuffer.hasArray() && byteBuffer.position() == 0
                             && byteBuffer.limit() == byteBuffer.capacity()) {

@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -124,44 +125,113 @@ public class ModuleReaderProxy implements Closeable {
      * 
      * @param path
      *            The path to the resource to open.
-     * @param open
-     *            if true, call moduleReader.open(name).get() (returning an InputStream), otherwise call
-     *            moduleReader.read(name).get() (returning a ByteBuffer).
+     * @param onClose
+     *            a method to run when the returned {@code InputStream} is closed, or null if none.
+     * 
      * @return An {@link InputStream} for the content of the resource.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
-    private Object openOrRead(final String path, final boolean open) throws SecurityException {
-        final String methodName = open ? "open" : "read";
+    public InputStream open(final String path, final Runnable onClose) throws SecurityException {
         final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils
-                .invokeMethod(/* throwException = */ true, moduleReader, methodName, String.class, path);
+                .invokeMethod(/* throwException = */ true, moduleReader, "open", String.class, path);
         if (optionalInputStream == null) {
-            throw new IllegalArgumentException("Got null result from moduleReader." + methodName + "(name)");
+            throw new IllegalArgumentException("Got null result from ModuleReader#open(String)");
         }
-        final Object /* InputStream */ inputStream = ReflectionUtils.invokeMethod(/* throwException = */ true,
+        final InputStream inputStream = (InputStream) ReflectionUtils.invokeMethod(/* throwException = */ true,
                 optionalInputStream, "get");
         if (inputStream == null) {
-            throw new IllegalArgumentException("Got null result from moduleReader." + methodName + "(name).get()");
+            throw new IllegalArgumentException("Got null result from ModuleReader#open(String)#get()");
         }
-        return inputStream;
+        // Return a proxying InputStream that will close the Resource when the InputStream is closed (#600)
+        return new InputStream() {
+            @Override
+            public void close() throws IOException {
+                if (onClose != null) {
+                    try {
+                        onClose.run();
+                    } catch (final Exception e) {
+                        // Ignore
+                    }
+                }
+                inputStream.close();
+            }
+
+            @Override
+            public int read() throws IOException {
+                return inputStream.read();
+            }
+
+            @Override
+            public int read(final byte[] b) throws IOException {
+                return inputStream.read(b);
+            }
+
+            @Override
+            public int read(final byte[] b, final int off, final int len) throws IOException {
+                return inputStream.read(b, off, len);
+            }
+
+            @Override
+            public byte[] readAllBytes() throws IOException {
+                return inputStream.readAllBytes();
+            }
+
+            @Override
+            public byte[] readNBytes(final int len) throws IOException {
+                return inputStream.readNBytes(len);
+            }
+
+            @Override
+            public int readNBytes(final byte[] b, final int off, final int len) throws IOException {
+                return inputStream.readNBytes(b, off, len);
+            }
+
+            @Override
+            public int available() throws IOException {
+                return inputStream.available();
+            }
+
+            @Override
+            public boolean markSupported() {
+                return inputStream.markSupported();
+            }
+
+            @Override
+            public synchronized void mark(final int readlimit) {
+                inputStream.mark(readlimit);
+            }
+
+            @Override
+            public synchronized void reset() throws IOException {
+                inputStream.reset();
+            }
+
+            @Override
+            public long skip(final long n) throws IOException {
+                return inputStream.skip(n);
+            }
+
+            @Override
+            public void skipNBytes(final long n) throws IOException {
+                inputStream.skipNBytes(n);
+            }
+
+            @Override
+            public long transferTo(final OutputStream out) throws IOException {
+                return inputStream.transferTo(out);
+            }
+
+            @Override
+            public String toString() {
+                return inputStream.toString();
+            }
+        };
     }
 
     /**
-     * Use the proxied ModuleReader to open the named resource as an InputStream.
-     * 
-     * @param path
-     *            The path to the resource to open.
-     * @return An {@link InputStream} for the content of the resource.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
-     */
-    public InputStream open(final String path) throws SecurityException {
-        return (InputStream) openOrRead(path, /* open = */ true);
-    }
-
-    /**
-     * Use the proxied ModuleReader to open the named resource as a ByteBuffer. Call release(byteBuffer) when you
-     * have finished with the ByteBuffer.
+     * Use the proxied ModuleReader to open the named resource as a ByteBuffer. Call {@link #release(ByteBuffer)}
+     * when you have finished with the ByteBuffer.
      * 
      * @param path
      *            The path to the resource to open.
@@ -172,7 +242,17 @@ public class ModuleReaderProxy implements Closeable {
      *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
-        return (ByteBuffer) openOrRead(path, /* open = */ false);
+        final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils
+                .invokeMethod(/* throwException = */ true, moduleReader, "read", String.class, path);
+        if (optionalByteBuffer == null) {
+            throw new IllegalArgumentException("Got null result from ModuleReader#read(String)");
+        }
+        final ByteBuffer byteBuffer = (ByteBuffer) ReflectionUtils.invokeMethod(/* throwException = */ true,
+                optionalByteBuffer, "get");
+        if (byteBuffer == null) {
+            throw new IllegalArgumentException("Got null result from ModuleReader#read(String).get()");
+        }
+        return byteBuffer;
     }
 
     /**
