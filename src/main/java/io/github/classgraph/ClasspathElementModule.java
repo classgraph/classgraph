@@ -141,7 +141,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
-            
+
             /** Action to run when a derived resource is closed. */
             private final Runnable onClose = new Runnable() {
                 @Override

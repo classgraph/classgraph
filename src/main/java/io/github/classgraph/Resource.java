@@ -253,13 +253,36 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /**
      * Open a {@link ByteBuffer} for a classpath resource. Make sure you call {@link Resource#close()} when you are
-     * finished with the {@link ByteBuffer}, so that the {@link ByteBuffer} is released or unmapped.
+     * finished with the {@link ByteBuffer}, so that the {@link ByteBuffer} is released or unmapped. See also
+     * {@link #readCloseable()}.
      *
      * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
      * @throws IOException
-     *             If the resource could not be opened.
+     *             If the resource could not be read.
      */
     public abstract ByteBuffer read() throws IOException;
+
+    /**
+     * Open a {@link ByteBuffer} for a classpath resource, and wrap it in a {@link CloseableByteBuffer} instance,
+     * which implements the {@link Closeable#close()} method to free the underlying {@link ByteBuffer} when
+     * {@link CloseableByteBuffer#close()} is called, by automatically calling {@link Resource#close()}.
+     * 
+     * <p>
+     * Call {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to access the underlying
+     * {@link ByteBuffer}.
+     *
+     * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
+     * @throws IOException
+     *             If the resource could not be read.
+     */
+    public CloseableByteBuffer readCloseable() throws IOException {
+        return new CloseableByteBuffer(read(), new Runnable() {
+            @Override
+            public void run() {
+                close();
+            }
+        });
+    }
 
     /**
      * Load a classpath resource and return its content as a byte array. Automatically calls
