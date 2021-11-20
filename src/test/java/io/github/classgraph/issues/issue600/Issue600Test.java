@@ -1,33 +1,33 @@
 package io.github.classgraph.issues.issue600;
 
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.Resource;
-import io.github.classgraph.ResourceList;
-import io.github.classgraph.ScanResult;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.Resource;
+import io.github.classgraph.ResourceList;
+import io.github.classgraph.ScanResult;
+
 class Issue600Test {
     private static final int BUFFER_SIZE = 8192;
     private static final int EOF = -1;
 
-    private final ClassGraph classGraph = new ClassGraph()
-        .enableClassInfo()
-        .acceptPackages(getClass().getPackage().getName());
+    private final ClassGraph classGraph = new ClassGraph().enableClassInfo()
+            .acceptPackages(getClass().getPackage().getName());
 
     @Test
     void testResourcesCanBeOpened() {
         try (ScanResult scanResult = classGraph.scan()) {
-            ResourceList resources = scanResult.getAllResources();
+            final ResourceList resources = scanResult.getAllResources();
             assertFalse(resources.isEmpty(), "Test is meaningless without resources to open.");
 
             // Check we can open the resources.
@@ -41,7 +41,7 @@ class Issue600Test {
     @Test
     void testResourcesCanBeRead() {
         try (ScanResult scanResult = classGraph.scan()) {
-            ResourceList resources = scanResult.getAllResources();
+            final ResourceList resources = scanResult.getAllResources();
             assertFalse(resources.isEmpty(), "Test is meaningless without resources to open.");
 
             // Check we can read the resources.
@@ -52,7 +52,7 @@ class Issue600Test {
         }
     }
 
-    private void assertOpenCloseResources(ResourceList resources) {
+    private void assertOpenCloseResources(final ResourceList resources) {
         for (final Resource resource : resources) {
             assertDoesNotThrow(new Executable() {
                 @Override
@@ -65,8 +65,8 @@ class Issue600Test {
         }
     }
 
-    private int consume(InputStream input) throws IOException {
-        byte[] buffer = new byte[BUFFER_SIZE];
+    private int consume(final InputStream input) throws IOException {
+        final byte[] buffer = new byte[BUFFER_SIZE];
         int totalBytes = 0;
         int bytesRead;
         while ((bytesRead = input.read(buffer)) != EOF) {
@@ -75,12 +75,12 @@ class Issue600Test {
         return totalBytes;
     }
 
-    private void assertReadCloseResources(ResourceList resources) {
+    private void assertReadCloseResources(final ResourceList resources) {
         for (final Resource resource : resources) {
             assertDoesNotThrow(new Executable() {
                 @Override
                 public void execute() throws Throwable {
-                    ByteBuffer buffer = resource.read();
+                    final ByteBuffer buffer = resource.read();
                     try {
                         assertTrue(buffer.hasRemaining());
                     } finally {
@@ -91,8 +91,10 @@ class Issue600Test {
         }
     }
 
-    public interface Api {}
+    public interface Api {
+    }
 
     @SuppressWarnings("unused")
-    public static class Example implements Api {}
+    public static class Example implements Api {
+    }
 }

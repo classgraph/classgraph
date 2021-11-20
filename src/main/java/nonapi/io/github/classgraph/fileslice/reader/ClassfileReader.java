@@ -73,7 +73,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      */
     private int classfileLengthHint = -1;
 
-    private final Runnable onClose;
+    /** The handler executed by {@link ClassfileReader#close()}. */
+    private Runnable onClose;
 
     /**
      * Initial buffer size. For most classfiles, only the first 16-64kb needs to be read (we don't read the
@@ -96,7 +97,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * @param slice
      *            the {@link Slice} to read.
      * @param onClose
-     *            handler executed by {@link ClassfileReader#close}.
+     *            the handler executed by {@link ClassfileReader#close()}.
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
@@ -139,7 +140,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * @param inputStream
      *            the {@link InputStream} to read from.
      * @param onClose
-     *            handler executed by {@link ClassfileReader#close}.
+     *            the handler executed by {@link ClassfileReader#close()}.
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
@@ -450,9 +451,11 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         try {
             if (inflaterInputStream != null) {
                 inflaterInputStream.close();
+                inflaterInputStream = null;
             }
             if (onClose != null) {
                 onClose.run();
+                onClose = null;
             }
         } catch (final Exception e) {
             // Ignore
