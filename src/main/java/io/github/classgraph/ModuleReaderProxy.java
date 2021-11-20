@@ -31,11 +31,11 @@ package io.github.classgraph;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import nonapi.io.github.classgraph.utils.InputStreamWithCloseAction;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleReaderProxy implements Closeable {
@@ -143,90 +143,7 @@ public class ModuleReaderProxy implements Closeable {
         if (inputStream == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#open(String)#get()");
         }
-        // Return a proxying InputStream that will close the Resource when the InputStream is closed (#600)
-        return new InputStream() {
-            @Override
-            public void close() throws IOException {
-                if (onClose != null) {
-                    try {
-                        onClose.run();
-                    } catch (final Exception e) {
-                        // Ignore
-                    }
-                }
-                inputStream.close();
-            }
-
-            @Override
-            public int read() throws IOException {
-                return inputStream.read();
-            }
-
-            @Override
-            public int read(final byte[] b) throws IOException {
-                return inputStream.read(b);
-            }
-
-            @Override
-            public int read(final byte[] b, final int off, final int len) throws IOException {
-                return inputStream.read(b, off, len);
-            }
-
-            @Override
-            public byte[] readAllBytes() throws IOException {
-                return inputStream.readAllBytes();
-            }
-
-            @Override
-            public byte[] readNBytes(final int len) throws IOException {
-                return inputStream.readNBytes(len);
-            }
-
-            @Override
-            public int readNBytes(final byte[] b, final int off, final int len) throws IOException {
-                return inputStream.readNBytes(b, off, len);
-            }
-
-            @Override
-            public int available() throws IOException {
-                return inputStream.available();
-            }
-
-            @Override
-            public boolean markSupported() {
-                return inputStream.markSupported();
-            }
-
-            @Override
-            public synchronized void mark(final int readlimit) {
-                inputStream.mark(readlimit);
-            }
-
-            @Override
-            public synchronized void reset() throws IOException {
-                inputStream.reset();
-            }
-
-            @Override
-            public long skip(final long n) throws IOException {
-                return inputStream.skip(n);
-            }
-
-            @Override
-            public void skipNBytes(final long n) throws IOException {
-                inputStream.skipNBytes(n);
-            }
-
-            @Override
-            public long transferTo(final OutputStream out) throws IOException {
-                return inputStream.transferTo(out);
-            }
-
-            @Override
-            public String toString() {
-                return inputStream.toString();
-            }
-        };
+        return new InputStreamWithCloseAction(inputStream, onClose);
     }
 
     /**
