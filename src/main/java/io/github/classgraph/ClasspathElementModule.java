@@ -217,7 +217,7 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public byte[] load() throws IOException {
                 try (Resource res = this) { // Close this after use
-                    read();
+                    read();  // Fill byteBuffer
                     final byte[] byteArray;
                     if (byteBuffer.hasArray() && byteBuffer.position() == 0
                             && byteBuffer.limit() == byteBuffer.capacity()) {
@@ -237,6 +237,7 @@ class ClasspathElementModule extends ClasspathElement {
                     if (byteBuffer != null) {
                         // Release any open ByteBuffer
                         moduleReaderProxy.release(byteBuffer);
+                        byteBuffer = null;
                     }
                     // Recycle the (open) ModuleReaderProxy instance.
                     moduleReaderProxyRecycler.recycle(moduleReaderProxy);
