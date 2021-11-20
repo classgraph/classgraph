@@ -45,7 +45,8 @@ public class InputStreamWithCloseAction extends InputStream {
     private static Method transferTo;
 
     static {
-        // Use reflection for InputStream methods not present in JDK 7
+        // Use reflection for InputStream methods not present in JDK 7.
+        // TODO Switch to direct method calls once JDK 8 is required.
         try {
             readAllBytes = InputStream.class.getDeclaredMethod("readAllBytes");
         } catch (NoSuchMethodException | SecurityException e1) {
