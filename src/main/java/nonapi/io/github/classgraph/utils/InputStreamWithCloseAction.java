@@ -33,7 +33,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 
-/** A proxying InputStream that will close the Resource when the InputStream is closed (#600). */
+/** A proxying {@link InputStream} that runs a given action when {@link #close()} is called (#600). */
 public class InputStreamWithCloseAction extends InputStream {
     private final InputStream inputStream;
     private final Runnable onClose;
@@ -74,7 +74,7 @@ public class InputStreamWithCloseAction extends InputStream {
     }
 
     /**
-     * A proxying InputStream that will close the Resource when the InputStream is closed (#600).
+     * A proxying {@link InputStream} that runs a given action when {@link #close()} is called (#600).
      *
      * @param inputStream
      *            the {@link InputStream} to wrap.
