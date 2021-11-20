@@ -239,6 +239,14 @@ class ClasspathElementModule extends ClasspathElement {
                         moduleReaderProxy.release(byteBuffer);
                         byteBuffer = null;
                     }
+                    if (inputStream != null) {
+                        try {
+                            inputStream.close();
+                        } catch (IOException e) {
+                            // Ignore
+                        }
+                        inputStream = null;
+                    }
                     // Recycle the (open) ModuleReaderProxy instance.
                     moduleReaderProxyRecycler.recycle(moduleReaderProxy);
                     // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
