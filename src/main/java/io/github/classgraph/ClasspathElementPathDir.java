@@ -183,6 +183,16 @@ class ClasspathElementPathDir extends ClasspathElement {
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
 
+            /** Action to run when a derived resource is closed. */
+            private final Runnable onClose = new Runnable() {
+                @Override
+                public void run() {
+                    if (isOpen.get()) {
+                        close();
+                    }
+                }
+            };
+
             @Override
             public String getPath() {
                 String path = FastPathResolver.resolve(packageRootPath.relativize(resourcePath).toString());
@@ -252,7 +262,7 @@ class ClasspathElementPathDir extends ClasspathElement {
                 // Classfile won't be compressed, so wrap it in a new PathSlice and then open it
                 pathSlice = new PathSlice(resourcePath, nestedJarHandler);
                 length = pathSlice.sliceLength;
-                return new ClassfileReader(pathSlice, onClose());
+                return new ClassfileReader(pathSlice, onClose);
             }
 
             @Override
@@ -266,7 +276,7 @@ class ClasspathElementPathDir extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 pathSlice = new PathSlice(resourcePath, nestedJarHandler);
-                inputStream = pathSlice.open(onClose());
+                inputStream = pathSlice.open(onClose);
                 length = pathSlice.sliceLength;
                 return inputStream;
             }
@@ -296,17 +306,6 @@ class ClasspathElementPathDir extends ClasspathElement {
                     }
                 }
                 super.close(); // Close inputStream
-            }
-
-            private Runnable onClose() {
-                return new Runnable() {
-                    @Override
-                    public void run() {
-                        if (isOpen.get()) {
-                            close();
-                        }
-                    }
-                };
             }
         };
     }

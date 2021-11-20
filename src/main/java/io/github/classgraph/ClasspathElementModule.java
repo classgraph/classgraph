@@ -141,6 +141,16 @@ class ClasspathElementModule extends ClasspathElement {
 
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
+            
+            /** Action to run when a derived resource is closed. */
+            private final Runnable onClose = new Runnable() {
+                @Override
+                public void run() {
+                    if (isOpen.get()) {
+                        close();
+                    }
+                }
+            };
 
             @Override
             public String getPath() {
@@ -188,7 +198,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             ClassfileReader openClassfile() throws IOException {
-                return new ClassfileReader(open(), onClose());
+                return new ClassfileReader(open(), onClose);
             }
 
             @Override
@@ -203,7 +213,7 @@ class ClasspathElementModule extends ClasspathElement {
                 }
                 try {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                    inputStream = moduleReaderProxy.open(resourcePath, onClose());
+                    inputStream = moduleReaderProxy.open(resourcePath, onClose);
                     // Length cannot be obtained from ModuleReader
                     length = -1L;
                     return inputStream;
@@ -247,17 +257,6 @@ class ClasspathElementModule extends ClasspathElement {
                     moduleReaderProxy = null;
                 }
                 super.close(); // Close inputStream
-            }
-
-            private Runnable onClose() {
-                return new Runnable() {
-                    @Override
-                    public void run() {
-                        if (isOpen.get()) {
-                            close();
-                        }
-                    }
-                };
             }
         };
     }

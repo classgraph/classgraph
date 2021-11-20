@@ -318,6 +318,16 @@ class ClasspathElementZip extends ClasspathElement {
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
 
+            /** Action to run when a derived resource is closed. */
+            private final Runnable onClose = new Runnable() {
+                @Override
+                public void run() {
+                    if (isOpen.get()) {
+                        close();
+                    }
+                }
+            };
+
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.
@@ -391,7 +401,7 @@ class ClasspathElementZip extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 try {
-                    inputStream = zipEntry.getSlice().open(onClose());
+                    inputStream = zipEntry.getSlice().open(onClose);
                     length = zipEntry.uncompressedSize;
                     return inputStream;
 
@@ -403,7 +413,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             ClassfileReader openClassfile() throws IOException {
-                return new ClassfileReader(open(), onClose());
+                return new ClassfileReader(open(), onClose);
             }
 
             @Override
@@ -451,17 +461,6 @@ class ClasspathElementZip extends ClasspathElement {
                     byteBuffer = null;
                 }
                 super.close(); // Close inputStream
-            }
-
-            private Runnable onClose() {
-                return new Runnable() {
-                    @Override
-                    public void run() {
-                        if (isOpen.get()) {
-                            close();
-                        }
-                    }
-                };
             }
         };
     }
