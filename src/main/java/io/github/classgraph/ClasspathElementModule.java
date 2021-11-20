@@ -216,8 +216,8 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public byte[] load() throws IOException {
-                read();
                 try (Resource res = this) { // Close this after use
+                    read();
                     final byte[] byteArray;
                     if (byteBuffer.hasArray() && byteBuffer.position() == 0
                             && byteBuffer.limit() == byteBuffer.capacity()) {
