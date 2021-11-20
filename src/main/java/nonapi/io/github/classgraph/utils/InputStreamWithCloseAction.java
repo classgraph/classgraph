@@ -47,7 +47,7 @@ public class InputStreamWithCloseAction extends InputStream {
 
     static {
         // Use reflection for InputStream methods not present in JDK 7.
-        // TODO Switch to direct method calls once JDK 8 is required.
+        // TODO Switch to direct method calls once JDK 8 is required, and add back missing @Override annotations.
         try {
             readAllBytes = InputStream.class.getDeclaredMethod("readAllBytes");
         } catch (NoSuchMethodException | SecurityException e1) {
@@ -116,7 +116,6 @@ public class InputStreamWithCloseAction extends InputStream {
     }
 
     // No @Override, since this method is not present in JDK 7
-    @Override
     public byte[] readAllBytes() throws IOException {
         if (readAllBytes == null) {
             throw new UnsupportedOperationException();
@@ -129,7 +128,6 @@ public class InputStreamWithCloseAction extends InputStream {
     }
 
     // No @Override, since this method is not present in JDK 7
-    @Override
     public byte[] readNBytes(final int len) throws IOException {
         if (readNBytes1 == null) {
             throw new UnsupportedOperationException();
@@ -142,7 +140,6 @@ public class InputStreamWithCloseAction extends InputStream {
     }
 
     // No @Override, since this method is not present in JDK 7
-    @Override
     public int readNBytes(final byte[] b, final int off, final int len) throws IOException {
         if (readNBytes3 == null) {
             throw new UnsupportedOperationException();
@@ -180,7 +177,6 @@ public class InputStreamWithCloseAction extends InputStream {
     }
 
     // No @Override, since this method is not present in JDK 7
-    @Override
     public void skipNBytes(final long n) throws IOException {
         if (skipNBytes == null) {
             throw new UnsupportedOperationException();
@@ -193,7 +189,6 @@ public class InputStreamWithCloseAction extends InputStream {
     }
 
     // No @Override, since this method is not present in JDK 7
-    @Override
     public long transferTo(final OutputStream out) throws IOException {
         if (transferTo == null) {
             throw new UnsupportedOperationException();
