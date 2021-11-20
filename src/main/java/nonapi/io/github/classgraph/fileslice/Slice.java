@@ -36,10 +36,8 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.Inflater;
 
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
 
@@ -249,22 +247,6 @@ public abstract class Slice implements Closeable {
      * @return the random access reader
      */
     public abstract RandomAccessReader randomAccessReader();
-
-    /**
-     * Open this {@link Slice} for buffered sequential reading. Make sure you close this when you have finished with
-     * it, in order to recycle any {@link Inflater} instances.
-     *
-     * @return the classfile reader
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
-     */
-    public ClassfileReader openClassfileReader() throws IOException {
-        if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
-            throw new IllegalArgumentException(
-                    "Cannot open slices larger than 2GB for sequential buffered reading");
-        }
-        return new ClassfileReader(this, null);
-    }
 
     /**
      * Load the slice as a byte array.
