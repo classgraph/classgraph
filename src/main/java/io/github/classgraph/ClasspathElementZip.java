@@ -316,7 +316,7 @@ class ClasspathElementZip extends ClasspathElement {
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
         return new Resource(this, zipEntry.uncompressedSize) {
             /** True if the resource is open. */
-            protected AtomicBoolean isOpen = new AtomicBoolean();
+            private final AtomicBoolean isOpen = new AtomicBoolean();
 
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
@@ -391,14 +391,7 @@ class ClasspathElementZip extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 try {
-                    inputStream = zipEntry.getSlice().open(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (isOpen.getAndSet(false)) {
-                                close();
-                            }
-                        }
-                    });
+                    inputStream = zipEntry.getSlice().open(onClose());
                     length = zipEntry.uncompressedSize;
                     return inputStream;
 
@@ -410,7 +403,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             ClassfileReader openClassfile() throws IOException {
-                return new ClassfileReader(open());
+                return new ClassfileReader(open(), onClose());
             }
 
             @Override
@@ -452,12 +445,23 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public void close() {
-                super.close(); // Close inputStream
                 if (isOpen.getAndSet(false) && byteBuffer != null) {
                     // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't
                     // need to be unmapped
                     byteBuffer = null;
                 }
+                super.close(); // Close inputStream
+            }
+
+            private Runnable onClose() {
+                return new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isOpen.get()) {
+                            close();
+                        }
+                    }
+                };
             }
         };
     }

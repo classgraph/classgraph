@@ -155,7 +155,6 @@ class ClasspathElementFileDir extends ClasspathElement {
                         "Skipping classpath element, since dir cannot be accessed: " + classpathEltDir, log);
             }
             skipClasspathElement = true;
-            return;
         }
     }
 
@@ -177,7 +176,7 @@ class ClasspathElementFileDir extends ClasspathElement {
             private FileSlice fileSlice;
 
             /** True if the resource is open. */
-            protected AtomicBoolean isOpen = new AtomicBoolean();
+            private final AtomicBoolean isOpen = new AtomicBoolean();
 
             @Override
             public String getPath() {
@@ -247,7 +246,7 @@ class ClasspathElementFileDir extends ClasspathElement {
                 // Classfile won't be compressed, so wrap it in a new FileSlice and then open it
                 fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
                 length = fileSlice.sliceLength;
-                return new ClassfileReader(fileSlice);
+                return new ClassfileReader(fileSlice, onClose());
             }
 
             @Override
@@ -261,14 +260,7 @@ class ClasspathElementFileDir extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
-                inputStream = fileSlice.open(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (isOpen.getAndSet(false)) {
-                            close();
-                        }
-                    }
-                });
+                inputStream = fileSlice.open(onClose());
                 length = fileSlice.sliceLength;
                 return inputStream;
             }
@@ -286,7 +278,6 @@ class ClasspathElementFileDir extends ClasspathElement {
 
             @Override
             public void close() {
-                super.close(); // Close inputStream
                 if (isOpen.getAndSet(false)) {
                     if (byteBuffer != null) {
                         // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
@@ -298,6 +289,18 @@ class ClasspathElementFileDir extends ClasspathElement {
                         fileSlice = null;
                     }
                 }
+                super.close(); // Close inputStream
+            }
+
+            private Runnable onClose() {
+                return new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isOpen.get()) {
+                            close();
+                        }
+                    }
+                };
             }
         };
     }

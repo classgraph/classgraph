@@ -140,7 +140,7 @@ class ClasspathElementModule extends ClasspathElement {
             private ModuleReaderProxy moduleReaderProxy;
 
             /** True if the resource is open. */
-            protected AtomicBoolean isOpen = new AtomicBoolean();
+            private final AtomicBoolean isOpen = new AtomicBoolean();
 
             @Override
             public String getPath() {
@@ -188,7 +188,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             ClassfileReader openClassfile() throws IOException {
-                return new ClassfileReader(open());
+                return new ClassfileReader(open(), onClose());
             }
 
             @Override
@@ -233,7 +233,6 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public void close() {
-                super.close(); // Close inputStream
                 if (isOpen.getAndSet(false) && moduleReaderProxy != null) {
                     if (byteBuffer != null) {
                         // Release any open ByteBuffer
@@ -246,6 +245,18 @@ class ClasspathElementModule extends ClasspathElement {
                     // ClasspathElementModule#close().
                     moduleReaderProxy = null;
                 }
+                super.close(); // Close inputStream
+            }
+
+            private Runnable onClose() {
+                return new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isOpen.get()) {
+                            close();
+                        }
+                    }
+                };
             }
         };
     }

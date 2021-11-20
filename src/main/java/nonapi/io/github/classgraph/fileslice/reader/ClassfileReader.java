@@ -73,6 +73,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      */
     private int classfileLengthHint = -1;
 
+    private final Runnable onClose;
+
     /**
      * Initial buffer size. For most classfiles, only the first 16-64kb needs to be read (we don't read the
      * bytecodes).
@@ -93,11 +95,14 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * 
      * @param slice
      *            the {@link Slice} to read.
+     * @param onClose
+     *            handler executed by {@link ClassfileReader#close}.
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final Slice slice) throws IOException {
+    public ClassfileReader(final Slice slice, final Runnable onClose) throws IOException {
         this.classfileLengthHint = (int) slice.sliceLength;
+        this.onClose = onClose;
         if (slice.isDeflatedZipEntry) {
             // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
             inflaterInputStream = slice.open();
@@ -133,12 +138,15 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * 
      * @param inputStream
      *            the {@link InputStream} to read from.
+     * @param onClose
+     *            handler executed by {@link ClassfileReader#close}.
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final InputStream inputStream) throws IOException {
+    public ClassfileReader(final InputStream inputStream, final Runnable onClose) throws IOException {
         inflaterInputStream = inputStream;
         arr = new byte[INITIAL_BUF_SIZE];
+        this.onClose = onClose;
     }
 
     /**
@@ -442,6 +450,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         try {
             if (inflaterInputStream != null) {
                 inflaterInputStream.close();
+            }
+            if (onClose != null) {
+                onClose.run();
             }
         } catch (final Exception e) {
             // Ignore
