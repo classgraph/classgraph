@@ -61,6 +61,7 @@ public class CloseableByteBuffer implements Closeable {
         return byteBuffer;
     }
 
+    /** Release the wrapped {@link ByteBuffer}. */
     @Override
     public void close() throws IOException {
         if (onClose != null) {
