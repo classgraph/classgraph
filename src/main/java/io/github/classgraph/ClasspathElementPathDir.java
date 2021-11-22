@@ -187,9 +187,7 @@ class ClasspathElementPathDir extends ClasspathElement {
             private final Runnable onClose = new Runnable() {
                 @Override
                 public void run() {
-                    if (isOpen.get()) {
-                        close();
-                    }
+                    close();
                 }
             };
 
@@ -304,8 +302,10 @@ class ClasspathElementPathDir extends ClasspathElement {
                         nestedJarHandler.markSliceAsClosed(pathSlice);
                         pathSlice = null;
                     }
+
+                    // Close inputStream
+                    super.close();
                 }
-                super.close(); // Close inputStream
             }
         };
     }
