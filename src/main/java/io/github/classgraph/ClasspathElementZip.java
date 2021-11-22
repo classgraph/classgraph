@@ -322,9 +322,7 @@ class ClasspathElementZip extends ClasspathElement {
             private final Runnable onClose = new Runnable() {
                 @Override
                 public void run() {
-                    if (isOpen.get()) {
-                        close();
-                    }
+                    close();
                 }
             };
 
@@ -455,12 +453,16 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public void close() {
-                if (isOpen.getAndSet(false) && byteBuffer != null) {
-                    // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't
-                    // need to be unmapped
-                    byteBuffer = null;
+                if (isOpen.getAndSet(false)) {
+                    if (byteBuffer != null) {
+                        // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't
+                        // need to be unmapped
+                        byteBuffer = null;
+                    }
+
+                    // Close inputStream
+                    super.close();
                 }
-                super.close(); // Close inputStream
             }
         };
     }

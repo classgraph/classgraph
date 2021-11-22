@@ -182,9 +182,7 @@ class ClasspathElementFileDir extends ClasspathElement {
             private final Runnable onClose = new Runnable() {
                 @Override
                 public void run() {
-                    if (isOpen.get()) {
-                        close();
-                    }
+                    close();
                 }
             };
 
@@ -298,8 +296,10 @@ class ClasspathElementFileDir extends ClasspathElement {
                         nestedJarHandler.markSliceAsClosed(fileSlice);
                         fileSlice = null;
                     }
+
+                    // Close inputStream
+                    super.close();
                 }
-                super.close(); // Close inputStream
             }
         };
     }

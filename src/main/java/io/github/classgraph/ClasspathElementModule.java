@@ -146,9 +146,7 @@ class ClasspathElementModule extends ClasspathElement {
             private final Runnable onClose = new Runnable() {
                 @Override
                 public void run() {
-                    if (isOpen.get()) {
-                        close();
-                    }
+                    close();
                 }
             };
 
@@ -243,20 +241,24 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public void close() {
-                if (isOpen.getAndSet(false) && moduleReaderProxy != null) {
-                    if (byteBuffer != null) {
-                        // Release any open ByteBuffer
-                        moduleReaderProxy.release(byteBuffer);
-                        byteBuffer = null;
+                if (isOpen.getAndSet(false)) {
+                    if (moduleReaderProxy != null) {
+                        if (byteBuffer != null) {
+                            // Release any open ByteBuffer
+                            moduleReaderProxy.release(byteBuffer);
+                            byteBuffer = null;
+                        }
+                        // Recycle the (open) ModuleReaderProxy instance.
+                        moduleReaderProxyRecycler.recycle(moduleReaderProxy);
+                        // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
+                        // Just set the ref to null here. The ModuleReaderProxy will be closed by
+                        // ClasspathElementModule#close().
+                        moduleReaderProxy = null;
                     }
-                    // Recycle the (open) ModuleReaderProxy instance.
-                    moduleReaderProxyRecycler.recycle(moduleReaderProxy);
-                    // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
-                    // Just set the ref to null here. The ModuleReaderProxy will be closed by
-                    // ClasspathElementModule#close().
-                    moduleReaderProxy = null;
+
+                    // Close inputStream
+                    super.close();
                 }
-                super.close(); // Close inputStream
             }
         };
     }
