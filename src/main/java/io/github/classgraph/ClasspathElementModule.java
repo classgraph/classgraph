@@ -53,6 +53,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ProxyingInputStream;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
@@ -202,8 +203,21 @@ class ClasspathElementModule extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 try {
+                    final Resource resourceToClose = this;
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                    inputStream = new InputStreamFromResource(moduleReaderProxy.open(resourcePath), this);
+                    inputStream = new ProxyingInputStream(moduleReaderProxy.open(resourcePath)) {
+                        @Override
+                        public void close() throws IOException {
+                            // Close the wrapped InputStream obtained from moduleReaderProxy
+                            super.close();
+                            try {
+                                // Close the Resource
+                                resourceToClose.close();
+                            } catch (final Exception e) {
+                                // Ignore
+                            }
+                        }
+                    };
                     // Length cannot be obtained from ModuleReader
                     length = -1L;
                     return inputStream;
