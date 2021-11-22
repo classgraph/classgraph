@@ -43,8 +43,13 @@ public class CloseableByteBuffer implements Closeable {
     /**
      * A wrapper for {@link ByteBuffer} that implements the {@link Closeable} interface, releasing the
      * {@link ByteBuffer} when it is no longer needed.
+     * 
+     * @param byteBuffer
+     *            The {@link ByteBuffer} to wrap
+     * @param onClose
+     *            The method to run when {@link #close()} is called.
      */
-    public CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
+    CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
         this.byteBuffer = byteBuffer;
         this.onClose = onClose;
     }
