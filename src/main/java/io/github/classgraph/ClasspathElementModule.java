@@ -203,7 +203,7 @@ class ClasspathElementModule extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 try {
-                    final Resource resourceToClose = this;
+                    final Resource thisResource = this;
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
                     inputStream = new ProxyingInputStream(moduleReaderProxy.open(resourcePath)) {
                         @Override
@@ -211,8 +211,9 @@ class ClasspathElementModule extends ClasspathElement {
                             // Close the wrapped InputStream obtained from moduleReaderProxy
                             super.close();
                             try {
-                                // Close the Resource
-                                resourceToClose.close();
+                                // Close the Resource, releasing any underlying ByteBuffer and recycling
+                                // the moduleReaderProxy
+                                thisResource.close();
                             } catch (final Exception e) {
                                 // Ignore
                             }
