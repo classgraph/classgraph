@@ -32,6 +32,8 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -420,6 +422,181 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
                 // Ignore
             }
             inputStream = null;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A proxying {@link InputStream} that closes a given {@link Resource} when {@link #close()} is called. */
+    static class InputStreamFromResource extends InputStream {
+        // See #600, this is used to close the underlying Resource when the Resource's InputStream is closed. 
+        private final InputStream inputStream;
+        private final Resource resource;
+
+        private static Method readAllBytes;
+        private static Method readNBytes1;
+        private static Method readNBytes3;
+        private static Method skipNBytes;
+        private static Method transferTo;
+
+        static {
+            // Use reflection for InputStream methods not present in JDK 7.
+            // TODO Switch to direct method calls once JDK 8 is required, and add back missing @Override annotations
+            try {
+                readAllBytes = InputStream.class.getDeclaredMethod("readAllBytes");
+            } catch (NoSuchMethodException | SecurityException e1) {
+                // Ignore
+            }
+            try {
+                readNBytes1 = InputStream.class.getDeclaredMethod("readNBytes", int.class);
+            } catch (NoSuchMethodException | SecurityException e1) {
+                // Ignore
+            }
+            try {
+                readNBytes3 = InputStream.class.getDeclaredMethod("readNBytes", byte[].class, int.class, int.class);
+            } catch (NoSuchMethodException | SecurityException e1) {
+                // Ignore
+            }
+            try {
+                skipNBytes = InputStream.class.getDeclaredMethod("skipNBytes", long.class);
+            } catch (NoSuchMethodException | SecurityException e1) {
+                // Ignore
+            }
+            try {
+                transferTo = InputStream.class.getDeclaredMethod("transferTo", OutputStream.class);
+            } catch (NoSuchMethodException | SecurityException e1) {
+                // Ignore
+            }
+        }
+
+        /**
+         * A proxying {@link InputStream} that closes a given {@link Resource} when {@link #close()} is called.
+         *
+         * @param inputStream
+         *            the {@link InputStream} to wrap.
+         * @param resource
+         *            the resource to close when {@link #close()} is called.
+         */
+        public InputStreamFromResource(final InputStream inputStream, final Resource resource) {
+            this.inputStream = inputStream;
+            this.resource = resource;
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (resource != null) {
+                try {
+                    resource.close();
+                } catch (final Exception e) {
+                    // Ignore
+                }
+            }
+            inputStream.close();
+        }
+
+        @Override
+        public int read() throws IOException {
+            return inputStream.read();
+        }
+
+        @Override
+        public int read(final byte[] b) throws IOException {
+            return inputStream.read(b);
+        }
+
+        @Override
+        public int read(final byte[] b, final int off, final int len) throws IOException {
+            return inputStream.read(b, off, len);
+        }
+
+        // No @Override, since this method is not present in JDK 7
+        public byte[] readAllBytes() throws IOException {
+            if (readAllBytes == null) {
+                throw new UnsupportedOperationException();
+            }
+            try {
+                return (byte[]) readAllBytes.invoke(inputStream);
+            } catch (final Exception e) {
+                throw new IOException(e);
+            }
+        }
+
+        // No @Override, since this method is not present in JDK 7
+        public byte[] readNBytes(final int len) throws IOException {
+            if (readNBytes1 == null) {
+                throw new UnsupportedOperationException();
+            }
+            try {
+                return (byte[]) readNBytes1.invoke(inputStream, len);
+            } catch (final Exception e) {
+                throw new IOException(e);
+            }
+        }
+
+        // No @Override, since this method is not present in JDK 7
+        public int readNBytes(final byte[] b, final int off, final int len) throws IOException {
+            if (readNBytes3 == null) {
+                throw new UnsupportedOperationException();
+            }
+            try {
+                return (int) readNBytes3.invoke(inputStream, b, off, len);
+            } catch (final Exception e) {
+                throw new IOException(e);
+            }
+        }
+
+        @Override
+        public int available() throws IOException {
+            return inputStream.available();
+        }
+
+        @Override
+        public boolean markSupported() {
+            return inputStream.markSupported();
+        }
+
+        @Override
+        public synchronized void mark(final int readlimit) {
+            inputStream.mark(readlimit);
+        }
+
+        @Override
+        public synchronized void reset() throws IOException {
+            inputStream.reset();
+        }
+
+        @Override
+        public long skip(final long n) throws IOException {
+            return inputStream.skip(n);
+        }
+
+        // No @Override, since this method is not present in JDK 7
+        public void skipNBytes(final long n) throws IOException {
+            if (skipNBytes == null) {
+                throw new UnsupportedOperationException();
+            }
+            try {
+                skipNBytes.invoke(inputStream, n);
+            } catch (final Exception e) {
+                throw new IOException(e);
+            }
+        }
+
+        // No @Override, since this method is not present in JDK 7
+        public long transferTo(final OutputStream out) throws IOException {
+            if (transferTo == null) {
+                throw new UnsupportedOperationException();
+            }
+            try {
+                return (long) transferTo.invoke(inputStream, out);
+            } catch (final Exception e) {
+                throw new IOException(e);
+            }
+        }
+
+        @Override
+        public String toString() {
+            return inputStream.toString();
         }
     }
 }
