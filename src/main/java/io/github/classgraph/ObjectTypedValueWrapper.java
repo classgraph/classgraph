@@ -40,6 +40,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 class ObjectTypedValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization
     // works properly (can't properly serialize a field of Object type, since the concrete type is not
+    // TODO: remove this class once JSON serialization is removed
     /** Enum value. */
     // stored in JSON).
     private AnnotationEnumValue annotationEnumValue;
