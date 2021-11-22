@@ -35,7 +35,6 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.InputStreamWithCloseAction;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleReaderProxy implements Closeable {
@@ -125,25 +124,25 @@ public class ModuleReaderProxy implements Closeable {
      * 
      * @param path
      *            The path to the resource to open.
-     * @param onClose
-     *            a method to run when the returned {@code InputStream} is closed, or null if none.
      * 
      * @return An {@link InputStream} for the content of the resource.
      * @throws SecurityException
      *             If the module cannot be accessed.
+     * @throws IllegalArgumentException
+     *             If the module cannot be accessed.
      */
-    public InputStream open(final String path, final Runnable onClose) throws SecurityException {
+    public InputStream open(final String path) throws SecurityException {
         final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils
                 .invokeMethod(/* throwException = */ true, moduleReader, "open", String.class, path);
         if (optionalInputStream == null) {
-            throw new IllegalArgumentException("Got null result from ModuleReader#open(String)");
+            throw new IllegalArgumentException("Got null result from ModuleReader#open for path " + path);
         }
         final InputStream inputStream = (InputStream) ReflectionUtils.invokeMethod(/* throwException = */ true,
                 optionalInputStream, "get");
         if (inputStream == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#open(String)#get()");
         }
-        return new InputStreamWithCloseAction(inputStream, onClose);
+        return inputStream;
     }
 
     /**

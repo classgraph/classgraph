@@ -52,6 +52,7 @@ import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import nonapi.io.github.classgraph.utils.InputStreamFromResource;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
@@ -142,14 +143,6 @@ class ClasspathElementModule extends ClasspathElement {
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
 
-            /** Action to run when a derived resource is closed. */
-            private final Runnable onClose = new Runnable() {
-                @Override
-                public void run() {
-                    close();
-                }
-            };
-
             @Override
             public String getPath() {
                 return resourcePath;
@@ -196,7 +189,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             ClassfileReader openClassfile() throws IOException {
-                return new ClassfileReader(open(), onClose);
+                return new ClassfileReader(open(), this);
             }
 
             @Override
@@ -211,7 +204,7 @@ class ClasspathElementModule extends ClasspathElement {
                 }
                 try {
                     moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                    inputStream = moduleReaderProxy.open(resourcePath, onClose);
+                    inputStream = new InputStreamFromResource(moduleReaderProxy.open(resourcePath), this);
                     // Length cannot be obtained from ModuleReader
                     length = -1L;
                     return inputStream;

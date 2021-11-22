@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.Resource;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -156,13 +157,13 @@ public abstract class Slice implements Closeable {
     /**
      * Open this {@link Slice} as an {@link InputStream}.
      *
-     * @param onClose
-     *            a method to run when the returned {@code InputStream} is closed, or null if none.
+     * @param resource
+     *            the {@link Resource} to close when the returned {@code InputStream} is closed, or null if none.
      * @return the input stream
      * @throws IOException
      *             if an inflater cannot be created for this {@link Slice}.
      */
-    public InputStream open(final Runnable onClose) throws IOException {
+    public InputStream open(final Resource resource) throws IOException {
         final InputStream rawInputStream = new InputStream() {
             RandomAccessReader randomAccessReader = randomAccessReader();
             private long currOff;
@@ -232,10 +233,14 @@ public abstract class Slice implements Closeable {
 
             @Override
             public void close() {
-                closed.getAndSet(true);
-                if (onClose != null) {
-                    onClose.run();
+                if (resource != null) {
+                    try {
+                        resource.close();
+                    } catch (final Exception e) {
+                        // Ignore
+                    }
                 }
+                closed.getAndSet(true);
             }
         };
         return isDeflatedZipEntry ? nestedJarHandler.openInflaterInputStream(rawInputStream) : rawInputStream;

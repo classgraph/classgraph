@@ -178,14 +178,6 @@ class ClasspathElementFileDir extends ClasspathElement {
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
 
-            /** Action to run when a derived resource is closed. */
-            private final Runnable onClose = new Runnable() {
-                @Override
-                public void run() {
-                    close();
-                }
-            };
-
             @Override
             public String getPath() {
                 String path = FastPathResolver.resolve(pathRelativeToPackageRoot);
@@ -254,7 +246,7 @@ class ClasspathElementFileDir extends ClasspathElement {
                 // Classfile won't be compressed, so wrap it in a new FileSlice and then open it
                 fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
                 length = fileSlice.sliceLength;
-                return new ClassfileReader(fileSlice, onClose);
+                return new ClassfileReader(fileSlice, this);
             }
 
             @Override
@@ -268,7 +260,7 @@ class ClasspathElementFileDir extends ClasspathElement {
                             "Resource is already open -- cannot open it again without first calling close()");
                 }
                 fileSlice = new FileSlice(resourceFile, nestedJarHandler, /* log = */ null);
-                inputStream = fileSlice.open(onClose);
+                inputStream = fileSlice.open(this);
                 length = fileSlice.sliceLength;
                 return inputStream;
             }

@@ -33,11 +33,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 
-/** A proxying {@link InputStream} that runs a given action when {@link #close()} is called. */
-public class InputStreamWithCloseAction extends InputStream {
+import io.github.classgraph.Resource;
+
+/** A proxying {@link InputStream} that closes a given {@link Resource} when {@link #close()} is called. */
+public class InputStreamFromResource extends InputStream {
     // See #600, this is used to close the underlying Resource when the Resource's InputStream is closed. 
     private final InputStream inputStream;
-    private final Runnable onClose;
+    private final Resource resource;
 
     private static Method readAllBytes;
     private static Method readNBytes1;
@@ -76,23 +78,23 @@ public class InputStreamWithCloseAction extends InputStream {
     }
 
     /**
-     * A proxying {@link InputStream} that runs a given action when {@link #close()} is called.
+     * A proxying {@link InputStream} that closes a given {@link Resource} when {@link #close()} is called.
      *
      * @param inputStream
      *            the {@link InputStream} to wrap.
-     * @param onClose
-     *            the action to run when {@link #close()} is called.
+     * @param resource
+     *            the resource to close when {@link #close()} is called.
      */
-    public InputStreamWithCloseAction(final InputStream inputStream, final Runnable onClose) {
+    public InputStreamFromResource(final InputStream inputStream, final Resource resource) {
         this.inputStream = inputStream;
-        this.onClose = onClose;
+        this.resource = resource;
     }
 
     @Override
     public void close() throws IOException {
-        if (onClose != null) {
+        if (resource != null) {
             try {
-                onClose.run();
+                resource.close();
             } catch (final Exception e) {
                 // Ignore
             }
