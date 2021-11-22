@@ -52,7 +52,7 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  */
 public class ClassfileReader implements RandomAccessReader, SequentialReader, Closeable {
     /** The underlying resource to close when {@link ClassfileReader#close()} is called. */
-    private Resource resource;
+    private Resource resourceToClose;
 
     /** If slice is deflated, a wrapper for {@link InflateInputStream}. */
     private InputStream inflaterInputStream;
@@ -97,14 +97,14 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * 
      * @param slice
      *            the {@link Slice} to read.
-     * @param resource
-     *            the underlying resource to close when {@link ClassfileReader#close()} is called.
+     * @param resourceToClose
+     *            the resource to close when {@link ClassfileReader#close()} is called, or null.
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final Slice slice, final Resource resource) throws IOException {
+    public ClassfileReader(final Slice slice, final Resource resourceToClose) throws IOException {
         this.classfileLengthHint = (int) slice.sliceLength;
-        this.resource = resource;
+        this.resourceToClose = resourceToClose;
         if (slice.isDeflatedZipEntry) {
             // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
             inflaterInputStream = slice.open();
@@ -140,15 +140,15 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * 
      * @param inputStream
      *            the {@link InputStream} to read from.
-     * @param resource
-     *            the underlying resource to close when {@link ClassfileReader#close()} is called.
+     * @param resourceToClose
+     *            the underlying resource to close when {@link ClassfileReader#close()} is called, or null.
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final InputStream inputStream, final Resource resource) throws IOException {
+    public ClassfileReader(final InputStream inputStream, final Resource resourceToClose) throws IOException {
         inflaterInputStream = inputStream;
         arr = new byte[INITIAL_BUF_SIZE];
-        this.resource = resource;
+        this.resourceToClose = resourceToClose;
     }
 
     /**
@@ -454,9 +454,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
                 inflaterInputStream.close();
                 inflaterInputStream = null;
             }
-            if (resource != null) {
-                resource.close();
-                resource = null;
+            if (resourceToClose != null) {
+                resourceToClose.close();
+                resourceToClose = null;
             }
         } catch (final Exception e) {
             // Ignore

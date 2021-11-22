@@ -157,13 +157,13 @@ public abstract class Slice implements Closeable {
     /**
      * Open this {@link Slice} as an {@link InputStream}.
      *
-     * @param resource
+     * @param resourceToClose
      *            the {@link Resource} to close when the returned {@code InputStream} is closed, or null if none.
      * @return the input stream
      * @throws IOException
      *             if an inflater cannot be created for this {@link Slice}.
      */
-    public InputStream open(final Resource resource) throws IOException {
+    public InputStream open(final Resource resourceToClose) throws IOException {
         final InputStream rawInputStream = new InputStream() {
             RandomAccessReader randomAccessReader = randomAccessReader();
             private long currOff;
@@ -233,9 +233,9 @@ public abstract class Slice implements Closeable {
 
             @Override
             public void close() {
-                if (resource != null) {
+                if (resourceToClose != null) {
                     try {
-                        resource.close();
+                        resourceToClose.close();
                     } catch (final Exception e) {
                         // Ignore
                     }

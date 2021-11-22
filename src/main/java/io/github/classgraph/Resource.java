@@ -430,8 +430,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /** A proxying {@link InputStream} that closes a given {@link Resource} when {@link #close()} is called. */
     static class InputStreamFromResource extends InputStream {
         // See #600, this is used to close the underlying Resource when the Resource's InputStream is closed. 
-        private final InputStream inputStream;
-        private final Resource resource;
+        private InputStream inputStream;
+        private Resource resourceToClose;
 
         private static Method readAllBytes;
         private static Method readNBytes1;
@@ -474,24 +474,29 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
          *
          * @param inputStream
          *            the {@link InputStream} to wrap.
-         * @param resource
+         * @param resourceToClose
          *            the resource to close when {@link #close()} is called.
          */
-        public InputStreamFromResource(final InputStream inputStream, final Resource resource) {
+        public InputStreamFromResource(final InputStream inputStream, final Resource resourceToClose) {
             this.inputStream = inputStream;
-            this.resource = resource;
+            this.resourceToClose = resourceToClose;
         }
 
         @Override
         public void close() throws IOException {
-            if (resource != null) {
+            if (resourceToClose != null) {
                 try {
-                    resource.close();
+                    resourceToClose.close();
                 } catch (final Exception e) {
                     // Ignore
                 }
+                resourceToClose = null;
             }
-            inputStream.close();
+            try {
+                inputStream.close();
+            } finally {
+                inputStream = null;
+            }
         }
 
         @Override
