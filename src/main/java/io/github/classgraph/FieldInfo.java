@@ -180,6 +180,24 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     public boolean isPublic() {
         return Modifier.isPublic(modifiers);
     }
+    
+    /**
+     * Returns true if this field is private.
+     * 
+     * @return True if the field is private.
+     */
+    public boolean isPrivate() {
+        return Modifier.isPrivate(modifiers);
+    }
+    
+    /**
+     * Returns true if this field is protected.
+     * 
+     * @return True if the field is protected.
+     */
+    public boolean isProtected() {
+        return Modifier.isProtected(modifiers);
+    }
 
     /**
      * Returns true if this field is static.
@@ -206,6 +224,24 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     public boolean isTransient() {
         return Modifier.isTransient(modifiers);
+    }
+    
+    /**
+     * Returns true if this field is synthetic.
+     * 
+     * @return True if the field is synthetic.
+     */
+    public boolean isSynthetic() {
+        return (modifiers & 0x1000) != 0;
+    }
+    
+    /**
+     * Returns true if this field is an enum constant.
+     * 
+     * @return True if the field is an enum constant.
+     */
+    public boolean isEnum() {
+        return (modifiers & 0x4000) != 0;
     }
 
     /**

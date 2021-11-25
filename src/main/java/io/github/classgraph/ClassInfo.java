@@ -1187,7 +1187,25 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class is a public class.
      */
     public boolean isPublic() {
-        return (modifiers & Modifier.PUBLIC) != 0;
+        return Modifier.isPublic(modifiers);
+    }
+    
+    /**
+     * Checks if the class is private.
+     *
+     * @return true if this class is a private class.
+     */
+    public boolean isPrivate() {
+        return Modifier.isPrivate(modifiers);
+    }
+    
+    /**
+     * Checks if the class is protected.
+     *
+     * @return true if this class is a protected class.
+     */
+    public boolean isProtected() {
+        return Modifier.isProtected(modifiers);
     }
 
     /**
@@ -1196,7 +1214,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class is an abstract class.
      */
     public boolean isAbstract() {
-        return (modifiers & 0x400) != 0;
+        return Modifier.isAbstract(modifiers);
     }
 
     /**
@@ -1214,7 +1232,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class is a final class.
      */
     public boolean isFinal() {
-        return (modifiers & Modifier.FINAL) != 0;
+        return Modifier.isFinal(modifiers);
     }
 
     /**
