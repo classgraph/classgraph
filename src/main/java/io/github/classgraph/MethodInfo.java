@@ -339,7 +339,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public boolean isPublic() {
         return Modifier.isPublic(modifiers);
     }
-    
+
     /**
      * Returns true if this method is private.
      * 
@@ -348,7 +348,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public boolean isPrivate() {
         return Modifier.isPrivate(modifiers);
     }
-    
+
     /**
      * Returns true if this method is protected.
      * 
@@ -420,7 +420,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public boolean isNative() {
         return Modifier.isNative(modifiers);
     }
-    
+
     /**
      * Returns true if this method is abstract.
      * 
@@ -429,7 +429,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public boolean isAbstract() {
         return Modifier.isAbstract(modifiers);
     }
-    
+
     /**
      * Returns true if this method is strict.
      * 

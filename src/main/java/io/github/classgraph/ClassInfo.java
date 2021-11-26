@@ -1189,7 +1189,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public boolean isPublic() {
         return Modifier.isPublic(modifiers);
     }
-    
+
     /**
      * Checks if the class is private.
      *
@@ -1198,7 +1198,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public boolean isPrivate() {
         return Modifier.isPrivate(modifiers);
     }
-    
+
     /**
      * Checks if the class is protected.
      *
