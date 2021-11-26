@@ -130,7 +130,7 @@ public class ModulePathInfo {
     /** Set to true once {@link #getRuntimeInfo()} is called. */
     private final AtomicBoolean gotRuntimeInfo = new AtomicBoolean();
 
-    /** Construct a {@link ModulePathInfo}. */
+    /** Fill in module info from VM commandline parameters. */
     void getRuntimeInfo() {
         // Only call this reflective method if ModulePathInfo is specifically requested, to avoid illegal
         // access warning on some JREs, e.g. Adopt JDK 11 (#605)
