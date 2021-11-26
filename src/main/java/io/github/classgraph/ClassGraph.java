@@ -1764,6 +1764,7 @@ public class ClassGraph {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
+        scanSpec.modulePathInfo.getRuntimeInfo();
         return scanSpec.modulePathInfo;
     }
 }

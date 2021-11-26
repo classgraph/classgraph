@@ -449,6 +449,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
+        scanSpec.modulePathInfo.getRuntimeInfo();
         return scanSpec.modulePathInfo;
     }
 
