@@ -51,6 +51,7 @@ import java.util.Set;
 
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
+import io.github.classgraph.FieldInfoList.FieldInfoFilter;
 import nonapi.io.github.classgraph.json.Id;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
@@ -2666,6 +2667,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return fieldInfoList;
     }
 
+    /** Get all enum constants of an enum class (as a list of {@link FieldInfo} objects). */
+    public FieldInfoList getEnumConstants() {
+        if (!isEnum()) {
+            throw new IllegalArgumentException("Class " + getName() + " is not an enum");
+        }
+        return getFieldInfo().filter(new FieldInfoFilter() {
+            @Override
+            public boolean accept(FieldInfo fieldInfo) {
+                return fieldInfo.isEnum();
+            }
+        })
+    }
+    
     /**
      * Returns information on the named field declared by the class, but not by its superclasses. See also:
      * 
