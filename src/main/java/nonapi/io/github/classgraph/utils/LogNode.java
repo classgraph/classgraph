@@ -49,6 +49,12 @@ import nonapi.io.github.classgraph.classpath.SystemJarFinder;
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
 public final class LogNode {
+    // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the classpath as the logger
+    // https://blog.cloudflare.com/inside-the-log4j2-vulnerability-cve-2021-44228/
+    static {
+        System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
+    }
+    
     /** The logger. */
     private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
 
