@@ -2677,7 +2677,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             public boolean accept(FieldInfo fieldInfo) {
                 return fieldInfo.isEnum();
             }
-        })
+        });
     }
     
     /**

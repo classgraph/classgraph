@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.FieldInfo;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -31,9 +30,7 @@ public class EnumTest {
             assertThat(scanResult.getAllEnums().size() == 1);
             final ClassInfo myEnum = scanResult.getAllEnums().get(0);
             assertThat(myEnum.getName().equals(MyEnum.class.getName()));
-            for (FieldInfo fi : myEnum.getFieldInfo()) {
-                System.out.println(fi);
-            }
+            assertThat(myEnum.getEnumConstants().getNames()).containsExactly("A", "B", "C");
         }
     }
 }
