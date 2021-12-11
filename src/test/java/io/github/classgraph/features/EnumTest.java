@@ -17,14 +17,9 @@ public class EnumTest {
         A, B, C;
     }
 
-    /**
-     * Test records (JDK 14+).
-     *
-     * @throws Exception
-     *             the exception
-     */
+    /** Test */
     @Test
-    public void recordJar() throws Exception {
+    public void enumConsts() throws Exception {
         try (ScanResult scanResult = new ClassGraph().acceptClasses(MyEnum.class.getName()).enableAllInfo()
                 .scan()) {
             assertThat(scanResult.getAllEnums().size() == 1);
