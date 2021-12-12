@@ -75,7 +75,7 @@
         <dependency>
             <groupId>io.github.toolfactory</groupId>
             <artifactId>jvm-driver</artifactId>
-            <version>8.7.0</version>
+            <version>8.7.5</version>
             <optional>true</optional>
         </dependency>
 
