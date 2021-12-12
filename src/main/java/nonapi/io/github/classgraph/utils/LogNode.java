@@ -54,7 +54,7 @@ public final class LogNode {
     static {
         System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
     }
-    
+
     /** The logger. */
     private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
 
