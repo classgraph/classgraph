@@ -53,6 +53,7 @@ import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
 import io.github.classgraph.FieldInfoList.FieldInfoFilter;
 import nonapi.io.github.classgraph.json.Id;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
@@ -2667,19 +2668,40 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return fieldInfoList;
     }
 
-    /** Get all enum constants of an enum class (as a list of {@link FieldInfo} objects). */
+    /**
+     * @return All enum constants of an enum class as a list of {@link FieldInfo} objects (enum constants are stored
+     *         as fields in Java classes).
+     */
     public FieldInfoList getEnumConstants() {
         if (!isEnum()) {
             throw new IllegalArgumentException("Class " + getName() + " is not an enum");
         }
         return getFieldInfo().filter(new FieldInfoFilter() {
             @Override
-            public boolean accept(FieldInfo fieldInfo) {
+            public boolean accept(final FieldInfo fieldInfo) {
                 return fieldInfo.isEnum();
             }
         });
     }
-    
+
+    /** @return All enum constants of an enum class as a list of objects of the same type as the enum. */
+    public List<Object> getEnumConstantObjects() {
+        if (!isEnum()) {
+            throw new IllegalArgumentException("Class " + getName() + " is not an enum");
+        }
+        final Class<?> enumClass = loadClass();
+        final FieldInfoList consts = getEnumConstants();
+        final List<Object> constObjs = new ArrayList<>(consts.size());
+        for (final FieldInfo constFieldInfo : consts) {
+            final Object constObj = ReflectionUtils.getStaticFieldVal(true, enumClass, constFieldInfo.getName());
+            if (constObj == null) {
+                throw new IllegalArgumentException("Could not read enum constant objects");
+            }
+            constObjs.add(constObj);
+        }
+        return constObjs;
+    }
+
     /**
      * Returns information on the named field declared by the class, but not by its superclasses. See also:
      * 
