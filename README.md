@@ -113,12 +113,14 @@ The JDK team decided to start enforcing strong encapsulation in JDK 16+. That wi
 * The legacy classloader does not expose its classpath via a public field or method
 * The classloader is loaded in a different module from your user code
 
-**If your ClassGraph code works in JDK versions less than 16 but breaks in JDK 16+ (meaning that ClassGraph can no longer find your classes), you have probably run into this problem.**
+If your ClassGraph code works in JDK versions less than 16 but breaks in JDK 16+ (meaning that ClassGraph can no longer find your classes), you have probably run into this problem.
 
 ClassGraph can use either of the following libraries to silently circumvent all of Java's security mechanisms (visibility/access checks, security manager restrictions, and strong encapsulation), in order to read the classpath from private fields and methods of classloaders.
 
 * Narcissus by Luke Hutchison (@lukehutch), author of ClassGraph
 * JVM-Driver is by Roberto Gentili (@burningwave), author of [Burningwave Core](https://github.com/burningwave/core).
+
+**To clarify, you do *only* need to use Narcissus or JVM-driver if ClassGraph cannot find the classpath elements from your classloader, due to the enforcement of strong encapsulation, or if it is problematic that you are getting reflection access warnings on the console.**
 
 To use one of these libraries:
 
