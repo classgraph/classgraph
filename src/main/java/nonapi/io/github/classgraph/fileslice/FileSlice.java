@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Method;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -44,6 +45,7 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessByteBufferReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -69,6 +71,10 @@ public class FileSlice extends Slice {
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
+
+    /** System.runFinalization() -- deprecated in JDK 18, so accessed by reflection. */
+    private static final Method runFinalizationMethod = ReflectionUtils.staticMethodForNameOrNull("System",
+            "runFinalization");
 
     /**
      * Constructor for treating a range of a file as a slice.
@@ -144,7 +150,14 @@ public class FileSlice extends Slice {
             } catch (IOException | OutOfMemoryError e) {
                 // Try running garbage collection then try mapping the file again
                 System.gc();
-                System.runFinalization();
+                if (runFinalizationMethod != null) {
+                    try {
+                        // Call System.runFinalization() (deprecated in JDK 18) 
+                        runFinalizationMethod.invoke(null);
+                    } catch (final Throwable t) {
+                        // Ignore
+                    }
+                }
                 try {
                     backingByteBuffer = fileChannel.map(MapMode.READ_ONLY, 0L, fileLength);
                 } catch (IOException | OutOfMemoryError e2) {

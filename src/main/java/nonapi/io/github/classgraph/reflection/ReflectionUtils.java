@@ -369,6 +369,21 @@ public final class ReflectionUtils {
         }
     }
 
+    /**
+     * Get a static method by name, but return null if any exception is thrown.
+     * 
+     * @param className
+     *            The class name to load.
+     * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     */
+    public static Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
+        try {
+            return reflectionDriver.findStaticMethod(reflectionDriver.findClass(className), staticMethodName);
+        } catch (final Throwable e) {
+            return null;
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
