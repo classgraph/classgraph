@@ -161,12 +161,10 @@ class ClasspathElementZip extends ClasspathElement {
             try {
                 logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
                         .get(rawPath, subLog);
-            } catch (final NullSingletonException e) {
-                // Generally thrown on the second and subsequent attempt to call .get(), after the first failed
+            } catch (final NullSingletonException | NewInstanceException e) {
+                // Generally thrown on the second and subsequent attempt to call .get(), after the first failed,
+                // or newInstance() threw an exception
                 throw new IOException("Could not get logical zipfile " + rawPath + " : " + e);
-            } catch (final NewInstanceException e) {
-                // newInstance() threw an exception
-                throw new IOException("Could not get logical zipfile " + rawPath, e);
             }
             logicalZipFile = logicalZipFileAndPackageRoot.getKey();
             if (logicalZipFile == null) {

@@ -188,13 +188,10 @@ public class NestedJarHandler {
                                 final File canonicalFile = new File(nestedJarPath).getCanonicalFile();
                                 // Get or create a PhysicalZipFile instance for the canonical file
                                 physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
-                            } catch (final NullSingletonException e) {
+                            } catch (final NullSingletonException | NewInstanceException e) {
                                 // If getting PhysicalZipFile failed, re-wrap in IOException
                                 throw new IOException(
                                         "Could not get PhysicalZipFile for path " + nestedJarPath + " : " + e);
-                            } catch (final NewInstanceException e) {
-                                // If getting PhysicalZipFile failed, re-wrap in IOException
-                                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath, e);
                             } catch (final SecurityException e) {
                                 // getCanonicalFile() failed (it may have also failed with IOException)
                                 throw new IOException(

@@ -541,13 +541,9 @@ class Scanner implements Callable<ScanResult> {
                         try {
                             return this.get(new ClasspathElementAndClassLoader(canonicalPathNormalized,
                                     dirOrPathPackageRoot, classpathEntry.classLoader), log);
-                        } catch (final NullSingletonException e) {
+                        } catch (final NullSingletonException | NewInstanceException e) {
                             throw new IOException("Cannot get classpath element for canonical path "
                                     + canonicalPathNormalized + " : " + e);
-                        } catch (final NewInstanceException e) {
-                            throw new IOException(
-                                    "Cannot get classpath element for canonical path " + canonicalPathNormalized,
-                                    e);
                         }
                     } else {
                         // Otherwise path is already canonical, and this is the first time this path has

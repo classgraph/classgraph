@@ -113,15 +113,9 @@ class ClasspathElementModule extends ClasspathElement {
         }
         try {
             moduleReaderProxyRecycler = moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef, log);
-        } catch (final IOException | NullSingletonException e) {
+        } catch (final IOException | NullSingletonException | NewInstanceException e) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : " + e, log);
-            }
-            skipClasspathElement = true;
-            return;
-        } catch (final NewInstanceException e) {
-            if (log != null) {
-                log(classpathElementIdx, "Skipping invalid module " + getModuleName(), e, log);
             }
             skipClasspathElement = true;
             return;
