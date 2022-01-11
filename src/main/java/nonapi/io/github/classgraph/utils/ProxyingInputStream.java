@@ -194,10 +194,12 @@ public class ProxyingInputStream extends InputStream {
 
     @Override
     public void close() throws IOException {
-        try {
-            inputStream.close();
-        } finally {
-            inputStream = null;
+        if (inputStream != null) {
+            try {
+                inputStream.close();
+            } finally {
+                inputStream = null;
+            }
         }
     }
 }
