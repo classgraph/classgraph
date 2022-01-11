@@ -123,7 +123,7 @@ ClassGraph can use either of the following libraries to silently circumvent all 
 
 To use one of these libraries:
 
-* Upgrade ClassGraph to at least version 4.8.124
+* Upgrade ClassGraph to the latest version
 * Either:
   1. Add the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (this includes a native library, and only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
   2. Set `ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NARCISSUS;` before interacting with ClassGraph in any other way (this will load the Narcissus library as ClassGraph's reflection driver).
