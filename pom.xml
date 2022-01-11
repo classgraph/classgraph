@@ -75,7 +75,7 @@
         <dependency>
             <groupId>io.github.toolfactory</groupId>
             <artifactId>jvm-driver</artifactId>
-            <version>8.7.5</version>
+            <version>8.7.10</version>
             <optional>true</optional>
         </dependency>
 
@@ -219,7 +219,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>3.0.0-M4</version>
+                <version>3.0.0-M5</version>
             </plugin>
 
             <!-- Override versions of the following plugins, inherited from the super-pom, with latest versions -->
@@ -231,7 +231,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.0.0-M1</version>
+                <version>3.0.0-M2</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
