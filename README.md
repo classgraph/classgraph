@@ -108,10 +108,9 @@ See instructions for [use as a module](https://github.com/classgraph/classgraph/
 
 The JDK team decided to start enforcing strong encapsulation in JDK 16+. That will means that by default, ClassGraph will not be able to find the classpath of your project, if all of the following are true:
 
-* You are running on JDK 16+
-* You are using a legacy classloader (rather than the module system)
-* The legacy classloader does not expose its classpath via a public field or method
-* The classloader is loaded in a different module from your user code
+* You are running on JDK 16+, and either:
+  * You are using a legacy classloader (rather than the module system), and the classloader does not expose its classpath via a public field or method; or:
+  * The classloader is loaded in a different module from your user code
 
 If your ClassGraph code works in JDK versions less than 16 but breaks in JDK 16+ (meaning that ClassGraph can no longer find your classes), you have probably run into this problem.
 
