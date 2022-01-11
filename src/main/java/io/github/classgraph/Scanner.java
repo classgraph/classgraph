@@ -587,13 +587,9 @@ class Scanner implements Callable<ScanResult> {
                     try {
                         classpathElt = classpathEntryToClasspathElementSingletonMap.get(workUnit.rawClasspathEntry,
                                 log);
-                    } catch (final NullSingletonException e) {
+                    } catch (final NullSingletonException | NewInstanceException e) {
                         throw new IOException("Cannot get classpath element for classpath entry "
                                 + workUnit.rawClasspathEntry + " : " + e);
-                    } catch (final NewInstanceException e) {
-                        throw new IOException(
-                                "Cannot get classpath element for classpath entry " + workUnit.rawClasspathEntry,
-                                e);
                     }
 
                     // Only run open() once per ClasspathElement (it is possible for there to be
