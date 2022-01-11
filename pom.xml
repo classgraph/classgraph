@@ -75,7 +75,7 @@
         <dependency>
             <groupId>io.github.toolfactory</groupId>
             <artifactId>jvm-driver</artifactId>
-            <version>8.7.5</version>
+            <version>8.7.10</version>
             <optional>true</optional>
         </dependency>
 
@@ -101,7 +101,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.21.0</version>
+            <version>3.22.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -231,7 +231,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.0.0-M1</version>
+                <version>3.0.0-M2</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
