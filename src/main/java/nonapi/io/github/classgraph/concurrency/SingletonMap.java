@@ -90,7 +90,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
          *            the Throwable that was thrown
          */
         public <K> NewInstanceException(final K key, final Throwable t) {
-            super("newInstance threw an exception for key " + key, t);
+            super("newInstance threw an exception for key " + key + " : " + t, t);
         }
     }
 
