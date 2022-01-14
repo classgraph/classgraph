@@ -54,7 +54,7 @@ public class MethodInfoTest {
     /**
      * The Class X.
      */
-    public static class X {
+    public static class X extends Exception {
         /**
          * Method.
          */
@@ -99,6 +99,12 @@ public class MethodInfoTest {
         return null;
     }
 
+    public void throwsException() throws X {
+    }
+
+    public <X2 extends X> void throwsGenericException() throws X, X2 {
+    }
+
     /**
      * Method info not enabled.
      */
@@ -134,10 +140,13 @@ public class MethodInfoTest {
                                     + "final java.util.List<java.lang.Float> l, "
                                     + "final io.github.classgraph.test.methodinfo.MethodInfoTest.X[][][] xArray, "
                                     + "final java.lang.String[]... varargs)",
+                            "public void throwsException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X",
+                            "public <X2 extends io.github.classgraph.test.methodinfo.MethodInfoTest.X> void throwsGenericException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X, X2",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
+                            "@" + Test.class.getName() + " public void testGetThrownExceptions()",
                             "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
         }
     }
@@ -177,10 +186,13 @@ public class MethodInfoTest {
                                     + "final io.github.classgraph.test.methodinfo.MethodInfoTest.X[][][] xArray, "
                                     + "final java.lang.String[]... varargs)",
                             "private static java.lang.String[] privateMethod()",
+                            "public void throwsException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X",
+                            "public <X2 extends io.github.classgraph.test.methodinfo.MethodInfoTest.X> void throwsGenericException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X, X2",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
+                            "@" + Test.class.getName() + " public void testGetThrownExceptions()",
                             "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
         }
     }
@@ -226,6 +238,23 @@ public class MethodInfoTest {
             assertThat(p3.loadClass()).isEqualTo(String[][].class);
             assertThat(p3.getElementClassInfo()).isNull();
             assertThat(p3.getNumDimensions()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    public void testGetThrownExceptions() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
+                .enableClassInfo().enableMethodInfo().scan()) {
+            MethodInfo mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+                    .getSingleMethod("throwsException");
+            assertThat(mi.getThrownExceptions()).hasSize(1);
+            assertThat(mi.getThrownExceptions().get(0).getSimpleName()).isEqualTo("X");
+
+            mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+                    .getSingleMethod("throwsGenericException");
+            assertThat(mi.getThrownExceptions()).hasSize(2);
+            assertThat(mi.getThrownExceptions().get(0).getSimpleName()).isEqualTo("X");
+            assertThat(mi.getThrownExceptions().get(1).getSimpleName()).isEqualTo("X");
         }
     }
 }

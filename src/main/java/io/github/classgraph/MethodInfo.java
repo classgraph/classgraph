@@ -106,6 +106,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** The type annotation decorators for the {@link MethodTypeSignature} instance. */
     private List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
+    private String[] thrownExceptionNames;
+
+    private transient ClassInfoList thrownExceptions;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Default constructor for deserialization. */
@@ -141,7 +145,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
             final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody,
-            final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators) {
+            final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
+            final String[] thrownExceptionNames) {
         super();
         this.declaringClassName = definingClassName;
         this.name = methodName;
@@ -155,6 +160,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 : methodAnnotationInfo;
         this.hasBody = hasBody;
         this.typeAnnotationDecorators = methodTypeAnnotationDecorators;
+        this.thrownExceptionNames = thrownExceptionNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -316,6 +322,24 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         } else {
             return typeDescriptorStr;
         }
+    }
+
+    public ClassInfoList getThrownExceptions() {
+        if (thrownExceptions == null && thrownExceptionNames != null) {
+            thrownExceptions = new ClassInfoList(thrownExceptionNames.length);
+            for (String thrownExceptionName : thrownExceptionNames) {
+                ClassInfo classInfo = scanResult.getClassInfo(thrownExceptionName);
+                thrownExceptions.add(classInfo);
+                if (classInfo != null) {
+                    classInfo.setScanResult(scanResult);
+                }
+            }
+        }
+        return thrownExceptions;
+    }
+
+    public String[] getThrownExceptionNames() {
+        return thrownExceptionNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -871,6 +895,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 mpi.setScanResult(scanResult);
             }
         }
+        if (this.thrownExceptions != null) {
+            for (final ClassInfo thrownException : thrownExceptions) {
+                thrownException.setScanResult(scanResult);
+            }
+        }
     }
 
     /**
@@ -916,6 +945,16 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             if (aiArr != null) {
                 for (final AnnotationInfo ai : aiArr) {
                     ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+                }
+            }
+        }
+        if (thrownExceptionNames != null) {
+            ClassInfoList thrownExceptions = getThrownExceptions();
+            if (thrownExceptions != null) {
+                for (int i = 0; i < thrownExceptions.size(); i++) {
+                    if(thrownExceptions.get(i) != null) {
+                        classNameToClassInfo.put(thrownExceptionNames[i], thrownExceptions.get(i));
+                    }
                 }
             }
         }
@@ -1115,6 +1154,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         }
         buf.append(')');
 
+        // when throws signature is present, it includes both generic type variables and class names
         if (!methodType.getThrowsSignatures().isEmpty()) {
             buf.append(" throws ");
             for (int i = 0; i < methodType.getThrowsSignatures().size(); i++) {
@@ -1122,6 +1162,17 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     buf.append(", ");
                 }
                 methodType.getThrowsSignatures().get(i).toString(useSimpleNames, buf);
+            }
+        } else {
+            if (thrownExceptionNames != null && thrownExceptionNames.length > 0) {
+                buf.append(" throws ");
+                for (int i = 0; i < thrownExceptionNames.length; i++) {
+                    if (i > 0) {
+                        buf.append(", ");
+                    }
+                    buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionNames[i]) :
+                            thrownExceptionNames[i].replace('$', '.'));
+                }
             }
         }
     }
