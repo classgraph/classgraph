@@ -426,6 +426,11 @@ class Classfile {
                         }
                     }
                 }
+                if (methodInfo.getThrownExceptionNames() != null) {
+                    for (final String thrownExceptionName : methodInfo.getThrownExceptionNames()) {
+                        scheduleScanningIfExternalClass(thrownExceptionName, "method throws", log);
+                    }
+                }
             }
         }
         // Check field annotations
@@ -1448,6 +1453,7 @@ class Classfile {
             }
             final int attributesCount = reader.readUnsignedShort();
             String[] methodParameterNames = null;
+            String[] thrownExceptionNames = null;
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
             AnnotationInfoList methodAnnotationInfo = null;
@@ -1662,6 +1668,13 @@ class Classfile {
                         this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName,
                                 // Get annotation parameter default value
                                 readAnnotationElementValue()));
+                    } else if (constantPoolStringEquals(attributeNameCpIdx, "Exceptions")) {
+                        final int exceptionCount = reader.readUnsignedShort();
+                        thrownExceptionNames = new String[exceptionCount];
+                        for (int k = 0; k < exceptionCount; k++) {
+                            final int cpIdx = reader.readUnsignedShort();
+                            thrownExceptionNames[k] = getConstantPoolClassName(cpIdx);
+                        }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
                         methodHasBody = true;
                         reader.skip(attributeLength);
@@ -1677,7 +1690,7 @@ class Classfile {
                     methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
                             methodParameterModifiers, methodParameterAnnotations, methodHasBody,
-                            methodTypeAnnotationDecorators));
+                            methodTypeAnnotationDecorators, thrownExceptionNames));
                 }
             }
         }
