@@ -324,6 +324,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         }
     }
 
+    /**
+     * Returns the list of exceptions thrown by the method, as a {@link ClassInfoList}.
+     * 
+     * @return The list of exceptions thrown by the method, as a {@link ClassInfoList} (the list may be empty).
+     */
     public ClassInfoList getThrownExceptions() {
         if (thrownExceptions == null && thrownExceptionNames != null) {
             thrownExceptions = new ClassInfoList(thrownExceptionNames.length);
@@ -335,11 +340,16 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 }
             }
         }
-        return thrownExceptions;
+        return thrownExceptions == null ? ClassInfoList.EMPTY_LIST : thrownExceptions;
     }
 
+    /**
+     * Returns the exceptions thrown by the method, as an array.
+     * 
+     * @return The exceptions thrown by the method, as an array (the array may be empty).
+     */
     public String[] getThrownExceptionNames() {
-        return thrownExceptionNames;
+        return thrownExceptionNames == null ? new String[0] : thrownExceptionNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1168,8 +1178,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     if (i > 0) {
                         buf.append(", ");
                     }
-                    buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionNames[i]) :
-                            thrownExceptionNames[i].replace('$', '.'));
+                    buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionNames[i])
+                            : thrownExceptionNames[i].replace('$', '.'));
                 }
             }
         }
