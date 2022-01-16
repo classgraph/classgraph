@@ -264,7 +264,7 @@ public final class FastPathResolver {
                 }
             }
         } while (matchedPrefix);
-        
+
         if (isFileOrJarURL) {
             if (WINDOWS) {
                 if (relativePath.startsWith("\\\\\\\\", startIdx) || relativePath.startsWith("////", startIdx)) {

@@ -332,8 +332,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public ClassInfoList getThrownExceptions() {
         if (thrownExceptions == null && thrownExceptionNames != null) {
             thrownExceptions = new ClassInfoList(thrownExceptionNames.length);
-            for (String thrownExceptionName : thrownExceptionNames) {
-                ClassInfo classInfo = scanResult.getClassInfo(thrownExceptionName);
+            for (final String thrownExceptionName : thrownExceptionNames) {
+                final ClassInfo classInfo = scanResult.getClassInfo(thrownExceptionName);
                 if (classInfo != null) {
                     thrownExceptions.add(classInfo);
                     classInfo.setScanResult(scanResult);
@@ -959,7 +959,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             }
         }
         if (thrownExceptionNames != null) {
-            ClassInfoList thrownExceptions = getThrownExceptions();
+            final ClassInfoList thrownExceptions = getThrownExceptions();
             if (thrownExceptions != null) {
                 for (int i = 0; i < thrownExceptions.size(); i++) {
                     classNameToClassInfo.put(thrownExceptionNames[i], thrownExceptions.get(i));
