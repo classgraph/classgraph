@@ -130,8 +130,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             } else {
                 final Object rootPath = ReflectionUtils.invokeMethod(false, element, "getRoot");
                 if (rootPath instanceof Path) {
-                    classpathOrder.addClasspathEntry(ReflectionUtils.invokeMethod(false, element, "getRoot"),
-                            classLoader, scanSpec, log);
+                    classpathOrder.addClasspathEntry(rootPath, classLoader, scanSpec, log);
                 }
             }
         }
