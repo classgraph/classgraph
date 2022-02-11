@@ -907,7 +907,9 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         }
         if (this.thrownExceptions != null) {
             for (final ClassInfo thrownException : thrownExceptions) {
-                thrownException.setScanResult(scanResult);
+                if (thrownException.scanResult == null) { // Prevent infinite loop
+                    thrownException.setScanResult(scanResult);
+                }
             }
         }
     }
