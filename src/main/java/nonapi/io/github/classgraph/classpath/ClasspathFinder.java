@@ -117,6 +117,9 @@ public class ClasspathFinder {
     public ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
+        // Require scanning traditional classpath if an override classloader is AppClassLoader (#639)
+        boolean forceScanJavaClassPath = false;
+
         // If classloaders are overridden, check if the override classloader(s) is/are JPMS classloaders.
         // If so, need to enable non-system module scanning.
         boolean scanNonSystemModules;
@@ -132,23 +135,21 @@ public class ClasspathFinder {
                 // It's not possible to instantiate AppClassLoader or PlatformClassLoader, so if these are
                 // passed in as override classloaders, they must have been obtained using
                 // Thread.currentThread().getContextClassLoader() [.getParent()] or similar
-                if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")) {
+                if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")
+                        || classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
                     if (!scanSpec.enableSystemJarsAndModules) {
                         if (classpathFinderLog != null) {
                             classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
-                                    + "jdk.internal.loader.ClassLoaders$AppClassLoader, which is a system "
-                                    + "classloader, so enableSystemJarsAndModules() was called automatically");
+                                    + classLoaderClassName + ", which is a system classloader, so "
+                                    + "enableSystemJarsAndModules() was called automatically");
                         }
                         scanSpec.enableSystemJarsAndModules = true;
                     }
-                } else if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
-                    if (!scanSpec.enableSystemJarsAndModules) {
-                        if (classpathFinderLog != null) {
-                            classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
-                                    + "jdk.internal.loader.ClassLoaders$PlatformClassLoader, which is a system "
-                                    + "classloader, so enableSystemJarsAndModules() was called automatically");
-                        }
-                        scanSpec.enableSystemJarsAndModules = true;
+                    forceScanJavaClassPath = true;
+                    if (classpathFinderLog != null) {
+                        classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
+                                + classLoaderClassName + ", which is a system classloader, so the "
+                                + "`java.lang.path` classpath will also be scanned");
                     }
                 }
             }
@@ -291,7 +292,7 @@ public class ClasspathFinder {
         // and the classpath is not overridden, unless only module scanning was enabled, and an unnamed module
         // layer was encountered -- in this case, have to forcibly scan java.class.path, since the ModuleLayer
         // API doesn't allow for the opening of unnamed modules.
-        if ((!scanSpec.ignoreParentClassLoaders && scanSpec.overrideClassLoaders == null
+        if ((!scanSpec.ignoreParentClassLoaders && (scanSpec.overrideClassLoaders == null || forceScanJavaClassPath)
                 && scanSpec.overrideClasspath == null)
                 || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
             final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"), scanSpec);
