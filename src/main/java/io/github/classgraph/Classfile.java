@@ -1055,10 +1055,12 @@ class Classfile {
     /**
      * Read constant pool entries.
      *
+     * @param log
+     *            The log
      * @throws IOException
      *             Signals that an I/O exception has occurred.
      */
-    private void readConstantPoolEntries() throws IOException {
+    private void readConstantPoolEntries(final LogNode log) throws IOException {
         // Only record class dependency info if inter-class dependencies are enabled
         List<Integer> classNameCpIdxs = null;
         List<Integer> typeSignatureIdxs = null;
@@ -1198,21 +1200,29 @@ class Classfile {
                 final String typeSigStr = getConstantPoolString(cpIdx);
                 if (typeSigStr != null) {
                     try {
-                        if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
+                        if (typeSigStr.startsWith("L") && typeSigStr.endsWith(";")) {
+                            // Parse the class name
+                            final TypeSignature typeSig = TypeSignature.parse(typeSigStr,
+                                    /* definingClassName = */ null);
+                            // Extract class names from type signature
+                            typeSig.findReferencedClassNames(refdClassNames);
+                        } else if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
                             // Parse the type signature
                             final MethodTypeSignature typeSig = MethodTypeSignature.parse(typeSigStr,
                                     /* definingClassName = */ null);
                             // Extract class names from type signature
                             typeSig.findReferencedClassNames(refdClassNames);
                         } else {
-                            // Parse the type signature
-                            final TypeSignature typeSig = TypeSignature.parse(typeSigStr,
-                                    /* definingClassName = */ null);
-                            // Extract class names from type signature
-                            typeSig.findReferencedClassNames(refdClassNames);
+                            if (log != null) {
+                                log.log("Could not extract referenced class names from constant pool string: "
+                                        + typeSigStr);
+                            }
                         }
                     } catch (final ParseException e) {
-                        throw new ClassfileFormatException("Could not parse type signature: " + typeSigStr, e);
+                        if (log != null) {
+                            log.log("Could not extract referenced class names from constant pool string: "
+                                    + typeSigStr + " : " + e);
+                        }
                     }
                 }
             }
@@ -1947,7 +1957,7 @@ class Classfile {
             majorVersion = reader.readUnsignedShort();
 
             // Read the constant pool
-            readConstantPoolEntries();
+            readConstantPoolEntries(log);
 
             // Read basic class info (
             readBasicClassInfo();
