@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.lang.reflect.Array;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -212,7 +213,9 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         @SuppressWarnings("unchecked")
         final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(false,
                 callerModuleLoader, "moduleMap");
-        for (final Entry<Object, Object> ent : moduleMap.entrySet()) {
+    Set<Entry<Object, Object>> moduleMapEntries =
+        moduleMap != null ? moduleMap.entrySet() : Collections.<Entry<Object, Object>>emptySet();
+    for (final Entry<Object, Object> ent : moduleMapEntries) {
             // type FutureModule
             final Object val = ent.getValue();
             // type Module
