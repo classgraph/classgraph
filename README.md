@@ -1,6 +1,6 @@
 # ClassGraph
 
-<img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img alt="Duke Award Logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png">
+<img alt="ClassGraph Logo" height="320" width = "320" src="https://github.com/classgraph/classgraph/wiki/ClassGraphLogo.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img alt="Duke Award logo" height="320" src="https://github.com/classgraph/classgraph/wiki/Duke-noborder.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/classgraph/classgraph/wiki/OSPB-award-letter.png"><img alt="Google Open Source Peer Bonus logo" height="320" src="https://github.com/classgraph/classgraph/wiki/OSPB-logo.png"></a>
 
 ClassGraph is an uber-fast parallelized classpath scanner and module scanner for Java, Scala, Kotlin and other JVM languages.
 
