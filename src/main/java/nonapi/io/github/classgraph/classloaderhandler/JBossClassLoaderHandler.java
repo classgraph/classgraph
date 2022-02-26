@@ -213,9 +213,9 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         @SuppressWarnings("unchecked")
         final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(false,
                 callerModuleLoader, "moduleMap");
-    Set<Entry<Object, Object>> moduleMapEntries =
-        moduleMap != null ? moduleMap.entrySet() : Collections.<Entry<Object, Object>>emptySet();
-    for (final Entry<Object, Object> ent : moduleMapEntries) {
+        final Set<Entry<Object, Object>> moduleMapEntries = moduleMap != null ? moduleMap.entrySet()
+                : Collections.<Entry<Object, Object>> emptySet();
+        for (final Entry<Object, Object> ent : moduleMapEntries) {
             // type FutureModule
             final Object val = ent.getValue();
             // type Module

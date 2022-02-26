@@ -115,7 +115,8 @@ class ClasspathElementModule extends ClasspathElement {
             moduleReaderProxyRecycler = moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef, log);
         } catch (final IOException | NullSingletonException | NewInstanceException e) {
             if (log != null) {
-                log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : " + e, log);
+                log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : "
+                        + (e.getCause() == null ? e : e.getCause()), log);
             }
             skipClasspathElement = true;
             return;

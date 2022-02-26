@@ -164,7 +164,8 @@ class ClasspathElementZip extends ClasspathElement {
             } catch (final NullSingletonException | NewInstanceException e) {
                 // Generally thrown on the second and subsequent attempt to call .get(), after the first failed,
                 // or newInstance() threw an exception
-                throw new IOException("Could not get logical zipfile " + rawPath + " : " + e);
+                throw new IOException("Could not get logical zipfile " + rawPath + " : "
+                        + (e.getCause() == null ? e : e.getCause()));
             }
             logicalZipFile = logicalZipFileAndPackageRoot.getKey();
             if (logicalZipFile == null) {

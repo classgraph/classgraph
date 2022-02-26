@@ -35,8 +35,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLDecoder;
 import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
@@ -411,18 +411,8 @@ class Scanner implements Callable<ScanResult> {
                     // Check type of classpath entry object
                     Path classpathEntryPath = null;
                     if (classpathEntryObj instanceof URL) {
-                        URL classpathEntryURL = (URL) classpathEntryObj;
-                        String scheme = classpathEntryURL.getProtocol();
-                        if ("jar".equals(scheme)) {
-                            // Strip off "jar:" scheme prefix
-                            try {
-                                classpathEntryURL = new URL(
-                                        URLDecoder.decode(classpathEntryURL.toString(), "UTF-8").substring(4));
-                                scheme = classpathEntryURL.getProtocol();
-                            } catch (final MalformedURLException e) {
-                                throw new IOException("Could not strip 'jar:' prefix from " + classpathEntryObj, e);
-                            }
-                        }
+                        final URL classpathEntryURL = (URL) classpathEntryObj;
+                        final String scheme = classpathEntryURL.getProtocol();
                         if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
                             return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
@@ -432,8 +422,21 @@ class Scanner implements Callable<ScanResult> {
                                 // See if the URL resolves to a file or directory via the Path API
                                 classpathEntryPath = Paths.get(classpathEntryURL.toURI());
                             } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
-                                throw new IOException(
-                                        "Cannot handle URL " + classpathEntryURL + " : " + e.getMessage());
+                                // Paths.get fails with "IllegalArgumentException: URI is not hierarchical"
+                                // for paths like "jar:file:myjar.jar!/" (#625)
+                                try {
+                                    classpathEntryPath = new File(classpathEntryURL.toURI()).toPath();
+                                } catch (IllegalArgumentException | URISyntaxException e2) {
+                                    // Try normalizing path (which would reduce this to simply "myjar.jar")
+                                    // and then passing it again to Paths.get.
+                                    try {
+                                        classpathEntryPath = Paths
+                                                .get(FastPathResolver.resolve(classpathEntryURL.toString()));
+                                    } catch (final IllegalArgumentException | SecurityException e3) {
+                                        throw new IOException(
+                                                "Cannot handle URL " + classpathEntryURL + " : " + e3.getMessage());
+                                    }
+                                }
                             } catch (final FileSystemNotFoundException e) {
                                 // This is a custom URL scheme without a backing FileSystem
                                 return new ClasspathElementZip(classpathEntryURL, classpathEntry.classLoader,
@@ -443,16 +446,6 @@ class Scanner implements Callable<ScanResult> {
                     } else if (classpathEntryObj instanceof URI) {
                         URI classpathEntryURI = (URI) classpathEntryObj;
                         String scheme = classpathEntryURI.getScheme();
-                        if ("jar".equals(scheme)) {
-                            // Strip off "jar:" scheme prefix
-                            try {
-                                classpathEntryURI = new URI(
-                                        URLDecoder.decode(classpathEntryURI.toString(), "UTF-8").substring(4));
-                                scheme = classpathEntryURI.getScheme();
-                            } catch (final URISyntaxException e) {
-                                throw new IOException("Could not strip 'jar:' prefix from " + classpathEntryObj, e);
-                            }
-                        }
                         if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
                             return new ClasspathElementZip(classpathEntryURI, classpathEntry.classLoader,
@@ -462,8 +455,21 @@ class Scanner implements Callable<ScanResult> {
                                 // See if the URI resolves to a file or directory via the Path API
                                 classpathEntryPath = Paths.get(classpathEntryURI);
                             } catch (final IllegalArgumentException | SecurityException e) {
-                                throw new IOException(
-                                        "Cannot handle URI " + classpathEntryURI + " : " + e.getMessage());
+                                // Paths.get fails with "IllegalArgumentException: URI is not hierarchical"
+                                // for paths like "jar:file:myjar.jar!/" (#625)
+                                try {
+                                    classpathEntryPath = new File(classpathEntryURI).toPath();
+                                } catch (IllegalArgumentException e2) {
+                                    // Try normalizing path (which would reduce this to simply "myjar.jar")
+                                    // and then passing it again to Paths.get.
+                                    try {
+                                        classpathEntryPath = Paths
+                                                .get(FastPathResolver.resolve(classpathEntryURI.toString()));
+                                    } catch (final IllegalArgumentException | SecurityException e3) {
+                                        throw new IOException(
+                                                "Cannot handle URI " + classpathEntryURI + " : " + e3.getMessage());
+                                    }
+                                }
                             } catch (final FileSystemNotFoundException e) {
                                 // This is a custom URI scheme without a backing FileSystem
                                 return new ClasspathElementZip(classpathEntryURI, classpathEntry.classLoader,
@@ -543,7 +549,7 @@ class Scanner implements Callable<ScanResult> {
                                     dirOrPathPackageRoot, classpathEntry.classLoader), log);
                         } catch (final NullSingletonException | NewInstanceException e) {
                             throw new IOException("Cannot get classpath element for canonical path "
-                                    + canonicalPathNormalized + " : " + e);
+                                    + canonicalPathNormalized + " : " + (e.getCause() == null ? e : e.getCause()));
                         }
                     } else {
                         // Otherwise path is already canonical, and this is the first time this path has
@@ -585,7 +591,7 @@ class Scanner implements Callable<ScanResult> {
                                 log);
                     } catch (final NullSingletonException | NewInstanceException e) {
                         throw new IOException("Cannot get classpath element for classpath entry "
-                                + workUnit.rawClasspathEntry + " : " + e);
+                                + workUnit.rawClasspathEntry + " : " + (e.getCause() == null ? e : e.getCause()));
                     }
 
                     // Only run open() once per ClasspathElement (it is possible for there to be
