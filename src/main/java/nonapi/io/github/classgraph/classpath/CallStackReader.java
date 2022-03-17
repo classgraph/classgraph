@@ -143,18 +143,20 @@ class CallStackReader {
     static Class<?>[] getClassContext(final LogNode log) {
         if (callStack == null) {
             // For JRE 9+, use StackWalker to get call stack.
-            // N.B. need to work around StackWalker bug fixed in JDK 13, and backported to 12.0.2 and 11.0.4
-            // (probably introduced in JDK 9, when StackWalker was introduced):
-            // https://github.com/classgraph/classgraph/issues/341
-            // https://bugs.openjdk.java.net/browse/JDK-8210457
-            if ((VersionFinder.JAVA_MAJOR_VERSION == 11
-                    && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 4)
-                    && !VersionFinder.JAVA_IS_EA_VERSION)
-                    || (VersionFinder.JAVA_MAJOR_VERSION == 12
-                            && (VersionFinder.JAVA_MINOR_VERSION >= 1 || VersionFinder.JAVA_SUB_VERSION >= 2)
-                            && !VersionFinder.JAVA_IS_EA_VERSION)
-                    || (VersionFinder.JAVA_MAJOR_VERSION == 13 && !VersionFinder.JAVA_IS_EA_VERSION)
-                    || VersionFinder.JAVA_MAJOR_VERSION > 13) {
+            if (VersionFinder.JAVA_MAJOR_VERSION == 9 //
+                    || VersionFinder.JAVA_MAJOR_VERSION == 10 //
+                    || (VersionFinder.JAVA_MAJOR_VERSION == 11 //
+                            && VersionFinder.JAVA_MINOR_VERSION == 0 && VersionFinder.JAVA_SUB_VERSION < 4)
+                    || (VersionFinder.JAVA_MAJOR_VERSION == 12 && VersionFinder.JAVA_MINOR_VERSION == 0
+                            && VersionFinder.JAVA_SUB_VERSION < 2)) {
+                // Don't trigger the StackWalker bug that crashed the JVM, which was fixed in JDK 13,
+                // and backported to 12.0.2 and 11.0.4 (probably introduced in JDK 9, when StackWalker
+                // was introduced):
+                // https://github.com/classgraph/classgraph/issues/341
+                // https://bugs.openjdk.java.net/browse/JDK-8210457
+                // -- fall through
+            } else {
+                // Get the stack via StackWalker.
                 // Invoke with doPrivileged -- see:
                 // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
                 try {
@@ -169,8 +171,9 @@ class CallStackReader {
                 }
             }
 
-            // For JRE 7 and 8, use SecurityManager to get call stack
-            if (callStack == null || callStack.length == 0) {
+            // For JRE 7 and 8, use SecurityManager to get call stack (don't use this method on JDK 9+,
+            // because it will result in a reflective illegal access warning, see #663)
+            if (VersionFinder.JAVA_MAJOR_VERSION < 9 && (callStack == null || callStack.length == 0)) {
                 try {
                     callStack = ReflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
                         @Override
@@ -185,9 +188,15 @@ class CallStackReader {
 
             // As a fallback, use getStackTrace() to try to get the call stack
             if (callStack == null || callStack.length == 0) {
-                StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+                StackTraceElement[] stackTrace = null;
+                try {
+                    stackTrace = Thread.currentThread().getStackTrace();
+                } catch (final SecurityException e) {
+                    // Fall through
+                }
                 if (stackTrace == null || stackTrace.length == 0) {
                     try {
+                        // Try getting stacktrace by throwing an exception 
                         throw new Exception();
                     } catch (final Exception e) {
                         stackTrace = e.getStackTrace();
@@ -203,12 +212,15 @@ class CallStackReader {
                 }
                 if (!stackClassesList.isEmpty()) {
                     callStack = stackClassesList.toArray(new Class<?>[0]);
-                } else {
-                    // Last-ditch effort -- include just this class in the call stack
-                    callStack = new Class<?>[] { CallStackReader.class };
                 }
             }
         }
+
+        // Last-ditch effort -- include just this class in the call stack
+        if (callStack == null || callStack.length == 0) {
+            callStack = new Class<?>[] { CallStackReader.class };
+        }
+
         return callStack;
     }
 }
