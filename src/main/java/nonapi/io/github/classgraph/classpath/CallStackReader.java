@@ -146,9 +146,12 @@ class CallStackReader {
             if (VersionFinder.JAVA_MAJOR_VERSION == 9 //
                     || VersionFinder.JAVA_MAJOR_VERSION == 10 //
                     || (VersionFinder.JAVA_MAJOR_VERSION == 11 //
-                            && VersionFinder.JAVA_MINOR_VERSION == 0 && VersionFinder.JAVA_SUB_VERSION < 4)
+                            && VersionFinder.JAVA_MINOR_VERSION == 0
+                            && (VersionFinder.JAVA_SUB_VERSION < 4
+                                    || (VersionFinder.JAVA_SUB_VERSION == 4 && VersionFinder.JAVA_IS_EA_VERSION)))
                     || (VersionFinder.JAVA_MAJOR_VERSION == 12 && VersionFinder.JAVA_MINOR_VERSION == 0
-                            && VersionFinder.JAVA_SUB_VERSION < 2)) {
+                            && (VersionFinder.JAVA_SUB_VERSION < 2 || (VersionFinder.JAVA_SUB_VERSION == 2
+                                    && VersionFinder.JAVA_IS_EA_VERSION)))) {
                 // Don't trigger the StackWalker bug that crashed the JVM, which was fixed in JDK 13,
                 // and backported to 12.0.2 and 11.0.4 (probably introduced in JDK 9, when StackWalker
                 // was introduced):
