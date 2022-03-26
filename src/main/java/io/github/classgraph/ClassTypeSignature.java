@@ -115,8 +115,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             // Silently fail (should not happen)
         }
         this.superclassSignature = superclassSignature;
-        this.superinterfaceSignatures = interfaces == null || interfaces.isEmpty() ? Collections.emptyList()
-                : new ArrayList<ClassRefTypeSignature>();
+        this.superinterfaceSignatures = interfaces == null || interfaces.isEmpty()
+                ? Collections.<ClassRefTypeSignature> emptyList()
+                : new ArrayList<ClassRefTypeSignature>(interfaces.size());
         if (interfaces != null) {
             for (final ClassInfo iface : interfaces) {
                 try {
@@ -230,8 +231,10 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         if (superclassSignature != null) {
             superclassSignature.findReferencedClassNames(refdClassNames);
         }
-        for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
-            typeSignature.findReferencedClassNames(refdClassNames);
+        if (superinterfaceSignatures != null) {
+            for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
+                typeSignature.findReferencedClassNames(refdClassNames);
+            }
         }
         if (throwsSignatures != null) {
             for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
@@ -352,7 +355,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 buf.append(superSig);
             }
         }
-        if (!superinterfaceSignatures.isEmpty()) {
+        if (superinterfaceSignatures != null && !superinterfaceSignatures.isEmpty()) {
             buf.append(isInterface ? " extends " : " implements ");
             for (int i = 0; i < superinterfaceSignatures.size(); i++) {
                 if (i > 0) {
