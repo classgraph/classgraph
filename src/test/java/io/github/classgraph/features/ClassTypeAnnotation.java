@@ -2,8 +2,10 @@ package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,16 +18,19 @@ import io.github.classgraph.ScanResult;
 class ClassTypeAnnotation {
     /***/
     @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
     private static @interface P {
     }
 
     /***/
     @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
     private static @interface Q {
     }
 
     /***/
     @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
     private static @interface R {
     }
 
