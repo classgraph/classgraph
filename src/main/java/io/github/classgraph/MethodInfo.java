@@ -221,8 +221,47 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, declaringClassName);
                 typeDescriptor.setScanResult(scanResult);
                 if (typeAnnotationDecorators != null) {
-                    for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
-                        decorator.decorate(typeDescriptor);
+                    // It is possible that there are extra implicit params added at the beginning of the
+                    // parameter list that type annotations don't take into account. Assume that the
+                    // type signature has the correct number of parameters, and temporarily remove any
+                    // implicit prefix parameters during the type decoration process. See getParameterInfo().
+                    int sigNumParam = 0;
+                    final MethodTypeSignature sig = getTypeSignature();
+                    if (sig == null) {
+                        // There is no type signature -- run type annotation decorators on descriptor
+                        for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                            decorator.decorate(typeDescriptor);
+                        }
+                    } else {
+                        // Determine how many extra implicit params there are
+                        sigNumParam = sig.getParameterTypeSignatures().size();
+                        final int descNumParam = typeDescriptor.getParameterTypeSignatures().size();
+                        final int numImplicitPrefixParams = descNumParam - sigNumParam;
+                        if (numImplicitPrefixParams < 0) {
+                            // Sanity check -- should not happen
+                            throw new IllegalArgumentException(
+                                    "Fewer params in method type descriptor than in method type signature");
+                        } else if (numImplicitPrefixParams == 0) {
+                            // There are no implicit prefix params -- run type annotation decorators on descriptor
+                            for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                                decorator.decorate(typeDescriptor);
+                            }
+                        } else {
+                            // There are implicit prefix params -- strip them temporarily from type descriptor,
+                            // then run decorators, then add them back again
+                            final List<TypeSignature> paramSigs = typeDescriptor.getParameterTypeSignatures();
+                            final List<TypeSignature> strippedParamSigs = paramSigs.subList(0,
+                                    numImplicitPrefixParams);
+                            for (int i = 0; i < numImplicitPrefixParams; i++) {
+                                paramSigs.remove(0);
+                            }
+                            for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                                decorator.decorate(typeDescriptor);
+                            }
+                            for (int i = numImplicitPrefixParams - 1; i >= 0; --i) {
+                                paramSigs.add(0, strippedParamSigs.get(i));
+                            }
+                        }
                     }
                 }
             } catch (final ParseException e) {
@@ -501,64 +540,68 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter.
      */
     public MethodParameterInfo[] getParameterInfo() {
+        // Kotlin is very inconsistent about the arity of each of the parameter metadata types, see:
+        // https://github.com/classgraph/classgraph/issues/175#issuecomment-363031510
+        // As a workaround, we assume that any synthetic / mandated parameters must come first in the
+        // parameter list, when the arities don't match, and we right-align the metadata fields.
+        // This is probably the safest assumption across JVM languages, even though this convention
+        // is by no means the only possibility. (Unfortunately we can't just rely on the modifier
+        // bits to find synthetic / mandated parameters, because these bits are not always available,
+        // and even when they are, they don't always give the right alignment, at least for Kotlin-
+        // generated code).
+
+        // Actually the Java spec says specifically: "The signature and descriptor of a given method
+        // or constructor may not correspond exactly, due to compiler-generated artifacts. In particular,
+        // the number of TypeSignatures that encode formal arguments in MethodTypeSignature may be less
+        // than the number of ParameterDescriptors in MethodDescriptor."
+
+        // This was also triggered by an implicit param in Guava 28.2 (#660).
+
         if (parameterInfo == null) {
-            // Get params from the type descriptor, and from the type signature if available
-            List<TypeSignature> paramTypeDescriptors = null;
-            int numParams = 0;
-            try {
-                final MethodTypeSignature typeSig = getTypeDescriptor();
-                if (typeSig != null) {
-                    paramTypeDescriptors = typeSig.getParameterTypeSignatures();
-                    numParams = paramTypeDescriptors.size();
-                }
-            } catch (final Exception e) {
-                // Ignore
-            }
+            // Get param type signatures from the type signature of the method
             List<TypeSignature> paramTypeSignatures = null;
+            final MethodTypeSignature typeSig = getTypeSignature();
+            if (typeSig != null) {
+                paramTypeSignatures = typeSig.getParameterTypeSignatures();
+            }
+
+            // If there is no type signature (i.e. if this is not a generic method), fall back to the type
+            // descriptor (N.B. the type descriptor is basically junk, because the compiler may prepend
+            // `synthetic` and/or `bridge` parameters automatically, without providing any modifiers for
+            // the method, so that it is impossible to know how many parameters have been prepended --
+            // see #660.)
+            List<TypeSignature> paramTypeDescriptors = null;
             try {
-                final MethodTypeSignature typeSig = getTypeSignature();
-                if (typeSig != null) {
-                    paramTypeSignatures = typeSig.getParameterTypeSignatures();
+                final MethodTypeSignature typeDesc = getTypeDescriptor();
+                if (typeDesc != null) {
+                    paramTypeDescriptors = typeDesc.getParameterTypeSignatures();
                 }
             } catch (final Exception e) {
-                // Ignore
+                // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be
+                /// aligned with parameters, when there is a `synthetic`, `bridge` or `mandated` parameter
+                // added to the first parameter position.
             }
 
-            // Figure out the number of params in the alignment (should be num params in type descriptor)
-            if (paramTypeSignatures != null && paramTypeSignatures.size() > numParams) {
-                // Should not happen
-                throw new ClassGraphException(
-                        "typeSignatureParamTypes.size() > typeDescriptorParamTypes.size() for method "
-                                + declaringClassName + "." + name);
+            // Find the max length of all the parameter information sources
+            int numParams = paramTypeSignatures == null ? 0 : paramTypeSignatures.size();
+            if (paramTypeDescriptors != null && paramTypeDescriptors.size() > numParams) {
+                numParams = paramTypeDescriptors.size();
+            }
+            if (parameterNames != null && parameterNames.length > numParams) {
+                numParams = parameterNames.length;
+            }
+            if (parameterModifiers != null && parameterModifiers.length > numParams) {
+                numParams = parameterModifiers.length;
+            }
+            if (parameterAnnotationInfo != null && parameterAnnotationInfo.length > numParams) {
+                numParams = parameterAnnotationInfo.length;
             }
 
-            // Figure out number of other fields that need alignment, and check length for consistency 
-            final int otherParamMax = Math.max(parameterNames == null ? 0 : parameterNames.length,
-                    Math.max(parameterModifiers == null ? 0 : parameterModifiers.length,
-                            parameterAnnotationInfo == null ? 0 : parameterAnnotationInfo.length));
-            if (otherParamMax > numParams) {
-                // Should not happen
-                throw new ClassGraphException("Type descriptor for method " + declaringClassName + "." + name
-                        + " has insufficient parameters");
-            }
-
-            // Kotlin is very inconsistent about the arity of each of the parameter metadata types, see:
-            // https://github.com/classgraph/classgraph/issues/175#issuecomment-363031510
-            // As a workaround, we assume that any synthetic / mandated parameters must come first in the
-            // parameter list, when the arities don't match, and we right-align the metadata fields.
-            // This is probably the safest assumption across JVM languages, even though this convention
-            // is by no means the only possibility. (Unfortunately we can't just rely on the modifier
-            // bits to find synthetic / mandated parameters, because these bits are not always available,
-            // and even when they are, they don't always give the right alignment, at least for Kotlin-
-            // generated code).
-
-            // Actually the Java spec says specifically: "The signature and descriptor of a given method
-            // or constructor may not correspond exactly, due to compiler-generated artifacts. In particular,
-            // the number of TypeSignatures that encode formal arguments in MethodTypeSignature may be less
-            // than the number of ParameterDescriptors in MethodDescriptor."
+            // "Right-align" all parameter info, i.e. assume that any automatically-added implicit parameters
+            // were added at the beginning of the parameter list, not the end.
 
             String[] paramNamesAligned = null;
-            if (parameterNames != null && numParams > 0) {
+            if (parameterNames != null && parameterNames.length > 0) {
                 if (parameterNames.length == numParams) {
                     // No alignment necessary
                     paramNamesAligned = parameterNames;
@@ -571,7 +614,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 }
             }
             int[] paramModifiersAligned = null;
-            if (parameterModifiers != null && numParams > 0) {
+            if (parameterModifiers != null && parameterModifiers.length > 0) {
                 if (parameterModifiers.length == numParams) {
                     // No alignment necessary
                     paramModifiersAligned = parameterModifiers;
@@ -585,7 +628,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 }
             }
             AnnotationInfo[][] paramAnnotationInfoAligned = null;
-            if (parameterAnnotationInfo != null && numParams > 0) {
+            if (parameterAnnotationInfo != null && parameterAnnotationInfo.length > 0) {
                 if (parameterAnnotationInfo.length == numParams) {
                     // No alignment necessary
                     paramAnnotationInfoAligned = parameterAnnotationInfo;
@@ -599,18 +642,33 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 }
             }
             List<TypeSignature> paramTypeSignaturesAligned = null;
-            if (paramTypeSignatures != null && numParams > 0) {
+            if (paramTypeSignatures != null && paramTypeSignatures.size() > 0) {
                 if (paramTypeSignatures.size() == numParams) {
                     // No alignment necessary
                     paramTypeSignaturesAligned = paramTypeSignatures;
                 } else {
                     // Right-align when not the right length
                     paramTypeSignaturesAligned = new ArrayList<>(numParams);
-                    for (int i = 0, n = numParams - paramTypeSignatures.size(); i < n; i++) {
+                    for (int i = 0, lenDiff = numParams - paramTypeSignatures.size(); i < lenDiff; i++) {
                         // Left-pad with nulls
                         paramTypeSignaturesAligned.add(null);
                     }
                     paramTypeSignaturesAligned.addAll(paramTypeSignatures);
+                }
+            }
+            List<TypeSignature> paramTypeDescriptorsAligned = null;
+            if (paramTypeDescriptors != null && paramTypeDescriptors.size() > 0) {
+                if (paramTypeDescriptors.size() == numParams) {
+                    // No alignment necessary
+                    paramTypeDescriptorsAligned = paramTypeDescriptors;
+                } else {
+                    // Right-align when not the right length
+                    paramTypeDescriptorsAligned = new ArrayList<>(numParams);
+                    for (int i = 0, lenDiff = numParams - paramTypeDescriptors.size(); i < lenDiff; i++) {
+                        // Left-pad with nulls
+                        paramTypeDescriptorsAligned.add(null);
+                    }
+                    paramTypeDescriptorsAligned.addAll(paramTypeDescriptors);
                 }
             }
 
@@ -620,7 +678,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 parameterInfo[i] = new MethodParameterInfo(this,
                         paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                         paramModifiersAligned == null ? 0 : paramModifiersAligned[i],
-                        paramTypeDescriptors == null ? null : paramTypeDescriptors.get(i),
+                        paramTypeDescriptorsAligned == null ? null : paramTypeDescriptorsAligned.get(i),
                         paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
                         paramNamesAligned == null ? null : paramNamesAligned[i]);
                 parameterInfo[i].setScanResult(scanResult);
@@ -1127,39 +1185,45 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
             final TypeSignature paramTypeSignature = paramInfo.getTypeSignatureOrTypeDescriptor();
-            if (i == varArgsParamIndex) {
-                // Show varargs params correctly -- replace last "[]" with "..."
-                if (!(paramTypeSignature instanceof ArrayTypeSignature)) {
-                    throw new IllegalArgumentException(
-                            "Got non-array type for last parameter of varargs method " + name);
-                }
-                final ArrayTypeSignature arrayType = (ArrayTypeSignature) paramTypeSignature;
-                if (arrayType.getNumDimensions() == 0) {
-                    throw new IllegalArgumentException(
-                            "Got a zero-dimension array type for last parameter of varargs method " + name);
-                }
-                arrayType.getElementTypeSignature().toString(useSimpleNames, buf);
-                for (int j = 0; j < arrayType.getNumDimensions() - 1; j++) {
-                    buf.append("[]");
-                }
-                buf.append("...");
-            } else {
-                // Exclude parameter annotations from type annotations at toplevel of type signature,
-                // so that annotation is not listed twice
-                final AnnotationInfoList annotationsToExclude;
-                if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
-                    annotationsToExclude = null;
+            // Param type signature may be null in the case of a `synthetic`, `bridge`, or `mandated` parameter
+            // implicitly added to a non-generic method
+            if (paramTypeSignature != null) {
+                if (i == varArgsParamIndex) {
+                    // Show varargs params correctly -- replace last "[]" with "..."
+                    if (!(paramTypeSignature instanceof ArrayTypeSignature)) {
+                        throw new IllegalArgumentException(
+                                "Got non-array type for last parameter of varargs method " + name);
+                    }
+                    final ArrayTypeSignature arrayType = (ArrayTypeSignature) paramTypeSignature;
+                    if (arrayType.getNumDimensions() == 0) {
+                        throw new IllegalArgumentException(
+                                "Got a zero-dimension array type for last parameter of varargs method " + name);
+                    }
+                    arrayType.getElementTypeSignature().toString(useSimpleNames, buf);
+                    for (int j = 0; j < arrayType.getNumDimensions() - 1; j++) {
+                        buf.append("[]");
+                    }
+                    buf.append("...");
                 } else {
-                    annotationsToExclude = new AnnotationInfoList(paramInfo.annotationInfo.length);
-                    annotationsToExclude.addAll(Arrays.asList(paramInfo.annotationInfo));
+                    // Exclude parameter annotations from type annotations at toplevel of type signature,
+                    // so that annotation is not listed twice
+                    final AnnotationInfoList annotationsToExclude;
+                    if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
+                        annotationsToExclude = null;
+                    } else {
+                        annotationsToExclude = new AnnotationInfoList(paramInfo.annotationInfo.length);
+                        annotationsToExclude.addAll(Arrays.asList(paramInfo.annotationInfo));
+                    }
+                    paramTypeSignature.toStringInternal(useSimpleNames, annotationsToExclude, buf);
                 }
-                paramTypeSignature.toStringInternal(useSimpleNames, annotationsToExclude, buf);
             }
 
             if (hasParamNames) {
                 final String paramName = paramInfo.getName();
                 if (paramName != null) {
-                    buf.append(' ');
+                    if (buf.charAt(buf.length() - 1) != ' ') {
+                        buf.append(' ');
+                    }
                     buf.append(paramName);
                 }
             }
