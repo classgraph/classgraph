@@ -1075,7 +1075,9 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     buf);
         }
 
-        buf.append(' ');
+        if (buf.length() > 0) {
+            buf.append(' ');
+        }
         if (name != null) {
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
         }
