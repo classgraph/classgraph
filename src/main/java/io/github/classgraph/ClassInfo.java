@@ -92,6 +92,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The class type signature, parsed. */
     private transient ClassTypeSignature typeSignature;
 
+    /** The synthetic class type descriptor. */
+    private transient ClassTypeSignature typeDescriptor;
+
     /** The fully-qualified defining method name, for anonymous inner classes. */
     private String fullyQualifiedDefiningMethodName;
 
@@ -1803,8 +1806,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictAccept = */ false).reachableClasses;
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
+        // Can't sort interfaces by name, since their order is significant in the definition of inheritance
         return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses,
-                /* sortByName = */ true);
+                /* sortByName = */ false);
     }
 
     /**
@@ -2863,6 +2867,47 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public String getTypeSignatureStr() {
         return typeSignatureStr;
+    }
+
+    /**
+     * Returns the parsed type signature for this class, possibly including type parameters. If the type signature
+     * is not present for this class, indicating that this is not a generic class, then a type descriptor will be
+     * synthesized and returned, as if there were a type descriptor (classfiles may have a type signature but do not
+     * contain a type descriptor). May include type annotations on the superclass or interface(s).
+     * 
+     * @return The parsed generic type signature for the class, or if not available, the synthetic type descriptor
+     *         for the class.
+     */
+    public ClassTypeSignature getTypeSignatureOrTypeDescriptor() {
+        ClassTypeSignature typeSig = null;
+        try {
+            typeSig = getTypeSignature();
+            if (typeSig != null) {
+                return typeSig;
+            }
+        } catch (final Exception e) {
+            // Ignore
+        }
+        return getTypeDescriptor();
+    }
+
+    /**
+     * Returns a synthetic type descriptor for the method, created from the class name, superclass name, and
+     * implemented interfaces. May include type annotations on the superclass or interface(s).
+     * 
+     * @return The synthetic type descriptor for the class.
+     */
+    public ClassTypeSignature getTypeDescriptor() {
+        if (typeDescriptor == null) {
+            typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getInterfaces());
+            typeDescriptor.setScanResult(scanResult);
+            if (typeAnnotationDecorators != null) {
+                for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                    decorator.decorate(typeDescriptor);
+                }
+            }
+        }
+        return typeDescriptor;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
@@ -89,6 +90,45 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         this.superclassSignature = superclassSignature;
         this.superinterfaceSignatures = superinterfaceSignatures;
         this.throwsSignatures = throwsSignatures;
+    }
+
+    /**
+     * Constructor used to create synthetic class type descriptor (#662).
+     * 
+     * @param classInfo
+     *            The class.
+     * @param superclass
+     *            The superclass.
+     * @param interfaces
+     *            The implemented interfaces.
+     */
+    ClassTypeSignature(final ClassInfo classInfo, final ClassInfo superclass, final ClassInfoList interfaces) {
+        super();
+        this.classInfo = classInfo;
+        this.typeParameters = Collections.emptyList();
+        ClassRefTypeSignature superclassSignature = null;
+        try {
+            superclassSignature = superclass == null ? null
+                    : (ClassRefTypeSignature) TypeSignature
+                            .parse("L" + superclass.getName().replace('.', '/') + ";", classInfo.getName());
+        } catch (final ParseException e) {
+            // Silently fail (should not happen)
+        }
+        this.superclassSignature = superclassSignature;
+        this.superinterfaceSignatures = interfaces == null || interfaces.isEmpty() ? Collections.emptyList()
+                : new ArrayList<ClassRefTypeSignature>();
+        if (interfaces != null) {
+            for (final ClassInfo iface : interfaces) {
+                try {
+                    final ClassRefTypeSignature ifaceSignature = (ClassRefTypeSignature) TypeSignature
+                            .parse("L" + iface.getName().replace('.', '/') + ";", classInfo.getName());
+                    this.superinterfaceSignatures.add(ifaceSignature);
+                } catch (final ParseException e) {
+                    // Silently fail (should not happen)
+                }
+            }
+        }
+        this.throwsSignatures = null;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -227,8 +267,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     public int hashCode() {
-        return typeParameters.hashCode() + superclassSignature.hashCode() * 7
-                + superinterfaceSignatures.hashCode() * 15;
+        return typeParameters.hashCode() + (superclassSignature == null ? 1 : superclassSignature.hashCode()) * 7
+                + (superinterfaceSignatures == null ? 1 : superinterfaceSignatures.hashCode()) * 15;
     }
 
     /* (non-Javadoc)
@@ -242,9 +282,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             return false;
         }
         final ClassTypeSignature o = (ClassTypeSignature) obj;
-        return o.typeParameters.equals(this.typeParameters)
-                && o.superclassSignature.equals(this.superclassSignature)
-                && o.superinterfaceSignatures.equals(this.superinterfaceSignatures);
+        return Objects.equals(o.typeParameters, this.typeParameters)
+                && Objects.equals(o.superclassSignature, this.superclassSignature)
+                && Objects.equals(o.superinterfaceSignatures, this.superinterfaceSignatures);
     }
 
     // -------------------------------------------------------------------------------------------------------------
