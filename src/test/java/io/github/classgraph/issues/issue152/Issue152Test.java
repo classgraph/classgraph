@@ -102,10 +102,9 @@ public class Issue152Test {
                                     + "final java.util.Map<java.lang.String, "
                                     + "java.util.Map<java.lang.Integer, java.lang.Boolean>> param2, "
                                     + "final double[][][] param3, final int param4, final "
-                                    + TestType.class.getName().replace('$', '.') + "[] param5, "
-                                    + "final java.util.Set<? extends " + TestType.class.getName().replace('$', '.')
-                                    + "> param6, " + "final java.util.List<? super "
-                                    + TestType.class.getName().replace('$', '.') + "> param7, "
+                                    + TestType.class.getName() + "[] param5, " + "final java.util.Set<? extends "
+                                    + TestType.class.getName() + "> param6, " + "final java.util.List<? super "
+                                    + TestType.class.getName() + "> param7, "
                                     + "final java.util.Map<java.lang.Integer, ?> param8, "
                                     + "final java.util.Set<java.lang.String>[] param9)");
             assertThat(classInfo //

@@ -25,7 +25,15 @@ class ClassTypeAnnotation {
     }
 
     /***/
-    private static class Y<T> extends @X Z {
+    private static interface A {
+    }
+
+    /***/
+    private static interface B {
+    }
+
+    /***/
+    private static class Y<T> extends @X Z implements A, B {
     }
 
     @Test
@@ -34,15 +42,16 @@ class ClassTypeAnnotation {
                 .acceptPackages(ClassTypeAnnotation.class.getPackage().getName()).enableAllInfo().scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(Y.class.getName());
             assertThat(classInfo).isNotNull();
-            
+
             // This is
             //   Y<T> extends ClassTypeAnnotation.@X Z
             // and not
             //   Y<T> extends @X ClassTypeAnnotation.Z
             // Because the annotation is on Z, not ClassTypeAnnotation
             assertThat(classInfo.getTypeSignature().toString()).isEqualTo("private static class "
-                    + Y.class.getName() + "<T> extends " + ClassTypeAnnotation.class.getName() + ".@"
-                    + X.class.getName() + " " + Z.class.getSimpleName());
+                    + Y.class.getName() + "<T> extends " + ClassTypeAnnotation.class.getName() + "$@"
+                    + X.class.getName() + " " + Z.class.getSimpleName() + " implements " + A.class.getName() + ", "
+                    + B.class.getName());
         }
     }
 }

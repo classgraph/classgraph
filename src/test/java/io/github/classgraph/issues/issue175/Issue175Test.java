@@ -181,34 +181,34 @@ public class Issue175Test {
             assertThat(methods).containsOnly("public final int getNextNodeId()",
                     "private final void setNextNodeId(int <set-?>)",
                     "@org.jetbrains.annotations.NotNull public final net.corda.testing.node.InMemoryMessagingNetwork getMessagingNetwork()",
-                    "@org.jetbrains.annotations.NotNull public final java.util.List<net.corda.testing.node.MockNetwork.MockNode> getNodes()",
-                    "@org.jetbrains.annotations.NotNull public final java.util.List<net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork.MockNode>> getNotaryNodes()",
-                    "@org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork.MockNode> getDefaultNotaryNode()",
+                    "@org.jetbrains.annotations.NotNull public final java.util.List<net.corda.testing.node.MockNetwork$MockNode> getNodes()",
+                    "@org.jetbrains.annotations.NotNull public final java.util.List<net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork$MockNode>> getNotaryNodes()",
+                    "@org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork$MockNode> getDefaultNotaryNode()",
                     "@org.jetbrains.annotations.NotNull public final net.corda.core.identity.Party getDefaultNotaryIdentity()",
                     "@org.jetbrains.annotations.NotNull public final net.corda.core.identity.PartyAndCertificate getDefaultNotaryIdentityAndCert()",
                     "private final java.util.List<net.corda.nodeapi.internal.network.NotaryInfo> generateNotaryIdentities()",
-                    "@org.jetbrains.annotations.NotNull public java.util.List<net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork.MockNode>> createNotaries$node_driver_main()",
-                    "@org.jetbrains.annotations.NotNull public final net.corda.testing.node.MockNetwork.MockNode createUnstartedNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters)",
-                    "@org.jetbrains.annotations.NotNull public static synthetic bridge net.corda.testing.node.MockNetwork.MockNode createUnstartedNode$default(net.corda.testing.node.MockNetwork, net.corda.testing.node.MockNodeParameters, int, java.lang.Object)",
-                    "@org.jetbrains.annotations.NotNull public final <N extends net.corda.testing.node.MockNetwork.MockNode> N createUnstartedNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends N> nodeFactory)",
-                    "@org.jetbrains.annotations.NotNull public static synthetic bridge net.corda.testing.node.MockNetwork.MockNode createUnstartedNode$default(net.corda.testing.node.MockNetwork, net.corda.testing.node.MockNodeParameters, kotlin.jvm.functions.Function1, int, java.lang.Object)",
-                    "@org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork.MockNode> createNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters)",
+                    "@org.jetbrains.annotations.NotNull public java.util.List<net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork$MockNode>> createNotaries$node_driver_main()",
+                    "@org.jetbrains.annotations.NotNull public final net.corda.testing.node.MockNetwork$MockNode createUnstartedNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters)",
+                    "@org.jetbrains.annotations.NotNull public static synthetic bridge net.corda.testing.node.MockNetwork$MockNode createUnstartedNode$default(net.corda.testing.node.MockNetwork, net.corda.testing.node.MockNodeParameters, int, java.lang.Object)",
+                    "@org.jetbrains.annotations.NotNull public final <N extends net.corda.testing.node.MockNetwork$MockNode> N createUnstartedNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends N> nodeFactory)",
+                    "@org.jetbrains.annotations.NotNull public static synthetic bridge net.corda.testing.node.MockNetwork$MockNode createUnstartedNode$default(net.corda.testing.node.MockNetwork, net.corda.testing.node.MockNodeParameters, kotlin.jvm.functions.Function1, int, java.lang.Object)",
+                    "@org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork$MockNode> createNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters)",
                     "@org.jetbrains.annotations.NotNull public static synthetic bridge net.corda.node.internal.StartedNode createNode$default(net.corda.testing.node.MockNetwork, net.corda.testing.node.MockNodeParameters, int, java.lang.Object)",
-                    "@org.jetbrains.annotations.NotNull public final <N extends net.corda.testing.node.MockNetwork.MockNode> net.corda.node.internal.StartedNode<N> createNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends N> nodeFactory)",
+                    "@org.jetbrains.annotations.NotNull public final <N extends net.corda.testing.node.MockNetwork$MockNode> net.corda.node.internal.StartedNode<N> createNode(@org.jetbrains.annotations.NotNull net.corda.testing.node.MockNodeParameters parameters, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends N> nodeFactory)",
                     "@org.jetbrains.annotations.NotNull public static synthetic bridge net.corda.node.internal.StartedNode createNode$default(net.corda.testing.node.MockNetwork, net.corda.testing.node.MockNodeParameters, kotlin.jvm.functions.Function1, int, java.lang.Object)",
-                    "private final <N extends net.corda.testing.node.MockNetwork.MockNode> N createNodeImpl(net.corda.testing.node.MockNodeParameters parameters, kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends N> nodeFactory, boolean start)",
+                    "private final <N extends net.corda.testing.node.MockNetwork$MockNode> N createNodeImpl(net.corda.testing.node.MockNodeParameters parameters, kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends N> nodeFactory, boolean start)",
                     "@org.jetbrains.annotations.NotNull public final java.nio.file.Path baseDirectory(int nodeId)",
                     "@kotlin.jvm.JvmOverloads public final void runNetwork(int rounds)",
                     "@kotlin.jvm.JvmOverloads public static synthetic bridge void runNetwork$default(net.corda.testing.node.MockNetwork, int, int, java.lang.Object)",
                     "@kotlin.jvm.JvmOverloads public final void runNetwork()",
-                    "@kotlin.jvm.JvmOverloads @org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork.MockNode> createPartyNode(@org.jetbrains.annotations.Nullable net.corda.core.identity.CordaX500Name legalName)",
+                    "@kotlin.jvm.JvmOverloads @org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork$MockNode> createPartyNode(@org.jetbrains.annotations.Nullable net.corda.core.identity.CordaX500Name legalName)",
                     "@kotlin.jvm.JvmOverloads @org.jetbrains.annotations.NotNull public static synthetic bridge net.corda.node.internal.StartedNode createPartyNode$default(net.corda.testing.node.MockNetwork, net.corda.core.identity.CordaX500Name, int, java.lang.Object)",
-                    "@kotlin.jvm.JvmOverloads @org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork.MockNode> createPartyNode()",
-                    "@org.jetbrains.annotations.NotNull public final net.corda.testing.node.MockNetwork.MockNode addressToNode(@org.jetbrains.annotations.NotNull net.corda.core.messaging.MessageRecipients msgRecipient)",
+                    "@kotlin.jvm.JvmOverloads @org.jetbrains.annotations.NotNull public final net.corda.node.internal.StartedNode<net.corda.testing.node.MockNetwork$MockNode> createPartyNode()",
+                    "@org.jetbrains.annotations.NotNull public final net.corda.testing.node.MockNetwork$MockNode addressToNode(@org.jetbrains.annotations.NotNull net.corda.core.messaging.MessageRecipients msgRecipient)",
                     "public final void startNodes()", "public final void stopNodes()",
                     "public final void waitQuiescent()",
-                    "public <init>(@org.jetbrains.annotations.NotNull java.util.List<java.lang.String> cordappPackages, @org.jetbrains.annotations.NotNull net.corda.testing.node.MockNetworkParameters defaultParameters, boolean networkSendManuallyPumped, boolean threadPerNode, @org.jetbrains.annotations.NotNull net.corda.testing.node.InMemoryMessagingNetwork.ServicePeerAllocationStrategy servicePeerAllocationStrategy, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends net.corda.testing.node.MockNetwork.MockNode> defaultFactory, boolean initialiseSerialization, @org.jetbrains.annotations.NotNull java.util.List<net.corda.testing.node.MockNetwork.NotarySpec> notarySpecs)",
-                    "public synthetic <init>(java.util.List, net.corda.testing.node.MockNetworkParameters, boolean, boolean, net.corda.testing.node.InMemoryMessagingNetwork.ServicePeerAllocationStrategy, kotlin.jvm.functions.Function1, boolean, java.util.List, int, kotlin.jvm.internal.DefaultConstructorMarker)",
+                    "public <init>(@org.jetbrains.annotations.NotNull java.util.List<java.lang.String> cordappPackages, @org.jetbrains.annotations.NotNull net.corda.testing.node.MockNetworkParameters defaultParameters, boolean networkSendManuallyPumped, boolean threadPerNode, @org.jetbrains.annotations.NotNull net.corda.testing.node.InMemoryMessagingNetwork$ServicePeerAllocationStrategy servicePeerAllocationStrategy, @org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super net.corda.testing.node.MockNodeArgs, ? extends net.corda.testing.node.MockNetwork$MockNode> defaultFactory, boolean initialiseSerialization, @org.jetbrains.annotations.NotNull java.util.List<net.corda.testing.node.MockNetwork$NotarySpec> notarySpecs)",
+                    "public synthetic <init>(java.util.List, net.corda.testing.node.MockNetworkParameters, boolean, boolean, net.corda.testing.node.InMemoryMessagingNetwork$ServicePeerAllocationStrategy, kotlin.jvm.functions.Function1, boolean, java.util.List, int, kotlin.jvm.internal.DefaultConstructorMarker)",
                     "@kotlin.jvm.JvmOverloads public <init>(@org.jetbrains.annotations.NotNull java.util.List<java.lang.String> cordappPackages, @org.jetbrains.annotations.NotNull net.corda.testing.node.MockNetworkParameters parameters)",
                     "@kotlin.jvm.JvmOverloads public synthetic <init>(java.util.List, net.corda.testing.node.MockNetworkParameters, int, kotlin.jvm.internal.DefaultConstructorMarker)",
                     "@kotlin.jvm.JvmOverloads public <init>(@org.jetbrains.annotations.NotNull java.util.List<java.lang.String>)",
@@ -217,7 +217,7 @@ public class Issue175Test {
                     "@org.jetbrains.annotations.NotNull public static final synthetic java.util.List access$getCordappPackages$p(net.corda.testing.node.MockNetwork)",
                     "@org.jetbrains.annotations.NotNull public static final synthetic org.apache.activemq.artemis.utils.ReusableLatch access$getBusyLatch$p(net.corda.testing.node.MockNetwork)",
                     "@org.jetbrains.annotations.NotNull public static final synthetic java.util.concurrent.atomic.AtomicInteger access$getSharedUserCount$p(net.corda.testing.node.MockNetwork)",
-                    "@org.jetbrains.annotations.NotNull public static final synthetic net.corda.testing.node.MockNetwork.sharedServerThread$1 access$getSharedServerThread$p(net.corda.testing.node.MockNetwork)");
+                    "@org.jetbrains.annotations.NotNull public static final synthetic net.corda.testing.node.MockNetwork$sharedServerThread$1 access$getSharedServerThread$p(net.corda.testing.node.MockNetwork)");
         }
     }
 
@@ -242,8 +242,8 @@ public class Issue175Test {
             }
             assertThat(methods).containsOnly( //
                     "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal, @org.jetbrains.annotations.NotNull java.lang.String columnName)",
-                    "public static net.corda.core.node.services.vault.AttachmentSort.AttachmentSortAttribute[] values()",
-                    "public static net.corda.core.node.services.vault.AttachmentSort.AttachmentSortAttribute valueOf(java.lang.String)",
+                    "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute[] values()",
+                    "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute valueOf(java.lang.String)",
                     "@org.jetbrains.annotations.NotNull public final java.lang.String getColumnName()");
         }
     }
@@ -272,8 +272,8 @@ public class Issue175Test {
                     "@org.jetbrains.annotations.NotNull public final java.util.Map<java.lang.String, java.util.List<java.lang.String>> getMethodParamNames()",
                     "@org.jetbrains.annotations.NotNull public java.util.List<java.lang.String> paramNamesFromMethod(@org.jetbrains.annotations.NotNull java.lang.reflect.Method method)",
                     "@org.jetbrains.annotations.NotNull public java.util.List<java.lang.String> paramNamesFromConstructor(@org.jetbrains.annotations.NotNull java.lang.reflect.Constructor<?> ctor)",
-                    "@org.jetbrains.annotations.NotNull public final net.corda.client.jackson.StringToMethodCallParser<T>.ParsedMethodCall parse(@org.jetbrains.annotations.Nullable T target, @org.jetbrains.annotations.NotNull java.lang.String command) throws net.corda.client.jackson.StringToMethodCallParser.UnparseableCallException",
-                    "@org.jetbrains.annotations.NotNull public final java.lang.Object[] parseArguments(@org.jetbrains.annotations.NotNull java.lang.String methodNameHint, @org.jetbrains.annotations.NotNull java.util.List<? extends kotlin.Pair<java.lang.String, ? extends java.lang.Class<?>>> parameters, @org.jetbrains.annotations.NotNull java.lang.String args) throws net.corda.client.jackson.StringToMethodCallParser.UnparseableCallException",
+                    "@org.jetbrains.annotations.NotNull public final net.corda.client.jackson.StringToMethodCallParser<T>$ParsedMethodCall parse(@org.jetbrains.annotations.Nullable T target, @org.jetbrains.annotations.NotNull java.lang.String command) throws net.corda.client.jackson.StringToMethodCallParser$UnparseableCallException",
+                    "@org.jetbrains.annotations.NotNull public final java.lang.Object[] parseArguments(@org.jetbrains.annotations.NotNull java.lang.String methodNameHint, @org.jetbrains.annotations.NotNull java.util.List<? extends kotlin.Pair<java.lang.String, ? extends java.lang.Class<?>>> parameters, @org.jetbrains.annotations.NotNull java.lang.String args) throws net.corda.client.jackson.StringToMethodCallParser$UnparseableCallException",
                     "@org.jetbrains.annotations.NotNull public final java.util.Map<java.lang.String, java.lang.String> getAvailableCommands()",
                     "@kotlin.jvm.JvmOverloads public <init>(@org.jetbrains.annotations.NotNull java.lang.Class<? extends T> targetType, @org.jetbrains.annotations.NotNull com.fasterxml.jackson.databind.ObjectMapper om)",
                     "@kotlin.jvm.JvmOverloads public synthetic <init>(java.lang.Class, com.fasterxml.jackson.databind.ObjectMapper, int, kotlin.jvm.internal.DefaultConstructorMarker)",
@@ -304,7 +304,7 @@ public class Issue175Test {
                 }
             }
             assertThat(methods).containsOnly(
-                    "@org.jetbrains.annotations.NotNull public static <Q extends net.corda.core.node.services.vault.GenericQueryCriteria<Q, ? super P>, P extends net.corda.core.node.services.vault.BaseQueryCriteriaParser<Q, ? super P, ? super S>, S extends net.corda.core.node.services.vault.BaseSort> java.util.Collection<javax.persistence.criteria.Predicate> visit(@org.jetbrains.annotations.NotNull net.corda.core.node.services.vault.GenericQueryCriteria.ChainableQueryCriteria.AndVisitor<Q, ? super P, ? super S>, P parser)");
+                    "@org.jetbrains.annotations.NotNull public static <Q extends net.corda.core.node.services.vault.GenericQueryCriteria<Q, ? super P>, P extends net.corda.core.node.services.vault.BaseQueryCriteriaParser<Q, ? super P, ? super S>, S extends net.corda.core.node.services.vault.BaseSort> java.util.Collection<javax.persistence.criteria.Predicate> visit(@org.jetbrains.annotations.NotNull net.corda.core.node.services.vault.GenericQueryCriteria$ChainableQueryCriteria$AndVisitor<Q, ? super P, ? super S>, P parser)");
         }
     }
 

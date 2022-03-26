@@ -55,6 +55,9 @@ public class MethodInfoTest {
      * The Class X.
      */
     public static class X extends Exception {
+        /***/
+        private static final long serialVersionUID = 1L;
+
         /**
          * Method.
          */
@@ -137,11 +140,11 @@ public class MethodInfoTest {
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs(final java.lang.String str, "
                                     + "final char c, final long j, final float[] f, final byte[][] b, "
-                                    + "final java.util.List<java.lang.Float> l, "
-                                    + "final io.github.classgraph.test.methodinfo.MethodInfoTest.X[][][] xArray, "
-                                    + "final java.lang.String[]... varargs)",
-                            "public void throwsException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X",
-                            "public <X2 extends io.github.classgraph.test.methodinfo.MethodInfoTest.X> void throwsGenericException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X, X2",
+                                    + "final java.util.List<java.lang.Float> l, " + "final " + X.class.getName()
+                                    + "[][][] xArray, " + "final java.lang.String[]... varargs)",
+                            "public void throwsException() throws " + X.class.getName(),
+                            "public <X2 extends " + X.class.getName() + "> void throwsGenericException() throws "
+                                    + X.class.getName() + ", X2",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
@@ -182,12 +185,12 @@ public class MethodInfoTest {
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs(final java.lang.String str, "
                                     + "final char c, final long j, final float[] f, final byte[][] b, "
-                                    + "final java.util.List<java.lang.Float> l, "
-                                    + "final io.github.classgraph.test.methodinfo.MethodInfoTest.X[][][] xArray, "
-                                    + "final java.lang.String[]... varargs)",
+                                    + "final java.util.List<java.lang.Float> l, " + "final " + X.class.getName()
+                                    + "[][][] xArray, " + "final java.lang.String[]... varargs)",
                             "private static java.lang.String[] privateMethod()",
-                            "public void throwsException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X",
-                            "public <X2 extends io.github.classgraph.test.methodinfo.MethodInfoTest.X> void throwsGenericException() throws io.github.classgraph.test.methodinfo.MethodInfoTest.X, X2",
+                            "public void throwsException() throws " + X.class.getName(),
+                            "public <X2 extends " + X.class.getName() + "> void throwsGenericException() throws "
+                                    + X.class.getName() + ", X2",
                             "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                             "@" + Test.class.getName() + " public void testGetMethodInfo()",
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
@@ -221,7 +224,7 @@ public class MethodInfoTest {
                 }
             }
             assertThat(arrayClassInfoList.toString()).isEqualTo("[class float[], class byte[][], " + "class "
-                    + X.class.getName().replace('$', '.') + "[][][], " + "class java.lang.String[][]]");
+                    + X.class.getName() + "[][][], " + "class java.lang.String[][]]");
             final ArrayClassInfo p1 = arrayClassInfoList.get(1);
             assertThat(p1.loadElementClass()).isEqualTo(byte.class);
             assertThat(p1.loadClass()).isEqualTo(byte[][].class);

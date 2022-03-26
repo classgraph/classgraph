@@ -44,8 +44,8 @@ public class GenericInnerClassTypedField {
                     .getFieldInfo();
             final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) fields.get(0)
                     .getTypeSignature();
-            assertThat(classRefTypeSignature.toString()).isEqualTo(A.class.getName().replace('$', '.') + "<"
-                    + Integer.class.getName() + ", " + String.class.getName() + ">.B");
+            assertThat(classRefTypeSignature.toString()).isEqualTo(
+                    A.class.getName() + "<" + Integer.class.getName() + ", " + String.class.getName() + ">$B");
             assertThat(classRefTypeSignature.getFullyQualifiedClassName()).isEqualTo(A.class.getName() + "$B");
         }
     }

@@ -164,27 +164,27 @@ class TypeAnnotationTest {
                     .isEqualTo("@A List<@B Comparable<@F Object @C [] @D [] @E []>> comparable");
 
             final FieldInfo inner1Field = classInfo.getFieldInfo("inner1");
-            assertThat(shortNames(inner1Field)).isEqualTo("@A Outer.@B Middle.@C Inner1 inner1");
+            assertThat(shortNames(inner1Field)).isEqualTo("@A Outer$@B Middle$@C Inner1 inner1");
             assertThat(inner1Field.toStringWithSimpleNames()).isEqualTo("@A @C Inner1 inner1");
 
             assertThat(shortNames(classInfo.getFieldInfo("inner2")))
-                    .isEqualTo("Outer.@A MiddleStatic.@B Inner2 inner2");
+                    .isEqualTo("Outer$@A MiddleStatic$@B Inner2 inner2");
 
             assertThat(shortNames(classInfo.getFieldInfo("inner3")))
-                    .isEqualTo("Outer.MiddleStatic.@A InnerStatic inner3");
+                    .isEqualTo("Outer$MiddleStatic$@A InnerStatic inner3");
 
             assertThat(shortNames(classInfo.getFieldInfo("inner4")))
-                    .isEqualTo("Outer.MiddleGeneric<@A Foo.@B Bar>.InnerGeneric<@D String @C []> inner4");
+                    .isEqualTo("Outer$MiddleGeneric<@A Foo$@B Bar>$InnerGeneric<@D String @C []> inner4");
 
             final FieldInfo xyzField = classInfo.getFieldInfo("xyz");
-            assertThat(shortNames(xyzField)).isEqualTo("List<@A X.@B Y.@C Z> xyz");
+            assertThat(shortNames(xyzField)).isEqualTo("List<@A X$@B Y$@C Z> xyz");
             assertThat(xyzField.toStringWithSimpleNames()).isEqualTo("List<@C Z> xyz");
 
-            assertThat(shortNames(classInfo.getFieldInfo("xyz2"))).isEqualTo("List<@A X2.@B Y2.@C Z2> xyz2");
+            assertThat(shortNames(classInfo.getFieldInfo("xyz2"))).isEqualTo("List<@A X2$@B Y2$@C Z2> xyz2");
 
-            assertThat(shortNames(classInfo.getFieldInfo("xyz3"))).isEqualTo("List<X3.Y3.@A Z3> xyz3");
+            assertThat(shortNames(classInfo.getFieldInfo("xyz3"))).isEqualTo("List<X3$Y3$@A Z3> xyz3");
 
-            assertThat(shortNames(classInfo.getFieldInfo("xyz4"))).isEqualTo("List<X3.Y3.@A Z3> xyz4");
+            assertThat(shortNames(classInfo.getFieldInfo("xyz4"))).isEqualTo("List<X3$Y3$@A Z3> xyz4");
 
             assertThat(shortNames(classInfo.getMethodInfo("t").get(0)))
                     .isEqualTo("<@A T extends @B U> @D U t(final @E T t)");

@@ -36,7 +36,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
@@ -444,8 +443,8 @@ class Scanner implements Callable<ScanResult> {
                             }
                         }
                     } else if (classpathEntryObj instanceof URI) {
-                        URI classpathEntryURI = (URI) classpathEntryObj;
-                        String scheme = classpathEntryURI.getScheme();
+                        final URI classpathEntryURI = (URI) classpathEntryObj;
+                        final String scheme = classpathEntryURI.getScheme();
                         if ("http".equals(scheme) || "https".equals(scheme)) {
                             // Jar URL or URI (remote URLs/URIs must be jars)
                             return new ClasspathElementZip(classpathEntryURI, classpathEntry.classLoader,
@@ -459,7 +458,7 @@ class Scanner implements Callable<ScanResult> {
                                 // for paths like "jar:file:myjar.jar!/" (#625)
                                 try {
                                     classpathEntryPath = new File(classpathEntryURI).toPath();
-                                } catch (IllegalArgumentException e2) {
+                                } catch (final IllegalArgumentException e2) {
                                     // Try normalizing path (which would reduce this to simply "myjar.jar")
                                     // and then passing it again to Paths.get.
                                     try {

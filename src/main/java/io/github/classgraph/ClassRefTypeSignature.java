@@ -408,19 +408,13 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         // Append suffixes
         if (!suffixes.isEmpty()) {
             for (int i = useSimpleNames ? suffixes.size() - 1 : 0; i < suffixes.size(); i++) {
+                if (!useSimpleNames) {
+                    // Use '$' rather than '.' as separator for suffixes, since that is what Class.getName() does.
+                    buf.append('$');
+                }
                 final AnnotationInfoList typeAnnotations = suffixTypeAnnotations == null ? null
                         : suffixTypeAnnotations.get(i);
-                if (!useSimpleNames) {
-                    // Use '.' before each suffix in the toString() representation, since that is
-                    // how the class name will be shown in Java, e.g. OuterClass<T>.InnerClass;
-                    // however, use '$' if the class name is numerical, i.e. "...$1" for anonymous
-                    // inner classes.
-                    if (Character.isDigit(suffixes.get(i).charAt(0))) {
-                        buf.append('$');
-                    } else {
-                        buf.append('.');
-                    }
-                }
+                // Append type annotations for this suffix
                 if (typeAnnotations != null && !typeAnnotations.isEmpty()) {
                     for (final AnnotationInfo annotationInfo : typeAnnotations) {
                         annotationInfo.toString(useSimpleNames, buf);

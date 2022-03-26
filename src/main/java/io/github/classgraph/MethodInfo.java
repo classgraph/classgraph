@@ -1181,7 +1181,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                         buf.append(", ");
                     }
                     buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionNames[i])
-                            : thrownExceptionNames[i].replace('$', '.'));
+                            : thrownExceptionNames[i]);
                 }
             }
         }
