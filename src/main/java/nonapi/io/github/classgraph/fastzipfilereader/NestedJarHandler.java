@@ -567,16 +567,16 @@ public class NestedJarHandler {
                     throw new IOException("Got response code " + httpConn.getResponseCode() + " for URL " + url);
                 }
             }
-        } else if (conn.getURL().getProtocol().equalsIgnoreCase("file")) {
+        } else if (url.getProtocol().equalsIgnoreCase("file")) {
             // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that
             // rewrites its URLs into "file:" URLs (see Issue400.java).
             try {
                 // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
                 // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
-                final File file = new File(conn.getURL().toURI());
+                final File file = Paths.get(url.toURI()).toFile();
                 return new PhysicalZipFile(file, this, log);
 
-            } catch (final URISyntaxException e) {
+            } catch (final Exception e) {
                 // Fall through to open URL as InputStream below
             }
         }
