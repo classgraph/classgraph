@@ -19,12 +19,12 @@ class Issue673Test {
         assertThat(bURL != null);
 
         // This succeeded before issue 673 was fixed 
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(bURL, aURL).verbose().scan()) {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(bURL, aURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains("C");
         }
 
         // This failed before issue 673 was fixed 
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(aURL, bURL).verbose().scan()) {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(aURL, bURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains("C");
         }
     }
