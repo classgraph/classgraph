@@ -245,17 +245,15 @@ public class PathSlice extends Slice implements Closeable {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
-            if (isTopLevelFileSlice) {
+            if (isTopLevelFileSlice && fileChannel != null) {
                 // Only close the FileChannel in the toplevel file slice, so that it is only closed once
-                if (fileChannel != null) {
-                    try {
-                        // Closing raf will also close the associated FileChannel
-                        fileChannel.close();
-                    } catch (final IOException e) {
-                        // Ignore
-                    }
-                    fileChannel = null;
+                try {
+                    // Closing raf will also close the associated FileChannel
+                    fileChannel.close();
+                } catch (final IOException e) {
+                    // Ignore
                 }
+                fileChannel = null;
             }
             fileChannel = null;
             nestedJarHandler.markSliceAsClosed(this);

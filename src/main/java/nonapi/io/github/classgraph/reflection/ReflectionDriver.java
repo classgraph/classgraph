@@ -385,10 +385,8 @@ abstract class ReflectionDriver {
             // (may result in a reflective access warning on stderr)
             if (found) {
                 for (final Method method : methodsForName) {
-                    if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
-                        if (makeAccessible(obj, method)) {
-                            return method;
-                        }
+                    if (Arrays.equals(method.getParameterTypes(), paramTypes) && makeAccessible(obj, method)) {
+                        return method;
                     }
                 }
             }
