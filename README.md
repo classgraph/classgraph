@@ -15,7 +15,7 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 [![GitHub issues](https://img.shields.io/github/issues/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/issues/)
 [![lgtm alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
 [![lgtm code quality](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
-[![Codacy Badge](https://img.shields.io/codacy/grade/31d639dd3874454c917f80ea2bff8155.svg?style=flat)](https://www.codacy.com/app/lukehutch/classgraph)
+[![Codacy Badge](https://img.shields.io/codacy/grade/31d639dd3874454c917f80ea2bff8155.svg?style=flat)](https://www.codacy.com/app/classgraph/classgraph)
 <br>
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
 [![Dependents](https://badgen.net/github/dependents-repo/classgraph/classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
