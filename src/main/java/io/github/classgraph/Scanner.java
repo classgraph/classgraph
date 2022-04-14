@@ -614,7 +614,7 @@ class Scanner implements Callable<ScanResult> {
                         throw new IOException("Not a normal file or directory");
                     }
                     // Convert File into Path to try to merge dups
-                    Path pathCanonicalized;
+                    final Path pathCanonicalized;
                     try {
                         pathCanonicalized = fileCanonicalized.toPath();
                     } catch (final InvalidPathException e) {
