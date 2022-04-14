@@ -28,6 +28,8 @@
  */
 package nonapi.io.github.classgraph.utils;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
@@ -74,5 +76,20 @@ public final class CollectionUtils {
         if (!list.isEmpty()) {
             Collections.sort(list, comparator);
         }
+    }
+
+    /**
+     * Copy and sort a collection.
+     *
+     * @param elts
+     *            the collection to copy and sort
+     * @return a sorted copy of the collection
+     */
+    public static <T extends Comparable<T>> List<T> sortCopy(final Collection<T> elts) {
+        final List<T> sortedCopy = new ArrayList<>(elts);
+        if (sortedCopy.size() > 1) {
+            Collections.sort(sortedCopy);
+        }
+        return sortedCopy;
     }
 }

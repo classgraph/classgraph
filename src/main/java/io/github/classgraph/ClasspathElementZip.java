@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
-import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndPackageRoot;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -100,16 +100,13 @@ class ClasspathElementZip extends ClasspathElement {
      * @param rawPathObj
      *            the raw path to the jarfile as a {@link String}, possibly including "!"-delimited nested paths, or
      *            a {@link URL}, {@link URI} ol {@link Path} for the jarfile.
-     * @param classLoader
-     *            the classloader
      * @param nestedJarHandler
      *            the nested jar handler
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementZip(final Object rawPathObj, final ClassLoader classLoader,
-            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
-        super(classLoader, scanSpec);
+    ClasspathElementZip(final Object rawPathObj, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
+        super(scanSpec);
         // Convert the raw path object (String, URL, URI, or Path) to a string.
         // Any required URL/URI parsing are done in NestedJarHandler.
         String rawPath = null;
@@ -221,7 +218,7 @@ class ClasspathElementZip extends ClasspathElement {
                             subLog.log("Found nested lib jar: " + entryPath);
                         }
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                new ClasspathElementAndClassLoader(entryPath, classLoader),
+                                new ClasspathElementAndPackageRoot(entryPath, getClassLoader()),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
                                 childClasspathEntryIdx++));
@@ -262,8 +259,8 @@ class ClasspathElementZip extends ClasspathElement {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit( //
                                 new ClasspathEntryWorkUnit(
-                                        new ClasspathElementAndClassLoader(childClassPathEltPathWithPrefix,
-                                                classLoader),
+                                        new ClasspathElementAndPackageRoot(childClassPathEltPathWithPrefix,
+                                                getClassLoader()),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */
                                         childClasspathEntryIdx++));
@@ -293,7 +290,7 @@ class ClasspathElementZip extends ClasspathElement {
                     if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                new ClasspathElementAndClassLoader(childClassPathEltPath, classLoader),
+                                new ClasspathElementAndPackageRoot(childClassPathEltPath, getClassLoader()),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
                                 childClasspathEntryIdx++));

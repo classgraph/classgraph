@@ -81,17 +81,15 @@ class ClasspathElementModule extends ClasspathElement {
      *
      * @param moduleRef
      *            the module ref
-     * @param classLoader
-     *            the classloader
      * @param moduleRefToModuleReaderProxyRecyclerMap
      *            the module ref to module reader proxy recycler map
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementModule(final ModuleRef moduleRef, final ClassLoader classLoader,
+    ClasspathElementModule(final ModuleRef moduleRef,
             final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> // 
             moduleRefToModuleReaderProxyRecyclerMap, final ScanSpec scanSpec) {
-        super(classLoader, scanSpec);
+        super(scanSpec);
         this.moduleRefToModuleReaderProxyRecyclerMap = moduleRefToModuleReaderProxyRecyclerMap;
         this.moduleRef = moduleRef;
     }

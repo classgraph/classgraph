@@ -164,6 +164,104 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     public abstract V newInstance(K key, LogNode log) throws E, InterruptedException;
 
     /**
+     * Create a new instance.
+     * 
+     * @param <K>
+     *            The key type.
+     * @param <V>
+     *            The instance type.
+     */
+    @FunctionalInterface
+    public interface NewInstanceFactory<K, V> {
+        /**
+         * Create a new instance.
+         * 
+         * @param key
+         *            The key.
+         * @param log
+         *            The log.
+         * @return The new instance.
+         */
+        public V newInstance(K key, LogNode log);
+    }
+
+    /**
+     * Check if the given key is in the map, and if so, return the value of {@link #newInstance(Object, LogNode)}
+     * for that key, or block on the result of {@link #newInstance(Object, LogNode)} if another thread is currently
+     * creating the new instance.
+     * 
+     * If the given key is not currently in the map, store a placeholder in the map for this key, then run
+     * {@link #newInstance(Object, LogNode)} for the key, store the result in the placeholder (which unblocks any
+     * other threads waiting for the value), and then return the new instance.
+     *
+     * @param key
+     *            The key for the singleton.
+     * @param newInstanceFactory
+     *            if non-null, a factory for creating new instances, otherwise if null, then
+     *            {@link #newInstance(Object, LogNode)} is called instead (this allows new instance creation to be
+     *            overridden on a per-instance basis).
+     * @param log
+     *            The log.
+     * @return The non-null singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null
+     *         instance on this call or a previous call, otherwise throws {@link NullPointerException} if this call
+     *         or a previous call to {@link #newInstance(Object, LogNode)} returned null.
+     * @throws E
+     *             If {@link #newInstance(Object, LogNode)} threw an exception.
+     * @throws InterruptedException
+     *             if the thread was interrupted while waiting for the singleton to be instantiated by another
+     *             thread.
+     * @throws NullSingletonException
+     *             if {@link #newInstance(Object, LogNode)} returned null.
+     * @throws NewInstanceException
+     *             if {@link #newInstance(Object, LogNode)} threw an exception.
+     */
+    public V get(final K key, final LogNode log, final NewInstanceFactory<K, V> newInstanceFactory)
+            throws E, InterruptedException, NullSingletonException, NewInstanceException {
+        final SingletonHolder<V> singletonHolder = map.get(key);
+        @SuppressWarnings("null")
+        V instance = null;
+        if (singletonHolder != null) {
+            // There is already a SingletonHolder in the map for this key -- get the value
+            instance = singletonHolder.get();
+        } else {
+            // There is no SingletonHolder in the map for this key, need to create one
+            // (need to handle race condition, hence the putIfAbsent call)
+            final SingletonHolder<V> newSingletonHolder = new SingletonHolder<>();
+            final SingletonHolder<V> oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
+            if (oldSingletonHolder != null) {
+                // There was already a singleton in the map for this key, due to a race condition --
+                // return the existing singleton
+                instance = oldSingletonHolder.get();
+            } else {
+                try {
+                    // Create a new instance
+                    if (newInstanceFactory != null) {
+                        // Call NewInstanceFactory
+                        instance = newInstanceFactory.newInstance(key, log);
+                    } else {
+                        // Call overridden newInstance method
+                        instance = newInstance(key, log);
+                    }
+
+                } catch (final Throwable t) {
+                    // Initialize newSingletonHolder with the new instance.
+                    // Always need to call .set() even if an exception is thrown by newInstance()
+                    // or newInstance() returns null, since .set() calls initialized.countDown().
+                    // Otherwise threads that call .get() may end up waiting forever.
+                    newSingletonHolder.set(instance);
+                    throw new NewInstanceException(key, t);
+                }
+                newSingletonHolder.set(instance);
+            }
+        }
+        if (instance == null) {
+            throw new NullSingletonException(key);
+        } else {
+            return instance;
+        }
+    }
+
+    /**
      * Check if the given key is in the map, and if so, return the value of {@link #newInstance(Object, LogNode)}
      * for that key, or block on the result of {@link #newInstance(Object, LogNode)} if another thread is currently
      * creating the new instance.
@@ -191,42 +289,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     public V get(final K key, final LogNode log)
             throws E, InterruptedException, NullSingletonException, NewInstanceException {
-        final SingletonHolder<V> singletonHolder = map.get(key);
-        @SuppressWarnings("null")
-        V instance = null;
-        if (singletonHolder != null) {
-            // There is already a SingletonHolder in the map for this key -- get the value
-            instance = singletonHolder.get();
-        } else {
-            // There is no SingletonHolder in the map for this key, need to create one
-            // (need to handle race condition, hence the putIfAbsent call)
-            final SingletonHolder<V> newSingletonHolder = new SingletonHolder<>();
-            final SingletonHolder<V> oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
-            if (oldSingletonHolder != null) {
-                // There was already a singleton in the map for this key, due to a race condition --
-                // return the existing singleton
-                instance = oldSingletonHolder.get();
-            } else {
-                try {
-                    // Create a new instance
-                    instance = newInstance(key, log);
-
-                } catch (final Throwable t) {
-                    // Initialize newSingletonHolder with the new instance.
-                    // Always need to call .set() even if an exception is thrown by newInstance()
-                    // or newInstance() returns null, since .set() calls initialized.countDown().
-                    // Otherwise threads that call .get() may end up waiting forever.
-                    newSingletonHolder.set(instance);
-                    throw new NewInstanceException(key, t);
-                }
-                newSingletonHolder.set(instance);
-            }
-        }
-        if (instance == null) {
-            throw new NullSingletonException(key);
-        } else {
-            return instance;
-        }
+        return get(key, log, null);
     }
 
     /**

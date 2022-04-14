@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
-import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndClassLoader;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndPackageRoot;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
@@ -78,16 +78,14 @@ class ClasspathElementFileDir extends ClasspathElement {
      *
      * @param classpathEltDir
      *            the classpath element directory
-     * @param classLoader
-     *            the classloader
      * @param nestedJarHandler
      *            the nested jar handler
      * @param scanSpec
      *            the scan spec
      */
     ClasspathElementFileDir(final File classpathEltDir, final String packageRootPrefix,
-            final ClassLoader classLoader, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
-        super(classLoader, scanSpec);
+            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
+        super(scanSpec);
         this.classpathEltDir = classpathEltDir;
         this.packageRootDir = new File(classpathEltDir, packageRootPrefix);
         this.nestedJarHandler = nestedJarHandler;
@@ -124,7 +122,7 @@ class ClasspathElementFileDir extends ClasspathElement {
                                     log(classpathElementIdx, "Found lib jar: " + file, log);
                                 }
                                 workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                        new ClasspathElementAndClassLoader(file.getPath(), classLoader),
+                                        new ClasspathElementAndPackageRoot(file.getPath(), getClassLoader()),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                             }
@@ -140,12 +138,11 @@ class ClasspathElementFileDir extends ClasspathElement {
                         if (log != null) {
                             log(classpathElementIdx, "Found package root: " + packageRoot, log);
                         }
-                        workQueue
-                                .addWorkUnit(new ClasspathEntryWorkUnit(
-                                        new ClasspathElementAndClassLoader(classpathEltDir, packageRootPrefix,
-                                                classLoader),
-                                        /* parentClasspathElement = */ this,
-                                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
+                                new ClasspathElementAndPackageRoot(classpathEltDir, packageRootPrefix,
+                                        getClassLoader()),
+                                /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++));
                     }
                 }
             }

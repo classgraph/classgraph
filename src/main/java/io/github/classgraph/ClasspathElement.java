@@ -31,14 +31,15 @@ package io.github.classgraph;
 import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -49,7 +50,7 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A classpath element (a directory or jarfile on the classpath). */
-abstract class ClasspathElement {
+abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /** The index of the classpath element within the classpath or module path. */
     int classpathElementIdx;
 
@@ -72,16 +73,18 @@ abstract class ClasspathElement {
     boolean containsSpecificallyAcceptedClasspathElementResourcePath;
 
     /**
+     * The index of the classpath element within the parent classpath element (e.g. for classpath elements added via
+     * a Class-Path entry in the manifest). Set to -1 initially in case the same ClasspathElement is present twice
+     * in the classpath, as a child of different parent ClasspathElements.
+     */
+    final AtomicInteger classpathElementIdxWithinParent = new AtomicInteger(-1);
+
+    /**
      * The child classpath elements, keyed by the order of the child classpath element within the Class-Path entry
      * of the manifest file the child classpath element was listed in (or the position of the file within the sorted
      * entries of a lib directory).
      */
-    final Queue<Entry<Integer, ClasspathElement>> childClasspathElementsIndexed = new ConcurrentLinkedQueue<>();
-
-    /**
-     * The child classpath elements, ordered by order within the parent classpath element.
-     */
-    List<ClasspathElement> childClasspathElementsOrdered;
+    Collection<ClasspathElement> childClasspathElements = new ConcurrentLinkedQueue<>();
 
     /**
      * Resources found within this classpath element that were accepted and not rejected. (Only written by one
@@ -102,7 +105,7 @@ abstract class ClasspathElement {
     protected final AtomicBoolean scanned = new AtomicBoolean(false);
 
     /** The classloader that this classpath element was obtained from. */
-    protected ClassLoader classLoader;
+    protected AtomicReference<ClassLoader> classLoader = new AtomicReference<>();
 
     /**
      * The name of the module from the {@code module-info.class} module descriptor, if one is present in the root of
@@ -123,9 +126,16 @@ abstract class ClasspathElement {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElement(final ClassLoader classLoader, final ScanSpec scanSpec) {
-        this.classLoader = classLoader;
+    ClasspathElement(final ScanSpec scanSpec) {
         this.scanSpec = scanSpec;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    // Sort in increasing order of classpathElementIdxWithinParent
+    @Override
+    public int compareTo(final ClasspathElement other) {
+        return this.classpathElementIdxWithinParent.get() - other.classpathElementIdxWithinParent.get();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -136,7 +146,7 @@ abstract class ClasspathElement {
      * @return the classloader
      */
     ClassLoader getClassLoader() {
-        return classLoader;
+        return classLoader.get();
     }
 
     /**
