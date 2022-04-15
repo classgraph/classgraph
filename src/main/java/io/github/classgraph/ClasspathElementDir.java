@@ -62,7 +62,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A directory classpath element, using the {@link Path} API. */
-class ClasspathElementPathDir extends ClasspathElement {
+class ClasspathElementDir extends ClasspathElement {
     /** The directory at the root of the classpath element. */
     private final Path classpathEltPath;
 
@@ -84,7 +84,7 @@ class ClasspathElementPathDir extends ClasspathElement {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementPathDir(final Path classpathEltPath, final ClasspathEntryWorkUnit workUnit,
+    ClasspathElementDir(final Path classpathEltPath, final ClasspathEntryWorkUnit workUnit,
             final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
         this.classpathEltPath = classpathEltPath;
@@ -594,10 +594,10 @@ class ClasspathElementPathDir extends ClasspathElement {
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof ClasspathElementPathDir)) {
+        } else if (!(obj instanceof ClasspathElementDir)) {
             return false;
         }
-        final ClasspathElementPathDir other = (ClasspathElementPathDir) obj;
+        final ClasspathElementDir other = (ClasspathElementDir) obj;
         return Objects.equals(this.classpathEltPath, other.classpathEltPath);
     }
 }

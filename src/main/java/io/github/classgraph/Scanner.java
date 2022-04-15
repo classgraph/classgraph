@@ -603,7 +603,7 @@ class Scanner implements Callable<ScanResult> {
                                         new NewInstanceFactory<ClasspathElement>() {
                                             @Override
                                             public ClasspathElement newInstance() {
-                                                return new ClasspathElementPathDir(path, classpathEntryWorkUnit,
+                                                return new ClasspathElementDir(path, classpathEntryWorkUnit,
                                                         nestedJarHandler, scanSpec);
                                             }
                                         });
@@ -663,8 +663,8 @@ class Scanner implements Callable<ScanResult> {
                                         return jar
                                                 ? new ClasspathElementZip(pathCanonicalized, classpathEntryWorkUnit,
                                                         nestedJarHandler, scanSpec)
-                                                : new ClasspathElementPathDir(pathCanonicalized,
-                                                        classpathEntryWorkUnit, nestedJarHandler, scanSpec);
+                                                : new ClasspathElementDir(pathCanonicalized, classpathEntryWorkUnit,
+                                                        nestedJarHandler, scanSpec);
                                     }
                                 });
                     } catch (InterruptedException | NullSingletonException | NewInstanceException e2) {
@@ -675,7 +675,7 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Create a WorkUnitProcessor for opening traditional classpath entries (which are mapped to
-     * {@link ClasspathElementPathDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule is handled
+     * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule is handled
      * separately}).
      *
      * @param allClasspathElts
@@ -951,8 +951,7 @@ class Scanner implements Callable<ScanResult> {
         final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
         final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
-            if (classpathElt instanceof ClasspathElementFileDir
-                    || classpathElt instanceof ClasspathElementPathDir) {
+            if (classpathElt instanceof ClasspathElementDir) {
                 // Separate out ClasspathElementFileDir and ClasspathElementPathDir elements from other types
                 final File file = classpathElt.getFile();
                 final String path = file == null ? classpathElt.toString() : file.getPath();
