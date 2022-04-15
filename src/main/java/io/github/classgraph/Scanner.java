@@ -1050,6 +1050,8 @@ class Scanner implements Callable<ScanResult> {
         // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
         // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
         final List<ClasspathElement> classpathEltOrder = findClasspathOrder(toplevelClasspathElts);
+        System.out.println("before: " + toplevelClasspathElts + "\n  sorted: "
+                + CollectionUtils.sortCopy(toplevelClasspathElts) + "\n  after: " + classpathEltOrder);
 
         // Find classpath elements that are path prefixes of other classpath elements, and for
         // ClasspathElementZip, get module-related manifest entry values
