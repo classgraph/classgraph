@@ -525,7 +525,7 @@ class Scanner implements Callable<ScanResult> {
                     final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log)
                     throws InterruptedException {
                 try {
-                    // Normalize the classpath entry object
+                    // Normalize the classpath entry object, and update it in the work unit
                     workUnit.classpathEntryObj = normalizeClasspathEntry(workUnit.classpathEntryObj);
 
                     // Determine if classpath entry is a jar or dir

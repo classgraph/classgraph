@@ -55,7 +55,7 @@ public final class CollectionUtils {
      *            the list
      */
     public static <T extends Comparable<? super T>> void sortIfNotEmpty(final List<T> list) {
-        if (!list.isEmpty()) {
+        if (list.size() > 1) {
             Collections.sort(list);
         }
     }
@@ -73,7 +73,7 @@ public final class CollectionUtils {
      *            the comparator
      */
     public static <T> void sortIfNotEmpty(final List<T> list, final Comparator<? super T> comparator) {
-        if (!list.isEmpty()) {
+        if (list.size() > 1) {
             Collections.sort(list, comparator);
         }
     }
