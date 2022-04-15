@@ -529,25 +529,28 @@ class Scanner implements Callable<ScanResult> {
                     workUnit.classpathEntryObj = normalizeClasspathEntry(workUnit.classpathEntryObj);
 
                     // Determine if classpath entry is a jar or dir
-                    boolean isJar = false;
+                    boolean isJar;
                     if (workUnit.classpathEntryObj instanceof URL || workUnit.classpathEntryObj instanceof URI) {
                         // URLs and URIs always point to jars
                         isJar = true;
                     } else if (workUnit.classpathEntryObj instanceof Path) {
                         final Path path = (Path) workUnit.classpathEntryObj;
+                        if ("JrtFileSystem".equals(path.getFileSystem().getClass().getSimpleName())) {
+                            // Ignore JrtFileSystem (#553) -- paths are of form:
+                            // /modules/java.base/module-info.class
+                            throw new IOException("Ignoring JrtFS filesystem path "
+                                    + "(modules are scanned using the JPMS API): " + path);
+                        }
                         if (FileUtils.canReadAndIsFile(path)) {
                             // classpathEntObj is a Path which points to a file, so it must be a jar
                             isJar = true;
                         } else if (FileUtils.canReadAndIsDir(path)) {
-                            if ("JrtFileSystem".equals(path.getFileSystem().getClass().getSimpleName())) {
-                                // Ignore JrtFileSystem (#553) -- paths are of form:
-                                // /modules/java.base/module-info.class
-                                throw new IOException("Ignoring JrtFS filesystem path " + workUnit.classpathEntryObj
-                                        + " (modules are scanned using the JPMS API)");
-                            }
                             // classpathEntObj is a Path which points to a dir
+                            isJar = false;
                         } else if (!FileUtils.canRead(path)) {
                             throw new IOException("Cannot read path: " + path);
+                        } else {
+                            throw new IOException("Not a file or directory: " + path);
                         }
                     } else {
                         // Should not happen
