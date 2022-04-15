@@ -377,7 +377,7 @@ class Scanner implements Callable<ScanResult> {
      * @return The normalized classpath entry object.
      * @throws IOException
      */
-    private static Object normalizeClasspathEntry(Object classpathEntObj) throws IOException {
+    private static Object normalizeClasspathEntry(final Object classpathEntObj) throws IOException {
         if (classpathEntObj == null) {
             // Should not happen
             throw new IOException("Got null classpath entry object");
@@ -444,23 +444,25 @@ class Scanner implements Callable<ScanResult> {
             final String scheme = classpathEntryURL.getProtocol();
             if (!"http".equals(scheme) && !"https".equals(scheme)) {
                 try {
-                    // See if the URL resolves to a file or directory via the Path API
-                    classpathEntryObjNormalized = Paths.get(classpathEntryURL.toURI());
-                } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
-                    // URI cannot be represented as a Path, so it probably is a multi-section URI
-                    // (representing a nested jar, or a jar URI with a non-empty package root).
-                } catch (final FileSystemNotFoundException e) {
-                    // This is a custom URL scheme without a backing FileSystem
+                    final URI classpathEntryURI = classpathEntryURL.toURI();
+                    try {
+                        // See if the URL resolves to a file or directory via the Path API
+                        classpathEntryObjNormalized = Paths.get(classpathEntryURI);
+                    } catch (final IllegalArgumentException | SecurityException e) {
+                        // URI cannot be represented as a Path, so it probably is a multi-section URI
+                        // (representing a nested jar, or a jar URI with a non-empty package root).
+                    } catch (final FileSystemNotFoundException e) {
+                        // This is a custom URL scheme without a backing FileSystem
+                    }
+                } catch (final URISyntaxException e1) {
+                    // URL doesn't work as a URI for some reason
                 }
             } // else this is a remote jar URL
 
         } else if (classpathEntryObjNormalized instanceof URI) {
             final URI classpathEntryURI = (URI) classpathEntryObjNormalized;
             final String scheme = classpathEntryURI.getScheme();
-            if ("http".equals(scheme) || "https".equals(scheme)) {
-                // Jar URL or URI (remote URLs/URIs must be jars)
-                return classpathEntryURI;
-            } else {
+            if (!"http".equals(scheme) && !"https".equals(scheme)) {
                 try {
                     // See if the URI resolves to a file or directory via the Path API
                     classpathEntryObjNormalized = Paths.get(classpathEntryURI);
@@ -469,7 +471,6 @@ class Scanner implements Callable<ScanResult> {
                     // (representing a nested jar, or a jar URL with a non-empty package root).
                 } catch (final FileSystemNotFoundException e) {
                     // This is a custom URI scheme without a backing FileSystem
-                    return classpathEntryURI;
                 }
             } // else this is a remote jar URL
         }
