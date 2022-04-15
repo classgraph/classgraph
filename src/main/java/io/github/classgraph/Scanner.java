@@ -445,17 +445,13 @@ class Scanner implements Callable<ScanResult> {
             if (!"http".equals(scheme) && !"https".equals(scheme)) {
                 try {
                     final URI classpathEntryURI = classpathEntryURL.toURI();
-                    try {
-                        // See if the URL resolves to a file or directory via the Path API
-                        classpathEntryObjNormalized = Paths.get(classpathEntryURI);
-                    } catch (final IllegalArgumentException | SecurityException e) {
-                        // URI cannot be represented as a Path, so it probably is a multi-section URI
-                        // (representing a nested jar, or a jar URI with a non-empty package root).
-                    } catch (final FileSystemNotFoundException e) {
-                        // This is a custom URL scheme without a backing FileSystem
-                    }
-                } catch (final URISyntaxException e1) {
-                    // URL doesn't work as a URI for some reason
+                    // See if the URL resolves to a file or directory via the Path API
+                    classpathEntryObjNormalized = Paths.get(classpathEntryURI);
+                } catch (final URISyntaxException | IllegalArgumentException | SecurityException e1) {
+                    // URI cannot be represented as a URI or as a Path, so it probably is a multi-section URI
+                    // (representing a nested jar, or a jar URI with a non-empty package root).
+                } catch (final FileSystemNotFoundException e) {
+                    // This is a custom URL scheme without a backing FileSystem
                 }
             } // else this is a remote jar URL
 
