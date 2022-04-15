@@ -372,17 +372,17 @@ class Scanner implements Callable<ScanResult> {
      * "file:///path/to/x.jar" and "/path/to/x.jar" as different classpath elements. Maps URL("jar:file:x.jar!/") to
      * Path("x.jar"), etc.
      * 
-     * @param classpathEntObj
+     * @param classpathEntryObj
      *            The classpath entry object.
      * @return The normalized classpath entry object.
      * @throws IOException
      */
-    private static Object normalizeClasspathEntry(final Object classpathEntObj) throws IOException {
-        if (classpathEntObj == null) {
+    private static Object normalizeClasspathEntry(final Object classpathEntryObj) throws IOException {
+        if (classpathEntryObj == null) {
             // Should not happen
             throw new IOException("Got null classpath entry object");
         }
-        Object classpathEntryObjNormalized = classpathEntObj;
+        Object classpathEntryObjNormalized = classpathEntryObj;
 
         // Convert URL/URI (or anything other than URL/URI, or Path) into a String.
         // Paths.get fails with "IllegalArgumentException: URI is not hierarchical"
@@ -416,13 +416,43 @@ class Scanner implements Callable<ScanResult> {
                 }
                 try {
                     // Convert classpath entry to (or back to) a URL.
-                    classpathEntryObjNormalized = new URL(classpathEntStr);
+                    final URL classpathEntryURL = new URL(classpathEntStr);
+                    classpathEntryObjNormalized = classpathEntryURL;
+
+                    // If this is not a multi-section URL, try converting URL to a Path
+                    if (!isMultiSection) {
+                        try {
+                            final String scheme = classpathEntryURL.getProtocol();
+                            if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                                final URI classpathEntryURI = classpathEntryURL.toURI();
+                                // See if the URL resolves to a file or directory via the Path API
+                                classpathEntryObjNormalized = Paths.get(classpathEntryURI);
+                            }
+                        } catch (final URISyntaxException | IllegalArgumentException | SecurityException e1) {
+                            // URL cannot be represented as a URI or as a Path
+                        } catch (final FileSystemNotFoundException e) {
+                            // This is a custom URL scheme without a backing FileSystem
+                        }
+                    } // else this is a remote jar URL
+
                 } catch (final MalformedURLException e) {
                     // Try creating URI if URL creation fails, in case there is a URI-only scheme
                     try {
-                        classpathEntryObjNormalized = new URI(classpathEntStr);
+                        final URI classpathEntryURI = new URI(classpathEntStr);
+                        classpathEntryObjNormalized = classpathEntryURI;
+
+                        final String scheme = classpathEntryURI.getScheme();
+                        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                            // See if the URI resolves to a file or directory via the Path API
+                            classpathEntryObjNormalized = Paths.get(classpathEntryURI);
+                        } // else this is a remote jar URI
+
                     } catch (final URISyntaxException e1) {
                         throw new IOException("Malformed URI: " + classpathEntryObjNormalized + " : " + e1);
+                    } catch (final IllegalArgumentException | SecurityException e1) {
+                        // URI cannot be represented as a Path
+                    } catch (final FileSystemNotFoundException e1) {
+                        // This is a custom URI scheme without a backing FileSystem
                     }
                 }
             }
@@ -431,45 +461,14 @@ class Scanner implements Callable<ScanResult> {
                 try {
                     classpathEntryObjNormalized = Paths.get((String) classpathEntryObjNormalized);
                 } catch (final InvalidPathException e) {
-                    throw new IOException("Malformed path: " + classpathEntryObjNormalized + " : " + e);
+                    throw new IOException("Malformed path: " + classpathEntryObj + " : " + e);
                 }
             }
         }
-        // At this point, String is dealt with and String, URL, and URI classpath elements are all
-        // normalized together. classpathEntObj is either a URL, URI, or Path.
-
-        // If classpath entry object is a URL or a URI, try seeing if it can be mapped to a Path
-        if (classpathEntryObjNormalized instanceof URL) {
-            final URL classpathEntryURL = (URL) classpathEntryObjNormalized;
-            final String scheme = classpathEntryURL.getProtocol();
-            if (!"http".equals(scheme) && !"https".equals(scheme)) {
-                try {
-                    final URI classpathEntryURI = classpathEntryURL.toURI();
-                    // See if the URL resolves to a file or directory via the Path API
-                    classpathEntryObjNormalized = Paths.get(classpathEntryURI);
-                } catch (final URISyntaxException | IllegalArgumentException | SecurityException e1) {
-                    // URI cannot be represented as a URI or as a Path, so it probably is a multi-section URI
-                    // (representing a nested jar, or a jar URI with a non-empty package root).
-                } catch (final FileSystemNotFoundException e) {
-                    // This is a custom URL scheme without a backing FileSystem
-                }
-            } // else this is a remote jar URL
-
-        } else if (classpathEntryObjNormalized instanceof URI) {
-            final URI classpathEntryURI = (URI) classpathEntryObjNormalized;
-            final String scheme = classpathEntryURI.getScheme();
-            if (!"http".equals(scheme) && !"https".equals(scheme)) {
-                try {
-                    // See if the URI resolves to a file or directory via the Path API
-                    classpathEntryObjNormalized = Paths.get(classpathEntryURI);
-                } catch (final IllegalArgumentException | SecurityException e) {
-                    // URL cannot be represented as a Path, so it probably is a multi-section URL
-                    // (representing a nested jar, or a jar URL with a non-empty package root).
-                } catch (final FileSystemNotFoundException e) {
-                    // This is a custom URI scheme without a backing FileSystem
-                }
-            } // else this is a remote jar URL
-        }
+        // At this point, classpathEntryObjNormalized is either a Path wherever possible (where the
+        // classpath entry pointed to a jarfile or directory) or a URL/URI (for multi-section "jar:"
+        // URLs with "!" separators, custom URL schemes without backing filesystems, or URLs that
+        // can't be turned into a Path for any other reason).
 
         // Canonicalize Path objects so the same file is opened only once
         if (classpathEntryObjNormalized instanceof Path) {
