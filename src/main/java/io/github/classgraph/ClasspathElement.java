@@ -38,8 +38,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -77,7 +75,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * a Class-Path entry in the manifest). Set to -1 initially in case the same ClasspathElement is present twice
      * in the classpath, as a child of different parent ClasspathElements.
      */
-    final AtomicInteger classpathElementIdxWithinParent = new AtomicInteger(-1);
+    final int classpathElementIdxWithinParent;
 
     /**
      * The child classpath elements, keyed by the order of the child classpath element within the Class-Path entry
@@ -105,7 +103,10 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     protected final AtomicBoolean scanned = new AtomicBoolean(false);
 
     /** The classloader that this classpath element was obtained from. */
-    protected AtomicReference<ClassLoader> classLoader = new AtomicReference<>();
+    protected ClassLoader classLoader;
+
+    /** The package root within the jarfile or Path. */
+    protected String packageRootPrefix;
 
     /**
      * The name of the module from the {@code module-info.class} module descriptor, if one is present in the root of
@@ -126,16 +127,19 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElement(final ScanSpec scanSpec) {
+    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
+        this.packageRootPrefix = workUnit.packageRootPrefix;
+        this.classpathElementIdxWithinParent = workUnit.classpathElementIdxWithinParent;
+        this.classLoader = workUnit.classLoader;
         this.scanSpec = scanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    // Sort in increasing order of classpathElementIdxWithinParent
+    /** Sort in increasing order of classpathElementIdxWithinParent. */
     @Override
     public int compareTo(final ClasspathElement other) {
-        return this.classpathElementIdxWithinParent.get() - other.classpathElementIdxWithinParent.get();
+        return this.classpathElementIdxWithinParent - other.classpathElementIdxWithinParent;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -146,7 +150,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return the classloader
      */
     ClassLoader getClassLoader() {
-        return classLoader.get();
+        return classLoader;
     }
 
     /**
