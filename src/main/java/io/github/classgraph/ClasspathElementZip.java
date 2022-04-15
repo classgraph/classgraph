@@ -104,9 +104,11 @@ class ClasspathElementZip extends ClasspathElement {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementZip(final Object rawPathObj, final ClasspathEntryWorkUnit workUnit,
-            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
+    ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
+            final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
+        final Object rawPathObj = workUnit.classpathEntryObj;
+
         // Convert the raw path object (String, URL, URI, or Path) to a string.
         // Any required URL/URI parsing are done in NestedJarHandler.
         String rawPath = null;

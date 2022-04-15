@@ -84,10 +84,10 @@ class ClasspathElementDir extends ClasspathElement {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementDir(final Path classpathEltPath, final ClasspathEntryWorkUnit workUnit,
-            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
+    ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
+            final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
-        this.classpathEltPath = classpathEltPath;
+        this.classpathEltPath = (Path) workUnit.classpathEntryObj;
         this.nestedJarHandler = nestedJarHandler;
     }
 
