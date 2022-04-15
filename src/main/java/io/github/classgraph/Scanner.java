@@ -570,10 +570,8 @@ class Scanner implements Callable<ScanResult> {
                                 @Override
                                 public ClasspathElement newInstance() throws IOException, InterruptedException {
                                     final ClasspathElement cpElt = isJarFinal
-                                            ? new ClasspathElementZip(workUnit.classpathEntryObj, workUnit,
-                                                    nestedJarHandler, scanSpec)
-                                            : new ClasspathElementDir((Path) workUnit.classpathEntryObj, workUnit,
-                                                    nestedJarHandler, scanSpec);
+                                            ? new ClasspathElementZip(workUnit, nestedJarHandler, scanSpec)
+                                            : new ClasspathElementDir(workUnit, nestedJarHandler, scanSpec);
 
                                     allClasspathEltsOut.add(cpElt);
 
