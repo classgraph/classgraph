@@ -375,7 +375,7 @@ class Scanner implements Callable<ScanResult> {
     classpathEntryObjToClasspathEntrySingletonMap = //
             new SingletonMap<Object, ClasspathElement, IOException>() {
                 @Override
-                public ClasspathElement newInstance(final Object classpathEntryObj, final LogNode log)
+                public ClasspathElement newInstance(final Object key, final LogNode log)
                         throws IOException, InterruptedException {
                     // Each use of this map provides a NewInstanceFactory
                     throw new IOException("This method should not be called");
@@ -398,42 +398,58 @@ class Scanner implements Callable<ScanResult> {
                         throw new IOException("Got null classpath entry object");
                     }
 
+                    // Convert URL/URI into String, to handle some normalization.
                     // Paths.get fails with "IllegalArgumentException: URI is not hierarchical"
-                    // for paths like "jar:file:myjar.jar!/" (#625) -- need to strip the "!/" off the end
+                    // for paths like "jar:file:myjar.jar!/" (#625) -- need to strip the "!/" off the end.
+                    // Also strip any "jar:file:" or "file:" off the beginning.
+                    // This normalizes "file:x.jar" and "x.jar" to the same string, for example.
                     if (classpathEntObj instanceof URL || classpathEntObj instanceof URI) {
-                        final String classpathEntryStr = classpathEntObj.toString();
-                        if (classpathEntryStr.endsWith("!/")) {
-                            classpathEntObj = classpathEntryStr.substring(0, classpathEntryStr.length() - 2);
-                        } else if (classpathEntryStr.endsWith("!")) {
-                            classpathEntObj = classpathEntryStr.substring(0, classpathEntryStr.length() - 1);
-                        }
+                        classpathEntObj = FastPathResolver.resolve(classpathEntObj.toString());
                     }
 
-                    // If classpath entry object is a URL-formatted string, convert to a URL instance
+                    // If classpath entry object is a URL-formatted string, convert to (or back to) a URL instance.
                     if (classpathEntObj instanceof String) {
-                        final String classpathEntryStr = (String) classpathEntObj;
-                        if (JarUtils.URL_SCHEME_PATTERN.matcher(classpathEntryStr).matches()) {
+                        String classpathEntStr = (String) classpathEntObj;
+                        final boolean isURL = JarUtils.URL_SCHEME_PATTERN.matcher(classpathEntStr).matches();
+                        final boolean isMultiSection = classpathEntStr.contains("!");
+                        if (isURL || isMultiSection) {
+                            // Convert back to URL (or URI) if this has a URL scheme or if this is a multi-section
+                            // path (which needs the "jar:file:" scheme)
+                            if (!isURL) {
+                                // Add "file:" scheme if there is no scheme
+                                classpathEntStr = "file:" + classpathEntStr;
+                            }
+                            if (isMultiSection) {
+                                // Multi-section URL strings that do not already have a URL scheme need to
+                                // have the "jar:file:" scheme
+                                classpathEntStr = "jar:" + classpathEntStr;
+                                // Also "jar:" URLs need at least one instance of "!/" -- if only "!" is used
+                                // without a subsequent "/", replace it
+                                classpathEntStr = classpathEntStr.replaceAll("!([^/])", "!/$1");
+                            }
                             try {
-                                classpathEntObj = new URL(classpathEntryStr);
+                                // Convert classpath entry to (or back to) a URL.
+                                classpathEntObj = new URL(classpathEntStr);
                             } catch (final MalformedURLException e) {
+                                // Try creating URI if URL creation fails, in case there is a URI-only scheme
                                 try {
-                                    classpathEntObj = new URI(classpathEntryStr);
+                                    classpathEntObj = new URI(classpathEntStr);
                                 } catch (final URISyntaxException e1) {
-                                    throw new IOException("Malformed URI: " + classpathEntryStr + " : " + e1);
+                                    throw new IOException("Malformed URI: " + classpathEntObj + " : " + e1);
                                 }
                             }
-                        } else if (classpathEntryStr.contains("!")) {
+                        } else {
+                            // If this is not a URL with a non-"file:" scheme and is not a multi-section URL,
+                            // try parsing the path string as a Path
                             try {
-                                classpathEntObj = new URL("jar:file:" + classpathEntryStr);
-                            } catch (final MalformedURLException e) {
-                                try {
-                                    classpathEntObj = new URI(classpathEntryStr);
-                                } catch (final URISyntaxException e1) {
-                                    throw new IOException("Malformed URI: " + classpathEntryStr + " : " + e1);
-                                }
+                                classpathEntObj = Paths.get(classpathEntStr);
+                            } catch (final InvalidPathException e) {
+                                throw new IOException("Malformed path: " + classpathEntObj + " : " + e);
                             }
                         }
                     }
+                    // At this point, String is dealt with and String, URL, and URI classpath elements are all
+                    // normalized together. classpathEntObj is either a URL, URI, or Path.
 
                     // Check type of classpath entry object
                     Path classpathEntryPath = null;
@@ -448,10 +464,9 @@ class Scanner implements Callable<ScanResult> {
                                         // Use toString() for the key so that URLs and URIs that resolve to the
                                         // same resource will point to the same entry in the singleton map
                                         classpathEntryURL.toString(), log,
-                                        new NewInstanceFactory<Object, ClasspathElement>() {
+                                        new NewInstanceFactory<ClasspathElement>() {
                                             @Override
-                                            public ClasspathElement newInstance(final Object key,
-                                                    final LogNode log) {
+                                            public ClasspathElement newInstance() {
                                                 return new ClasspathElementZip(classpathEntryURL,
                                                         classpathEntryWorkUnit, nestedJarHandler, scanSpec);
                                             }
@@ -486,10 +501,9 @@ class Scanner implements Callable<ScanResult> {
                                             // Use toString() for the key so that URLs and URIs that resolve to the
                                             // same resource will point to the same entry in the singleton map
                                             classpathEntryURL.toString(), log,
-                                            new NewInstanceFactory<Object, ClasspathElement>() {
+                                            new NewInstanceFactory<ClasspathElement>() {
                                                 @Override
-                                                public ClasspathElement newInstance(final Object key,
-                                                        final LogNode log) {
+                                                public ClasspathElement newInstance() {
                                                     return new ClasspathElementZip(classpathEntryURL,
                                                             classpathEntryWorkUnit, nestedJarHandler, scanSpec);
                                                 }
@@ -533,10 +547,9 @@ class Scanner implements Callable<ScanResult> {
                                             // Use toString() for the key so that URLs and URIs that resolve to the
                                             // same resource will point to the same entry in the singleton map
                                             classpathEntryURI.toString(), log,
-                                            new NewInstanceFactory<Object, ClasspathElement>() {
+                                            new NewInstanceFactory<ClasspathElement>() {
                                                 @Override
-                                                public ClasspathElement newInstance(final Object key,
-                                                        final LogNode log) {
+                                                public ClasspathElement newInstance() {
                                                     return new ClasspathElementZip(classpathEntryURI,
                                                             classpathEntryWorkUnit, nestedJarHandler, scanSpec);
                                                 }
@@ -565,10 +578,9 @@ class Scanner implements Callable<ScanResult> {
                             try {
                                 final Path path = classpathEntryPath;
                                 return classpathEntryObjToClasspathEntrySingletonMap.get(classpathEntryPath, log,
-                                        new NewInstanceFactory<Object, ClasspathElement>() {
+                                        new NewInstanceFactory<ClasspathElement>() {
                                             @Override
-                                            public ClasspathElement newInstance(final Object key,
-                                                    final LogNode log) {
+                                            public ClasspathElement newInstance() {
                                                 return new ClasspathElementZip(path, classpathEntryWorkUnit,
                                                         nestedJarHandler, scanSpec);
                                             }
@@ -588,10 +600,9 @@ class Scanner implements Callable<ScanResult> {
                             try {
                                 final Path path = classpathEntryPath;
                                 return classpathEntryObjToClasspathEntrySingletonMap.get(classpathEntryPath, log,
-                                        new NewInstanceFactory<Object, ClasspathElement>() {
+                                        new NewInstanceFactory<ClasspathElement>() {
                                             @Override
-                                            public ClasspathElement newInstance(final Object key,
-                                                    final LogNode log) {
+                                            public ClasspathElement newInstance() {
                                                 return new ClasspathElementPathDir(path, classpathEntryWorkUnit,
                                                         nestedJarHandler, scanSpec);
                                             }
@@ -644,15 +655,15 @@ class Scanner implements Callable<ScanResult> {
                     try {
                         final boolean jar = isJar;
                         return classpathEntryObjToClasspathEntrySingletonMap.get(pathCanonicalized, log,
-                                new NewInstanceFactory<Object, ClasspathElement>() {
+                                new NewInstanceFactory<ClasspathElement>() {
                                     @Override
-                                    public ClasspathElement newInstance(final Object key, final LogNode log) {
+                                    public ClasspathElement newInstance() {
                                         // Instantiate a ClasspathElementZip or ClasspathElementDir singleton
                                         // for the classpath element path
                                         return jar
                                                 ? new ClasspathElementZip(pathCanonicalized, classpathEntryWorkUnit,
                                                         nestedJarHandler, scanSpec)
-                                                : new ClasspathElementFileDir(fileCanonicalized,
+                                                : new ClasspathElementPathDir(pathCanonicalized,
                                                         classpathEntryWorkUnit, nestedJarHandler, scanSpec);
                                     }
                                 });

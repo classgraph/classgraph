@@ -166,23 +166,17 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     /**
      * Create a new instance.
      * 
-     * @param <K>
-     *            The key type.
      * @param <V>
      *            The instance type.
      */
     @FunctionalInterface
-    public interface NewInstanceFactory<K, V> {
+    public interface NewInstanceFactory<V> {
         /**
          * Create a new instance.
          * 
-         * @param key
-         *            The key.
-         * @param log
-         *            The log.
          * @return The new instance.
          */
-        public V newInstance(K key, LogNode log);
+        public V newInstance();
     }
 
     /**
@@ -215,7 +209,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @throws NewInstanceException
      *             if {@link #newInstance(Object, LogNode)} threw an exception.
      */
-    public V get(final K key, final LogNode log, final NewInstanceFactory<K, V> newInstanceFactory)
+    public V get(final K key, final LogNode log, final NewInstanceFactory<V> newInstanceFactory)
             throws E, InterruptedException, NullSingletonException, NewInstanceException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         @SuppressWarnings("null")
@@ -237,7 +231,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
                     // Create a new instance
                     if (newInstanceFactory != null) {
                         // Call NewInstanceFactory
-                        instance = newInstanceFactory.newInstance(key, log);
+                        instance = newInstanceFactory.newInstance();
                     } else {
                         // Call overridden newInstance method
                         instance = newInstance(key, log);

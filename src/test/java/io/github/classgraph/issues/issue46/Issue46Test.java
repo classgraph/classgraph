@@ -30,9 +30,6 @@ package io.github.classgraph.issues.issue46;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
@@ -50,19 +47,8 @@ public class Issue46Test {
         final String jarPath = "jar:file://"
                 + Issue46Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
                 + "!level2.jar!level3.jar!classpath1/classpath2";
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().verbose()
-                .scan()) {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }
-//
-//    public static void main(String[] args) throws MalformedURLException {
-//        final String jarPath = "jar:file:" +
-//                Issue46Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
-//                + "!/level2.jar!/level3.jar!/classpath1/classpath2";
-//        System.out.println(jarPath);
-//        URL u = new URL(jarPath);
-//        System.out.println(u);
-//        System.out.println(u.getPath());
-//    }
 }

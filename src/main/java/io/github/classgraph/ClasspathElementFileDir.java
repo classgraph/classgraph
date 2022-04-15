@@ -60,6 +60,8 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A directory classpath element, using the {@link File} API. */
 class ClasspathElementFileDir extends ClasspathElement {
+    // TODO: this class is no longer used, in favor of ClasspathElementPathDir
+
     /** The directory at the root of the classpath element. */
     private final File classpathEltDir;
 
