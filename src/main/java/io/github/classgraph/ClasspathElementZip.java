@@ -49,7 +49,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
-import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathElementAndPackageRoot;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -76,8 +75,6 @@ class ClasspathElementZip extends ClasspathElement {
     private final String rawPath;
     /** The logical zipfile for this classpath element. */
     LogicalZipFile logicalZipFile;
-    /** The package root within the jarfile. */
-    private String packageRootPrefix = "";
     /** The normalized path of the jarfile, "!/"-separated if nested, excluding any package root. */
     private String zipFilePath;
     /** A map from relative path to {@link Resource} for non-rejected zip entries. */
@@ -100,13 +97,16 @@ class ClasspathElementZip extends ClasspathElement {
      * @param rawPathObj
      *            the raw path to the jarfile as a {@link String}, possibly including "!"-delimited nested paths, or
      *            a {@link URL}, {@link URI} ol {@link Path} for the jarfile.
+     * @param workUnit
+     *            the work unit
      * @param nestedJarHandler
      *            the nested jar handler
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementZip(final Object rawPathObj, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
-        super(scanSpec);
+    ClasspathElementZip(final Object rawPathObj, final ClasspathEntryWorkUnit workUnit,
+            final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec) {
+        super(workUnit, scanSpec);
         // Convert the raw path object (String, URL, URI, or Path) to a string.
         // Any required URL/URI parsing are done in NestedJarHandler.
         String rawPath = null;
@@ -217,11 +217,10 @@ class ClasspathElementZip extends ClasspathElement {
                         if (subLog != null) {
                             subLog.log("Found nested lib jar: " + entryPath);
                         }
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                new ClasspathElementAndPackageRoot(entryPath, getClassLoader()),
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(entryPath, getClassLoader(),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
-                                childClasspathEntryIdx++));
+                                childClasspathEntryIdx++, /* packageRootPrefix = */ ""));
                         break;
                     }
                 }
@@ -258,12 +257,10 @@ class ClasspathElementZip extends ClasspathElement {
                     if (scheduledChildClasspathElements.add(childClassPathEltPathWithPrefix)) {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit( //
-                                new ClasspathEntryWorkUnit(
-                                        new ClasspathElementAndPackageRoot(childClassPathEltPathWithPrefix,
-                                                getClassLoader()),
+                                new ClasspathEntryWorkUnit(childClassPathEltPathWithPrefix, getClassLoader(),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */
-                                        childClasspathEntryIdx++));
+                                        childClasspathEntryIdx++, /* packageRootPrefix = */ ""));
                     }
                 }
             }
@@ -289,11 +286,10 @@ class ClasspathElementZip extends ClasspathElement {
                     // Only add child classpath elements once
                     if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
                         // Schedule child classpath element for scanning
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(
-                                new ClasspathElementAndPackageRoot(childClassPathEltPath, getClassLoader()),
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClassPathEltPath, getClassLoader(),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
-                                childClasspathEntryIdx++));
+                                childClasspathEntryIdx++, /* packageRootPrefix = */ ""));
                     }
                 }
             }

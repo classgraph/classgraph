@@ -62,7 +62,7 @@ public class ClasspathOrder {
     private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
 
     /** The classpath order. Keys are instances of {@link String} or {@link URL}. */
-    private final List<ClasspathElementAndPackageRoot> order = new ArrayList<>();
+    private final List<ClasspathEntry> order = new ArrayList<>();
 
     /** Suffixes for automatic package roots, e.g. "!/BOOT-INF/classes". */
     private static final List<String> AUTOMATIC_PACKAGE_ROOT_SUFFIXES = new ArrayList<>();
@@ -76,71 +76,45 @@ public class ClasspathOrder {
     /**
      * A classpath element and the {@link ClassLoader} it was obtained from.
      */
-    public static class ClasspathElementAndPackageRoot {
-        /**
-         * The classpath element root (a {@link String} path, {@link Path}, {@link URL} or {@link URI}).
-         */
-        public final Object classpathElementObj;
-
-        /** The classpath element package root, prefix, e.g. "BOOT-INF/classes" or "". */
-        public final String dirOrPathPackageRoot;
+    public static class ClasspathEntry {
+        /** The classpath entry object (a {@link String} path, {@link Path}, {@link URL} or {@link URI}). */
+        public final Object classpathEntryObj;
 
         /** The classloader the classpath element was obtained from. */
         public final ClassLoader classLoader;
 
         /**
-         * Constructor for directory or {@link Path} classpath entries.
-         *
-         * @param classpathElementObj
-         *            the classpath element object (a {@link String} path, {@link Path}, {@link URL} or
-         *            {@link URI}).
-         * @param dirOrPathPackageRoot
-         *            the classpath element package root prefix, e.g. "BOOT-INF/classes" or "". Only used for
-         *            directory or {@link Path} classpath entries.
-         * @param classLoader
-         *            the classloader the classpath element was obtained from.
-         */
-        public ClasspathElementAndPackageRoot(final Object classpathElementObj, final String dirOrPathPackageRoot,
-                final ClassLoader classLoader) {
-            this.classpathElementObj = classpathElementObj;
-            this.dirOrPathPackageRoot = dirOrPathPackageRoot;
-            this.classLoader = classLoader;
-        }
-
-        /**
          * Constructor.
          *
-         * @param classpathElementRoot
-         *            the classpath element root (a {@link String} or {@link URL} or {@link Path}).
+         * @param classpathEntryObj
+         *            the classpath entry object (a {@link String} or {@link URL} or {@link Path}).
          * @param classLoader
          *            the classloader the classpath element was obtained from.
          */
-        public ClasspathElementAndPackageRoot(final Object classpathElementRoot, final ClassLoader classLoader) {
-            this.classpathElementObj = classpathElementRoot;
-            this.dirOrPathPackageRoot = "";
+        public ClasspathEntry(final Object classpathEntryObj, final ClassLoader classLoader) {
+            this.classpathEntryObj = classpathEntryObj;
             this.classLoader = classLoader;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(classpathElementObj, dirOrPathPackageRoot, classLoader);
+            return Objects.hash(classpathEntryObj);
         }
 
         @Override
         public boolean equals(final Object obj) {
             if (obj == this) {
                 return true;
-            } else if (!(obj instanceof ClasspathElementAndPackageRoot)) {
+            } else if (!(obj instanceof ClasspathEntry)) {
                 return false;
             }
-            final ClasspathElementAndPackageRoot other = (ClasspathElementAndPackageRoot) obj;
-            return Objects.equals(this.dirOrPathPackageRoot, other.dirOrPathPackageRoot)
-                    && Objects.equals(this.classpathElementObj, other.classpathElementObj);
+            final ClasspathEntry other = (ClasspathEntry) obj;
+            return Objects.equals(this.classpathEntryObj, other.classpathEntryObj);
         }
 
         @Override
         public String toString() {
-            return classpathElementObj + " [" + classLoader + "]";
+            return classpathEntryObj + " [" + classLoader + "]";
         }
     }
 
@@ -159,7 +133,7 @@ public class ClasspathOrder {
      *
      * @return the classpath order.
      */
-    public List<ClasspathElementAndPackageRoot> getOrder() {
+    public List<ClasspathEntry> getOrder() {
         return order;
     }
 
@@ -208,7 +182,7 @@ public class ClasspathOrder {
      */
     boolean addSystemClasspathEntry(final String pathEntry, final ClassLoader classLoader) {
         if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
-            order.add(new ClasspathElementAndPackageRoot(pathEntry, classLoader));
+            order.add(new ClasspathEntry(pathEntry, classLoader));
             return true;
         }
         return false;
@@ -260,7 +234,7 @@ public class ClasspathOrder {
             // Deduplicate classpath elements
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrWithoutSuffix)) {
                 // Record classpath element in classpath order
-                order.add(new ClasspathElementAndPackageRoot(pathElementWithoutSuffix, classLoader));
+                order.add(new ClasspathEntry(pathElementWithoutSuffix, classLoader));
                 return true;
             }
         } else {
@@ -274,7 +248,7 @@ public class ClasspathOrder {
                 return false;
             }
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
-                order.add(new ClasspathElementAndPackageRoot(pathElementStrResolved, classLoader));
+                order.add(new ClasspathEntry(pathElementStrResolved, classLoader));
                 return true;
             }
         }

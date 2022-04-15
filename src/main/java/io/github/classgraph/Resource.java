@@ -237,7 +237,10 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *         full path of {@code "BOOT-INF/classes/com/xyz/resource.xml"} or
      *         {@code "META-INF/versions/11/com/xyz/resource.xml"}, not {@code "com/xyz/resource.xml"}.
      */
-    public abstract String getPathRelativeToClasspathElement();
+    public String getPathRelativeToClasspathElement() {
+        // Only overridden for jars
+        return getPath();
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

@@ -81,6 +81,8 @@ class ClasspathElementModule extends ClasspathElement {
      *
      * @param moduleRef
      *            the module ref
+     * @param workUnit
+     *            the work unit
      * @param moduleRefToModuleReaderProxyRecyclerMap
      *            the module ref to module reader proxy recycler map
      * @param scanSpec
@@ -88,8 +90,9 @@ class ClasspathElementModule extends ClasspathElement {
      */
     ClasspathElementModule(final ModuleRef moduleRef,
             final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> // 
-            moduleRefToModuleReaderProxyRecyclerMap, final ScanSpec scanSpec) {
-        super(scanSpec);
+            moduleRefToModuleReaderProxyRecyclerMap, final ClasspathEntryWorkUnit workUnit,
+            final ScanSpec scanSpec) {
+        super(workUnit, scanSpec);
         this.moduleRefToModuleReaderProxyRecyclerMap = moduleRefToModuleReaderProxyRecyclerMap;
         this.moduleRef = moduleRef;
     }
@@ -138,11 +141,6 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public String getPath() {
-                return resourcePath;
-            }
-
-            @Override
-            public String getPathRelativeToClasspathElement() {
                 return resourcePath;
             }
 
