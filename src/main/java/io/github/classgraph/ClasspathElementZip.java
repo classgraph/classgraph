@@ -109,7 +109,7 @@ class ClasspathElementZip extends ClasspathElement {
         super(workUnit, scanSpec);
         final Object rawPathObj = workUnit.classpathEntryObj;
 
-        // Convert the raw path object (String, URL, URI, or Path) to a string.
+        // Convert the raw path object (Path, URL, or URI) to a string.
         // Any required URL/URI parsing are done in NestedJarHandler.
         String rawPath = null;
         if (rawPathObj instanceof Path) {

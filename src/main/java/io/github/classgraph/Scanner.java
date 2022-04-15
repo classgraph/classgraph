@@ -529,7 +529,7 @@ class Scanner implements Callable<ScanResult> {
                     workUnit.classpathEntryObj = normalizeClasspathEntry(workUnit.classpathEntryObj);
 
                     // Determine if classpath entry is a jar or dir
-                    boolean isJar;
+                    final boolean isJar;
                     if (workUnit.classpathEntryObj instanceof URL || workUnit.classpathEntryObj instanceof URI) {
                         // URLs and URIs always point to jars
                         isJar = true;
@@ -562,38 +562,38 @@ class Scanner implements Callable<ScanResult> {
                     // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry
                     // Use a singleton map to ensure that classpath elements are only opened once
                     // per unique Path, URL, or URI
-                    final boolean isJarFinal = isJar;
                     classpathEntryObjToClasspathEntrySingletonMap.get(workUnit.classpathEntryObj, log,
                             // A NewInstanceFactory is used here because workUnit has to be passed in,
                             // and the standard newInstance API doesn't support an extra parameter like this
                             new NewInstanceFactory<ClasspathElement, IOException>() {
                                 @Override
                                 public ClasspathElement newInstance() throws IOException, InterruptedException {
-                                    final ClasspathElement cpElt = isJarFinal
+                                    final ClasspathElement classpathElement = isJar
                                             ? new ClasspathElementZip(workUnit, nestedJarHandler, scanSpec)
                                             : new ClasspathElementDir(workUnit, nestedJarHandler, scanSpec);
 
-                                    allClasspathEltsOut.add(cpElt);
+                                    allClasspathEltsOut.add(classpathElement);
 
                                     // Run open() on the ClasspathElement
                                     final LogNode subLog = log == null ? null
-                                            : log.log("Opening classpath element " + cpElt);
+                                            : log.log("Opening classpath element " + classpathElement);
 
                                     // Check if the classpath element is valid (classpathElt.skipClasspathElement
                                     // will be set if not). In case of ClasspathElementZip, open or extract nested
                                     // jars as LogicalZipFile instances. Read manifest files for jarfiles to look
                                     // for Class-Path manifest entries. Adds extra classpath elements to the work
                                     // queue if they are found.
-                                    cpElt.open(workQueue, subLog);
+                                    classpathElement.open(workQueue, subLog);
 
                                     if (workUnit.parentClasspathElement != null) {
                                         // Link classpath element to its parent, if it is not a toplevel element
-                                        workUnit.parentClasspathElement.childClasspathElements.add(cpElt);
+                                        workUnit.parentClasspathElement.childClasspathElements
+                                                .add(classpathElement);
                                     } else {
-                                        toplevelClasspathEltsOut.add(cpElt);
+                                        toplevelClasspathEltsOut.add(classpathElement);
                                     }
 
-                                    return cpElt;
+                                    return classpathElement;
                                 }
                             });
 

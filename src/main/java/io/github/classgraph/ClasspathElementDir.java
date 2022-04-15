@@ -75,10 +75,8 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * A directory classpath element.
      *
-     * @param classpathEltPath
-     *            the classpath element {@link Path}
      * @param workUnit
-     *            the work unit
+     *            the work unit -- workUnit.classpathEntryObj must be a {@link Path} object
      * @param nestedJarHandler
      *            the nested jar handler
      * @param scanSpec
