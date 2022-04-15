@@ -366,11 +366,23 @@ class Scanner implements Callable<ScanResult> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static Object normalizeClasspathEntry(Object classpathEntryObj) throws IOException {
-        if (classpathEntryObj == null) {
+    /**
+     * Normalize a classpath entry object so that it is mapped to a canonical {@link Path} object if possible,
+     * falling back to a {@link URL} or {@link URI} if not possible. This is needed to avoid treating
+     * "file:///path/to/x.jar" and "/path/to/x.jar" as different classpath elements. Maps URL("jar:file:x.jar!/") to
+     * Path("x.jar"), etc.
+     * 
+     * @param classpathEntObj
+     *            The classpath entry object.
+     * @return The normalized classpath entry object.
+     * @throws IOException
+     */
+    private static Object normalizeClasspathEntry(Object classpathEntObj) throws IOException {
+        if (classpathEntObj == null) {
             // Should not happen
             throw new IOException("Got null classpath entry object");
         }
+        Object classpathEntryObj = classpathEntObj;
 
         // Convert URL/URI (or anything other than URL/URI, or Path) into a String.
         // Paths.get fails with "IllegalArgumentException: URI is not hierarchical"
@@ -576,6 +588,8 @@ class Scanner implements Callable<ScanResult> {
                     // per unique Path, URL, or URI
                     final boolean isJarFinal = isJar;
                     classpathEntryObjToClasspathEntrySingletonMap.get(workUnit.classpathEntryObj, log,
+                            // A NewInstanceFactory is used here because workUnit has to be passed in,
+                            // and the standard newInstance API doesn't support an extra parameter like this
                             new NewInstanceFactory<ClasspathElement, IOException>() {
                                 @Override
                                 public ClasspathElement newInstance() throws IOException, InterruptedException {
