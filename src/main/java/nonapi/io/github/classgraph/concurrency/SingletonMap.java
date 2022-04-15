@@ -170,13 +170,13 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *            The instance type.
      */
     @FunctionalInterface
-    public interface NewInstanceFactory<V> {
+    public interface NewInstanceFactory<V, E extends Exception> {
         /**
          * Create a new instance.
          * 
          * @return The new instance.
          */
-        public V newInstance();
+        public V newInstance() throws E, InterruptedException;
     }
 
     /**
@@ -209,7 +209,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @throws NewInstanceException
      *             if {@link #newInstance(Object, LogNode)} threw an exception.
      */
-    public V get(final K key, final LogNode log, final NewInstanceFactory<V> newInstanceFactory)
+    public V get(final K key, final LogNode log, final NewInstanceFactory<V, E> newInstanceFactory)
             throws E, InterruptedException, NullSingletonException, NewInstanceException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         @SuppressWarnings("null")
