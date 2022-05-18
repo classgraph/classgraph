@@ -122,8 +122,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /**
      * A classpath element.
      *
-     * @param classLoader
-     *            the classloader
+     * @param workUnit
+     *            the work unit
      * @param scanSpec
      *            the scan spec
      */

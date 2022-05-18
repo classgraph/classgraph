@@ -513,8 +513,6 @@ class Scanner implements Callable<ScanResult> {
      *            on exit, the set of all classpath elements
      * @param toplevelClasspathEltsOut
      *            on exit, the toplevel classpath elements
-     * @param ClasspathEltOrder
-     *            the toplevel classpath elt order
      * @return the work unit processor
      */
     private WorkUnitProcessor<ClasspathEntryWorkUnit> newClasspathEntryWorkUnitProcessor(

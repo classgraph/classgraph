@@ -94,9 +94,6 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * A jarfile classpath element.
      *
-     * @param rawPathObj
-     *            the raw path to the jarfile as a {@link String}, possibly including "!"-delimited nested paths, or
-     *            a {@link URL}, {@link URI} ol {@link Path} for the jarfile.
      * @param workUnit
      *            the work unit
      * @param nestedJarHandler
