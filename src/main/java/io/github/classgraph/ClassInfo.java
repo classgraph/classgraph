@@ -142,7 +142,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     AnnotationParameterValueList annotationDefaultParamValues;
 
     /** The type annotation decorators for the {@link ClassTypeSignature} instance. */
-    List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
+    transient List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /**
      * Names of classes referenced by this class in class refs and type signatures in the constant pool of the

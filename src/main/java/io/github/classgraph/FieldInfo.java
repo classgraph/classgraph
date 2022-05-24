@@ -78,7 +78,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     AnnotationInfoList annotationInfo;
 
     /** The type annotation decorators for the {@link TypeSignature} instance of this field. */
-    private List<TypeAnnotationDecorator> typeAnnotationDecorators;
+    private transient List<TypeAnnotationDecorator> typeAnnotationDecorators;
 
     // -------------------------------------------------------------------------------------------------------------
 

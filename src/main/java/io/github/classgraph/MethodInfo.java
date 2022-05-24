@@ -104,7 +104,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     private boolean hasBody;
 
     /** The type annotation decorators for the {@link MethodTypeSignature} instance. */
-    private List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
+    private transient List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
     private String[] thrownExceptionNames;
 
