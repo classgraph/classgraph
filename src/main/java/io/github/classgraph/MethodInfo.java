@@ -820,7 +820,27 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
         for (final MethodParameterInfo mpi : allParameterInfo) {
             final TypeSignature parameterType = mpi.getTypeSignatureOrTypeDescriptor();
-            parameterClasses.add(parameterType.loadClass());
+            TypeSignature actualParameterType;
+            if (parameterType instanceof TypeVariableSignature) {
+                final TypeVariableSignature tvs = (TypeVariableSignature) parameterType;
+                final TypeParameter t = tvs.resolve();
+                if (t.classBound != null) {
+                    // Use class bound of type variable as concrete type, if available,
+                    // in preference to using first interface bound (ignores interface
+                    // bound(s), if present)
+                    actualParameterType = t.classBound;
+                } else if (t.interfaceBounds != null && !t.interfaceBounds.isEmpty()) {
+                    // Use first interface bound of type variable as concrete type
+                    // (ignores 2nd and subsequent interface bound(s), if present)
+                    actualParameterType = t.interfaceBounds.get(0);
+                } else {
+                    // Sanity check, should not happen
+                    throw new IllegalArgumentException("TypeVariableSignature has no bounds");
+                }
+            } else {
+                actualParameterType = parameterType;
+            }
+            parameterClasses.add(actualParameterType.loadClass());
         }
         return parameterClasses.toArray(new Class<?>[0]);
     }
