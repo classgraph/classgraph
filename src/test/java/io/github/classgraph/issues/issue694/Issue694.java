@@ -37,7 +37,7 @@ public class Issue694 {
             }
         }
         assertThat(foundMethodInfo).containsOnly(
-                "public static <C extends java.util.Collection<io.github.classgraph.issues.issue694.Issue694$TestClass>> C test(C collection)");
+                "public static <C extends java.util.Collection<io.github.classgraph.issues.issue694.Issue694$TestClass>> C test(final C collection)");
         assertThat(foundMethods).containsOnly(
                 "public static java.util.Collection io.github.classgraph.issues.issue694.Issue694.test(java.util.Collection)");
     }
