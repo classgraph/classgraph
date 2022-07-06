@@ -1468,6 +1468,8 @@ class Classfile {
             AnnotationInfo[][] methodParameterAnnotations = null;
             AnnotationInfoList methodAnnotationInfo = null;
             boolean methodHasBody = false;
+            int minLineNum = 0;
+            int maxLineNum = 0;
             if (!methodIsVisible || (!enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
@@ -1687,7 +1689,27 @@ class Classfile {
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
                         methodHasBody = true;
-                        reader.skip(attributeLength);
+                        reader.skip(4); // max_stack, max_locals
+                        final int codeLength = reader.readInt();
+                        reader.skip(codeLength);
+                        final int exceptionTableLength = reader.readUnsignedShort();
+                        reader.skip(8 * exceptionTableLength);
+                        final int codeAttrCount = reader.readUnsignedShort();
+                        for (int k = 0; k < codeAttrCount; k++) {
+                            final int codeAttrCpIdx = reader.readUnsignedShort();
+                            final int codeAttrLen = reader.readInt();
+                            if (constantPoolStringEquals(codeAttrCpIdx, "LineNumberTable")) {
+                                final int lineNumTableLen = reader.readUnsignedShort();
+                                for (int l = 0; l < lineNumTableLen; l++) {
+                                    reader.skip(2); // start_pc
+                                    final int lineNum = reader.readUnsignedShort();
+                                    minLineNum = minLineNum == 0 ? lineNum : Math.min(minLineNum, lineNum);
+                                    maxLineNum = maxLineNum == 0 ? lineNum : Math.max(maxLineNum, lineNum);
+                                }
+                            } else {
+                                reader.skip(codeAttrLen);
+                            }
+                        }
                     } else {
                         reader.skip(attributeLength);
                     }
@@ -1699,8 +1721,8 @@ class Classfile {
                     }
                     methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
-                            methodParameterModifiers, methodParameterAnnotations, methodHasBody,
-                            methodTypeAnnotationDecorators, thrownExceptionNames));
+                            methodParameterModifiers, methodParameterAnnotations, methodHasBody, minLineNum,
+                            maxLineNum, methodTypeAnnotationDecorators, thrownExceptionNames));
                 }
             }
         }

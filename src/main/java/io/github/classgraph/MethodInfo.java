@@ -103,6 +103,12 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** True if this method has a body. */
     private boolean hasBody;
 
+    /** The minimum line number for the body of this method, or 0 if unknown. */
+    private int minLineNum;
+
+    /** The maximum line number for the body of this method, or 0 if unknown. */
+    private int maxLineNum;
+
     /** The type annotation decorators for the {@link MethodTypeSignature} instance. */
     private transient List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
@@ -140,12 +146,20 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *            The parameter {@link AnnotationInfo}.
      * @param hasBody
      *            True if this method has a body.
+     * @param minLineNum
+     *            The minimum line number for the body of this method, or 0 if unknown.
+     * @param maxLineNum
+     *            The maximum line number for the body of this method, or 0 if unknown.
+     * @param methodTypeAnnotationDecorators
+     *            Decorator lambdas for method type annotations.
+     * @param thrownExceptionNames
+     *            exceptions thrown by this method.
      */
     MethodInfo(final String definingClassName, final String methodName,
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
-            final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody,
-            final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
+            final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody, final int minLineNum,
+            final int maxLineNum, final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
             final String[] thrownExceptionNames) {
         super();
         this.declaringClassName = definingClassName;
@@ -159,6 +173,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty() ? null
                 : methodAnnotationInfo;
         this.hasBody = hasBody;
+        this.minLineNum = minLineNum;
+        this.maxLineNum = maxLineNum;
         this.typeAnnotationDecorators = methodTypeAnnotationDecorators;
         this.thrownExceptionNames = thrownExceptionNames;
     }
@@ -519,6 +535,24 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public boolean hasBody() {
         return hasBody;
+    }
+
+    /**
+     * The line number of the first non-empty line in the body of this method, or 0 if unknown.
+     * 
+     * @return The line number of the first non-empty line in the body of this method, or 0 if unknown.
+     */
+    public int getMinLineNum() {
+        return minLineNum;
+    }
+
+    /**
+     * The line number of the last non-empty line in the body of this method, or 0 if unknown.
+     * 
+     * @return The line number of the last non-empty line in the body of this method, or 0 if unknown.
+     */
+    public int getMaxLineNum() {
+        return maxLineNum;
     }
 
     /**
