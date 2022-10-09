@@ -51,33 +51,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class MethodInfo extends ScanResultObject implements Comparable<MethodInfo>, HasName {
-    /** Defining class name. */
-    private String declaringClassName;
-
-    /** Method name. */
-    private String name;
-
-    /** Method modifiers. */
-    private int modifiers;
-
-    /** Method annotations. */
-    AnnotationInfoList annotationInfo;
-
-    /**
-     * The JVM-internal type descriptor (missing type parameters, but including types for synthetic and mandated
-     * method parameters).
-     */
-    private String typeDescriptorStr;
-
+public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo> {
     /** The parsed type descriptor. */
     private transient MethodTypeSignature typeDescriptor;
-
-    /**
-     * The type signature (may have type parameter information included, if present and available). Method parameter
-     * types are unaligned.
-     */
-    private String typeSignatureStr;
 
     /** The parsed type signature (or null if none). Method parameter types are unaligned. */
     private transient MethodTypeSignature typeSignature;
@@ -161,17 +137,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody, final int minLineNum,
             final int maxLineNum, final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
             final String[] thrownExceptionNames) {
-        super();
-        this.declaringClassName = definingClassName;
-        this.name = methodName;
-        this.modifiers = modifiers;
-        this.typeDescriptorStr = typeDescriptorStr;
-        this.typeSignatureStr = typeSignatureStr;
+        super(definingClassName, methodName, modifiers, typeDescriptorStr, typeSignatureStr, methodAnnotationInfo);
         this.parameterNames = parameterNames;
         this.parameterModifiers = parameterModifiers;
         this.parameterAnnotationInfo = parameterAnnotationInfo;
-        this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty() ? null
-                : methodAnnotationInfo;
         this.hasBody = hasBody;
         this.minLineNum = minLineNum;
         this.maxLineNum = maxLineNum;
@@ -193,36 +162,16 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Returns the modifier bits for the method.
-     * 
-     * @return The modifier bits for the method.
-     */
-    public int getModifiers() {
-        return modifiers;
-    }
-
-    /**
      * Get the method modifiers as a String, e.g. "public static final". For the modifier bits, call
      * {@link #getModifiers()}.
      * 
      * @return The modifiers for the method, as a String.
      */
+    @Override
     public String getModifiersStr() {
         final StringBuilder buf = new StringBuilder();
         TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         return buf.toString();
-    }
-
-    /**
-     * Get the {@link ClassInfo} object for the class that declares this method.
-     *
-     * @return The {@link ClassInfo} object for the declaring class.
-     * 
-     * @see #getClassName()
-     */
-    @Override
-    public ClassInfo getClassInfo() {
-        return super.getClassInfo();
     }
 
     /**
@@ -231,6 +180,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * 
      * @return The parsed type descriptor for the method.
      */
+    @Override
     public MethodTypeSignature getTypeDescriptor() {
         if (typeDescriptor == null) {
             try {
@@ -288,16 +238,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Returns the type descriptor string for the method, which will not include type parameters. If you need
-     * generic type parameters, call {@link #getTypeSignatureStr()} instead.
-     * 
-     * @return The type descriptor string for the method.
-     */
-    public String getTypeDescriptorStr() {
-        return typeDescriptorStr;
-    }
-
-    /**
      * Returns the parsed type signature for the method, possibly including type parameters. If this returns null,
      * indicating that no type signature information is available for this method, call {@link #getTypeDescriptor()}
      * instead.
@@ -308,6 +248,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *             classfile corruption, or a compiler bug that causes an invalid type signature to be written to
      *             the classfile).
      */
+    @Override
     public MethodTypeSignature getTypeSignature() {
         if (typeSignature == null && typeSignatureStr != null) {
             try {
@@ -332,17 +273,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Returns the type signature string for the method, possibly including type parameters. If this returns null,
-     * indicating that no type signature information is available for this method, call
-     * {@link #getTypeDescriptorStr()} instead.
-     * 
-     * @return The type signature string for the method, or null if not available.
-     */
-    public String getTypeSignatureStr() {
-        return typeSignatureStr;
-    }
-
-    /**
      * Returns the parsed type signature for the method, possibly including type parameters. If the type signature
      * string is null, indicating that no type signature information is available for this method, returns the
      * parsed type descriptor instead.
@@ -350,6 +280,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * @return The parsed type signature for the method, or if not available, the parsed type descriptor for the
      *         method.
      */
+    @Override
     public MethodTypeSignature getTypeSignatureOrTypeDescriptor() {
         MethodTypeSignature typeSig = null;
         try {
@@ -361,22 +292,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             // Ignore
         }
         return getTypeDescriptor();
-    }
-
-    /**
-     * Returns the type signature string for the method, possibly including type parameters. If the type signature
-     * string is null, indicating that no type signature information is available for this method, returns the type
-     * descriptor string instead.
-     * 
-     * @return The type signature string for the method, or if not available, the type descriptor string for the
-     *         method.
-     */
-    public String getTypeSignatureOrTypeDescriptorStr() {
-        if (typeSignatureStr != null) {
-            return typeSignatureStr;
-        } else {
-            return typeDescriptorStr;
-        }
     }
 
     /**
@@ -421,51 +336,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Returns true if this method is public.
-     * 
-     * @return True if this method is public.
-     */
-    public boolean isPublic() {
-        return Modifier.isPublic(modifiers);
-    }
-
-    /**
-     * Returns true if this method is private.
-     * 
-     * @return True if this method is private.
-     */
-    public boolean isPrivate() {
-        return Modifier.isPrivate(modifiers);
-    }
-
-    /**
-     * Returns true if this method is protected.
-     * 
-     * @return True if this method is protected.
-     */
-    public boolean isProtected() {
-        return Modifier.isProtected(modifiers);
-    }
-
-    /**
-     * Returns true if this method is static.
-     * 
-     * @return True if this method is static.
-     */
-    public boolean isStatic() {
-        return Modifier.isStatic(modifiers);
-    }
-
-    /**
-     * Returns true if this method is final.
-     * 
-     * @return True if this method is final.
-     */
-    public boolean isFinal() {
-        return Modifier.isFinal(modifiers);
-    }
-
-    /**
      * Returns true if this method is synchronized.
      * 
      * @return True if this method is synchronized.
@@ -481,15 +351,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      */
     public boolean isBridge() {
         return (modifiers & 0x0040) != 0;
-    }
-
-    /**
-     * Returns true if this method is synthetic.
-     * 
-     * @return True if this is synthetic.
-     */
-    public boolean isSynthetic() {
-        return (modifiers & 0x1000) != 0;
     }
 
     /**
@@ -724,97 +585,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a list of annotations on this method, along with any annotation parameter values.
-     * 
-     * @return a list of annotations on this method, along with any annotation parameter values, wrapped in
-     *         {@link AnnotationInfo} objects, or the empty list if none.
-     */
-    public AnnotationInfoList getAnnotationInfo() {
-        if (!scanResult.scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-        }
-        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
-                : AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null);
-    }
-
-    /**
-     * Get a the non-{@link Repeatable} annotation on this method, or null if the method does not have the
-     * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
-     *
-     * @param annotation
-     *            The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this method, or null if the method
-     *         does not have the annotation.
-     */
-    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
-        Assert.isAnnotation(annotation);
-        return getAnnotationInfo(annotation.getName());
-    }
-
-    /**
-     * Get a the named non-{@link Repeatable} annotation on this method, or null if the method does not have the
-     * named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
-     *
-     * @param annotationName
-     *            The annotation name.
-     * @return An {@link AnnotationInfo} object representing the named annotation on this method, or null if the
-     *         method does not have the named annotation.
-     */
-    public AnnotationInfo getAnnotationInfo(final String annotationName) {
-        return getAnnotationInfo().get(annotationName);
-    }
-
-    /**
-     * Get a the {@link Repeatable} annotation on this method, or the empty list if the method does not have the
-     * annotation.
-     *
-     * @param annotation
-     *            The annotation.
-     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method, or the empty
-     *         list if the method does not have the annotation.
-     */
-    public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
-        Assert.isAnnotation(annotation);
-        return getAnnotationInfoRepeatable(annotation.getName());
-    }
-
-    /**
-     * Get a the named {@link Repeatable} annotation on this method, or the empty list if the method does not have
-     * the named annotation.
-     *
-     * @param annotationName
-     *            The annotation name.
-     * @return An {@link AnnotationInfoList} containing all instances of the named annotation on this method, or the
-     *         empty list if the method does not have the named annotation.
-     */
-    public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
-        return getAnnotationInfo().getRepeatable(annotationName);
-    }
-
-    /**
-     * Check if this method has the annotation.
-     *
-     * @param annotation
-     *            The annotation.
-     * @return true if this method has the annotation.
-     */
-    public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
-        Assert.isAnnotation(annotation);
-        return hasAnnotation(annotation.getName());
-    }
-
-    /**
-     * Check if this method has the named annotation.
-     *
-     * @param annotationName
-     *            The name of an annotation.
-     * @return true if this method has the named annotation.
-     */
-    public boolean hasAnnotation(final String annotationName) {
-        return getAnnotationInfo().containsName(annotationName);
-    }
-
-    /**
      * Check if this method has a parameter with the annotation.
      *
      * @param annotation
@@ -973,18 +743,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the name of the class that declares this method.
-     *
-     * @return The name of the declaring class.
-     * 
-     * @see #getClassInfo()
-     */
-    @Override
-    public String getClassName() {
-        return declaringClassName;
-    }
 
     /* (non-Javadoc)
      * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
