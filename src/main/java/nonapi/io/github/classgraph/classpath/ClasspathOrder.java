@@ -435,7 +435,7 @@ public class ClasspathOrder {
                 if (pathElementResolved.startsWith("//")) {
                     // Handle Windows UNC paths (#705)
                     try {
-                        Path path = Paths.get(new URI(pathElementResolved));
+                        final Path path = Paths.get(new URI(pathElementResolved));
                         if (addClasspathEntry(path, pathElementResolved, classLoader, scanSpec)) {
                             if (log != null) {
                                 log.log("Found classpath element: " + path
@@ -444,7 +444,7 @@ public class ClasspathOrder {
                             }
                             return true;
                         }
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         // Fall through
                     }
                 }
