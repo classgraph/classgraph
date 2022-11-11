@@ -122,7 +122,6 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
         return buf.toString();
     }
 
-
     /**
      * Returns true if this field is a transient field.
      * 

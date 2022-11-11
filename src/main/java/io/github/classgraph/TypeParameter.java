@@ -62,7 +62,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @param interfaceBounds
      *            The type parameter interface bound.
      */
-    private TypeParameter(final String identifier, final ReferenceTypeSignature classBound,
+    protected TypeParameter(final String identifier, final ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
         super();
         this.name = identifier;
