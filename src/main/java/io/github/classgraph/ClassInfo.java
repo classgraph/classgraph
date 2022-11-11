@@ -1214,6 +1214,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Checks if the class has default (package) visibility.
+     * 
+     * @return true if this class is only visible within its package.
+     */
+    public boolean isPackageVisible() {
+        return !isPublic() && !isPrivate() && !isProtected();
+    }
+
+    /**
      * Checks if the class is abstract.
      *
      * @return true if this class is an abstract class.
