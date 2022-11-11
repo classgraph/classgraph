@@ -432,6 +432,22 @@ public class ClasspathOrder {
                     }
                     return false;
                 }
+                if (pathElementResolved.startsWith("//")) {
+                    // Handle Windows UNC paths (#705)
+                    try {
+                        Path path = Paths.get(new URI(pathElementResolved));
+                        if (addClasspathEntry(path, pathElementResolved, classLoader, scanSpec)) {
+                            if (log != null) {
+                                log.log("Found classpath element: " + path
+                                        + (pathElementStr.equals(pathElementResolved) ? ""
+                                                : " -> " + pathElementResolved));
+                            }
+                            return true;
+                        }
+                    } catch (Exception e) {
+                        // Fall through
+                    }
+                }
                 if (addClasspathEntry(pathElementResolved, pathElementResolved, classLoader, scanSpec)) {
                     if (log != null) {
                         log.log("Found classpath element: " + pathElementStr
