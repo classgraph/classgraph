@@ -433,16 +433,25 @@ public class ClasspathOrder {
                     return false;
                 }
                 if (pathElementResolved.startsWith("//")) {
-                    // Handle Windows UNC paths (#705)
+                    // Handle Windows UNC paths (#705).
+                    // File supports UNC paths directly:
+                    // https://wiki.eclipse.org/Eclipse/UNC_Paths#Programming_with_UNC_paths
                     try {
-                        final Path path = Paths.get(new URI(pathElementResolved));
-                        if (addClasspathEntry(path, pathElementResolved, classLoader, scanSpec)) {
+                        final File file = new File(pathElementResolved);
+                        if (addClasspathEntry(file, pathElementResolved, classLoader, scanSpec)) {
                             if (log != null) {
-                                log.log("Found classpath element: " + path
+                                log.log("Found classpath element: " + file
                                         + (pathElementStr.equals(pathElementResolved) ? ""
                                                 : " -> " + pathElementResolved));
                             }
                             return true;
+                        } else {
+                            if (log != null) {
+                                log.log("Ignoring duplicate classpath element: " + pathElementStr
+                                        + (pathElementStr.equals(pathElementResolved) ? ""
+                                                : " -> " + pathElementResolved));
+                            }
+                            return false;
                         }
                     } catch (final Exception e) {
                         // Fall through

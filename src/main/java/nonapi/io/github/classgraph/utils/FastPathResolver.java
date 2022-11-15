@@ -277,12 +277,7 @@ public final class FastPathResolver {
 
         // Handle Windows paths starting with a drive designation as an absolute path
         if (WINDOWS) {
-            if ((relativePath.startsWith("////", startIdx) || relativePath.startsWith("\\\\\\\\", startIdx))) {
-                // Windows UNC path
-                startIdx += 4;
-                prefix += "//";
-                isAbsolutePath = true;
-            } else if ((relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx))) {
+            if (relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx)) {
                 // Windows UNC path
                 startIdx += 2;
                 prefix += "//";
