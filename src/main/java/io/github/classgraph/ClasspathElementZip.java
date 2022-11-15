@@ -474,6 +474,9 @@ class ClasspathElementZip extends ClasspathElement {
         if (logicalZipFile == null) {
             skipClasspathElement = true;
         }
+        if (!checkResourcePathAcceptReject(getZipFilePath(), log)) {
+            skipClasspathElement = true;
+        }
         if (skipClasspathElement) {
             return;
         }
@@ -582,9 +585,8 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Accept/reject classpath elements based on file resource paths
-            checkResourcePathAcceptReject(relativePath, log);
-            if (skipClasspathElement) {
-                return;
+            if (!checkResourcePathAcceptReject(relativePath, log)) {
+                continue;
             }
 
             // Get match status of the parent directory of this ZipEntry file's relative path (or reuse the last

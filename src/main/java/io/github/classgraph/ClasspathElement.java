@@ -171,16 +171,16 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            the relative path
      * @param log
      *            the log
+     * @return true if path should be scanned
      */
-    protected void checkResourcePathAcceptReject(final String relativePath, final LogNode log) {
+    protected boolean checkResourcePathAcceptReject(final String relativePath, final LogNode log) {
         // Accept/reject classpath elements based on file resource paths
         if (!scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
             if (scanSpec.classpathElementResourcePathAcceptReject.isRejected(relativePath)) {
                 if (log != null) {
                     log.log("Reached rejected classpath element resource path, stopping scanning: " + relativePath);
                 }
-                skipClasspathElement = true;
-                return;
+                return false;
             }
             if (scanSpec.classpathElementResourcePathAcceptReject.isSpecificallyAccepted(relativePath)) {
                 if (log != null) {
@@ -189,6 +189,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 containsSpecificallyAcceptedClasspathElementResourcePath = true;
             }
         }
+        return true;
     }
 
     // -------------------------------------------------------------------------------------------------------------

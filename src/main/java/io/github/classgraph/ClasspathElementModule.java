@@ -346,9 +346,8 @@ class ClasspathElementModule extends ClasspathElement {
                 }
 
                 // Accept/reject classpath elements based on file resource paths
-                checkResourcePathAcceptReject(relativePath, log);
-                if (skipClasspathElement) {
-                    return;
+                if (!checkResourcePathAcceptReject(relativePath, log)) {
+                    continue;
                 }
 
                 // Get match status of the parent directory of this resource's relative path (or reuse the last

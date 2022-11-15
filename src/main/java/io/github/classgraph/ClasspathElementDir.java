@@ -312,9 +312,6 @@ class ClasspathElementDir extends ClasspathElement {
      *            the log
      */
     private void scanPathRecursively(final Path path, final LogNode log) {
-        if (skipClasspathElement) {
-            return;
-        }
         // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
         // infinite loop due to symlinks
         Path canonicalPath;
@@ -362,8 +359,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
 
         // Accept/reject classpath elements based on dir resource paths
-        checkResourcePathAcceptReject(dirRelativePathStr, log);
-        if (skipClasspathElement) {
+        if (!checkResourcePathAcceptReject(dirRelativePathStr, log)) {
             return;
         }
 
@@ -396,7 +392,6 @@ class ClasspathElementDir extends ClasspathElement {
             if (log != null) {
                 log.log("Could not read directory " + path + " : " + e.getMessage());
             }
-            skipClasspathElement = true;
             return;
         }
         Collections.sort(pathsInDir);
@@ -420,8 +415,7 @@ class ClasspathElementDir extends ClasspathElement {
                     }
 
                     // Accept/reject classpath elements based on file resource paths
-                    checkResourcePathAcceptReject(subPathRelativeStr, subLog);
-                    if (skipClasspathElement) {
+                    if (!checkResourcePathAcceptReject(subPathRelativeStr, subLog)) {
                         return;
                     }
 
@@ -467,13 +461,6 @@ class ClasspathElementDir extends ClasspathElement {
             try {
                 if (Files.isDirectory(subPath)) {
                     scanPathRecursively(subPath, subLog);
-                    // If a rejected classpath element resource path was found, it will set skipClasspathElement
-                    if (skipClasspathElement) {
-                        if (subLog != null) {
-                            subLog.addElapsedTime();
-                        }
-                        return;
-                    }
                 }
             } catch (final SecurityException e) {
                 if (subLog != null) {
@@ -503,6 +490,9 @@ class ClasspathElementDir extends ClasspathElement {
      */
     @Override
     void scanPaths(final LogNode log) {
+        if (!checkResourcePathAcceptReject(classpathEltPath.toString(), log)) {
+            skipClasspathElement = true;
+        }
         if (skipClasspathElement) {
             return;
         }
