@@ -314,7 +314,7 @@ public class ClasspathOrder {
             }
             pathElementURL = null;
         }
-        if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof File
+        if (pathElementURL != null || pathElement instanceof URI || pathElement instanceof File
                 || pathElement instanceof Path) {
             if (!filter(pathElementURL, pathElementStr)) {
                 if (log != null) {
@@ -326,7 +326,7 @@ public class ClasspathOrder {
             // for URI and Path objects, convert to URL; for File objects, use the toString result (the path)
             final Object classpathElementObj;
             classpathElementObj = pathElement instanceof File ? pathElementStr
-                    : pathElement instanceof Path || pathElement instanceof URI ? pathElementURL : pathElement;
+                    : pathElementURL != null ? pathElementURL : pathElement;
             if (addClasspathEntry(classpathElementObj, pathElementStr, classLoader, scanSpec)) {
                 if (log != null) {
                     log.log("Found classpath element: " + pathElementStr);

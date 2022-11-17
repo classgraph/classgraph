@@ -459,9 +459,13 @@ class Scanner implements Callable<ScanResult> {
             // Last-ditch effort -- try to convert String to Path
             if (classpathEntryObjNormalized instanceof String) {
                 try {
-                    classpathEntryObjNormalized = Paths.get((String) classpathEntryObjNormalized);
-                } catch (final InvalidPathException e) {
-                    throw new IOException("Malformed path: " + classpathEntryObj + " : " + e);
+                    classpathEntryObjNormalized = new File((String) classpathEntryObjNormalized).toPath();
+                } catch (final Exception e) {
+                    try {
+                        classpathEntryObjNormalized = Paths.get((String) classpathEntryObjNormalized);
+                    } catch (final InvalidPathException e2) {
+                        throw new IOException("Malformed path: " + classpathEntryObj + " : " + e2);
+                    }
                 }
             }
         }

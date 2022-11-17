@@ -234,11 +234,6 @@ public final class FastPathResolver {
                 // Strip off "file:" prefix from relative path
                 matchedPrefix = true;
                 startIdx += 5;
-                while (startIdx < relativePath.length() - 1 && relativePath.charAt(startIdx) == '/'
-                        && relativePath.charAt(startIdx + 1) == '/') {
-                    // Strip off all but one '/' after "file:"
-                    startIdx++;
-                }
                 isFileOrJarURL = true;
             } else {
                 // Preserve the number of slashes on custom URL schemes (#420)
@@ -264,16 +259,6 @@ public final class FastPathResolver {
                 }
             }
         } while (matchedPrefix);
-
-        if (isFileOrJarURL) {
-            if (relativePath.startsWith("///", startIdx)) {
-                // "file:///" or "jar:///" URL
-                startIdx += 2;
-            } else if (relativePath.startsWith("//", startIdx)) {
-                // "file://" or "jar://" URL
-                startIdx += 1;
-            }
-        }
 
         // Handle Windows paths starting with a drive designation as an absolute path
         if (WINDOWS) {
