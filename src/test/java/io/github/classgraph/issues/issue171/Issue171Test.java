@@ -23,7 +23,7 @@ public class Issue171Test {
 
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackagesNonRecursive("hello", "org.springframework.boot")
-                .overrideClasspath(jarURL + "!BOOT-INF/classes") //
+                .overrideClasspath("jar:" + jarURL + "!/BOOT-INF/classes") //
                 .scan()) {
             final List<String> classNames = scanResult.getAllClasses().getNames();
             assertThat(classNames).contains("hello.HelloController",

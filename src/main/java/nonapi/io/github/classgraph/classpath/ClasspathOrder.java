@@ -43,6 +43,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import io.github.classgraph.ClassGraph.ClasspathElementURLFilter;
@@ -66,6 +68,9 @@ public class ClasspathOrder {
 
     /** Suffixes for automatic package roots, e.g. "!/BOOT-INF/classes". */
     private static final List<String> AUTOMATIC_PACKAGE_ROOT_SUFFIXES = new ArrayList<>();
+
+    /** Match URL schemes. */
+    private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z+\\-.]+:");
 
     static {
         for (final String prefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
@@ -228,7 +233,14 @@ public class ClasspathOrder {
                                             // For File, just use path string
                                             : pathElementStrWithoutSuffix;
                 } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
-                    return false;
+                    try {
+                        pathElementWithoutSuffix = pathElement instanceof URL
+                                ? new URL("file:" + pathElementStrWithoutSuffix)
+                                : pathElement instanceof URI ? new URI("file:" + pathElementStrWithoutSuffix)
+                                        : pathElementStrWithoutSuffix;
+                    } catch (MalformedURLException | URISyntaxException | InvalidPathException e2) {
+                        return false;
+                    }
                 }
             }
             // Deduplicate classpath elements
@@ -295,22 +307,39 @@ public class ClasspathOrder {
                             : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
                                     : pathElement instanceof File ? ((File) pathElement).toURI().toURL() : null;
             if (pathElementURL == null) {
-                // Fallback -- call toString() on the path element, then try converting to a URL via File
+                // Fallback -- call toString() on the path element, then try converting to a URL
                 final String pathElementToStr = pathElement.toString();
+                final boolean hasJarScheme = pathElementToStr.startsWith("jar:");
+                int startIdx = hasJarScheme ? 4 : 0;
+                final Matcher m1 = schemeMatcher.matcher(pathElementToStr.substring(startIdx));
+                String scheme = "";
+                if (m1.find()) {
+                    scheme = m1.group();
+                    startIdx += scheme.length();
+                }
+                final String urlStr = (pathElementToStr.contains("!/") || hasJarScheme ? "jar:" : "")
+                        + (scheme.isEmpty() ? "file:" : scheme)
+                        // Escape '%' characters (#255)
+                        + pathElementToStr.substring(startIdx).replace("%", "%25");
                 try {
-                    pathElementURL = new File(pathElementToStr).toURI().toURL();
-                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
-                    if (log != null) {
-                        log.log("Failed to convert classpath element to URL, "
-                                + "Try prepending \"file:\" to create a URL (" + e + "): " + pathElementStr);
+                    pathElementURL = new URL(urlStr);
+                } catch (final MalformedURLException e) {
+                    try {
+                        pathElementURL = new File(pathElementToStr).toURI().toURL();
+                    } catch (final MalformedURLException | IllegalArgumentException | IOError
+                            | SecurityException e1) {
+                        if (log != null) {
+                            log.log("Failed to convert classpath element to URL, "
+                                    + "Try prepending \"file:\" to create a URL (" + e1 + "): " + pathElementStr);
+                        }
+                        // Final fallback -- try just using the raw string as a URL
+                        pathElementURL = new URL(pathElementToStr);
                     }
-                    // Final fallback -- try prepending "file:" to create a URL
-                    pathElementURL = new URL("file:" + pathElementToStr);
                 }
             }
-        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e1) {
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e2) {
             if (log != null) {
-                log.log("Cannot convert to URL (" + e1 + "): " + pathElement);
+                log.log("Cannot convert to URL (" + e2 + "): " + pathElement);
             }
             pathElementURL = null;
         }
