@@ -45,18 +45,18 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /** The name of the class member. */
     protected String name;
 
-    /** Method modifiers. */
+    /** Class member modifiers. */
     protected int modifiers;
 
     /**
      * The JVM-internal type descriptor (missing type parameters, but including types for synthetic and mandated
-     * method parameters).
+     * class member parameters).
      */
     protected String typeDescriptorStr;
 
     /**
-     * The type signature (may have type parameter information included, if present and available). Method parameter
-     * types are unaligned.
+     * The type signature (may have type parameter information included, if present and available). Class member
+     * parameter types are unaligned.
      */
     protected String typeSignatureStr;
 
@@ -76,13 +76,13 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @param memberName
      *            The name of the class member.
      * @param modifiers
-     *            The field modifiers.
+     *            The class member modifiers.
      * @param typeDescriptorStr
-     *            The field type descriptor.
+     *            The class member type descriptor.
      * @param typeSignatureStr
-     *            The field type signature.
+     *            The class member type signature.
      * @param annotationInfo
-     *            {@link AnnotationInfo} for any annotations on the field.
+     *            {@link AnnotationInfo} for any annotations on the class member.
      */
     public ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr,
@@ -99,7 +99,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link ClassInfo} object for the class that declares this method.
+     * Get the {@link ClassInfo} object for the class that declares this class member.
      *
      * @return The {@link ClassInfo} object for the declaring class.
      *
@@ -123,9 +123,9 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the name of the field.
+     * Get the name of the class member.
      *
-     * @return The name of the field.
+     * @return The name of the class member.
      */
     @Override
     public String getName() {
@@ -135,9 +135,9 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the modifier bits for the method.
+     * Returns the modifier bits for the class member.
      *
-     * @return The modifier bits for the method.
+     * @return The modifier bits for the class member.
      */
     public int getModifiers() {
         return modifiers;
