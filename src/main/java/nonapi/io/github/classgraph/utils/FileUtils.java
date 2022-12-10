@@ -178,7 +178,8 @@ public final class FileUtils {
         }
 
         // Handle "..", "." and empty path segments, if any were found
-        final boolean pathHasInitialSlash = pathLen > 0 && pathChars[0] == '/';
+        final boolean pathHasInitialSlash = pathChars[0] == '/';
+        final boolean pathHasInitialSlashSlash = pathHasInitialSlash && pathLen > 1 && pathChars[1] == '/';
         final StringBuilder pathSanitized = new StringBuilder(pathLen + 16);
         if (foundSegmentToSanitize) {
             // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
@@ -230,7 +231,13 @@ public final class FileUtils {
         } else {
             pathSanitized.append(path);
         }
-
+        
+        // Intended to preserve the double slash at the start of UNC paths (#736).
+        // e.g. //server/file/path
+        if (pathHasInitialSlashSlash) {
+            pathSanitized.insert(0, '/');
+        }
+        
         int startIdx = 0;
         if (removeInitialSlash || !pathHasInitialSlash) {
             // Strip off leading "/" if it needs to be removed, or if it wasn't present in the original path
