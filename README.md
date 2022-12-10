@@ -28,7 +28,7 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 <br>
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
 
-| ClassGraph is now fully stable. This project adheres to the **[Zero Bugs Commitment](https://github.com/classgraph/classgraph/blob/master/Zero-Bugs-Commitment.md)**. |
+| ClassGraph is stable and mature, and has a low bug report rate, despite being used by hundreds of projects. |
 |-----------------------------|
 
 ### ClassGraph vs. Java Introspection
