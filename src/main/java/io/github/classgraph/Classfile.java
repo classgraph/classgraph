@@ -131,6 +131,9 @@ class Classfile {
     /** The type signature. */
     private String typeSignatureStr;
 
+    /** The source file, such as Classfile.java */
+    private String sourceFile;
+
     /** The type annotation decorators for the {@link ClassTypeSignature} instance. */
     private List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators;
 
@@ -487,6 +490,7 @@ class Classfile {
             classInfo.setIsInterface(isInterface);
             classInfo.setIsAnnotation(isAnnotation);
             classInfo.setIsRecord(isRecord);
+            classInfo.setSourceFile(sourceFile);
             if (superclassName != null) {
                 classInfo.addSuperclass(superclassName, classNameToClassInfo);
             }
@@ -1877,6 +1881,8 @@ class Classfile {
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 // Get class type signature, including type variables
                 typeSignatureStr = getConstantPoolString(reader.readUnsignedShort());
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "SourceFile")) {
+                sourceFile = getConstantPoolString(reader.readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
                 final String innermostEnclosingClassName = getConstantPoolClassName(reader.readUnsignedShort());
                 final int enclosingMethodCpIdx = reader.readUnsignedShort();
