@@ -28,10 +28,11 @@
  */
 package nonapi.io.github.classgraph.utils;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /**
  * Resolve relative paths and URLs/URIs against a base path in a way that is faster than Java's URL/URI parser (and
@@ -47,9 +48,6 @@ public final class FastPathResolver {
 
     /** Match custom URLs that are followed by one slash. */
     private static final Pattern schemeOneSlashMatcher = Pattern.compile("^[a-zA-Z+\\-.]+:/");
-
-    /** True if we're running on Windows. */
-    private static final boolean WINDOWS = File.separatorChar == '\\';
 
     /**
      * Constructor.
@@ -261,7 +259,7 @@ public final class FastPathResolver {
         } while (matchedPrefix);
 
         // Handle Windows paths starting with a drive designation as an absolute path
-        if (WINDOWS) {
+        if (VersionFinder.OS == OperatingSystem.Windows) {
             if (relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx)) {
                 // Windows UNC path
                 startIdx += 2;

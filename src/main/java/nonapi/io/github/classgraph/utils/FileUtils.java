@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /**
  * File utilities.
@@ -234,7 +235,7 @@ public final class FileUtils {
 
         // Intended to preserve the double slash at the start of UNC paths (#736).
         // e.g. //server/file/path
-        if (pathHasInitialSlashSlash) {
+        if (VersionFinder.OS == OperatingSystem.Windows && pathHasInitialSlashSlash) {
             pathSanitized.insert(0, '/');
         }
 

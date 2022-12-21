@@ -28,6 +28,7 @@
  */
 package nonapi.io.github.classgraph.utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -137,12 +138,14 @@ public final class VersionFinder {
 
     static {
         final String osName = getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
-        if (osName == null) {
+        if (File.separatorChar == '\\') {
+            OS = OperatingSystem.Windows;
+        } else if (osName == null) {
             OS = OperatingSystem.Unknown;
-        } else if (osName.contains("mac") || osName.contains("darwin")) {
-            OS = OperatingSystem.MacOSX;
         } else if (osName.contains("win")) {
             OS = OperatingSystem.Windows;
+        } else if (osName.contains("mac") || osName.contains("darwin")) {
+            OS = OperatingSystem.MacOSX;
         } else if (osName.contains("nux")) {
             OS = OperatingSystem.Linux;
         } else if (osName.contains("sunos") || osName.contains("solaris")) {
