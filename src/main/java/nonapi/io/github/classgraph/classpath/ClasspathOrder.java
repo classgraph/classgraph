@@ -289,8 +289,8 @@ public class ClasspathOrder {
             return false;
         }
         String pathElementStr;
-        try {
-            if (pathElement instanceof Path) {
+        if (pathElement instanceof Path) {
+            try {
                 // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
                 pathElementStr = ((Path) pathElement).toUri().toString();
                 // Windows paths ("C:\x\y") are encoded as "file:///C:/x/y" by Path.toUri().toString(),
@@ -298,10 +298,10 @@ public class ClasspathOrder {
                 if (pathElementStr.startsWith("file:///")) {
                     pathElementStr = ((Path) pathElement).toFile().toString();
                 }
-            } else {
+            } catch (IOError | SecurityException e) {
                 pathElementStr = pathElement.toString();
             }
-        } catch (IOError | SecurityException e) {
+        } else {
             pathElementStr = pathElement.toString();
         }
         pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
