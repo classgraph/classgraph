@@ -95,6 +95,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The synthetic class type descriptor. */
     private transient ClassTypeSignature typeDescriptor;
 
+    /** The name of the source file this class has been compiled from */
+    private String sourceFile;
+
     /** The fully-qualified defining method name, for anonymous inner classes. */
     private String fullyQualifiedDefiningMethodName;
 
@@ -455,6 +458,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (isRecord) {
             this.isRecord = isRecord;
         }
+    }
+
+    /**
+     * Set source file.
+     *
+     * @param sourceFile
+     *            the source file
+     */
+    void setSourceFile(final String sourceFile) {
+        this.sourceFile = sourceFile;
     }
 
     /**
@@ -2917,6 +2930,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
         return typeDescriptor;
+    }
+
+    /**
+     * Returns the name of the source file this class has been compiled from,
+     * such as {@code ClassInfo.java} or {@code KClass.kt}.
+     *
+     * <p>This field may be {@code null}.
+     *
+     * @return The name of the source file of this class, or {@code null} if not available
+     */
+    public String getSourceFile() {
+        return sourceFile;
     }
 
     // -------------------------------------------------------------------------------------------------------------
