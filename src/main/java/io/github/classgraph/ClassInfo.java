@@ -2933,10 +2933,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns the name of the source file this class has been compiled from,
-     * such as {@code ClassInfo.java} or {@code KClass.kt}.
+     * Returns the name of the source file this class has been compiled from, such as {@code ClassInfo.java} or
+     * {@code KClass.kt}.
      *
-     * <p>This field may be {@code null}.
+     * <p>
+     * This field may be {@code null}.
      *
      * @return The name of the source file of this class, or {@code null} if not available
      */

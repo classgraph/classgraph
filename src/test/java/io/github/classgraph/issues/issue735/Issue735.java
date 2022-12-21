@@ -26,10 +26,10 @@ public class Issue735 {
     void genericSuperclass() {
         try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue735.class.getPackage().getName())
                 .enableAllInfo().ignoreClassVisibility().ignoreMethodVisibility().scan()) {
-            ClassInfo ci1 = scanResult.getClassInfo(Derived1.class.getName());
+            final ClassInfo ci1 = scanResult.getClassInfo(Derived1.class.getName());
             assertThat(ci1.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
                     .isEqualTo(String.class.getName());
-            ClassInfo ci2 = scanResult.getClassInfo(Derived2.class.getName());
+            final ClassInfo ci2 = scanResult.getClassInfo(Derived2.class.getName());
             assertThat(ci2.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
                     .isEqualTo("T");
         }

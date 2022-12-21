@@ -226,9 +226,11 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for any type annotations before the type argument wildcard, or null if none.
+     * Get a list of {@link AnnotationInfo} objects for any type annotations before the type argument wildcard, or
+     * null if none.
      * 
-     * @return a list of {@link AnnotationInfo} objects for any type annotations before the type argument wildcard, or null if none.
+     * @return a list of {@link AnnotationInfo} objects for any type annotations before the type argument wildcard,
+     *         or null if none.
      */
     public AnnotationInfoList getTypeAnnotationInfo() {
         return typeAnnotationInfo;

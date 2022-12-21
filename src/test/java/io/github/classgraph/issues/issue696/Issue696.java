@@ -28,7 +28,7 @@ public class Issue696 {
 
     public static class BrokenAnnotation {
         public class Dynamic {
-            public Dynamic(@Foo String param1, @Bar String param2) {
+            public Dynamic(@Foo final String param1, @Bar final String param2) {
             }
         }
     }

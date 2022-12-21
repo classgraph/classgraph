@@ -231,13 +231,13 @@ public final class FileUtils {
         } else {
             pathSanitized.append(path);
         }
-        
+
         // Intended to preserve the double slash at the start of UNC paths (#736).
         // e.g. //server/file/path
         if (pathHasInitialSlashSlash) {
             pathSanitized.insert(0, '/');
         }
-        
+
         int startIdx = 0;
         if (removeInitialSlash || !pathHasInitialSlash) {
             // Strip off leading "/" if it needs to be removed, or if it wasn't present in the original path
