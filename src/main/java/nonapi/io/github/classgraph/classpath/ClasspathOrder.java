@@ -290,13 +290,16 @@ public class ClasspathOrder {
         }
         String pathElementStr;
         try {
-            // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
-            pathElementStr = pathElement instanceof Path ? ((Path) pathElement).toUri().toString()
-                    : pathElement.toString();
-            // Windows paths ("C:\x\y") are encoded as "file:///C:/x/y" by Path.toUri().toString(),
-            // but then Paths.get() can't handle paths of the form "///C:/x/y"
-            if (pathElementStr.startsWith("file:///")) {
-                pathElementStr = ((Path) pathElement).toFile().toString();
+            if (pathElement instanceof Path) {
+                // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
+                pathElementStr = ((Path) pathElement).toUri().toString();
+                // Windows paths ("C:\x\y") are encoded as "file:///C:/x/y" by Path.toUri().toString(),
+                // but then Paths.get() can't handle paths of the form "///C:/x/y"
+                if (pathElementStr.startsWith("file:///")) {
+                    pathElementStr = ((Path) pathElement).toFile().toString();
+                }
+            } else {
+                pathElementStr = pathElement.toString();
             }
         } catch (IOError | SecurityException e) {
             pathElementStr = pathElement.toString();
