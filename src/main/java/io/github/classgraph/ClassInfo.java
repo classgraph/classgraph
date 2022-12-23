@@ -1535,11 +1535,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class declares a field of the given name.
+     * Checks whether this class declares a method of the given name.
      *
      * @param methodName
      *            The name of a method.
-     * @return true if this class declares a field of the given name.
+     * @return true if this class declares a method of the given name.
      */
     public boolean hasDeclaredMethod(final String methodName) {
         return getDeclaredMethodInfo().containsName(methodName);
