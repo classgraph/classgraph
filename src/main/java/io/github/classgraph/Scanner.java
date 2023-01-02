@@ -480,7 +480,7 @@ class Scanner implements Callable<ScanResult> {
                 // Canonicalize path, to avoid duplication
                 // Throws  IOException if the file does not exist or an I/O error occurs
                 classpathEntryObjNormalized = ((Path) classpathEntryObjNormalized).toRealPath();
-            } catch (final SecurityException e) {
+            } catch (final IOException | SecurityException e) {
                 // Ignore
             }
         }
