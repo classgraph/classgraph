@@ -18,6 +18,7 @@ import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -102,7 +103,8 @@ public class ClasspathFinderTest {
         // Act
         final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
         final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
-
+        ReflectionUtils.unloadReflectionDriver();
+        
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
         assertTrue(moduleFinder.getSystemModuleRefs().size() > 0, "ModuleFinder should have found system modules");
@@ -134,6 +136,7 @@ public class ClasspathFinderTest {
         // Act
         final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
         final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
+        ReflectionUtils.unloadReflectionDriver();
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");

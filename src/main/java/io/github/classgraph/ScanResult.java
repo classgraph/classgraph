@@ -56,6 +56,7 @@ import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
@@ -1594,6 +1595,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
             if (topLevelLog != null) {
                 topLevelLog.flush();
             }
+            // Unload the reflection driver (#756)
+            ReflectionUtils.unloadReflectionDriver();
         }
     }
 

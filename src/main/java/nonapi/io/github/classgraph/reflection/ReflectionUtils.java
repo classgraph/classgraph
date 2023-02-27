@@ -41,43 +41,54 @@ import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
 public final class ReflectionUtils {
     /** The reflection driver to use. */
     public static ReflectionDriver reflectionDriver;
-
     private static Class<?> accessControllerClass;
     private static Class<?> privilegedActionClass;
     private static Method accessControllerDoPrivileged;
 
-    static {
-        loadReflectionDriver();
-
-        try {
-            accessControllerClass = Class.forName("java.security.AccessController");
-            privilegedActionClass = Class.forName("java.security.PrivilegedAction");
-            accessControllerDoPrivileged = accessControllerClass.getMethod("doPrivileged", privilegedActionClass);
-        } catch (final Throwable t) {
-            // Ignore
-        }
-    }
-
     /** Call this if you change the value of {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}. */
     public static void loadReflectionDriver() {
-        if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NARCISSUS) {
+        if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NARCISSUS
+                && (reflectionDriver == null || !(reflectionDriver instanceof NarcissusReflectionDriver))) {
             try {
                 reflectionDriver = new NarcissusReflectionDriver();
             } catch (final Throwable t) {
                 System.err.println("Could not load Narcissus reflection driver: " + t);
                 // Fall back to standard reflection driver
             }
-        } else if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.JVM_DRIVER) {
+        } else if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.JVM_DRIVER
+                && (reflectionDriver == null || !(reflectionDriver instanceof JVMDriverReflectionDriver))) {
             try {
                 reflectionDriver = new JVMDriverReflectionDriver();
             } catch (final Throwable t) {
                 System.err.println("Could not load JVM-Driver reflection driver: " + t);
                 // Fall back to standard reflection driver
             }
-        }
-        if (reflectionDriver == null) {
+        } else if (reflectionDriver == null
+                || ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NONE) {
             reflectionDriver = new StandardReflectionDriver();
         }
+        try {
+            if (accessControllerClass == null) {
+                accessControllerClass = Class.forName("java.security.AccessController");
+            }
+            if (privilegedActionClass == null) {
+                privilegedActionClass = Class.forName("java.security.PrivilegedAction");
+            }
+            if (accessControllerDoPrivileged == null) {
+                accessControllerDoPrivileged = accessControllerClass.getMethod("doPrivileged",
+                        privilegedActionClass);
+            }
+        } catch (final Throwable t) {
+            // Ignore
+        }
+    }
+
+    /** Driver must be unloaded at end of scan to prevent reference being held (#756) */
+    public static void unloadReflectionDriver() {
+        reflectionDriver = null;
+        accessControllerClass = null;
+        privilegedActionClass = null;
+        accessControllerDoPrivileged = null;
     }
 
     /**
@@ -106,6 +117,9 @@ public final class ReflectionUtils {
      */
     public static Object getFieldVal(final boolean throwException, final Object obj, final Field field)
             throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         if (obj == null || field == null) {
             if (throwException) {
                 throw new NullPointerException();
@@ -143,6 +157,9 @@ public final class ReflectionUtils {
      */
     public static Object getFieldVal(final boolean throwException, final Object obj, final String fieldName)
             throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         if (obj == null || fieldName == null) {
             if (throwException) {
                 throw new NullPointerException();
@@ -180,6 +197,9 @@ public final class ReflectionUtils {
      */
     public static Object getStaticFieldVal(final boolean throwException, final Class<?> cls, final String fieldName)
             throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         if (cls == null || fieldName == null) {
             if (throwException) {
                 throw new NullPointerException();
@@ -217,6 +237,9 @@ public final class ReflectionUtils {
      */
     public static Object invokeMethod(final boolean throwException, final Object obj, final String methodName)
             throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         if (obj == null || methodName == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -257,6 +280,9 @@ public final class ReflectionUtils {
      */
     public static Object invokeMethod(final boolean throwException, final Object obj, final String methodName,
             final Class<?> argType, final Object param) throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         if (obj == null || methodName == null || argType == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -294,6 +320,9 @@ public final class ReflectionUtils {
      */
     public static Object invokeStaticMethod(final boolean throwException, final Class<?> cls,
             final String methodName) throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         if (cls == null || methodName == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -335,6 +364,9 @@ public final class ReflectionUtils {
      */
     public static Object invokeStaticMethod(final boolean throwException, final Class<?> cls,
             final String methodName, final Class<?> argType, final Object param) throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         if (cls == null || methodName == null || argType == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -362,6 +394,9 @@ public final class ReflectionUtils {
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
      */
     public static Class<?> classForNameOrNull(final String className) {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         try {
             return reflectionDriver.findClass(className);
         } catch (final Throwable e) {
@@ -377,6 +412,9 @@ public final class ReflectionUtils {
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
      */
     public static Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
         try {
             return reflectionDriver.findStaticMethod(reflectionDriver.findClass(className), staticMethodName);
         } catch (final Throwable e) {

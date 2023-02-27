@@ -36,6 +36,7 @@ import java.util.Set;
 import io.github.classgraph.ClassGraphClassLoader;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -116,6 +117,9 @@ public class ClasspathFinder {
      */
     public ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
+
+        // Ensure reflection driver is loaded
+        ReflectionUtils.loadReflectionDriver();
 
         // Require scanning traditional classpath if an override classloader is AppClassLoader (#639)
         boolean forceScanJavaClassPath = false;
