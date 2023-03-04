@@ -40,7 +40,6 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -105,12 +104,13 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             return;
         }
         // PathResourceLoader has root field, which is a Path object
-        final Object root = ReflectionUtils.getFieldVal(false, resourceLoader, "root");
+        final Object root = classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader, "root");
         // type VirtualFile
-        final File physicalFile = (File) ReflectionUtils.invokeMethod(false, root, "getPhysicalFile");
+        final File physicalFile = (File) classpathOrderOut.reflectionUtils.invokeMethod(false, root,
+                "getPhysicalFile");
         String path = null;
         if (physicalFile != null) {
-            final String name = (String) ReflectionUtils.invokeMethod(false, root, "getName");
+            final String name = (String) classpathOrderOut.reflectionUtils.invokeMethod(false, root, "getName");
             if (name != null) {
                 // getParentFile() removes "contents" directory
                 final File file = new File(physicalFile.getParentFile(), name);
@@ -124,7 +124,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 path = physicalFile.getAbsolutePath();
             }
         } else {
-            path = (String) ReflectionUtils.invokeMethod(false, root, "getPathName");
+            path = (String) classpathOrderOut.reflectionUtils.invokeMethod(false, root, "getPathName");
             if (path == null) {
                 // Try Path or File
                 final File file = root instanceof Path ? ((Path) root).toFile()
@@ -135,7 +135,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             }
         }
         if (path == null) {
-            final File file = (File) ReflectionUtils.getFieldVal(false, resourceLoader, "fileOfJar");
+            final File file = (File) classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader,
+                    "fileOfJar");
             if (file != null) {
                 path = file.getAbsolutePath();
             }
@@ -172,12 +173,14 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             // Avoid extracting paths from the same module more than once
             return;
         }
-        ClassLoader moduleLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, module, "getClassLoader");
+        ClassLoader moduleLoader = (ClassLoader) classpathOrderOut.reflectionUtils.invokeMethod(false, module,
+                "getClassLoader");
         if (moduleLoader == null) {
             moduleLoader = classLoader;
         }
         // type VFSResourceLoader[]
-        final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(false, moduleLoader, "getResourceLoaders");
+        final Object vfsResourceLoaders = classpathOrderOut.reflectionUtils.invokeMethod(false, moduleLoader,
+                "getResourceLoaders");
         if (vfsResourceLoaders != null) {
             for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
                 // type JarFileResourceLoader for jars, VFSResourceLoader for exploded jars, PathResourceLoader
@@ -207,31 +210,34 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final Object module = ReflectionUtils.invokeMethod(false, classLoader, "getModule");
-        final Object callerModuleLoader = ReflectionUtils.invokeMethod(false, module, "getCallerModuleLoader");
+        final Object module = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getModule");
+        final Object callerModuleLoader = classpathOrder.reflectionUtils.invokeMethod(false, module,
+                "getCallerModuleLoader");
         final Set<Object> visitedModules = new HashSet<>();
         @SuppressWarnings("unchecked")
-        final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(false,
-                callerModuleLoader, "moduleMap");
+        final Map<Object, Object> moduleMap = (Map<Object, Object>) classpathOrder.reflectionUtils
+                .getFieldVal(false, callerModuleLoader, "moduleMap");
         final Set<Entry<Object, Object>> moduleMapEntries = moduleMap != null ? moduleMap.entrySet()
                 : Collections.<Entry<Object, Object>> emptySet();
         for (final Entry<Object, Object> ent : moduleMapEntries) {
             // type FutureModule
             final Object val = ent.getValue();
             // type Module
-            final Object realModule = ReflectionUtils.invokeMethod(false, val, "getModule");
+            final Object realModule = classpathOrder.reflectionUtils.invokeMethod(false, val, "getModule");
             handleRealModule(realModule, visitedModules, classLoader, classpathOrder, scanSpec, log);
         }
         // type Map<String, List<LocalLoader>>
         @SuppressWarnings("unchecked")
-        final Map<String, List<?>> pathsMap = (Map<String, List<?>>) ReflectionUtils.invokeMethod(false, module,
-                "getPaths");
+        final Map<String, List<?>> pathsMap = (Map<String, List<?>>) classpathOrder.reflectionUtils
+                .invokeMethod(false, module, "getPaths");
         for (final Entry<String, List<?>> ent : pathsMap.entrySet()) {
             for (final Object /* ModuleClassLoader$1 */ localLoader : ent.getValue()) {
                 // type ModuleClassLoader (outer class)
-                final Object moduleClassLoader = ReflectionUtils.getFieldVal(false, localLoader, "this$0");
+                final Object moduleClassLoader = classpathOrder.reflectionUtils.getFieldVal(false, localLoader,
+                        "this$0");
                 // type Module
-                final Object realModule = ReflectionUtils.getFieldVal(false, moduleClassLoader, "module");
+                final Object realModule = classpathOrder.reflectionUtils.getFieldVal(false, moduleClassLoader,
+                        "module");
                 handleRealModule(realModule, visitedModules, classLoader, classpathOrder, scanSpec, log);
             }
         }

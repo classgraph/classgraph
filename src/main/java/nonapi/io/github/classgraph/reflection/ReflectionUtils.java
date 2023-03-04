@@ -40,62 +40,39 @@ import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public final class ReflectionUtils {
     /** The reflection driver to use. */
-    public static ReflectionDriver reflectionDriver;
-    private static Class<?> accessControllerClass;
-    private static Class<?> privilegedActionClass;
-    private static Method accessControllerDoPrivileged;
+    public ReflectionDriver reflectionDriver;
+    private Class<?> accessControllerClass;
+    private Class<?> privilegedActionClass;
+    private Method accessControllerDoPrivileged;
 
     /** Call this if you change the value of {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}. */
-    public static void loadReflectionDriver() {
-        if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NARCISSUS
-                && (reflectionDriver == null || !(reflectionDriver instanceof NarcissusReflectionDriver))) {
+    public ReflectionUtils() {
+        if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NARCISSUS) {
             try {
                 reflectionDriver = new NarcissusReflectionDriver();
             } catch (final Throwable t) {
                 System.err.println("Could not load Narcissus reflection driver: " + t);
                 // Fall back to standard reflection driver
             }
-        } else if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.JVM_DRIVER
-                && (reflectionDriver == null || !(reflectionDriver instanceof JVMDriverReflectionDriver))) {
+        } else if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.JVM_DRIVER) {
             try {
                 reflectionDriver = new JVMDriverReflectionDriver();
             } catch (final Throwable t) {
                 System.err.println("Could not load JVM-Driver reflection driver: " + t);
                 // Fall back to standard reflection driver
             }
-        } else if (reflectionDriver == null
-                || ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NONE) {
+        }
+        if (reflectionDriver == null) {
             reflectionDriver = new StandardReflectionDriver();
         }
         try {
-            if (accessControllerClass == null) {
-                accessControllerClass = Class.forName("java.security.AccessController");
-            }
-            if (privilegedActionClass == null) {
-                privilegedActionClass = Class.forName("java.security.PrivilegedAction");
-            }
-            if (accessControllerDoPrivileged == null) {
-                accessControllerDoPrivileged = accessControllerClass.getMethod("doPrivileged",
-                        privilegedActionClass);
-            }
+            accessControllerClass = reflectionDriver.findClass("java.security.AccessController");
+            privilegedActionClass = reflectionDriver.findClass("java.security.PrivilegedAction");
+            accessControllerDoPrivileged = reflectionDriver.findMethod(accessControllerClass, null, "doPrivileged",
+                    privilegedActionClass);
         } catch (final Throwable t) {
             // Ignore
         }
-    }
-
-    /** Driver must be unloaded at end of scan to prevent reference being held (#756) */
-    public static void unloadReflectionDriver() {
-        reflectionDriver = null;
-        accessControllerClass = null;
-        privilegedActionClass = null;
-        accessControllerDoPrivileged = null;
-    }
-
-    /**
-     * Constructor.
-     */
-    private ReflectionUtils() {
-        // Cannot be constructed
     }
 
     /**
@@ -115,7 +92,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
-    public static Object getFieldVal(final boolean throwException, final Object obj, final Field field)
+    public Object getFieldVal(final boolean throwException, final Object obj, final Field field)
             throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -155,7 +132,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
-    public static Object getFieldVal(final boolean throwException, final Object obj, final String fieldName)
+    public Object getFieldVal(final boolean throwException, final Object obj, final String fieldName)
             throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -179,10 +156,10 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get the value of the named static field in the given class or any of its superclasses. If an exception is
-     * thrown while trying to read the field value, and throwException is true, then IllegalArgumentException is
-     * thrown wrapping the cause, otherwise this will return null. If passed a null class reference, returns null
-     * unless throwException is true, then throws IllegalArgumentException.
+     * Get the value of the named field in the given class or any of its superclasses. If an exception is thrown
+     * while trying to read the field value, and throwException is true, then IllegalArgumentException is thrown
+     * wrapping the cause, otherwise this will return null. If passed a null class reference, returns null unless
+     * throwException is true, then throws IllegalArgumentException.
      * 
      * @param throwException
      *            If true, throw an exception if the field value could not be read.
@@ -195,7 +172,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
-    public static Object getStaticFieldVal(final boolean throwException, final Class<?> cls, final String fieldName)
+    public Object getStaticFieldVal(final boolean throwException, final Class<?> cls, final String fieldName)
             throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -212,7 +189,7 @@ public final class ReflectionUtils {
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException(
-                        "Can't read static field " + cls.getName() + "." + fieldName + ": " + e);
+                        "Can't read field " + cls.getName() + "." + fieldName + ": " + e);
             }
         }
         return null;
@@ -235,7 +212,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public static Object invokeMethod(final boolean throwException, final Object obj, final String methodName)
+    public Object invokeMethod(final boolean throwException, final Object obj, final String methodName)
             throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -278,7 +255,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public static Object invokeMethod(final boolean throwException, final Object obj, final String methodName,
+    public Object invokeMethod(final boolean throwException, final Object obj, final String methodName,
             final Class<?> argType, final Object param) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -302,10 +279,9 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named static method. If an exception is thrown while trying to call the method, and throwException
-     * is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If
-     * passed a null class reference, returns null unless throwException is true, then throws
-     * IllegalArgumentException.
+     * Invoke the named method. If an exception is thrown while trying to call the method, and throwException is
+     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If passed
+     * a null class reference, returns null unless throwException is true, then throws IllegalArgumentException.
      * 
      * @param throwException
      *            Whether to throw an exception on failure.
@@ -318,8 +294,8 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public static Object invokeStaticMethod(final boolean throwException, final Class<?> cls,
-            final String methodName) throws IllegalArgumentException {
+    public Object invokeStaticMethod(final boolean throwException, final Class<?> cls, final String methodName)
+            throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -334,18 +310,16 @@ public final class ReflectionUtils {
             return reflectionDriver.invokeStaticMethod(reflectionDriver.findStaticMethod(cls, methodName));
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException(
-                        "Static method \"" + methodName + "\" could not be invoked: " + e);
+                throw new IllegalArgumentException("method \"" + methodName + "\" could not be invoked: " + e);
             }
             return null;
         }
     }
 
     /**
-     * Invoke the named static method. If an exception is thrown while trying to call the method, and throwException
-     * is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If
-     * passed a null class reference, returns null unless throwException is true, then throws
-     * IllegalArgumentException.
+     * Invoke the named method. If an exception is thrown while trying to call the method, and throwException is
+     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If passed
+     * a null class reference, returns null unless throwException is true, then throws IllegalArgumentException.
      * 
      * @param throwException
      *            Whether to throw an exception on failure.
@@ -362,8 +336,8 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public static Object invokeStaticMethod(final boolean throwException, final Class<?> cls,
-            final String methodName, final Class<?> argType, final Object param) throws IllegalArgumentException {
+    public Object invokeStaticMethod(final boolean throwException, final Class<?> cls, final String methodName,
+            final Class<?> argType, final Object param) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -379,8 +353,7 @@ public final class ReflectionUtils {
                     param);
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException(
-                        "Static method \"" + methodName + "\" could not be invoked: " + e);
+                throw new IllegalArgumentException("method \"" + methodName + "\" could not be invoked: " + e);
             }
             return null;
         }
@@ -393,7 +366,7 @@ public final class ReflectionUtils {
      *            The class name to load.
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
      */
-    public static Class<?> classForNameOrNull(final String className) {
+    public Class<?> classForNameOrNull(final String className) {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -405,13 +378,13 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get a static method by name, but return null if any exception is thrown.
+     * Get a method by name, but return null if any exception is thrown.
      * 
      * @param className
      *            The class name to load.
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
      */
-    public static Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
+    public Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -424,7 +397,7 @@ public final class ReflectionUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
+    private class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
         private final Callable<T> callable;
 
         public PrivilegedActionInvocationHandler(final Callable<T> callable) {
@@ -442,7 +415,7 @@ public final class ReflectionUtils {
      * (AccessController is deprecated in JDK 17).
      */
     @SuppressWarnings("unchecked")
-    public static <T> T doPrivileged(final Callable<T> callable) throws Throwable {
+    public <T> T doPrivileged(final Callable<T> callable) throws Throwable {
         if (accessControllerDoPrivileged != null) {
             final Object privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
                     new Class[] { privilegedActionClass }, new PrivilegedActionInvocationHandler<T>(callable));

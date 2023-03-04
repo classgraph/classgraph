@@ -42,6 +42,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
@@ -70,6 +71,9 @@ public final class FileUtils {
 
     /** The Unsafe object. */
     private static Object theUnsafe;
+
+    /** True if class' static fields have been initialized. */
+    private static AtomicBoolean initialized = new AtomicBoolean();
 
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
@@ -543,20 +547,6 @@ public final class FileUtils {
         }
     }
 
-    static {
-        try {
-            ReflectionUtils.doPrivileged(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    lookupCleanMethodPrivileged();
-                    return null;
-                }
-            });
-        } catch (final Throwable e) {
-            // Ignore
-        }
-    }
-
     /**
      * Close a direct byte buffer (run in doPrivileged).
      *
@@ -673,10 +663,25 @@ public final class FileUtils {
      *            The log.
      * @return True if the byteBuffer was closed/unmapped.
      */
-    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final LogNode log) {
+    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
+            final LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
+            if (!initialized.get()) {
+                try {
+                    reflectionUtils.doPrivileged(new Callable<Void>() {
+                        @Override
+                        public Void call() throws Exception {
+                            lookupCleanMethodPrivileged();
+                            return null;
+                        }
+                    });
+                } catch (final Throwable e) {
+                    throw new RuntimeException("Cannot get buffer cleaner method", e);
+                }
+                initialized.set(true);
+            }
             try {
-                return ReflectionUtils.doPrivileged(new Callable<Boolean>() {
+                return reflectionUtils.doPrivileged(new Callable<Boolean>() {
                     @Override
                     public Boolean call() throws Exception {
                         return closeDirectByteBufferPrivileged(byteBuffer, log);

@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.util.LinkedHashSet;
 
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -59,7 +60,7 @@ public class ClassLoaderFinder {
      * @param log
      *            The log.
      */
-    ClassLoaderFinder(final ScanSpec scanSpec, final LogNode log) {
+    ClassLoaderFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog;
         if (scanSpec.overrideClassLoaders == null) {
@@ -101,7 +102,7 @@ public class ClassLoaderFinder {
 
             // Find classloaders for classes on callstack, in case any were missed
             try {
-                final Class<?>[] callStack = CallStackReader.getClassContext(log);
+                final Class<?>[] callStack = new CallStackReader(reflectionUtils).getClassContext(log);
                 for (int i = callStack.length - 1; i >= 0; --i) {
                     final ClassLoader callerClassLoader = callStack[i].getClassLoader();
                     if (callerClassLoader != null) {

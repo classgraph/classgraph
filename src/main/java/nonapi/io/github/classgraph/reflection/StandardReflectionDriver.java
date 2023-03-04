@@ -31,7 +31,9 @@ package nonapi.io.github.classgraph.reflection;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.concurrent.Callable;
 
 /**
@@ -41,6 +43,9 @@ import java.util.concurrent.Callable;
 class StandardReflectionDriver extends ReflectionDriver {
     private static Method setAccessibleMethod;
     private static Method trySetAccessibleMethod;
+    private static Class<?> accessControllerClass;
+    private static Class<?> privilegedActionClass;
+    private static Method accessControllerDoPrivileged;
 
     static {
         // Find deprecated methods to remove compile-time warnings
@@ -56,7 +61,47 @@ class StandardReflectionDriver extends ReflectionDriver {
         } catch (final Throwable t) {
             // Ignore
         }
+        try {
+            accessControllerClass = Class.forName("java.security.AccessController");
+            privilegedActionClass = Class.forName("java.security.PrivilegedAction");
+            accessControllerDoPrivileged = accessControllerClass.getMethod("doPrivileged", privilegedActionClass);
+        } catch (final Throwable t) {
+            // Ignore
+        }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
+        private final Callable<T> callable;
+
+        public PrivilegedActionInvocationHandler(final Callable<T> callable) {
+            this.callable = callable;
+        }
+
+        @Override
+        public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
+            return callable.call();
+        }
+    }
+
+    /**
+     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
+     * (AccessController is deprecated in JDK 17).
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T doPrivileged(final Callable<T> callable) throws Throwable {
+        if (accessControllerDoPrivileged != null) {
+            final Object privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
+                    new Class[] { privilegedActionClass }, new PrivilegedActionInvocationHandler<T>(callable));
+            return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
+        } else {
+            // Fall back to invoking in a non-privileged context
+            return callable.call();
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     private static boolean tryMakeAccessible(final AccessibleObject obj) {
         if (trySetAccessibleMethod != null) {
@@ -85,7 +130,7 @@ class StandardReflectionDriver extends ReflectionDriver {
             return true;
         }
         try {
-            return ReflectionUtils.doPrivileged(new Callable<Boolean>() {
+            return doPrivileged(new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {
                     return tryMakeAccessible(obj);

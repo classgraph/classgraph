@@ -303,7 +303,7 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the field could not be found
      */
-    private Field findField(final Class<?> cls, final Object obj, final String fieldName) throws Exception {
+    protected Field findField(final Class<?> cls, final Object obj, final String fieldName) throws Exception {
         final Field field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
         if (field != null) {
             if (!isAccessible(obj, field)) {
@@ -366,7 +366,7 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the method could not be found.
      */
-    private Method findMethod(final Class<?> cls, final Object obj, final String methodName,
+    protected Method findMethod(final Class<?> cls, final Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
         final List<Method> methodsForName = classToClassMemberCache.get(cls, null).methodNameToMethods
                 .get(methodName);

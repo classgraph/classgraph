@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -72,6 +73,7 @@ import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.recycler.Resettable;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -82,6 +84,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 public class NestedJarHandler {
     /** The {@link ScanSpec}. */
     public final ScanSpec scanSpec;
+
+    public ReflectionUtils reflectionUtils;
 
     /**
      * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
@@ -402,9 +406,11 @@ public class NestedJarHandler {
      * @param interruptionChecker
      *            the interruption checker
      */
-    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker) {
+    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
+            final ReflectionUtils reflectionUtils) {
         this.scanSpec = scanSpec;
         this.interruptionChecker = interruptionChecker;
+        this.reflectionUtils = reflectionUtils;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1045,5 +1051,26 @@ public class NestedJarHandler {
                 interruptionChecker.interrupt();
             }
         }
+    }
+
+    /** System.runFinalization() -- deprecated in JDK 18, so accessed by reflection. */
+    private static Method runFinalizationMethod;
+
+    public void runFinalizationMethod() {
+        if (runFinalizationMethod == null) {
+            runFinalizationMethod = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");
+        }
+        if (runFinalizationMethod != null) {
+            try {
+                // Call System.runFinalization() (deprecated in JDK 18) 
+                runFinalizationMethod.invoke(null);
+            } catch (final Throwable t) {
+                // Ignore
+            }
+        }
+    }
+
+    public void closeDirectByteBuffer(final ByteBuffer backingByteBuffer) {
+        FileUtils.closeDirectByteBuffer(backingByteBuffer, reflectionUtils, /* log = */ null);
     }
 }

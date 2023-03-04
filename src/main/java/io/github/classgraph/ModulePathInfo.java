@@ -131,7 +131,7 @@ public class ModulePathInfo {
     private final AtomicBoolean gotRuntimeInfo = new AtomicBoolean();
 
     /** Fill in module info from VM commandline parameters. */
-    void getRuntimeInfo() {
+    void getRuntimeInfo(final ReflectionUtils reflectionUtils) {
         // Only call this reflective method if ModulePathInfo is specifically requested, to avoid illegal
         // access warning on some JREs, e.g. Adopt JDK 11 (#605)
         if (!gotRuntimeInfo.getAndSet(true)) {
@@ -139,14 +139,14 @@ public class ModulePathInfo {
             // If the java.management module is not present in the deployed runtime (for JDK 9+), or the runtime
             // does not contain the java.lang.management package (e.g. the Android build system, which also does
             // not support JPMS currently), then skip trying to read the commandline arguments (#404).
-            final Class<?> managementFactory = ReflectionUtils
+            final Class<?> managementFactory = reflectionUtils
                     .classForNameOrNull("java.lang.management.ManagementFactory");
             final Object runtimeMXBean = managementFactory == null ? null
-                    : ReflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
+                    : reflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
                             "getRuntimeMXBean");
             @SuppressWarnings("unchecked")
             final List<String> commandlineArguments = runtimeMXBean == null ? null
-                    : (List<String>) ReflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
+                    : (List<String>) reflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
                             "getInputArguments");
             if (commandlineArguments != null) {
                 for (final String arg : commandlineArguments) {

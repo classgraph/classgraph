@@ -101,7 +101,7 @@ public final class JSONUtils {
         return false;
     }
 
-    public static boolean makeAccessible(final AccessibleObject obj) {
+    public static boolean makeAccessible(final AccessibleObject obj, final ReflectionUtils reflectionUtils) {
         // This reflection code is duplicated from StandardReflectionDriver, because calling
         // ReflectionUtils.reflectionDriver.makeAccessible(obj) does not work when called from here
         // (private fields can't be accessed from outside this package even after calling setAccessible(true))
@@ -109,7 +109,7 @@ public final class JSONUtils {
             return true;
         }
         try {
-            return ReflectionUtils.doPrivileged(new Callable<Boolean>() {
+            return reflectionUtils.doPrivileged(new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {
                     return tryMakeAccessible(obj);
@@ -402,11 +402,12 @@ public final class JSONUtils {
      *            if true, only serialize public fields
      * @return true if the field is serializable
      */
-    static boolean fieldIsSerializable(final Field field, final boolean onlySerializePublicFields) {
+    static boolean fieldIsSerializable(final Field field, final boolean onlySerializePublicFields,
+            final ReflectionUtils reflectionUtils) {
         final int modifiers = field.getModifiers();
         if ((!onlySerializePublicFields || Modifier.isPublic(modifiers)) && !Modifier.isTransient(modifiers)
                 && !Modifier.isFinal(modifiers) && ((modifiers & 0x1000 /* synthetic */) == 0)) {
-            return makeAccessible(field);
+            return makeAccessible(field, reflectionUtils);
         }
         return false;
     }

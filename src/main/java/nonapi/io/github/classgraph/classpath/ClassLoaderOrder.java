@@ -41,12 +41,15 @@ import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find all unique classloaders. */
 public class ClassLoaderOrder {
     /** The {@link ClassLoader} order. */
     private final List<Entry<ClassLoader, ClassLoaderHandlerRegistryEntry>> classLoaderOrder = new ArrayList<>();
+
+    public ReflectionUtils reflectionUtils;
 
     /**
      * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
@@ -76,6 +79,10 @@ public class ClassLoaderOrder {
             new IdentityHashMap<>();
 
     // -------------------------------------------------------------------------------------------------------------
+
+    public ClassLoaderOrder(final ReflectionUtils reflectionUtils) {
+        this.reflectionUtils = reflectionUtils;
+    }
 
     /**
      * Get the {@link ClassLoader} order.

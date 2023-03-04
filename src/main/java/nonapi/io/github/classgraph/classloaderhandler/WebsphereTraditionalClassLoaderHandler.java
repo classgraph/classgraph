@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -89,7 +88,8 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final String classpath = (String) ReflectionUtils.invokeMethod(false, classLoader, "getClassPath");
+        final String classpath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
+                "getClassPath");
         classpathOrder.addClasspathPathStr(classpath, classLoader, scanSpec, log);
     }
 }

@@ -49,6 +49,7 @@ import java.util.regex.Pattern;
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -126,6 +127,8 @@ public class ClassGraph {
      */
     public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
 
+    private final ReflectionUtils reflectionUtils;
+
     /**
      * If non-null, log while scanning.
      */
@@ -135,8 +138,9 @@ public class ClassGraph {
 
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
+        reflectionUtils = new ReflectionUtils();
         // Initialize ScanResult, if this is the first call to ClassGraph constructor
-        ScanResult.init();
+        ScanResult.init(reflectionUtils);
     }
 
     /**
@@ -1501,7 +1505,7 @@ public class ClassGraph {
                 try {
                     // Call scanner, but ignore the returned ScanResult
                     new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
-                            scanResultProcessor, failureHandler, topLevelLog).call();
+                            scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
                 } catch (final InterruptedException | CancellationException | ExecutionException e) {
                     // Call failure handler
                     failureHandler.onFailure(e);
@@ -1529,7 +1533,7 @@ public class ClassGraph {
             final int numParallelTasks) {
         try {
             return executorService.submit(new Scanner(performScan, scanSpec, executorService, numParallelTasks,
-                    /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
+                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
             // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
@@ -1764,7 +1768,7 @@ public class ClassGraph {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
-        scanSpec.modulePathInfo.getRuntimeInfo();
+        scanSpec.modulePathInfo.getRuntimeInfo(reflectionUtils);
         return scanSpec.modulePathInfo;
     }
 }

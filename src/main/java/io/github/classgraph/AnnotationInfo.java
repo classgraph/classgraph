@@ -351,10 +351,13 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     } else if (!annotationClass.isInstance(args[0])) {
                         return false;
                     }
+                    final ReflectionUtils reflectionUtils = annotationInfo.scanResult == null
+                            ? new ReflectionUtils()
+                            : annotationInfo.scanResult.reflectionUtils;
                     for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
                         final String paramName = ent.getKey();
                         final Object paramVal = ent.getValue();
-                        final Object otherParamVal = ReflectionUtils.invokeMethod(/* throwException = */ false,
+                        final Object otherParamVal = reflectionUtils.invokeMethod(/* throwException = */ false,
                                 args[0], paramName);
                         if ((paramVal == null) != (otherParamVal == null)) {
                             // Annotation values should never be null, but just to be safe

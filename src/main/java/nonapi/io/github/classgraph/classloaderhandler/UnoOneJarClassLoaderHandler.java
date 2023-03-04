@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -87,7 +86,8 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
         // For Uno-Jar:
 
-        final String unoJarOneJarPath = (String) ReflectionUtils.invokeMethod(false, classLoader, "getOneJarPath");
+        final String unoJarOneJarPath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
+                "getOneJarPath");
         classpathOrder.addClasspathEntry(unoJarOneJarPath, classLoader, scanSpec, log);
 
         // If this property is defined, Uno-Jar jar path was specified on commandline. Otherwise, jar path

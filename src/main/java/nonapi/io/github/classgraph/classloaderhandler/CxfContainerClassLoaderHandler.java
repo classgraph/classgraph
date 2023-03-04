@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -74,7 +73,8 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
             // Ignore
         }
         // tccl = TomcatClassLoader
-        classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(false, classLoader, "tccl"),
+        classLoaderOrder.delegateTo(
+                (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false, classLoader, "tccl"),
                 /* isParent = */ false, log);
         // This classloader doesn't actually load any classes, but add it to the order to improve logging
         classLoaderOrder.add(classLoader, log);

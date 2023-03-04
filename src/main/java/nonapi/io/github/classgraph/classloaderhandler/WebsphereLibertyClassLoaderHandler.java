@@ -107,7 +107,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      *            the containerClassLoader object
      * @return Collection of path objects as a {@link URL} or {@link String}.
      */
-    private static Collection<Object> getPaths(final Object containerClassLoader) {
+    private static Collection<Object> getPaths(final Object containerClassLoader,
+            final ReflectionUtils reflectionUtils) {
         if (containerClassLoader == null) {
             return Collections.emptyList();
         }
@@ -115,42 +116,42 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         // Expecting this to be an instance of
         // "com.ibm.ws.classloading.internal.ContainerClassLoader$UniversalContainer".
         // Call "getContainerURLs" to get its container's classpath.
-        Collection<Object> urls = callGetUrls(containerClassLoader, "getContainerURLs");
+        Collection<Object> urls = callGetUrls(containerClassLoader, "getContainerURLs", reflectionUtils);
         if (urls != null && !urls.isEmpty()) {
             return urls;
         }
 
         // "getContainerURLs" didn't work, try getting the container object...
-        final Object container = ReflectionUtils.getFieldVal(false, containerClassLoader, "container");
+        final Object container = reflectionUtils.getFieldVal(false, containerClassLoader, "container");
         if (container == null) {
             return Collections.emptyList();
         }
 
         // Should be an instance of "com.ibm.wsspi.adaptable.module.Container".
         // Call "getURLs" to get its classpath.
-        urls = callGetUrls(container, "getURLs");
+        urls = callGetUrls(container, "getURLs", reflectionUtils);
         if (urls != null && !urls.isEmpty()) {
             return urls;
         }
 
         // "getURLs" did not work, reverting to previous logic of introspection of the "delegate".
-        final Object delegate = ReflectionUtils.getFieldVal(false, container, "delegate");
+        final Object delegate = reflectionUtils.getFieldVal(false, container, "delegate");
         if (delegate == null) {
             return Collections.emptyList();
         }
 
-        final String path = (String) ReflectionUtils.getFieldVal(false, delegate, "path");
+        final String path = (String) reflectionUtils.getFieldVal(false, delegate, "path");
         if (path != null && path.length() > 0) {
             return Collections.singletonList((Object) path);
         }
 
-        final Object base = ReflectionUtils.getFieldVal(false, delegate, "base");
+        final Object base = reflectionUtils.getFieldVal(false, delegate, "base");
         if (base == null) {
             // giving up.
             return Collections.emptyList();
         }
 
-        final Object archiveFile = ReflectionUtils.getFieldVal(false, base, "archiveFile");
+        final Object archiveFile = reflectionUtils.getFieldVal(false, base, "archiveFile");
         if (archiveFile != null) {
             final File file = (File) archiveFile;
             return Collections.singletonList((Object) file.getAbsolutePath());
@@ -170,10 +171,11 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      * of the locations on disk that contribute to this container"
      */
     @SuppressWarnings("unchecked")
-    private static Collection<Object> callGetUrls(final Object container, final String methodName) {
+    private static Collection<Object> callGetUrls(final Object container, final String methodName,
+            final ReflectionUtils reflectionUtils) {
         if (container != null) {
             try {
-                final Collection<Object> results = (Collection<Object>) ReflectionUtils.invokeMethod(false,
+                final Collection<Object> results = (Collection<Object>) reflectionUtils.invokeMethod(false,
                         container, methodName);
                 if (results != null && !results.isEmpty()) {
                     final Collection<Object> allUrls = new HashSet<>();
@@ -213,16 +215,17 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         Object smartClassPath;
-        final Object appLoader = ReflectionUtils.getFieldVal(false, classLoader, "appLoader");
+        final Object appLoader = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "appLoader");
         if (appLoader != null) {
-            smartClassPath = ReflectionUtils.getFieldVal(false, appLoader, "smartClassPath");
+            smartClassPath = classpathOrder.reflectionUtils.getFieldVal(false, appLoader, "smartClassPath");
         } else {
-            smartClassPath = ReflectionUtils.getFieldVal(false, classLoader, "smartClassPath");
+            smartClassPath = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "smartClassPath");
         }
         if (smartClassPath != null) {
             // "com.ibm.ws.classloading.internal.ContainerClassLoader$SmartClassPath" 
             // interface specifies a "getClassPath" to return all urls that makeup its path.
-            final Collection<Object> paths = callGetUrls(smartClassPath, "getClassPath");
+            final Collection<Object> paths = callGetUrls(smartClassPath, "getClassPath",
+                    classpathOrder.reflectionUtils);
             if (!paths.isEmpty()) {
                 for (final Object path : paths) {
                     classpathOrder.addClasspathEntry(path, classLoader, scanSpec, log);
@@ -230,11 +233,12 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             } else {
                 // "getClassPath" didn't work... reverting to looping over "classPath" elements.
                 @SuppressWarnings("unchecked")
-                final List<Object> classPathElements = (List<Object>) ReflectionUtils.getFieldVal(false,
-                        smartClassPath, "classPath");
+                final List<Object> classPathElements = (List<Object>) classpathOrder.reflectionUtils
+                        .getFieldVal(false, smartClassPath, "classPath");
                 if (classPathElements != null && !classPathElements.isEmpty()) {
                     for (final Object classPathElement : classPathElements) {
-                        final Collection<Object> subPaths = getPaths(classPathElement);
+                        final Collection<Object> subPaths = getPaths(classPathElement,
+                                classpathOrder.reflectionUtils);
                         for (final Object path : subPaths) {
                             classpathOrder.addClasspathEntry(path, classLoader, scanSpec, log);
                         }

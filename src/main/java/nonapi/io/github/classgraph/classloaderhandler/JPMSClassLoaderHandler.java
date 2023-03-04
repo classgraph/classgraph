@@ -32,7 +32,6 @@ import java.net.URL;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -94,9 +93,9 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         // However, it is possible for a Java agent to extend UCP by adding directly to the `ucp` field
         // (#537), and there is no way to read this field. Therefore, we need to use Narcissus to break
         // Java's encapsulation to read this, for this small corner case.
-        final Object ucpVal = ReflectionUtils.getFieldVal(false, classLoader, "ucp");
+        final Object ucpVal = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "ucp");
         if (ucpVal != null) {
-            final URL[] urls = (URL[]) ReflectionUtils.invokeMethod(false, ucpVal, "getURLs");
+            final URL[] urls = (URL[]) classpathOrder.reflectionUtils.invokeMethod(false, ucpVal, "getURLs");
             classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
         }
     }

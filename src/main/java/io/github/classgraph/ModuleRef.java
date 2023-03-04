@@ -70,6 +70,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /** The ClassLoader that loads classes in the module. May be null, to represent the bootstrap classloader. */
     private final ClassLoader classLoader;
 
+    ReflectionUtils reflectionUtils;
+
     /**
      * Constructor.
      *
@@ -78,7 +80,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @param moduleLayer
      *            The module layer, of JPMS type ModuleLayer
      */
-    public ModuleRef(final Object moduleReference, final Object moduleLayer) {
+    public ModuleRef(final Object moduleReference, final Object moduleLayer,
+            final ReflectionUtils reflectionUtils) {
         if (moduleReference == null) {
             throw new IllegalArgumentException("moduleReference cannot be null");
         }
@@ -87,15 +90,16 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
         this.reference = moduleReference;
         this.layer = moduleLayer;
+        this.reflectionUtils = reflectionUtils;
 
-        this.descriptor = ReflectionUtils.invokeMethod(/* throwException = */ true, moduleReference, "descriptor");
+        this.descriptor = reflectionUtils.invokeMethod(/* throwException = */ true, moduleReference, "descriptor");
         if (this.descriptor == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor() should not return null");
         }
-        this.name = (String) ReflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor, "name");
+        this.name = (String) reflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor, "name");
         @SuppressWarnings("unchecked")
-        final Set<String> modulePackages = (Set<String>) ReflectionUtils.invokeMethod(/* throwException = */ true,
+        final Set<String> modulePackages = (Set<String>) reflectionUtils.invokeMethod(/* throwException = */ true,
                 this.descriptor, "packages");
         if (modulePackages == null) {
             // Should not happen
@@ -103,30 +107,30 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
         this.packages = new ArrayList<>(modulePackages);
         CollectionUtils.sortIfNotEmpty(this.packages);
-        final Object optionalRawVersion = ReflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor,
+        final Object optionalRawVersion = reflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor,
                 "rawVersion");
         if (optionalRawVersion != null) {
-            final Boolean isPresent = (Boolean) ReflectionUtils.invokeMethod(/* throwException = */ true,
+            final Boolean isPresent = (Boolean) reflectionUtils.invokeMethod(/* throwException = */ true,
                     optionalRawVersion, "isPresent");
             if (isPresent != null && isPresent) {
-                this.rawVersion = (String) ReflectionUtils.invokeMethod(/* throwException = */ true,
+                this.rawVersion = (String) reflectionUtils.invokeMethod(/* throwException = */ true,
                         optionalRawVersion, "get");
             }
         }
-        final Object moduleLocationOptional = ReflectionUtils.invokeMethod(/* throwException = */ true,
+        final Object moduleLocationOptional = reflectionUtils.invokeMethod(/* throwException = */ true,
                 moduleReference, "location");
         if (moduleLocationOptional == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.location() should not return null");
         }
-        final Object moduleLocationIsPresent = ReflectionUtils.invokeMethod(/* throwException = */ true,
+        final Object moduleLocationIsPresent = reflectionUtils.invokeMethod(/* throwException = */ true,
                 moduleLocationOptional, "isPresent");
         if (moduleLocationIsPresent == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.location().isPresent() should not return null");
         }
         if ((Boolean) moduleLocationIsPresent) {
-            this.location = (URI) ReflectionUtils.invokeMethod(/* throwException = */ true, moduleLocationOptional,
+            this.location = (URI) reflectionUtils.invokeMethod(/* throwException = */ true, moduleLocationOptional,
                     "get");
             if (this.location == null) {
                 // Should not happen
@@ -137,7 +141,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
 
         // Find the classloader for the module
-        this.classLoader = (ClassLoader) ReflectionUtils.invokeMethod(/* throwException = */ true, moduleLayer,
+        this.classLoader = (ClassLoader) reflectionUtils.invokeMethod(/* throwException = */ true, moduleLayer,
                 "findLoader", String.class, this.name);
     }
 

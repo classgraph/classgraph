@@ -42,11 +42,13 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find the unique ordered classpath elements. */
 class CallStackReader {
+    ReflectionUtils reflectionUtils;
+
     /**
      * Constructor.
      */
-    private CallStackReader() {
-        // Cannot be constructed
+    public CallStackReader(final ReflectionUtils reflectionUtils) {
+        this.reflectionUtils = reflectionUtils;
     }
 
     /**
@@ -138,7 +140,7 @@ class CallStackReader {
      *            the log
      * @return The classes in the call stack.
      */
-    static Class<?>[] getClassContext(final LogNode log) {
+    Class<?>[] getClassContext(final LogNode log) {
         Class<?>[] callStack = null;
 
         // For JRE 9+, use StackWalker to get call stack.
@@ -162,7 +164,7 @@ class CallStackReader {
             // Invoke with doPrivileged -- see:
             // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
             try {
-                callStack = ReflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
+                callStack = reflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
                     @Override
                     public Class<?>[] call() throws Exception {
                         return getCallStackViaStackWalker();
@@ -177,7 +179,7 @@ class CallStackReader {
         // because it will result in a reflective illegal access warning, see #663)
         if (VersionFinder.JAVA_MAJOR_VERSION < 9 && (callStack == null || callStack.length == 0)) {
             try {
-                callStack = ReflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
+                callStack = reflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
                     @Override
                     public Class<?>[] call() throws Exception {
                         return getCallStackViaSecurityManager(log);

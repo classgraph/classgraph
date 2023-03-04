@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -65,9 +64,8 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
      */
     public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
-        classLoaderOrder.delegateTo(
-                (ClassLoader) ReflectionUtils.getFieldVal(false, classLoader, "parentContextClassLoader"),
-                /* isParent = */ true, log);
+        classLoaderOrder.delegateTo((ClassLoader) classLoaderOrder.reflectionUtils.getFieldVal(false, classLoader,
+                "parentContextClassLoader"), /* isParent = */ true, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }

@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ScanResult;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
  * The list of fields that can be (de)serialized (non-final, non-transient, non-synthetic, accessible), and their
@@ -107,7 +108,7 @@ class ClassFields {
      *            the class field cache
      */
     public ClassFields(final Class<?> cls, final boolean resolveTypes, final boolean onlySerializePublicFields,
-            final ClassFieldCache classFieldCache) {
+            final ClassFieldCache classFieldCache, final ReflectionUtils reflectionUtils) {
 
         // Find declared accessible fields in all superclasses, and resolve generic types
         final Set<String> visibleFieldNames = new HashSet<>();
@@ -150,7 +151,7 @@ class ClassFields {
                         idField = field;
                     }
 
-                    if (JSONUtils.fieldIsSerializable(field, onlySerializePublicFields)) {
+                    if (JSONUtils.fieldIsSerializable(field, onlySerializePublicFields, reflectionUtils)) {
                         // Resolve field type variables, if any, using the current type resolutions. This will
                         // completely resolve some types (in the superclass), if the subclass extends a concrete
                         // version of a generic superclass, but it will only partially resolve variables in

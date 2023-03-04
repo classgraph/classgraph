@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -84,8 +83,8 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
      */
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final String classpath = (String) ReflectionUtils.invokeMethod(/* throwException = */ true, classLoader,
-                "getClasspath");
+        final String classpath = (String) classpathOrder.reflectionUtils.invokeMethod(/* throwException = */ true,
+                classLoader, "getClasspath");
         classpathOrder.addClasspathEntry(classpath, classLoader, scanSpec, log);
     }
 }

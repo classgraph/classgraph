@@ -41,7 +41,7 @@ public class ClasspathFinderTest {
         scanSpec.overrideClasspath = Collections.singletonList(classesDir);
 
         // Act
-        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
+        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
 
         // Assert
         final Set<Path> paths = new TreeSet<>();
@@ -71,7 +71,7 @@ public class ClasspathFinderTest {
         scanSpec.overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
-        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
+        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
 
         // Assert
         final Set<Path> paths = new TreeSet<>();
@@ -101,9 +101,8 @@ public class ClasspathFinderTest {
         scanSpec.overrideClasspath = Collections.<Object> singletonList(classesDir);
 
         // Act
-        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
+        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
         final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
-        ReflectionUtils.unloadReflectionDriver();
         
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
@@ -134,9 +133,8 @@ public class ClasspathFinderTest {
         scanSpec.overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
-        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new LogNode());
+        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
         final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
-        ReflectionUtils.unloadReflectionDriver();
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");

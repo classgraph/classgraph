@@ -70,6 +70,7 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceFactory;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -138,7 +139,8 @@ class Scanner implements Callable<ScanResult> {
      */
     Scanner(final boolean performScan, final ScanSpec scanSpec, final ExecutorService executorService,
             final int numParallelTasks, final ScanResultProcessor scanResultProcessor,
-            final FailureHandler failureHandler, final LogNode topLevelLog) throws InterruptedException {
+            final FailureHandler failureHandler, final ReflectionUtils reflectionUtils, final LogNode topLevelLog)
+            throws InterruptedException {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
         scanSpec.sortPrefixes();
@@ -156,14 +158,14 @@ class Scanner implements Callable<ScanResult> {
         this.interruptionChecker = executorService instanceof AutoCloseableExecutorService
                 ? ((AutoCloseableExecutorService) executorService).interruptionChecker
                 : new InterruptionChecker();
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker);
+        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, reflectionUtils);
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
         this.topLevelLog = topLevelLog;
 
         final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
-        this.classpathFinder = new ClasspathFinder(scanSpec, classpathFinderLog);
+        this.classpathFinder = new ClasspathFinder(scanSpec, reflectionUtils, classpathFinderLog);
 
         try {
             this.moduleOrder = new ArrayList<>();

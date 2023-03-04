@@ -47,14 +47,7 @@ public class ModuleReaderProxy implements Closeable {
     /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
     private static Object collectorsToList;
 
-    static {
-        collectorClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collector");
-        final Class<?> collectorsClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collectors");
-        if (collectorsClass != null) {
-            collectorsToList = ReflectionUtils.invokeStaticMethod(/* throwException = */ true, collectorsClass,
-                    "toList");
-        }
-    }
+    private ReflectionUtils reflectionUtils;
 
     /**
      * Constructor.
@@ -66,7 +59,16 @@ public class ModuleReaderProxy implements Closeable {
      */
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         try {
-            moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(/* throwException = */ true,
+            reflectionUtils = moduleRef.reflectionUtils;
+            if (collectorClass == null || collectorsToList == null) {
+                collectorClass = reflectionUtils.classForNameOrNull("java.util.stream.Collector");
+                final Class<?> collectorsClass = reflectionUtils.classForNameOrNull("java.util.stream.Collectors");
+                if (collectorsClass != null) {
+                    collectorsToList = reflectionUtils.invokeStaticMethod(/* throwException = */ true,
+                            collectorsClass, "toList");
+                }
+            }
+            moduleReader = (AutoCloseable) reflectionUtils.invokeMethod(/* throwException = */ true,
                     moduleRef.getReference(), "open");
             if (moduleReader == null) {
                 throw new IllegalArgumentException("moduleReference.open() should not return null");
@@ -104,12 +106,12 @@ public class ModuleReaderProxy implements Closeable {
         if (collectorsToList == null) {
             throw new IllegalArgumentException("Could not call Collectors.toList()");
         }
-        final Object /* Stream<String> */ resourcesStream = ReflectionUtils
+        final Object /* Stream<String> */ resourcesStream = reflectionUtils
                 .invokeMethod(/* throwException = */ true, moduleReader, "list");
         if (resourcesStream == null) {
             throw new IllegalArgumentException("Could not call moduleReader.list()");
         }
-        final Object resourcesList = ReflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
+        final Object resourcesList = reflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
                 "collect", collectorClass, collectorsToList);
         if (resourcesList == null) {
             throw new IllegalArgumentException("Could not call moduleReader.list().collect(Collectors.toList())");
@@ -132,12 +134,12 @@ public class ModuleReaderProxy implements Closeable {
      *             If the module cannot be accessed.
      */
     public InputStream open(final String path) throws SecurityException {
-        final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils
+        final Object /* Optional<InputStream> */ optionalInputStream = reflectionUtils
                 .invokeMethod(/* throwException = */ true, moduleReader, "open", String.class, path);
         if (optionalInputStream == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#open for path " + path);
         }
-        final InputStream inputStream = (InputStream) ReflectionUtils.invokeMethod(/* throwException = */ true,
+        final InputStream inputStream = (InputStream) reflectionUtils.invokeMethod(/* throwException = */ true,
                 optionalInputStream, "get");
         if (inputStream == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#open(String)#get()");
@@ -158,12 +160,12 @@ public class ModuleReaderProxy implements Closeable {
      *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
-        final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils
+        final Object /* Optional<ByteBuffer> */ optionalByteBuffer = reflectionUtils
                 .invokeMethod(/* throwException = */ true, moduleReader, "read", String.class, path);
         if (optionalByteBuffer == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#read(String)");
         }
-        final ByteBuffer byteBuffer = (ByteBuffer) ReflectionUtils.invokeMethod(/* throwException = */ true,
+        final ByteBuffer byteBuffer = (ByteBuffer) reflectionUtils.invokeMethod(/* throwException = */ true,
                 optionalByteBuffer, "get");
         if (byteBuffer == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#read(String).get()");
@@ -178,7 +180,7 @@ public class ModuleReaderProxy implements Closeable {
      *            The {@link ByteBuffer} to release.
      */
     public void release(final ByteBuffer byteBuffer) {
-        ReflectionUtils.invokeMethod(/* throwException = */ true, moduleReader, "release", ByteBuffer.class,
+        reflectionUtils.invokeMethod(/* throwException = */ true, moduleReader, "release", ByteBuffer.class,
                 byteBuffer);
     }
 }

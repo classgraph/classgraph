@@ -49,6 +49,7 @@ import java.util.regex.Pattern;
 import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import io.github.classgraph.ClassGraph.ClasspathElementURLFilter;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -59,6 +60,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 public class ClasspathOrder {
     /** The scan spec. */
     private final ScanSpec scanSpec;
+
+    public ReflectionUtils reflectionUtils;
 
     /** Unique classpath entries. */
     private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
@@ -129,8 +132,9 @@ public class ClasspathOrder {
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathOrder(final ScanSpec scanSpec) {
+    ClasspathOrder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils) {
         this.scanSpec = scanSpec;
+        this.reflectionUtils = reflectionUtils;
     }
 
     /**

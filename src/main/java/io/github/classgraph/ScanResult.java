@@ -121,6 +121,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /** If true, this ScanResult has already been closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
+    protected ReflectionUtils reflectionUtils;
+
     /** The toplevel log. */
     private final LogNode topLevelLog;
 
@@ -206,7 +208,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
     /**
      * Static initialization (warm up classloading), called when the ClassGraph class is initialized.
      */
-    static void init() {
+    static void init(final ReflectionUtils reflectionUtils) {
         if (!initialized.getAndSet(true)) {
             // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need
             // to be loaded to close resources are already loaded and cached. This was originally for use in
@@ -214,7 +216,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
             // ensure that classes needed to unmap DirectByteBuffer instances are available at init.
             // We achieve this by mmap'ing a file and then closing it, since the only problematic classes are
             // the PriviledgedAction anonymous inner classes used by FileUtils::closeDirectByteBuffer.
-            FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
+            FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils, /* log = */ null);
         }
     }
 
@@ -260,6 +262,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
         this.packageNameToPackageInfo = packageNameToPackageInfo;
         this.moduleNameToModuleInfo = moduleNameToModuleInfo;
         this.nestedJarHandler = nestedJarHandler;
+        this.reflectionUtils = nestedJarHandler.reflectionUtils;
         this.topLevelLog = topLevelLog;
 
         if (classNameToClassInfo != null) {
@@ -450,7 +453,7 @@ public final class ScanResult implements Closeable, AutoCloseable {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
-        scanSpec.modulePathInfo.getRuntimeInfo();
+        scanSpec.modulePathInfo.getRuntimeInfo(reflectionUtils);
         return scanSpec.modulePathInfo;
     }
 
@@ -1591,12 +1594,11 @@ public final class ScanResult implements Closeable, AutoCloseable {
             }
             classGraphClassLoader = null;
             classpathFinder = null;
+            reflectionUtils = null;
             // Flush log on exit, in case additional log entries were generated after scan() completed
             if (topLevelLog != null) {
                 topLevelLog.flush();
             }
-            // Unload the reflection driver (#756)
-            ReflectionUtils.unloadReflectionDriver();
         }
     }
 

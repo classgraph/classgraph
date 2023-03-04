@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.types.ParseException;
 
 /**
@@ -700,11 +701,30 @@ public class JSONDeserializer {
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */
+    public static <T> T deserializeObject(final Class<T> expectedType, final String json,
+            final ReflectionUtils reflectionUtils) throws IllegalArgumentException {
+        final ClassFieldCache classFieldCache = new ClassFieldCache(/* resolveTypes = */ true,
+                /* onlySerializePublicFields = */ false, reflectionUtils);
+        return deserializeObject(expectedType, json, classFieldCache);
+    }
+
+    /**
+     * Deserialize JSON to a new object graph, with the root object of the specified expected type. Does not work
+     * for generic types, since it is not possible to obtain the generic type of a Class reference.
+     * 
+     * @param <T>
+     *            The type that the JSON should conform to.
+     * @param expectedType
+     *            The class reference for the type that the JSON should conform to.
+     * @param json
+     *            the JSON string to deserialize.
+     * @return The object graph after deserialization.
+     * @throws IllegalArgumentException
+     *             If anything goes wrong during deserialization.
+     */
     public static <T> T deserializeObject(final Class<T> expectedType, final String json)
             throws IllegalArgumentException {
-        final ClassFieldCache classFieldCache = new ClassFieldCache(/* resolveTypes = */ true,
-                /* onlySerializePublicFields = */ false);
-        return deserializeObject(expectedType, json, classFieldCache);
+        return deserializeObject(expectedType, json, new ReflectionUtils());
     }
 
     /**
@@ -766,10 +786,29 @@ public class JSONDeserializer {
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */
+    public static void deserializeToField(final Object containingObject, final String fieldName, final String json,
+            final ReflectionUtils reflectionUtils) throws IllegalArgumentException {
+        final ClassFieldCache typeCache = new ClassFieldCache(/* resolveTypes = */ true,
+                /* onlySerializePublicFields = */ false, reflectionUtils);
+        deserializeToField(containingObject, fieldName, json, typeCache);
+    }
+
+    /**
+     * Deserialize JSON to a new object graph, with the root object of the specified expected type, and store the
+     * root object in the named field of the given containing object. Works for generic types, since it is possible
+     * to obtain the generic type of a field.
+     * 
+     * @param containingObject
+     *            The object containing the named field to deserialize the object graph into.
+     * @param fieldName
+     *            The name of the field to set with the result.
+     * @param json
+     *            the JSON string to deserialize.
+     * @throws IllegalArgumentException
+     *             If anything goes wrong during deserialization.
+     */
     public static void deserializeToField(final Object containingObject, final String fieldName, final String json)
             throws IllegalArgumentException {
-        final ClassFieldCache typeCache = new ClassFieldCache(/* resolveTypes = */ true,
-                /* onlySerializePublicFields = */ false);
-        deserializeToField(containingObject, fieldName, json, typeCache);
+        deserializeToField(containingObject, fieldName, json, new ReflectionUtils());
     }
 }

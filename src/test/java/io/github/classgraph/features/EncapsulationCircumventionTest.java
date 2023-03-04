@@ -18,16 +18,16 @@ class EncapsulationCircumventionTest {
     @AfterEach
     void resetAfterEachTest() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
-        ReflectionUtils.loadReflectionDriver();
     }
 
     /** Test Narcissus. */
     @Test
     void testNarcissus() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NARCISSUS;
-        ReflectionUtils.loadReflectionDriver();
-        assertThat(ReflectionUtils.getStaticFieldVal(true, ReflectionUtils.class, "reflectionDriver").getClass()
-                .getSimpleName()).isEqualTo("NarcissusReflectionDriver");
+        final ReflectionUtils reflectionUtils = new ReflectionUtils();
+        assertThat(
+                reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())
+                        .isEqualTo("NarcissusReflectionDriver");
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
@@ -39,8 +39,8 @@ class EncapsulationCircumventionTest {
     @Test
     void testJVMDriver() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.JVM_DRIVER;
-        ReflectionUtils.loadReflectionDriver();
-        assertThat(ReflectionUtils.getStaticFieldVal(true, ReflectionUtils.class, "reflectionDriver").getClass()
+        final ReflectionUtils reflectionUtils = new ReflectionUtils();
+        assertThat(reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass()
                 .getSimpleName()).isEqualTo("JVMDriverReflectionDriver");
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()

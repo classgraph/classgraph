@@ -36,7 +36,6 @@ import java.util.Map;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -118,17 +117,17 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
-        for (final Object element : (Collection<Object>) ReflectionUtils.getFieldVal(false, classLoader,
-                "elements")) {
+        for (final Object element : (Collection<Object>) classpathOrder.reflectionUtils.getFieldVal(false,
+                classLoader, "elements")) {
             final String elementClassName = element.getClass().getName();
             if ("io.quarkus.bootstrap.classloading.JarClassPathElement".equals(elementClassName)) {
-                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, "file"), classLoader,
-                        scanSpec, log);
+                classpathOrder.addClasspathEntry(classpathOrder.reflectionUtils.getFieldVal(false, element, "file"),
+                        classLoader, scanSpec, log);
             } else if ("io.quarkus.bootstrap.classloading.DirectoryClassPathElement".equals(elementClassName)) {
-                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, "root"), classLoader,
-                        scanSpec, log);
+                classpathOrder.addClasspathEntry(classpathOrder.reflectionUtils.getFieldVal(false, element, "root"),
+                        classLoader, scanSpec, log);
             } else {
-                final Object rootPath = ReflectionUtils.invokeMethod(false, element, "getRoot");
+                final Object rootPath = classpathOrder.reflectionUtils.invokeMethod(false, element, "getRoot");
                 if (rootPath instanceof Path) {
                     classpathOrder.addClasspathEntry(rootPath, classLoader, scanSpec, log);
                 }
@@ -139,8 +138,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
-        final Collection<Path> applicationClassDirectories = (Collection<Path>) ReflectionUtils.getFieldVal(false,
-                classLoader, "applicationClassDirectories");
+        final Collection<Path> applicationClassDirectories = (Collection<Path>) classpathOrder.reflectionUtils
+                .getFieldVal(false, classLoader, "applicationClassDirectories");
         if (applicationClassDirectories != null) {
             for (final Path path : applicationClassDirectories) {
                 try {
@@ -158,13 +157,14 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
-        for (final Object[] elementArray : ((Map<String, Object[]>) ReflectionUtils.getFieldVal(false, classLoader,
-                "resourceDirectoryMap")).values()) {
+        for (final Object[] elementArray : ((Map<String, Object[]>) classpathOrder.reflectionUtils
+                .getFieldVal(false, classLoader, "resourceDirectoryMap")).values()) {
             for (final Object element : elementArray) {
                 final String elementClassName = element.getClass().getName();
                 if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {
-                    classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, "jarPath"),
-                            classLoader, scanSpec, log);
+                    classpathOrder.addClasspathEntry(
+                            classpathOrder.reflectionUtils.getFieldVal(false, element, "jarPath"), classLoader,
+                            scanSpec, log);
                 }
             }
         }

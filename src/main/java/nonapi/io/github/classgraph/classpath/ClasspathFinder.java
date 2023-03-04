@@ -115,11 +115,8 @@ public class ClasspathFinder {
      * @param log
      *            The log.
      */
-    public ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
+    public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
-
-        // Ensure reflection driver is loaded
-        ReflectionUtils.loadReflectionDriver();
 
         // Require scanning traditional classpath if an override classloader is AppClassLoader (#639)
         boolean forceScanJavaClassPath = false;
@@ -165,16 +162,18 @@ public class ClasspathFinder {
 
         // Only instantiate a module finder if requested
         moduleFinder = scanNonSystemModules || scanSpec.enableSystemJarsAndModules
-                ? new ModuleFinder(CallStackReader.getClassContext(classpathFinderLog), scanSpec,
-                        scanNonSystemModules, /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules,
+                ? new ModuleFinder(new CallStackReader(reflectionUtils).getClassContext(classpathFinderLog),
+                        scanSpec, scanNonSystemModules,
+                        /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules, reflectionUtils,
                         classpathFinderLog)
                 : null;
 
-        classpathOrder = new ClasspathOrder(scanSpec);
+        classpathOrder = new ClasspathOrder(scanSpec, reflectionUtils);
 
         // Only look for environment classloaders if classpath and classloaders are not overridden
         final ClassLoaderFinder classLoaderFinder = scanSpec.overrideClasspath == null
-                && scanSpec.overrideClassLoaders == null ? new ClassLoaderFinder(scanSpec, classpathFinderLog)
+                && scanSpec.overrideClassLoaders == null
+                        ? new ClassLoaderFinder(scanSpec, reflectionUtils, classpathFinderLog)
                         : null;
         final ClassLoader[] contextClassLoaders = classLoaderFinder == null ? new ClassLoader[0]
                 : classLoaderFinder.getContextClassLoaders();
@@ -245,7 +244,7 @@ public class ClasspathFinder {
             // Find all unique classloaders, in delegation order
             final LogNode classloaderOrderLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Finding unique classloaders in delegation order");
-            final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder();
+            final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder(reflectionUtils);
             final ClassLoader[] origClassLoaderOrder = scanSpec.overrideClassLoaders != null
                     ? scanSpec.overrideClassLoaders.toArray(new ClassLoader[0])
                     : contextClassLoaders;

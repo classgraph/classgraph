@@ -13,6 +13,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
  * JSONSerializationTest.
@@ -252,6 +253,7 @@ public class JSONSerializationTest {
         final H h = new H();
         h.g = new G();
 
+        ReflectionUtils reflectionUtils = new ReflectionUtils();
         final String json0 = JSONSerializer.serializeFromField(h, "g", 0, false);
 
         final String expected = //
