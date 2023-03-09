@@ -173,11 +173,18 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         int nextTypeArgIdx = -1;
         for (final TypePathNode typePathNode : typePath) {
             if (typePathNode.typePathKind == 1) {
+                // Annotation is deeper in a nested type
+                // (can handle this iteratively)
                 numDeeperNestedLevels++;
             } else if (typePathNode.typePathKind == 3) {
+                // Annotation is on a type argument of a parameterized type
+                // (need to handle this recursively)
                 nextTypeArgIdx = typePathNode.typeArgumentIdx;
                 break;
             } else {
+                // Not valid here:
+                // 0 => Annotation is deeper in an array type
+                // 2 => Annotation is on the bound of a wildcard type argument of a parameterized type
                 throw new IllegalArgumentException("Bad typePathKind: " + typePathNode.typePathKind);
             }
         }
@@ -230,9 +237,13 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             // For type descriptors (as opposed to type signatures), typeArguments is the empty list,
             // so need to bounds-check nextTypeArgIdx
             if (nextTypeArgIdx < typeArgumentList.size()) {
+                // type_path_kind == 3 can be followed by type_path_kind == 2, for an annotation on the
+                // bound of a nested type, and this has to be handled recursively on the remaining
+                // part of the type path
+                final List<TypePathNode> remainingTypePath = typePath.subList(numDeeperNestedLevels + 1,
+                        typePath.size());
                 // Add type annotation to type argument  
-                typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(
-                        typePath.subList(numDeeperNestedLevels + 1, typePath.size()), annotationInfo);
+                typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(remainingTypePath, annotationInfo);
             }
         }
     }
