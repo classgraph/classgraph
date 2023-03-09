@@ -103,11 +103,17 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             // Annotation before wildcard
             addTypeAnnotation(annotationInfo);
         } else if (typePath.size() > 0 && typePath.get(0).typePathKind == 2) {
-            // Annotation is on the bound of a wildcard type argument of a parameterized type
-            typeSignature.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
+            // Annotation is on the bound of a wildcard type argument of a parameterized type.
+            // TypeSignature can be null in a corrupt classfile (#758).
+            if (typeSignature != null) {
+                typeSignature.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
+            }
         } else {
-            // Annotation is on a type argument of a parameterized type
-            typeSignature.addTypeAnnotation(typePath, annotationInfo);
+            // Annotation is on a type argument of a parameterized type.
+            // TypeSignature can be null in a corrupt classfile (#758).
+            if (typeSignature != null) {
+                typeSignature.addTypeAnnotation(typePath, annotationInfo);
+            }
         }
     }
 
