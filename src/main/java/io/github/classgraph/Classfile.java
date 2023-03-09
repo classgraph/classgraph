@@ -1549,35 +1549,45 @@ class Classfile {
                                 final int formalParameterIndex;
                                 final int throwsTypeIndex;
                                 if (targetType == 0x01) {
+                                    // Type parameter declaration of generic method or constructor
                                     typeParameterIndex = reader.readUnsignedByte();
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x12) {
+                                    // Type in bound of type parameter declaration of generic method
+                                    // or constructor    
                                     typeParameterIndex = reader.readUnsignedByte();
                                     boundIndex = reader.readUnsignedByte();
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x14) {
+                                    // Return type of method, or type of newly constructed object
+                                    // (empty target)
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x15) {
+                                    // Receiver type of method or constructor   
+                                    // (empty target)
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x16) {
-                                    formalParameterIndex = reader.readUnsignedByte();
+                                    // Type in formal parameter declaration of method, constructor,
+                                    // or lambda expression    
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
+                                    formalParameterIndex = reader.readUnsignedByte();
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x17) {
-                                    throwsTypeIndex = reader.readUnsignedShort();
+                                    // Type in throws clause of method or constructor   
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
+                                    throwsTypeIndex = reader.readUnsignedShort();
                                 } else {
                                     throw new ClassfileFormatException(
                                             "Class " + className + " has unknown method type annotation target 0x"
@@ -1639,9 +1649,18 @@ class Classfile {
                                             methodTypeSignature.addRecieverTypeAnnotation(annotationInfo);
                                         } else if (targetType == 0x16) {
                                             // Type in formal parameter declaration of method, constructor,
-                                            // or lambda expression
+                                            // or lambda expression.
                                             // N.B. formal parameter indices are dodgy, because not all compilers
-                                            // index parameters the same way -- so be robust here
+                                            // index parameters the same way -- so be robust here.
+                                            // The classfile spec says "A formal_parameter_index value of i may,
+                                            // but is not required to, correspond to the i'th parameter descriptor
+                                            // in the method descriptor". Also "The formal_parameter_target item
+                                            // records that a formal parameter's type is annotated, but does not
+                                            // record the type itself. The type may be found by inspecting the
+                                            // method descriptor, although a formal_parameter_index value of 0
+                                            // does not always indicate the first parameter descriptor in the
+                                            // method descriptor."
+                                            // What the heck, guys.
                                             final List<TypeSignature> parameterTypeSignatures = methodTypeSignature
                                                     .getParameterTypeSignatures();
                                             if (formalParameterIndex < parameterTypeSignatures.size()) {
@@ -1774,14 +1793,19 @@ class Classfile {
                         final int supertypeIndex;
                         final int boundIndex;
                         if (targetType == 0x00) {
+                            // Type parameter declaration of generic class or interface
                             typeParameterIndex = reader.readUnsignedByte();
                             supertypeIndex = -1;
                             boundIndex = -1;
                         } else if (targetType == 0x10) {
+                            // Type in extends or implements clause of class declaration (including
+                            // the direct superclass or direct superinterface of an anonymous class
+                            // declaration), or in extends clause of interface declaration    
                             supertypeIndex = reader.readUnsignedShort();
                             typeParameterIndex = -1;
                             boundIndex = -1;
                         } else if (targetType == 0x11) {
+                            // Type in bound of type parameter declaration of generic class or interface
                             typeParameterIndex = reader.readUnsignedByte();
                             boundIndex = reader.readUnsignedByte();
                             supertypeIndex = -1;
@@ -1806,6 +1830,9 @@ class Classfile {
                                                 annotationInfo);
                                     }
                                 } else if (targetType == 0x10) {
+                                    // Type in extends or implements clause of class declaration (including
+                                    // the direct superclass or direct superinterface of an anonymous class 
+                                    // declaration), or in extends clause of interface declaration    
                                     if (supertypeIndex == 65535) {
                                         // Type in extends clause of class declaration
                                         classTypeSignature.getSuperclassSignature().addTypeAnnotation(typePath,
