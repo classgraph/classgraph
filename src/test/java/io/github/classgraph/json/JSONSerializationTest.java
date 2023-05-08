@@ -253,7 +253,7 @@ public class JSONSerializationTest {
         final H h = new H();
         h.g = new G();
 
-        ReflectionUtils reflectionUtils = new ReflectionUtils();
+        final ReflectionUtils reflectionUtils = new ReflectionUtils();
         final String json0 = JSONSerializer.serializeFromField(h, "g", 0, false);
 
         final String expected = //

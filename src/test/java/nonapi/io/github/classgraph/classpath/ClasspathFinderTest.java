@@ -103,7 +103,7 @@ public class ClasspathFinderTest {
         // Act
         final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
         final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
-        
+
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
         assertTrue(moduleFinder.getSystemModuleRefs().size() > 0, "ModuleFinder should have found system modules");

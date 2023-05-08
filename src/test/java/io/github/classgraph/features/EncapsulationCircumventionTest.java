@@ -40,8 +40,9 @@ class EncapsulationCircumventionTest {
     void testJVMDriver() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.JVM_DRIVER;
         final ReflectionUtils reflectionUtils = new ReflectionUtils();
-        assertThat(reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass()
-                .getSimpleName()).isEqualTo("JVMDriverReflectionDriver");
+        assertThat(
+                reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())
+                        .isEqualTo("JVMDriverReflectionDriver");
         try (ScanResult scanResult = new ClassGraph()
                 .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
