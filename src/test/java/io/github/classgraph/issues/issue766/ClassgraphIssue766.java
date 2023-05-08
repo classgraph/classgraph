@@ -26,9 +26,9 @@ public class ClassgraphIssue766 {
         assertThat(scan("javax.annotation.ManagedBean", jarUrl)).containsOnly("ch.ivyteam.test.MyManagedBean");
     }
 
-    public static Set<String> scan(final String annotation, final String url) {
+    public static Set<String> scan(final String annotation, final String urlStr) {
         final ClassGraph classGraph = new ClassGraph()
-                .overrideClasspath(Set.of(url)).disableNestedJarScanning().enableAnnotationInfo();
+                .overrideClasspath(Set.<String> of(urlStr)).disableNestedJarScanning().enableAnnotationInfo();
         try (ScanResult result = classGraph.scan()) {
             return result.getClassesWithAnnotation(annotation).getStandardClasses().getNames().stream()
                     .collect(Collectors.toSet());
