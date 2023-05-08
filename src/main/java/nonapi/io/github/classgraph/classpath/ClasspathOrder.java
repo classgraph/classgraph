@@ -72,8 +72,8 @@ public class ClasspathOrder {
     /** Suffixes for automatic package roots, e.g. "!/BOOT-INF/classes". */
     private static final List<String> AUTOMATIC_PACKAGE_ROOT_SUFFIXES = new ArrayList<>();
 
-    /** Match URL schemes. */
-    private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z+\\-.]+:");
+    /** Match URL schemes (must consist of at least two chars, otherwise this is Windows drive letter). */
+    private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z+\\-.]+:");
 
     static {
         for (final String prefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
@@ -338,6 +338,7 @@ public class ClasspathOrder {
                     // Fall through
                 }
                 if (pathElementURL == null) {
+                	// Escape percentage characters in URLs (#255)
                     final String urlStr = pathElementStr.replace("%", "%25");
                     try {
                         pathElementURL = new URL(urlStr);
