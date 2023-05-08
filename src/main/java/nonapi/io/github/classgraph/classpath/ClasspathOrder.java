@@ -312,60 +312,55 @@ public class ClasspathOrder {
         if (pathElementStr.isEmpty()) {
             return false;
         }
-        URL pathElementURL;
+        URL pathElementURL = null;
         boolean hasWildcardSuffix = false;
-        try {
-            pathElementURL = pathElement instanceof URL ? (URL) pathElement
-                    : pathElement instanceof URI ? ((URI) pathElement).toURL()
-                            : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
-                                    : pathElement instanceof File ? ((File) pathElement).toURI().toURL() : null;
-            if (pathElementURL == null) {
-                // Fallback -- call toString() on the path element, then try converting to a URL
-                final String pathElementToStr = pathElement.toString();
-                if (pathElementToStr.endsWith("/*") || pathElementToStr.endsWith("\\*")) {
-                    hasWildcardSuffix = true;
-                    pathElementStr = pathElementToStr.substring(0, pathElementToStr.length() - 2);
-                    // Leave pathElementURL null, so that wildcards can be handled below
-                } else if (pathElementToStr.equals("*")) {
-                    hasWildcardSuffix = true;
-                    pathElementStr = "";
-                    // Leave pathElementURL null, so that wildcards can be handled below
-                } else {
-                    final boolean hasJarScheme = pathElementToStr.startsWith("jar:");
-                    int startIdx = hasJarScheme ? 4 : 0;
-                    final Matcher m1 = schemeMatcher.matcher(pathElementToStr.substring(startIdx));
-                    String scheme = "";
-                    if (m1.find()) {
-                        scheme = m1.group();
-                        startIdx += scheme.length();
-                    }
-                    final String urlStr = (pathElementToStr.contains("!/") || hasJarScheme ? "jar:" : "")
-                            + (scheme.isEmpty() ? "file:" : scheme)
-                            // Escape '%' characters (#255)
-                            + pathElementToStr.substring(startIdx).replace("%", "%25");
+        // Fallback -- call toString() on the path element, then try converting to a URL
+        if (pathElementStr.endsWith("/*") || pathElementStr.endsWith("\\*")) {
+            hasWildcardSuffix = true;
+            pathElementStr = pathElementStr.substring(0, pathElementStr.length() - 2);
+            // Leave pathElementURL null, so that wildcards can be handled below
+        } else if (pathElementStr.equals("*")) {
+            hasWildcardSuffix = true;
+            pathElementStr = "";
+            // Leave pathElementURL null, so that wildcards can be handled below
+        } else {
+            final Matcher m1 = schemeMatcher.matcher(pathElementStr);
+            if (m1.find()) {
+                // Path element string is URL with scheme other than `[jar:]file:`, so need to actually
+                // parse URL, since the scheme may be a custom scheme
+                try {
+                    pathElementURL = pathElement instanceof URL ? (URL) pathElement
+                            : pathElement instanceof URI ? ((URI) pathElement).toURL()
+                                    : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
+                                            : pathElement instanceof File ? ((File) pathElement).toURI().toURL()
+                                                    : null;
+                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e2) {
+                    // Fall through
+                }
+                if (pathElementURL == null) {
+                    final String urlStr = pathElementStr.replace("%", "%25");
                     try {
                         pathElementURL = new URL(urlStr);
                     } catch (final MalformedURLException e) {
                         try {
-                            pathElementURL = new File(pathElementToStr).toURI().toURL();
+                            pathElementURL = new File(urlStr).toURI().toURL();
                         } catch (final MalformedURLException | IllegalArgumentException | IOError
                                 | SecurityException e1) {
-                            if (log != null) {
-                                log.log("Failed to convert classpath element to URL, "
-                                        + "Try prepending \"file:\" to create a URL (" + e1 + "): "
-                                        + pathElementStr);
-                            }
                             // Final fallback -- try just using the raw string as a URL
-                            pathElementURL = new URL(pathElementToStr);
+                            try {
+                                pathElementURL = new URL(pathElementStr);
+                            } catch (final MalformedURLException e2) {
+                                // Fall through
+                            }
                         }
                     }
                 }
+                if (pathElementURL == null) {
+                    if (log != null) {
+                        log.log("Failed to convert classpath element to URL: " + pathElement);
+                    }
+                }
             }
-        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e2) {
-            if (log != null) {
-                log.log("Cannot convert to URL (" + e2 + "): " + pathElement);
-            }
-            pathElementURL = null;
         }
         if (pathElementURL != null || pathElement instanceof URI || pathElement instanceof File
                 || pathElement instanceof Path) {
