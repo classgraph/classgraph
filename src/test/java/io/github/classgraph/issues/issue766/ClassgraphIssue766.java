@@ -27,8 +27,8 @@ public class ClassgraphIssue766 {
     }
 
     public static Set<String> scan(final String annotation, final String urlStr) {
-        final ClassGraph classGraph = new ClassGraph()
-                .overrideClasspath(Set.<String> of(urlStr)).disableNestedJarScanning().enableAnnotationInfo();
+        final ClassGraph classGraph = new ClassGraph().overrideClasspath(urlStr).disableNestedJarScanning()
+                .enableAnnotationInfo();
         try (ScanResult result = classGraph.scan()) {
             return result.getClassesWithAnnotation(annotation).getStandardClasses().getNames().stream()
                     .collect(Collectors.toSet());
