@@ -174,6 +174,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private transient List<ClassInfo> overrideOrder;
 
+    /**
+     * The override order for a class' methods (base class, followed by superclasses, followed by interfaces).
+     */
+    private transient List<ClassInfo> methodOverrideOrder;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** The modifier bit for annotations. */
@@ -1553,7 +1558,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class or one of its superclasses or interfaces declares a method of the given name.
      */
     public boolean hasMethod(final String methodName) {
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getMethodOverrideOrder()) {
             if (ci.hasDeclaredMethod(methodName)) {
                 return true;
             }
@@ -1611,7 +1616,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         annotation.
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getMethodOverrideOrder()) {
             if (ci.hasDeclaredMethodAnnotation(methodAnnotationName)) {
                 return true;
             }
@@ -1668,7 +1673,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class or one of its superclasses or interfaces has a method with the named annotation.
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getMethodOverrideOrder()) {
             if (ci.hasDeclaredMethodParameterAnnotation(methodParameterAnnotationName)) {
                 return true;
             }
@@ -1702,7 +1707,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the order that fields and methods are overridden in (base class first).
+     * Get the order that fields are overridden in (base class first).
      *
      * @return the override order
      */
@@ -1711,6 +1716,77 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             overrideOrder = getOverrideOrder(new HashSet<ClassInfo>(), new ArrayList<ClassInfo>());
         }
         return overrideOrder;
+    }
+
+
+    /**
+     * Recurse to collect classes and interfaces in the order of overridden methods, in descending priority.
+     * <p>
+     * First collects all direct super classes, as their methods always have a higher priority than any method declared
+     * by an interface.
+     * Iterates over interfaces and inserts those extending already found interfaces before them in the output.
+     * The order of unrelated interfaces is unspecified.
+     * <p>
+     * See Java Language Specification 8.4.8 for details.
+     *
+     * @param visited nonnull set of already visited ClassInfos
+     * @param overrideOrderOut nonnull outgoing list of ClassInfos in descending override order.
+     * @return the overrideOrderOut instance
+     */
+    private List<ClassInfo> getMethodOverrideOrder(final Set<ClassInfo> visited, final List<ClassInfo> overrideOrderOut) {
+        if (!visited.add(this)) {
+            return overrideOrderOut;
+        }
+        //collect concrete super classes first, simply add to overrideOrder
+        if (!isInterfaceOrAnnotation()) {
+            overrideOrderOut.add(this);
+            //iterate over direct super classes first, they have the highest priority regarding method overrides
+            final ClassInfo superclass = getSuperclass();
+            if (superclass != null) {
+                superclass.getMethodOverrideOrder(visited, overrideOrderOut);
+            }
+            for (final ClassInfo iface : getInterfaces()) {
+                iface.getMethodOverrideOrder(visited, overrideOrderOut);
+            }
+            return overrideOrderOut;
+        }
+        //overrideOrderOut already contains all concrete classes now
+        //this is an interface. If one of the extended interfaces is already in the output, then this needs to be
+        // added before it.
+        //Otherwise, this is unrelated to all collected ClassInfo so far and can simply be added to the result.
+        //The compiler should've prevented inheriting unrelated interfaces with methods having the same signature.
+        // Can still happen thanks to dynamically linking a different interface during runtime, for which the returned order is undefined.
+        ClassInfoList interfaces = getInterfaces();
+        int minIndex = Integer.MAX_VALUE;
+        for (ClassInfo iface : interfaces) {
+            if (!visited.contains(iface)) {
+                continue;
+            }
+            int currIdx = overrideOrderOut.indexOf(iface);
+            minIndex = currIdx >= 0 && currIdx < minIndex ? currIdx : minIndex;
+        }
+        if (minIndex == Integer.MAX_VALUE) {
+            overrideOrderOut.add(this);
+        } else {
+            overrideOrderOut.add(minIndex, this);
+        }
+        for (final ClassInfo iface : interfaces) {
+            iface.getMethodOverrideOrder(visited, overrideOrderOut);
+        }
+        return overrideOrderOut;
+    }
+
+
+    /**
+     * Get the order that methods are overridden in.
+     *
+     * @return the override order
+     */
+    private List<ClassInfo> getMethodOverrideOrder() {
+        if (methodOverrideOrder == null) {
+            methodOverrideOrder = getMethodOverrideOrder(new HashSet<ClassInfo>(), new ArrayList<ClassInfo>());
+        }
+        return methodOverrideOrder;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2229,7 +2305,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Implement method/constructor overriding
         final MethodInfoList methodInfoList = new MethodInfoList();
         final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getMethodOverrideOrder()) {
             for (final MethodInfo mi : ci.getDeclaredMethodInfo(methodName, getNormalMethods, getConstructorMethods,
                     getStaticInitializerMethods)) {
                 // If method/constructor has not been overridden by method of same name and type descriptor 
