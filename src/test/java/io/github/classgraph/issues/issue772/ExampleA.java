@@ -8,7 +8,7 @@ package io.github.classgraph.issues.issue772;
 public abstract class ExampleA implements AutoCloseable {
 
 
-   public abstract static class Child extends ExampleA implements MyCloseable {
+    public abstract static class Child extends ExampleA implements MyCloseable {
 
-   }
+    }
 }
