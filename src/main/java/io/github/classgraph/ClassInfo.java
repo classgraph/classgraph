@@ -1718,22 +1718,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return overrideOrder;
     }
 
-
     /**
      * Recurse to collect classes and interfaces in the order of overridden methods, in descending priority.
      * <p>
-     * First collects all direct super classes, as their methods always have a higher priority than any method declared
-     * by an interface.
-     * Iterates over interfaces and inserts those extending already found interfaces before them in the output.
-     * The order of unrelated interfaces is unspecified.
+     * First collects all direct super classes, as their methods always have a higher priority than any method
+     * declared by an interface. Iterates over interfaces and inserts those extending already found interfaces
+     * before them in the output. The order of unrelated interfaces is unspecified.
      * <p>
      * See Java Language Specification 8.4.8 for details.
      *
-     * @param visited nonnull set of already visited ClassInfos
-     * @param overrideOrderOut nonnull outgoing list of ClassInfos in descending override order.
+     * @param visited
+     *            nonnull set of already visited ClassInfos
+     * @param overrideOrderOut
+     *            nonnull outgoing list of ClassInfos in descending override order.
      * @return the overrideOrderOut instance
      */
-    private List<ClassInfo> getMethodOverrideOrder(final Set<ClassInfo> visited, final List<ClassInfo> overrideOrderOut) {
+    private List<ClassInfo> getMethodOverrideOrder(final Set<ClassInfo> visited,
+            final List<ClassInfo> overrideOrderOut) {
         if (!visited.add(this)) {
             return overrideOrderOut;
         }
@@ -1756,13 +1757,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         //Otherwise, this is unrelated to all collected ClassInfo so far and can simply be added to the result.
         //The compiler should've prevented inheriting unrelated interfaces with methods having the same signature.
         // Can still happen thanks to dynamically linking a different interface during runtime, for which the returned order is undefined.
-        ClassInfoList interfaces = getInterfaces();
+        final ClassInfoList interfaces = getInterfaces();
         int minIndex = Integer.MAX_VALUE;
-        for (ClassInfo iface : interfaces) {
+        for (final ClassInfo iface : interfaces) {
             if (!visited.contains(iface)) {
                 continue;
             }
-            int currIdx = overrideOrderOut.indexOf(iface);
+            final int currIdx = overrideOrderOut.indexOf(iface);
             minIndex = currIdx >= 0 && currIdx < minIndex ? currIdx : minIndex;
         }
         if (minIndex == Integer.MAX_VALUE) {
@@ -1775,7 +1776,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         return overrideOrderOut;
     }
-
 
     /**
      * Get the order that methods are overridden in.

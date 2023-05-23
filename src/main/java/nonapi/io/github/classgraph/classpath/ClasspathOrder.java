@@ -338,7 +338,7 @@ public class ClasspathOrder {
                     // Fall through
                 }
                 if (pathElementURL == null) {
-                	// Escape percentage characters in URLs (#255)
+                    // Escape percentage characters in URLs (#255)
                     final String urlStr = pathElementStr.replace("%", "%25");
                     try {
                         pathElementURL = new URL(urlStr);
