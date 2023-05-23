@@ -1475,7 +1475,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class or one of its superclasses declares a field of the given name.
      */
     public boolean hasField(final String fieldName) {
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getFieldOverrideOrder()) {
             if (ci.hasDeclaredField(fieldName)) {
                 return true;
             }
@@ -1531,7 +1531,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class or one of its superclasses declares a field with the named annotation.
      */
     public boolean hasFieldAnnotation(final String fieldAnnotationName) {
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getFieldOverrideOrder()) {
             if (ci.hasDeclaredFieldAnnotation(fieldAnnotationName)) {
                 return true;
             }
@@ -1684,7 +1684,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recurse to interfaces and superclasses to get the order that fields and methods are overridden in.
+     * Recurse to interfaces and superclasses to get the order that fields are overridden in.
      *
      * @param visited
      *            visited
@@ -1692,15 +1692,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the override order
      * @return the override order
      */
-    private List<ClassInfo> getOverrideOrder(final Set<ClassInfo> visited, final List<ClassInfo> overrideOrderOut) {
+    private List<ClassInfo> getFieldOverrideOrder(final Set<ClassInfo> visited,
+            final List<ClassInfo> overrideOrderOut) {
         if (visited.add(this)) {
             overrideOrderOut.add(this);
             for (final ClassInfo iface : getInterfaces()) {
-                iface.getOverrideOrder(visited, overrideOrderOut);
+                iface.getFieldOverrideOrder(visited, overrideOrderOut);
             }
             final ClassInfo superclass = getSuperclass();
             if (superclass != null) {
-                superclass.getOverrideOrder(visited, overrideOrderOut);
+                superclass.getFieldOverrideOrder(visited, overrideOrderOut);
             }
         }
         return overrideOrderOut;
@@ -1711,9 +1712,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return the override order
      */
-    private List<ClassInfo> getOverrideOrder() {
+    private List<ClassInfo> getFieldOverrideOrder() {
         if (overrideOrder == null) {
-            overrideOrder = getOverrideOrder(new HashSet<ClassInfo>(), new ArrayList<ClassInfo>());
+            overrideOrder = getFieldOverrideOrder(new HashSet<ClassInfo>(), new ArrayList<ClassInfo>());
         }
         return overrideOrder;
     }
@@ -1728,9 +1729,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * See Java Language Specification 8.4.8 for details.
      *
      * @param visited
-     *            nonnull set of already visited ClassInfos
+     *            non-null set of already visited ClassInfos
      * @param overrideOrderOut
-     *            nonnull outgoing list of ClassInfos in descending override order.
+     *            non-null outgoing list of ClassInfos in descending override order.
      * @return the overrideOrderOut instance
      */
     private List<ClassInfo> getMethodOverrideOrder(final Set<ClassInfo> visited,
@@ -1751,12 +1752,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
             return overrideOrderOut;
         }
-        //overrideOrderOut already contains all concrete classes now
-        //this is an interface. If one of the extended interfaces is already in the output, then this needs to be
+        // overrideOrderOut already contains all concrete classes now.
+        // This is an interface. If one of the extended interfaces is already in the output, then this needs to be
         // added before it.
-        //Otherwise, this is unrelated to all collected ClassInfo so far and can simply be added to the result.
-        //The compiler should've prevented inheriting unrelated interfaces with methods having the same signature.
-        // Can still happen thanks to dynamically linking a different interface during runtime, for which the returned order is undefined.
+        // Otherwise, this is unrelated to all collected ClassInfo so far and can simply be added to the result.
+        // The compiler should've prevented inheriting unrelated interfaces with methods having the same signature.
+        // Can still happen thanks to dynamically linking a different interface during runtime, for which the
+        // returned order is undefined.
         final ClassInfoList interfaces = getInterfaces();
         int minIndex = Integer.MAX_VALUE;
         for (final ClassInfo iface : interfaces) {
@@ -1771,6 +1773,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else {
             overrideOrderOut.add(minIndex, this);
         }
+        // Add interfaces to end of override order
         for (final ClassInfo iface : interfaces) {
             iface.getMethodOverrideOrder(visited, overrideOrderOut);
         }
@@ -2758,7 +2761,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Implement field overriding
         final FieldInfoList fieldInfoList = new FieldInfoList();
         final Set<String> fieldNameSet = new HashSet<>();
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getFieldOverrideOrder()) {
             for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
                 // If field has not been overridden by field of same name 
                 if (fieldNameSet.add(fi.getName())) {
@@ -2874,7 +2877,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         // Implement field overriding
-        for (final ClassInfo ci : getOverrideOrder()) {
+        for (final ClassInfo ci : getFieldOverrideOrder()) {
             final FieldInfo fi = ci.getDeclaredFieldInfo(fieldName);
             if (fi != null) {
                 return fi;
