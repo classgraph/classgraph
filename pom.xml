@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.161-SNAPSHOT</version>
+    <version>4.8.161</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -31,7 +31,7 @@
         <connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
         <developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
         <url>https://github.com/classgraph/classgraph</url>
-      <tag>classgraph-4.8.158</tag>
+      <tag>classgraph-4.8.161</tag>
     </scm>
 
     <issueManagement>
@@ -416,7 +416,6 @@
                             <arg>-Xlint:all</arg><!-- Max lint -->
                             <arg>-Xlint:-options</arg><!-- Remove warnings about JDK7 being deprecated sometime -->
                             <arg>-Werror</arg><!-- Stop on warnings -->
-                            <arg>-Xbootclasspath:${env.JAVA_HOME}/jre/lib/rt.jar</arg><!-- Needed for JDK7 -->
                         </compilerArgs>
                     </configuration>
                     <executions>
