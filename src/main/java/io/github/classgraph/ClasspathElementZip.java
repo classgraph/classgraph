@@ -429,7 +429,7 @@ class ClasspathElementZip extends ClasspathElement {
                 }
                 try (Resource res = this) { // Close this after use
                     final byte[] byteArray = zipEntry.getSlice().load();
-                    length = byteArray.length;
+                    res.length = byteArray.length;
                     return byteArray;
                 }
             }

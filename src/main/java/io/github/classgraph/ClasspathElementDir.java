@@ -264,7 +264,7 @@ class ClasspathElementDir extends ClasspathElement {
                 try (Resource res = this) { // Close this after use
                     pathSlice = new PathSlice(resourcePath, nestedJarHandler);
                     final byte[] bytes = pathSlice.load();
-                    length = bytes.length;
+                    res.length = bytes.length;
                     return bytes;
                 }
             }

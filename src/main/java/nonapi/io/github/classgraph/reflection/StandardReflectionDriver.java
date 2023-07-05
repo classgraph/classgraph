@@ -93,7 +93,7 @@ class StandardReflectionDriver extends ReflectionDriver {
     private <T> T doPrivileged(final Callable<T> callable) throws Throwable {
         if (accessControllerDoPrivileged != null) {
             final Object privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
-                    new Class[] { privilegedActionClass }, new PrivilegedActionInvocationHandler<T>(callable));
+                    new Class<?>[] { privilegedActionClass }, new PrivilegedActionInvocationHandler<T>(callable));
             return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
         } else {
             // Fall back to invoking in a non-privileged context

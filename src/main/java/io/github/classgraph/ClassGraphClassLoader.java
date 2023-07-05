@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.ByteBuffer;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
@@ -265,11 +264,10 @@ public class ClassGraphClassLoader extends ClassLoader {
                 // Iterate through resources (only loading of first resource in the list will be attempted)
                 // Load the content of the resource, and define a class from it
                 try (Resource resourceToClose = resource) {
-                    final ByteBuffer resourceByteBuffer = resource.read();
                     // TODO: is there any need to try java.lang.invoke.MethodHandles.Lookup.defineClass
                     // via reflection (it's implemented in JDK 9), if the following fails?
                     // See: https://bugs.openjdk.java.net/browse/JDK-8202999
-                    return defineClass(className, resourceByteBuffer, (ProtectionDomain) null);
+                    return defineClass(className, resourceToClose.read(), (ProtectionDomain) null);
                 } catch (final IOException e) {
                     throw new ClassNotFoundException("Could not load classfile for class " + className + " : " + e);
                 } catch (final LinkageError e) {

@@ -76,7 +76,7 @@ class CallStackReader {
                     .getMethod("getDeclaringClass");
             stackWalkerClass.getMethod("forEach", consumerClass).invoke(stackWalkerInstance, //
                     // InvocationHandler proxy for Consumer<StackFrame>
-                    Proxy.newProxyInstance(consumerClass.getClassLoader(), new Class[] { consumerClass },
+                    Proxy.newProxyInstance(consumerClass.getClassLoader(), new Class<?>[] { consumerClass },
                             new InvocationHandler() {
                                 @Override
                                 public Object invoke(final Object proxy, final Method method, final Object[] args)

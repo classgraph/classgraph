@@ -413,8 +413,10 @@
                         <testTarget>8</testTarget>
                         <useIncrementalCompilation>false</useIncrementalCompilation>
                         <compilerArgs>
-                            <arg>-Xlint:all</arg>
-                            <arg>-Werror</arg>
+                            <arg>-Xlint:all</arg><!-- Max lint -->
+                            <arg>-Xlint:-options</arg><!-- Remove warnings about JDK7 being deprecated sometime -->
+                            <arg>-Werror</arg><!-- Stop on warnings -->
+                            <arg>-Xbootclasspath:${env.JAVA_HOME}/jre/lib/rt.jar</arg><!-- Needed for JDK7 -->
                         </compilerArgs>
                     </configuration>
                     <executions>

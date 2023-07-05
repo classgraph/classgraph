@@ -288,7 +288,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     public Annotation loadClassAndInstantiate() {
         final Class<? extends Annotation> annotationClass = getClassInfo().loadClass(Annotation.class);
         return (Annotation) Proxy.newProxyInstance(annotationClass.getClassLoader(),
-                new Class[] { annotationClass }, new AnnotationInvocationHandler(annotationClass, this));
+                new Class<?>[] { annotationClass }, new AnnotationInvocationHandler(annotationClass, this));
     }
 
     /** {@link InvocationHandler} for dynamically instantiating an {@link Annotation} object. */

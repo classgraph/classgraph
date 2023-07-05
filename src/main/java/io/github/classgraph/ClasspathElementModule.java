@@ -225,14 +225,14 @@ class ClasspathElementModule extends ClasspathElement {
                 try (Resource res = this) { // Close this after use
                     read(); // Fill byteBuffer
                     final byte[] byteArray;
-                    if (byteBuffer.hasArray() && byteBuffer.position() == 0
-                            && byteBuffer.limit() == byteBuffer.capacity()) {
-                        byteArray = byteBuffer.array();
+                    if (res.byteBuffer.hasArray() && res.byteBuffer.position() == 0
+                            && res.byteBuffer.limit() == res.byteBuffer.capacity()) {
+                        byteArray = res.byteBuffer.array();
                     } else {
-                        byteArray = new byte[byteBuffer.remaining()];
-                        byteBuffer.get(byteArray);
+                        byteArray = new byte[res.byteBuffer.remaining()];
+                        res.byteBuffer.get(byteArray);
                     }
-                    length = byteArray.length;
+                    res.length = byteArray.length;
                     return byteArray;
                 }
             }

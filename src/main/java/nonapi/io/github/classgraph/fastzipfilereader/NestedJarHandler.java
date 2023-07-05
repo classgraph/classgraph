@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.BufferedOutputStream;
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -548,61 +547,69 @@ public class NestedJarHandler {
                 // Not a custom filesystem
             }
         }
-
-        final URLConnection conn = url.openConnection();
-        long contentLengthHint = -1L;
-        if (conn instanceof HttpURLConnection) {
-            // Get content length from HTTP headers, if available
-            final HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
-            try (Closeable httpConnCloser = new Closeable() {
-                @Override
-                public void close() {
-                    if (httpConn != null) {
-                        httpConn.disconnect();
-                    }
+        try (final CloseableUrlConnection urlConn = new CloseableUrlConnection(url)) {
+            long contentLengthHint = -1L;
+            urlConn.conn.setConnectTimeout(HTTP_TIMEOUT);
+            urlConn.conn.connect();
+            if (urlConn.httpConn != null) {
+                // Get content length from HTTP headers, if available
+                if (urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    throw new IOException(
+                            "Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
                 }
-            }) {
-                httpConn.setRequestMethod("GET");
-                httpConn.setConnectTimeout(HTTP_TIMEOUT);
-                if (httpConn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                    contentLengthHint = httpConn.getContentLengthLong();
-                    if (contentLengthHint < -1L) {
-                        contentLengthHint = -1L;
-                    }
-                } else {
-                    throw new IOException("Got response code " + httpConn.getResponseCode() + " for URL " + url);
+            } else if (url.getProtocol().equalsIgnoreCase("file")) {
+                // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that
+                // rewrites its URLs into "file:" URLs (see Issue400.java).
+                try {
+                    // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
+                    // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
+                    final File file = Paths.get(url.toURI()).toFile();
+                    return new PhysicalZipFile(file, this, log);
+
+                } catch (final Exception e) {
+                    // Fall through -- unknown URL type
                 }
             }
-        } else if (url.getProtocol().equalsIgnoreCase("file")) {
-            // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that
-            // rewrites its URLs into "file:" URLs (see Issue400.java).
-            try {
-                // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
-                // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
-                final File file = Paths.get(url.toURI()).toFile();
-                return new PhysicalZipFile(file, this, log);
+            // Try to read content length hint
+            contentLengthHint = urlConn.conn.getContentLengthLong();
+            if (contentLengthHint < -1L) {
+                contentLengthHint = -1L;
+            }
+            // Fetch content from URL
+            final LogNode subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
+            try (InputStream inputStream = urlConn.conn.getInputStream()) {
+                // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM,
+                // spill over to disk.
+                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
+                        this, subLog);
+                if (subLog != null) {
+                    subLog.addElapsedTime();
+                    subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
+                            + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
+                            + "and the same URL must also be separately opened by the ClassLoader *****");
+                }
+                return physicalZipFile;
 
-            } catch (final Exception e) {
-                // Fall through to open URL as InputStream below
+            } catch (final MalformedURLException e) {
+                throw new IOException("Malformed URL: " + jarURL);
             }
         }
+    }
 
-        // Fetch content from URL
-        final LogNode subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
-        try (InputStream inputStream = conn.getInputStream()) {
-            // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
-            final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
-                    this, subLog);
-            if (subLog != null) {
-                subLog.addElapsedTime();
-                subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
-                        + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
-                        + "and the same URL must also be separately opened by the ClassLoader *****");
+    private static class CloseableUrlConnection implements AutoCloseable {
+        public final URLConnection conn;
+        public final HttpURLConnection httpConn;
+
+        public CloseableUrlConnection(final URL url) throws IOException {
+            conn = url.openConnection();
+            httpConn = conn instanceof HttpURLConnection ? (HttpURLConnection) conn : null;
+        }
+
+        @Override
+        public void close() {
+            if (httpConn != null) {
+                httpConn.disconnect();
             }
-            return physicalZipFile;
-
-        } catch (final MalformedURLException e) {
-            throw new IOException("Malformed URL: " + jarURL);
         }
     }
 
