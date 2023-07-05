@@ -516,12 +516,12 @@ public final class ScanResult implements Closeable, AutoCloseable {
         }
         final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
+        ResourceList matchingResources = null;
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
             // If numerous calls are made, produce and cache a single HashMap for O(1) access time
-            return getAllResourcesAsMap().get(path);
+            matchingResources = getAllResourcesAsMap().get(path);
         } else {
             // If just a few calls are made, directly search for resource with the requested path
-            ResourceList matchingResources = null;
             for (final ClasspathElement classpathElt : classpathOrder) {
                 for (final Resource res : classpathElt.acceptedResources) {
                     if (res.getPath().equals(path)) {
@@ -532,8 +532,8 @@ public final class ScanResult implements Closeable, AutoCloseable {
                     }
                 }
             }
-            return matchingResources == null ? ResourceList.EMPTY_LIST : matchingResources;
         }
+        return matchingResources == null ? ResourceList.EMPTY_LIST : matchingResources;
     }
 
     /**
