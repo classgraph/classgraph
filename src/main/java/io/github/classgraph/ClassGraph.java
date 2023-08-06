@@ -207,12 +207,14 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}.
+     * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}. Implicitly
+     * disables {@link #enableMultiReleaseVersions()}.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableClassInfo() {
         scanSpec.enableClassInfo = true;
+        scanSpec.enableMultiReleaseVersions = false;
         return this;
     }
 
@@ -1426,6 +1428,31 @@ public class ClassGraph {
      */
     public ClassGraph enableMemoryMapping() {
         scanSpec.enableMemoryMapping = true;
+        return this;
+    }
+
+    /**
+     * If true, provide all versions of a multi-release resource using their multi-release path prefix, instead of
+     * just the one the running JVM would select. Implicitly disables {@link #enableClassInfo()} and all features
+     * depending on it.
+     * 
+     * @return this (for method chaining).
+     */
+    public ClassGraph enableMultiReleaseVersions() {
+        scanSpec.enableMultiReleaseVersions = true;
+
+        scanSpec.enableClassInfo = false;
+        scanSpec.ignoreClassVisibility = false;
+        scanSpec.enableMethodInfo = false;
+        scanSpec.ignoreMethodVisibility = false;
+        scanSpec.enableFieldInfo = false;
+        scanSpec.ignoreFieldVisibility = false;
+        scanSpec.enableStaticFinalFieldConstantInitializerValues = false;
+        scanSpec.enableAnnotationInfo = false;
+        scanSpec.enableInterClassDependencies = false;
+        scanSpec.disableRuntimeInvisibleAnnotations = false;
+        scanSpec.enableExternalClasses = false;
+        scanSpec.enableSystemJarsAndModules = false;
         return this;
     }
 

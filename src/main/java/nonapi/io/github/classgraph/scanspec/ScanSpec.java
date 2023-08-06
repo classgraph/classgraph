@@ -258,6 +258,9 @@ public class ScanSpec {
     /** If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content. */
     public boolean enableMemoryMapping;
 
+    /** If true, all multi-release versions of a resource are found. */
+    public boolean enableMultiReleaseVersions;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Constructor for deserialization. */
