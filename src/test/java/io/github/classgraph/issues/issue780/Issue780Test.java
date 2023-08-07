@@ -1,10 +1,11 @@
 package io.github.classgraph.issues.issue780;
 
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class Issue780Test {
     /**

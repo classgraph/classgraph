@@ -513,7 +513,8 @@ class ClasspathElementZip extends ClasspathElement {
             // jar, in which case zipEntry.entryNameUnversioned has the version prefix stripped, or this is an
             // unversioned jar (e.g. the multi-version flag is not set in the manifest file) and there are some
             // spurious files in a multi-version path (in which case, they should be ignored).
-            if (!scanSpec.enableMultiReleaseVersions && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+            if (!scanSpec.enableMultiReleaseVersions
+                    && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                 if (subLog != null) {
                     if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
                         subLog.log("Skipping versioned entry in jar, because JRE version "

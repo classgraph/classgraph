@@ -96,7 +96,8 @@ public class MultiReleaseJarTest {
                     .scan()) {
                 final ResourceList java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
                 assertThat(java8ClassResource).hasSize(1);
-                final ResourceList java9ClassResource = scanResult.getResourcesWithPath("META-INF/versions/9/mrj/Cls.class");
+                final ResourceList java9ClassResource = scanResult
+                        .getResourcesWithPath("META-INF/versions/9/mrj/Cls.class");
                 assertThat(java9ClassResource).hasSize(1);
                 assertThat(java8ClassResource.get(0).load()).isNotEqualTo(java9ClassResource.get(0).load());
 
@@ -104,7 +105,8 @@ public class MultiReleaseJarTest {
                 assertThat(java8Resource.size()).isEqualTo(1);
                 java8Resource.forEachByteArrayThrowingIOException(
                         (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("8"));
-                final ResourceList java9Resource = scanResult.getResourcesWithPath("META-INF/versions/9/resource.txt");
+                final ResourceList java9Resource = scanResult
+                        .getResourcesWithPath("META-INF/versions/9/resource.txt");
                 assertThat(java9Resource.size()).isEqualTo(1);
                 java9Resource.forEachByteArrayThrowingIOException(
                         (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("9"));
@@ -128,7 +130,7 @@ public class MultiReleaseJarTest {
                 final ResourceList java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
                 assertThat(java8ClassResource).hasSize(1);
                 assertThatThrownBy(() -> scanResult.getClassInfo("mrj.Cls"))
-                    .isInstanceOfAny(IllegalArgumentException.class);
+                        .isInstanceOfAny(IllegalArgumentException.class);
             }
         }
     }

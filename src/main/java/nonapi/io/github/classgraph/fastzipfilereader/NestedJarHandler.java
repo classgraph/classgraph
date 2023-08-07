@@ -145,7 +145,8 @@ public class NestedJarHandler {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, NestedJarHandler.this, log, scanSpec.enableMultiReleaseVersions);
+            return new LogicalZipFile(zipFileSlice, NestedJarHandler.this, log,
+                    scanSpec.enableMultiReleaseVersions);
         }
     };
 
