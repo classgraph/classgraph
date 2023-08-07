@@ -79,6 +79,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
      *            The module reference, of JPMS type ModuleReference.
      * @param moduleLayer
      *            The module layer, of JPMS type ModuleLayer
+     * @param reflectionUtils
+     *            The ReflectionUtils instance.
      */
     public ModuleRef(final Object moduleReference, final Object moduleLayer,
             final ReflectionUtils reflectionUtils) {
