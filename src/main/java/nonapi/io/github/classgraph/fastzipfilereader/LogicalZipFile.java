@@ -83,6 +83,9 @@ public class LogicalZipFile extends ZipFileSlice {
     /** If true, this is a JRE jar. */
     public boolean isJREJar;
 
+    /** If true, multi-release versions should not be stripped in resource names. */
+    private final boolean enableMultiReleaseVersions;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** {@code "META_INF/"}. */
@@ -148,9 +151,10 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler, final LogNode log)
-            throws IOException, InterruptedException {
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler, final LogNode log,
+            final boolean enableMultiReleaseVersions) throws IOException, InterruptedException {
         super(zipFileSlice);
+        this.enableMultiReleaseVersions = enableMultiReleaseVersions;
         readCentralDirectory(nestedJarHandler, log);
     }
 
@@ -780,7 +784,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 // Add zip entry
                 final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
                         compressedSize, uncompressedSize, lastModifiedMillis, lastModifiedTimeMSDOS,
-                        lastModifiedDateMSDOS, fileAttributes);
+                        lastModifiedDateMSDOS, fileAttributes, enableMultiReleaseVersions);
                 entries.add(entry);
 
                 // Record manifest entry

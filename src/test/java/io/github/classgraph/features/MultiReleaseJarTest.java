@@ -1,6 +1,7 @@
 package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -76,6 +77,58 @@ public class MultiReleaseJarTest {
                     .scan()) {
                 assertThat(scanResult.getResourcesWithPath("mrj/Cls.class")).isEmpty();
                 assertThat(scanResult.getResourcesWithPathIgnoringAccept("mrj/Cls.class")).isNotEmpty();
+            }
+        }
+    }
+
+    /**
+     * Loading all versions of multi release class and text resources with `enableMultiReleaseVersions`.
+     *
+     * @throws Exception
+     *             the exception
+     */
+    @Test
+    public void enableMultiReleaseVersions() throws Exception {
+        // Multi-release jar sections are ignored by ClassGraph if JDK<9 
+        if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
+            try (ScanResult scanResult = new ClassGraph()
+                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).enableMultiReleaseVersions()
+                    .scan()) {
+                final ResourceList java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
+                assertThat(java8ClassResource).hasSize(1);
+                final ResourceList java9ClassResource = scanResult.getResourcesWithPath("META-INF/versions/9/mrj/Cls.class");
+                assertThat(java9ClassResource).hasSize(1);
+                assertThat(java8ClassResource.get(0).load()).isNotEqualTo(java9ClassResource.get(0).load());
+
+                final ResourceList java8Resource = scanResult.getResourcesWithPath("resource.txt");
+                assertThat(java8Resource.size()).isEqualTo(1);
+                java8Resource.forEachByteArrayThrowingIOException(
+                        (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("8"));
+                final ResourceList java9Resource = scanResult.getResourcesWithPath("META-INF/versions/9/resource.txt");
+                assertThat(java9Resource.size()).isEqualTo(1);
+                java9Resource.forEachByteArrayThrowingIOException(
+                        (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("9"));
+            }
+        }
+    }
+
+    /**
+     * `enableMultiReleaseVersions` does not make sense with class info and should disable it.
+     *
+     * @throws Exception
+     *             the exception
+     */
+    @Test
+    public void enableMultiReleaseVersionsWithClassInfo() throws Exception {
+        // Multi-release jar sections are ignored by ClassGraph if JDK<9 
+        if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
+            try (ScanResult scanResult = new ClassGraph()
+                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).enableAllInfo()
+                    .enableMultiReleaseVersions().scan()) {
+                final ResourceList java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
+                assertThat(java8ClassResource).hasSize(1);
+                assertThatThrownBy(() -> scanResult.getClassInfo("mrj.Cls"))
+                    .isInstanceOfAny(IllegalArgumentException.class);
             }
         }
     }

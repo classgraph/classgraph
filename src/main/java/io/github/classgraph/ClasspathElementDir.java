@@ -350,7 +350,7 @@ class ClasspathElementDir extends ClasspathElement {
         // Ignore versioned sections in exploded jars -- they are only supposed to be used in jars.
         // TODO: is it necessary to support multi-versioned exploded jars anyway? If so, all the paths in a
         // directory classpath entry will have to be pre-scanned and masked, as happens in ClasspathElementZip.
-        if (dirRelativePathStr.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+        if (!scanSpec.enableMultiReleaseVersions && dirRelativePathStr.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
             if (log != null) {
                 log.log("Found unexpected nested versioned entry in directory classpath element -- skipping: "
                         + dirRelativePathStr);

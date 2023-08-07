@@ -330,7 +330,7 @@ class ClasspathElementModule extends ClasspathElement {
                 // contain a path like "META-INF/versions/{version}/META-INF/versions/{version}/", which cannot
                 // be valid (META-INF should only ever exist in the module root), and the nested versioned section
                 // should be ignored.
-                if (relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+                if (!scanSpec.enableMultiReleaseVersions && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                     if (subLog != null) {
                         subLog.log(
                                 "Found unexpected nested versioned entry in module -- skipping: " + relativePath);

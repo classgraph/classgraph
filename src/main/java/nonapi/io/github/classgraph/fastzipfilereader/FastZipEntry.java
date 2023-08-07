@@ -111,7 +111,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
             final long lastModifiedTimeMillis, final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS,
-            final int fileAttributes) {
+            final int fileAttributes, final boolean enableMultiReleaseVersions) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;
@@ -159,7 +159,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 if (entryVersion < 9 || entryVersion > VersionFinder.JAVA_MAJOR_VERSION) {
                     entryVersion = 8;
                 }
-                if (entryVersion > 8) {
+                if (!enableMultiReleaseVersions && entryVersion > 8) {
                     // Strip version path prefix
                     entryNameWithoutVersionPrefix = entryName.substring(nextSlashIdx + 1);
                     // For META-INF/versions/{versionInt}/META-INF/*, don't strip version prefix:
