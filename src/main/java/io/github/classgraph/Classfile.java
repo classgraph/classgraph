@@ -1561,6 +1561,17 @@ class Classfile {
                                     boundIndex = reader.readUnsignedByte();
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
+                                } else if (targetType == 0x13) {
+                                    // Type in field or record component declaration
+                                    // (empty target)
+                                    // This target_type is not supposed to be added to methods, but it seems
+                                    // that the JDK 17 compiler is buggy, and adds this target_type to the
+                                    // methods of records anyway (#797). Therefore, accept this, but ignore
+                                    // it (the same target_type should also be added to the fields of records).
+                                    typeParameterIndex = -1;
+                                    boundIndex = -1;
+                                    formalParameterIndex = -1;
+                                    throwsTypeIndex = -1;
                                 } else if (targetType == 0x14) {
                                     // Return type of method, or type of newly constructed object
                                     // (empty target)

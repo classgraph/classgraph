@@ -3401,9 +3401,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        final boolean initialBufEmpty = buf.length() == 0;
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
-                if (buf.length() > 0) {
+                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                     buf.append(' ');
                 }
                 annotation.toString(useSimpleNames, buf);
@@ -3423,15 +3424,32 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else {
             // Non-generic classes
             TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
-            if (buf.length() > 0) {
+            if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                 buf.append(' ');
             }
-            buf.append(isRecord() ? "record " //
-                    : isEnum() ? "enum " //
-                            : isAnnotation() ? "@interface " //
-                                    : isInterface() ? "interface " //
-                                            : "class ");
+            // Don't put class type in extends/implements clauses
+            if (initialBufEmpty) {
+                buf.append(isRecord() ? "record " //
+                        : isEnum() ? "enum " //
+                                : isAnnotation() ? "@interface " //
+                                        : isInterface() ? "interface " //
+                                                : "class ");
+            }
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
+            if (isRecord) {
+                // Add params, if this is a record class
+                buf.append('(');
+                boolean isFirstParam = true;
+                for (final FieldInfo fieldInfo : getFieldInfo()) {
+                    if (!isFirstParam) {
+                        buf.append(", ");
+                    } else {
+                        isFirstParam = false;
+                    }
+                    fieldInfo.toString(/* useModifiers = */ false, /* useSimpleNames = */ false, buf);
+                }
+                buf.append(')');
+            }
             final ClassInfo superclass = getSuperclass();
             if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
                 buf.append(" extends ");

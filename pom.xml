@@ -140,6 +140,12 @@
             <version>1.2</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>3.0.2</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
 
@@ -408,9 +414,9 @@
                         <!-- "[WARNING] bootstrap class path not set in conjunction with -source 7" -->
                         <source>7</source>
                         <target>7</target>
-                        <!-- Tests use some JDK 8 features, such as lambdas -->
-                        <testSource>8</testSource>
-                        <testTarget>8</testTarget>
+                        <!-- Tests use recent JDK features -->
+                        <testSource>21</testSource>
+                        <testTarget>21</testTarget>
                         <useIncrementalCompilation>false</useIncrementalCompilation>
                         <compilerArgs>
                             <arg>-Xlint:all</arg><!-- Max lint -->
@@ -427,9 +433,9 @@
                             </goals>
                             <configuration>
                                 <encoding>UTF-8</encoding>
-                                <!-- Tests use some JDK 8 features, such as lambdas -->
-                                <source>8</source>
-                                <target>8</target>
+                                <!-- Tests use recent JDK features -->
+                                <source>21</source>
+                                <target>21</target>
                                 <compilerArgs>
                                     <arg>-parameters</arg>
                                 </compilerArgs>

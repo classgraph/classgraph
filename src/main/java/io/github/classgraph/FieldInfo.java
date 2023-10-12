@@ -392,25 +392,25 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     // -------------------------------------------------------------------------------------------------------------
 
-    @Override
-    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+    void toString(final boolean includeModifiers, final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
-                if (buf.length() > 0) {
+                // There can be a paren in the previous position if this field is a record parameter
+                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                     buf.append(' ');
                 }
                 annotation.toString(useSimpleNames, buf);
             }
         }
 
-        if (modifiers != 0) {
-            if (buf.length() > 0) {
+        if (modifiers != 0 && includeModifiers) {
+            if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                 buf.append(' ');
             }
             TypeUtils.modifiersToString(modifiers, ModifierType.FIELD, /* ignored */ false, buf);
         }
 
-        if (buf.length() > 0) {
+        if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
             buf.append(' ');
         }
         final TypeSignature typeSig = getTypeSignatureOrTypeDescriptor();
@@ -431,5 +431,10 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                 buf.append(val == null ? "null" : val.toString());
             }
         }
+    }
+
+    @Override
+    protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        toString(true, useSimpleNames, buf);
     }
 }
