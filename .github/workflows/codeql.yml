@@ -29,8 +29,8 @@ jobs:
       - name: Setup Java SDK
         uses: actions/setup-java@v3
         with:
-          distribution: 'oracle'
-          java-version: 17
+          distribution: 'zulu'
+          java-version: 8
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
