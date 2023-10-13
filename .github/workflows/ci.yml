@@ -21,7 +21,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v3
       with:
-        distribution: 'oracle'
+        distribution: 'zulu'
         java-version: ${{ matrix.java }}
     - name: print Java version
       run: java -version
