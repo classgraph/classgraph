@@ -3,7 +3,7 @@
 
     <groupId>io.github.classgraph</groupId>
     <artifactId>classgraph</artifactId>
-    <version>4.8.163-SNAPSHOT</version>
+    <version>4.8.163</version>
     <name>ClassGraph</name>
 
     <description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
@@ -31,7 +31,7 @@
         <connection>scm:git:git@github.com:classgraph/classgraph.git</connection>
         <developerConnection>scm:git:git@github.com:classgraph/classgraph.git</developerConnection>
         <url>https://github.com/classgraph/classgraph</url>
-      <tag>classgraph-4.8.162</tag>
+      <tag>classgraph-4.8.163</tag>
     </scm>
 
     <issueManagement>
@@ -412,9 +412,10 @@
                         <!-- will lead to the following build-time warning, if maven.compiler.showWarnings -->
                         <!-- is set to true: -->
                         <!-- "[WARNING] bootstrap class path not set in conjunction with -source 7" -->
+                        <!-- TODO: JDK 7 is no longer supported as of JDK 20. -->
                         <source>7</source>
                         <target>7</target>
-                        <!-- Tests use recent JDK features -->
+						<!-- Tests use recent JDK features -->
                         <testSource>8</testSource>
                         <testTarget>8</testTarget>
                         <useIncrementalCompilation>false</useIncrementalCompilation>
