@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'oracle'
-          java-version: 17
+          java-version: 8
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
