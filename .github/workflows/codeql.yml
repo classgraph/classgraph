@@ -26,6 +26,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Java SDK
+        uses: actions/setup-java@v1.3.0
+        with:
+          java-version: 17
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
