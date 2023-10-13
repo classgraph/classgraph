@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -182,5 +183,28 @@ public class ModuleReaderProxy implements Closeable {
     public void release(final ByteBuffer byteBuffer) {
         reflectionUtils.invokeMethod(/* throwException = */ true, moduleReader, "release", ByteBuffer.class,
                 byteBuffer);
+    }
+
+    /**
+     * Use the proxied ModuleReader to find the named resource as a URI.
+     *
+     * @param path
+     *            The path to the resource to open.
+     * @return A {@link URI} for the resource.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
+     */
+    public URI find(final String path) {
+        final Object /* Optional<URI> */ optionalURI = reflectionUtils.invokeMethod(/* throwException = */ true, moduleReader, "find", String.class,
+                path);
+        if (optionalURI == null) {
+            throw new IllegalArgumentException("Got null result from ModuleReader#find(String)");
+        }
+        final URI uri = (URI) reflectionUtils.invokeMethod(/* throwException = */ true,
+                optionalURI, "get");
+        if (uri == null) {
+            throw new IllegalArgumentException("Got null result from ModuleReader#find(String).get()");
+        }
+        return uri;
     }
 }
