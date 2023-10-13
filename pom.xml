@@ -415,8 +415,8 @@
                         <source>7</source>
                         <target>7</target>
                         <!-- Tests use recent JDK features -->
-                        <testSource>21</testSource>
-                        <testTarget>21</testTarget>
+                        <testSource>17</testSource>
+                        <testTarget>17</testTarget>
                         <useIncrementalCompilation>false</useIncrementalCompilation>
                         <compilerArgs>
                             <arg>-Xlint:all</arg><!-- Max lint -->
@@ -434,8 +434,8 @@
                             <configuration>
                                 <encoding>UTF-8</encoding>
                                 <!-- Tests use recent JDK features -->
-                                <source>21</source>
-                                <target>21</target>
+                                <source>17</source>
+                                <target>17</target>
                                 <compilerArgs>
                                     <arg>-parameters</arg>
                                 </compilerArgs>
