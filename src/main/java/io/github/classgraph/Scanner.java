@@ -402,6 +402,9 @@ class Scanner implements Callable<ScanResult> {
             final boolean isURL = JarUtils.URL_SCHEME_PATTERN.matcher(classpathEntStr).matches();
             final boolean isMultiSection = classpathEntStr.contains("!");
             if (isURL || isMultiSection) {
+                // Encode spaces and hash symbols in classpath entry as they potentially can be invalid when
+                // converted to a URL/URI
+                classpathEntStr = classpathEntStr.replace(" ", "%20").replace("#", "%23");
                 // Convert back to URL (or URI) if this has a URL scheme or if this is a multi-section
                 // path (which needs the "jar:file:" scheme)
                 if (!isURL) {
