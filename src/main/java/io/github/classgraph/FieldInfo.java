@@ -396,7 +396,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
                 // There can be a paren in the previous position if this field is a record parameter
-                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
+                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' '
+                        && buf.charAt(buf.length() - 1) != '(') {
                     buf.append(' ');
                 }
                 annotation.toString(useSimpleNames, buf);

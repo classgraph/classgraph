@@ -3404,7 +3404,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final boolean initialBufEmpty = buf.length() == 0;
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
-                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
+                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' '
+                        && buf.charAt(buf.length() - 1) != '(') {
                     buf.append(' ');
                 }
                 annotation.toString(useSimpleNames, buf);

@@ -148,8 +148,8 @@ public final class ReflectionUtils {
             return reflectionDriver.getField(obj, reflectionDriver.findInstanceField(obj, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException(
-                        "Can't read field " + obj.getClass().getName() + "." + fieldName, e);
+                throw new IllegalArgumentException("Can't read field " + obj.getClass().getName() + "." + fieldName,
+                        e);
             }
         }
         return null;
@@ -188,8 +188,7 @@ public final class ReflectionUtils {
             return reflectionDriver.getStaticField(reflectionDriver.findStaticField(cls, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException(
-                        "Can't read field " + cls.getName() + "." + fieldName, e);
+                throw new IllegalArgumentException("Can't read field " + cls.getName() + "." + fieldName, e);
             }
         }
         return null;

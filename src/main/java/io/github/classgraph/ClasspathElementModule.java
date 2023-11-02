@@ -186,13 +186,13 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URI getURI() {
                 try {
-                    ModuleReaderProxy localModuleReaderProxy = moduleReaderProxyRecycler.acquire();
+                    final ModuleReaderProxy localModuleReaderProxy = moduleReaderProxyRecycler.acquire();
                     try {
                         return localModuleReaderProxy.find(resourcePath);
                     } finally {
                         moduleReaderProxyRecycler.recycle(localModuleReaderProxy);
                     }
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw new RuntimeException(e);
                 }
             }

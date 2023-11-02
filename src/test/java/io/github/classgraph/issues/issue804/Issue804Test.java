@@ -18,49 +18,50 @@ import io.github.classgraph.ScanResult;
  */
 public class Issue804Test {
 
-	private static final String NESTED_EXAMPLE_CLASS = "org.springframework.util.ResourceUtils";
+    private static final String NESTED_EXAMPLE_CLASS = "org.springframework.util.ResourceUtils";
 
-	@Test
-	void scanningNestedJarsInPathsContainingSpacesShouldNeverFail(@TempDir Path tempDir) throws IOException {
-		Path targetJar = createSpringBootJarInExampleDirectory(tempDir, "directory with spaces");
+    @Test
+    void scanningNestedJarsInPathsContainingSpacesShouldNeverFail(@TempDir final Path tempDir) throws IOException {
+        final Path targetJar = createSpringBootJarInExampleDirectory(tempDir, "directory with spaces");
 
-		try (ScanResult scanResult = scanJar(targetJar)) {
-			assertThat(scanResult.getClassInfo(NESTED_EXAMPLE_CLASS)).isNotNull();
-		}
-	}
+        try (ScanResult scanResult = scanJar(targetJar)) {
+            assertThat(scanResult.getClassInfo(NESTED_EXAMPLE_CLASS)).isNotNull();
+        }
+    }
 
-	@Test
-	void scanningNestedJarsInPathsContainingHashesShouldNeverFail(@TempDir Path tempDir) throws IOException {
-		Path targetJar = createSpringBootJarInExampleDirectory(tempDir, "directory-without-spaces#123");
+    @Test
+    void scanningNestedJarsInPathsContainingHashesShouldNeverFail(@TempDir final Path tempDir) throws IOException {
+        final Path targetJar = createSpringBootJarInExampleDirectory(tempDir, "directory-without-spaces#123");
 
-		try (ScanResult scanResult = scanJar(targetJar)) {
-			assertThat(scanResult.getClassInfo(NESTED_EXAMPLE_CLASS)).isNotNull();
-		}
-	}
+        try (ScanResult scanResult = scanJar(targetJar)) {
+            assertThat(scanResult.getClassInfo(NESTED_EXAMPLE_CLASS)).isNotNull();
+        }
+    }
 
-	@Test
-	void scanningNestedJarsInPathsContainingSpacesAndHashesShouldNeverFail(@TempDir Path tempDir) throws IOException {
-		Path targetJar = createSpringBootJarInExampleDirectory(tempDir, "directory with spaces #123");
+    @Test
+    void scanningNestedJarsInPathsContainingSpacesAndHashesShouldNeverFail(@TempDir final Path tempDir)
+            throws IOException {
+        final Path targetJar = createSpringBootJarInExampleDirectory(tempDir, "directory with spaces #123");
 
-		try (ScanResult scanResult = scanJar(targetJar)) {
-			assertThat(scanResult.getClassInfo(NESTED_EXAMPLE_CLASS)).isNotNull();
-		}
-	}
+        try (ScanResult scanResult = scanJar(targetJar)) {
+            assertThat(scanResult.getClassInfo(NESTED_EXAMPLE_CLASS)).isNotNull();
+        }
+    }
 
-	private Path createSpringBootJarInExampleDirectory(Path temporaryDirectory, String directoryName)
-			throws IOException {
-		Path directoryWithSpaces = temporaryDirectory.resolve(directoryName);
-		Files.createDirectories(directoryWithSpaces);
-		Path nestedJar = directoryWithSpaces.resolve("spring-boot-fully-executable-jar.jar");
-		try (InputStream nestedJarsExample = Issue804Test.class.getClassLoader()
-				.getResourceAsStream("spring-boot-fully-executable-jar.jar")) {
-			Files.copy(nestedJarsExample, nestedJar);
-		}
-		return nestedJar;
-	}
+    private Path createSpringBootJarInExampleDirectory(final Path temporaryDirectory, final String directoryName)
+            throws IOException {
+        final Path directoryWithSpaces = temporaryDirectory.resolve(directoryName);
+        Files.createDirectories(directoryWithSpaces);
+        final Path nestedJar = directoryWithSpaces.resolve("spring-boot-fully-executable-jar.jar");
+        try (InputStream nestedJarsExample = Issue804Test.class.getClassLoader()
+                .getResourceAsStream("spring-boot-fully-executable-jar.jar")) {
+            Files.copy(nestedJarsExample, nestedJar);
+        }
+        return nestedJar;
+    }
 
-	private ScanResult scanJar(Path targetJar) {
-		return new ClassGraph().enableClassInfo().overrideClasspath(targetJar.toUri()).scan();
-	}
+    private ScanResult scanJar(final Path targetJar) {
+        return new ClassGraph().enableClassInfo().overrideClasspath(targetJar.toUri()).scan();
+    }
 
 }

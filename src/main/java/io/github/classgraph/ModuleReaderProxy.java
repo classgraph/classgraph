@@ -195,13 +195,12 @@ public class ModuleReaderProxy implements Closeable {
      *             If the module cannot be accessed.
      */
     public URI find(final String path) {
-        final Object /* Optional<URI> */ optionalURI = reflectionUtils.invokeMethod(/* throwException = */ true, moduleReader, "find", String.class,
-                path);
+        final Object /* Optional<URI> */ optionalURI = reflectionUtils.invokeMethod(/* throwException = */ true,
+                moduleReader, "find", String.class, path);
         if (optionalURI == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#find(String)");
         }
-        final URI uri = (URI) reflectionUtils.invokeMethod(/* throwException = */ true,
-                optionalURI, "get");
+        final URI uri = (URI) reflectionUtils.invokeMethod(/* throwException = */ true, optionalURI, "get");
         if (uri == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#find(String).get()");
         }
