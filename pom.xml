@@ -500,6 +500,7 @@
                                 <Import-Package>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional",io.github.toolfactory.jvm;resolution:="optional"</Import-Package>
                                 <!-- This is a multi-release jar, since module-info.class will be added to -->
                                 <!-- META-INF/versions/9 , so we need to set the Multi-Release entry to true -->
+                                <Dependencies>jdk.unsupported</Dependencies>
                                 <Multi-Release>true</Multi-Release>
                             </manifestEntries>
                         </archive>
