@@ -583,7 +583,8 @@ class Scanner implements Callable<ScanResult> {
 
                                     // Run open() on the ClasspathElement
                                     final LogNode subLog = log == null ? null
-                                            : log.log("Opening classpath element " + classpathElement);
+                                            : log.log(classpathElement.getURI().toString(),
+                                                    "Opening classpath element " + classpathElement);
 
                                     // Check if the classpath element is valid (classpathElt.skipClasspathElement
                                     // will be set if not). In case of ClasspathElementZip, open or extract nested
