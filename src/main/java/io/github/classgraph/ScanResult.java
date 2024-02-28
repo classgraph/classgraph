@@ -1238,8 +1238,8 @@ public final class ScanResult implements Closeable {
      * @return A list of all non-annotation classes that were found with the class annotations during the scan, or
      *         the empty list if none.
      */
-    public ClassInfoList getClassesWithAnnotations(
-            @SuppressWarnings("unchecked") final Class<? extends Annotation>... annotations) {
+    @SuppressWarnings("unchecked")
+    public ClassInfoList getClassesWithAnnotations(final Class<? extends Annotation>... annotations) {
         final List<String> annotationNames = new ArrayList<>();
         for (final Class<?> cls : annotations) {
             Assert.isAnnotation(cls);
