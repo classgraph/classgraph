@@ -1231,21 +1231,39 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get classes with the class annotations or meta-annotation.
+     * Get classes with all of the specified class annotations or meta-annotation.
      *
      * @param annotations
      *            The class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with the class annotations during the scan, or
-     *         the empty list if none.
+     * @return A list of all non-annotation classes that were found with any of the class annotations during the
+     *         scan, or the empty list if none.
      */
     @SuppressWarnings("unchecked")
-    public ClassInfoList getClassesWithAnnotations(final Class<? extends Annotation>... annotations) {
+    public ClassInfoList getClassesWithAllAnnotations(final Class<? extends Annotation>... annotations) {
         final List<String> annotationNames = new ArrayList<>();
         for (final Class<?> cls : annotations) {
             Assert.isAnnotation(cls);
             annotationNames.add(cls.getName());
         }
-        return getClassesWithAnnotations(annotationNames);
+        return getClassesWithAllAnnotations(annotationNames);
+    }
+
+    /**
+     * Get classes with any of the specified class annotations or meta-annotation.
+     *
+     * @param annotations
+     *            The class annotations or meta-annotations.
+     * @return A list of all non-annotation classes that were found with any of the class annotations during the
+     *         scan, or the empty list if none.
+     */
+    @SuppressWarnings("unchecked")
+    public ClassInfoList getClassesWithAnyAnnotation(final Class<? extends Annotation>... annotations) {
+        final List<String> annotationNames = new ArrayList<>();
+        for (final Class<?> cls : annotations) {
+            Assert.isAnnotation(cls);
+            annotationNames.add(cls.getName());
+        }
+        return getClassesWithAnyAnnotation(annotationNames);
     }
 
     /**
@@ -1269,14 +1287,14 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get classes with the named class annotations or meta-annotation.
+     * Get classes with all of the named class annotations or meta-annotation.
      *
      * @param annotationNames
      *            The name of the class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with the named class annotations during the
-     *         scan, or the empty list if none.
+     * @return A list of all non-annotation classes that were found with all of the named class annotations during
+     *         the scan, or the empty list if none.
      */
-    public ClassInfoList getClassesWithAnnotations(final List<String> annotationNames) {
+    public ClassInfoList getClassesWithAllAnnotations(final List<String> annotationNames) {
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final ClassInfoList classInfoList = getClassesWithAnnotation(annotationName);
@@ -1286,6 +1304,29 @@ public final class ScanResult implements Closeable {
                 foundClassInfo = foundClassInfo.intersect(classInfoList);
             }
         }
+        CollectionUtils.sortIfNotEmpty(foundClassInfo);
+        return foundClassInfo == null ? ClassInfoList.EMPTY_LIST : foundClassInfo;
+    }
+
+    /**
+     * Get classes with any of the named class annotations or meta-annotation.
+     *
+     * @param annotationNames
+     *            The name of the class annotations or meta-annotations.
+     * @return A list of all non-annotation classes that were found with any of the named class annotations during
+     *         the scan, or the empty list if none.
+     */
+    public ClassInfoList getClassesWithAnyAnnotation(final List<String> annotationNames) {
+        ClassInfoList foundClassInfo = null;
+        for (final String annotationName : annotationNames) {
+            final ClassInfoList classInfoList = getClassesWithAnnotation(annotationName);
+            if (foundClassInfo == null) {
+                foundClassInfo = classInfoList;
+            } else {
+                foundClassInfo = foundClassInfo.union(classInfoList);
+            }
+        }
+        CollectionUtils.sortIfNotEmpty(foundClassInfo);
         return foundClassInfo == null ? ClassInfoList.EMPTY_LIST : foundClassInfo;
     }
 
