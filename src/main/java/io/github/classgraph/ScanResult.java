@@ -1245,7 +1245,7 @@ public final class ScanResult implements Closeable {
             Assert.isAnnotation(cls);
             annotationNames.add(cls.getName());
         }
-        return getClassesWithAllAnnotations(annotationNames);
+        return getClassesWithAllAnnotations(annotationNames.toArray(new String[0]));
     }
 
     /**
@@ -1263,7 +1263,7 @@ public final class ScanResult implements Closeable {
             Assert.isAnnotation(cls);
             annotationNames.add(cls.getName());
         }
-        return getClassesWithAnyAnnotation(annotationNames);
+        return getClassesWithAnyAnnotation(annotationNames.toArray(new String[0]));
     }
 
     /**
@@ -1294,7 +1294,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all non-annotation classes that were found with all of the named class annotations during
      *         the scan, or the empty list if none.
      */
-    public ClassInfoList getClassesWithAllAnnotations(final List<String> annotationNames) {
+    public ClassInfoList getClassesWithAllAnnotations(final String... annotationNames) {
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final ClassInfoList classInfoList = getClassesWithAnnotation(annotationName);
@@ -1316,7 +1316,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all non-annotation classes that were found with any of the named class annotations during
      *         the scan, or the empty list if none.
      */
-    public ClassInfoList getClassesWithAnyAnnotation(final List<String> annotationNames) {
+    public ClassInfoList getClassesWithAnyAnnotation(final String... annotationNames) {
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final ClassInfoList classInfoList = getClassesWithAnnotation(annotationName);
