@@ -142,8 +142,8 @@ public class ClasspathFinder {
                         classpathFinderLog
                                 .log("overrideClassLoaders() was called with an instance of " + classLoaderClassName
                                         + ", so enableSystemJarsAndModules() was called automatically");
+                        scanSpec.enableSystemJarsAndModules = true;
                     }
-                    scanSpec.enableSystemJarsAndModules = true;
                 }
                 if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")
                         || classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
