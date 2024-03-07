@@ -112,7 +112,7 @@ class ClasspathElementDir extends ClasspathElement {
                     // Add all jarfiles within the lib dir as child classpath entries
                     try (DirectoryStream<Path> stream = Files.newDirectoryStream(libDirPath)) {
                         for (final Path filePath : stream) {
-                            if (Files.isRegularFile(filePath) && filePath.getFileName().endsWith(".jar")) {
+                            if (Files.isRegularFile(filePath) && filePath.toString().toLowerCase().endsWith(".jar")) {
                                 if (log != null) {
                                     log(classpathElementIdx, "Found lib jar: " + filePath, log);
                                 }
