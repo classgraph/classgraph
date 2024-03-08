@@ -96,7 +96,7 @@ public class Issue420Test {
             final String packagePath = packageName.replace('.', '/');
             final String classFullyQualifiedName = packageName + ".CompiledWithJDK8";
             final String classFilePath = classFullyQualifiedName.replace('.', '/') + ".class";
-            final Path jarPath = Paths.get(getClass().getClassLoader().getResource(classFilePath).toURI());
+            final Path jarPath = Paths.get(Issue420Test.class.getClassLoader().getResource(classFilePath).toURI());
             final Path memFsDirPath = memFs.getPath(packageRootPrefix + packagePath);
             Files.createDirectories(memFsDirPath);
             final Path memFsFilePath = memFs.getPath(memFsDirPath + "/" + className + ".class");
