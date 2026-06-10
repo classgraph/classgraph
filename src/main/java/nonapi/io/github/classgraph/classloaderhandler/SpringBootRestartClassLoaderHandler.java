@@ -42,35 +42,14 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
-    /** Class cannot be constructed. */
-    private SpringBootRestartClassLoaderHandler() {
-    }
-
-    /**
-     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
-     *
-     * @param classLoaderClass
-     *            the {@link ClassLoader} class or one of its superclasses.
-     * @param log
-     *            the log
-     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
-     */
-    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    @Override
+    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.springframework.boot.devtools.restart.classloader.RestartClassLoader");
     }
 
-    /**
-     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the order for.
-     * @param classLoaderOrder
-     *            a {@link ClassLoaderOrder} object to update.
-     * @param log
-     *            the log
-     */
-    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+    @Override
+    public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
         // The Restart classloader is a parent-last classloader, so add the Restart classloader itself to the
         // classloader order first
@@ -103,7 +82,8 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log.
      */
-    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+    @Override
+    public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         // The Restart classloader doesn't itself store any URLs
     }
@@ -116,7 +96,8 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      *
      * @return the package root prefixes.
      */
-    public static String[] getPackageRootPrefixes() {
+    @Override
+    public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
 }

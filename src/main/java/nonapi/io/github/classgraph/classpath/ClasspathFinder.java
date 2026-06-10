@@ -239,7 +239,7 @@ public class ClasspathFinder {
                 final LogNode classLoaderHandlerLog = classpathFinderLog.log("ClassLoaderHandlers:");
                 for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : //
                 ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-                    classLoaderHandlerLog.log(classLoaderHandlerEntry.classLoaderHandlerClass.getName());
+                    classLoaderHandlerLog.log(classLoaderHandlerEntry.getHandlerName());
                 }
             }
 
@@ -274,7 +274,7 @@ public class ClasspathFinder {
                         final LogNode classloaderHandlerLog = classloaderURLLog == null ? null
                                 : classloaderURLLog.log("Classloader " + classLoader.getClass().getName()
                                         + " is handled by "
-                                        + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
+                                        + classLoaderHandlerRegistryEntry.getHandlerName());
                         // Record the package roots that this ClassLoaderHandler's classpath elements can have,
                         // so that only the package roots that are applicable to each classpath element are
                         // looked for and stripped when it is scanned (#929)
@@ -290,7 +290,7 @@ public class ClasspathFinder {
                     } else if (classloaderURLLog != null) {
                         classloaderURLLog
                                 .log("Ignoring parent classloader " + classLoader + ", normally handled by "
-                                        + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
+                                        + classLoaderHandlerRegistryEntry.getHandlerName());
                     }
                     // See if a previous scan's ClassGraphClassLoader should be delegated to first
                     if (classLoader instanceof ClassGraphClassLoader) {

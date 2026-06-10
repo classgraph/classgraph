@@ -28,28 +28,71 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /**
  * A ClassLoader handler.
  *
  * <p>
- * Implementations must declare the following {@code static} methods, which are looked up reflectively by
- * {@link ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry}:
- *
- * <ul>
- * <li>{@code boolean canHandle(Class<?> classLoaderClass, LogNode log)}
- * <li>{@code void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log)}
- * <li>{@code void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec,
- * LogNode log)}
- * <li>{@code String[] getPackageRootPrefixes()} -- the automatic package root prefixes (e.g.
- * {@code "BOOT-INF/classes/"}) to look for and strip within classpath elements obtained from this classloader, or
- * {@link ClassLoaderHandlerRegistry#NO_PACKAGE_ROOT_PREFIXES} if this classloader's classpath elements always have
- * their classes at the root. Package roots must only be declared here if the classloader really can produce
- * classpath elements in that layout, since a package root prefix that is also a legal package name (e.g.
- * {@code "classes/"}) will otherwise cause real packages of that name to be misread as package roots (#929).
- * </ul>
+ * Implementations must have a no-argument constructor, and are instantiated once each by
+ * {@link ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry}. Implementations must be stateless, since a
+ * single instance is shared across all scans.
  *
  * <p>
  * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
  */
-public interface ClassLoaderHandler {
+interface ClassLoaderHandler {
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
+     */
+    boolean canHandle(Class<?> classLoaderClass, LogNode log);
+
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
+     */
+    void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log);
+
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
+     */
+    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log);
+
+    /**
+     * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for and strip within classpath
+     * elements obtained from this classloader, or {@link ClassLoaderHandlerRegistry#NO_PACKAGE_ROOT_PREFIXES} if
+     * this classloader's classpath elements always have their classes at the root.
+     *
+     * <p>
+     * Package roots must only be declared here if the classloader really can produce classpath elements in that
+     * layout, since a package root prefix that is also a legal package name (e.g. {@code "classes/"}) will
+     * otherwise cause real packages of that name to be misread as package roots (#929).
+     *
+     * @return the package root prefixes.
+     */
+    String[] getPackageRootPrefixes();
 }

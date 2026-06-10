@@ -42,21 +42,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * 
  * @author lukehutch
  */
-class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandler {
-    /** Class cannot be constructed. */
-    private PlexusClassWorldsClassRealmClassLoaderHandler() {
-    }
-
-    /**
-     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
-     *
-     * @param classLoaderClass
-     *            the {@link ClassLoader} class or one of its superclasses.
-     * @param log
-     *            the log
-     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
-     */
-    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
+    @Override
+    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.codehaus.plexus.classworlds.realm.ClassRealm");
     }
@@ -83,20 +71,11 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
         return true;
     }
 
-    /**
-     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
-     *
-     * @param classRealm
-     *            the {@link ClassLoader} to find the order for.
-     * @param classLoaderOrder
-     *            a {@link ClassLoaderOrder} object to update.
-     * @param log
-     *            the log
-     */
-    public static void findClassLoaderOrder(final ClassLoader classRealm, final ClassLoaderOrder classLoaderOrder,
+    @Override
+    public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
         // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
-        final Object foreignImports = classLoaderOrder.reflectionUtils.getFieldVal(false, classRealm,
+        final Object foreignImports = classLoaderOrder.reflectionUtils.getFieldVal(false, classLoader,
                 "foreignImports");
         if (foreignImports != null) {
             @SuppressWarnings("unchecked")
@@ -110,45 +89,34 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
         }
 
         // Get delegation order -- different strategies have different delegation orders
-        final boolean isParentFirst = isParentFirstStrategy(classRealm, classLoaderOrder.reflectionUtils);
+        final boolean isParentFirst = isParentFirstStrategy(classLoader, classLoaderOrder.reflectionUtils);
 
         // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for self-first strategy
         if (!isParentFirst) {
             // Add self before parent
-            classLoaderOrder.add(classRealm, log);
+            classLoaderOrder.add(classLoader, log);
         }
 
         // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter
         // a class name before deciding whether or not to call the parent classloader (so ClassGraph will be
         // able to load classes by name that are not imported from the parent classloader).
         final ClassLoader parentClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false,
-                classRealm, "getParentClassLoader");
+                classLoader, "getParentClassLoader");
         classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true, log);
-        classLoaderOrder.delegateTo(classRealm.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
 
         // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for parent-first strategy
         if (isParentFirst) {
             // Add self after parent
-            classLoaderOrder.add(classRealm, log);
+            classLoaderOrder.add(classLoader, log);
         }
     }
 
-    /**
-     * Find the classpath entries for the associated {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the classpath entries order for.
-     * @param classpathOrder
-     *            a {@link ClasspathOrder} object to update.
-     * @param scanSpec
-     *            the {@link ScanSpec}.
-     * @param log
-     *            the log.
-     */
-    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+    @Override
+    public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         // ClassRealm extends URLClassLoader
-        URLClassLoaderHandler.findClasspathOrder(classLoader, classpathOrder, scanSpec, log);
+        super.findClasspathOrder(classLoader, classpathOrder, scanSpec, log);
     }
 
     /**
@@ -159,7 +127,8 @@ class PlexusClassWorldsClassRealmClassLoaderHandler implements ClassLoaderHandle
      *
      * @return the package root prefixes.
      */
-    public static String[] getPackageRootPrefixes() {
+    @Override
+    public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
 }
