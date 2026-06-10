@@ -28,11 +28,52 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
+import nonapi.io.github.classgraph.classpath.ClasspathOrder;
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.LogNode;
+
 /**
  * A ClassLoader handler.
  * 
  * <p>
  * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
  */
-public interface ClassLoaderHandler {
+interface ClassLoaderHandler {
+    /**
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     *
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
+     */
+    boolean canHandle(Class<?> classLoaderClass, LogNode log);
+
+    /**
+     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log
+     */
+    void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log);
+
+    /**
+     * Find the classpath entries for the associated {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log.
+     */
+    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log);
 }

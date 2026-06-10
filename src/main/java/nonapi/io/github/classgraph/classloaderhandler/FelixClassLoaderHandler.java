@@ -49,38 +49,16 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * @author elrufaie
  */
 class FelixClassLoaderHandler implements ClassLoaderHandler {
-    /** Class cannot be constructed. */
-    private FelixClassLoaderHandler() {
-    }
-
-    /**
-     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
-     *
-     * @param classLoaderClass
-     *            the {@link ClassLoader} class or one of its superclasses.
-     * @param log
-     *            the log
-     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
-     */
-    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    @Override
+    public boolean canHandle(Class<?> classLoaderClass, LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5")
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                         "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader");
     }
 
-    /**
-     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the order for.
-     * @param classLoaderOrder
-     *            a {@link ClassLoaderOrder} object to update.
-     * @param log
-     *            the log
-     */
-    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+    @Override
+    public void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -146,20 +124,8 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    /**
-     * Find the classpath entries for the associated {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the classpath entries order for.
-     * @param classpathOrder
-     *            a {@link ClasspathOrder} object to update.
-     * @param scanSpec
-     *            the {@link ScanSpec}.
-     * @param log
-     *            the log.
-     */
-    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+    @Override
+    public void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log) {
         // Get the wiring for the ClassLoader's bundle
         final Set<Object> bundles = new HashSet<>();
         final Object bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");

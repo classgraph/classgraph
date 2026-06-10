@@ -36,36 +36,14 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a CxfContainerClassLoader. */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
-    /** Class cannot be constructed. */
-    private CxfContainerClassLoaderHandler() {
-    }
-
-    /**
-     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
-     *
-     * @param classLoaderClass
-     *            the {@link ClassLoader} class or one of its superclasses.
-     * @param log
-     *            the log
-     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
-     */
-    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    @Override
+    public boolean canHandle(Class<?> classLoaderClass, LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.apache.openejb.server.cxf.transport.util.CxfContainerClassLoader");
     }
 
-    /**
-     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the order for.
-     * @param classLoaderOrder
-     *            a {@link ClassLoaderOrder} object to update.
-     * @param log
-     *            the log
-     */
-    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+    @Override
+    public void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log) {
         try {
             classLoaderOrder.delegateTo(
                     Class.forName("org.apache.openejb.server.cxf.transport.util.CxfUtil").getClassLoader(),
@@ -81,20 +59,8 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         classLoaderOrder.add(classLoader, log);
     }
 
-    /**
-     * Find the classpath entries for the associated {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the classpath entries order for.
-     * @param classpathOrder
-     *            a {@link ClasspathOrder} object to update.
-     * @param scanSpec
-     *            the {@link ScanSpec}.
-     * @param log
-     *            the log.
-     */
-    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+    @Override
+    public void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log) {
         // Classloader doesn't do any classloading of its own, it only delegates to other classloaders
     }
 }

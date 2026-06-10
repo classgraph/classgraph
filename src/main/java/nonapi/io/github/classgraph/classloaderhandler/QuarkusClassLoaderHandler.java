@@ -65,57 +65,21 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
         PRE_311_RESOURCE_BASED_ELEMENTS = Collections.unmodifiableMap(hlp);
     }
 
-    /**
-     * Class cannot be constructed.
-     */
-    private QuarkusClassLoaderHandler() {
-    }
-
-    /**
-     * Can handle.
-     *
-     * @param classLoaderClass
-     *            the classloader class
-     * @param log
-     *            the log
-     * @return true, if classLoaderClass is the Quarkus RuntimeClassloader or QuarkusClassloader
-     */
-    public static boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    @Override
+    public boolean canHandle(Class<?> classLoaderClass, LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, RUNTIME_CLASSLOADER)
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, QUARKUS_CLASSLOADER)
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, RUNNER_CLASSLOADER);
     }
 
-    /**
-     * Find classloader order.
-     *
-     * @param classLoader
-     *            the class loader
-     * @param classLoaderOrder
-     *            the classloader order
-     * @param log
-     *            the log
-     */
-    public static void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+    @Override
+    public void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
-    /**
-     * Find the classpath entries for the associated {@link ClassLoader}.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the classpath entries order for.
-     * @param classpathOrder
-     *            a {@link ClasspathOrder} object to update.
-     * @param scanSpec
-     *            the {@link ScanSpec}.
-     * @param log
-     *            the log.
-     */
-    public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+    @Override
+    public void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log) {
 
         final String classLoaderName = classLoader.getClass().getName();
         if (RUNTIME_CLASSLOADER.equals(classLoaderName)) {
