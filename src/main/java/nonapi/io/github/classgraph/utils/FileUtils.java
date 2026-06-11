@@ -77,7 +77,7 @@ public final class FileUtils {
     private static Object theUnsafe;
 
     /** True if class' static fields have been initialized. */
-    private static AtomicBoolean initialized = new AtomicBoolean();
+    private static final AtomicBoolean initialized = new AtomicBoolean();
 
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
@@ -180,7 +180,7 @@ public final class FileUtils {
             List<CharSequence> currSectionSegments = new ArrayList<>();
             allSectionSegments.add(currSectionSegments);
             int lastSepIdx = -1;
-            for (int i = 0; i < pathLen + 1; i++) {
+            for (int i = 0; i <= pathLen; i++) {
                 final char c = i == pathLen ? '\0' : pathChars[i];
                 if (c == '/' || c == '!' || c == '\0') {
                     final int segmentStartIdx = lastSepIdx + 1;
