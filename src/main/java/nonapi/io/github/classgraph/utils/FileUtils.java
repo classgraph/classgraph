@@ -159,38 +159,22 @@ public final class FileUtils {
             return "";
         }
 
-        // Find all '/' and '!' character positions, which split a path into segments 
-        boolean foundSegmentToSanitize = false;
-        final int pathLen = path.length();
-        final char[] pathChars = new char[pathLen];
-        path.getChars(0, pathLen, pathChars, 0);
-        {
-            int lastSepIdx = -1;
-            char prevC = '\0';
-            for (int i = 0, ii = pathLen + 1; i < ii; i++) {
-                final char c = i == pathLen ? '\0' : pathChars[i];
-                if (c == '/' || c == '!' || c == '\0') {
-                    final int segmentLength = i - (lastSepIdx + 1);
-                    if (
-                    // Found empty segment "//" or "!!"
-                    (segmentLength == 0 && prevC == c)
-                            // Found segment "."
-                            || (segmentLength == 1 && pathChars[i - 1] == '.')
-                            // Found segment ".."
-                            || (segmentLength == 2 && pathChars[i - 2] == '.' && pathChars[i - 1] == '.')) {
-                        foundSegmentToSanitize = true;
-                    }
-                    lastSepIdx = i;
-                }
-                prevC = c;
-            }
-        }
+        // Sanitize when:
+        // - Segment is empty: /<nothing>/
+        // - Nested JAR path is empty: !<nothing>!
+        // - Segment is . (redundant)
+        // - Segment is .. (needs to be applied while considering boundaries)
+        boolean foundSegmentToSanitize = path.contains("//") || path.contains("!!")
+                // This implicitly takes care of detecting '..!' and '../'
+                || path.contains(".!") || path.contains("./");
 
         // Handle "..", "." and empty path segments, if any were found
-        final boolean pathHasInitialSlash = pathChars[0] == '/';
-        final boolean pathHasInitialSlashSlash = pathHasInitialSlash && pathLen > 1 && pathChars[1] == '/';
-        final StringBuilder pathSanitized = new StringBuilder(pathLen + 16);
+        final boolean pathHasInitialSlash = path.startsWith("/");
+        final boolean pathHasInitialSlashSlash = path.startsWith("//");
+        final StringBuilder pathSanitized = new StringBuilder(path.length() + 16);
         if (foundSegmentToSanitize) {
+            final int pathLen = path.length();
+            final char[] pathChars = path.toCharArray();
             // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
             final List<List<CharSequence>> allSectionSegments = new ArrayList<>();
             List<CharSequence> currSectionSegments = new ArrayList<>();
