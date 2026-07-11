@@ -351,9 +351,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     } else if (!annotationClass.isInstance(args[0])) {
                         return false;
                     }
+                    // ScanResult#close() nulls reflectionUtils but leaves scanResult non-null on
+                    // AnnotationInfo, so also fall back when reflectionUtils has been cleared (#930).
                     final ReflectionUtils reflectionUtils = annotationInfo.scanResult == null
-                            ? new ReflectionUtils()
-                            : annotationInfo.scanResult.reflectionUtils;
+                            || annotationInfo.scanResult.reflectionUtils == null //
+                                    ? new ReflectionUtils()
+                                    : annotationInfo.scanResult.reflectionUtils;
                     for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
                         final String paramName = ent.getKey();
                         final Object paramVal = ent.getValue();
