@@ -62,6 +62,12 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     /**
      * New thread.
      *
+     * <p>
+     * Matches the {@link java.util.concurrent.Executors#defaultThreadFactory()} pattern: use the
+     * {@link SecurityManager}'s thread group when present, otherwise the current thread's group. Do
+     * <em>not</em> allocate a fresh {@link ThreadGroup} per thread — that leaks {@code ThreadGroup}
+     * (and related) instances under repeated scans with the default executor (#931).
+     *
      * @param runnable
      *            the runnable
      * @return the thread
@@ -69,21 +75,22 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     @Override
     public Thread newThread(final Runnable runnable) {
         // Call System.getSecurityManager().getThreadGroup() via reflection, since it is deprecated in JDK 17
-        ThreadGroup securityManagerThreadGroup = null;
+        ThreadGroup threadGroup = null;
         try {
             final Method getSecurityManager = System.class.getDeclaredMethod("getSecurityManager");
             final Object securityManager = getSecurityManager.invoke(null);
             if (securityManager != null) {
                 final Method getThreadGroup = securityManager.getClass().getDeclaredMethod("getThreadGroup");
-                securityManagerThreadGroup = (ThreadGroup) getThreadGroup.invoke(securityManager);
+                threadGroup = (ThreadGroup) getThreadGroup.invoke(securityManager);
             }
         } catch (final Throwable t) {
             // Fall through
         }
-        final Thread thread = new Thread(
-                securityManagerThreadGroup != null ? securityManagerThreadGroup
-                        : new ThreadGroup("ClassGraph-thread-group"),
-                runnable, threadNamePrefix + threadIdx.getAndIncrement());
+        if (threadGroup == null) {
+            threadGroup = Thread.currentThread().getThreadGroup();
+        }
+        final Thread thread = new Thread(threadGroup, runnable,
+                threadNamePrefix + threadIdx.getAndIncrement());
         thread.setDaemon(daemon);
         return thread;
     }
