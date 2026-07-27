@@ -1945,8 +1945,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the classes (and their subclasses) that implement this interface, if this is an interface.
      *
-     * @return the list of the classes (and their subclasses) that implement this interface, if this is an
-     *         interface, otherwise returns the empty list.
+     * <p>
+     * The returned list also contains the transitive subinterfaces of this interface, since an interface that
+     * extends this interface is a subtype of it. To separate the two, call
+     * {@link ClassInfoList#getInterfaces()} for just the subinterfaces, or
+     * {@link ClassInfoList#getStandardClasses()} for just the implementing classes. (Note that
+     * {@link #getSubclasses()} does not traverse the interface hierarchy -- use this method instead to find the
+     * subinterfaces of an interface.)
+     *
+     * @return the list of the classes (and their subclasses) that implement this interface, and the transitive
+     *         subinterfaces of this interface, if this is an interface, otherwise returns the empty list.
      */
     public ClassInfoList getClassesImplementing() {
         // Subclasses of implementing classes also implement the interface

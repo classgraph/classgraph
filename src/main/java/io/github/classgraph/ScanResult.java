@@ -1184,9 +1184,15 @@ public final class ScanResult implements Closeable {
      * Get all classes that implement (or have superclasses that implement) the interface (or one of its
      * subinterfaces).
      *
+     * <p>
+     * The returned list also contains the transitive subinterfaces of the interface. Call
+     * {@link ClassInfoList#getInterfaces()} on the result for just the subinterfaces, or
+     * {@link ClassInfoList#getStandardClasses()} for just the implementing classes.
+     *
      * @param interfaceClass
      *            The interface class.
-     * @return A list of all classes that implement the interface, or the empty list if none.
+     * @return A list of all classes that implement the interface, and all transitive subinterfaces of the
+     *         interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing(final Class<?> interfaceClass) {
         Assert.isInterface(interfaceClass);
@@ -1197,9 +1203,15 @@ public final class ScanResult implements Closeable {
      * Get all classes that implement (or have superclasses that implement) the named interface (or one of its
      * subinterfaces).
      *
+     * <p>
+     * The returned list also contains the transitive subinterfaces of the interface. Call
+     * {@link ClassInfoList#getInterfaces()} on the result for just the subinterfaces, or
+     * {@link ClassInfoList#getStandardClasses()} for just the implementing classes.
+     *
      * @param interfaceName
      *            The interface name.
-     * @return A list of all classes that implement the named interface, or the empty list if none.
+     * @return A list of all classes that implement the named interface, and all transitive subinterfaces of the
+     *         interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing(final String interfaceName) {
         if (closed.get()) {
