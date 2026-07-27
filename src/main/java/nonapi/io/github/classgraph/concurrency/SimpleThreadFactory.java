@@ -80,9 +80,14 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
         } catch (final Throwable t) {
             // Fall through
         }
+        // Use the current thread's ThreadGroup as the fallback, as java.util.concurrent.Executors'
+        // defaultThreadFactory does. Allocating a new ThreadGroup per thread leaks: a ThreadGroup registers
+        // itself with its parent on construction, and a non-daemon ThreadGroup is unregistered only when it is
+        // explicitly destroyed, so one ThreadGroup (plus its Thread[] array) accumulated per created thread and
+        // stayed reachable from the parent group forever. (#931)
         final Thread thread = new Thread(
                 securityManagerThreadGroup != null ? securityManagerThreadGroup
-                        : new ThreadGroup("ClassGraph-thread-group"),
+                        : Thread.currentThread().getThreadGroup(),
                 runnable, threadNamePrefix + threadIdx.getAndIncrement());
         thread.setDaemon(daemon);
         return thread;
