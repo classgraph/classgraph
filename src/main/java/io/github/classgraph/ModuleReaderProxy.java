@@ -42,11 +42,44 @@ public class ModuleReaderProxy implements Closeable {
     /** The module reader. */
     private final AutoCloseable moduleReader;
 
-    /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
-    private static Class<?> collectorClass;
+    /**
+     * Holder for the reflective handles needed to call {@code Stream#collect(Collectors.toList())}. Both values
+     * are resolved together and published as a single immutable object, so that a reader can never observe one
+     * of them set and the other still null. (#913)
+     */
+    private static final class Collectors {
+        /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
+        private final Class<?> collectorClass;
 
-    /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
-    private static Object collectorsToList;
+        /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
+        private final Object collectorsToList;
+
+        /**
+         * Constructor.
+         *
+         * @param reflectionUtils
+         *            the {@link ReflectionUtils} instance to resolve the handles with.
+         */
+        private Collectors(final ReflectionUtils reflectionUtils) {
+            collectorClass = reflectionUtils.classForNameOrNull("java.util.stream.Collector");
+            final Class<?> collectorsClass = reflectionUtils.classForNameOrNull("java.util.stream.Collectors");
+            collectorsToList = collectorsClass == null ? null
+                    : reflectionUtils.invokeStaticMethod(/* throwException = */ true, collectorsClass, "toList");
+        }
+    }
+
+    /**
+     * Lazily-initialized, immutable, shared {@link Collectors} handles. Volatile, and only ever assigned while
+     * holding the lock on {@link ModuleReaderProxy}, so that the double-checked locking in the constructor is
+     * correctly synchronized. The resolved values do not depend on which {@link ReflectionUtils} instance
+     * resolved them -- they are just JRE classes and a stateless collector -- so sharing them between
+     * {@link ModuleReaderProxy} instances is safe. (#913)
+     */
+    private static volatile Collectors collectors;
+
+    /** The shared {@link Collectors} handles, read once at construction so that {@link #list()} sees a stable
+     * value. */
+    private final Collectors collectorsRef;
 
     private ReflectionUtils reflectionUtils;
 
@@ -61,14 +94,19 @@ public class ModuleReaderProxy implements Closeable {
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         try {
             reflectionUtils = moduleRef.reflectionUtils;
-            if (collectorClass == null || collectorsToList == null) {
-                collectorClass = reflectionUtils.classForNameOrNull("java.util.stream.Collector");
-                final Class<?> collectorsClass = reflectionUtils.classForNameOrNull("java.util.stream.Collectors");
-                if (collectorsClass != null) {
-                    collectorsToList = reflectionUtils.invokeStaticMethod(/* throwException = */ true,
-                            collectorsClass, "toList");
+            // Double-checked locking on the volatile field, so that the lazy initialization is not a data race
+            // (it was previously flagged by Java TSAN). (#913)
+            Collectors collectorsRef = collectors;
+            if (collectorsRef == null) {
+                synchronized (ModuleReaderProxy.class) {
+                    collectorsRef = collectors;
+                    if (collectorsRef == null) {
+                        collectorsRef = new Collectors(reflectionUtils);
+                        collectors = collectorsRef;
+                    }
                 }
             }
+            this.collectorsRef = collectorsRef;
             moduleReader = (AutoCloseable) reflectionUtils.invokeMethod(/* throwException = */ true,
                     moduleRef.getReference(), "open");
             if (moduleReader == null) {
@@ -104,7 +142,7 @@ public class ModuleReaderProxy implements Closeable {
      *             If the module cannot be accessed.
      */
     public List<String> list() throws SecurityException {
-        if (collectorsToList == null) {
+        if (collectorsRef.collectorsToList == null) {
             throw new IllegalArgumentException("Could not call Collectors.toList()");
         }
         final Object /* Stream<String> */ resourcesStream = reflectionUtils
@@ -113,7 +151,7 @@ public class ModuleReaderProxy implements Closeable {
             throw new IllegalArgumentException("Could not call moduleReader.list()");
         }
         final Object resourcesList = reflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
-                "collect", collectorClass, collectorsToList);
+                "collect", collectorsRef.collectorClass, collectorsRef.collectorsToList);
         if (resourcesList == null) {
             throw new IllegalArgumentException("Could not call moduleReader.list().collect(Collectors.toList())");
         }
