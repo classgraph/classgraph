@@ -435,6 +435,30 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         this.modifiers |= modifiers;
     }
 
+    /** The access level modifier bits: {@code public}, {@code private} and {@code protected}. */
+    private static final int ACCESS_LEVEL_MODIFIERS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
+
+    /**
+     * Set the modifiers of a nested class from the {@code InnerClasses} attribute of its enclosing class.
+     *
+     * <p>
+     * For a nested class, the {@code access_flags} field in the class's own classfile cannot express the source-level
+     * access level: the JVM requires a nested class to be reachable from its enclosing class, so javac emits
+     * {@code ACC_PUBLIC} (or package-private) there, and records the real access level only in the
+     * {@code InnerClasses} attribute of the enclosing class. The {@code InnerClasses} bits are therefore
+     * authoritative for the access level, so they replace the access level bits read from the classfile rather than
+     * being OR'd into them -- OR-ing left a {@code protected} nested class with both {@code ACC_PUBLIC} and
+     * {@code ACC_PROTECTED} set, so that both {@link #isPublic()} and {@link #isProtected()} returned true. The
+     * remaining bits (e.g. {@code ACC_STATIC}, which only appears in the {@code InnerClasses} attribute) are OR'd in
+     * as before. (#791)
+     *
+     * @param innerClassModifierBits
+     *            the modifier bits from the {@code InnerClasses} attribute entry for this class
+     */
+    void setNestedClassModifiers(final int innerClassModifierBits) {
+        this.modifiers = (this.modifiers & ~ACCESS_LEVEL_MODIFIERS) | innerClassModifierBits;
+    }
+
     /**
      * Set isInterface status.
      *
@@ -540,7 +564,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final ClassContainment classContainment : classContainmentEntries) {
             final ClassInfo innerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.innerClassName,
                     classNameToClassInfo);
-            innerClassInfo.setModifiers(classContainment.innerClassModifierBits);
+            innerClassInfo.setNestedClassModifiers(classContainment.innerClassModifierBits);
             final ClassInfo outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName,
                     classNameToClassInfo);
             innerClassInfo.addRelatedClass(RelType.CONTAINED_WITHIN_OUTER_CLASS, outerClassInfo);
