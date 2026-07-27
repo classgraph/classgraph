@@ -218,10 +218,11 @@ public class ClasspathFinder {
                             + jreRtJar);
                 }
             }
-            final boolean scanAllLibOrExtJars = !scanSpec.libOrExtJarAcceptReject.acceptAndRejectAreEmpty();
             for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-                if (scanAllLibOrExtJars
-                        || scanSpec.libOrExtJarAcceptReject.isSpecificallyAcceptedAndNotRejected(libOrExtJarPath)) {
+                // If no lib or ext jar accept/reject criteria were added, all lib and ext jars are accepted;
+                // if only reject criteria were added, all but the rejected jars are accepted; if accept criteria
+                // were added, only the specifically-accepted jars are accepted (#813)
+                if (scanSpec.libOrExtJarAcceptReject.isAcceptedAndNotRejected(libOrExtJarPath)) {
                     classpathOrder.addSystemClasspathEntry(libOrExtJarPath, defaultClassLoader);
                     if (systemJarsLog != null) {
                         systemJarsLog.log("Found lib or ext jar: " + libOrExtJarPath);
