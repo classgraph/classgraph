@@ -488,6 +488,36 @@ public class NestedJarHandler {
      * @throws SecurityException
      *             If the temporary file is inaccessible.
      */
+    /**
+     * Remove any temporary files created during the scan, as requested by
+     * {@link io.github.classgraph.ClassGraph#removeTemporaryFilesAfterScan()}.
+     *
+     * <p>
+     * If no temporary files were created -- which is the case whenever no nested jars were encountered, i.e. for
+     * an ordinary jar or directory classpath -- this does nothing, so that the {@link ScanResult} returned by the
+     * scan remains fully usable. Previously this always called {@link #close(LogNode)}, which closes every open
+     * {@link Slice} and the inflater {@link Recycler}, so calling {@code removeTemporaryFilesAfterScan()} left the
+     * returned {@link ScanResult} unable to read any resource or load any class from a jar, even though
+     * {@link ScanResult#isClosed()} still reported {@code false} (#916).
+     *
+     * <p>
+     * If temporary files <i>were</i> created, they back memory-mapped slices of the extracted nested jars, so they
+     * cannot be deleted without closing those slices first -- the whole handler is still torn down in that case.
+     *
+     * @param log
+     *            the log
+     * @return true if the handler was closed (i.e. if temporary files existed and had to be removed)
+     */
+    public boolean removeTemporaryFiles(final LogNode log) {
+        final Set<File> tempFilesCurr = tempFiles;
+        if (tempFilesCurr == null || tempFilesCurr.isEmpty()) {
+            // No temp files were created, so there is nothing to remove, and no need to close anything
+            return false;
+        }
+        close(log);
+        return true;
+    }
+
     void removeTempFile(final File tempFile) throws IOException, SecurityException {
         if (tempFiles.remove(tempFile)) {
             Files.delete(tempFile.toPath());
@@ -688,7 +718,12 @@ public class NestedJarHandler {
      */
     public InputStream openInflaterInputStream(final InputStream rawInputStream) throws IOException {
         if (closed.get()) {
-            throw new IOException("Already closed");
+            throw new IOException("Cannot read from a jarfile after the resources backing the ScanResult "
+                    + "have been closed. This happens if the ScanResult was closed (e.g. by leaving the "
+                    + "try-with-resources block it was opened in) before the resource was read or the class "
+                    + "was loaded, or if ClassGraph#removeTemporaryFilesAfterScan() was called and the scan "
+                    + "extracted a nested jarfile to a temporary file, since removing the temporary file "
+                    + "requires closing the jarfile that was extracted from it");
         }
         @SuppressWarnings("resource")
         final RecyclableInflater recyclableInflater = inflaterRecycler.acquire();
@@ -702,7 +737,7 @@ public class NestedJarHandler {
             @Override
             public int read() throws IOException {
                 if (closed.get()) {
-                    throw new IOException("Already closed");
+                    throw new IOException("InputStream is already closed");
                 } else if (inflater.finished()) {
                     return -1;
                 }
@@ -717,7 +752,7 @@ public class NestedJarHandler {
             @Override
             public int read(final byte[] outBuf, final int off, final int len) throws IOException {
                 if (closed.get()) {
-                    throw new IOException("Already closed");
+                    throw new IOException("InputStream is already closed");
                 } else if (len < 0) {
                     throw new IllegalArgumentException("len cannot be negative");
                 } else if (len == 0) {
@@ -767,7 +802,7 @@ public class NestedJarHandler {
             @Override
             public long skip(final long numToSkip) throws IOException {
                 if (closed.get()) {
-                    throw new IOException("Already closed");
+                    throw new IOException("InputStream is already closed");
                 } else if (numToSkip < 0) {
                     throw new IllegalArgumentException("numToSkip cannot be negative");
                 } else if (numToSkip == 0) {
@@ -791,7 +826,7 @@ public class NestedJarHandler {
             @Override
             public int available() throws IOException {
                 if (closed.get()) {
-                    throw new IOException("Already closed");
+                    throw new IOException("InputStream is already closed");
                 }
                 // We don't know how many bytes are available, but have to return greater than
                 // zero if there is still input, according to the API contract. Hopefully

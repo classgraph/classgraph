@@ -1250,9 +1250,10 @@ class Scanner implements Callable<ScanResult> {
         }
 
         if (removeTemporaryFilesAfterScan) {
-            // If removeTemporaryFilesAfterScan was set, remove temp files and close resources,
-            // zipfiles and modules
-            nestedJarHandler.close(topLevelLog);
+            // If removeTemporaryFilesAfterScan was set, remove any temp files. If no temp files were
+            // created (i.e. if there were no nested jars), nothing is closed, so the returned ScanResult
+            // can still be used to read resources and load classes (#916)
+            nestedJarHandler.removeTemporaryFiles(topLevelLog);
         }
         return scanResult;
     }

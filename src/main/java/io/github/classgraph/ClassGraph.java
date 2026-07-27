@@ -431,6 +431,12 @@ public class ClassGraph {
      * during scanning in order to be read) from their temporary directory as soon as the scan has completed. The
      * default is for temporary files to be removed by the {@link ScanResult} finalizer, or on JVM exit.
      *
+     * <p>
+     * N.B. if the scan did extract a nested jarfile to a temporary file, then removing that temporary file
+     * requires closing the extracted jarfile that was read from it, so the {@link ScanResult} will not be able to
+     * read resources or load classes from any nested jar after the scan returns. If no nested jars were
+     * encountered, no temporary files are created, and the {@link ScanResult} remains fully usable (#916).
+     *
      * @return this (for method chaining).
      */
     public ClassGraph removeTemporaryFilesAfterScan() {
