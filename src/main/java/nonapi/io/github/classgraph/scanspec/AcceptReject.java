@@ -67,6 +67,13 @@ public abstract class AcceptReject {
     protected transient List<Pattern> rejectPatterns;
     /** The separator character. */
     protected char separatorChar;
+    /**
+     * If true, a {@code '*'} in a glob matches only within a single package or path segment, rather than spanning
+     * separators. Used for package and path accept/reject criteria, where recursion into sub-packages already
+     * provides the "and everything below" behaviour, so a separator-spanning wildcard is both unnecessary and
+     * slower to match. Class name globs keep the older separator-spanning behaviour. (#643, #870)
+     */
+    protected boolean segmentGlobs;
 
     /** Deserialization constructor. */
     public AcceptReject() {
@@ -80,6 +87,87 @@ public abstract class AcceptReject {
      */
     public AcceptReject(final char separatorChar) {
         this.separatorChar = separatorChar;
+    }
+
+    /**
+     * Instantiate a new accept/reject criterion.
+     *
+     * @param separatorChar
+     *            the separator char
+     * @param segmentGlobs
+     *            if true, a {@code '*'} matches only within a single package or path segment
+     */
+    public AcceptReject(final char separatorChar, final boolean segmentGlobs) {
+        this.separatorChar = separatorChar;
+        this.segmentGlobs = segmentGlobs;
+    }
+
+    /**
+     * Convert a glob to a regexp {@link Pattern}, where {@code '*'} matches zero or more characters within a
+     * single package or path segment, i.e. does not span {@link #separatorChar}. Any number of wildcards may be
+     * used in a single glob.
+     *
+     * <p>
+     * {@code "**"} is not accepted here: as the final segment of an accept or reject criterion it means "and
+     * everything below", which is already the default for
+     * {@link io.github.classgraph.ClassGraph#acceptPackages(String...)} and friends, so it is stripped by the
+     * caller before the glob reaches this method. In any other position it is
+     * rejected, since a separator-spanning wildcard would defeat the segment-bounded matching. (#643, #870)
+     *
+     * @param glob
+     *            the glob
+     * @param separatorChar
+     *            the package or path separator character
+     * @param prefixMatch
+     *            if true, the pattern matches any string <i>starting with</i> a string matching the glob, rather
+     *            than requiring a whole-string match
+     * @return the pattern
+     * @throws IllegalArgumentException
+     *             if the glob contains {@code "**"}
+     */
+    public static Pattern segmentGlobToPattern(final String glob, final char separatorChar,
+            final boolean prefixMatch) {
+        final StringBuilder buf = new StringBuilder("^");
+        for (int i = 0; i < glob.length(); i++) {
+            final char c = glob.charAt(i);
+            if (c == '*') {
+                if (i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
+                    throw new IllegalArgumentException("\"**\" may only be used as the final segment of a glob: "
+                            + glob);
+                }
+                buf.append("[^").append(separatorChar).append("]*");
+            } else if ("\\^$.|?*+()[]{}".indexOf(c) >= 0) {
+                buf.append('\\').append(c);
+            } else {
+                buf.append(c);
+            }
+        }
+        if (prefixMatch) {
+            buf.append(".*");
+        }
+        return Pattern.compile(buf.append('$').toString());
+    }
+
+    /**
+     * Strip a trailing {@code "**"} segment from a normalized package name or path, if present. A trailing
+     * {@code "**"} means "and everything below", which is what the recursive accept/reject methods already do, so
+     * it can simply be removed. {@code "**"} in any other position is rejected by
+     * {@link #segmentGlobToPattern(String, char, boolean)}.
+     *
+     * @param packageOrPath
+     *            the normalized package name or path
+     * @param separatorChar
+     *            the package or path separator character
+     * @return the package name or path with any trailing {@code "**"} segment removed
+     */
+    public static String stripTrailingDoubleGlob(final String packageOrPath, final char separatorChar) {
+        if (packageOrPath.equals("**")) {
+            return "";
+        }
+        if (packageOrPath.endsWith(separatorChar + "**")) {
+            return packageOrPath.substring(0, packageOrPath.length() - 3);
+        }
+        return packageOrPath;
     }
 
     /** Accept/reject for prefix strings. */
@@ -108,7 +196,15 @@ public abstract class AcceptReject {
         @Override
         public void addToAccept(final String str) {
             if (str.contains("*")) {
-                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
+                // A glob prefix, e.g. "eu.*.domain." -- matched as a regexp rather than by String#startsWith,
+                // so that glob accepts are recursive into sub-packages, just like literal accepts (#870)
+                if (this.acceptGlobs == null) {
+                    this.acceptGlobs = new HashSet<>();
+                    this.acceptPatterns = new ArrayList<>();
+                }
+                this.acceptGlobs.add(str);
+                this.acceptPatterns.add(segmentGlobToPattern(str, separatorChar, /* prefixMatch = */ true));
+                return;
             }
             if (this.acceptPrefixesSet == null) {
                 this.acceptPrefixesSet = new HashSet<>();
@@ -125,7 +221,13 @@ public abstract class AcceptReject {
         @Override
         public void addToReject(final String str) {
             if (str.contains("*")) {
-                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
+                if (this.rejectGlobs == null) {
+                    this.rejectGlobs = new HashSet<>();
+                    this.rejectPatterns = new ArrayList<>();
+                }
+                this.rejectGlobs.add(str);
+                this.rejectPatterns.add(segmentGlobToPattern(str, separatorChar, /* prefixMatch = */ true));
+                return;
             }
             if (this.rejectPrefixes == null) {
                 this.rejectPrefixes = new ArrayList<>();
@@ -142,14 +244,17 @@ public abstract class AcceptReject {
          */
         @Override
         public boolean isAcceptedAndNotRejected(final String str) {
-            boolean isAccepted = acceptPrefixes == null;
-            if (!isAccepted) {
+            boolean isAccepted = acceptPrefixes == null && acceptPatterns == null;
+            if (!isAccepted && acceptPrefixes != null) {
                 for (final String prefix : acceptPrefixes) {
                     if (str.startsWith(prefix)) {
                         isAccepted = true;
                         break;
                     }
                 }
+            }
+            if (!isAccepted) {
+                isAccepted = matchesPatternList(str, acceptPatterns);
             }
             if (!isAccepted) {
                 return false;
@@ -161,7 +266,7 @@ public abstract class AcceptReject {
                     }
                 }
             }
-            return true;
+            return !matchesPatternList(str, rejectPatterns);
         }
 
         /**
@@ -173,8 +278,8 @@ public abstract class AcceptReject {
          */
         @Override
         public boolean isAccepted(final String str) {
-            boolean isAccepted = acceptPrefixes == null;
-            if (!isAccepted) {
+            boolean isAccepted = acceptPrefixes == null && acceptPatterns == null;
+            if (!isAccepted && acceptPrefixes != null) {
                 for (final String prefix : acceptPrefixes) {
                     if (str.startsWith(prefix)) {
                         isAccepted = true;
@@ -182,7 +287,7 @@ public abstract class AcceptReject {
                     }
                 }
             }
-            return isAccepted;
+            return isAccepted || matchesPatternList(str, acceptPatterns);
         }
 
         /**
@@ -237,6 +342,33 @@ public abstract class AcceptReject {
         }
 
         /**
+         * Instantiate a new accept/reject for whole-string matches.
+         *
+         * @param separatorChar
+         *            the separator char
+         * @param segmentGlobs
+         *            if true, a {@code '*'} matches only within a single package or path segment
+         */
+        public AcceptRejectWholeString(final char separatorChar, final boolean segmentGlobs) {
+            super(separatorChar, segmentGlobs);
+        }
+
+        /**
+         * Convert a glob to a {@link Pattern}, using segment-bounded matching if this accept/reject was
+         * constructed with {@code segmentGlobs}, or the older separator-spanning matching otherwise.
+         *
+         * @param glob
+         *            the glob
+         * @param prefixMatch
+         *            if true, match any string starting with a string matching the glob
+         * @return the pattern
+         */
+        private Pattern toPattern(final String glob, final boolean prefixMatch) {
+            return segmentGlobs ? segmentGlobToPattern(glob, separatorChar, prefixMatch)
+                    : globToPattern(glob, /* simpleGlob = */ true);
+        }
+
+        /**
          * Add to the accept.
          *
          * @param str
@@ -250,7 +382,7 @@ public abstract class AcceptReject {
                     this.acceptPatterns = new ArrayList<>();
                 }
                 this.acceptGlobs.add(str);
-                this.acceptPatterns.add(globToPattern(str, /* simpleGlob = */ true));
+                this.acceptPatterns.add(toPattern(str, /* prefixMatch = */ false));
             } else {
                 if (this.accept == null) {
                     this.accept = new HashSet<>();
@@ -305,7 +437,7 @@ public abstract class AcceptReject {
                         if (this.acceptPrefixPatterns == null) {
                             this.acceptPrefixPatterns = new ArrayList<>();
                         }
-                        this.acceptPrefixPatterns.add(globToPattern(pathPrefix, /* simpleGlob = */ true));
+                        this.acceptPrefixPatterns.add(toPattern(pathPrefix, /* prefixMatch = */ false));
                     }
                 }
             }
@@ -325,7 +457,7 @@ public abstract class AcceptReject {
                     this.rejectPatterns = new ArrayList<>();
                 }
                 this.rejectGlobs.add(str);
-                this.rejectPatterns.add(globToPattern(str, /* simpleGlob = */ true));
+                this.rejectPatterns.add(toPattern(str, /* prefixMatch = */ false));
             } else {
                 if (this.reject == null) {
                     this.reject = new HashSet<>();

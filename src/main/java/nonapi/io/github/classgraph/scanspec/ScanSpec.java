@@ -56,13 +56,13 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 public class ScanSpec {
     /** Package accept/reject criteria (with separator '.'). */
-    public AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.');
+    public AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.', true);
 
     /** Package prefix accept/reject criteria, for recursive scanning (with separator '.', ending in '.'). */
     public AcceptRejectPrefix packagePrefixAcceptReject = new AcceptRejectPrefix('.');
 
     /** Path accept/reject criteria (with separator '/'). */
-    public AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/');
+    public AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/', true);
 
     /** Path prefix accept/reject criteria, for recursive scanning (with separator '/', ending in '/'). */
     public AcceptRejectPrefix pathPrefixAcceptReject = new AcceptRejectPrefix('/');

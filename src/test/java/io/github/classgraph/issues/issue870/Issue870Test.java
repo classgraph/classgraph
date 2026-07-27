@@ -1,6 +1,7 @@
 package io.github.classgraph.issues.issue870;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -55,19 +56,17 @@ public class Issue870Test {
     }
 
     /**
-     * Known limitation, asserted here so that a change in behaviour is noticed: unlike a literal accepted package,
-     * a glob-containing accepted package is <i>not</i> recursive, so it does not match sub-packages of the packages
-     * that the glob expands to. {@code ClassGraph#acceptPackages(String...)} only registers a package as a
-     * recursive prefix when the package name contains no wildcard, because the prefix matcher cannot hold a glob.
-     * So {@code *.domain} finds AlphaThing but not the sub-package's SubThing, whereas the equivalent explicit
-     * package list finds both. Making glob accepts recursive requires separating the recursive and non-recursive
-     * accept registration paths, which share one code path today.
+     * A glob accept is now recursive into sub-packages, just like a literal accept, so {@code *.domain} and the
+     * equivalent explicit package list give the same result (#870's original question). This is implemented by
+     * letting {@code AcceptRejectPrefix} hold a glob as a regexp prefix pattern, rather than requiring a literal
+     * {@code String#startsWith} prefix.
      */
     @Test
-    public void midPackageGlobIsNotRecursiveIntoSubPackages() {
-        assertThat(scan(PKG + ".*.domain")).contains(ALPHA_THING, BETA_THING).doesNotContain(SUB_THING);
-        // The explicit package list *is* recursive, so the two are not yet equivalent
-        assertThat(scan(PKG + ".alpha.domain", PKG + ".beta.domain")).contains(ALPHA_THING, BETA_THING, SUB_THING);
+    public void midPackageGlobIsRecursiveIntoSubPackages() {
+        assertThat(scan(PKG + ".*.domain")).contains(ALPHA_THING, BETA_THING, SUB_THING);
+        // The glob and the equivalent explicit package list now agree
+        assertThat(scan(PKG + ".*.domain")).containsExactlyInAnyOrderElementsOf(
+                scan(PKG + ".alpha.domain", PKG + ".beta.domain"));
     }
 
     /**
@@ -77,5 +76,52 @@ public class Issue870Test {
     @Test
     public void trailingGlobStillMatches() {
         assertThat(scan(PKG + ".*")).contains(ALPHA_THING, BETA_THING, SUB_THING, OTHER_THING);
+    }
+
+    /** More than one glob may appear in a single package specifier. */
+    @Test
+    public void multipleGlobsInOnePackageName() {
+        assertThat(scan(PKG + ".*.dom*n")).contains(ALPHA_THING, BETA_THING, SUB_THING);
+        assertThat(scan(PKG + ".*.dom*n")).doesNotContain(OTHER_THING);
+        assertThat(scan(PKG + ".*.*")).contains(ALPHA_THING, BETA_THING, SUB_THING, OTHER_THING);
+    }
+
+    /**
+     * A {@code '*'} matches within a single package segment only, so it does not span a package separator. Without
+     * this, {@code "*.domain"} would also match {@code alpha.other} via a separator-spanning wildcard.
+     */
+    @Test
+    public void globDoesNotSpanPackageSeparator() {
+        // "issue870.*.domain" must not match "issue870.alpha.domain.sub" as a *whole* package name via a
+        // separator-spanning wildcard -- it matches it only by recursion below "issue870.alpha.domain"
+        assertThat(scan(PKG + ".*.domain.sub")).containsExactly(SUB_THING);
+        assertThat(scan(PKG + ".*.sub")).isEmpty();
+    }
+
+    /** A trailing {@code "**"} means "and everything below", which is what a recursive accept already does. */
+    @Test
+    public void trailingDoubleGlobIsAcceptedAndMeansRecursive() {
+        assertThat(scan(PKG + ".*.domain.**")).containsExactlyInAnyOrderElementsOf(scan(PKG + ".*.domain"));
+        assertThat(scan(PKG + ".alpha.domain.**")).contains(ALPHA_THING, SUB_THING);
+        assertThat(scan(PKG + ".**")).contains(ALPHA_THING, BETA_THING, SUB_THING, OTHER_THING);
+    }
+
+    /** {@code "**"} anywhere but the final segment is rejected, since it would defeat segment-bounded matching. */
+    @Test
+    public void nonTrailingDoubleGlobIsRejected() {
+        assertThatThrownBy(() -> scan(PKG + ".**.domain")).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("**");
+        assertThatThrownBy(() -> scan(PKG + ".al**ha.domain")).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("**");
+    }
+
+    /** Reject criteria support globs too, and are likewise recursive. */
+    @Test
+    public void globRejectIsRecursive() {
+        try (ScanResult scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG)
+                .rejectPackages(PKG + ".*.domain").scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).contains(OTHER_THING).doesNotContain(ALPHA_THING,
+                    BETA_THING, SUB_THING);
+        }
     }
 }

@@ -676,13 +676,18 @@ public class ClassGraph {
      *
      * @param packageNames
      *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}).
+     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
+     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
+     *            also scanned, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
+     *            anywhere else.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPackages(final String... packageNames) {
         enableClassInfo();
         for (final String packageName : packageNames) {
-            final String packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
+            // A trailing "**" means "and everything below", which acceptPackages() already does -- strip it
+            final String packageNameNormalized = AcceptReject
+                    .stripTrailingDoubleGlob(AcceptReject.normalizePackageOrClassName(packageName), '.');
             // Accept package
             scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
             final String path = AcceptReject.packageNameToPath(packageNameNormalized);
@@ -690,15 +695,14 @@ public class ClassGraph {
             if (packageNameNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
             }
-            if (!packageNameNormalized.contains("*")) {
-                // Accept sub-packages
-                if (packageNameNormalized.isEmpty()) {
-                    scanSpec.packagePrefixAcceptReject.addToAccept("");
-                    scanSpec.pathPrefixAcceptReject.addToAccept("");
-                } else {
-                    scanSpec.packagePrefixAcceptReject.addToAccept(packageNameNormalized + ".");
-                    scanSpec.pathPrefixAcceptReject.addToAccept(path + "/");
-                }
+            // Accept sub-packages (glob-containing package names included, since the prefix matcher can
+            // hold a glob -- #870)
+            if (packageNameNormalized.isEmpty()) {
+                scanSpec.packagePrefixAcceptReject.addToAccept("");
+                scanSpec.pathPrefixAcceptReject.addToAccept("");
+            } else {
+                scanSpec.packagePrefixAcceptReject.addToAccept(packageNameNormalized + ".");
+                scanSpec.pathPrefixAcceptReject.addToAccept(path + "/");
             }
         }
         return this;
@@ -709,7 +713,10 @@ public class ClassGraph {
      *
      * @param packageNames
      *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}).
+     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
+     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
+     *            also scanned, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
+     *            anywhere else.
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPackages(String...)} instead.
      */
@@ -723,12 +730,16 @@ public class ClassGraph {
      *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
-     *            separator). May include a glob wildcard ({@code '*'}).
+     *            separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
+     *            number of wildcards may be used. Sub-directories of a matched path are also scanned, so a
+     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPaths(final String... paths) {
         for (final String path : paths) {
-            final String pathNormalized = AcceptReject.normalizePath(path);
+            // A trailing "**" means "and everything below", which acceptPaths() already does -- strip it
+            final String pathNormalized = AcceptReject.stripTrailingDoubleGlob(AcceptReject.normalizePath(path),
+                    '/');
             // Accept path
             final String packageName = AcceptReject.pathToPackageName(pathNormalized);
             scanSpec.packageAcceptReject.addToAccept(packageName);
@@ -736,15 +747,13 @@ public class ClassGraph {
             if (pathNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
             }
-            if (!pathNormalized.contains("*")) {
-                // Accept sub-directories / nested paths
-                if (pathNormalized.isEmpty()) {
-                    scanSpec.packagePrefixAcceptReject.addToAccept("");
-                    scanSpec.pathPrefixAcceptReject.addToAccept("");
-                } else {
-                    scanSpec.packagePrefixAcceptReject.addToAccept(packageName + ".");
-                    scanSpec.pathPrefixAcceptReject.addToAccept(pathNormalized + "/");
-                }
+            // Accept sub-directories / nested paths (glob-containing paths included -- #870)
+            if (pathNormalized.isEmpty()) {
+                scanSpec.packagePrefixAcceptReject.addToAccept("");
+                scanSpec.pathPrefixAcceptReject.addToAccept("");
+            } else {
+                scanSpec.packagePrefixAcceptReject.addToAccept(packageName + ".");
+                scanSpec.pathPrefixAcceptReject.addToAccept(pathNormalized + "/");
             }
         }
         return this;
@@ -755,7 +764,9 @@ public class ClassGraph {
      *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
-     *            separator). May include a glob wildcard ({@code '*'}).
+     *            separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
+     *            number of wildcards may be used. Sub-directories of a matched path are also scanned, so a
+     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPaths(String...)} instead.
      */
@@ -864,14 +875,18 @@ public class ClassGraph {
      * only need to scan resources.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}).
+     *            The fully-qualified names of packages to reject (using '.' as a separator). May include a glob
+     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
+     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
+     *            also rejected, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
+     *            anywhere else.
      * @return this (for method chaining).
      */
     public ClassGraph rejectPackages(final String... packageNames) {
         enableClassInfo();
         for (final String packageName : packageNames) {
-            final String packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
+            final String packageNameNormalized = AcceptReject
+                    .stripTrailingDoubleGlob(AcceptReject.normalizePackageOrClassName(packageName), '.');
             if (packageNameNormalized.isEmpty()) {
                 throw new IllegalArgumentException(
                         "Rejecting the root package (\"\") will cause nothing to be scanned");
@@ -880,11 +895,9 @@ public class ClassGraph {
             scanSpec.packageAcceptReject.addToReject(packageNameNormalized);
             final String path = AcceptReject.packageNameToPath(packageNameNormalized);
             scanSpec.pathAcceptReject.addToReject(path + "/");
-            if (!packageNameNormalized.contains("*")) {
-                // Reject sub-packages (zipfile entries can occur in any order)
-                scanSpec.packagePrefixAcceptReject.addToReject(packageNameNormalized + ".");
-                scanSpec.pathPrefixAcceptReject.addToReject(path + "/");
-            }
+            // Reject sub-packages (zipfile entries can occur in any order)
+            scanSpec.packagePrefixAcceptReject.addToReject(packageNameNormalized + ".");
+            scanSpec.pathPrefixAcceptReject.addToReject(path + "/");
         }
         return this;
     }
@@ -893,8 +906,11 @@ public class ClassGraph {
      * Use {@link #rejectPackages(String...)} instead.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to reject (with '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}).
+     *            The fully-qualified names of packages to reject (using '.' as a separator). May include a glob
+     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
+     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
+     *            also rejected, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
+     *            anywhere else.
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectPackages(String...)} instead.
      */
@@ -907,12 +923,15 @@ public class ClassGraph {
      * Prevent the scanning of one or more specific paths and their sub-directories / nested paths.
      *
      * @param paths
-     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
+     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
+     *            number of wildcards may be used. Sub-directories of a matched path are also rejected, so a
+     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
      * @return this (for method chaining).
      */
     public ClassGraph rejectPaths(final String... paths) {
         for (final String path : paths) {
-            final String pathNormalized = AcceptReject.normalizePath(path);
+            final String pathNormalized = AcceptReject.stripTrailingDoubleGlob(AcceptReject.normalizePath(path),
+                    '/');
             if (pathNormalized.isEmpty()) {
                 throw new IllegalArgumentException(
                         "Rejecting the root package (\"\") will cause nothing to be scanned");
@@ -921,11 +940,9 @@ public class ClassGraph {
             final String packageName = AcceptReject.pathToPackageName(pathNormalized);
             scanSpec.packageAcceptReject.addToReject(packageName);
             scanSpec.pathAcceptReject.addToReject(pathNormalized + "/");
-            if (!pathNormalized.contains("*")) {
-                // Reject sub-directories / nested paths
-                scanSpec.packagePrefixAcceptReject.addToReject(packageName + ".");
-                scanSpec.pathPrefixAcceptReject.addToReject(pathNormalized + "/");
-            }
+            // Reject sub-directories / nested paths
+            scanSpec.packagePrefixAcceptReject.addToReject(packageName + ".");
+            scanSpec.pathPrefixAcceptReject.addToReject(pathNormalized + "/");
         }
         return this;
     }
@@ -934,7 +951,9 @@ public class ClassGraph {
      * Use {@link #rejectPaths(String...)} instead.
      *
      * @param paths
-     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}).
+     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
+     *            number of wildcards may be used. Sub-directories of a matched path are also rejected, so a
+     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectPaths(String...)} instead.
      */
