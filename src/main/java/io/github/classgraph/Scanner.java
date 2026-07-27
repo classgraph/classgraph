@@ -953,10 +953,11 @@ class Scanner implements Callable<ScanResult> {
             }
         }
         if (!collidingRelativePaths.isEmpty()) {
-            final Set<URI> resourceURIsFound = new HashSet<>();
+            final Set<String> fileIdentityKeysFound = new HashSet<>();
+            final Map<String, String> canonicalDirPathCache = new HashMap<>();
             for (int classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
                 classpathElementOrder.get(classpathIdx).maskDuplicateResources(classpathIdx,
-                        collidingRelativePaths, resourceURIsFound, maskLog);
+                        collidingRelativePaths, fileIdentityKeysFound, canonicalDirPathCache, maskLog);
             }
         }
         if (maskLog != null) {

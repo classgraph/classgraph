@@ -158,6 +158,44 @@ public class Issue704Test {
     }
 
     /**
+     * The same file reached through two different paths -- one of them through a symlinked parent directory -- is
+     * still the same file, so it should still be returned once. (On macOS this is not a corner case: the temp
+     * directory {@code /var/folders/...} is reached through the symlink {@code /var -> /private/var}, so the module
+     * path and the classpath disagree on the path of the same jar.)
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test jar or module layer could not be created.
+     */
+    @Test
+    public void sameFileReachedThroughASymlinkIsReturnedOnce(@TempDir final File tempDir) throws Exception {
+        final File realDir = new File(tempDir, "real");
+        realDir.mkdirs();
+        final Path symlinkedDir = tempDir.toPath().resolve("symlink");
+        try {
+            Files.createSymbolicLink(symlinkedDir, realDir.toPath());
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            // Symlinks are not supported (e.g. on Windows without developer mode enabled)
+            assumeTrue(false, "Could not create a symlink");
+        }
+        final File jarFile = buildJar(realDir, "issue704d.jar", "MATCH (n) RETURN n;");
+        final File symlinkedJarFile = symlinkedDir.resolve(jarFile.getName()).toFile();
+        final Object moduleLayer = defineModuleLayer(symlinkedJarFile);
+        assumeTrue(moduleLayer != null, "JVM does not support modules");
+
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() },
+                /* parent = */ null);
+                ScanResult scanResult = new ClassGraph() //
+                        .addModuleLayer(moduleLayer) //
+                        .addClassLoader(classLoader) //
+                        .acceptPaths("stuff") //
+                        .scan()) {
+            assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
+        }
+    }
+
+    /**
      * Two different files that happen to share a relative path are not duplicates of each other, so both must still
      * be returned -- otherwise deduplicating the
      * {@link #sameFileReachedThroughModuleAndClasspathIsReturnedOnce(File)} case would lose resources.
