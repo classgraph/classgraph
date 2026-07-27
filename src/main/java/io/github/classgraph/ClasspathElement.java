@@ -32,6 +32,8 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -252,6 +254,82 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             }
         }
         return true;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Remove any resource that refers to the same file as a resource already found in this or an earlier classpath
+     * element, i.e. a resource with the same {@link Resource#getURI()}.
+     *
+     * <p>
+     * Two different classpath elements may legitimately contain different resources with the same relative path
+     * (e.g. two jars may each contain their own {@code META-INF/services/} entries), and both should be returned by
+     * {@link ScanResult#getAllResources()}. However, the same *file* can also be reached through more than one
+     * classpath element -- e.g. Maven Surefire and IDEs splice the test output directory into a module using
+     * {@code --patch-module}, while also placing that same directory on the classpath, so the module and the
+     * classpath element both list the same file. Returning one file twice is never useful, so the second and
+     * subsequent occurrences are removed here. (#704)
+     *
+     * @param classpathIdx
+     *            the classpath index
+     * @param collidingPaths
+     *            the relative paths that occur in more than one place in the classpath / module path (only these
+     *            can be duplicates, so only for these does the {@link URI} need to be computed)
+     * @param resourceURIsFound
+     *            the resource URIs found so far
+     * @param log
+     *            the log
+     */
+    void maskDuplicateResources(final int classpathIdx, final Set<String> collidingPaths,
+            final Set<URI> resourceURIsFound, final LogNode log) {
+        final List<Resource> acceptedResourcesFiltered = new ArrayList<>(acceptedResources.size());
+        Set<Resource> maskedResources = null;
+        for (final Resource res : acceptedResources) {
+            boolean isMasked = false;
+            if (collidingPaths.contains(res.getPath())) {
+                URI uri;
+                try {
+                    uri = res.getURI();
+                } catch (final RuntimeException e) {
+                    // If the URI of a resource cannot be determined, it cannot be compared to any other
+                    // resource's URI, so keep the resource rather than masking it
+                    uri = null;
+                }
+                isMasked = uri != null && !resourceURIsFound.add(uri);
+                if (isMasked) {
+                    if (maskedResources == null) {
+                        // Compare by identity, since Resource#equals compares string representations, and the
+                        // masked resource and the resource that masks it are in different classpath elements
+                        maskedResources = Collections
+                                .newSetFromMap(new IdentityHashMap<Resource, Boolean>());
+                    }
+                    maskedResources.add(res);
+                    if (log != null) {
+                        log.log(String.format("%06d-1", classpathIdx),
+                                "Ignoring duplicate (masked) resource " + res.getPath()
+                                        + ", which is the same file as a resource found earlier in the "
+                                        + "classpath: " + uri);
+                    }
+                }
+            }
+            if (!isMasked) {
+                acceptedResourcesFiltered.add(res);
+            }
+        }
+        if (maskedResources != null) {
+            acceptedResources.clear();
+            acceptedResources.addAll(acceptedResourcesFiltered);
+            // A classfile resource is in both lists, so it has to be removed from both
+            final List<Resource> acceptedClassfileResourcesFiltered = new ArrayList<>(
+                    acceptedClassfileResources.size());
+            for (final Resource res : acceptedClassfileResources) {
+                if (!maskedResources.contains(res)) {
+                    acceptedClassfileResourcesFiltered.add(res);
+                }
+            }
+            acceptedClassfileResources = acceptedClassfileResourcesFiltered;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

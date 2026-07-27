@@ -930,6 +930,43 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Remove resources that refer to the same file as a resource found earlier in the classpath / module path, so
+     * that one file is not returned twice. (#704)
+     *
+     * @param classpathElementOrder
+     *            the classpath element order
+     * @param maskLog
+     *            the mask log
+     */
+    private static void maskDuplicateResources(final List<ClasspathElement> classpathElementOrder,
+            final LogNode maskLog) {
+        // Only a relative path that occurs more than once can be a duplicate of the same file, and computing the
+        // URI of a resource is not free (for modules it requires a reflective call to ModuleReader#find), so
+        // find the colliding relative paths first, and only compare URIs for those.
+        final Set<String> relativePathsFound = new HashSet<>();
+        final Set<String> collidingRelativePaths = new HashSet<>();
+        for (final ClasspathElement classpathElement : classpathElementOrder) {
+            for (final Resource res : classpathElement.acceptedResources) {
+                if (!relativePathsFound.add(res.getPath())) {
+                    collidingRelativePaths.add(res.getPath());
+                }
+            }
+        }
+        if (!collidingRelativePaths.isEmpty()) {
+            final Set<URI> resourceURIsFound = new HashSet<>();
+            for (int classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
+                classpathElementOrder.get(classpathIdx).maskDuplicateResources(classpathIdx,
+                        collidingRelativePaths, resourceURIsFound, maskLog);
+            }
+        }
+        if (maskLog != null) {
+            maskLog.addElapsedTime();
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Scan the classpath and/or visible modules.
      *
      * @param finalClasspathEltOrder
@@ -947,6 +984,11 @@ class Scanner implements Callable<ScanResult> {
     private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder,
             final List<String> finalClasspathEltOrderStrs, final ClasspathFinder classpathFinder)
             throws InterruptedException, ExecutionException {
+        // Mask duplicate resources (remove any resource that is the same file as a resource that was already
+        // found in an earlier classpath element)
+        maskDuplicateResources(finalClasspathEltOrder,
+                topLevelLog == null ? null : topLevelLog.log("Masking duplicate resources"));
+
         // Mask classfiles (remove any classfile resources that are shadowed by an earlier definition
         // of the same class)
         if (scanSpec.enableClassInfo) {
