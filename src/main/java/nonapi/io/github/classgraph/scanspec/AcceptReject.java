@@ -320,7 +320,11 @@ public abstract class AcceptReject {
                     }
                 }
             }
-            return false;
+            // Also test any glob reject prefixes, which are matched as regexps rather than by
+            // String#startsWith. Without this, a reject criterion containing a wildcard was not applied to
+            // sub-packages or sub-directories of a matched package or directory, so e.g.
+            // rejectPackages("javax.swing.*") rejected javax.swing.plaf but not javax.swing.plaf.basic (#884)
+            return matchesPatternList(str, rejectPatterns);
         }
     }
 

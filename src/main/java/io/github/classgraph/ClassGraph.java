@@ -685,7 +685,9 @@ public class ClassGraph {
      *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
      *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
      *            also scanned, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else.
+     *            anywhere else. Note that a wildcard must match at least one package segment, so
+     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
+     *            itself -- to scan {@code java.awt} and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPackages(final String... packageNames) {
@@ -722,7 +724,9 @@ public class ClassGraph {
      *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
      *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
      *            also scanned, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else.
+     *            anywhere else. Note that a wildcard must match at least one package segment, so
+     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
+     *            itself -- to scan {@code java.awt} and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPackages(String...)} instead.
      */
@@ -885,7 +889,9 @@ public class ClassGraph {
      *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
      *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
      *            also rejected, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else.
+     *            anywhere else. Note that a wildcard must match at least one package segment, so
+     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
+     *            itself -- to reject {@code java.awt} and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      */
     public ClassGraph rejectPackages(final String... packageNames) {
@@ -916,7 +922,9 @@ public class ClassGraph {
      *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
      *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
      *            also rejected, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else.
+     *            anywhere else. Note that a wildcard must match at least one package segment, so
+     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
+     *            itself -- to reject {@code java.awt} and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectPackages(String...)} instead.
      */
