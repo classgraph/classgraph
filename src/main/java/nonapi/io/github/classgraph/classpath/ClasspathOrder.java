@@ -69,17 +69,16 @@ public class ClasspathOrder {
     /** The classpath order. Keys are instances of {@link String} or {@link URL}. */
     private final List<ClasspathEntry> order = new ArrayList<>();
 
-    /** Suffixes for automatic package roots, e.g. "!/BOOT-INF/classes". */
-    private static final List<String> AUTOMATIC_PACKAGE_ROOT_SUFFIXES = new ArrayList<>();
-
     /** Match URL schemes (must consist of at least two chars, otherwise this is Windows drive letter). */
     private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z+\\-.]+:");
 
-    static {
-        for (final String prefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
-            AUTOMATIC_PACKAGE_ROOT_SUFFIXES.add("!/" + prefix.substring(0, prefix.length() - 1));
-        }
-    }
+    /**
+     * The package root prefixes of the {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}
+     * whose {@code findClasspathOrder} method is
+     * currently being called, or the default prefixes if classpath entries are not currently being obtained from a
+     * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
+     */
+    private String[] currPackageRootPrefixes = ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
 
     /**
      * A classpath element and the {@link ClassLoader} it was obtained from.
@@ -92,16 +91,26 @@ public class ClasspathOrder {
         public final ClassLoader classLoader;
 
         /**
+         * The automatic package root prefixes to look for within this classpath element, as declared by the
+         * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler} that found it.
+         */
+        public final String[] packageRootPrefixes;
+
+        /**
          * Constructor.
          *
          * @param classpathEntryObj
          *            the classpath entry object (a {@link String} or {@link URL} or {@link Path}).
          * @param classLoader
          *            the classloader the classpath element was obtained from.
+         * @param packageRootPrefixes
+         *            the automatic package root prefixes to look for within this classpath element.
          */
-        public ClasspathEntry(final Object classpathEntryObj, final ClassLoader classLoader) {
+        public ClasspathEntry(final Object classpathEntryObj, final ClassLoader classLoader,
+                final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.classLoader = classLoader;
+            this.packageRootPrefixes = packageRootPrefixes;
         }
 
         @Override
@@ -156,6 +165,21 @@ public class ClasspathOrder {
     }
 
     /**
+     * Set the automatic package root prefixes to record for subsequently-added classpath entries. Called before
+     * and after invoking the {@code findClasspathOrder} method of a
+     * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}, so that each classpath entry
+     * records the package roots of the classloader it was obtained from.
+     *
+     * @param packageRootPrefixes
+     *            the package root prefixes, or null to reset to the default prefixes.
+     */
+    public void setPackageRootPrefixes(final String[] packageRootPrefixes) {
+        this.currPackageRootPrefixes = packageRootPrefixes == null
+                ? ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES
+                : packageRootPrefixes;
+    }
+
+    /**
      * Test to see if a classpath element has been filtered out by the user.
      * 
      * @param classpathElementURL
@@ -191,7 +215,7 @@ public class ClasspathOrder {
      */
     boolean addSystemClasspathEntry(final String pathEntry, final ClassLoader classLoader) {
         if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
-            order.add(new ClasspathEntry(pathEntry, classLoader));
+            order.add(new ClasspathEntry(pathEntry, classLoader, currPackageRootPrefixes));
             return true;
         }
         return false;
@@ -217,7 +241,9 @@ public class ClasspathOrder {
         // eliminate duplication, since automatic package roots are detected automatically (#435)
         String pathElementStrWithoutSuffix = pathElementStr;
         boolean hasSuffix = false;
-        for (final String suffix : AUTOMATIC_PACKAGE_ROOT_SUFFIXES) {
+        for (final String packageRootPrefix : currPackageRootPrefixes) {
+            // Convert package root prefix to a suffix, e.g. "BOOT-INF/classes/" -> "!/BOOT-INF/classes"
+            final String suffix = "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
             if (pathElementStr.endsWith(suffix)) {
                 // Strip off automatic package root suffix
                 pathElementStrWithoutSuffix = pathElementStr.substring(0,
@@ -250,7 +276,7 @@ public class ClasspathOrder {
             // Deduplicate classpath elements
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrWithoutSuffix)) {
                 // Record classpath element in classpath order
-                order.add(new ClasspathEntry(pathElementWithoutSuffix, classLoader));
+                order.add(new ClasspathEntry(pathElementWithoutSuffix, classLoader, currPackageRootPrefixes));
                 return true;
             }
         } else {
@@ -264,7 +290,7 @@ public class ClasspathOrder {
                 return false;
             }
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
-                order.add(new ClasspathEntry(pathElementStrResolved, classLoader));
+                order.add(new ClasspathEntry(pathElementStrResolved, classLoader, currPackageRootPrefixes));
                 return true;
             }
         }

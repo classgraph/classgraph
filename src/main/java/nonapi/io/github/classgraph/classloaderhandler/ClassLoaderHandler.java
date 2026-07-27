@@ -30,7 +30,24 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 /**
  * A ClassLoader handler.
- * 
+ *
+ * <p>
+ * Implementations must declare the following {@code static} methods, which are looked up reflectively by
+ * {@link ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry}:
+ *
+ * <ul>
+ * <li>{@code boolean canHandle(Class<?> classLoaderClass, LogNode log)}
+ * <li>{@code void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log)}
+ * <li>{@code void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec,
+ * LogNode log)}
+ * <li>{@code String[] getPackageRootPrefixes()} -- the automatic package root prefixes (e.g.
+ * {@code "BOOT-INF/classes/"}) to look for and strip within classpath elements obtained from this classloader, or
+ * {@link ClassLoaderHandlerRegistry#NO_PACKAGE_ROOT_PREFIXES} if this classloader's classpath elements always have
+ * their classes at the root. Package roots must only be declared here if the classloader really can produce
+ * classpath elements in that layout, since a package root prefix that is also a legal package name (e.g.
+ * {@code "classes/"}) will otherwise cause real packages of that name to be misread as package roots (#929).
+ * </ul>
+ *
  * <p>
  * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
  */

@@ -199,4 +199,17 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
                     + " classpath entries in unknown ClassLoader " + classLoader);
         }
     }
+
+    /**
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Nothing is known about an unrecognized classloader, so look for the package roots that cannot
+     * collide with a real package name.
+     *
+     * @return the package root prefixes.
+     */
+    public static String[] getPackageRootPrefixes() {
+        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
+    }
 }

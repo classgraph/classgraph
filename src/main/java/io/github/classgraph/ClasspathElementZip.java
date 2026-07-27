@@ -219,7 +219,7 @@ class ClasspathElementZip extends ClasspathElement {
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(entryPath, getClassLoader(),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
-                                childClasspathEntryIdx++, /* packageRootPrefix = */ ""));
+                                childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
                         break;
                     }
                 }
@@ -259,7 +259,7 @@ class ClasspathElementZip extends ClasspathElement {
                                 new ClasspathEntryWorkUnit(childClassPathEltPathWithPrefix, getClassLoader(),
                                         /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */
-                                        childClasspathEntryIdx++, /* packageRootPrefix = */ ""));
+                                        childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
                     }
                 }
             }
@@ -288,7 +288,7 @@ class ClasspathElementZip extends ClasspathElement {
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClassPathEltPath, getClassLoader(),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
-                                childClasspathEntryIdx++, /* packageRootPrefix = */ ""));
+                                childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
                     }
                 }
             }
@@ -563,8 +563,8 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
                 // Strip any package root prefix from the relative path
-                for (int i = 0; i < ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES.length; i++) {
-                    final String packageRoot = ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES[i];
+                for (int i = 0; i < packageRootPrefixes.length; i++) {
+                    final String packageRoot = packageRootPrefixes[i];
                     if (relativePath.startsWith(packageRoot)) {
                         // Strip package root
                         relativePath = relativePath.substring(packageRoot.length());

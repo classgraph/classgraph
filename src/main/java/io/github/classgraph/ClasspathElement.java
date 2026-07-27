@@ -109,6 +109,13 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     protected String packageRootPrefix;
 
     /**
+     * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for within this classpath
+     * element, as declared by the {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler} that
+     * found it. Child classpath elements inherit these, since they come from the same classloader.
+     */
+    protected final String[] packageRootPrefixes;
+
+    /**
      * The name of the module from the {@code module-info.class} module descriptor, if one is present in the root of
      * the classpath element.
      */
@@ -132,6 +139,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      */
     ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
         this.packageRootPrefix = workUnit.packageRootPrefix;
+        this.packageRootPrefixes = workUnit.packageRootPrefixes;
         this.classpathElementIdxWithinParent = workUnit.classpathElementIdxWithinParent;
         this.classLoader = workUnit.classLoader;
         this.scanSpec = scanSpec;

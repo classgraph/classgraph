@@ -102,4 +102,16 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
             classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
         }
     }
+
+    /**
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Modules always have their classes at the root of the module.
+     *
+     * @return the package root prefixes.
+     */
+    public static String[] getPackageRootPrefixes() {
+        return ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES;
+    }
 }

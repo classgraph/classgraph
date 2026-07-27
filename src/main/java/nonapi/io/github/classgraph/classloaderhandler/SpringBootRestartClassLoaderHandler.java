@@ -107,4 +107,16 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
             final ScanSpec scanSpec, final LogNode log) {
         // The Restart classloader doesn't itself store any URLs
     }
+
+    /**
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     *
+     * @return the package root prefixes.
+     */
+    public static String[] getPackageRootPrefixes() {
+        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
+    }
 }

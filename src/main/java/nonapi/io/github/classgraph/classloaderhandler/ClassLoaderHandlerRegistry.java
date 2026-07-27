@@ -106,18 +106,44 @@ public class ClassLoaderHandlerRegistry {
     };
 
     /**
-     * Automatic classfile prefixes (to compensate for some classloaders not explicitly listing these prefixes as
-     * part of the classpath element URL or path).
+     * The package root prefixes for classpath elements that have no automatic package roots at all.
      */
-    public static final String[] AUTOMATIC_PACKAGE_ROOT_PREFIXES = {
-            // Ant, Tomcat and others
-            "classes/",
-            // Ant
-            "test-classes/",
+    public static final String[] NO_PACKAGE_ROOT_PREFIXES = {};
+
+    /**
+     * The package root prefixes of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
+     *
+     * <p>
+     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
+     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
+     * in a Java identifier, so a directory with one of these names is unambiguously a package root rather than a
+     * package.
+     */
+    public static final String[] ARCHIVE_PACKAGE_ROOT_PREFIXES = {
             // Spring-Boot
             "BOOT-INF/classes/",
-            // Tomcat
-            "WEB-INF/classes/", };
+            // War files
+            "WEB-INF/classes/" };
+
+    /**
+     * The package root prefixes to look for in classpath elements from a general-purpose classloader, which could
+     * have been handed a classpath element in any of the common build-tool or packaged-archive layouts.
+     *
+     * <p>
+     * Note that unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"} and {@code "test-classes"} are
+     * both legal Java package names, so treating them as automatic package roots is a heuristic, not a certainty:
+     * a real package named {@code classes} is misread as a package root, and its classes are silently dropped
+     * (#929). The heuristic is nevertheless load-bearing for general-purpose classloaders -- see
+     * {@code Issue420Test} and {@code Issue766Test} -- so it can only be removed once package roots are verified
+     * against the declared name of a classfile found beneath them, rather than assumed from the directory name.
+     */
+    public static final String[] DEFAULT_PACKAGE_ROOT_PREFIXES = {
+            // Ant, Maven, Gradle and other build tool output dirs
+            "classes/", "test-classes/",
+            // Spring-Boot
+            "BOOT-INF/classes/",
+            // War files
+            "WEB-INF/classes/" };
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -140,6 +166,9 @@ public class ClassLoaderHandlerRegistry {
 
         /** findClasspathOrder method. */
         private final Method findClasspathOrderMethod;
+
+        /** The package root prefixes for classpath elements found by this handler. */
+        private final String[] packageRootPrefixes;
 
         /** The ClassLoaderHandler class. */
         public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
@@ -176,6 +205,24 @@ public class ClassLoaderHandlerRegistry {
                 throw new RuntimeException(
                         "Could not find findClasspathOrder method for " + classLoaderHandlerClass.getName(), e);
             }
+            try {
+                packageRootPrefixes = (String[]) classLoaderHandlerClass
+                        .getDeclaredMethod("getPackageRootPrefixes").invoke(null);
+            } catch (final Exception e) {
+                throw new RuntimeException(
+                        "Could not call getPackageRootPrefixes method for " + classLoaderHandlerClass.getName(), e);
+            }
+        }
+
+        /**
+         * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) that should be looked for, and
+         * stripped from resource paths, in classpath elements obtained from the associated
+         * {@link ClassLoaderHandler}.
+         *
+         * @return the package root prefixes.
+         */
+        public String[] getPackageRootPrefixes() {
+            return packageRootPrefixes;
         }
 
         /**

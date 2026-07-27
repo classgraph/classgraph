@@ -89,4 +89,16 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
                 classLoader, "getClasspath");
         classpathOrder.addClasspathEntry(classpath, classLoader, scanSpec, log);
     }
+
+    /**
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Only used for unit testing of classloader delegation order.
+     *
+     * @return the package root prefixes.
+     */
+    public static String[] getPackageRootPrefixes() {
+        return ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES;
+    }
 }

@@ -274,8 +274,17 @@ public class ClasspathFinder {
                                 : classloaderURLLog.log("Classloader " + classLoader.getClass().getName()
                                         + " is handled by "
                                         + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName());
-                        classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
-                                classloaderHandlerLog);
+                        // Record the package roots that this ClassLoaderHandler's classpath elements can have,
+                        // so that only the package roots that are applicable to each classpath element are
+                        // looked for and stripped when it is scanned (#929)
+                        classpathOrder
+                                .setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
+                        try {
+                            classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder,
+                                    scanSpec, classloaderHandlerLog);
+                        } finally {
+                            classpathOrder.setPackageRootPrefixes(null);
+                        }
                         finalClassLoaderOrder.add(classLoader);
                     } else if (classloaderURLLog != null) {
                         classloaderURLLog

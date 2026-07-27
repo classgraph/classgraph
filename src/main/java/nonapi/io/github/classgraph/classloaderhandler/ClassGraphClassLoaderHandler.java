@@ -107,4 +107,17 @@ class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
             }
         }
     }
+
+    /**
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * This handler only delegates to a previous scan's ClassGraphClassLoader, and adds no classpath
+     * elements of its own.
+     *
+     * @return the package root prefixes.
+     */
+    public static String[] getPackageRootPrefixes() {
+        return ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES;
+    }
 }

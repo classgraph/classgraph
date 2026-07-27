@@ -191,4 +191,17 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         final Object urls = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURLs");
         classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
     }
+
+    /**
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Tomcat serves classes from "WEB-INF/classes/" within a webapp, and from a "classes/" dir within
+     * $CATALINA_BASE, and does not always list these dirs as classpath elements.
+     *
+     * @return the package root prefixes.
+     */
+    public static String[] getPackageRootPrefixes() {
+        return new String[] { "WEB-INF/classes/", "classes/" };
+    }
 }

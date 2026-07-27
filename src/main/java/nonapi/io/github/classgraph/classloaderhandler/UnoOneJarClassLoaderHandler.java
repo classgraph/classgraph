@@ -118,4 +118,16 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // for nested jars, based on ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES.
         // ("main/" contains "main.jar".) 
     }
+
+    /**
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     *
+     * @return the package root prefixes.
+     */
+    public static String[] getPackageRootPrefixes() {
+        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
+    }
 }

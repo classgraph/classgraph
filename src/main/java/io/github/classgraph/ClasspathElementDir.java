@@ -127,7 +127,7 @@ class ClasspathElementDir extends ClasspathElement {
                             workQueue.addWorkUnit(new ClasspathEntryWorkUnit(filePath, getClassLoader(),
                                     /* parentClasspathElement = */ this,
                                     /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                    /* packageRootPrefix = */ ""));
+                                    /* packageRootPrefix = */ "", packageRootPrefixes));
                         }
                     } catch (final IOException e) {
                         // Ignore -- thrown by Files.newDirectoryStream
@@ -136,7 +136,7 @@ class ClasspathElementDir extends ClasspathElement {
             }
             // Only look for package roots if the package root is empty
             if (packageRootPrefix.isEmpty()) {
-                for (final String packageRootPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_PACKAGE_ROOT_PREFIXES) {
+                for (final String packageRootPrefix : packageRootPrefixes) {
                     final Path packageRoot = classpathEltPath.resolve(packageRootPrefix);
                     if (FileUtils.canReadAndIsDir(packageRoot)) {
                         if (log != null) {
@@ -145,7 +145,7 @@ class ClasspathElementDir extends ClasspathElement {
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(packageRoot, getClassLoader(),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                packageRootPrefix));
+                                packageRootPrefix, packageRootPrefixes));
                     }
                 }
             }

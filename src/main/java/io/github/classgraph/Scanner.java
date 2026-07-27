@@ -197,7 +197,8 @@ class Scanner implements Callable<ScanResult> {
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     systemModuleRef, nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap,
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(),
-                                            ""),
+                                            "",
+                                            nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);
                             moduleOrder.add(classpathElementModule);
                             // Open the ClasspathElementModule
@@ -222,7 +223,8 @@ class Scanner implements Callable<ScanResult> {
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     nonSystemModuleRef, nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap,
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(),
-                                            ""),
+                                            "",
+                                            nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);
                             moduleOrder.add(classpathElementModule);
                             // Open the ClasspathElementModule
@@ -344,6 +346,12 @@ class Scanner implements Callable<ScanResult> {
         final String packageRootPrefix;
 
         /**
+         * The automatic package root prefixes to look for within this classpath element, as declared by the
+         * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler} that found it.
+         */
+        final String[] packageRootPrefixes;
+
+        /**
          * Constructor.
          *
          * @param classpathEntryObj
@@ -356,15 +364,18 @@ class Scanner implements Callable<ScanResult> {
          *            the order within parent classpath element
          * @param packageRootPrefix
          *            the package root prefix
+         * @param packageRootPrefixes
+         *            the automatic package root prefixes to look for within this classpath element
          */
         public ClasspathEntryWorkUnit(final Object classpathEntryObj, final ClassLoader classLoader,
                 final ClasspathElement parentClasspathElement, final int classpathElementIdxWithinParent,
-                final String packageRootPrefix) {
+                final String packageRootPrefix, final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.classLoader = classLoader;
             this.parentClasspathElement = parentClasspathElement;
             this.classpathElementIdxWithinParent = classpathElementIdxWithinParent;
             this.packageRootPrefix = packageRootPrefix;
+            this.packageRootPrefixes = packageRootPrefixes;
         }
     }
 
@@ -1055,7 +1066,7 @@ class Scanner implements Callable<ScanResult> {
                     // classpathElementIdxWithinParent is the original classpath index,
                     // for toplevel classpath elements
                     /* classpathElementIdxWithinParent = */ rawClasspathEntryWorkUnits.size(),
-                    /* packageRootPrefix = */ ""));
+                    /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes));
         }
 
         // In parallel, create a ClasspathElement singleton for each classpath element, then call open()
