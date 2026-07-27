@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -303,6 +304,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * halve the number of filesystem calls -- the canonical path of a directory is cached, whereas each file is
      * seen only once -- and because a symlink to a file elsewhere is a file in its own right.)
      *
+     * <p>
+     * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalPath()},
+     * since on Windows the latter resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
+     * {@code C:\Users\RUNNER~1} for {@code C:\Users\runneradmin}). {@link File#getCanonicalPath()} is used as a
+     * fallback, since {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the directory to exist.
+     *
      * @param uri
      *            the URI of a resource.
      * @param canonicalDirPathCache
@@ -311,6 +318,24 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *         useful for equality comparison. If the URI does not refer to a file (e.g. a {@code jrt:/} URI), or
      *         the file could not be canonicalized, the string representation of the URI is returned unchanged.
      */
+    /**
+     * Get the canonical path of a directory, resolving symlinks (and, on Windows, junctions and 8.3 short names).
+     *
+     * @param dir
+     *            the directory.
+     * @return the canonical path of the directory.
+     * @throws IOException
+     *             if the path could not be canonicalized.
+     */
+    private static String canonicalizeDirPath(final File dir) throws IOException {
+        try {
+            return dir.toPath().toRealPath().toString();
+        } catch (final IOException | RuntimeException e) {
+            // The directory does not exist, or the path is not valid for the default filesystem
+            return dir.getCanonicalPath();
+        }
+    }
+
     private static String getFileIdentityKey(final URI uri, final Map<String, String> canonicalDirPathCache) {
         final String uriStr = uri.toString();
         // Find the file part of the URI: "file:<path>", or "jar:file:<path>!/<entry>" (for a jar within a jar,
@@ -333,7 +358,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             final String parentDirPath = parentDir.getPath();
             String canonicalParentDirPath = canonicalDirPathCache.get(parentDirPath);
             if (canonicalParentDirPath == null) {
-                canonicalParentDirPath = parentDir.getCanonicalPath();
+                canonicalParentDirPath = canonicalizeDirPath(parentDir);
                 canonicalDirPathCache.put(parentDirPath, canonicalParentDirPath);
             }
             return canonicalParentDirPath + File.separatorChar + file.getName() + nestedPath;
