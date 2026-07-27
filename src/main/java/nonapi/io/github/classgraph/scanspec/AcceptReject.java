@@ -58,6 +58,11 @@ public abstract class AcceptReject {
     protected Set<String> rejectGlobs;
     /** Accept regexp patterns. (Not serialized to JSON.) */
     protected transient List<Pattern> acceptPatterns;
+    /**
+     * Regexp patterns matching the wildcard-containing path prefixes of accepted globs, used by
+     * {@link #acceptHasPrefix(String)}. (Not serialized to JSON.) (#870)
+     */
+    protected transient List<Pattern> acceptPrefixPatterns;
     /** Reject regexp patterns. (Not serialized to JSON.) */
     protected transient List<Pattern> rejectPatterns;
     /** The separator character. */
@@ -285,6 +290,25 @@ public abstract class AcceptReject {
             for (; !prefix.isEmpty(); prefix = FileUtils.getParentDirPath(prefix, separatorChar)) {
                 acceptPrefixesSet.add(prefix + separatorChar);
             }
+
+            // The literal prefix search above stops at the first '*', so for a glob with a wildcard before its
+            // final segment, e.g. "eu/*/domain/", the only recorded prefix is "eu/". Recursive directory
+            // scanning would then stop at "eu/core/", since that is neither an accepted path nor a recorded
+            // prefix of one, and the accepted path "eu/core/domain/" would never be reached. Record a pattern
+            // for each path prefix of the glob that contains a wildcard ("eu/*/" here), so that
+            // acceptHasPrefix() can report that "eu/core/" may still lead to an accepted path. (#870, #643)
+            if (str.indexOf('*') >= 0) {
+                for (int sepIdx = str.indexOf(separatorChar); sepIdx >= 0; sepIdx = str.indexOf(separatorChar,
+                        sepIdx + 1)) {
+                    final String pathPrefix = str.substring(0, sepIdx + 1);
+                    if (pathPrefix.indexOf('*') >= 0) {
+                        if (this.acceptPrefixPatterns == null) {
+                            this.acceptPrefixPatterns = new ArrayList<>();
+                        }
+                        this.acceptPrefixPatterns.add(globToPattern(pathPrefix, /* simpleGlob = */ true));
+                    }
+                }
+            }
         }
 
         /**
@@ -347,7 +371,9 @@ public abstract class AcceptReject {
             if (acceptPrefixesSet == null) {
                 return false;
             }
-            return acceptPrefixesSet.contains(str);
+            // Also test the prefixes of any accepted glob that contain a wildcard, since those cannot be
+            // enumerated into acceptPrefixesSet. (#870, #643)
+            return acceptPrefixesSet.contains(str) || matchesPatternList(str, acceptPrefixPatterns);
         }
 
         /**
