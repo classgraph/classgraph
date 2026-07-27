@@ -33,9 +33,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleReaderProxy implements Closeable {
@@ -146,6 +148,20 @@ public class ModuleReaderProxy implements Closeable {
      *             If the module cannot be accessed.
      */
     public List<String> list() throws SecurityException {
+        return list(/* log = */ null);
+    }
+
+    /**
+     * Get the list of resources accessible to a ModuleReader, logging to the given {@link LogNode} if the
+     * {@code ModuleReader} does not honour its contract.
+     *
+     * @param log
+     *            the log, or null for no logging.
+     * @return A list of the paths of resources in the module.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
+     */
+    List<String> list(final LogNode log) throws SecurityException {
         if (collectorsRef.collectorsToList == null) {
             throw new IllegalArgumentException("Could not call Collectors.toList()");
         }
@@ -153,11 +169,18 @@ public class ModuleReaderProxy implements Closeable {
                 .invokeMethod(/* throwException = */ true, moduleReader, "list");
         if (resourcesStream == null) {
             // ModuleReader#list() is specified to return a Stream<String>, and is not allowed to return null,
-            // so a null return means the ModuleReader implementation does not honour its contract. Name it, so
-            // that the report goes to the right project (#887).
-            throw new IllegalArgumentException("ModuleReader#list() returned null for module " + moduleName
-                    + ", which its contract does not permit -- this is a bug in the ModuleReader implementation "
-                    + moduleReader.getClass().getName());
+            // so a null return means the ModuleReader implementation does not honour its contract. Some do
+            // anyway -- e.g. Minecraft Forge's securejarhandler
+            // (cpw.mods.cl.JarModuleFinder$JarModuleReader) -- so treat the module as empty rather than
+            // aborting the whole scan, and record which implementation is at fault in the log, so that the
+            // report can go to the right project. (#887)
+            if (log != null) {
+                log.log("ModuleReader#list() returned null for module " + moduleName
+                        + ", which its contract does not permit -- this is a bug in the ModuleReader "
+                        + "implementation " + moduleReader.getClass().getName()
+                        + " -- treating the module as empty");
+            }
+            return Collections.<String> emptyList();
         }
         final Object resourcesList = reflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
                 "collect", collectorsRef.collectorClass, collectorsRef.collectorsToList);

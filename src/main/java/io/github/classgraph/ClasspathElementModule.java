@@ -315,12 +315,11 @@ class ClasspathElementModule extends ClasspathElement {
             // Look for accepted files in the module.
             List<String> resourceRelativePaths;
             try {
-                resourceRelativePaths = moduleReaderProxyRecycleOnClose.get().list();
+                resourceRelativePaths = moduleReaderProxyRecycleOnClose.get().list(subLog);
             } catch (final SecurityException | IllegalArgumentException e) {
                 // A module whose contents cannot be listed is skipped, rather than aborting the whole scan.
-                // As well as a SecurityException, this covers a ModuleReader implementation that does not
-                // honour the ModuleReader#list() contract -- e.g. Minecraft Forge's securejarhandler returns
-                // null from list(), which used to abort every scan running under the Forge module layer (#887)
+                // (A ModuleReader that returns null from list(), in violation of its contract, is handled by
+                // ModuleReaderProxy#list(LogNode) instead, which treats the module as empty -- see #887)
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName()
                             + " -- skipping this module", e);

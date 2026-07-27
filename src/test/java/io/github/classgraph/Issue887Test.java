@@ -1,6 +1,6 @@
 package io.github.classgraph;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URI;
 import java.util.Collections;
@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * Scanning under Minecraft Forge aborted with {@code IllegalArgumentException: Could not call moduleReader.list()}
@@ -19,8 +20,8 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
  * <p>
  * The cause is outside ClassGraph: Forge's {@code cpw.mods.cl.JarModuleFinder$JarModuleReader#list()} returns
  * {@code null}, which {@code java.lang.module.ModuleReader#list()} does not permit -- it is specified to return a
- * {@code Stream<String>}. ClassGraph is right to complain, but it named neither the module nor the offending
- * implementation, so the report had nowhere to go.
+ * {@code Stream<String>}. Rather than aborting the scan, such a module is now treated as empty, and the log names
+ * the module and the offending implementation, so that the report can go to the right project.
  *
  * <p>
  * (In package {@code io.github.classgraph} because {@link ModuleReaderProxy}'s constructor is package-private.)
@@ -124,21 +125,26 @@ public class Issue887Test {
     }
 
     /**
-     * A {@code ModuleReader} that returns null from {@code list()} must be reported with a message that names the
-     * module and the offending implementation class, and says whose contract was broken.
+     * A {@code ModuleReader} that returns null from {@code list()} should be ignored silently, with the module
+     * treated as empty -- but if verbose logging is enabled, the log should name the module and the offending
+     * implementation class, and say whose contract was broken.
      *
      * @throws Exception
      *             if the module reader could not be opened.
      */
     @Test
-    public void nullModuleReaderListingNamesTheCulprit() throws Exception {
+    public void nullModuleReaderListingIsIgnoredButLogged() throws Exception {
         final ReflectionUtils reflectionUtils = new ReflectionUtils();
         final ModuleRef moduleRef = new ModuleRef(new FakeModuleReference(), new FakeModuleLayer(),
                 reflectionUtils);
         try (ModuleReaderProxy moduleReaderProxy = new ModuleReaderProxy(moduleRef)) {
-            assertThatThrownBy(moduleReaderProxy::list).isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("ModuleReader#list() returned null").hasMessageContaining("fake.module")
-                    .hasMessageContaining(NullListingModuleReader.class.getName());
+            // Without logging, the module is silently treated as empty
+            assertThat(moduleReaderProxy.list()).isEmpty();
+
+            final LogNode log = new LogNode();
+            assertThat(moduleReaderProxy.list(log)).isEmpty();
+            assertThat(log.toString()).contains("ModuleReader#list() returned null", "fake.module",
+                    NullListingModuleReader.class.getName());
         }
     }
 }
