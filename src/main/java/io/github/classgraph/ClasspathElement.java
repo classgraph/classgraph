@@ -71,11 +71,17 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     boolean containsSpecificallyAcceptedClasspathElementResourcePath;
 
     /**
-     * The index of the classpath element within the parent classpath element (e.g. for classpath elements added via
-     * a Class-Path entry in the manifest). Set to -1 initially in case the same ClasspathElement is present twice
-     * in the classpath, as a child of different parent ClasspathElements.
+     * True if this classpath element is referenced directly from the classpath, as opposed to only being
+     * referenced from the {@code Class-Path} manifest entry (or lib dir) of another classpath element.
      */
-    final int classpathElementIdxWithinParent;
+    private boolean isToplevel;
+
+    /**
+     * The index of the classpath element within the classpath (for toplevel classpath elements), or within the
+     * parent classpath element (e.g. for classpath elements added via a Class-Path entry in the manifest).
+     * Set by {@link #addReference(boolean, int)}.
+     */
+    private int classpathElementIdxWithinParent = Integer.MAX_VALUE;
 
     /**
      * The child classpath elements, keyed by the order of the child classpath element within the Class-Path entry
@@ -140,7 +146,6 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
         this.packageRootPrefix = workUnit.packageRootPrefix;
         this.packageRootPrefixes = workUnit.packageRootPrefixes;
-        this.classpathElementIdxWithinParent = workUnit.classpathElementIdxWithinParent;
         this.classLoader = workUnit.classLoader;
         this.scanSpec = scanSpec;
     }
@@ -154,10 +159,49 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Sort in increasing order of classpathElementIdxWithinParent. */
+    /**
+     * Record a reference to this classpath element from a classpath entry work unit.
+     *
+     * <p>
+     * The same classpath element may be referenced by more than one work unit -- e.g. a jar may be listed both in
+     * the toplevel classpath and in the {@code Class-Path} manifest entry of another jar. Only one of those work
+     * units creates the {@link ClasspathElement} singleton, and which one wins that race is nondeterministic, so
+     * the classpath ordering key has to be merged in from every work unit that references this classpath element,
+     * not just from the one that happened to create it (#810).
+     *
+     * <p>
+     * A toplevel reference always takes precedence over a reference from a parent classpath element, so that a jar
+     * listed in the classpath is ordered by its position in the classpath, rather than by the position of a
+     * manifest entry that also happens to reference it. Between two references of the same kind, the lowest index
+     * wins, so that the earliest reference determines the position of the classpath element.
+     *
+     * @param isToplevelRef
+     *            true if the work unit referenced this classpath element from the toplevel classpath, false if it
+     *            referenced it from a parent classpath element
+     * @param idx
+     *            the index of the reference within the classpath, or within the parent classpath element
+     */
+    synchronized void addReference(final boolean isToplevelRef, final int idx) {
+        if (isToplevelRef && !isToplevel) {
+            // A toplevel reference always beats a reference from a parent classpath element
+            isToplevel = true;
+            classpathElementIdxWithinParent = idx;
+        } else if (isToplevelRef == isToplevel && idx < classpathElementIdxWithinParent) {
+            // Otherwise the earliest reference of the same kind wins
+            classpathElementIdxWithinParent = idx;
+        }
+    }
+
+    /**
+     * Sort toplevel classpath elements before classpath elements that are only referenced from a parent classpath
+     * element, then sort in increasing order of classpathElementIdxWithinParent.
+     */
     @Override
     public int compareTo(final ClasspathElement other) {
-        return this.classpathElementIdxWithinParent - other.classpathElementIdxWithinParent;
+        if (this.isToplevel != other.isToplevel) {
+            return this.isToplevel ? -1 : 1;
+        }
+        return Integer.compare(this.classpathElementIdxWithinParent, other.classpathElementIdxWithinParent);
     }
 
     // -------------------------------------------------------------------------------------------------------------

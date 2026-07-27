@@ -586,41 +586,48 @@ class Scanner implements Callable<ScanResult> {
                     // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry
                     // Use a singleton map to ensure that classpath elements are only opened once
                     // per unique Path, URL, or URI
-                    classpathEntryObjToClasspathEntrySingletonMap.get(workUnit.classpathEntryObj, log,
+                    final ClasspathElement classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(
+                            workUnit.classpathEntryObj, log,
                             // A NewInstanceFactory is used here because workUnit has to be passed in,
                             // and the standard newInstance API doesn't support an extra parameter like this
                             new NewInstanceFactory<ClasspathElement, IOException>() {
                                 @Override
                                 public ClasspathElement newInstance() throws IOException, InterruptedException {
-                                    final ClasspathElement classpathElement = isJar
+                                    final ClasspathElement classpathElt = isJar
                                             ? new ClasspathElementZip(workUnit, nestedJarHandler, scanSpec)
                                             : new ClasspathElementDir(workUnit, nestedJarHandler, scanSpec);
 
-                                    allClasspathEltsOut.add(classpathElement);
+                                    allClasspathEltsOut.add(classpathElt);
 
                                     // Run open() on the ClasspathElement
                                     final LogNode subLog = log == null ? null
-                                            : log.log(classpathElement.getURI().toString(),
-                                                    "Opening classpath element " + classpathElement);
+                                            : log.log(classpathElt.getURI().toString(),
+                                                    "Opening classpath element " + classpathElt);
 
                                     // Check if the classpath element is valid (classpathElt.skipClasspathElement
                                     // will be set if not). In case of ClasspathElementZip, open or extract nested
                                     // jars as LogicalZipFile instances. Read manifest files for jarfiles to look
                                     // for Class-Path manifest entries. Adds extra classpath elements to the work
                                     // queue if they are found.
-                                    classpathElement.open(workQueue, subLog);
+                                    classpathElt.open(workQueue, subLog);
 
-                                    if (workUnit.parentClasspathElement != null) {
-                                        // Link classpath element to its parent, if it is not a toplevel element
-                                        workUnit.parentClasspathElement.childClasspathElements
-                                                .add(classpathElement);
-                                    } else {
-                                        toplevelClasspathEltsOut.add(classpathElement);
-                                    }
-
-                                    return classpathElement;
+                                    return classpathElt;
                                 }
                             });
+
+                    // Register this work unit's reference to the classpath element. This has to be done for every
+                    // work unit that references the classpath element, rather than only within newInstance() above,
+                    // because the same classpath element can be referenced both from the toplevel classpath and
+                    // from the Class-Path manifest entry of another classpath element, and which of those work
+                    // units wins the race to create the singleton is nondeterministic (#810).
+                    final boolean isToplevelRef = workUnit.parentClasspathElement == null;
+                    if (isToplevelRef) {
+                        toplevelClasspathEltsOut.add(classpathElement);
+                    } else {
+                        // Link classpath element to its parent, if it is not a toplevel element
+                        workUnit.parentClasspathElement.childClasspathElements.add(classpathElement);
+                    }
+                    classpathElement.addReference(isToplevelRef, workUnit.classpathElementIdxWithinParent);
 
                 } catch (final Exception e) {
                     if (log != null) {
