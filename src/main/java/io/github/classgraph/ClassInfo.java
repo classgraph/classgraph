@@ -52,6 +52,7 @@ import java.util.Set;
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
 import io.github.classgraph.FieldInfoList.FieldInfoFilter;
+import io.github.classgraph.MethodInfoList.MethodInfoFilter;
 import nonapi.io.github.classgraph.json.Id;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -2666,6 +2667,160 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Returns information on visible methods declared by this class that are not constructors, and that have the
+     * named annotation or meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getMethodInfoWithAnnotation(String)}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * </ul>
+     *
+     * <p>
+     * Constructors are not included -- to find annotated constructors, filter
+     * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * @param methodAnnotationName
+     *            The name of the method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods declared by this class that have the named
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public MethodInfoList getDeclaredMethodInfoWithAnnotation(final String methodAnnotationName) {
+        return filterByAnnotation(getDeclaredMethodInfo(), methodAnnotationName);
+    }
+
+    /**
+     * Returns information on visible methods declared by this class that are not constructors, and that have the
+     * given annotation or meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getMethodInfoWithAnnotation(Class)}
+     * <li>{@link #getDeclaredMethodInfo()}
+     * </ul>
+     *
+     * <p>
+     * Constructors are not included -- to find annotated constructors, filter
+     * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * @param methodAnnotation
+     *            The method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods declared by this class that have the given
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public MethodInfoList getDeclaredMethodInfoWithAnnotation(
+            final Class<? extends Annotation> methodAnnotation) {
+        Assert.isAnnotation(methodAnnotation);
+        return getDeclaredMethodInfoWithAnnotation(methodAnnotation.getName());
+    }
+
+    /**
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
+     * not constructors, and that have the named annotation or meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getDeclaredMethodInfoWithAnnotation(String)}
+     * <li>{@link #getMethodInfo()}
+     * </ul>
+     *
+     * <p>
+     * Constructors are not included -- to find annotated constructors, filter
+     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * @param methodAnnotationName
+     *            The name of the method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
+     *         superclasses that have the named annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public MethodInfoList getMethodInfoWithAnnotation(final String methodAnnotationName) {
+        return filterByAnnotation(getMethodInfo(), methodAnnotationName);
+    }
+
+    /**
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
+     * not constructors, and that have the given annotation or meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getDeclaredMethodInfoWithAnnotation(Class)}
+     * <li>{@link #getMethodInfo()}
+     * </ul>
+     *
+     * <p>
+     * Constructors are not included -- to find annotated constructors, filter
+     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
+     *
+     * @param methodAnnotation
+     *            The method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
+     *         superclasses that have the given annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public MethodInfoList getMethodInfoWithAnnotation(final Class<? extends Annotation> methodAnnotation) {
+        Assert.isAnnotation(methodAnnotation);
+        return getMethodInfoWithAnnotation(methodAnnotation.getName());
+    }
+
+    /**
+     * Filter a {@link MethodInfoList} down to the methods that have a given annotation or meta-annotation.
+     *
+     * @param methodInfoList
+     *            the methods to filter.
+     * @param methodAnnotationName
+     *            the name of the method annotation.
+     * @return the filtered list.
+     */
+    private static MethodInfoList filterByAnnotation(final MethodInfoList methodInfoList,
+            final String methodAnnotationName) {
+        return methodInfoList.filter(new MethodInfoFilter() {
+            @Override
+            public boolean accept(final MethodInfo methodInfo) {
+                return methodInfo.hasAnnotation(methodAnnotationName);
+            }
+        });
+    }
+
+    /**
      * Get all method annotations.
      *
      * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
@@ -2946,6 +3101,143 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
         return null;
+    }
+
+    /**
+     * Returns information on visible fields declared by this class that have the named annotation or
+     * meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getFieldInfoWithAnnotation(String)}
+     * <li>{@link #getDeclaredFieldInfo()}
+     * </ul>
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
+     *
+     * @param fieldAnnotationName
+     *            The name of the field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields declared by this class that have the named
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public FieldInfoList getDeclaredFieldInfoWithAnnotation(final String fieldAnnotationName) {
+        return filterByAnnotation(getDeclaredFieldInfo(), fieldAnnotationName);
+    }
+
+    /**
+     * Returns information on visible fields declared by this class that have the given annotation or
+     * meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getFieldInfoWithAnnotation(Class)}
+     * <li>{@link #getDeclaredFieldInfo()}
+     * </ul>
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
+     *
+     * @param fieldAnnotation
+     *            The field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields declared by this class that have the given
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public FieldInfoList getDeclaredFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
+        Assert.isAnnotation(fieldAnnotation);
+        return getDeclaredFieldInfoWithAnnotation(fieldAnnotation.getName());
+    }
+
+    /**
+     * Returns information on visible fields declared by this class, or by its interfaces or superclasses, that have
+     * the named annotation or meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getDeclaredFieldInfoWithAnnotation(String)}
+     * <li>{@link #getFieldInfo()}
+     * </ul>
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
+     *
+     * @param fieldAnnotationName
+     *            The name of the field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields of this class, its interfaces and
+     *         superclasses that have the named annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public FieldInfoList getFieldInfoWithAnnotation(final String fieldAnnotationName) {
+        return filterByAnnotation(getFieldInfo(), fieldAnnotationName);
+    }
+
+    /**
+     * Returns information on visible fields declared by this class, or by its interfaces or superclasses, that have
+     * the given annotation or meta-annotation. See also:
+     *
+     * <ul>
+     * <li>{@link #getDeclaredFieldInfoWithAnnotation(Class)}
+     * <li>{@link #getFieldInfo()}
+     * </ul>
+     *
+     * <p>
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalArgumentException}.
+     *
+     * <p>
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
+     *
+     * @param fieldAnnotation
+     *            The field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields of this class, its interfaces and
+     *         superclasses that have the given annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
+     */
+    public FieldInfoList getFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
+        Assert.isAnnotation(fieldAnnotation);
+        return getFieldInfoWithAnnotation(fieldAnnotation.getName());
+    }
+
+    /**
+     * Filter a {@link FieldInfoList} down to the fields that have a given annotation or meta-annotation.
+     *
+     * @param fieldInfoList
+     *            the fields to filter.
+     * @param fieldAnnotationName
+     *            the name of the field annotation.
+     * @return the filtered list.
+     */
+    private static FieldInfoList filterByAnnotation(final FieldInfoList fieldInfoList,
+            final String fieldAnnotationName) {
+        return fieldInfoList.filter(new FieldInfoFilter() {
+            @Override
+            public boolean accept(final FieldInfo fieldInfo) {
+                return fieldInfo.hasAnnotation(fieldAnnotationName);
+            }
+        });
     }
 
     /**
