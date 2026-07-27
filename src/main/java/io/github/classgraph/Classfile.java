@@ -1057,6 +1057,96 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Read only the name of the class defined by a classfile, skipping everything else. This is a cut-down version
+     * of {@link #readConstantPoolEntries(LogNode)} followed by {@link #readBasicClassInfo()}, for the case where a
+     * classfile has to be read before scanning has started, so none of the scanning context needed by the
+     * {@link Classfile} constructor is available yet. (Used to check whether a candidate package root really is a
+     * package root -- see {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}.)
+     *
+     * @param reader
+     *            a reader for the classfile.
+     * @return the name of the class defined by the classfile, in binary form, with {@code '/'} as the package
+     *         separator (e.g. {@code "java/lang/String"}), or null if the class name could not be read.
+     */
+    static String readClassName(final ClassfileReader reader) {
+        try {
+            // Skip the magic number and the minor and major version
+            reader.skip(8);
+
+            // Read the constant pool, recording only the offset and tag of each entry, and for tag 7 (class ref)
+            // entries, the index of the tag 1 (modified UTF8) entry that holds the class name
+            final int cpCount = reader.readUnsignedShort();
+            final int[] entryOffset = new int[cpCount];
+            final int[] entryTag = new int[cpCount];
+            final int[] indirectStringRefs = new int[cpCount];
+            for (int i = 1, skipSlot = 0; i < cpCount; i++) {
+                if (skipSlot == 1) {
+                    skipSlot = 0;
+                    continue;
+                }
+                entryTag[i] = reader.readUnsignedByte();
+                entryOffset[i] = reader.currPos();
+                switch (entryTag[i]) {
+                case 1: // Modified UTF8
+                    reader.skip(reader.readUnsignedShort());
+                    break;
+                case 3: // int
+                case 4: // float
+                    reader.skip(4);
+                    break;
+                case 5: // long
+                case 6: // double
+                    reader.skip(8);
+                    skipSlot = 1; // double slot
+                    break;
+                case 7: // Class reference
+                    indirectStringRefs[i] = reader.readUnsignedShort();
+                    break;
+                case 8: // String
+                case 16: // method type
+                case 19: // module
+                case 20: // package
+                    reader.skip(2);
+                    break;
+                case 9: // field ref
+                case 10: // method ref
+                case 11: // interface method ref
+                case 12: // name and type
+                case 17: // dynamic
+                case 18: // invoke dynamic
+                    reader.skip(4);
+                    break;
+                case 15: // method handle
+                    reader.skip(3);
+                    break;
+                default:
+                    // Unknown tag -- the size of the entry is unknown, so reading cannot continue
+                    return null;
+                }
+            }
+
+            // Skip the access flags, then read the constant pool index of the class' own name
+            reader.skip(2);
+            final int thisClassCpIdx = reader.readUnsignedShort();
+            if (thisClassCpIdx < 1 || thisClassCpIdx >= cpCount || entryTag[thisClassCpIdx] != 7) {
+                return null;
+            }
+            final int classNameCpIdx = indirectStringRefs[thisClassCpIdx];
+            if (classNameCpIdx < 1 || classNameCpIdx >= cpCount || entryTag[classNameCpIdx] != 1) {
+                return null;
+            }
+            final int classNameOffset = entryOffset[classNameCpIdx];
+            final int classNameLen = reader.readUnsignedShort(classNameOffset);
+            return classNameLen == 0 ? null : reader.readString(classNameOffset + 2L, classNameLen);
+        } catch (final IOException | RuntimeException e) {
+            // Could not read or parse the classfile
+            return null;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Read constant pool entries.
      *
      * @param log

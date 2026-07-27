@@ -457,6 +457,57 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
+     * Filter out any candidate package root prefix that is really a package with the same name as the prefix, e.g.
+     * a package named {@code classes} in a jar that has no {@code classes/} package root (#929).
+     *
+     * @param log
+     *            the log
+     * @return the package root prefixes that were not disproved
+     */
+    private String[] getVerifiedPackageRootPrefixes(final LogNode log) {
+        // Find the first classfile beneath each candidate package root prefix
+        final FastZipEntry[] firstClassfileEntry = new FastZipEntry[packageRootPrefixes.length];
+        for (final FastZipEntry zipEntry : logicalZipFile.entries) {
+            final String entryName = zipEntry.entryNameUnversioned;
+            if (!entryName.endsWith(".class")) {
+                continue;
+            }
+            for (int i = 0; i < packageRootPrefixes.length; i++) {
+                final String prefix = packageRootPrefixes[i];
+                if (firstClassfileEntry[i] == null && entryName.startsWith(prefix)
+                        // The path of a classfile below META-INF (e.g. in a multi-release jar) does not
+                        // necessarily correspond to the name of the class it declares
+                        && !entryName.startsWith("META-INF/", prefix.length())) {
+                    firstClassfileEntry[i] = zipEntry;
+                }
+            }
+        }
+        // Check the class declared by each of those classfiles against its path
+        final List<String> verifiedPackageRootPrefixes = new ArrayList<>(packageRootPrefixes.length);
+        for (int i = 0; i < packageRootPrefixes.length; i++) {
+            final String prefix = packageRootPrefixes[i];
+            final FastZipEntry zipEntry = firstClassfileEntry[i];
+            String disprovingClassName = null;
+            if (zipEntry != null) {
+                try (ClassfileReader classfileReader = new ClassfileReader(zipEntry.getSlice(),
+                        /* resourceToClose = */ null)) {
+                    disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
+                            zipEntry.entryNameUnversioned.substring(prefix.length()));
+                } catch (final IOException e) {
+                    // If the classfile cannot be read, give the candidate package root the benefit of the doubt
+                }
+            }
+            if (disprovingClassName == null) {
+                verifiedPackageRootPrefixes.add(prefix);
+            } else if (log != null) {
+                log.log("\"" + prefix + "\" is a package, not a package root, since a classfile beneath it "
+                        + "declares the class " + disprovingClassName);
+            }
+        }
+        return verifiedPackageRootPrefixes.toArray(new String[0]);
+    }
+
+    /**
      * Scan for path matches within jarfile, and record ZipEntry objects of matching files.
      *
      * @param log
@@ -495,6 +546,12 @@ class ClasspathElementZip extends ClasspathElement {
                 isModularJar = true;
             }
         }
+
+        // "classes/" and "test-classes/" are legal package names, so only strip a package root prefix from the
+        // relative path of an entry if the prefix is not simply a package with the same name (#929)
+        final String[] verifiedPackageRootPrefixes = packageRootPrefix.isEmpty() && packageRootPrefixes.length > 0
+                ? getVerifiedPackageRootPrefixes(subLog)
+                : packageRootPrefixes;
 
         Set<String> loggedNestedClasspathRootPrefixes = null;
         String prevParentRelativePath = null;
@@ -563,8 +620,8 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
                 // Strip any package root prefix from the relative path
-                for (int i = 0; i < packageRootPrefixes.length; i++) {
-                    final String packageRoot = packageRootPrefixes[i];
+                for (int i = 0; i < verifiedPackageRootPrefixes.length; i++) {
+                    final String packageRoot = verifiedPackageRootPrefixes[i];
                     if (relativePath.startsWith(packageRoot)) {
                         // Strip package root
                         relativePath = relativePath.substring(packageRoot.length());

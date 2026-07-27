@@ -35,8 +35,10 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
@@ -139,6 +141,18 @@ class ClasspathElementDir extends ClasspathElement {
                 for (final String packageRootPrefix : packageRootPrefixes) {
                     final Path packageRoot = classpathEltPath.resolve(packageRootPrefix);
                     if (FileUtils.canReadAndIsDir(packageRoot)) {
+                        // "classes/" and "test-classes/" are legal package names, so check that the candidate
+                        // package root is not simply a package with the same name (#929)
+                        final String disprovingClassName = getClassNameDisprovingPackageRoot(packageRoot);
+                        if (disprovingClassName != null) {
+                            if (log != null) {
+                                log(classpathElementIdx,
+                                        "\"" + packageRootPrefix + "\" is a package, not a package root, since a "
+                                                + "classfile beneath it declares the class " + disprovingClassName,
+                                        log);
+                            }
+                            continue;
+                        }
                         if (log != null) {
                             log(classpathElementIdx, "Found package root: " + packageRootPrefix, log);
                         }
@@ -155,6 +169,74 @@ class ClasspathElementDir extends ClasspathElement {
                         "Skipping classpath element, since dir cannot be accessed: " + classpathEltPath, log);
             }
             skipClasspathElement = true;
+        }
+    }
+
+    /**
+     * Find the first classfile beneath a directory, so that the class it declares can be compared to its path.
+     *
+     * @param dir
+     *            the directory to search.
+     * @return the first classfile found beneath the directory, or null if there are none. Classfiles beneath a
+     *         {@code META-INF} directory are ignored, since the path of a classfile in a multi-release jar layout
+     *         ({@code META-INF/versions/N/}) does not correspond to the name of the class it declares.
+     */
+    private static Path findFirstClassfile(final Path dir) {
+        final Path[] firstClassfile = new Path[1];
+        try {
+            Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(final Path subDir, final BasicFileAttributes attrs) {
+                    final Path subDirName = subDir.getFileName();
+                    return subDirName != null && "META-INF".equals(subDirName.toString())
+                            ? FileVisitResult.SKIP_SUBTREE
+                            : FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
+                    if (file.getFileName().toString().endsWith(".class")) {
+                        firstClassfile[0] = file;
+                        return FileVisitResult.TERMINATE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(final Path file, final IOException e) {
+                    // Ignore unreadable files
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (final IOException | SecurityException e) {
+            // Ignore
+        }
+        return firstClassfile[0];
+    }
+
+    /**
+     * Check whether a candidate package root directory is really a package root, or is simply a package that has
+     * the same name as one of the automatic package root prefixes (#929).
+     *
+     * @param packageRoot
+     *            the candidate package root directory.
+     * @return null if the candidate is a package root, otherwise the name of the class that disproves it (see
+     *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}).
+     */
+    private static String getClassNameDisprovingPackageRoot(final Path packageRoot) {
+        final Path classfilePath = findFirstClassfile(packageRoot);
+        if (classfilePath == null) {
+            // There are no classfiles beneath the candidate package root, so there is nothing to check
+            return null;
+        }
+        final String classfileRelativePath = packageRoot.relativize(classfilePath).toString()
+                .replace(File.separatorChar, '/');
+        try (InputStream inputStream = Files.newInputStream(classfilePath);
+                ClassfileReader classfileReader = new ClassfileReader(inputStream, /* resourceToClose = */ null)) {
+            return getClassNameDisprovingPackageRoot(classfileReader, classfileRelativePath);
+        } catch (final IOException | SecurityException e) {
+            // If the classfile cannot be read, give the candidate package root the benefit of the doubt
+            return null;
         }
     }
 
