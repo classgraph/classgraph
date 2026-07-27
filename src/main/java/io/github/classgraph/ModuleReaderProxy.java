@@ -42,6 +42,9 @@ public class ModuleReaderProxy implements Closeable {
     /** The module reader. */
     private final AutoCloseable moduleReader;
 
+    /** The name of the module being read, for error messages. */
+    private final String moduleName;
+
     /**
      * Holder for the reflective handles needed to call {@code Stream#collect(Collectors.toList())}. Both values
      * are resolved together and published as a single immutable object, so that a reader can never observe one
@@ -92,6 +95,7 @@ public class ModuleReaderProxy implements Closeable {
      *             If an I/O exception occurs.
      */
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
+        moduleName = moduleRef.getName();
         try {
             reflectionUtils = moduleRef.reflectionUtils;
             // Double-checked locking on the volatile field, so that the lazy initialization is not a data race
@@ -148,7 +152,12 @@ public class ModuleReaderProxy implements Closeable {
         final Object /* Stream<String> */ resourcesStream = reflectionUtils
                 .invokeMethod(/* throwException = */ true, moduleReader, "list");
         if (resourcesStream == null) {
-            throw new IllegalArgumentException("Could not call moduleReader.list()");
+            // ModuleReader#list() is specified to return a Stream<String>, and is not allowed to return null,
+            // so a null return means the ModuleReader implementation does not honour its contract. Name it, so
+            // that the report goes to the right project (#887).
+            throw new IllegalArgumentException("ModuleReader#list() returned null for module " + moduleName
+                    + ", which its contract does not permit -- this is a bug in the ModuleReader implementation "
+                    + moduleReader.getClass().getName());
         }
         final Object resourcesList = reflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
                 "collect", collectorsRef.collectorClass, collectorsRef.collectorsToList);
