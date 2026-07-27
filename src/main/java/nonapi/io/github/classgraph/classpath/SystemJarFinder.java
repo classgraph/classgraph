@@ -71,6 +71,15 @@ public final class SystemJarFinder {
                     final String filePath = file.getPath();
                     if (filePath.endsWith(".jar")) {
                         final String jarPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), filePath);
+                        if (jarPathResolved.endsWith("/jrt-fs.jar")) {
+                            // "{java.home}/lib/jrt-fs.jar" is not part of the class library -- it is the jrt:
+                            // filesystem provider, shipped so that tools running on an older JDK can read a
+                            // JDK 9+ runtime image. Its classes (jdk.internal.jimage and jdk.internal.jrtfs)
+                            // are also present in java.base of the JDK it ships with, so when running on JDK 9
+                            // or above, scanning it just duplicates classes that are already reachable through
+                            // the system modules.
+                            continue;
+                        }
                         if (jarPathResolved.endsWith("/rt.jar")) {
                             RT_JARS.add(jarPathResolved);
                         } else {

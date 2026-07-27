@@ -97,4 +97,20 @@ public class SystemJarFinderTest {
             }
         });
     }
+
+    /**
+     * {@code {java.home}/lib/jrt-fs.jar} is the jrt: filesystem provider, not part of the class library -- its
+     * classes are already in java.base, so scanning it would duplicate them. It must not be classified as a JRE lib
+     * jar.
+     */
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
+    public void jrtFsJarIsNotAJreLibJar() {
+        assertThat(SystemJarFinder.getJreLibOrExtJars()).noneMatch(new java.util.function.Predicate<String>() {
+            @Override
+            public boolean test(final String path) {
+                return path.endsWith("/jrt-fs.jar");
+            }
+        });
+    }
 }
