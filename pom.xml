@@ -257,7 +257,7 @@
 						</dependency>
 					</dependencies>
 					<executions>
-						<!-- Require Maven version. -->
+						<!-- Require Maven and JDK versions. -->
 						<execution>
 							<id>enforce-versions</id>
 							<phase>validate</phase>
@@ -269,6 +269,16 @@
 									<requireMavenVersion>
 										<version>[3.6.3,)</version>
 									</requireMavenVersion>
+									<!-- The compiler runs with -Xlint:all -Werror, so every new lint category -->
+									<!-- added by a new JDK breaks the build. JDK 21 added this-escape, which -->
+									<!-- fires on ClassInfo.java. Fail fast here with a clear message rather -->
+									<!-- than deep inside a compile, which is especially confusing during -->
+									<!-- release:prepare, where the compile happens in a forked child build. -->
+									<!-- Raise the upper bound only after checking a build actually passes. -->
+									<requireJavaVersion>
+										<version>[1.8,21)</version>
+										<message>ClassGraph must be built with JDK 8..20 (JDK 8 for releases). JDK 21+ adds the this-escape lint, which -Werror turns into a build failure. Set JAVA_HOME to a JDK 8 install.</message>
+									</requireJavaVersion>
 								</rules>
 							</configuration>
 						</execution>
