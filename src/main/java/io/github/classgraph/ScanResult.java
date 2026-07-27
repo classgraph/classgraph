@@ -129,6 +129,23 @@ public final class ScanResult implements Closeable {
 
     protected ReflectionUtils reflectionUtils;
 
+    /**
+     * Get the {@link ReflectionUtils} instance of a {@link ScanResult}, falling back to a fresh instance if the
+     * {@link ScanResult} is null or has been closed. {@link #close()} sets {@link #reflectionUtils} to null, so
+     * testing only for a null {@link ScanResult} is not enough -- objects such as {@link AnnotationInfo} keep
+     * working after the {@link ScanResult} they came from is closed, and must not throw
+     * {@link NullPointerException}. The field is read only once, so that a concurrent {@link #close()} cannot
+     * cause null to be returned. (#930)
+     *
+     * @param scanResult
+     *            the {@link ScanResult}, or null.
+     * @return a non-null {@link ReflectionUtils}.
+     */
+    static ReflectionUtils getReflectionUtils(final ScanResult scanResult) {
+        final ReflectionUtils reflectionUtils = scanResult == null ? null : scanResult.reflectionUtils;
+        return reflectionUtils == null ? new ReflectionUtils() : reflectionUtils;
+    }
+
     /** The toplevel log. */
     private final LogNode topLevelLog;
 

@@ -2828,8 +2828,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final Class<?> enumClass = loadClass();
         final FieldInfoList consts = getEnumConstants();
         final List<Object> constObjs = new ArrayList<>(consts.size());
-        final ReflectionUtils reflectionUtils = scanResult == null ? new ReflectionUtils()
-                : scanResult.reflectionUtils;
+        final ReflectionUtils reflectionUtils = ScanResult.getReflectionUtils(scanResult);
         for (final FieldInfo constFieldInfo : consts) {
             final Object constObj = reflectionUtils.getStaticFieldVal(true, enumClass, constFieldInfo.getName());
             if (constObj == null) {
