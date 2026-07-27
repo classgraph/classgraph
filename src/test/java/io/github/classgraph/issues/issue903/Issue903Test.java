@@ -49,10 +49,14 @@ class Issue903Test {
     }
 
     /** Scan a classpath element, and return the accepted resource paths. */
-    private static java.util.List<String> scanPaths(final File classpathElt) {
+    private static java.util.List<String> scanPaths(final File classpathElt) throws IOException {
+        // ClassGraph canonicalizes classpath element paths, and the temporary directory is reached through a
+        // symlink on macOS ("/var" -> "/private/var") and through an 8.3 short name on Windows
+        // ("C:\Users\RUNNER~1" -> "C:\Users\runneradmin"), so compare canonical paths
+        final File classpathEltCanonical = classpathElt.getCanonicalFile();
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathElt.getPath())
                 .acceptPaths("issue903").scan()) {
-            assertThat(scanResult.getClasspathFiles()).containsExactly(classpathElt);
+            assertThat(scanResult.getClasspathFiles()).containsExactly(classpathEltCanonical);
             return scanResult.getAllResources().getPaths();
         }
     }
