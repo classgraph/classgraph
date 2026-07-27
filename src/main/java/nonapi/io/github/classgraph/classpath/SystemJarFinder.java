@@ -95,6 +95,40 @@ public final class SystemJarFinder {
         return false;
     }
 
+    /**
+     * Determine whether a directory is the root of a JDK installation, by looking for files that are only shipped
+     * with a JDK, and never with a JRE.
+     *
+     * <p>
+     * This is needed because bundling a JRE into an application directory, alongside the application's own jars, is
+     * a common deployment layout:
+     *
+     * <pre>
+     * myapp/
+     *     jre/     &lt;-- the bundled JRE ({@code java.home} points here)
+     *     lib/     &lt;-- the application's own jars
+     * </pre>
+     *
+     * <p>
+     * Without this check, {@code myapp/} would be assumed to be a JDK root simply because {@code java.home} ends in
+     * {@code jre}, and every jar in {@code myapp/lib} would be classified as a JRE lib jar -- which causes those
+     * jars to be silently dropped from the classpath (see {@code ClasspathOrder#addClasspathEntry}), so none of the
+     * application's own classes are found (#816).
+     *
+     * <p>
+     * Only JDK 8 and earlier nest the JRE inside the JDK, so only JDK 8 and earlier markers need to be tested for.
+     *
+     * @param dir
+     *            the candidate JDK root directory.
+     * @return true if the directory looks like the root of a JDK installation.
+     */
+    // (package-private for testing)
+    static boolean isJDKRoot(final File dir) {
+        return FileUtils.canReadAndIsFile(new File(dir, "lib/tools.jar"))
+                || FileUtils.canReadAndIsFile(new File(dir, "bin/javac"))
+                || FileUtils.canReadAndIsFile(new File(dir, "bin/javac.exe"));
+    }
+
     // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
     static {
         String javaHome = VersionFinder.getProperty("java.home");
@@ -105,11 +139,15 @@ public final class SystemJarFinder {
             final File javaHomeFile = new File(javaHome);
             addJREPath(javaHomeFile);
             if (javaHomeFile.getName().equals("jre")) {
-                // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path
+                // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path -- but only if the
+                // parent directory really is a JDK root, since an application directory containing a bundled
+                // JRE in "jre/" and the application's own jars in "lib/" has the same shape (#816)
                 final File jreParent = javaHomeFile.getParentFile();
-                addJREPath(jreParent);
-                addJREPath(new File(jreParent, "lib"));
-                addJREPath(new File(jreParent, "lib/ext"));
+                if (jreParent != null && isJDKRoot(jreParent)) {
+                    addJREPath(jreParent);
+                    addJREPath(new File(jreParent, "lib"));
+                    addJREPath(new File(jreParent, "lib/ext"));
+                }
             } else {
                 // Try adding "{java.home}/jre" as a JRE root when java.home is not a JRE path
                 addJREPath(new File(javaHomeFile, "jre"));
