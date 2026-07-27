@@ -124,7 +124,13 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     public static void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         // type StandardRoot (implements WebResourceRoot)
-        final Object resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
+        Object resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
+        if (resources == null) {
+            // WebappClassLoaderBase#getResources() was deprecated in Tomcat 8.5 and 9.0, and removed in Tomcat
+            // 10.1, so fall back to reading the "resources" field that it returned, which is still present.
+            // Without this, none of the WebResourceSets below were found on Tomcat 10.1 or above. (#925)
+            resources = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "resources");
+        }
         // type List<URL>
         final Object baseURLs = classpathOrder.reflectionUtils.invokeMethod(false, resources, "getBaseUrls");
         classpathOrder.addClasspathEntryObject(baseURLs, classLoader, scanSpec, log);
@@ -168,9 +174,11 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                                 base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
                             }
                             final String className = webResourceSet.getClass().getName();
-                            final boolean isJar = className
-                                    .equals("java.org.apache.catalina.webresources.JarResourceSet")
-                                    || className.equals("java.org.apache.catalina.webresources.JarWarResourceSet");
+                            // (These class names previously had a spurious "java." prefix, so isJar was always
+                            // false, and the internal path of a resource JAR was appended as a directory path
+                            // rather than as a path within the JAR)
+                            final boolean isJar = className.equals("org.apache.catalina.webresources.JarResourceSet")
+                                    || className.equals("org.apache.catalina.webresources.JarWarResourceSet");
                             // The path within this WebResourceSet where resources will be served from,
                             // e.g. for a resource JAR, this would be "META-INF/resources"
                             final String internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false,

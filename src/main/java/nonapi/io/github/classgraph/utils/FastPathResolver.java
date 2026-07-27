@@ -47,6 +47,15 @@ public final class FastPathResolver {
     private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z+\\-.]+:/{1,2}");
 
     /**
+     * The separator that Tomcat uses in a {@code "war:"} URL between the path of the WAR file and the path within
+     * the WAR file. Tomcat uses {@code "*&#47;"} by default, or {@code "^&#47;"}, or a custom separator set through
+     * this system property, since a WAR file's path may itself contain {@code '*'} or {@code '^'}. See
+     * {@code org.apache.tomcat.util.buf.UriUtil#warToJar}. (#925)
+     */
+    private static final String customWarSeparator = VersionFinder
+            .getProperty("org.apache.tomcat.util.buf.UriUtil.WAR_SEPARATOR");
+
+    /**
      * Constructor.
      */
     private FastPathResolver() {
@@ -174,22 +183,60 @@ public final class FastPathResolver {
     }
 
     /**
+     * Convert a Tomcat {@code "war:"} URL into the equivalent {@code "jar:"} URL.
+     *
+     * <p>
+     * Tomcat serves a non-exploded WAR file (i.e. a webapp deployed with {@code unpackWARs="false"}) through its
+     * own {@code "war:"} URL protocol, which separates the path of the WAR file from the path within the WAR file
+     * using {@code "*&#47;"} rather than the standard {@code "!&#47;"}, e.g.
+     * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. Without this conversion, the {@code '*'} was read
+     * as a wildcard, and the whole classpath element was rejected, so nothing in a non-exploded WAR was scanned.
+     * (#925)
+     *
+     * @param path
+     *            The path, which may or may not be a {@code "war:"} URL.
+     * @return The equivalent {@code "jar:"} URL if this is a {@code "war:"} URL, otherwise the path, unchanged.
+     */
+    private static String warUrlToJarUrl(final String path) {
+        if (!path.regionMatches(true, 0, "war:", 0, 4)) {
+            return path;
+        }
+        // Strip the "war:" prefix, leaving a "file:" URL that the rest of the resolver understands
+        final String jarUrl = path.substring(4);
+        // Mirrors the separators tried by org.apache.tomcat.util.buf.UriUtil#warToJar
+        int sepIdx = jarUrl.indexOf("*/");
+        if (sepIdx < 0) {
+            sepIdx = jarUrl.indexOf("^/");
+        }
+        int sepLen = 2;
+        if (sepIdx < 0 && customWarSeparator != null && !customWarSeparator.isEmpty()) {
+            sepIdx = jarUrl.indexOf(customWarSeparator + "/");
+            sepLen = customWarSeparator.length() + 1;
+        }
+        return sepIdx < 0 ? jarUrl : jarUrl.substring(0, sepIdx) + "!/" + jarUrl.substring(sepIdx + sepLen);
+    }
+
+    /**
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
      * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
-     * 
+     *
      * @param resolveBasePath
      *            The base path.
      * @param relativePath
      *            The path to resolve relative to the base path.
      * @return The resolved path.
      */
-    public static String resolve(final String resolveBasePath, final String relativePath) {
+    public static String resolve(final String resolveBasePath, final String relativePathRaw) {
         // See: http://stackoverflow.com/a/17870390/3950982
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
-        if (relativePath == null || relativePath.isEmpty()) {
+        if (relativePathRaw == null || relativePathRaw.isEmpty()) {
             return resolveBasePath == null ? "" : resolveBasePath;
         }
+
+        // Convert Tomcat's "war:" URLs into the standard "jar:" form before anything else, so that the rest of
+        // this method sees a path it understands (#925)
+        final String relativePath = warUrlToJarUrl(relativePathRaw);
 
         String prefix = "";
         boolean isAbsolutePath = false;

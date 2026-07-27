@@ -73,6 +73,8 @@ public final class JarUtils {
      */
     private static final String[] UNIX_NON_PATH_SEPARATORS = { //
             "jar:", "file:", "http://", "https://", //
+            // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
+            "war:", //
             // Allow for escaping of ':' characters in paths, which probably goes beyond what the spec would allow
             // for, but would make sense, since File.separatorChar will never be '\\' when File.pathSeparatorChar is
             // ':'
@@ -165,7 +167,7 @@ public final class JarUtils {
                     for (final String scheme : scanSpec.allowedURLSchemes) {
                         // Skip schemes already handled by the faster matching code above
                         if (!scheme.equals("http") && !scheme.equals("https") && !scheme.equals("jar")
-                                && !scheme.equals("file")) {
+                                && !scheme.equals("file") && !scheme.equals("war")) {
                             final int schemeLen = scheme.length();
                             final int startIdx = i - schemeLen;
                             if (pathStr.regionMatches(true, startIdx, scheme, 0, schemeLen)
