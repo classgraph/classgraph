@@ -413,7 +413,9 @@ class Scanner implements Callable<ScanResult> {
         if (classpathEntryObjNormalized instanceof String) {
             String classpathEntStr = (String) classpathEntryObjNormalized;
             final boolean isURL = JarUtils.URL_SCHEME_PATTERN.matcher(classpathEntStr).matches();
-            final boolean isMultiSection = classpathEntStr.contains("!");
+            // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is
+            // otherwise a legal filename character, and must not be treated as a separator (#903)
+            final boolean isMultiSection = JarUtils.indexOfNestedJarSeparator(classpathEntStr) >= 0;
             if (isURL || isMultiSection) {
                 // Encode spaces and hash symbols in classpath entry as they potentially can be invalid when
                 // converted to a URL/URI

@@ -159,7 +159,11 @@ public final class FileUtils {
             return "";
         }
 
-        // Find all '/' and '!' character positions, which split a path into segments 
+        // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is
+        // otherwise a legal filename character, and must not be treated as a path hierarchy root (#903)
+        final int nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(path);
+
+        // Find all '/' and nested jar separator '!' character positions, which split a path into segments 
         boolean foundSegmentToSanitize = false;
         final int pathLen = path.length();
         final char[] pathChars = new char[pathLen];
@@ -169,7 +173,7 @@ public final class FileUtils {
             char prevC = '\0';
             for (int i = 0, ii = pathLen + 1; i < ii; i++) {
                 final char c = i == pathLen ? '\0' : pathChars[i];
-                if (c == '/' || c == '!' || c == '\0') {
+                if (c == '/' || (c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx) || c == '\0') {
                     final int segmentLength = i - (lastSepIdx + 1);
                     if (
                     // Found empty segment "//" or "!!"
@@ -198,7 +202,8 @@ public final class FileUtils {
             int lastSepIdx = -1;
             for (int i = 0; i < pathLen + 1; i++) {
                 final char c = i == pathLen ? '\0' : pathChars[i];
-                if (c == '/' || c == '!' || c == '\0') {
+                final boolean isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
+                if (c == '/' || isSectionMarker || c == '\0') {
                     final int segmentStartIdx = lastSepIdx + 1;
                     final int segmentLen = i - segmentStartIdx;
                     if (segmentLen == 0 || (segmentLen == 1 && pathChars[segmentStartIdx] == '.')) {
@@ -213,7 +218,7 @@ public final class FileUtils {
                         // Encountered normal path segment
                         currSectionSegments.add(path.subSequence(segmentStartIdx, segmentStartIdx + segmentLen));
                     }
-                    if (c == '!' && !currSectionSegments.isEmpty()) {
+                    if (isSectionMarker && !currSectionSegments.isEmpty()) {
                         // Begin new section
                         currSectionSegments = new ArrayList<>();
                         allSectionSegments.add(currSectionSegments);

@@ -265,6 +265,73 @@ public final class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Find the index of the outermost nested jar separator ('!') in a path, i.e. the '!' that separates the
+     * outermost jarfile from a path nested within it, or -1 if the path contains no nested jar separator.
+     *
+     * <p>
+     * A '!' is not necessarily a separator -- it is a legal character in a file or directory name on every
+     * platform ClassGraph supports, and users do put it in their directory names (#903). The
+     * {@link java.net.JarURLConnection} spec defines the separator as {@code "!/"}, and gives no way of escaping a
+     * literal '!' other than percent-encoding it as {@code %21} within the inner URL, so the separator cannot be
+     * identified by syntax alone: {@code /dir!/x.jar} is ambiguous between a jar {@code x.jar} in a directory named
+     * {@code dir!}, and an entry {@code x.jar} within a jarfile named {@code dir}.
+     *
+     * <p>
+     * That ambiguity is resolved here by testing the filesystem: the outermost '!' separator is the first '!' whose
+     * preceding path names an existing regular file (which must be the outermost jarfile). Every subsequent '!' is
+     * then a separator too, since only the last element of a '!'-delimited path may be a non-jar path. If no '!' is
+     * preceded by an existing file, the path contains no separator, and any '!' in it is a literal filename
+     * character.
+     *
+     * <p>
+     * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so for those the
+     * old syntactic rule is retained, and the first '!' is taken to be the separator.
+     *
+     * @param path
+     *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
+     * @return the index of the outermost nested jar separator, or -1 if there is none.
+     */
+    public static int indexOfNestedJarSeparator(final String path) {
+        int plingIdx = path.indexOf('!');
+        if (plingIdx < 0) {
+            return -1;
+        }
+        if (URL_SCHEME_PATTERN.matcher(path).matches()) {
+            // Cannot stat a remote URL -- fall back to the syntactic rule
+            return plingIdx;
+        }
+        while (plingIdx >= 0) {
+            // The outermost jarfile has to exist as a regular file for the classpath element to be scannable,
+            // so if the path before the '!' names one, this '!' is the outermost separator
+            // N.B. the path is not resolved via FastPathResolver here, since that calls
+            // FileUtils#sanitizeEntryPath, which calls this method -- a relative path is resolved by
+            // java.io.File against the current directory, which is the same base path anyway
+            if (new File(path.substring(0, plingIdx)).isFile()) {
+                return plingIdx;
+            }
+            plingIdx = path.indexOf('!', plingIdx + 1);
+        }
+        return -1;
+    }
+
+    /**
+     * Find the index of the innermost nested jar separator ('!') in a path, or -1 if the path contains no nested
+     * jar separator. See {@link #indexOfNestedJarSeparator(String)} for how separators are distinguished from
+     * literal '!' characters in filenames (#903).
+     *
+     * @param path
+     *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
+     * @return the index of the innermost nested jar separator, or -1 if there is none.
+     */
+    public static int lastIndexOfNestedJarSeparator(final String path) {
+        // Every '!' after the outermost separator is also a separator, so if there is an outermost separator,
+        // the last '!' in the path is the innermost separator
+        return indexOfNestedJarSeparator(path) < 0 ? -1 : path.lastIndexOf('!');
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Returns the leafname of a path, after first stripping off everything after the first '!', if present.
      * 
      * @param path

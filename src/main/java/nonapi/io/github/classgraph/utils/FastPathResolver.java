@@ -280,7 +280,9 @@ public final class FastPathResolver {
             if (pathStr.endsWith("/")) {
                 pathStr = pathStr.substring(0, pathStr.length() - 1);
             }
-            if (pathStr.endsWith("!")) {
+            // Only strip a trailing '!' if it is really a nested jar separator, i.e. if it marks the whole of
+            // the jarfile before it -- a trailing '!' is otherwise part of a directory name (#903)
+            if (pathStr.endsWith("!") && JarUtils.indexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
                 pathStr = pathStr.substring(0, pathStr.length() - 1);
             }
             if (pathStr.endsWith("/")) {

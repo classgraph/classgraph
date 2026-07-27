@@ -165,7 +165,9 @@ public class NestedJarHandler {
                 public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
                         throws IOException, InterruptedException {
                     final String nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
-                    final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
+                    // A '!' is only a nested jar separator if the outermost path component names an existing
+                    // jarfile -- it is otherwise a legal filename character (#903)
+                    final int lastPlingIdx = JarUtils.lastIndexOfNestedJarSeparator(nestedJarPath);
                     if (lastPlingIdx < 0) {
                         // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!'
                         // sections).

@@ -140,7 +140,7 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
         final LogNode subLog = log == null ? null : log(classpathElementIdx, "Opening jar: " + rawPath, log);
-        final int plingIdx = rawPath.indexOf('!');
+        final int plingIdx = JarUtils.indexOfNestedJarSeparator(rawPath);
         final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                 plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
         if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(outermostZipFilePathResolved)) {
@@ -710,7 +710,7 @@ class ClasspathElementZip extends ClasspathElement {
             return logicalZipFile.getPhysicalFile();
         } else {
             // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
-            final int plingIdx = rawPath.indexOf('!');
+            final int plingIdx = JarUtils.indexOfNestedJarSeparator(rawPath);
             final String outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                     plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
             return new File(outermostZipFilePathResolved);
