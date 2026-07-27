@@ -191,6 +191,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The modifier bit for annotations. */
     private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
 
+    /**
+     * The {@code ACC_SUPER} bit of a classfile's {@code access_flags} field. This selects the JVM's treatment of
+     * the {@code invokespecial} instruction, and has no counterpart in {@link Modifier} -- the same bit value is
+     * {@link Modifier#SYNCHRONIZED}, which is not a legal class modifier. It is masked out of the value returned by
+     * {@link #getModifiers()} (#791).
+     */
+    private static final int ACC_SUPER = 0x0020;
+
     /** The constant empty return value used when no classes are reachable. */
     private static final ReachableAndDirectlyRelatedClasses NO_REACHABLE_CLASSES = //
             new ReachableAndDirectlyRelatedClasses(Collections.<ClassInfo> emptySet(),
@@ -1215,12 +1223,27 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the class modifier bits.
+     * Get the class modifier bits, in the same form as {@link Class#getModifiers()}.
+     *
+     * <p>
+     * The {@code ACC_SUPER} bit (0x0020) of the classfile's {@code access_flags} field is masked out, because it is
+     * not a modifier: it selects the JVM's treatment of the {@code invokespecial} instruction, javac sets it on
+     * almost every class, and the same bit value in {@link Modifier} is {@link Modifier#SYNCHRONIZED}, which is not
+     * a legal class modifier. {@link Class#getModifiers()} masks it out for the same reason.
+     *
+     * <p>
+     * <b>Note:</b> comparing the returned value against a hardcoded integer is fragile, and the value of that bit
+     * changed in version 4.8.186 (see <a href="https://github.com/classgraph/classgraph/issues/791">#791</a>): a
+     * {@code protected static} nested class previously returned 0x002C, and now returns 0x000C. Prefer the named
+     * accessors ({@link #isPublic()}, {@link #isProtected()}, {@link #isPrivate()}, {@link #isStatic()},
+     * {@link #isFinal()}, {@link #isAbstract()}, {@link #isInterface()}, {@link #isAnnotation()},
+     * {@link #isEnum()}, {@link #isSynthetic()}), or test individual bits with the {@link Modifier} predicates,
+     * rather than comparing the whole value.
      *
      * @return The class modifier bits, e.g. {@link Modifier#PUBLIC}.
      */
     public int getModifiers() {
-        return modifiers;
+        return modifiers & ~ACC_SUPER;
     }
 
     /**

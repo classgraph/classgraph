@@ -74,6 +74,55 @@ public class Issue791Test {
         }
     }
 
+    /** The ACC_SUPER bit of the classfile access_flags field. */
+    private static final int ACC_SUPER = 0x0020;
+
+    /**
+     * Part 1 of the issue: {@code ACC_SUPER} is not a modifier -- it selects the JVM's treatment of
+     * {@code invokespecial}, and the same bit in {@link Modifier} is {@link Modifier#SYNCHRONIZED}, which is not a
+     * legal class modifier. javac sets it on almost every class, and {@link Class#getModifiers()} masks it out, so
+     * {@link ClassInfo#getModifiers()} must mask it out too. These are the exact values requested in the issue.
+     */
+    @Test
+    public void accSuperIsMaskedOutOfGetModifiers() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue791Test.class.getPackage().getName())
+                .ignoreClassVisibility().enableAllInfo().scan()) {
+
+            final Class<?>[] classes = { Issue791Test.class, DummyPublicSubclass.class,
+                    DummyProtectedSubclass.class, DummyPrivateSubclass.class, DummyPackagePrivateSubclass.class };
+            for (final Class<?> cls : classes) {
+                final ClassInfo classInfo = scanResult.getClassInfo(cls.getName());
+                assertThat(classInfo.getModifiers() & ACC_SUPER).as("ACC_SUPER set for %s", cls.getName())
+                        .isZero();
+                assertThat(classInfo.getModifiers()).as("getModifiers() for %s", cls.getName())
+                        .isEqualTo(cls.getModifiers());
+            }
+
+            // The literal values asked for in the issue
+            assertThat(scanResult.getClassInfo(DummyPublicSubclass.class.getName()).getModifiers())
+                    .isEqualTo(0x0009);
+            assertThat(scanResult.getClassInfo(DummyProtectedSubclass.class.getName()).getModifiers())
+                    .isEqualTo(0x000C);
+            assertThat(scanResult.getClassInfo(DummyPrivateSubclass.class.getName()).getModifiers())
+                    .isEqualTo(0x000A);
+        }
+    }
+
+    /**
+     * Masking {@code ACC_SUPER} out of {@link ClassInfo#getModifiers()} must not disturb the string rendering,
+     * which already ignored the bit.
+     */
+    @Test
+    public void modifiersStrIsUnaffected() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue791Test.class.getPackage().getName())
+                .ignoreClassVisibility().enableAllInfo().scan()) {
+            assertThat(scanResult.getClassInfo(DummyProtectedSubclass.class.getName()).getModifiersStr())
+                    .isEqualTo("protected static");
+            assertThat(scanResult.getClassInfo(Issue791Test.class.getName()).getModifiersStr())
+                    .isEqualTo("public");
+        }
+    }
+
     /** A top-level class's access level should be unaffected. */
     @Test
     public void topLevelClassAccessLevelIsUnchanged() {
