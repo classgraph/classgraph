@@ -21,6 +21,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
@@ -138,11 +140,12 @@ public class Issue704Test {
      *             if the test jar or module layer could not be created.
      */
     @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
     public void sameFileReachedThroughModuleAndClasspathIsReturnedOnce(@TempDir final File tempDir)
             throws Exception {
         final File jarFile = buildJar(tempDir, "issue704a.jar", "MATCH (n) RETURN n;");
         final Object moduleLayer = defineModuleLayer(jarFile);
-        assumeTrue(moduleLayer != null, "JVM does not support modules");
+        assertThat(moduleLayer).isNotNull();
 
         try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() },
                 /* parent = */ null);
@@ -169,6 +172,7 @@ public class Issue704Test {
      *             if the test jar or module layer could not be created.
      */
     @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
     public void sameFileReachedThroughASymlinkIsReturnedOnce(@TempDir final File tempDir) throws Exception {
         final File realDir = new File(tempDir, "real");
         realDir.mkdirs();
@@ -182,7 +186,7 @@ public class Issue704Test {
         final File jarFile = buildJar(realDir, "issue704d.jar", "MATCH (n) RETURN n;");
         final File symlinkedJarFile = symlinkedDir.resolve(jarFile.getName()).toFile();
         final Object moduleLayer = defineModuleLayer(symlinkedJarFile);
-        assumeTrue(moduleLayer != null, "JVM does not support modules");
+        assertThat(moduleLayer).isNotNull();
 
         try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() },
                 /* parent = */ null);
@@ -206,11 +210,12 @@ public class Issue704Test {
      *             if the test jars or module layer could not be created.
      */
     @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
     public void differentFilesWithTheSamePathAreBothReturned(@TempDir final File tempDir) throws Exception {
         final File moduleJarFile = buildJar(tempDir, "issue704b.jar", "MATCH (n) RETURN n;");
         final File classpathJarFile = buildJar(tempDir, "issue704c.jar", "a completely different file");
         final Object moduleLayer = defineModuleLayer(moduleJarFile);
-        assumeTrue(moduleLayer != null, "JVM does not support modules");
+        assertThat(moduleLayer).isNotNull();
 
         try (URLClassLoader classLoader = new URLClassLoader(new URL[] { classpathJarFile.toURI().toURL() },
                 /* parent = */ null);

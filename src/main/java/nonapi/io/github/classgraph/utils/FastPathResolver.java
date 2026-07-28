@@ -248,7 +248,7 @@ public final class FastPathResolver {
             if (relativePath.regionMatches(true, startIdx, "jar:", 0, 4)) {
                 // "jar:" prefix can be stripped
                 matchedPrefix = true;
-                startIdx = 4;
+                startIdx += 4;
                 isFileOrJarURL = true;
             } else if (relativePath.regionMatches(true, startIdx, "http://", 0, 7)) {
                 // Detect http://
@@ -266,7 +266,7 @@ public final class FastPathResolver {
                 startIdx += 8;
                 prefix += "https://";
                 isAbsolutePath = true;
-            } else if (relativePath.regionMatches(true, startIdx, "jrt:", 0, 5)) {
+            } else if (relativePath.regionMatches(true, startIdx, "jrt:", 0, 4)) {
                 // Detect jrt:
                 matchedPrefix = true;
                 startIdx += 4;

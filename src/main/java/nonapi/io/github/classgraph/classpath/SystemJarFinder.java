@@ -64,6 +64,22 @@ public final class SystemJarFinder {
      * @return true if the directory was readable.
      */
     private static boolean addJREPath(final File dir) {
+        return addJREPath(dir, RT_JARS, JRE_LIB_OR_EXT_JARS);
+    }
+
+    /**
+     * Add and search a JRE path, adding any jars found to the given sets. (Package-private, so that this can be
+     * tested against a directory other than the JRE directory of the current JVM.)
+     *
+     * @param dir
+     *            the JRE directory
+     * @param rtJars
+     *            the set to add any "rt.jar" paths to
+     * @param jreLibOrExtJars
+     *            the set to add any other jar paths to
+     * @return true if the directory was readable.
+     */
+    static boolean addJREPath(final File dir, final Set<String> rtJars, final Set<String> jreLibOrExtJars) {
         if (dir != null && !dir.getPath().isEmpty() && FileUtils.canReadAndIsDir(dir)) {
             final File[] dirFiles = dir.listFiles();
             if (dirFiles != null) {
@@ -81,17 +97,19 @@ public final class SystemJarFinder {
                             continue;
                         }
                         if (jarPathResolved.endsWith("/rt.jar")) {
-                            RT_JARS.add(jarPathResolved);
+                            rtJars.add(jarPathResolved);
                         } else {
-                            JRE_LIB_OR_EXT_JARS.add(jarPathResolved);
+                            jreLibOrExtJars.add(jarPathResolved);
                         }
                         try {
                             final File canonicalFile = file.getCanonicalFile();
                             final String canonicalFilePath = canonicalFile.getPath();
                             if (!canonicalFilePath.equals(filePath)) {
+                                // The jar is a symlink (or is otherwise reachable by more than one path), so
+                                // also add the path it resolves to, since a classpath entry may name either
                                 final String canonicalJarPathResolved = FastPathResolver
-                                        .resolve(FileUtils.currDirPath(), filePath);
-                                JRE_LIB_OR_EXT_JARS.add(canonicalJarPathResolved);
+                                        .resolve(FileUtils.currDirPath(), canonicalFilePath);
+                                jreLibOrExtJars.add(canonicalJarPathResolved);
                             }
                         } catch (IOException | SecurityException e) {
                             // Ignored
