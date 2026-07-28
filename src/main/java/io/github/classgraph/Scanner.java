@@ -629,7 +629,8 @@ class Scanner implements Callable<ScanResult> {
                         // Link classpath element to its parent, if it is not a toplevel element
                         workUnit.parentClasspathElement.childClasspathElements.add(classpathElement);
                     }
-                    classpathElement.addReference(isToplevelRef, workUnit.classpathElementIdxWithinParent);
+                    classpathElement.addReference(isToplevelRef, workUnit.classpathElementIdxWithinParent,
+                            workUnit.classLoader);
 
                 } catch (final Exception e) {
                     if (log != null) {

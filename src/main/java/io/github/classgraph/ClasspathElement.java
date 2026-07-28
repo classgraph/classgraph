@@ -171,8 +171,15 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * The same classpath element may be referenced by more than one work unit -- e.g. a jar may be listed both in
      * the toplevel classpath and in the {@code Class-Path} manifest entry of another jar. Only one of those work
      * units creates the {@link ClasspathElement} singleton, and which one wins that race is nondeterministic, so
-     * the classpath ordering key has to be merged in from every work unit that references this classpath element,
-     * not just from the one that happened to create it (#810).
+     * the classpath ordering key and the classloader have to be merged in from every work unit that references this
+     * classpath element, not just from the one that happened to create it (#810).
+     *
+     * <p>
+     * The classloader follows the winning reference, since the same directory or jar can be reached through more
+     * than one classloader (e.g. through a parent-last classloader and through its parent), and the classloader
+     * that gives the classpath element its position in the classpath order is also the one that should be used to
+     * load the classes found within it -- otherwise which classloader is recorded depends on which work unit won
+     * the race, and {@link ClassInfo#loadClass()} intermittently loads a class through the wrong classloader.
      *
      * <p>
      * A toplevel reference always takes precedence over a reference from a parent classpath element, so that a jar
@@ -185,15 +192,19 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            referenced it from a parent classpath element
      * @param idx
      *            the index of the reference within the classpath, or within the parent classpath element
+     * @param classLoader
+     *            the classloader that the referencing work unit obtained the classpath entry from
      */
-    synchronized void addReference(final boolean isToplevelRef, final int idx) {
+    synchronized void addReference(final boolean isToplevelRef, final int idx, final ClassLoader classLoader) {
         if (isToplevelRef && !isToplevel) {
             // A toplevel reference always beats a reference from a parent classpath element
             isToplevel = true;
             classpathElementIdxWithinParent = idx;
+            this.classLoader = classLoader;
         } else if (isToplevelRef == isToplevel && idx < classpathElementIdxWithinParent) {
             // Otherwise the earliest reference of the same kind wins
             classpathElementIdxWithinParent = idx;
+            this.classLoader = classLoader;
         }
     }
 
