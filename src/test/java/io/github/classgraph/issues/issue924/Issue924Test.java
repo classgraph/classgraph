@@ -57,4 +57,32 @@ public class Issue924Test {
             assertThat(scanResult.getSubclasses(A.class).getNames()).isEmpty();
         }
     }
+
+    /** getSubinterfaces() returns the transitive subinterfaces of an interface, and nothing else. */
+    @Test
+    public void getSubinterfacesReturnsOnlySubinterfaces() {
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            // Transitive: C extends B extends A
+            assertThat(scanResult.getSubinterfaces(A.class).getNames())
+                    .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
+            assertThat(scanResult.getSubinterfaces(B.class).getNames())
+                    .containsExactlyInAnyOrder(C.class.getName());
+            assertThat(scanResult.getSubinterfaces(C.class).getNames()).isEmpty();
+
+            // The by-name overload and ClassInfo#getSubinterfaces() give the same answer
+            assertThat(scanResult.getSubinterfaces(A.class.getName()).getNames())
+                    .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
+            assertThat(scanResult.getClassInfo(A.class.getName()).getSubinterfaces().getNames())
+                    .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
+
+            // Implementing classes are not subinterfaces, and a standard class has no subinterfaces
+            assertThat(scanResult.getSubinterfaces(A.class).getNames()).doesNotContain(DImpl.class.getName(),
+                    EImpl.class.getName());
+            assertThat(scanResult.getClassInfo(DImpl.class.getName()).getSubinterfaces()).isEmpty();
+
+            // An interface that was never scanned has no subinterfaces
+            assertThat(scanResult.getSubinterfaces("com.xyz.NonExistent")).isEmpty();
+        }
+    }
 }

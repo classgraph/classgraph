@@ -1994,6 +1994,29 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 /* sortByName = */ true);
     }
 
+    /**
+     * Get the transitive subinterfaces of this interface, i.e. the interfaces that extend this interface, and the
+     * interfaces that extend those, if this is an interface.
+     *
+     * <p>
+     * This is the interface-hierarchy equivalent of {@link #getSubclasses()}, which only traverses the superclass
+     * hierarchy. (It is equivalent to filtering {@link #getClassesImplementing()} down to just the interfaces.)
+     *
+     * @return the list of the transitive subinterfaces of this interface, if this is an interface, otherwise
+     *         returns the empty list.
+     */
+    public ClassInfoList getSubinterfaces() {
+        if (!isInterfaceOrAnnotation()) {
+            return ClassInfoList.EMPTY_LIST;
+        }
+        return getClassesImplementing().filter(new ClassInfoList.ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo ci) {
+                return ci.isInterfaceOrAnnotation();
+            }
+        });
+    }
+
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 

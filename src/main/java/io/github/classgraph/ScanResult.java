@@ -1224,6 +1224,46 @@ public final class ScanResult implements Closeable {
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesImplementing();
     }
 
+    /**
+     * Get all transitive subinterfaces of the given interface, i.e. the interfaces that extend the interface, and
+     * the interfaces that extend those.
+     *
+     * <p>
+     * This is the interface-hierarchy equivalent of {@link #getSubclasses(Class)}, which only traverses the
+     * superclass hierarchy.
+     *
+     * @param interfaceClass
+     *            The interface class.
+     * @return A list of all transitive subinterfaces of the interface, or the empty list if none.
+     */
+    public ClassInfoList getSubinterfaces(final Class<?> interfaceClass) {
+        Assert.isInterface(interfaceClass);
+        return getSubinterfaces(interfaceClass.getName());
+    }
+
+    /**
+     * Get all transitive subinterfaces of the named interface, i.e. the interfaces that extend the interface, and
+     * the interfaces that extend those.
+     *
+     * <p>
+     * This is the interface-hierarchy equivalent of {@link #getSubclasses(String)}, which only traverses the
+     * superclass hierarchy.
+     *
+     * @param interfaceName
+     *            The interface name.
+     * @return A list of all transitive subinterfaces of the named interface, or the empty list if none.
+     */
+    public ClassInfoList getSubinterfaces(final String interfaceName) {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+        }
+        final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSubinterfaces();
+    }
+
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
