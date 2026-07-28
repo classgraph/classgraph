@@ -21,9 +21,10 @@ import io.github.classgraph.ScanResult;
  * rather than as the first toplevel classpath element.
  *
  * <p>
- * The race is timing-dependent (it was reported on Windows and Mac OS X), so this test simply repeats the scan --
- * before the fix, a repeated scan under a slow filesystem produced {@code [a.zip, b.zip, c.zip]} instead of
- * {@code [b.zip, c.zip, a.zip]}.
+ * The race is timing-dependent (it was reported on Windows and Mac OS X), and cannot be forced, so repeating the
+ * scan here does not reliably reproduce the wrong order -- this is an end-to-end smoke test of the classpath order.
+ * The precedence rule that the fix depends on is tested directly, and deterministically, in
+ * {@code io.github.classgraph.ClasspathElementReferenceTest}.
  */
 class Issue810Test {
     /** a has a Class-Path manifest entry that points to b, and b points to c. */
