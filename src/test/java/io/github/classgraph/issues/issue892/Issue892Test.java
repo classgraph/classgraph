@@ -2,6 +2,7 @@ package io.github.classgraph.issues.issue892;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -16,7 +17,6 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
@@ -29,7 +29,7 @@ import io.github.classgraph.ScanResult;
  */
 class Issue892Test {
     /** A classloader that exposes its classpath only through {@link ClassLoader#getResources(String)}. */
-    private static class OpaqueClassLoader extends ClassLoader {
+    private static class OpaqueClassLoader extends ClassLoader implements Closeable {
         /** The field name is not one of the names probed by {@code FallbackClassLoaderHandler}. */
         private final URLClassLoader resourceSource;
 
@@ -54,11 +54,16 @@ class Issue892Test {
         protected Class<?> findClass(final String name) throws ClassNotFoundException {
             return resourceSource.loadClass(name);
         }
+
+        /** Release the jar file, so that it can be deleted on Windows. */
+        @Override
+        public void close() throws IOException {
+            resourceSource.close();
+        }
     }
 
     /** Build a jar containing a manifest and the classfile of the given class. */
-    private static File buildJar(final File dir, final Class<?> classToInclude) throws IOException {
-        final File jarFile = new File(dir, "issue892.jar");
+    private static void buildJar(final File jarFile, final Class<?> classToInclude) throws IOException {
         final String classfilePath = classToInclude.getName().replace('.', '/') + ".class";
         final Manifest manifest = new Manifest();
         manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -74,20 +79,28 @@ class Issue892Test {
             }
             jarOutputStream.closeEntry();
         }
-        return jarFile;
     }
 
     /** A classpath element is found even if the classloader only exposes it through {@code getResources()}. */
     @Test
-    void classpathElementIsFoundByProbingForResources(@TempDir final File tempDir) throws IOException {
-        final File jarFile = buildJar(tempDir, ClassInProbedJar.class);
-        final ClassLoader classLoader = new OpaqueClassLoader(jarFile.toURI().toURL());
+    void classpathElementIsFoundByProbingForResources() throws IOException {
+        // Not @TempDir: on Windows, the jar cannot be deleted while it is still open, and it may be held open
+        // by a memory mapping until it is garbage collected, which would fail the temp directory cleanup
+        final File jarFile = File.createTempFile("issue892-", ".jar");
+        jarFile.deleteOnExit();
+        buildJar(jarFile, ClassInProbedJar.class);
 
-        // Only scan the opaque classloader, so that the class can only be found within the jar it serves, and
-        // not in the directory of test classes that it was copied from
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableClassInfo().scan()) {
-            assertThat(scanResult.getAllClasses().getNames()).contains(ClassInProbedJar.class.getName());
-            assertThat(scanResult.getClasspathFiles()).containsExactly(jarFile.getCanonicalFile());
+        try (OpaqueClassLoader classLoader = new OpaqueClassLoader(jarFile.toURI().toURL())) {
+            // Only scan the opaque classloader, so that the class can only be found within the jar it serves,
+            // and not in the directory of test classes that it was copied from
+            try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableClassInfo()
+                    .scan()) {
+                assertThat(scanResult.getAllClasses().getNames()).contains(ClassInProbedJar.class.getName());
+                // Compare by filename, since the canonical form of the temp directory is platform-dependent
+                // (a symlink on macOS, an 8.3 short name on Windows)
+                assertThat(scanResult.getClasspathFiles()).hasSize(1);
+                assertThat(scanResult.getClasspathFiles().get(0).getName()).isEqualTo(jarFile.getName());
+            }
         }
     }
 }
