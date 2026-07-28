@@ -115,4 +115,27 @@ class Issue903Test {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly(RESOURCE_PATH);
         }
     }
+
+    /**
+     * The {@code "jar:jar:file:...!/...!/"} form emitted by servlet containers for a jar nested within a WAR file
+     * ends with the nested jar separator "!/", marking the whole of the inner jar. The trailing '!' is a separator,
+     * not part of a directory name, even though it is not the outermost separator in the path.
+     */
+    @Test
+    void trailingNestedJarSeparatorOfInnerJarIsStripped(@TempDir final Path tempDir) throws IOException {
+        final File innerJar = new File(tempDir.toFile(), "inner.jar");
+        writeResourceJar(innerJar);
+        final byte[] innerJarBytes = Files.readAllBytes(innerJar.toPath());
+        final File outerWar = new File(tempDir.toFile(), "outer.war");
+        try (OutputStream out = new FileOutputStream(outerWar); ZipOutputStream zip = new ZipOutputStream(out)) {
+            zip.putNextEntry(new ZipEntry("WEB-INF/lib/inner.jar"));
+            zip.write(innerJarBytes);
+            zip.closeEntry();
+        }
+        try (ScanResult scanResult = new ClassGraph()
+                .overrideClasspath("jar:jar:file:" + outerWar.getPath() + "!/WEB-INF/lib/inner.jar!/")
+                .acceptPaths("issue903").scan()) {
+            assertThat(scanResult.getAllResources().getPaths()).containsExactly(RESOURCE_PATH);
+        }
+    }
 }

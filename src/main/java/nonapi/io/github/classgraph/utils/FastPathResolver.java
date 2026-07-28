@@ -328,8 +328,12 @@ public final class FastPathResolver {
                 pathStr = pathStr.substring(0, pathStr.length() - 1);
             }
             // Only strip a trailing '!' if it is really a nested jar separator, i.e. if it marks the whole of
-            // the jarfile before it -- a trailing '!' is otherwise part of a directory name (#903)
-            if (pathStr.endsWith("!") && JarUtils.indexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
+            // the jarfile before it -- a trailing '!' is otherwise part of a directory name (#903).
+            // Use lastIndexOfNestedJarSeparator, not indexOfNestedJarSeparator, so that the trailing '!' of a
+            // doubly-nested path such as "/a/b.war!/WEB-INF/lib/c.jar!" is stripped too: the innermost
+            // separator is the relevant one, and this is the rule NestedJarHandler applies when splitting the
+            // resulting path back apart.
+            if (pathStr.endsWith("!") && JarUtils.lastIndexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
                 pathStr = pathStr.substring(0, pathStr.length() - 1);
             }
             if (pathStr.endsWith("/")) {
