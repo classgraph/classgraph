@@ -545,9 +545,27 @@
 				</plugin>
 
 				<!-- Bump the version, commit, tag, and deploy the tag. Release with (under JDK 8): -->
-				<!--   ./mvnw -Prelease release:prepare -DdryRun=true   # dry run; then release:clean -->
-				<!--   ./mvnw -Prelease release:prepare                 # commits, tags, pushes -->
-				<!--   ./mvnw -Prelease release:perform                 # builds the tag, signs, publishes -->
+				<!--   export JAVA_HOME=/path/to/jdk8; export PATH="$JAVA_HOME/bin:$PATH" -->
+				<!--   ./mvnw -B -Prelease release:prepare -DdryRun=true   # dry run; then release:clean -->
+				<!--   ./mvnw -B -Prelease release:prepare                 # commits, tags, pushes -->
+				<!--   ./mvnw -B -Prelease release:perform                 # builds the tag, signs, publishes -->
+				<!-- -->
+				<!-- JAVA_HOME and PATH must both be *exported*, not just set for the ./mvnw command: -->
+				<!-- release:prepare forks a second Maven process, which resolves "java" from PATH, so a -->
+				<!-- one-shot "JAVA_HOME=... ./mvnw" builds the fork under whatever JDK is first on PATH. -->
+				<!-- If that is not JDK 8, the animal-sniffer check-signatures enforcer rule fails. -->
+				<!-- -->
+				<!-- -B (batch mode) accepts the default release/tag/next-development versions, instead of -->
+				<!-- prompting for all three interactively. -->
+				<!-- -->
+				<!-- After a failed release:prepare, run "release:clean" AND "git checkout HEAD pom.xml" -->
+				<!-- before retrying; a left-over bumped version makes the retry fail for another reason. -->
+				<!-- -->
+				<!-- release:perform blocks until the Central Portal reports the deployment as published -->
+				<!-- (see waitUntil, above), which can take tens of minutes. Once the log line "Uploaded bundle -->
+				<!-- successfully ... deploymentId: ..." has appeared, publishing continues server-side even if -->
+				<!-- the client is interrupted; check https://repo1.maven.org/maven2/io/github/classgraph/ -->
+				<!-- classgraph/<version>/ to confirm. -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-release-plugin</artifactId>
