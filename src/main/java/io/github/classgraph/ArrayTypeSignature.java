@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.lang.reflect.Array;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -119,10 +120,28 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return numDims;
     }
 
+    @Override
+    TypeSignature substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
+        final TypeSignature elementTypeSignature = getElementTypeSignature();
+        final TypeSignature substitutedElementTypeSignature = elementTypeSignature
+                .substituteTypeVariables(substitutions);
+        if (substitutedElementTypeSignature == elementTypeSignature) {
+            return this;
+        }
+        // The array's own type signature string has to be rebuilt around the substituted element type
+        final int numDims = getNumDimensions();
+        final StringBuilder buf = new StringBuilder();
+        for (int i = 0; i < numDims; i++) {
+            buf.append('[');
+        }
+        buf.append(TypeSignature.toTypeSignatureStr(substitutedElementTypeSignature));
+        return new ArrayTypeSignature(substitutedElementTypeSignature, numDims, buf.toString());
+    }
+
     /**
      * Get the nested type, which is another {@link ArrayTypeSignature} with one dimension fewer, if this array has
      * 2 or more dimensions, otherwise this returns the element type.
-     * 
+     *
      * @return The nested type.
      */
     public TypeSignature getNestedType() {

@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -95,6 +96,60 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      */
     public ReferenceTypeSignature getTypeSignature() {
         return typeSignature;
+    }
+
+    /**
+     * Substitute type variables in this type argument, using a substitution map built by
+     * {@link TypeSignature#resolveTypeVariables(ClassInfo)} (#735).
+     *
+     * @param substitutions
+     *            the substitution map.
+     * @return the substituted type argument, or this type argument itself if nothing was substituted.
+     */
+    TypeArgument substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
+        if (typeSignature == null) {
+            // A "?" wildcard has no type signature to substitute into
+            return this;
+        }
+        if (wildcard == Wildcard.NONE && typeSignature instanceof TypeVariableSignature) {
+            // A type variable in type argument position can be replaced by the substituted type argument as a
+            // whole, so that a wildcard type argument keeps its wildcard, e.g. substituting T := "? extends Number"
+            // into "List<T>" gives "List<? extends Number>"
+            final TypeArgument substitution = ((TypeVariableSignature) typeSignature).substitution(substitutions);
+            if (substitution != null) {
+                return substitution;
+            }
+            return this;
+        }
+        final TypeSignature substitutedTypeSignature = typeSignature.substituteTypeVariables(substitutions);
+        return substitutedTypeSignature == typeSignature
+                || !(substitutedTypeSignature instanceof ReferenceTypeSignature) ? this
+                        : new TypeArgument(wildcard, (ReferenceTypeSignature) substitutedTypeSignature);
+    }
+
+    /**
+     * Substitute type variables in a list of type arguments.
+     *
+     * @param typeArguments
+     *            the type arguments.
+     * @param substitutions
+     *            the substitution map.
+     * @return the substituted type arguments, or the same list if nothing was substituted.
+     */
+    static List<TypeArgument> substituteTypeVariables(final List<TypeArgument> typeArguments,
+            final Map<String, TypeArgument> substitutions) {
+        List<TypeArgument> substituted = null;
+        for (int i = 0; i < typeArguments.size(); i++) {
+            final TypeArgument typeArgument = typeArguments.get(i);
+            final TypeArgument substitutedTypeArgument = typeArgument.substituteTypeVariables(substitutions);
+            if (substitutedTypeArgument != typeArgument && substituted == null) {
+                substituted = new ArrayList<>(typeArguments.subList(0, i));
+            }
+            if (substituted != null) {
+                substituted.add(substitutedTypeArgument);
+            }
+        }
+        return substituted == null ? typeArguments : substituted;
     }
 
     @Override

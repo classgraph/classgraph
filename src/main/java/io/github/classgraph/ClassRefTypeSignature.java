@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -144,6 +145,29 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      */
     public List<List<TypeArgument>> getSuffixTypeArguments() {
         return suffixTypeArguments;
+    }
+
+    @Override
+    TypeSignature substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
+        final List<TypeArgument> substitutedTypeArguments = TypeArgument.substituteTypeVariables(typeArguments,
+                substitutions);
+        List<List<TypeArgument>> substitutedSuffixTypeArguments = null;
+        for (int i = 0; i < suffixTypeArguments.size(); i++) {
+            final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
+            final List<TypeArgument> substitutedSuffixTypeArgs = TypeArgument.substituteTypeVariables(suffixTypeArgs,
+                    substitutions);
+            if (substitutedSuffixTypeArgs != suffixTypeArgs && substitutedSuffixTypeArguments == null) {
+                substitutedSuffixTypeArguments = new ArrayList<>(suffixTypeArguments.subList(0, i));
+            }
+            if (substitutedSuffixTypeArguments != null) {
+                substitutedSuffixTypeArguments.add(substitutedSuffixTypeArgs);
+            }
+        }
+        if (substitutedTypeArguments == typeArguments && substitutedSuffixTypeArguments == null) {
+            return this;
+        }
+        return new ClassRefTypeSignature(className, substitutedTypeArguments, suffixes,
+                substitutedSuffixTypeArguments == null ? suffixTypeArguments : substitutedSuffixTypeArguments);
     }
 
     /**

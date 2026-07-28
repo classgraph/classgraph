@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,294 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     protected TypeSignature() {
         // Empty
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Type variable resolution (#735)
+
+    /**
+     * Resolve the type variables in this type signature against a context class, i.e. substitute the type arguments
+     * that the context class (or a class between the context class and the class declaring this type) supplies for
+     * them.
+     *
+     * <p>
+     * For example, given {@code interface Base<T> { T getT(); }} and
+     * {@code abstract class Derived implements Base<String> {}}, the result type of {@code Base#getT()} is the type
+     * variable {@code T}, but calling this method on that result type with {@code Derived} as the context class
+     * returns {@code java.lang.String}.
+     *
+     * <p>
+     * A type variable is left unchanged if it cannot be resolved: if the context class is not a subclass or
+     * subinterface of the class declaring the type variable, if the supertype is used in raw form, if the type
+     * variable is shadowed by a type parameter of the method that declares this type, or if the type argument is a
+     * wildcard that has no expressible equivalent outside type argument position ({@code "?"} or
+     * {@code "? super X"} -- an upper-bounded wildcard {@code "? extends X"} is substituted as {@code X}). In type
+     * argument position, wildcards are substituted verbatim, so {@code List<T>} with {@code T := "? extends Number"}
+     * resolves to {@code List<? extends Number>}.
+     *
+     * <p>
+     * Type variables are matched by the class that declares them together with their name, and bindings are
+     * collected by walking up the superclass and superinterface chain of the context class. A type variable that an
+     * inner class inherits from its enclosing class is therefore not resolved, since the classfile records it as
+     * declared by the inner class, which is not on that chain.
+     *
+     * @param contextClass
+     *            the class to resolve type variables against.
+     * @return this type signature with any resolvable type variables substituted, or this type signature itself if
+     *         no type variable in it could be resolved.
+     * @throws IllegalArgumentException
+     *             if {@code contextClass} is null.
+     */
+    public TypeSignature resolveTypeVariables(final ClassInfo contextClass) {
+        if (contextClass == null) {
+            throw new IllegalArgumentException("contextClass cannot be null");
+        }
+        final Map<String, TypeArgument> substitutions = new HashMap<>();
+        addSubstitutions(contextClass, substitutions, new HashSet<String>());
+        if (substitutions.isEmpty()) {
+            return this;
+        }
+        final TypeSignature substituted = substituteTypeVariables(substitutions);
+        if (substituted != this) {
+            // Any nodes built during substitution have no ScanResult yet, so getClassInfo() etc. would fail on them
+            substituted.setScanResult(scanResult);
+        }
+        return substituted;
+    }
+
+    /**
+     * Get the key used to look up a type variable in a substitution map. A type variable is identified by the class
+     * that declares it as well as by its name, since the same name may be declared by several classes in a class
+     * hierarchy.
+     *
+     * @param definingClassName
+     *            the name of the class declaring the type variable.
+     * @param typeVariableName
+     *            the name of the type variable.
+     * @return the substitution map key.
+     */
+    static String substitutionKey(final String definingClassName, final String typeVariableName) {
+        return definingClassName + "::" + typeVariableName;
+    }
+
+    /**
+     * Walk from a class up through its superclasses and superinterfaces, recording the type argument that each
+     * level supplies for each type parameter of the level above it.
+     *
+     * @param classInfo
+     *            the class to walk up from.
+     * @param substitutions
+     *            the substitution map to add to.
+     * @param visited
+     *            the names of the classes already visited, to terminate on cyclic or diamond hierarchies.
+     */
+    private static void addSubstitutions(final ClassInfo classInfo, final Map<String, TypeArgument> substitutions,
+            final Set<String> visited) {
+        if (classInfo == null || !visited.add(classInfo.getName())) {
+            return;
+        }
+        final ClassTypeSignature classSignature = classInfo.getTypeSignature();
+        if (classSignature == null) {
+            // The class has no generic signature, so it supplies no type arguments -- but a class further up the
+            // hierarchy may still be generic, so keep walking
+            addSubstitutions(classInfo.getSuperclass(), substitutions, visited);
+            for (final ClassInfo interfaceInfo : classInfo.getInterfaces()) {
+                addSubstitutions(interfaceInfo, substitutions, visited);
+            }
+            return;
+        }
+        // A type variable that appears within a class signature has no defining class name recorded (unlike one in
+        // a method or field signature), so alias the bindings of this class' own type parameters under the key
+        // that those type variables will look themselves up by, in order to compose them
+        Map<String, TypeArgument> composeWith = substitutions;
+        final List<TypeParameter> ownTypeParameters = classSignature.getTypeParameters();
+        if (!ownTypeParameters.isEmpty()) {
+            composeWith = new HashMap<>(substitutions);
+            for (final TypeParameter ownTypeParameter : ownTypeParameters) {
+                final TypeArgument binding = substitutions
+                        .get(substitutionKey(classInfo.getName(), ownTypeParameter.getName()));
+                if (binding != null) {
+                    composeWith.put(substitutionKey(null, ownTypeParameter.getName()), binding);
+                }
+            }
+        }
+        addSupertypeSubstitutions(classSignature.getSuperclassSignature(), substitutions, composeWith, visited);
+        for (final ClassRefTypeSignature superinterfaceSignature : classSignature.getSuperinterfaceSignatures()) {
+            addSupertypeSubstitutions(superinterfaceSignature, substitutions, composeWith, visited);
+        }
+    }
+
+    /**
+     * Record the type arguments that a class supplies for the type parameters of one of its direct supertypes, then
+     * continue walking up from that supertype.
+     *
+     * @param supertypeSignature
+     *            the signature of the supertype, as referenced by the subclass.
+     * @param substitutions
+     *            the substitution map to add to.
+     * @param composeWith
+     *            the substitution map to compose the supertype's type arguments with, i.e. the bindings that the
+     *            subclass' own type parameters already have.
+     * @param visited
+     *            the names of the classes already visited.
+     */
+    private static void addSupertypeSubstitutions(final ClassRefTypeSignature supertypeSignature,
+            final Map<String, TypeArgument> substitutions, final Map<String, TypeArgument> composeWith,
+            final Set<String> visited) {
+        if (supertypeSignature == null) {
+            return;
+        }
+        // A reference to a nested class carries a separate list of type arguments for each level of nesting, e.g.
+        // "Outer<A>.Inner<B>" (and even for a static nested class, where the type arguments of the reference are
+        // all attached to the last level), so bind the type parameters of each level in turn
+        final StringBuilder classNameBuf = new StringBuilder(supertypeSignature.getBaseClassName());
+        addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(),
+                supertypeSignature.getTypeArguments(), substitutions, composeWith);
+        final List<String> suffixes = supertypeSignature.getSuffixes();
+        final List<List<TypeArgument>> suffixTypeArguments = supertypeSignature.getSuffixTypeArguments();
+        for (int i = 0; i < suffixes.size(); i++) {
+            classNameBuf.append('$').append(suffixes.get(i));
+            addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(), suffixTypeArguments.get(i),
+                    substitutions, composeWith);
+        }
+        addSubstitutions(supertypeSignature.getClassInfo(), substitutions, visited);
+    }
+
+    /**
+     * Record the type arguments supplied for the type parameters of one class in a supertype reference.
+     *
+     * @param supertypeSignature
+     *            the supertype reference the type arguments came from, used to reach the {@link ScanResult}.
+     * @param className
+     *            the name of the class that declares the type parameters.
+     * @param typeArguments
+     *            the type arguments supplied for that class' type parameters.
+     * @param substitutions
+     *            the substitution map to add to.
+     * @param composeWith
+     *            the substitution map to compose the type arguments with.
+     */
+    private static void addTypeArgumentSubstitutions(final ClassRefTypeSignature supertypeSignature,
+            final String className, final List<TypeArgument> typeArguments,
+            final Map<String, TypeArgument> substitutions, final Map<String, TypeArgument> composeWith) {
+        if (typeArguments.isEmpty() || supertypeSignature.scanResult == null) {
+            // The class is referenced in raw form, so there is nothing to substitute
+            return;
+        }
+        final ClassInfo classInfo = supertypeSignature.scanResult.getClassInfo(className);
+        if (classInfo == null) {
+            // The class was not encountered during scanning, so its type parameters are unknown
+            return;
+        }
+        final ClassTypeSignature classSignature = classInfo.getTypeSignature();
+        final List<TypeParameter> typeParameters = classSignature == null ? null
+                : classSignature.getTypeParameters();
+        if (typeParameters == null || typeParameters.size() != typeArguments.size()) {
+            return;
+        }
+        for (int i = 0; i < typeParameters.size(); i++) {
+            // Compose with the substitutions already collected from the classes below this one, so that
+            // "class Derived extends Mid<String>" and "class Mid<U> extends Base<U>" map Base's T to String
+            substitutions.put(substitutionKey(className, typeParameters.get(i).getName()),
+                    typeArguments.get(i).substituteTypeVariables(composeWith));
+        }
+    }
+
+    /**
+     * Substitute type variables in this type signature, using a substitution map built by
+     * {@link #resolveTypeVariables(ClassInfo)}.
+     *
+     * @param substitutions
+     *            the substitution map.
+     * @return the substituted type signature, or this type signature itself if nothing was substituted.
+     */
+    TypeSignature substituteTypeVariables(
+            @SuppressWarnings("unused") final Map<String, TypeArgument> substitutions) {
+        // Base types contain no type variables
+        return this;
+    }
+
+    /**
+     * Render a type signature back into the type signature string format of JVMS section 4.7.9.1, so that a
+     * substituted array type can be given a type signature string that matches its substituted element type. This
+     * is implemented in one place using {@code instanceof} rather than as an overridden method in each of the five
+     * signature classes, since it is only needed for this one purpose.
+     *
+     * @param typeSignature
+     *            the type signature to render.
+     * @param buf
+     *            the buffer to append to.
+     */
+    private static void toTypeSignatureStr(final HierarchicalTypeSignature typeSignature, final StringBuilder buf) {
+        if (typeSignature instanceof BaseTypeSignature) {
+            buf.append(((BaseTypeSignature) typeSignature).getTypeSignatureChar());
+        } else if (typeSignature instanceof ArrayTypeSignature) {
+            buf.append(((ArrayTypeSignature) typeSignature).getTypeSignatureStr());
+        } else if (typeSignature instanceof TypeVariableSignature) {
+            buf.append('T').append(((TypeVariableSignature) typeSignature).getName()).append(';');
+        } else if (typeSignature instanceof TypeArgument) {
+            final TypeArgument typeArgument = (TypeArgument) typeSignature;
+            switch (typeArgument.getWildcard()) {
+            case ANY:
+                buf.append('*');
+                return;
+            case EXTENDS:
+                buf.append('+');
+                break;
+            case SUPER:
+                buf.append('-');
+                break;
+            default:
+                break;
+            }
+            toTypeSignatureStr(typeArgument.getTypeSignature(), buf);
+        } else if (typeSignature instanceof ClassRefTypeSignature) {
+            final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) typeSignature;
+            buf.append('L').append(classRefTypeSignature.getBaseClassName().replace('.', '/'));
+            toTypeArgumentsStr(classRefTypeSignature.getTypeArguments(), buf);
+            final List<String> suffixes = classRefTypeSignature.getSuffixes();
+            final List<List<TypeArgument>> suffixTypeArguments = classRefTypeSignature.getSuffixTypeArguments();
+            for (int i = 0; i < suffixes.size(); i++) {
+                buf.append('.').append(suffixes.get(i));
+                toTypeArgumentsStr(suffixTypeArguments.get(i), buf);
+            }
+            buf.append(';');
+        } else {
+            throw new IllegalArgumentException("Unexpected type signature type: " + typeSignature.getClass());
+        }
+    }
+
+    /**
+     * Render a list of type arguments back into type signature string format, if the list is non-empty.
+     *
+     * @param typeArguments
+     *            the type arguments.
+     * @param buf
+     *            the buffer to append to.
+     */
+    private static void toTypeArgumentsStr(final List<TypeArgument> typeArguments, final StringBuilder buf) {
+        if (!typeArguments.isEmpty()) {
+            buf.append('<');
+            for (final TypeArgument typeArgument : typeArguments) {
+                toTypeSignatureStr(typeArgument, buf);
+            }
+            buf.append('>');
+        }
+    }
+
+    /**
+     * Render a type signature back into type signature string format.
+     *
+     * @param typeSignature
+     *            the type signature to render.
+     * @return the type signature string.
+     */
+    static String toTypeSignatureStr(final TypeSignature typeSignature) {
+        final StringBuilder buf = new StringBuilder();
+        toTypeSignatureStr((HierarchicalTypeSignature) typeSignature, buf);
+        return buf.toString();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the names of any classes referenced in the type signature.

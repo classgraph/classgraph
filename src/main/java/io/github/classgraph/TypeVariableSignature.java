@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -133,6 +134,41 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         typeParameter.setScanResult(scanResult);
         typeParameterCached = typeParameter;
         return typeParameter;
+    }
+
+    /**
+     * Look this type variable up in a substitution map built by {@link TypeSignature#resolveTypeVariables(ClassInfo)}
+     * (#735).
+     *
+     * @param substitutions
+     *            the substitution map.
+     * @return the type argument to substitute for this type variable, or null if this type variable is not
+     *         substitutable.
+     */
+    TypeArgument substitution(final Map<String, TypeArgument> substitutions) {
+        // A type variable declared by the method itself shadows any type variable of the same name declared by the
+        // enclosing class, and is not bound by the context class
+        if (containingMethodSignature != null && containingMethodSignature.typeParameters != null) {
+            for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
+                if (typeParameter.getName().equals(name)) {
+                    return null;
+                }
+            }
+        }
+        return substitutions.get(TypeSignature.substitutionKey(definingClassName, name));
+    }
+
+    @Override
+    TypeSignature substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
+        final TypeArgument typeArgument = substitution(substitutions);
+        if (typeArgument == null) {
+            return this;
+        }
+        // Outside type argument position there is no way to express "?" or "? super X", so leave the type variable
+        // unsubstituted in those cases; "? extends X" is substituted as its upper bound X
+        final ReferenceTypeSignature typeSignature = typeArgument.getTypeSignature();
+        return typeSignature == null || typeArgument.getWildcard() == TypeArgument.Wildcard.ANY
+                || typeArgument.getWildcard() == TypeArgument.Wildcard.SUPER ? this : typeSignature;
     }
 
     // -------------------------------------------------------------------------------------------------------------
