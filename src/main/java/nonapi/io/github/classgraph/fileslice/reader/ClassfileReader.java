@@ -283,8 +283,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             return -1;
         }
         try {
-            ((Buffer) dstBuf).position(dstBufStart);
-            ((Buffer) dstBuf).limit(dstBufStart + numBytesToRead);
+        	final Buffer db = FileSlice.toBuffer(dstBuf);
+            db.position(dstBufStart);
+            db.limit(dstBufStart + numBytesToRead);
             dstBuf.put(arr, idx, numBytesToRead);
             return numBytesToRead;
         } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {

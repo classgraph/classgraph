@@ -71,6 +71,17 @@ public class FileSlice extends Slice {
     private final AtomicBoolean isClosed = new AtomicBoolean();
 
     /**
+     * Needed because the JDK team changed several API methods to return ByteBuffer rather than Buffer
+     * in JDK 9, which caused some methods to throw NoSuchMethodError in a way that cannot be statically
+     * detected (see #284). This is implemented as a method rather than as an in-place cast so that IDEs
+     * are unlikely to remove the cast operations as (as they assume) statically superfluous, which
+     * re-introduces the same runtime crash every time it happens.
+     */
+	public static Buffer toBuffer(ByteBuffer buf) {
+		return buf;
+	}
+    
+    /**
      * Constructor for treating a range of a file as a slice.
      *
      * @param parentSlice
@@ -100,8 +111,9 @@ public class FileSlice extends Slice {
         if (parentSlice.backingByteBuffer != null) {
             // Duplicate and slice the backing byte buffer, if there is one
             this.backingByteBuffer = parentSlice.backingByteBuffer.duplicate();
-            ((Buffer) this.backingByteBuffer).position((int) sliceStartPos);
-            ((Buffer) this.backingByteBuffer).limit((int) (sliceStartPos + sliceLength));
+            final Buffer bb = toBuffer(this.backingByteBuffer);
+            bb.position((int) sliceStartPos);
+            bb.limit((int) (sliceStartPos + sliceLength));
         }
 
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since
