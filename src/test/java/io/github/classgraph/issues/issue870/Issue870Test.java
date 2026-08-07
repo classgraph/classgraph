@@ -1,7 +1,6 @@
 package io.github.classgraph.issues.issue870;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -106,13 +105,16 @@ public class Issue870Test {
         assertThat(scan(PKG + ".**")).contains(ALPHA_THING, BETA_THING, SUB_THING, OTHER_THING);
     }
 
-    /** {@code "**"} anywhere but the final segment is rejected, since it would defeat segment-bounded matching. */
+    /**
+     * Mid-pattern {@code "**"} is a multi-segment wildcard (#940), so it can span intermediate packages that a
+     * single {@code '*'} cannot.
+     */
     @Test
-    public void nonTrailingDoubleGlobIsRejected() {
-        assertThatThrownBy(() -> scan(PKG + ".**.domain")).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("**");
-        assertThatThrownBy(() -> scan(PKG + ".al**ha.domain")).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("**");
+    public void midPackageDoubleGlobSpansSegments() {
+        assertThat(scan(PKG + ".**.domain")).contains(ALPHA_THING, BETA_THING, SUB_THING);
+        assertThat(scan(PKG + ".**.domain")).doesNotContain(OTHER_THING);
+        // "**" embedded in a segment name spans characters (including separators) like a conventional glob
+        assertThat(scan(PKG + ".al**ha.domain")).contains(ALPHA_THING, SUB_THING);
     }
 
     /** Reject criteria support globs too, and are likewise recursive. */
