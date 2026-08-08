@@ -235,9 +235,9 @@
 				<configuration>
 					<publishingServerId>central</publishingServerId>
 					<autoPublish>true</autoPublish>
-					<!-- Block until the deployment is actually published, rather than merely validated, -->
-					<!-- so that a green build means the release is live. -->
-					<waitUntil>published</waitUntil>
+					<!-- waitUntil is deliberately left at its default, VALIDATED: release:perform returns -->
+					<!-- once the deployment passes validation, and autoPublish (above) then completes the -->
+					<!-- publication server-side. -->
 					<deploymentName>${project.groupId}:${project.artifactId}:${project.version}</deploymentName>
 				</configuration>
 			</plugin>
@@ -561,11 +561,12 @@
 				<!-- After a failed release:prepare, run "release:clean" AND "git checkout HEAD pom.xml" -->
 				<!-- before retrying; a left-over bumped version makes the retry fail for another reason. -->
 				<!-- -->
-				<!-- release:perform blocks until the Central Portal reports the deployment as published -->
-				<!-- (see waitUntil, above), which can take tens of minutes. Once the log line "Uploaded bundle -->
-				<!-- successfully ... deploymentId: ..." has appeared, publishing continues server-side even if -->
-				<!-- the client is interrupted; check https://repo1.maven.org/maven2/io/github/classgraph/ -->
-				<!-- classgraph/<version>/ to confirm. -->
+				<!-- release:perform returns once the Central Portal has validated the uploaded bundle -->
+				<!-- (waitUntil defaults to VALIDATED; see the central-publishing-maven-plugin config, -->
+				<!-- above). Once the log line "Uploaded bundle successfully ... deploymentId: ..." has -->
+				<!-- appeared, publishing completes server-side, typically within 10 to 30 minutes; check -->
+				<!-- https://repo1.maven.org/maven2/io/github/classgraph/classgraph/<version>/ to confirm -->
+				<!-- the release is live. -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-release-plugin</artifactId>
