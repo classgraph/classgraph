@@ -71,9 +71,8 @@ class TypeResolutions {
             // Arrays and non-generic classes have no type variables
             return type;
 
-        } else if (type instanceof ParameterizedType) {
+        } else if (type instanceof final ParameterizedType parameterizedType) {
             // Recursively resolve parameterized types
-            final ParameterizedType parameterizedType = (ParameterizedType) type;
             final Type[] typeArgs = parameterizedType.getActualTypeArguments();
             Type[] typeArgsResolved = null;
             for (int i = 0; i < typeArgs.length; i++) {
@@ -103,9 +102,8 @@ class TypeResolutions {
                         parameterizedType.getOwnerType());
             }
 
-        } else if (type instanceof TypeVariable<?>) {
+        } else if (type instanceof final TypeVariable<?> typeVariable) {
             // Look up concrete type for type variable
-            final TypeVariable<?> typeVariable = (TypeVariable<?>) type;
             for (int i = 0; i < typeVariables.length; i++) {
                 if (typeVariables[i].getName().equals(typeVariable.getName())) {
                     return resolvedTypeArguments[i];
@@ -118,16 +116,15 @@ class TypeResolutions {
             // Count the array dimensions, and resolve the innermost type of the array
             int numArrayDims = 0;
             Type t = type;
-            while (t instanceof GenericArrayType) {
+            while (t instanceof final GenericArrayType genericArrayType) {
                 numArrayDims++;
-                t = ((GenericArrayType) t).getGenericComponentType();
+                t = genericArrayType.getGenericComponentType();
             }
             final Type innermostType = t;
             final Type innermostTypeResolved = resolveTypeVariables(innermostType);
-            if (!(innermostTypeResolved instanceof Class<?>)) {
+            if (!(innermostTypeResolved instanceof final Class<?> innermostTypeResolvedClass)) {
                 throw new IllegalArgumentException("Could not resolve generic array type " + type);
             }
-            final Class<?> innermostTypeResolvedClass = (Class<?>) innermostTypeResolved;
 
             // Build an array to hold the size of each dimension, filled with zeroes
             final int[] dims = (int[]) Array.newInstance(int.class, numArrayDims);

@@ -105,10 +105,10 @@ class ParameterizedTypeImpl implements ParameterizedType {
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof ParameterizedType)) {
+        }
+        if (!(obj instanceof final ParameterizedType other)) {
             return false;
         }
-        final ParameterizedType other = (ParameterizedType) obj;
         return Objects.equals(ownerType, other.getOwnerType()) && Objects.equals(rawType, other.getRawType())
                 && Arrays.equals(actualTypeArguments, other.getActualTypeArguments());
     }
@@ -130,15 +130,15 @@ class ParameterizedTypeImpl implements ParameterizedType {
         if (ownerType == null) {
             buf.append(rawType.getName());
         } else {
-            if (ownerType instanceof Class) {
-                buf.append(((Class<?>) ownerType).getName());
+            if (ownerType instanceof final Class<?> ownerClass) {
+                buf.append(ownerClass.getName());
             } else {
                 buf.append(ownerType);
             }
             buf.append('$');
-            if (ownerType instanceof ParameterizedTypeImpl) {
+            if (ownerType instanceof final ParameterizedTypeImpl ownerParameterizedType) {
                 final String simpleName = rawType.getName()
-                        .replace(((ParameterizedTypeImpl) ownerType).rawType.getName() + "$", "");
+                        .replace(ownerParameterizedType.rawType.getName() + "$", "");
                 buf.append(simpleName);
             } else {
                 buf.append(rawType.getSimpleName());

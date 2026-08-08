@@ -244,21 +244,21 @@ public final class JSONUtils {
             throws IllegalArgumentException, IllegalAccessException {
         // return ReflectionUtils.getFieldVal(true, containingObj, field.getName());
         final Class<?> fieldType = field.getType();
-        if (fieldType == Integer.TYPE) {
+        if (fieldType == int.class) {
             return field.getInt(containingObj);
-        } else if (fieldType == Long.TYPE) {
+        } else if (fieldType == long.class) {
             return field.getLong(containingObj);
-        } else if (fieldType == Short.TYPE) {
+        } else if (fieldType == short.class) {
             return field.getShort(containingObj);
-        } else if (fieldType == Double.TYPE) {
+        } else if (fieldType == double.class) {
             return field.getDouble(containingObj);
-        } else if (fieldType == Float.TYPE) {
+        } else if (fieldType == float.class) {
             return field.getFloat(containingObj);
-        } else if (fieldType == Boolean.TYPE) {
+        } else if (fieldType == boolean.class) {
             return field.getBoolean(containingObj);
-        } else if (fieldType == Byte.TYPE) {
+        } else if (fieldType == byte.class) {
             return field.getByte(containingObj);
-        } else if (fieldType == Character.TYPE) {
+        } else if (fieldType == char.class) {
             return field.getChar(containingObj);
         } else {
             return field.get(containingObj);
@@ -277,14 +277,14 @@ public final class JSONUtils {
      */
     static boolean isBasicValueType(final Class<?> cls) {
         return cls == String.class //
-                || cls == Integer.class || cls == Integer.TYPE //
-                || cls == Long.class || cls == Long.TYPE //
-                || cls == Short.class || cls == Short.TYPE //
-                || cls == Float.class || cls == Float.TYPE //
-                || cls == Double.class || cls == Double.TYPE //
-                || cls == Byte.class || cls == Byte.TYPE //
-                || cls == Character.class || cls == Character.TYPE //
-                || cls == Boolean.class || cls == Boolean.TYPE //
+                || cls == Integer.class || cls == int.class //
+                || cls == Long.class || cls == long.class //
+                || cls == Short.class || cls == short.class //
+                || cls == Float.class || cls == float.class //
+                || cls == Double.class || cls == double.class //
+                || cls == Byte.class || cls == byte.class //
+                || cls == Character.class || cls == char.class //
+                || cls == Boolean.class || cls == boolean.class //
                 // (Test Enum.class.isAssignableFrom() rather than cls.isEnum() -- an enum constant with a
                 // constant-specific class body is an instance of an anonymous subclass of the enum type, and
                 // Class#isEnum() is false for that subclass)
@@ -300,10 +300,10 @@ public final class JSONUtils {
      * @return true, if the type is a basic value type
      */
     static boolean isBasicValueType(final Type type) {
-        if (type instanceof Class<?>) {
-            return isBasicValueType((Class<?>) type);
-        } else if (type instanceof ParameterizedType) {
-            return isBasicValueType(((ParameterizedType) type).getRawType());
+        if (type instanceof final Class<?> cls) {
+            return isBasicValueType(cls);
+        } else if (type instanceof final ParameterizedType parameterizedType) {
+            return isBasicValueType(parameterizedType.getRawType());
         } else {
             return false;
         }
@@ -348,10 +348,10 @@ public final class JSONUtils {
      *             {@link ParameterizedType}.
      */
     static Class<?> getRawType(final Type type) {
-        if (type instanceof Class<?>) {
-            return (Class<?>) type;
-        } else if (type instanceof ParameterizedType) {
-            return (Class<?>) ((ParameterizedType) type).getRawType();
+        if (type instanceof final Class<?> cls) {
+            return cls;
+        } else if (type instanceof final ParameterizedType parameterizedType) {
+            return (Class<?>) parameterizedType.getRawType();
         } else {
             throw new IllegalArgumentException("Illegal type: " + type);
         }

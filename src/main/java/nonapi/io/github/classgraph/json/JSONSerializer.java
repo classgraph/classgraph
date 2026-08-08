@@ -79,19 +79,19 @@ public final class JSONSerializer {
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final AtomicInteger objId, final boolean onlySerializePublicFields) {
-        if (jsonVal instanceof JSONObject) {
-            for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
+        if (jsonVal instanceof final JSONObject jsonObject) {
+            for (final Entry<String, Object> item : jsonObject.items) {
                 assignObjectIds(item.getValue(), objToJSONVal, classFieldCache, jsonReferenceToId, objId,
                         onlySerializePublicFields);
             }
-        } else if (jsonVal instanceof JSONArray) {
-            for (final Object item : ((JSONArray) jsonVal).items) {
+        } else if (jsonVal instanceof final JSONArray jsonArray) {
+            for (final Object item : jsonArray.items) {
                 assignObjectIds(item, objToJSONVal, classFieldCache, jsonReferenceToId, objId,
                         onlySerializePublicFields);
             }
-        } else if (jsonVal instanceof JSONReference) {
+        } else if (jsonVal instanceof final JSONReference jsonReference) {
             // Get the referenced (non-JSON) object
-            final Object refdObj = ((JSONReference) jsonVal).idObject;
+            final Object refdObj = jsonReference.idObject();
             if (refdObj == null) {
                 // Should not happen
                 throw new RuntimeException("Internal inconsistency");
@@ -131,7 +131,7 @@ public final class JSONSerializer {
                 }
             }
             // Link both the JSON representation ob the object to the id
-            jsonReferenceToId.put(new ReferenceEqualityKey<>((JSONReference) jsonVal), idStr);
+            jsonReferenceToId.put(new ReferenceEqualityKey<>(jsonReference), idStr);
         }
         // if (jsonVal == null) then do nothing
     }
@@ -183,8 +183,8 @@ public final class JSONSerializer {
                 }
             }
             // Special handling for class references: Convert to class name string
-            if (val instanceof Class) {
-                convertedVals[i] = ((Class<?>) val).getName();
+            if (val instanceof final Class<?> valClass) {
+                convertedVals[i] = valClass.getName();
             }
         }
         // Pass 2: Recursively convert items in standard objects, maps, collections and arrays to JSON objects.
@@ -210,35 +210,26 @@ public final class JSONSerializer {
      * Comparator for set elements, to sort them into some sort of consistent order, so that JSON ordering is
      * deterministic.
      */
-    private static final Comparator<Object> SET_COMPARATOR = new Comparator<Object>() {
-        @Override
-        public int compare(final Object o1, final Object o2) {
-            if (o1 == null || o2 == null) {
-                return (o1 == null ? 0 : 1) - (o2 == null ? 0 : 1);
-            }
-            if (Comparable.class.isAssignableFrom(o1.getClass())
-                    && Comparable.class.isAssignableFrom(o2.getClass())) {
-                @SuppressWarnings("unchecked")
-                final Comparable<Object> comparableO1 = (Comparable<Object>) o1;
-                return comparableO1.compareTo(o2);
-            }
-            // If the objects are not comparable, just compare the toString() method, and hope it's overridden
-            // (otherwise would need to do a deep compare, which is not worth it)
-            return o1.toString().compareTo(o2.toString());
+    private static final Comparator<Object> SET_COMPARATOR = (o1, o2) -> {
+        if (o1 == null || o2 == null) {
+            return (o1 == null ? 0 : 1) - (o2 == null ? 0 : 1);
         }
+        if (Comparable.class.isAssignableFrom(o1.getClass()) && Comparable.class.isAssignableFrom(o2.getClass())) {
+            @SuppressWarnings("unchecked")
+            final Comparable<Object> comparableO1 = (Comparable<Object>) o1;
+            return comparableO1.compareTo(o2);
+        }
+        // If the objects are not comparable, just compare the toString() method, and hope it's overridden
+        // (otherwise would need to do a deep compare, which is not worth it)
+        return o1.toString().compareTo(o2.toString());
     };
 
     /**
      * Comparator for map entries whose keys could not be sorted before conversion to string form (i.e. keys that
      * are not {@link Comparable}), so that JSON ordering is deterministic.
      */
-    private static final Comparator<Entry<String, Object>> ENTRY_KEY_COMPARATOR = //
-            new Comparator<Entry<String, Object>>() {
-                @Override
-                public int compare(final Entry<String, Object> e1, final Entry<String, Object> e2) {
-                    return e1.getKey().compareTo(e2.getKey());
-                }
-            };
+    private static final Comparator<Entry<String, Object>> ENTRY_KEY_COMPARATOR = Comparator
+            .comparing(Entry::getKey);
 
     /**
      * Turn an object graph into a graph of JSON objects, arrays, and values.
@@ -264,8 +255,8 @@ public final class JSONSerializer {
             final boolean onlySerializePublicFields) {
 
         // For class references, return class name as a string
-        if (obj instanceof Class) {
-            return ((Class<?>) obj).getName();
+        if (obj instanceof final Class<?> objClass) {
+            return objClass.getName();
         }
 
         // For null and basic value types, just return value
@@ -407,7 +398,7 @@ public final class JSONSerializer {
             // Create new JSON object representing the standard object
             final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
             for (int i = 0; i < n; i++) {
-                convertedKeyValPairs.add(new SimpleEntry(fieldNames[i], convertedVals[i]));
+                convertedKeyValPairs.add(new SimpleEntry<>(fieldNames[i], convertedVals[i]));
             }
             jsonVal = new JSONObject(convertedKeyValPairs);
 
@@ -446,19 +437,17 @@ public final class JSONSerializer {
         if (jsonVal == null) {
             buf.append("null");
 
-        } else if (jsonVal instanceof JSONObject) {
+        } else if (jsonVal instanceof final JSONObject jsonObject) {
             // Serialize JSONObject to string
-            ((JSONObject) jsonVal).toJSONString(jsonReferenceToId, includeNullValuedFields, depth, indentWidth,
-                    buf);
+            jsonObject.toJSONString(jsonReferenceToId, includeNullValuedFields, depth, indentWidth, buf);
 
-        } else if (jsonVal instanceof JSONArray) {
+        } else if (jsonVal instanceof final JSONArray jsonArray) {
             // Serialize JSONArray to string
-            ((JSONArray) jsonVal).toJSONString(jsonReferenceToId, includeNullValuedFields, depth, indentWidth, buf);
+            jsonArray.toJSONString(jsonReferenceToId, includeNullValuedFields, depth, indentWidth, buf);
 
-        } else if (jsonVal instanceof JSONReference) {
+        } else if (jsonVal instanceof final JSONReference jsonReference) {
             // Serialize JSONReference to string
-            final Object referencedObjectId = jsonReferenceToId
-                    .get(new ReferenceEqualityKey<>((JSONReference) jsonVal));
+            final Object referencedObjectId = jsonReferenceToId.get(new ReferenceEqualityKey<>(jsonReference));
             jsonValToJSONString(referencedObjectId, jsonReferenceToId, includeNullValuedFields, depth, indentWidth,
                     buf);
 
@@ -502,8 +491,7 @@ public final class JSONSerializer {
             final boolean onlySerializePublicFields, final ClassFieldCache classFieldCache) {
         final HashMap<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal = new HashMap<>();
 
-        final Object rootJsonVal = toJSONGraph(obj, new HashSet<ReferenceEqualityKey<Object>>(),
-                new HashSet<ReferenceEqualityKey<Object>>(), classFieldCache, objToJSONVal,
+        final Object rootJsonVal = toJSONGraph(obj, new HashSet<>(), new HashSet<>(), classFieldCache, objToJSONVal,
                 onlySerializePublicFields);
 
         final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId = new HashMap<>();

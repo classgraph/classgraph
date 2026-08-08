@@ -47,7 +47,7 @@ import nonapi.io.github.classgraph.types.ParseException;
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
  */
-public class JSONDeserializer {
+public final class JSONDeserializer {
     /**
      * Constructor.
      */
@@ -74,8 +74,8 @@ public class JSONDeserializer {
         } else if (jsonVal instanceof JSONArray || jsonVal instanceof JSONObject) {
             throw new RuntimeException("Expected a basic value type");
         }
-        if (expectedType instanceof ParameterizedType) {
-            if (((ParameterizedType) expectedType).getRawType().getClass() == Class.class) {
+        if (expectedType instanceof final ParameterizedType parameterizedType) {
+            if (parameterizedType.getRawType().getClass() == Class.class) {
                 final String str = jsonVal.toString();
                 final int idx = str.indexOf('<');
                 final String className = str.substring(0, idx < 0 ? str.length() : idx);
@@ -104,7 +104,7 @@ public class JSONDeserializer {
             }
             return jsonVal;
 
-        } else if (rawType == Integer.class || rawType == Integer.TYPE) {
+        } else if (rawType == Integer.class || rawType == int.class) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
                 return Integer.parseInt(jsonVal.toString());
             }
@@ -113,7 +113,7 @@ public class JSONDeserializer {
             }
             return jsonVal;
 
-        } else if (rawType == Long.class || rawType == Long.TYPE) {
+        } else if (rawType == Long.class || rawType == long.class) {
             final boolean isLong = jsonVal instanceof Long;
             final boolean isInteger = jsonVal instanceof Integer;
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
@@ -128,33 +128,33 @@ public class JSONDeserializer {
                 return (long) (Integer) jsonVal;
             }
 
-        } else if (rawType == Short.class || rawType == Short.TYPE) {
+        } else if (rawType == Short.class || rawType == short.class) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
                 return Short.parseShort(jsonVal.toString());
             }
-            if (!(jsonVal instanceof Integer)) {
+            if (!(jsonVal instanceof final Integer integerValue)) {
                 throw new IllegalArgumentException("Expected short; got " + jsonVal.getClass().getName());
             }
-            final int intValue = (Integer) jsonVal;
+            final int intValue = integerValue;
             if (intValue < Short.MIN_VALUE || intValue > Short.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected short; got out-of-range value " + intValue);
             }
             return (short) intValue;
 
-        } else if (rawType == Float.class || rawType == Float.TYPE) {
+        } else if (rawType == Float.class || rawType == float.class) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
                 return Float.parseFloat(jsonVal.toString());
             }
-            if (!(jsonVal instanceof Double)) {
+            if (!(jsonVal instanceof final Double doubleObject)) {
                 throw new IllegalArgumentException("Expected float; got " + jsonVal.getClass().getName());
             }
-            final double doubleValue = (Double) jsonVal;
+            final double doubleValue = doubleObject;
             if (doubleValue < -Float.MAX_VALUE || doubleValue > Float.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected float; got out-of-range value " + doubleValue);
             }
             return (float) doubleValue;
 
-        } else if (rawType == Double.class || rawType == Double.TYPE) {
+        } else if (rawType == Double.class || rawType == double.class) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
                 return Double.parseDouble(jsonVal.toString());
             }
@@ -163,30 +163,29 @@ public class JSONDeserializer {
             }
             return jsonVal;
 
-        } else if (rawType == Byte.class || rawType == Byte.TYPE) {
+        } else if (rawType == Byte.class || rawType == byte.class) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
                 return Byte.parseByte(jsonVal.toString());
             }
-            if (!(jsonVal instanceof Integer)) {
+            if (!(jsonVal instanceof final Integer integerValue)) {
                 throw new IllegalArgumentException("Expected byte; got " + jsonVal.getClass().getName());
             }
-            final int intValue = (Integer) jsonVal;
+            final int intValue = integerValue;
             if (intValue < Byte.MIN_VALUE || intValue > Byte.MAX_VALUE) {
                 throw new IllegalArgumentException("Expected byte; got out-of-range value " + intValue);
             }
             return (byte) intValue;
 
-        } else if (rawType == Character.class || rawType == Character.TYPE) {
-            if (!(jsonVal instanceof CharSequence)) {
+        } else if (rawType == Character.class || rawType == char.class) {
+            if (!(jsonVal instanceof final CharSequence charSequence)) {
                 throw new IllegalArgumentException("Expected character; got " + jsonVal.getClass().getName());
             }
-            final CharSequence charSequence = (CharSequence) jsonVal;
             if (charSequence.length() != 1) {
                 throw new IllegalArgumentException("Expected single character; got string");
             }
             return charSequence.charAt(0);
 
-        } else if (rawType == Boolean.class || rawType == Boolean.TYPE) {
+        } else if (rawType == Boolean.class || rawType == boolean.class) {
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
                 return Boolean.parseBoolean(jsonVal.toString());
             }
@@ -215,32 +214,15 @@ public class JSONDeserializer {
      * Used to hold object instantiations temporarily before their fields can be populated, so that object
      * references can be resolved in the same order during deserialization as they were created during
      * serialization.
+     *
+     * @param objectInstance
+     *            the Java object instance to populate from the JSONObject or JSONArray
+     * @param type
+     *            the resolved type of the object instance
+     * @param jsonVal
+     *            the JSONObject or JSONArray to recurse into
      */
-    private static class ObjectInstantiation {
-        /** The JSONObject or JSONArray to recurse into. */
-        Object jsonVal;
-
-        /** The Java object instance to populate from the JSONObject or JSONArray. */
-        Object objectInstance;
-
-        /** The resolved type of the object instance. */
-        Type type;
-
-        /**
-         * Constructor.
-         *
-         * @param objectInstance
-         *            the object instance
-         * @param type
-         *            the type
-         * @param jsonVal
-         *            the json val
-         */
-        public ObjectInstantiation(final Object objectInstance, final Type type, final Object jsonVal) {
-            this.jsonVal = jsonVal;
-            this.objectInstance = objectInstance;
-            this.type = type;
-        }
+    private record ObjectInstantiation(Object objectInstance, Type type, Object jsonVal) {
     }
 
     /**
@@ -269,14 +251,14 @@ public class JSONDeserializer {
         }
 
         // Check jsonVal is JSONObject or JSONArray
-        final boolean isJsonObject = jsonVal instanceof JSONObject;
-        final boolean isJsonArray = jsonVal instanceof JSONArray;
+        final JSONObject jsonObject = jsonVal instanceof final JSONObject obj ? obj : null;
+        final JSONArray jsonArray = jsonVal instanceof final JSONArray arr ? arr : null;
+        final boolean isJsonObject = jsonObject != null;
+        final boolean isJsonArray = jsonArray != null;
         if (!(isJsonArray || isJsonObject)) {
             throw new IllegalArgumentException(
                     "Expected JSONObject or JSONArray, got " + jsonVal.getClass().getSimpleName());
         }
-        final JSONObject jsonObject = isJsonObject ? (JSONObject) jsonVal : null;
-        final JSONArray jsonArray = isJsonArray ? (JSONArray) jsonVal : null;
 
         // Check concrete type of object instance
         final Class<?> rawType = objectInstance.getClass();
@@ -294,8 +276,7 @@ public class JSONDeserializer {
 
         // Handle concrete subclasses of generic classes, e.g. ClassInfoList extends List<ClassInfo>
         Type objectResolvedTypeGeneric = objectResolvedType;
-        if (objectResolvedType instanceof Class<?>) {
-            final Class<?> objectResolvedCls = (Class<?>) objectResolvedType;
+        if (objectResolvedType instanceof final Class<?> objectResolvedCls) {
             if (Map.class.isAssignableFrom(objectResolvedCls)) {
                 if (!isMap) {
                     throw new IllegalArgumentException("Got an unexpected map type");
@@ -319,11 +300,10 @@ public class JSONDeserializer {
         Type commonResolvedValueType;
         Class<?> arrayComponentType;
         boolean is1DArray;
-        if (objectResolvedTypeGeneric instanceof Class<?>) {
+        if (objectResolvedTypeGeneric instanceof final Class<?> objectResolvedCls) {
             // Not a Map or Collection subclass
             typeResolutions = null;
             mapKeyType = null;
-            final Class<?> objectResolvedCls = (Class<?>) objectResolvedTypeGeneric;
             if (isArray) {
                 arrayComponentType = objectResolvedCls.getComponentType();
                 is1DArray = !arrayComponentType.isArray();
@@ -332,10 +312,9 @@ public class JSONDeserializer {
                 is1DArray = false;
             }
             commonResolvedValueType = null;
-        } else if (objectResolvedTypeGeneric instanceof ParameterizedType) {
+        } else if (objectResolvedTypeGeneric instanceof final ParameterizedType parameterizedResolvedType) {
             // Get mapping from type variables to resolved types, by comparing the concrete type arguments
             // of the expected type to its type parameters
-            final ParameterizedType parameterizedResolvedType = (ParameterizedType) objectResolvedTypeGeneric;
             typeResolutions = new TypeResolutions(parameterizedResolvedType);
             // Correlate type variables with resolved types
             final int numTypeArgs = typeResolutions.resolvedTypeArguments.length;
@@ -405,11 +384,10 @@ public class JSONDeserializer {
                 // Can't happen (keep static analyzers happy)
                 throw new RuntimeException("This exception should not be thrown");
             }
-            final boolean itemJsonValueIsJsonObject = itemJsonValue instanceof JSONObject;
-            final boolean itemJsonValueIsJsonArray = itemJsonValue instanceof JSONArray;
-            final JSONObject itemJsonValueJsonObject = itemJsonValueIsJsonObject ? (JSONObject) itemJsonValue
-                    : null;
-            final JSONArray itemJsonValueJsonArray = itemJsonValueIsJsonArray ? (JSONArray) itemJsonValue : null;
+            final JSONObject itemJsonValueJsonObject = itemJsonValue instanceof final JSONObject obj ? obj : null;
+            final JSONArray itemJsonValueJsonArray = itemJsonValue instanceof final JSONArray arr ? arr : null;
+            final boolean itemJsonValueIsJsonObject = itemJsonValueJsonObject != null;
+            final boolean itemJsonValueIsJsonArray = itemJsonValueJsonArray != null;
 
             // If this is a standard object, look up the field info in the type cache
             FieldTypeInfo fieldTypeInfo;
@@ -509,15 +487,15 @@ public class JSONDeserializer {
                                 ? itemJsonValueJsonObject.items.size()
                                 : itemJsonValueJsonArray != null ? itemJsonValueJsonArray.items.size()
                                         : /* can't happen */ 0;
-                        if ((resolvedItemValueType instanceof Class<?>
-                                && ((Class<?>) resolvedItemValueType).isArray())) {
+                        if (resolvedItemValueType instanceof final Class<?> resolvedItemValueClass
+                                && resolvedItemValueClass.isArray()) {
                             // Instantiate inner array with same number of items as the inner JSONArray
                             if (!itemJsonValueIsJsonArray) {
                                 throw new IllegalArgumentException(
                                         "Expected JSONArray, got " + itemJsonValue.getClass().getName());
                             }
-                            instantiatedItemObject = Array.newInstance(
-                                    ((Class<?>) resolvedItemValueType).getComponentType(), numSubItems);
+                            instantiatedItemObject = Array
+                                    .newInstance(resolvedItemValueClass.getComponentType(), numSubItems);
                         } else {
                             // For maps and collections, all the elements are of the same type
                             if (isCollection || isMap || is1DArray) {
@@ -557,8 +535,7 @@ public class JSONDeserializer {
                     // Look up any id field in the object (it will be the first field), and if present,
                     // add it to the idToObjectInstance map, so that it is available before recursing 
                     // into any sibling objects.
-                    if (itemJsonValue instanceof JSONObject) {
-                        final JSONObject itemJsonObject = (JSONObject) itemJsonValue;
+                    if (itemJsonValue instanceof final JSONObject itemJsonObject) {
                         if (itemJsonObject.objectId != null) {
                             idToObjectInstance.put(itemJsonObject.objectId, instantiatedItemObject);
                         }
@@ -587,19 +564,14 @@ public class JSONDeserializer {
             } else if (collectionInstance != null) {
                 // Can't add partially-deserialized item objects to Collections yet, since their
                 // hashCode() and equals() methods may depend upon fields that have not yet been set.
-                collectionElementAdders.add(new Runnable() {
-                    @Override
-                    public void run() {
-                        collectionInstance.add(instantiatedItemObject);
-                    }
-                });
+                collectionElementAdders.add(() -> collectionInstance.add(instantiatedItemObject));
             }
         }
 
         // Pass 2: Recurse into child items to populate child fields.
         if (itemsToRecurseToInPass2 != null) {
             for (final ObjectInstantiation i : itemsToRecurseToInPass2) {
-                populateObjectFromJsonObject(i.objectInstance, i.type, i.jsonVal, classFieldCache,
+                populateObjectFromJsonObject(i.objectInstance(), i.type(), i.jsonVal(), classFieldCache,
                         idToObjectInstance, collectionElementAdders);
             }
         }
@@ -620,8 +592,7 @@ public class JSONDeserializer {
     private static Map<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
             final Object parsedJSON) {
         final Map<CharSequence, Object> idToObjectInstance = new HashMap<>();
-        if (parsedJSON instanceof JSONObject) {
-            final JSONObject itemJsonObject = (JSONObject) parsedJSON;
+        if (parsedJSON instanceof final JSONObject itemJsonObject) {
             if (!itemJsonObject.items.isEmpty()) {
                 final Entry<String, Object> firstItem = itemJsonObject.items.get(0);
                 if (firstItem.getKey().equals(JSONUtils.ID_KEY)) {
@@ -768,7 +739,7 @@ public class JSONDeserializer {
         // (no need to call getInitialIdToObjectMap(), since toplevel object is a wrapper, which doesn't have an id)
         final List<Runnable> collectionElementAdders = new ArrayList<>();
         populateObjectFromJsonObject(containingObject, containingObject.getClass(), wrapperJsonObj, classFieldCache,
-                new HashMap<CharSequence, Object>(), collectionElementAdders);
+                new HashMap<>(), collectionElementAdders);
         for (final Runnable runnable : collectionElementAdders) {
             runnable.run();
         }

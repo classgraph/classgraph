@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.json;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -111,23 +110,12 @@ final class JSONParser extends Parser {
             if (c == '\\') {
                 final char escaped = getc();
                 switch (escaped) {
-                case 'b':
-                case 'f':
-                case 'n':
-                case 'r':
-                case 't':
-                case '\'':
-                case '"':
-                case '/':
-                case '\\':
-                    hasEscape = true;
-                    break;
-                case 'u':
+                case 'b', 'f', 'n', 'r', 't', '\'', '"', '/', '\\' -> hasEscape = true;
+                case 'u' -> {
                     hasEscape = true;
                     advance(4);
-                    break;
-                default:
-                    throw new ParseException(this, "Invalid escape sequence: \\" + escaped);
+                }
+                default -> throw new ParseException(this, "Invalid escape sequence: \\" + escaped);
                 }
             } else if (c == '"') {
                 foundClosingQuote = true;
@@ -155,37 +143,19 @@ final class JSONParser extends Parser {
             if (c == '\\') {
                 final char c2 = getc();
                 switch (c2) {
-                case 'b':
-                    buf.append('\b');
-                    break;
-                case 'f':
-                    buf.append('\f');
-                    break;
-                case 'n':
-                    buf.append('\n');
-                    break;
-                case 'r':
-                    buf.append('\r');
-                    break;
-                case 't':
-                    buf.append('\t');
-                    break;
-                case '\'':
-                case '"':
-                case '/':
-                case '\\':
-                    buf.append(c2);
-                    break;
-                case 'u':
-                    int charVal = 0;
-                    charVal = getAndParseHexChar() << 12;
-                    charVal |= getAndParseHexChar() << 8;
-                    charVal |= getAndParseHexChar() << 4;
-                    charVal |= getAndParseHexChar();
+                case 'b' -> buf.append('\b');
+                case 'f' -> buf.append('\f');
+                case 'n' -> buf.append('\n');
+                case 'r' -> buf.append('\r');
+                case 't' -> buf.append('\t');
+                case '\'', '"', '/', '\\' -> buf.append(c2);
+                case 'u' -> {
+                    // (The four hex digits are read in left-to-right order)
+                    final int charVal = (getAndParseHexChar() << 12) | (getAndParseHexChar() << 8)
+                            | (getAndParseHexChar() << 4) | getAndParseHexChar();
                     buf.append((char) charVal);
-                    break;
-                default:
-                    throw new ParseException(this, "Invalid escape sequence: \\" + c2);
+                }
+                default -> throw new ParseException(this, "Invalid escape sequence: \\" + c2);
                 }
             } else if (c == '"') {
                 foundClosingQuote = true;
@@ -322,7 +292,7 @@ final class JSONParser extends Parser {
         if (peek() == ']') {
             // Empty array
             next();
-            return new JSONArray(Collections.emptyList());
+            return new JSONArray(List.of());
         }
 
         final List<Object> elements = new ArrayList<>();
@@ -361,7 +331,7 @@ final class JSONParser extends Parser {
         if (peek() == '}') {
             // Empty object
             next();
-            return new JSONObject(Collections.<Entry<String, Object>> emptyList());
+            return new JSONObject(List.of());
         }
 
         final List<Entry<String, Object>> kvPairs = new ArrayList<>();

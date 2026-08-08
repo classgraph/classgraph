@@ -247,7 +247,7 @@ class ClassFieldCache {
             for (Class<?> c = concreteType; c != null
                     && (c != Object.class || cls == Object.class); c = c.getSuperclass()) {
                 try {
-                    final Constructor<?> constructorWithSizeHint = c.getDeclaredConstructor(Integer.TYPE);
+                    final Constructor<?> constructorWithSizeHint = c.getDeclaredConstructor(int.class);
                     JSONUtils.makeAccessible(constructorWithSizeHint, reflectionUtils);
                     // Store found constructor in cache
                     constructorForConcreteTypeWithSizeHint.put(cls, constructorWithSizeHint);

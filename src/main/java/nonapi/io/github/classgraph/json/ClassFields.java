@@ -70,26 +70,15 @@ class ClassFields {
     Field idField;
 
     /** Used to sort fields into deterministic order. */
-    private static final Comparator<Field> FIELD_NAME_ORDER_COMPARATOR = //
-            new Comparator<Field>() {
-                @Override
-                public int compare(final Field a, final Field b) {
-                    return a.getName().compareTo(b.getName());
-                }
-            };
+    private static final Comparator<Field> FIELD_NAME_ORDER_COMPARATOR = Comparator.comparing(Field::getName);
 
     /**
      * Used to sort fields into deterministic order for SerializationFormat class (which needs to have "format"
      * field in first position for ClassGraph's serialization format) (#383).
      */
     private static final Comparator<Field> SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR = //
-            new Comparator<Field>() {
-                @Override
-                public int compare(final Field a, final Field b) {
-                    return a.getName().equals("format") ? -1
-                            : b.getName().equals("format") ? 1 : a.getName().compareTo(b.getName());
-                }
-            };
+            (a, b) -> a.getName().equals("format") ? -1
+                    : b.getName().equals("format") ? 1 : a.getName().compareTo(b.getName());
 
     /** The name of the SerializationFormat class (used by ClassGraph to serialize a ScanResult). */
     private static final String SERIALIZATION_FORMAT_CLASS_NAME = ScanResult.class.getName()
@@ -117,13 +106,11 @@ class ClassFields {
         final List<List<FieldTypeInfo>> fieldSuperclassReversedOrder = new ArrayList<>();
         TypeResolutions currTypeResolutions = null;
         for (Type currType = cls; currType != Object.class && currType != null;) {
-            Class<?> currRawType;
-            ParameterizedType currParameterizedType;
-            if (currType instanceof ParameterizedType) {
-                currParameterizedType = (ParameterizedType) currType;
+            final Class<?> currRawType;
+            if (currType instanceof final ParameterizedType currParameterizedType) {
                 currRawType = (Class<?>) currParameterizedType.getRawType();
-            } else if (currType instanceof Class<?>) {
-                currRawType = (Class<?>) currType;
+            } else if (currType instanceof final Class<?> currClass) {
+                currRawType = currClass;
             } else {
                 // Class definitions should not be of type WildcardType or GenericArrayType 
                 throw new IllegalArgumentException("Illegal class type: " + currType);
@@ -196,8 +183,8 @@ class ClassFields {
                             : currTypeResolutions.resolveTypeVariables(genericSuperType);
 
                     // Produce new type resolutions for the superclass, by comparing its concrete to its generic type 
-                    currTypeResolutions = resolvedSupertype instanceof ParameterizedType
-                            ? new TypeResolutions((ParameterizedType) resolvedSupertype)
+                    currTypeResolutions = resolvedSupertype instanceof final ParameterizedType resolvedParamType
+                            ? new TypeResolutions(resolvedParamType)
                             : null;
 
                     // Iterate to superclass

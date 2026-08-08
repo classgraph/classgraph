@@ -111,8 +111,8 @@ class FieldTypeInfo {
     private static boolean hasTypeVariables(final Type type) {
         if (type instanceof TypeVariable<?> || type instanceof GenericArrayType) {
             return true;
-        } else if (type instanceof ParameterizedType) {
-            for (final Type arg : ((ParameterizedType) type).getActualTypeArguments()) {
+        } else if (type instanceof final ParameterizedType parameterizedType) {
+            for (final Type arg : parameterizedType.getActualTypeArguments()) {
                 if (hasTypeVariables(arg)) {
                     return true;
                 }
@@ -139,29 +139,28 @@ class FieldTypeInfo {
         this.hasUnresolvedTypeVariables = isTypeVariable || hasTypeVariables(fieldTypePartiallyResolved);
 
         final boolean isArray = fieldTypePartiallyResolved instanceof GenericArrayType
-                || (fieldTypePartiallyResolved instanceof Class<?>
-                        && ((Class<?>) fieldTypePartiallyResolved).isArray());
+                || (fieldTypePartiallyResolved instanceof final Class<?> fieldClass && fieldClass.isArray());
 
         if (isArray || isTypeVariable) {
             this.primitiveType = PrimitiveType.NON_PRIMITIVE;
         } else {
             // Get type index of field, for speed in calling setFieldValue
             final Class<?> fieldRawType = JSONUtils.getRawType(fieldTypePartiallyResolved);
-            if (fieldRawType == Integer.TYPE) {
+            if (fieldRawType == int.class) {
                 this.primitiveType = PrimitiveType.INTEGER;
-            } else if (fieldRawType == Long.TYPE) {
+            } else if (fieldRawType == long.class) {
                 this.primitiveType = PrimitiveType.LONG;
-            } else if (fieldRawType == Short.TYPE) {
+            } else if (fieldRawType == short.class) {
                 this.primitiveType = PrimitiveType.SHORT;
-            } else if (fieldRawType == Double.TYPE) {
+            } else if (fieldRawType == double.class) {
                 this.primitiveType = PrimitiveType.DOUBLE;
-            } else if (fieldRawType == Float.TYPE) {
+            } else if (fieldRawType == float.class) {
                 this.primitiveType = PrimitiveType.FLOAT;
-            } else if (fieldRawType == Boolean.TYPE) {
+            } else if (fieldRawType == boolean.class) {
                 this.primitiveType = PrimitiveType.BOOLEAN;
-            } else if (fieldRawType == Byte.TYPE) {
+            } else if (fieldRawType == byte.class) {
                 this.primitiveType = PrimitiveType.BYTE;
-            } else if (fieldRawType == Character.TYPE) {
+            } else if (fieldRawType == char.class) {
                 this.primitiveType = PrimitiveType.CHARACTER;
             } else if (fieldRawType == Class.class) {
                 this.primitiveType = PrimitiveType.CLASS_REF;
@@ -266,74 +265,71 @@ class FieldTypeInfo {
                 return;
             }
             switch (primitiveType) {
-            case NON_PRIMITIVE:
-                field.set(containingObj, value);
-                break;
-            case CLASS_REF:
+            case NON_PRIMITIVE -> field.set(containingObj, value);
+            case CLASS_REF -> {
                 if (!(value instanceof Class)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Class<?>; got " + value.getClass().getName());
                 }
                 field.set(containingObj, value);
-                break;
-            case INTEGER:
-                if (!(value instanceof Integer)) {
+            }
+            case INTEGER -> {
+                if (!(value instanceof final Integer intValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Integer; got " + value.getClass().getName());
                 }
-                field.setInt(containingObj, (Integer) value);
-                break;
-            case LONG:
-                if (!(value instanceof Long)) {
+                field.setInt(containingObj, intValue);
+            }
+            case LONG -> {
+                if (!(value instanceof final Long longValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Long; got " + value.getClass().getName());
                 }
-                field.setLong(containingObj, (Long) value);
-                break;
-            case SHORT:
-                if (!(value instanceof Short)) {
+                field.setLong(containingObj, longValue);
+            }
+            case SHORT -> {
+                if (!(value instanceof final Short shortValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Short; got " + value.getClass().getName());
                 }
-                field.setShort(containingObj, (Short) value);
-                break;
-            case DOUBLE:
-                if (!(value instanceof Double)) {
+                field.setShort(containingObj, shortValue);
+            }
+            case DOUBLE -> {
+                if (!(value instanceof final Double doubleValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Double; got " + value.getClass().getName());
                 }
-                field.setDouble(containingObj, (Double) value);
-                break;
-            case FLOAT:
-                if (!(value instanceof Float)) {
+                field.setDouble(containingObj, doubleValue);
+            }
+            case FLOAT -> {
+                if (!(value instanceof final Float floatValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Float; got " + value.getClass().getName());
                 }
-                field.setFloat(containingObj, (Float) value);
-                break;
-            case BOOLEAN:
-                if (!(value instanceof Boolean)) {
+                field.setFloat(containingObj, floatValue);
+            }
+            case BOOLEAN -> {
+                if (!(value instanceof final Boolean booleanValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Boolean; got " + value.getClass().getName());
                 }
-                field.setBoolean(containingObj, (Boolean) value);
-                break;
-            case BYTE:
-                if (!(value instanceof Byte)) {
+                field.setBoolean(containingObj, booleanValue);
+            }
+            case BYTE -> {
+                if (!(value instanceof final Byte byteValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Byte; got " + value.getClass().getName());
                 }
-                field.setByte(containingObj, (Byte) value);
-                break;
-            case CHARACTER:
-                if (!(value instanceof Character)) {
+                field.setByte(containingObj, byteValue);
+            }
+            case CHARACTER -> {
+                if (!(value instanceof final Character charValue)) {
                     throw new IllegalArgumentException(
                             "Expected value of type Character; got " + value.getClass().getName());
                 }
-                field.setChar(containingObj, (Character) value);
-                break;
-            default:
-                throw new IllegalArgumentException();
+                field.setChar(containingObj, charValue);
+            }
+            default -> throw new IllegalArgumentException();
             }
         } catch (IllegalArgumentException | IllegalAccessException e) {
             throw new IllegalArgumentException(

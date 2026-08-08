@@ -89,10 +89,11 @@ public class ReferenceEqualityKey<K> {
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof ReferenceEqualityKey)) {
+        }
+        if (!(obj instanceof final ReferenceEqualityKey<?> other)) {
             return false;
         }
-        return wrappedKey == ((ReferenceEqualityKey<?>) obj).wrappedKey;
+        return wrappedKey == other.wrappedKey;
     }
 
     /**
