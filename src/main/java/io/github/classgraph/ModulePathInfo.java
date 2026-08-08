@@ -33,7 +33,6 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -131,14 +130,26 @@ public class ModulePathInfo {
     public ModulePathInfo() {
     }    
 
-    /** Set to true once {@link #getRuntimeInfo()} is called. */
-    private final AtomicBoolean gotRuntimeInfo = new AtomicBoolean();
+    /** Set to true once {@link #getRuntimeInfo(ReflectionUtils)} has been called. */
+    private boolean gotRuntimeInfo;
 
-    /** Fill in module info from VM commandline parameters. */
-    void getRuntimeInfo(final ReflectionUtils reflectionUtils) {
+    /**
+     * Fill in module info from VM commandline parameters.
+     *
+     * <p>
+     * Synchronized rather than guarded by an atomic flag, so that a second thread calling this concurrently blocks
+     * until the first thread has finished populating the field sets. An atomic test-and-set would let the second
+     * thread return immediately and read the (plain, non-thread-safe) {@link LinkedHashSet} fields while the first
+     * thread was still adding to them.
+     *
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance to read the commandline arguments with.
+     */
+    synchronized void getRuntimeInfo(final ReflectionUtils reflectionUtils) {
         // Only call this reflective method if ModulePathInfo is specifically requested, to avoid illegal
         // access warning on some JREs, e.g. Adopt JDK 11 (#605)
-        if (!gotRuntimeInfo.getAndSet(true)) {
+        if (!gotRuntimeInfo) {
+            gotRuntimeInfo = true;
             // Read the raw commandline arguments to get the module path override parameters.
             // If the java.management module is not present in the deployed runtime (for JDK 9+), or the runtime
             // does not contain the java.lang.management package (e.g. the Android build system, which also does
