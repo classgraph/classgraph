@@ -257,7 +257,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             final var lastModifiedMinute = lastModifiedTimeMSDOS >> 5 & 0b111111;
             final var lastModifiedHour = lastModifiedTimeMSDOS >> 11;
             final var lastModifiedDay = lastModifiedDateMSDOS & 0b11111;
-            final var lastModifiedMonth = (lastModifiedDateMSDOS >> 5 & 0b111) - 1;
+            final var lastModifiedMonth = (lastModifiedDateMSDOS >> 5 & 0b1111) - 1;
             final var lastModifiedYear = (lastModifiedDateMSDOS >> 9) + 1980;
 
             final var lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));

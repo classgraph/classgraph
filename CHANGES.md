@@ -65,6 +65,14 @@ The differences to be aware of when porting:
 * `ModuleReader#close()` throws `IOException`, whereas `ModuleReaderProxy#close()`
   swallowed it.
 
+### Bug fixes
+
+* The month of an MS-DOS zip entry timestamp was read from three bits rather than
+  four, so a zip entry that carries only an MS-DOS timestamp (i.e. no extended
+  timestamp extra field) and was last modified in August or later reported a last
+  modified time in the first five months of the year instead. This affects
+  `Resource#getLastModified()`. (Also fixed in ClassGraph 4.x.)
+
 ### Reduced visibility
 
 * `ScanResult#reflectionUtils` was `protected`, exposing the internal
