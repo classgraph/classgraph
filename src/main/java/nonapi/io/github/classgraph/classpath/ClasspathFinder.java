@@ -166,7 +166,7 @@ public class ClasspathFinder {
 
         // Only instantiate a module finder if requested
         moduleFinder = scanNonSystemModules || scanSpec.enableSystemJarsAndModules
-                ? new ModuleFinder(new CallStackReader(reflectionUtils).getClassContext(classpathFinderLog),
+                ? new ModuleFinder(new CallStackReader(reflectionUtils).getClassContext(),
                         scanSpec, scanNonSystemModules,
                         /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules, classpathFinderLog)
                 : null;

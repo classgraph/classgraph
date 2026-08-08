@@ -28,17 +28,10 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to read the classes in the current call stack. */
 class CallStackReader {
@@ -56,81 +49,16 @@ class CallStackReader {
     }
 
     /**
-     * Get the call stack via the StackWalker API (JRE 9+).
+     * Get the call stack via the {@link StackWalker} API.
      *
      * @return the call stack, or null if it could not be obtained.
      */
     private static Class<?>[] getCallStackViaStackWalker() {
         try {
-            //    // Implement the following via reflection, for JDK7 compatibility:
-            //    List<Class<?>> stackFrameClasses = new ArrayList<>();
-            //    StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE)
-            //            .forEach(sf -> stackFrameClasses.add(sf.getDeclaringClass()));
-
-            final Class<?> consumerClass = Class.forName("java.util.function.Consumer");
-            final List<Class<?>> stackFrameClasses = new ArrayList<>();
-            final Class<?> stackWalkerOptionClass = Class.forName("java.lang.StackWalker$Option");
-            final Object retainClassReference = Class.forName("java.lang.Enum")
-                    .getMethod("valueOf", Class.class, String.class)
-                    .invoke(null, stackWalkerOptionClass, "RETAIN_CLASS_REFERENCE");
-            final Class<?> stackWalkerClass = Class.forName("java.lang.StackWalker");
-            final Object stackWalkerInstance = stackWalkerClass.getMethod("getInstance", stackWalkerOptionClass)
-                    .invoke(null, retainClassReference);
-            final Method stackFrameGetDeclaringClassMethod = Class.forName("java.lang.StackWalker$StackFrame")
-                    .getMethod("getDeclaringClass");
-            stackWalkerClass.getMethod("forEach", consumerClass).invoke(stackWalkerInstance, //
-                    // InvocationHandler proxy for Consumer<StackFrame>
-                    Proxy.newProxyInstance(consumerClass.getClassLoader(), new Class<?>[] { consumerClass },
-                            new InvocationHandler() {
-                                @Override
-                                public Object invoke(final Object proxy, final Method method, final Object[] args)
-                                        throws Throwable {
-                                    // Consumer<StackFrame> has only one method: void accept(StackFrame)
-                                    final Class<?> declaringClass = (Class<?>) stackFrameGetDeclaringClassMethod
-                                            .invoke(args[0]);
-                                    stackFrameClasses.add(declaringClass);
-                                    return null;
-                                }
-                            }));
-            return stackFrameClasses.toArray(new Class<?>[0]);
+            return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+                    .walk(stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass)
+                            .toArray(Class<?>[]::new));
         } catch (Exception | LinkageError e) {
-            return null;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the call stack via the SecurityManager.getClassContext() native method.
-     *
-     * @param log
-     *            the log
-     * @return the call stack.
-     */
-    private static Class<?>[] getCallStackViaSecurityManager(final LogNode log) {
-        try {
-            // Call method via reflection, since SecurityManager is deprecated in JDK 17.
-            final Class<?> securityManagerClass = Class.forName("java.lang.SecurityManager");
-            Object securityManager = null;
-            for (final Constructor<?> constructor : securityManagerClass.getDeclaredConstructors()) {
-                if (constructor.getParameterTypes().length == 0) {
-                    securityManager = constructor.newInstance();
-                    break;
-                }
-            }
-            if (securityManager != null) {
-                final Method getClassContext = securityManager.getClass().getDeclaredMethod("getClassContext");
-                getClassContext.setAccessible(true);
-                return (Class<?>[]) getClassContext.invoke(securityManager);
-            } else {
-                return null;
-            }
-        } catch (final Throwable t) {
-            // Creating a SecurityManager can fail if the current SecurityManager does not allow
-            // RuntimePermission("createSecurityManager")
-            if (log != null) {
-                log.log("Exception while trying to obtain call stack via SecurityManager", t);
-            }
             return null;
         }
     }
@@ -140,58 +68,18 @@ class CallStackReader {
     /**
      * Get the class context.
      *
-     * @param log
-     *            the log
      * @return The classes in the call stack.
      */
-    Class<?>[] getClassContext(final LogNode log) {
+    Class<?>[] getClassContext() {
         Class<?>[] callStack = null;
 
-        // For JRE 9+, use StackWalker to get call stack.
-        if (VersionFinder.JAVA_MAJOR_VERSION == 9 //
-                || VersionFinder.JAVA_MAJOR_VERSION == 10 //
-                || (VersionFinder.JAVA_MAJOR_VERSION == 11 //
-                        && VersionFinder.JAVA_MINOR_VERSION == 0
-                        && (VersionFinder.JAVA_SUB_VERSION < 4
-                                || (VersionFinder.JAVA_SUB_VERSION == 4 && VersionFinder.JAVA_IS_EA_VERSION)))
-                || (VersionFinder.JAVA_MAJOR_VERSION == 12 && VersionFinder.JAVA_MINOR_VERSION == 0
-                        && (VersionFinder.JAVA_SUB_VERSION < 2
-                                || (VersionFinder.JAVA_SUB_VERSION == 2 && VersionFinder.JAVA_IS_EA_VERSION)))) {
-            // Don't trigger the StackWalker bug that crashed the JVM, which was fixed in JDK 13,
-            // and backported to 12.0.2 and 11.0.4 (probably introduced in JDK 9, when StackWalker
-            // was introduced):
-            // https://github.com/classgraph/classgraph/issues/341
-            // https://bugs.openjdk.java.net/browse/JDK-8210457
-            // -- fall through
-        } else {
-            // Get the stack via StackWalker.
-            // Invoke with doPrivileged -- see:
-            // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
-            try {
-                callStack = reflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
-                    @Override
-                    public Class<?>[] call() throws Exception {
-                        return getCallStackViaStackWalker();
-                    }
-                });
-            } catch (final Throwable e) {
-                // Fall through
-            }
-        }
-
-        // For JRE 7 and 8, use SecurityManager to get call stack (don't use this method on JDK 9+,
-        // because it will result in a reflective illegal access warning, see #663)
-        if (VersionFinder.JAVA_MAJOR_VERSION < 9 && (callStack == null || callStack.length == 0)) {
-            try {
-                callStack = reflectionUtils.doPrivileged(new Callable<Class<?>[]>() {
-                    @Override
-                    public Class<?>[] call() throws Exception {
-                        return getCallStackViaSecurityManager(log);
-                    }
-                });
-            } catch (final Throwable e) {
-                // Fall through
-            }
+        // Get the stack via StackWalker.
+        // Invoke with doPrivileged -- see:
+        // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
+        try {
+            callStack = reflectionUtils.doPrivileged(CallStackReader::getCallStackViaStackWalker);
+        } catch (final Throwable e) {
+            // Fall through
         }
 
         // As a fallback, use getStackTrace() to try to get the call stack

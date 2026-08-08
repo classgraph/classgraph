@@ -134,7 +134,7 @@ public class ClassLoaderFinder {
 
             // Find classloaders for classes on callstack, in case any were missed
             try {
-                final Class<?>[] callStack = new CallStackReader(reflectionUtils).getClassContext(log);
+                final Class<?>[] callStack = new CallStackReader(reflectionUtils).getClassContext();
                 for (int i = callStack.length - 1; i >= 0; --i) {
                     final ClassLoader callerClassLoader = callStack[i].getClassLoader();
                     if (callerClassLoader != null) {

@@ -35,8 +35,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -66,50 +64,24 @@ public final class VersionFinder {
     /** Java version string. */
     public static final String JAVA_VERSION = getProperty("java.version");
 
-    /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
+    /** Java major version -- 17 for "17.0.4", 21 for "21-ea", etc. */
     public static final int JAVA_MAJOR_VERSION;
 
     /** Java minor version -- 0 for "11.0.4" */
     public static final int JAVA_MINOR_VERSION;
 
-    /** Java minor version -- 4 for "11.0.4" */
+    /** Java sub version -- 4 for "11.0.4" */
     public static final int JAVA_SUB_VERSION;
 
     /** Java is EA release -- true for "11-ea", etc. */
     public static final boolean JAVA_IS_EA_VERSION;
 
     static {
-        int javaMajorVersion = 0;
-        int javaMinorVersion = 0;
-        int javaSubVersion = 0;
-        final List<Integer> versionParts = new ArrayList<>();
-        if (JAVA_VERSION != null) {
-            for (final String versionPart : JAVA_VERSION.split("[^0-9]+")) {
-                try {
-                    versionParts.add(Integer.parseInt(versionPart));
-                } catch (final NumberFormatException e) {
-                    // Skip
-                }
-            }
-            if (!versionParts.isEmpty() && versionParts.get(0) == 1) {
-                // 1.7 or 1.8 -> 7 or 8
-                versionParts.remove(0);
-            }
-            if (versionParts.isEmpty()) {
-                throw new RuntimeException("Could not determine Java version: " + JAVA_VERSION);
-            }
-            javaMajorVersion = versionParts.get(0);
-            if (versionParts.size() > 1) {
-                javaMinorVersion = versionParts.get(1);
-            }
-            if (versionParts.size() > 2) {
-                javaSubVersion = versionParts.get(2);
-            }
-        }
-        JAVA_MAJOR_VERSION = javaMajorVersion;
-        JAVA_MINOR_VERSION = javaMinorVersion;
-        JAVA_SUB_VERSION = javaSubVersion;
-        JAVA_IS_EA_VERSION = JAVA_VERSION != null && JAVA_VERSION.endsWith("-ea");
+        final Runtime.Version version = Runtime.version();
+        JAVA_MAJOR_VERSION = version.feature();
+        JAVA_MINOR_VERSION = version.interim();
+        JAVA_SUB_VERSION = version.update();
+        JAVA_IS_EA_VERSION = version.pre().isPresent();
     }
 
     /** The operating system type. */
