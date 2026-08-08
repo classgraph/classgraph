@@ -11,20 +11,16 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 [![Languages: Java, Scala, Kotlin, etc.](https://img.shields.io/badge/languages-Java,_Scala,_Kotlin,_etc.-blue.svg)](#)
 [![JDK compatibility: 7, 8, 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7,_8,_9+_(JPMS)-blue.svg)](#)
 <br>
-[![Build Status](https://travis-ci.org/classgraph/classgraph.png?branch=master)](https://travis-ci.org/classgraph/classgraph)
+[![Java CI](https://github.com/classgraph/classgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/classgraph/classgraph/actions/workflows/ci.yml)
 [![GitHub issues](https://img.shields.io/github/issues/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/issues/)
-[![lgtm alerts](https://img.shields.io/lgtm/alerts/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/alerts/)
-[![lgtm code quality](https://img.shields.io/lgtm/grade/java/g/classgraph/classgraph.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/classgraph/classgraph/context:java)
+[![CodeQL](https://github.com/classgraph/classgraph/actions/workflows/codeql.yml/badge.svg)](https://github.com/classgraph/classgraph/actions/workflows/codeql.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc65f685d504cfcb379533d28d6353c)](https://www.codacy.com/gh/classgraph/classgraph/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=classgraph/classgraph&amp;utm_campaign=Badge_Grade)
 <br>
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
-[![Dependents](https://badgen.net/github/dependents-repo/classgraph/classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
-[![GitHub stars chart](https://img.shields.io/badge/github%20stars-chart-blue.svg)](https://seladb.github.io/StarTrack-js/#/preload?r=classgraph,classgraph)
+[![Dependent repos](https://img.shields.io/librariesio/dependent-repos/maven/io.github.classgraph:classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
 <br>
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.github.classgraph/classgraph/badge.svg)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.classgraph/classgraph)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
 [![Javadocs](http://www.javadoc.io/badge/io.github.classgraph/classgraph.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph)
-<br>
-[![Gitter chat](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/classgraph/Lobby)
 <br>
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/master/LICENSE)
 
