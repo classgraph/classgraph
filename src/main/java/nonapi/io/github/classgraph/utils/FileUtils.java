@@ -156,25 +156,25 @@ public final class FileUtils {
         // otherwise a legal filename character, and must not be treated as a path hierarchy root (#903)
         final int nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(path);
 
-        // Find all '/' and nested jar separator '!' character positions, which split a path into segments 
+        // Find all '/' and nested jar separator '!' character positions, which split a path into segments.
+        // This scan reads the path via charAt() rather than copying it into a char[], since the common case is
+        // that nothing needs sanitizing, and the copy would then be pure overhead.
         boolean foundSegmentToSanitize = false;
         final int pathLen = path.length();
-        final char[] pathChars = new char[pathLen];
-        path.getChars(0, pathLen, pathChars, 0);
         {
             int lastSepIdx = -1;
             char prevC = '\0';
             for (int i = 0, ii = pathLen + 1; i < ii; i++) {
-                final char c = i == pathLen ? '\0' : pathChars[i];
+                final char c = i == pathLen ? '\0' : path.charAt(i);
                 if (c == '/' || (c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx) || c == '\0') {
                     final int segmentLength = i - (lastSepIdx + 1);
                     if (
                     // Found empty segment "//" or "!!"
                     (segmentLength == 0 && prevC == c)
                             // Found segment "."
-                            || (segmentLength == 1 && pathChars[i - 1] == '.')
+                            || (segmentLength == 1 && path.charAt(i - 1) == '.')
                             // Found segment ".."
-                            || (segmentLength == 2 && pathChars[i - 2] == '.' && pathChars[i - 1] == '.')) {
+                            || (segmentLength == 2 && path.charAt(i - 2) == '.' && path.charAt(i - 1) == '.')) {
                         foundSegmentToSanitize = true;
                     }
                     lastSepIdx = i;
@@ -184,8 +184,8 @@ public final class FileUtils {
         }
 
         // Handle "..", "." and empty path segments, if any were found
-        final boolean pathHasInitialSlash = pathChars[0] == '/';
-        final boolean pathHasInitialSlashSlash = pathHasInitialSlash && pathLen > 1 && pathChars[1] == '/';
+        final boolean pathHasInitialSlash = path.charAt(0) == '/';
+        final boolean pathHasInitialSlashSlash = pathHasInitialSlash && pathLen > 1 && path.charAt(1) == '/';
         final StringBuilder pathSanitized = new StringBuilder(pathLen + 16);
         if (foundSegmentToSanitize) {
             // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
@@ -194,15 +194,15 @@ public final class FileUtils {
             allSectionSegments.add(currSectionSegments);
             int lastSepIdx = -1;
             for (int i = 0; i < pathLen + 1; i++) {
-                final char c = i == pathLen ? '\0' : pathChars[i];
+                final char c = i == pathLen ? '\0' : path.charAt(i);
                 final boolean isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
                 if (c == '/' || isSectionMarker || c == '\0') {
                     final int segmentStartIdx = lastSepIdx + 1;
                     final int segmentLen = i - segmentStartIdx;
-                    if (segmentLen == 0 || (segmentLen == 1 && pathChars[segmentStartIdx] == '.')) {
+                    if (segmentLen == 0 || (segmentLen == 1 && path.charAt(segmentStartIdx) == '.')) {
                         // Ignore empty segment "//" or idempotent segment "/./"
-                    } else if (segmentLen == 2 && pathChars[segmentStartIdx] == '.'
-                            && pathChars[segmentStartIdx + 1] == '.') {
+                    } else if (segmentLen == 2 && path.charAt(segmentStartIdx) == '.'
+                            && path.charAt(segmentStartIdx + 1) == '.') {
                         // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
                         if (!currSectionSegments.isEmpty()) {
                             currSectionSegments.remove(currSectionSegments.size() - 1);
@@ -245,6 +245,13 @@ public final class FileUtils {
             pathSanitized.insert(0, '/');
         }
 
+        // Strip the final slashes before the initial ones, so that for a path consisting only of slashes (which is
+        // what "/.." and "/." normalize to), truncating the buffer cannot leave it shorter than startIdx
+        if (removeFinalSlash) {
+            while (pathSanitized.length() > 0 && pathSanitized.charAt(pathSanitized.length() - 1) == '/') {
+                pathSanitized.setLength(pathSanitized.length() - 1);
+            }
+        }
         int startIdx = 0;
         if (removeInitialSlash || !pathHasInitialSlash) {
             // Strip off leading "/" if it needs to be removed, or if it wasn't present in the original path
@@ -252,11 +259,6 @@ public final class FileUtils {
             // after "!", since "jar:" URLs expect this.
             while (startIdx < pathSanitized.length() && pathSanitized.charAt(startIdx) == '/') {
                 startIdx++;
-            }
-        }
-        if (removeFinalSlash) {
-            while (pathSanitized.length() > 0 && pathSanitized.charAt(pathSanitized.length() - 1) == '/') {
-                pathSanitized.setLength(pathSanitized.length() - 1);
             }
         }
 
