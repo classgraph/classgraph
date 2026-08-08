@@ -96,7 +96,7 @@ public final class TypeUtils {
      *            the modifier keyword
      */
     private static void appendModifierKeyword(final StringBuilder buf, final String modifierKeyword) {
-        if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ') {
+        if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ') {
             buf.append(' ');
         }
         buf.append(modifierKeyword);

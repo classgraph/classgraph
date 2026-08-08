@@ -47,7 +47,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
      *            The number of threads to allocate.
      */
     public AutoCloseableExecutorService(final int numThreads) {
-        super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+        super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
                 new SimpleThreadFactory("ClassGraph-worker-", true));
     }
 
@@ -68,11 +68,11 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
             interruptionChecker.setExecutionException(new ExecutionException("Uncaught exception", throwable));
             // execute() was called and an uncaught exception or error was thrown
             interruptionChecker.interrupt();
-        } else if (/* throwable == null && */ runnable instanceof Future<?>) {
+        } else if (/* throwable == null && */ runnable instanceof final Future<?> future) {
             // submit() was called, so throwable is not set 
             try {
                 // This call will not block, since execution has finished
-                ((Future<?>) runnable).get();
+                future.get();
             } catch (CancellationException | InterruptedException e) {
                 // If this thread was cancelled or interrupted, interrupt other threads
                 interruptionChecker.interrupt();

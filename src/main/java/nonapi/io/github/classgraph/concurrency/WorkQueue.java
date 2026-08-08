@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.concurrency;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -81,20 +80,10 @@ public class WorkQueue<T> implements AutoCloseable {
      *
      * @param <T>
      *            the generic type
+     * @param workUnit
+     *            the work unit, or null to represent a poison pill.
      */
-    private static class WorkUnitWrapper<T> {
-        /** The work unit. */
-        final T workUnit;
-
-        /**
-         * Constructor.
-         * 
-         * @param workUnit
-         *            the work unit, or null to represent a poison pill.
-         */
-        public WorkUnitWrapper(final T workUnit) {
-            this.workUnit = workUnit;
-        }
+    private record WorkUnitWrapper<T>(T workUnit) {
     }
 
     /**
@@ -195,12 +184,9 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private void startWorkers(final ExecutorService executorService, final int numTasks) {
         for (int i = 0; i < numTasks; i++) {
-            workerFutures.add(executorService.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    runWorkLoop();
-                    return null;
-                }
+            workerFutures.add(executorService.submit(() -> {
+                runWorkLoop();
+                return null;
             }));
         }
     }
@@ -211,7 +197,7 @@ public class WorkQueue<T> implements AutoCloseable {
     @SuppressWarnings("null")
     private void sendPoisonPills() {
         for (int i = 0; i < numWorkers; i++) {
-            workUnits.add(new WorkUnitWrapper<T>(null));
+            workUnits.add(new WorkUnitWrapper<>(null));
         }
     }
 
@@ -237,13 +223,13 @@ public class WorkQueue<T> implements AutoCloseable {
                 // Get next work unit
                 final WorkUnitWrapper<T> workUnitWrapper = workUnits.take();
 
-                if (workUnitWrapper.workUnit == null) {
+                if (workUnitWrapper.workUnit() == null) {
                     // Received poison pill
                     break;
                 }
 
                 // Process the work unit (may throw InterruptedException) 
-                workUnitProcessor.processWorkUnit(workUnitWrapper.workUnit, this, log);
+                workUnitProcessor.processWorkUnit(workUnitWrapper.workUnit(), this, log);
 
             } catch (InterruptedException | Error e) {
                 // On InterruptedException or OutOfMemoryError, drain work queue, send poison pills, and re-throw

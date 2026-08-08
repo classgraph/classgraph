@@ -46,7 +46,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public abstract class Recycler<T, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */
-    private final Set<T> usedInstances = Collections.newSetFromMap(new ConcurrentHashMap<T, Boolean>());
+    private final Set<T> usedInstances = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** Instances that have been allocated but are unused. */
     private final Queue<T> unusedInstances = new ConcurrentLinkedQueue<>();
@@ -115,8 +115,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
             if (!usedInstances.remove(instance)) {
                 throw new IllegalArgumentException("Tried to recycle an instance that was not in use");
             }
-            if (instance instanceof Resettable) {
-                ((Resettable) instance).reset();
+            if (instance instanceof final Resettable resettable) {
+                resettable.reset();
             }
             // (The usedInstances.remove() check above is what catches an instance being recycled twice --
             // unusedInstances is unbounded, so add() always returns true)
@@ -136,9 +136,9 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     @Override
     public void close() {
         for (T unusedInstance; (unusedInstance = unusedInstances.poll()) != null;) {
-            if (unusedInstance instanceof AutoCloseable) {
+            if (unusedInstance instanceof final AutoCloseable closeable) {
                 try {
-                    ((AutoCloseable) unusedInstance).close();
+                    closeable.close();
                 } catch (final Exception e) {
                     // Ignore
                 }

@@ -143,7 +143,8 @@ public class ScanSpec {
     public boolean enableExternalClasses;
 
     /**
-     * If true, system jarfiles (rt.jar) and system packages and modules (java.*, jre.*, etc.) should be scanned .
+     * If true, system jarfiles (JRE lib/ext jars) and system packages and modules (java.*, jre.*, etc.) should be
+     * scanned.
      */
     public boolean enableSystemJarsAndModules;
 

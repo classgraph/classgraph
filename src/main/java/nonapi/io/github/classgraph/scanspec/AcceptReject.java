@@ -910,35 +910,35 @@ public abstract class AcceptReject {
             quoteList(accept, buf);
         }
         if (acceptPrefixes != null) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append("; ");
             }
             buf.append("acceptPrefixes: ");
             quoteList(acceptPrefixes, buf);
         }
         if (acceptGlobs != null) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append("; ");
             }
             buf.append("acceptGlobs: ");
             quoteList(acceptGlobs, buf);
         }
         if (reject != null) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append("; ");
             }
             buf.append("reject: ");
             quoteList(reject, buf);
         }
         if (rejectPrefixes != null) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append("; ");
             }
             buf.append("rejectPrefixes: ");
             quoteList(rejectPrefixes, buf);
         }
         if (rejectGlobs != null) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append("; ");
             }
             buf.append("rejectGlobs: ");
