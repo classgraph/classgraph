@@ -633,14 +633,13 @@ public class ClassGraph {
      * but the scanning code is not running within that custom ModuleLayer.
      *
      * <p>
-     * This call is ignored if it is called before {@link #overrideModuleLayers(Object...)}.
+     * This call is ignored if it is called before {@link #overrideModuleLayers(ModuleLayer...)}.
      *
      * @param moduleLayer
-     *            The additional ModuleLayer to scan. (The parameter is of type {@link Object} for backwards
-     *            compatibility with JDK 7 and JDK 8, but the argument should be of type ModuleLayer.)
+     *            The additional ModuleLayer to scan.
      * @return this (for method chaining).
      */
-    public ClassGraph addModuleLayer(final Object moduleLayer) {
+    public ClassGraph addModuleLayer(final ModuleLayer moduleLayer) {
         scanSpec.addModuleLayer(moduleLayer);
         return this;
     }
@@ -652,12 +651,10 @@ public class ClassGraph {
      * This call is ignored if overrideClasspath() is called.
      *
      * @param overrideModuleLayers
-     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers. (The parameter is of
-     *            type {@link Object}[] for backwards compatibility with JDK 7 and JDK 8, but the argument should be
-     *            of type ModuleLayer[].)
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
      * @return this (for method chaining).
      */
-    public ClassGraph overrideModuleLayers(final Object... overrideModuleLayers) {
+    public ClassGraph overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
         scanSpec.overrideModuleLayers(overrideModuleLayers);
         return this;
     }

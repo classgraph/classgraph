@@ -2,15 +2,18 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.module.Configuration;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.net.URI;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -25,53 +28,26 @@ import nonapi.io.github.classgraph.utils.LogNode;
  *
  * <p>
  * (In package {@code io.github.classgraph} because {@link ModuleReaderProxy}'s constructor is package-private.)
- *
- * <p>
- * {@link ModuleRef} and {@link ModuleReaderProxy} call the JPMS types reflectively, so these fakes only need to be
- * duck-typed -- implementing {@code ModuleReference} and {@code ModuleReader} for real would require JDK 9+, and
- * the tests are compiled with {@code --release 8}.
  */
 public class Issue887Test {
+    /** The name of the module defined by this test. */
+    private static final String MODULE_NAME = "fake.module";
 
-    /** Stands in for {@code ModuleDescriptor}. */
-    public static class FakeDescriptor {
-        /**
-         * Get the module name.
-         *
-         * @return the module name.
-         */
-        public String name() {
-            return "fake.module";
-        }
-
-        /**
-         * Get the packages in the module.
-         *
-         * @return the packages in the module.
-         */
-        public Set<String> packages() {
-            return Collections.singleton("fake");
-        }
-
-        /**
-         * Get the raw version.
-         *
-         * @return the raw version, if any.
-         */
-        public Optional<String> rawVersion() {
-            return Optional.empty();
-        }
-    }
-
-    /** A {@code ModuleReader} that returns null from {@code list()}, as Forge's securejarhandler does. */
-    public static class NullListingModuleReader implements AutoCloseable {
+    /** A {@link ModuleReader} that returns null from {@code list()}, as Forge's securejarhandler does. */
+    static class NullListingModuleReader implements ModuleReader {
         /**
          * List the contents of the module.
          *
-         * @return null -- which the {@code ModuleReader#list()} contract does not permit.
+         * @return null -- which the {@link ModuleReader#list()} contract does not permit.
          */
+        @Override
         public Stream<String> list() {
             return null;
+        }
+
+        @Override
+        public Optional<URI> find(final String name) {
+            return Optional.empty();
         }
 
         @Override
@@ -80,52 +56,41 @@ public class Issue887Test {
         }
     }
 
-    /** Stands in for {@code ModuleReference}. */
-    public static class FakeModuleReference {
-        /**
-         * Get the module descriptor.
-         *
-         * @return the module descriptor.
-         */
-        public FakeDescriptor descriptor() {
-            return new FakeDescriptor();
-        }
+    /**
+     * Define a module layer containing a single module, {@value #MODULE_NAME}, whose {@link ModuleReader} violates
+     * the {@link ModuleReader#list()} contract.
+     *
+     * @return the {@link ModuleRef} for the module.
+     */
+    private static ModuleRef fakeModuleRef() {
+        final ModuleDescriptor descriptor = ModuleDescriptor.newModule(MODULE_NAME).packages(Set.of("fake")).build();
+        final ModuleReference reference = new ModuleReference(descriptor, /* location = */ null) {
+            @Override
+            public ModuleReader open() {
+                return new NullListingModuleReader();
+            }
+        };
+        final ModuleFinder finder = new ModuleFinder() {
+            @Override
+            public Optional<ModuleReference> find(final String name) {
+                return MODULE_NAME.equals(name) ? Optional.of(reference) : Optional.empty();
+            }
 
-        /**
-         * Get the module location.
-         *
-         * @return the module location, if any.
-         */
-        public Optional<URI> location() {
-            return Optional.empty();
-        }
-
-        /**
-         * Open a reader for the module.
-         *
-         * @return a reader that violates the {@code ModuleReader#list()} contract.
-         */
-        public NullListingModuleReader open() {
-            return new NullListingModuleReader();
-        }
-    }
-
-    /** Stands in for {@code ModuleLayer}. */
-    public static class FakeModuleLayer {
-        /**
-         * Find the classloader for a module.
-         *
-         * @param moduleName
-         *            the module name.
-         * @return the classloader for the module.
-         */
-        public ClassLoader findLoader(final String moduleName) {
-            return Issue887Test.class.getClassLoader();
-        }
+            @Override
+            public Set<ModuleReference> findAll() {
+                return Set.of(reference);
+            }
+        };
+        final ModuleLayer bootLayer = ModuleLayer.boot();
+        final Configuration configuration = bootLayer.configuration().resolve(finder, ModuleFinder.of(),
+                Set.of(MODULE_NAME));
+        final ModuleLayer layer = bootLayer.defineModules(configuration,
+                moduleName -> Issue887Test.class.getClassLoader());
+        return new ModuleRef(reference, layer);
     }
 
     /**
-     * A {@code ModuleReader} that returns null from {@code list()} should be ignored silently, with the module
+     * A {@link ModuleReader} that returns null from {@code list()} should be ignored silently, with the module
      * treated as empty -- but if verbose logging is enabled, the log should name the module and the offending
      * implementation class, and say whose contract was broken.
      *
@@ -134,16 +99,13 @@ public class Issue887Test {
      */
     @Test
     public void nullModuleReaderListingIsIgnoredButLogged() throws Exception {
-        final ReflectionUtils reflectionUtils = new ReflectionUtils();
-        final ModuleRef moduleRef = new ModuleRef(new FakeModuleReference(), new FakeModuleLayer(),
-                reflectionUtils);
-        try (ModuleReaderProxy moduleReaderProxy = new ModuleReaderProxy(moduleRef)) {
+        try (ModuleReaderProxy moduleReaderProxy = new ModuleReaderProxy(fakeModuleRef())) {
             // Without logging, the module is silently treated as empty
             assertThat(moduleReaderProxy.list()).isEmpty();
 
             final LogNode log = new LogNode();
             assertThat(moduleReaderProxy.list(log)).isEmpty();
-            assertThat(log.toString()).contains("ModuleReader#list() returned null", "fake.module",
+            assertThat(log.toString()).contains("ModuleReader#list() returned null", MODULE_NAME,
                     NullListingModuleReader.class.getName());
         }
     }

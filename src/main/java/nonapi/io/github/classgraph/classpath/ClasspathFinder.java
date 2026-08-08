@@ -168,8 +168,7 @@ public class ClasspathFinder {
         moduleFinder = scanNonSystemModules || scanSpec.enableSystemJarsAndModules
                 ? new ModuleFinder(new CallStackReader(reflectionUtils).getClassContext(classpathFinderLog),
                         scanSpec, scanNonSystemModules,
-                        /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules, reflectionUtils,
-                        classpathFinderLog)
+                        /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules, classpathFinderLog)
                 : null;
 
         classpathOrder = new ClasspathOrder(scanSpec, reflectionUtils);

@@ -196,12 +196,12 @@ public class ScanSpec {
     /**
      * If non-null, specifies manually-added ModuleLayers that should be searched after the visible ModuleLayers.
      */
-    public transient List<Object> addedModuleLayers;
+    public transient List<ModuleLayer> addedModuleLayers;
 
     /**
      * If non-null, this list of ModuleLayers will be searched instead of the visible ModuleLayers.
      */
-    public transient List<Object> overrideModuleLayers;
+    public transient List<ModuleLayer> overrideModuleLayers;
 
     /**
      * If non-null, specifies a list of classpath elements (String, {@link URL} or {@link URI} to use to override
@@ -382,39 +382,18 @@ public class ScanSpec {
     }
 
     /**
-     * Return true if the argument is a ModuleLayer or a subclass of ModuleLayer.
-     *
-     * @param moduleLayer
-     *            the module layer
-     * @return true if the argument is a ModuleLayer or a subclass of ModuleLayer.
-     */
-    private static boolean isModuleLayer(final Object moduleLayer) {
-        if (moduleLayer == null) {
-            throw new IllegalArgumentException("ModuleLayer references must not be null");
-        }
-        for (Class<?> currClass = moduleLayer.getClass(); currClass != null; currClass = currClass
-                .getSuperclass()) {
-            if (currClass.getName().equals("java.lang.ModuleLayer")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you define your own ModuleLayer,
      * but the scanning code is not running within that custom ModuleLayer.
      *
      * <p>
-     * This call is ignored if it is called before {@link #overrideModuleLayers(Object...)}.
+     * This call is ignored if it is called before {@link #overrideModuleLayers(ModuleLayer...)}.
      *
      * @param moduleLayer
-     *            The additional ModuleLayer to scan. (The parameter is of type {@link Object} for backwards
-     *            compatibility with JDK 7 and JDK 8, but the argument should be of type ModuleLayer.)
+     *            The additional ModuleLayer to scan.
      */
-    public void addModuleLayer(final Object moduleLayer) {
-        if (!isModuleLayer(moduleLayer)) {
-            throw new IllegalArgumentException("moduleLayer must be of type java.lang.ModuleLayer");
+    public void addModuleLayer(final ModuleLayer moduleLayer) {
+        if (moduleLayer == null) {
+            throw new IllegalArgumentException("ModuleLayer references must not be null");
         }
         if (this.addedModuleLayers == null) {
             this.addedModuleLayers = new ArrayList<>();
@@ -429,20 +408,18 @@ public class ScanSpec {
      * This call is ignored if overrideClasspath() is called.
      *
      * @param overrideModuleLayers
-     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers. (The parameter is of
-     *            type {@link Object}[] for backwards compatibility with JDK 7 and JDK 8, but the argument should be
-     *            of type ModuleLayer[].)
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
      */
-    public void overrideModuleLayers(final Object... overrideModuleLayers) {
+    public void overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
         if (overrideModuleLayers == null) {
             throw new IllegalArgumentException("overrideModuleLayers cannot be null");
         }
         if (overrideModuleLayers.length == 0) {
             throw new IllegalArgumentException("At least one override ModuleLayer must be provided");
         }
-        for (final Object moduleLayer : overrideModuleLayers) {
-            if (!isModuleLayer(moduleLayer)) {
-                throw new IllegalArgumentException("moduleLayer must be of type java.lang.ModuleLayer");
+        for (final ModuleLayer moduleLayer : overrideModuleLayers) {
+            if (moduleLayer == null) {
+                throw new IllegalArgumentException("ModuleLayer references must not be null");
             }
         }
         this.addedModuleLayers = null;

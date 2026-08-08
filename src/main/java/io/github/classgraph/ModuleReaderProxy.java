@@ -31,64 +31,28 @@ package io.github.classgraph;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.module.ModuleReader;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** A ModuleReader proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
+/**
+ * A wrapper around a {@link ModuleReader}, which converts the {@link Optional} and {@link Stream} return values of
+ * {@link ModuleReader} into plain values, and closes without throwing.
+ */
 public class ModuleReaderProxy implements Closeable {
     /** The module reader. */
-    private final AutoCloseable moduleReader;
+    private final ModuleReader moduleReader;
 
     /** The name of the module being read, for error messages. */
     private final String moduleName;
-
-    /**
-     * Holder for the reflective handles needed to call {@code Stream#collect(Collectors.toList())}. Both values
-     * are resolved together and published as a single immutable object, so that a reader can never observe one
-     * of them set and the other still null. (#913)
-     */
-    private static final class Collectors {
-        /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
-        private final Class<?> collectorClass;
-
-        /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
-        private final Object collectorsToList;
-
-        /**
-         * Constructor.
-         *
-         * @param reflectionUtils
-         *            the {@link ReflectionUtils} instance to resolve the handles with.
-         */
-        private Collectors(final ReflectionUtils reflectionUtils) {
-            collectorClass = reflectionUtils.classForNameOrNull("java.util.stream.Collector");
-            final Class<?> collectorsClass = reflectionUtils.classForNameOrNull("java.util.stream.Collectors");
-            collectorsToList = collectorsClass == null ? null
-                    : reflectionUtils.invokeStaticMethod(/* throwException = */ true, collectorsClass, "toList");
-        }
-    }
-
-    /**
-     * Lazily-initialized, immutable, shared {@link Collectors} handles. Volatile, and only ever assigned while
-     * holding the lock on {@link ModuleReaderProxy}, so that the double-checked locking in the constructor is
-     * correctly synchronized. The resolved values do not depend on which {@link ReflectionUtils} instance
-     * resolved them -- they are just JRE classes and a stateless collector -- so sharing them between
-     * {@link ModuleReaderProxy} instances is safe. (#913)
-     */
-    private static volatile Collectors collectors;
-
-    /**
-     * The shared {@link Collectors} handles, read once at construction so that {@link #list()} sees a stable value.
-     */
-    private final Collectors collectorsRef;
-
-    /** The {@link ReflectionUtils} instance to reflectively call the {@code ModuleReader} methods with. */
-    private final ReflectionUtils reflectionUtils;
 
     /**
      * Constructor.
@@ -100,23 +64,8 @@ public class ModuleReaderProxy implements Closeable {
      */
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         moduleName = moduleRef.getName();
-        reflectionUtils = moduleRef.reflectionUtils;
         try {
-            // Double-checked locking on the volatile field, so that the lazy initialization is not a data race
-            // (it was previously flagged by Java TSAN). (#913)
-            Collectors collectorsRef = collectors;
-            if (collectorsRef == null) {
-                synchronized (ModuleReaderProxy.class) {
-                    collectorsRef = collectors;
-                    if (collectorsRef == null) {
-                        collectorsRef = new Collectors(reflectionUtils);
-                        collectors = collectorsRef;
-                    }
-                }
-            }
-            this.collectorsRef = collectorsRef;
-            moduleReader = (AutoCloseable) reflectionUtils.invokeMethod(/* throwException = */ true,
-                    moduleRef.getReference(), "open");
+            moduleReader = moduleRef.getReference().open();
             if (moduleReader == null) {
                 throw new IllegalArgumentException("moduleReference.open() should not return null");
             }
@@ -130,7 +79,7 @@ public class ModuleReaderProxy implements Closeable {
     public void close() {
         try {
             moduleReader.close();
-        } catch (final Exception e) {
+        } catch (final IOException e) {
             // Ignore
         }
     }
@@ -164,11 +113,12 @@ public class ModuleReaderProxy implements Closeable {
      *             If the module cannot be accessed.
      */
     List<String> list(final LogNode log) throws SecurityException {
-        if (collectorsRef.collectorsToList == null) {
-            throw new IllegalArgumentException("Could not call Collectors.toList()");
+        final Stream<String> resourcesStream;
+        try {
+            resourcesStream = moduleReader.list();
+        } catch (final IOException e) {
+            throw new IllegalArgumentException("Could not call ModuleReader#list() for module " + moduleName, e);
         }
-        final Object /* Stream<String> */ resourcesStream = reflectionUtils
-                .invokeMethod(/* throwException = */ true, moduleReader, "list");
         if (resourcesStream == null) {
             // ModuleReader#list() is specified to return a Stream<String>, and is not allowed to return null,
             // so a null return means the ModuleReader implementation does not honour its contract. Some do
@@ -182,16 +132,11 @@ public class ModuleReaderProxy implements Closeable {
                         + "implementation " + moduleReader.getClass().getName()
                         + " -- treating the module as empty");
             }
-            return Collections.<String> emptyList();
+            return Collections.emptyList();
         }
-        final Object resourcesList = reflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
-                "collect", collectorsRef.collectorClass, collectorsRef.collectorsToList);
-        if (resourcesList == null) {
-            throw new IllegalArgumentException("Could not call moduleReader.list().collect(Collectors.toList())");
-        }
-        @SuppressWarnings("unchecked")
-        final List<String> resourcesListTyped = (List<String>) resourcesList;
-        return resourcesListTyped;
+        // N.B. the returned list must be mutable, since ClasspathElementModule sorts it in place
+        // (so Stream#toList() cannot be used here)
+        return resourcesStream.collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**
@@ -207,13 +152,16 @@ public class ModuleReaderProxy implements Closeable {
      *             If the module cannot be accessed.
      */
     public InputStream open(final String path) throws SecurityException {
-        final Object /* Optional<InputStream> */ optionalInputStream = reflectionUtils
-                .invokeMethod(/* throwException = */ true, moduleReader, "open", String.class, path);
+        final Optional<InputStream> optionalInputStream;
+        try {
+            optionalInputStream = moduleReader.open(path);
+        } catch (final IOException e) {
+            throw new IllegalArgumentException("Could not call ModuleReader#open(String) for path " + path, e);
+        }
         if (optionalInputStream == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#open for path " + path);
         }
-        final InputStream inputStream = (InputStream) reflectionUtils.invokeMethod(/* throwException = */ true,
-                optionalInputStream, "get");
+        final InputStream inputStream = optionalInputStream.orElse(null);
         if (inputStream == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#open(String)#get()");
         }
@@ -233,13 +181,16 @@ public class ModuleReaderProxy implements Closeable {
      *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
-        final Object /* Optional<ByteBuffer> */ optionalByteBuffer = reflectionUtils
-                .invokeMethod(/* throwException = */ true, moduleReader, "read", String.class, path);
+        final Optional<ByteBuffer> optionalByteBuffer;
+        try {
+            optionalByteBuffer = moduleReader.read(path);
+        } catch (final IOException e) {
+            throw new IllegalArgumentException("Could not call ModuleReader#read(String) for path " + path, e);
+        }
         if (optionalByteBuffer == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#read(String)");
         }
-        final ByteBuffer byteBuffer = (ByteBuffer) reflectionUtils.invokeMethod(/* throwException = */ true,
-                optionalByteBuffer, "get");
+        final ByteBuffer byteBuffer = optionalByteBuffer.orElse(null);
         if (byteBuffer == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#read(String).get()");
         }
@@ -253,8 +204,7 @@ public class ModuleReaderProxy implements Closeable {
      *            The {@link ByteBuffer} to release.
      */
     public void release(final ByteBuffer byteBuffer) {
-        reflectionUtils.invokeMethod(/* throwException = */ true, moduleReader, "release", ByteBuffer.class,
-                byteBuffer);
+        moduleReader.release(byteBuffer);
     }
 
     /**
@@ -267,12 +217,16 @@ public class ModuleReaderProxy implements Closeable {
      *             If the module cannot be accessed.
      */
     public URI find(final String path) {
-        final Object /* Optional<URI> */ optionalURI = reflectionUtils.invokeMethod(/* throwException = */ true,
-                moduleReader, "find", String.class, path);
+        final Optional<URI> optionalURI;
+        try {
+            optionalURI = moduleReader.find(path);
+        } catch (final IOException e) {
+            throw new IllegalArgumentException("Could not call ModuleReader#find(String) for path " + path, e);
+        }
         if (optionalURI == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#find(String)");
         }
-        final URI uri = (URI) reflectionUtils.invokeMethod(/* throwException = */ true, optionalURI, "get");
+        final URI uri = optionalURI.orElse(null);
         if (uri == null) {
             throw new IllegalArgumentException("Got null result from ModuleReader#find(String).get()");
         }

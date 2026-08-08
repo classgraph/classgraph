@@ -28,6 +28,9 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
+import java.lang.module.Configuration;
+import java.lang.module.ModuleReference;
+import java.lang.module.ResolvedModule;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,7 +41,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.ModuleRef;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -54,16 +56,12 @@ public class ModuleFinder {
     /** If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer. */
     private boolean forceScanJavaClassPath;
 
-    /** The reflection utils instance. */
-    private final ReflectionUtils reflectionUtils;
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the system modules as {@link ModuleRef} wrappers.
      *
-     * @return The system modules as {@link ModuleRef} wrappers, or null if no modules were found (e.g. on JDK 7 or
-     *         8).
+     * @return The system modules as {@link ModuleRef} wrappers, or null if no modules were found.
      */
     public List<ModuleRef> getSystemModuleRefs() {
         return systemModuleRefs;
@@ -72,8 +70,7 @@ public class ModuleFinder {
     /**
      * Get the non-system modules as {@link ModuleRef} wrappers.
      *
-     * @return The non-system modules as {@link ModuleRef} wrappers, or null if no modules were found (e.g. on JDK 7
-     *         or 8).
+     * @return The non-system modules as {@link ModuleRef} wrappers, or null if no modules were found.
      */
     public List<ModuleRef> getNonSystemModuleRefs() {
         return nonSystemModuleRefs;
@@ -107,17 +104,13 @@ public class ModuleFinder {
      * @param layerOrderOut
      *            the layer order
      */
-    private void findLayerOrder(final Object /* ModuleLayer */ layer,
-            final Set<Object> /* Set<ModuleLayer> */ layerVisited,
-            final Set<Object> /* Set<ModuleLayer> */ parentLayers,
-            final Deque<Object> /* Deque<ModuleLayer> */ layerOrderOut) {
+    private static void findLayerOrder(final ModuleLayer layer, final Set<ModuleLayer> layerVisited,
+            final Set<ModuleLayer> parentLayers, final Deque<ModuleLayer> layerOrderOut) {
         if (layerVisited.add(layer)) {
-            @SuppressWarnings("unchecked")
-            final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) reflectionUtils
-                    .invokeMethod(/* throwException = */ true, layer, "parents");
+            final List<ModuleLayer> parents = layer.parents();
             if (parents != null) {
                 parentLayers.addAll(parents);
-                for (final Object parent : parents) {
+                for (final ModuleLayer parent : parents) {
                     findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
                 }
             }
@@ -136,22 +129,22 @@ public class ModuleFinder {
      *            the log
      * @return the list
      */
-    private List<ModuleRef> findModuleRefs(final LinkedHashSet<Object> layers, final ScanSpec scanSpec,
+    private static List<ModuleRef> findModuleRefs(final LinkedHashSet<ModuleLayer> layers, final ScanSpec scanSpec,
             final LogNode log) {
         if (layers.isEmpty()) {
             return Collections.emptyList();
         }
 
         // Traverse the layer DAG to find the layer resolution order
-        final Deque<Object> /* Deque<ModuleLayer> */ layerOrder = new ArrayDeque<>();
-        final Set<Object> /* Set<ModuleLayer */ parentLayers = new HashSet<>();
-        for (final Object layer : layers) {
+        final Deque<ModuleLayer> layerOrder = new ArrayDeque<>();
+        final Set<ModuleLayer> parentLayers = new HashSet<>();
+        for (final ModuleLayer layer : layers) {
             if (layer != null) {
                 findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
             }
         }
         if (scanSpec.addedModuleLayers != null) {
-            for (final Object layer : scanSpec.addedModuleLayers) {
+            for (final ModuleLayer layer : scanSpec.addedModuleLayers) {
                 if (layer != null) {
                     findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
                 }
@@ -159,10 +152,10 @@ public class ModuleFinder {
         }
 
         // Remove parent layers from layer order if scanSpec.ignoreParentModuleLayers is true
-        List<Object> /* List<ModuleLayer> */ layerOrderFinal;
+        final List<ModuleLayer> layerOrderFinal;
         if (scanSpec.ignoreParentModuleLayers) {
             layerOrderFinal = new ArrayList<>();
-            for (final Object layer : layerOrder) {
+            for (final ModuleLayer layer : layerOrder) {
                 if (!parentLayers.contains(layer)) {
                     layerOrderFinal.add(layer);
                 }
@@ -172,24 +165,20 @@ public class ModuleFinder {
         }
 
         // Find modules in the ordered layers
-        final Set<Object> /* Set<ModuleReference> */ addedModules = new HashSet<>();
+        final Set<ModuleReference> addedModules = new HashSet<>();
         final LinkedHashSet<ModuleRef> moduleRefOrder = new LinkedHashSet<>();
-        for (final Object /* ModuleLayer */ layer : layerOrderFinal) {
-            final Object /* Configuration */ configuration = reflectionUtils
-                    .invokeMethod(/* throwException = */ true, layer, "configuration");
+        for (final ModuleLayer layer : layerOrderFinal) {
+            final Configuration configuration = layer.configuration();
             if (configuration != null) {
                 // Get ModuleReferences from layer configuration
-                @SuppressWarnings("unchecked")
-                final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) reflectionUtils
-                        .invokeMethod(/* throwException = */ true, configuration, "modules");
+                final Set<ResolvedModule> modules = configuration.modules();
                 if (modules != null) {
                     final List<ModuleRef> modulesInLayer = new ArrayList<>();
-                    for (final Object /* ResolvedModule */ module : modules) {
-                        final Object /* ModuleReference */ moduleReference = reflectionUtils
-                                .invokeMethod(/* throwException = */ true, module, "reference");
+                    for (final ResolvedModule module : modules) {
+                        final ModuleReference moduleReference = module.reference();
                         if (moduleReference != null && addedModules.add(moduleReference)) {
                             try {
-                                modulesInLayer.add(new ModuleRef(moduleReference, layer, reflectionUtils));
+                                modulesInLayer.add(new ModuleRef(moduleReference, layer));
                             } catch (final IllegalArgumentException e) {
                                 if (log != null) {
                                     log.log("Exception while creating ModuleRef for module " + moduleReference, e);
@@ -221,43 +210,21 @@ public class ModuleFinder {
      */
     private List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
             final boolean scanNonSystemModules, final LogNode log) {
-        final LinkedHashSet<Object> layers = new LinkedHashSet<>();
+        final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
         if (callStack != null) {
             for (final Class<?> stackFrameClass : callStack) {
-                final Object /* Module */ module = reflectionUtils.invokeMethod(/* throwException = */ false,
-                        stackFrameClass, "getModule");
-                if (module != null) {
-                    final Object /* ModuleLayer */ layer = reflectionUtils.invokeMethod(/* throwException = */ true,
-                            module, "getLayer");
-                    if (layer != null) {
-                        layers.add(layer);
-                    } else if (scanNonSystemModules) {
-                        // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
-                        // so we can get classes from java.class.path 
-                        forceScanJavaClassPath = true;
-                    }
+                final ModuleLayer layer = stackFrameClass.getModule().getLayer();
+                if (layer != null) {
+                    layers.add(layer);
+                } else if (scanNonSystemModules) {
+                    // getLayer() returns null for unnamed modules -- in that case the classes are on
+                    // java.class.path, so java.class.path has to be scanned to find them
+                    forceScanJavaClassPath = true;
                 }
             }
         }
         // Add system modules from boot layer, if they weren't already found in stacktrace
-        Class<?> moduleLayerClass = null;
-        try {
-            moduleLayerClass = Class.forName("java.lang.ModuleLayer");
-        } catch (ClassNotFoundException | LinkageError e) {
-            // Ignored
-        }
-        if (moduleLayerClass != null) {
-            final Object /* ModuleLayer */ bootLayer = reflectionUtils
-                    .invokeStaticMethod(/* throwException = */ false, moduleLayerClass, "boot");
-            if (bootLayer != null) {
-                layers.add(bootLayer);
-            } else if (scanNonSystemModules) {
-                // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
-                // so we can get classes from java.class.path. (I'm not sure if the boot layer can ever
-                // actually be null, but this is here for completeness.)
-                forceScanJavaClassPath = true;
-            }
-        }
+        layers.add(ModuleLayer.boot());
         return findModuleRefs(layers, scanSpec, log);
     }
 
@@ -274,26 +241,22 @@ public class ModuleFinder {
      *            whether to scan unnamed and non-system modules
      * @param scanSystemModules
      *            whether to scan system modules
-     * @param reflectionUtils
-     *            the reflection utils instance.
      * @param log
      *            The log.
      */
     public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final boolean scanNonSystemModules,
-            final boolean scanSystemModules, final ReflectionUtils reflectionUtils, final LogNode log) {
-        this.reflectionUtils = reflectionUtils;
-
+            final boolean scanSystemModules, final LogNode log) {
         // Get the module resolution order
         List<ModuleRef> allModuleRefsList = null;
         if (scanSpec.overrideModuleLayers == null) {
-            // Find module references for classes on callstack, and from system (for JDK9+)
+            // Find module references for classes on the callstack, and from the boot layer
             if (callStack != null && callStack.length > 0) {
                 allModuleRefsList = findModuleRefsFromCallstack(callStack, scanSpec, scanNonSystemModules, log);
             }
         } else {
             if (log != null) {
                 final LogNode subLog = log.log("Overriding module layers");
-                for (final Object moduleLayer : scanSpec.overrideModuleLayers) {
+                for (final ModuleLayer moduleLayer : scanSpec.overrideModuleLayers) {
                     subLog.log(moduleLayer.toString());
                 }
             }

@@ -30,27 +30,29 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
-/** A ModuleReference proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
+/** Information about a module: its {@link ModuleReference}, its {@link ModuleLayer}, and its classloader. */
 public class ModuleRef implements Comparable<ModuleRef> {
     /** The name of the module. */
     private final String name;
 
     /** The ModuleReference for the module. */
-    private final Object reference;
+    private final ModuleReference reference;
 
     /** The ModuleLayer for the module. */
-    private final Object layer;
+    private final ModuleLayer layer;
 
     /** The ModuleDescriptor for the module. */
-    private final Object descriptor;
+    private final ModuleDescriptor descriptor;
 
     /** The packages in the module. */
     private final List<String> packages;
@@ -65,26 +67,20 @@ public class ModuleRef implements Comparable<ModuleRef> {
     private File locationFile;
 
     /** The raw module version, or null if none. */
-    private String rawVersion;
+    private final String rawVersion;
 
     /** The ClassLoader that loads classes in the module. May be null, to represent the bootstrap classloader. */
     private final ClassLoader classLoader;
-
-    /** The {@link ReflectionUtils} instance to reflectively call the JPMS module methods with. */
-    final ReflectionUtils reflectionUtils;
 
     /**
      * Constructor.
      *
      * @param moduleReference
-     *            The module reference, of JPMS type ModuleReference.
+     *            The module reference.
      * @param moduleLayer
-     *            The module layer, of JPMS type ModuleLayer
-     * @param reflectionUtils
-     *            The ReflectionUtils instance.
+     *            The module layer.
      */
-    public ModuleRef(final Object moduleReference, final Object moduleLayer,
-            final ReflectionUtils reflectionUtils) {
+    public ModuleRef(final ModuleReference moduleReference, final ModuleLayer moduleLayer) {
         if (moduleReference == null) {
             throw new IllegalArgumentException("moduleReference cannot be null");
         }
@@ -93,59 +89,30 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
         this.reference = moduleReference;
         this.layer = moduleLayer;
-        this.reflectionUtils = reflectionUtils;
 
-        this.descriptor = reflectionUtils.invokeMethod(/* throwException = */ true, moduleReference, "descriptor");
+        this.descriptor = moduleReference.descriptor();
         if (this.descriptor == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor() should not return null");
         }
-        this.name = (String) reflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor, "name");
-        @SuppressWarnings("unchecked")
-        final Set<String> modulePackages = (Set<String>) reflectionUtils.invokeMethod(/* throwException = */ true,
-                this.descriptor, "packages");
+        this.name = this.descriptor.name();
+        final Set<String> modulePackages = this.descriptor.packages();
         if (modulePackages == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor().packages() should not return null");
         }
         this.packages = new ArrayList<>(modulePackages);
         CollectionUtils.sortIfNotEmpty(this.packages);
-        final Object optionalRawVersion = reflectionUtils.invokeMethod(/* throwException = */ true, this.descriptor,
-                "rawVersion");
-        if (optionalRawVersion != null) {
-            final Boolean isPresent = (Boolean) reflectionUtils.invokeMethod(/* throwException = */ true,
-                    optionalRawVersion, "isPresent");
-            if (isPresent != null && isPresent) {
-                this.rawVersion = (String) reflectionUtils.invokeMethod(/* throwException = */ true,
-                        optionalRawVersion, "get");
-            }
-        }
-        final Object moduleLocationOptional = reflectionUtils.invokeMethod(/* throwException = */ true,
-                moduleReference, "location");
+        this.rawVersion = this.descriptor.rawVersion().orElse(null);
+        final Optional<URI> moduleLocationOptional = moduleReference.location();
         if (moduleLocationOptional == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.location() should not return null");
         }
-        final Object moduleLocationIsPresent = reflectionUtils.invokeMethod(/* throwException = */ true,
-                moduleLocationOptional, "isPresent");
-        if (moduleLocationIsPresent == null) {
-            // Should not happen
-            throw new IllegalArgumentException("moduleReference.location().isPresent() should not return null");
-        }
-        if ((Boolean) moduleLocationIsPresent) {
-            this.location = (URI) reflectionUtils.invokeMethod(/* throwException = */ true, moduleLocationOptional,
-                    "get");
-            if (this.location == null) {
-                // Should not happen
-                throw new IllegalArgumentException("moduleReference.location().get() should not return null");
-            }
-        } else {
-            this.location = null;
-        }
+        this.location = moduleLocationOptional.orElse(null);
 
         // Find the classloader for the module
-        this.classLoader = (ClassLoader) reflectionUtils.invokeMethod(/* throwException = */ true, moduleLayer,
-                "findLoader", String.class, this.name);
+        this.classLoader = moduleLayer.findLoader(this.name);
     }
 
     /**
@@ -158,29 +125,29 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * Get the module reference (of JPMS type ModuleReference).
+     * Get the module reference.
      *
-     * @return The module reference (of JPMS type ModuleReference).
+     * @return The module reference.
      */
-    public Object getReference() {
+    public ModuleReference getReference() {
         return reference;
     }
 
     /**
-     * Get the module layer (of JPMS type ModuleLayer).
+     * Get the module layer.
      *
-     * @return The module layer (of JPMS type ModuleLayer).
+     * @return The module layer.
      */
-    public Object getLayer() {
+    public ModuleLayer getLayer() {
         return layer;
     }
 
     /**
-     * Get the module descriptor, i.e. {@code getReference().descriptor()} (of JPMS type ModuleDescriptor).
+     * Get the module descriptor, i.e. {@code getReference().descriptor()}.
      *
-     * @return The module descriptor, i.e. {@code getReference().descriptor()} (of JPMS type ModuleDescriptor).
+     * @return The module descriptor, i.e. {@code getReference().descriptor()}.
      */
-    public Object getDescriptor() {
+    public ModuleDescriptor getDescriptor() {
         return descriptor;
     }
 
@@ -270,13 +237,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
      */
     @Override
     public boolean equals(final Object obj) {
-        if (obj == this) {
-            return true;
-        } else if (!(obj instanceof ModuleRef)) {
-            return false;
-        }
-        final ModuleRef modRef = (ModuleRef) obj;
-        return modRef.reference.equals(this.reference) && modRef.layer.equals(this.layer);
+        return obj == this || obj instanceof final ModuleRef modRef
+                && modRef.reference.equals(this.reference) && modRef.layer.equals(this.layer);
     }
 
     /* (non-Javadoc)

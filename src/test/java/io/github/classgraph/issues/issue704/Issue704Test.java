@@ -6,23 +6,23 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
+import java.lang.module.Configuration;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledForJreRange;
-import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
@@ -44,10 +44,6 @@ import io.github.classgraph.ScanResult;
  * same collision occurs whenever one jar is on both the module path and the classpath, which is what these tests
  * set up. Two <i>different</i> files that happen to share a relative path are not duplicates, and must both still
  * be returned.
- *
- * <p>
- * The JPMS API is called reflectively because the tests are compiled with {@code --release 8}; the tests are
- * skipped on JDK 8, which has no modules.
  */
 public class Issue704Test {
 
@@ -72,62 +68,30 @@ public class Issue704Test {
         try (OutputStream outputStream = Files.newOutputStream(jarFile.toPath());
                 ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
             zipOutputStream.putNextEntry(new ZipEntry(RESOURCE_PATH));
-            zipOutputStream.write(content.getBytes("UTF-8"));
+            zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
             zipOutputStream.closeEntry();
         }
         return jarFile;
     }
 
     /**
-     * Define a {@code ModuleLayer} containing the automatic module in the given jar, using reflection so that this
-     * class still compiles with {@code --release 8}.
+     * Define a {@link ModuleLayer} containing the automatic module in the given jar.
      *
      * @param jarFile
      *            the jar to resolve as an automatic module.
-     * @return the new {@code ModuleLayer}, or null if this JVM does not support modules.
-     * @throws Exception
-     *             if the layer could not be defined.
+     * @return the new {@link ModuleLayer}.
      */
-    private static Object defineModuleLayer(final File jarFile) throws Exception {
-        final Class<?> moduleFinderClass;
-        try {
-            moduleFinderClass = Class.forName("java.lang.module.ModuleFinder");
-        } catch (final ClassNotFoundException e) {
-            // JDK 8 or below
-            return null;
-        }
-        final Class<?> moduleLayerClass = Class.forName("java.lang.ModuleLayer");
-        final Class<?> configurationClass = Class.forName("java.lang.module.Configuration");
-        final Class<?> moduleReferenceClass = Class.forName("java.lang.module.ModuleReference");
-        final Class<?> moduleDescriptorClass = Class.forName("java.lang.module.ModuleDescriptor");
-
-        // ModuleFinder finder = ModuleFinder.of(jarFile.toPath())
-        final Method moduleFinderOf = moduleFinderClass.getMethod("of", Path[].class);
-        final Object finder = moduleFinderOf.invoke(null, (Object) new Path[] { jarFile.toPath() });
-        // ModuleFinder empty = ModuleFinder.of()
-        final Object emptyFinder = moduleFinderOf.invoke(null, (Object) new Path[0]);
-
-        // String moduleName = finder.findAll().iterator().next().descriptor().name()
-        @SuppressWarnings("unchecked")
-        final Set<Object> moduleReferences = (Set<Object>) moduleFinderClass.getMethod("findAll").invoke(finder);
+    private static ModuleLayer defineModuleLayer(final File jarFile) {
+        final ModuleFinder finder = ModuleFinder.of(jarFile.toPath());
+        final Set<ModuleReference> moduleReferences = finder.findAll();
         assertThat(moduleReferences).hasSize(1);
-        final Object moduleReference = moduleReferences.iterator().next();
-        final Object descriptor = moduleReferenceClass.getMethod("descriptor").invoke(moduleReference);
-        final String moduleName = (String) moduleDescriptorClass.getMethod("name").invoke(descriptor);
+        final String moduleName = moduleReferences.iterator().next().descriptor().name();
 
-        // ModuleLayer bootLayer = ModuleLayer.boot()
-        final Object bootLayer = moduleLayerClass.getMethod("boot").invoke(null);
-        // Configuration config = bootLayer.configuration().resolve(finder, ModuleFinder.of(), Set.of(moduleName))
-        final Object bootConfiguration = moduleLayerClass.getMethod("configuration").invoke(bootLayer);
-        final Object configuration = configurationClass
-                .getMethod("resolve", moduleFinderClass, moduleFinderClass, Collection.class)
-                .invoke(bootConfiguration, finder, emptyFinder, Collections.singleton(moduleName));
-        // ModuleLayer layer = bootLayer.defineModulesWithOneLoader(config, List.of(bootLayer), classLoader).layer()
-        final Object controller = moduleLayerClass
-                .getMethod("defineModulesWithOneLoader", configurationClass, List.class, ClassLoader.class)
-                .invoke(bootLayer, configuration, Collections.singletonList(bootLayer),
-                        Issue704Test.class.getClassLoader());
-        return controller.getClass().getMethod("layer").invoke(controller);
+        final ModuleLayer bootLayer = ModuleLayer.boot();
+        final Configuration configuration = bootLayer.configuration().resolve(finder, ModuleFinder.of(),
+                Set.of(moduleName));
+        return bootLayer.defineModulesWithOneLoader(configuration, List.of(bootLayer),
+                Issue704Test.class.getClassLoader()).layer();
     }
 
     /**
@@ -140,11 +104,10 @@ public class Issue704Test {
      *             if the test jar or module layer could not be created.
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void sameFileReachedThroughModuleAndClasspathIsReturnedOnce(@TempDir final File tempDir)
             throws Exception {
         final File jarFile = buildJar(tempDir, "issue704a.jar", "MATCH (n) RETURN n;");
-        final Object moduleLayer = defineModuleLayer(jarFile);
+        final ModuleLayer moduleLayer = defineModuleLayer(jarFile);
         assertThat(moduleLayer).isNotNull();
 
         try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() },
@@ -172,7 +135,6 @@ public class Issue704Test {
      *             if the test jar or module layer could not be created.
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void sameFileReachedThroughASymlinkIsReturnedOnce(@TempDir final File tempDir) throws Exception {
         final File realDir = new File(tempDir, "real");
         realDir.mkdirs();
@@ -185,7 +147,7 @@ public class Issue704Test {
         }
         final File jarFile = buildJar(realDir, "issue704d.jar", "MATCH (n) RETURN n;");
         final File symlinkedJarFile = symlinkedDir.resolve(jarFile.getName()).toFile();
-        final Object moduleLayer = defineModuleLayer(symlinkedJarFile);
+        final ModuleLayer moduleLayer = defineModuleLayer(symlinkedJarFile);
         assertThat(moduleLayer).isNotNull();
 
         try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() },
@@ -210,11 +172,10 @@ public class Issue704Test {
      *             if the test jars or module layer could not be created.
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void differentFilesWithTheSamePathAreBothReturned(@TempDir final File tempDir) throws Exception {
         final File moduleJarFile = buildJar(tempDir, "issue704b.jar", "MATCH (n) RETURN n;");
         final File classpathJarFile = buildJar(tempDir, "issue704c.jar", "a completely different file");
-        final Object moduleLayer = defineModuleLayer(moduleJarFile);
+        final ModuleLayer moduleLayer = defineModuleLayer(moduleJarFile);
         assertThat(moduleLayer).isNotNull();
 
         try (URLClassLoader classLoader = new URLClassLoader(new URL[] { classpathJarFile.toURI().toURL() },
@@ -224,7 +185,7 @@ public class Issue704Test {
                         .addClassLoader(classLoader) //
                         .acceptPaths("stuff") //
                         .scan()) {
-            final List<String> uriStrs = new java.util.ArrayList<>();
+            final List<String> uriStrs = new ArrayList<>();
             for (final URI uri : scanResult.getAllResources().getURIs()) {
                 uriStrs.add(uri.toString());
             }
