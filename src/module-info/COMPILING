@@ -1,4 +1,0 @@
-# This is compiled separately from ClassGraph, so that ClassGraph can be built on JDK 8 in JDK 7 mode
-
-# Replace 1.0.4 with the latest cached version of narcissus
-javac -p ~/.m2/repository/io/github/toolfactory/narcissus/1.0.4/narcissus-1.0.4.jar --release 9 io.github.classgraph/module-info.java io.github.classgraph/io/github/classgraph/Placeholder.java

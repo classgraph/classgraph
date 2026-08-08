@@ -46,18 +46,11 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-		<!-- Default to generating Javadoc in HTML 4.01 format -->
-		<javadoc.html.version />
+		<!-- The minimum Java version that ClassGraph supports -->
+		<maven.compiler.release>17</maven.compiler.release>
 
-		<!-- Extra JVM args for Surefire. Overridden by the jdk17plus profile below; declared here so -->
-		<!-- that ${surefireArgLine} is always defined, rather than being passed through unexpanded -->
-		<!-- when building on JDK 8-16. -->
-		<surefireArgLine />
-
-		<!-- Warnings are disabled, in order to suppress warning about bootstrap classpath not being set -->
-		<!-- (which arises as a result of building for JDK 7 on JDK8+, allowing for use of @FunctionalInterface) -->
-		<!-- <maven.compiler.showWarnings>true</maven.compiler.showWarnings> -->
-		<!-- <maven.compiler.showDeprecation>true</maven.compiler.showDeprecation> -->
+		<!-- Suppress the warning logged when Narcissus loads its native library -->
+		<surefireArgLine>--enable-native-access=ALL-UNNAMED</surefireArgLine>
 	</properties>
 
 	<!-- Find dependency updates with: ./mvnw versions:display-dependency-updates -->
@@ -245,19 +238,11 @@
 
 		<pluginManagement>
 			<plugins>
-				<!-- Enforce minimum Maven version, and JDK 7 API -->
+				<!-- Enforce minimum Maven and JDK versions -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<dependencies>
-						<dependency>
-							<groupId>org.codehaus.mojo</groupId>
-							<artifactId>animal-sniffer-enforcer-rule</artifactId>
-							<version>1.27</version>
-						</dependency>
-					</dependencies>
 					<executions>
-						<!-- Require Maven and JDK versions. -->
 						<execution>
 							<id>enforce-versions</id>
 							<phase>validate</phase>
@@ -269,35 +254,13 @@
 									<requireMavenVersion>
 										<version>[3.6.3,)</version>
 									</requireMavenVersion>
-									<!-- The compiler runs with -Xlint:all -Werror, so every new lint category -->
-									<!-- added by a new JDK breaks the build. JDK 21 added this-escape, which -->
-									<!-- fires on ClassInfo.java. Fail fast here with a clear message rather -->
-									<!-- than deep inside a compile, which is especially confusing during -->
-									<!-- release:prepare, where the compile happens in a forked child build. -->
-									<!-- Raise the upper bound only after checking a build actually passes. -->
+									<!-- ClassGraph targets JDK 17 via ${maven.compiler.release}, so it can be -->
+									<!-- built by any JDK 17 or later. Animal Sniffer is no longer needed to -->
+									<!-- check the API level: "release" checks it against the JDK 17 API. -->
 									<requireJavaVersion>
-										<version>[1.8,21)</version>
-										<message>ClassGraph must be built with JDK 8..20 (JDK 8 for releases). JDK 21+ adds the this-escape lint, which -Werror turns into a build failure. Set JAVA_HOME to a JDK 8 install.</message>
+										<version>[17,)</version>
+										<message>ClassGraph must be built with JDK 17 or later.</message>
 									</requireJavaVersion>
-								</rules>
-							</configuration>
-						</execution>
-						<!-- Check main project for compatibility with JDK 7 API -->
-						<execution>
-							<id>check-signatures</id>
-							<phase>compile</phase>
-							<goals>
-								<goal>enforce</goal>
-							</goals>
-							<configuration>
-								<rules>
-									<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
-										<signature>
-											<groupId>org.codehaus.mojo.signature</groupId>
-											<artifactId>java17</artifactId>
-											<version>1.0</version>
-										</signature>
-									</checkSignatureRule>
 								</rules>
 							</configuration>
 						</execution>
@@ -355,28 +318,6 @@
 					<artifactId>maven-antrun-plugin</artifactId>
 					<executions>
 						<execution>
-							<!-- Put module-info.class in META-INF/versions/9 to maximize backwards -->
-							<!-- compatibility. This has to be done after the jar is created, since -->
-							<!-- module-info.class cannot be copied to the target directory, otherwise -->
-							<!-- this build or the following incremental build will cause Animal Sniffer -->
-							<!-- to fail, since it depends upon ASM 5, which balks when it hits -->
-							<!-- module-info.class with: "Execution check-signatures of goal -->
-							<!-- org.apache.maven.plugins:maven-enforcer-plugin:3.0.0-M3:enforce failed: -->
-							<!-- This feature requires ASM6". -->
-							<id>add-module-info-to-jar</id>
-							<phase>package</phase>
-							<goals>
-								<goal>run</goal>
-							</goals>
-							<configuration>
-								<target>
-									<jar update="true" destfile="${project.build.directory}/${project.build.finalName}.jar">
-										<zipfileset prefix="META-INF/versions/9" dir="${project.basedir}/src/module-info/io.github.classgraph" includes="module-info.class" />
-									</jar>
-								</target>
-							</configuration>
-						</execution>
-						<execution>
 							<!-- Make duplicate copy of Javadoc into a subdirectory with the name of the module, -->
 							<!-- since Eclipse (and possibly other tools) detects the presence of the module -->
 							<!-- descriptor, and expects the Javadoc files to use modular paths (#583). -->
@@ -403,12 +344,14 @@
 					<artifactId>maven-compiler-plugin</artifactId>
 					<configuration>
 						<encoding>UTF-8</encoding>
-						<!-- JDK 7 is no longer supported as of JDK 20. -->
-						<release>8</release>
 						<useIncrementalCompilation>false</useIncrementalCompilation>
 						<compilerArgs>
 							<arg>-Xlint:all</arg>             <!-- Max lint -->
-							<arg>-Xlint:-options</arg>        <!-- Suppress JDK 8 is obsolete warning -->
+							<!-- Several public and protected members of the exported io.github.classgraph -->
+							<!-- package take parameters whose types are internal (LogNode, TypePathNode, -->
+							<!-- ClasspathElement). Narrowing their visibility is an API change, so it is -->
+							<!-- part of the v5 API audit rather than of this build change. -->
+							<arg>-Xlint:-exports</arg>
 							<arg>-Werror</arg>
 						</compilerArgs>
 					</configuration>
@@ -421,7 +364,11 @@
 							</goals>
 							<configuration>
 								<encoding>UTF-8</encoding>
-								<release>8</release>
+								<!-- Compile and run the tests on the classpath rather than the module path: -->
+								<!-- they are white-box tests, so they read the internal nonapi packages, which -->
+								<!-- the module descriptor does not export, and they use classes (e.g. java.awt) -->
+								<!-- that only the test code needs. -->
+								<useModulePath>false</useModulePath>
 								<compilerArgs>
 									<arg>-parameters</arg>
 								</compilerArgs>
@@ -435,8 +382,9 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
-						<!-- Suppress warning when Narcissus is loaded for testing -->
-					    <argLine>${surefireArgLine}</argLine>
+						<argLine>${surefireArgLine}</argLine>
+						<!-- Run the tests on the classpath, matching the test compile (see above) -->
+						<useModulePath>false</useModulePath>
 					</configuration>
 				</plugin>
 
@@ -482,19 +430,17 @@
 								<Bundle-Vendor>Luke Hutchison</Bundle-Vendor>
 								<Bundle-Description>${project.description}</Bundle-Description>
 								<Bundle-Version>${project.version}</Bundle-Version>
-								<!-- Must match <release> in maven-compiler-plugin below: the jar contains Java 8 -->
-								<!-- (major version 52) bytecode, so declaring 1.7 here lets an OSGi framework -->
-								<!-- running on Java 7 resolve this bundle and then fail at class load time. -->
-								<Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=1.8))"</Require-Capability>
+								<!-- Must match ${maven.compiler.release}: the jar contains Java 17 (major -->
+								<!-- version 61) bytecode, so declaring an older version here would let an OSGi -->
+								<!-- framework running on that version resolve this bundle, and then fail at -->
+								<!-- class load time. -->
+								<Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=17))"</Require-Capability>
 								<Export-Package>io.github.classgraph;version="${project.version}"</Export-Package>
 								<!-- Make sure "requires" entries in the module descriptor match these imports: -->
-								<!-- src/main/module-info/io.github.classgraph/module-info.java -->
-								<Import-Package>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional",io.github.toolfactory.jvm;resolution:="optional"</Import-Package>
+								<!-- src/main/java/module-info.java -->
+								<Import-Package>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional"</Import-Package>
 								<!-- Add the same module dependencies that are specified in module-info.java -->
 								<Dependencies>java.xml,jdk.unsupported,java.management,java.logging</Dependencies>
-								<!-- This is a multi-release jar, since module-info.class will be added to -->
-								<!-- META-INF/versions/9 , so we need to set the Multi-Release entry to true -->
-								<Multi-Release>true</Multi-Release>
 							</manifestEntries>
 						</archive>
 					</configuration>
@@ -527,8 +473,7 @@
 								<goal>jar</goal>
 							</goals>
 							<configuration>
-								<source>8</source>
-								<additionalOptions>${javadoc.html.version}</additionalOptions>
+								<source>17</source>
 								<doclint>all</doclint>
 								<excludePackageNames>nonapi.*</excludePackageNames>
 								<show>public</show>
@@ -544,8 +489,8 @@
 					</executions>
 				</plugin>
 
-				<!-- Bump the version, commit, tag, and deploy the tag. Release with (under JDK 8): -->
-				<!--   export JAVA_HOME=/path/to/jdk8; export PATH="$JAVA_HOME/bin:$PATH" -->
+				<!-- Bump the version, commit, tag, and deploy the tag. Release with (under JDK 17): -->
+				<!--   export JAVA_HOME=/path/to/jdk17; export PATH="$JAVA_HOME/bin:$PATH" -->
 				<!--   ./mvnw -B -Prelease release:prepare -DdryRun=true   # dry run; then release:clean -->
 				<!--   ./mvnw -B -Prelease release:prepare                 # commits, tags, pushes -->
 				<!--   ./mvnw -B -Prelease release:perform                 # builds the tag, signs, publishes -->
@@ -553,7 +498,7 @@
 				<!-- JAVA_HOME and PATH must both be *exported*, not just set for the ./mvnw command: -->
 				<!-- release:prepare forks a second Maven process, which resolves "java" from PATH, so a -->
 				<!-- one-shot "JAVA_HOME=... ./mvnw" builds the fork under whatever JDK is first on PATH. -->
-				<!-- If that is not JDK 8, the animal-sniffer check-signatures enforcer rule fails. -->
+				<!-- If that is older than JDK 17, the requireJavaVersion enforcer rule fails. -->
 				<!-- -->
 				<!-- -B (batch mode) accepts the default release/tag/next-development versions, instead of -->
 				<!-- prompting for all three interactively. -->
@@ -585,29 +530,6 @@
 	</build>
 
 	<profiles>
-		<!-- Compile Javadoc to HTML5 if building with JDK 9+ -->
-		<profile>
-			<id>jdk9plus</id>
-			<activation>
-				<jdk>[9,)</jdk>
-			</activation>
-			<properties>
-				<javadoc.html.version>-html5</javadoc.html.version>
-				<!-- coverall version 4.3.0 does not work with java 9. -->
-				<!-- See: https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
-				<coveralls.skip>true</coveralls.skip>
-			</properties>
-		</profile>
-		<profile>
-			<id>jdk17plus</id>
-			<activation>
-				<jdk>[17,)</jdk>
-			</activation>
-			<properties>
-				<surefireArgLine>--enable-native-access=ALL-UNNAMED</surefireArgLine>
-			</properties>
-		</profile>
-
 		<!-- Sign jars for release. Activated automatically by maven-release-plugin (via -->
 		<!-- <releaseProfiles>/<arguments> above); pass -Prelease explicitly for a manual deploy. -->
 		<profile>

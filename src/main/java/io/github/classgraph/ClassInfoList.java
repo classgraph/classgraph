@@ -98,13 +98,10 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses,
             final boolean sortByName) {
-        super(reachableClasses);
+        // Sort a copy of the classes before handing them to the superclass constructor, rather than sorting this
+        // list once it has been built, so that a partly-initialized instance is never passed to another method
+        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
         this.sortByName = sortByName;
-        if (sortByName) {
-            // It's a bit dicey calling CollectionUtils.sortIfNotEmpty(this) from within a constructor,
-            // but the super-constructor has been called, so it should be fine :-)
-            CollectionUtils.sortIfNotEmpty(this);
-        }
         // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
         this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
     }

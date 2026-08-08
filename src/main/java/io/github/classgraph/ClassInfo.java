@@ -229,7 +229,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Spot check to make sure class names were parsed from descriptors
             throw new IllegalArgumentException("Bad class name");
         }
-        setModifiers(classModifiers);
+        // Assign the field directly rather than calling setModifiers(int), which is overridable, and so would
+        // let a subclass see a partly-initialized instance. The field is still zero here, so the "|=" in
+        // setModifiers(int) would have the same effect as this assignment.
+        this.modifiers = classModifiers;
         this.classfileResource = classfileResource;
         this.relatedClasses = new EnumMap<>(RelType.class);
     }

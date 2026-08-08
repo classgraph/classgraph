@@ -2,9 +2,9 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "latest" ]
+    branches: [ "latest", "v5" ]
   pull_request:
-    branches: [ "latest" ]
+    branches: [ "latest", "v5" ]
   schedule:
     - cron: "47 11 * * 6"
 
@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: 8
+          java-version: 17
           # Autobuild runs the Maven wrapper too -- see the note in ci.yml
           cache: 'maven'
 
