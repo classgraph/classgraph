@@ -69,9 +69,10 @@ public abstract class AcceptReject {
     protected char separatorChar;
     /**
      * If true, a {@code '*'} in a glob matches only within a single package or path segment, rather than spanning
-     * separators. Used for package and path accept/reject criteria, where recursion into sub-packages already
-     * provides the "and everything below" behaviour, so a separator-spanning wildcard is both unnecessary and
-     * slower to match. Class name globs keep the older separator-spanning behaviour. (#643, #870)
+     * separators, and {@code "**"}, used as a complete segment, matches one or more whole segments (#940). Used
+     * for package and path accept/reject criteria, where recursion into sub-packages already provides the "and
+     * everything below" behaviour. Class name globs keep the older separator-spanning behaviour for {@code '*'}.
+     * (#643, #870)
      */
     protected boolean segmentGlobs;
 
@@ -104,15 +105,15 @@ public abstract class AcceptReject {
 
     /**
      * Convert a glob to a regexp {@link Pattern}, where {@code '*'} matches zero or more characters within a
-     * single package or path segment, i.e. does not span {@link #separatorChar}. Any number of wildcards may be
-     * used in a single glob.
+     * single package or path segment, i.e. does not span {@link #separatorChar}, and {@code "**"} matches one or
+     * more whole segments. Any number of wildcards may be used in a single glob.
      *
      * <p>
-     * {@code "**"} is not accepted here: as the final segment of an accept or reject criterion it means "and
-     * everything below", which is already the default for
-     * {@link io.github.classgraph.ClassGraph#acceptPackages(String...)} and friends, so it is stripped by the
-     * caller before the glob reaches this method. In any other position it is
-     * rejected, since a separator-spanning wildcard would defeat the segment-bounded matching. (#643, #870)
+     * As the final segment of an accept or reject criterion, {@code "**"} means "and everything below", which is
+     * already the default for {@link io.github.classgraph.ClassGraph#acceptPackages(String...)} and friends, so
+     * it is stripped by the caller before the glob reaches this method. In any other position, {@code "**"} must
+     * form a complete segment, and matches one or more whole segments, e.g. {@code "com.**.impl"} matches
+     * {@code com.a.impl} and {@code com.a.b.impl}, but not {@code com.impl}. (#643, #870, #940)
      *
      * @param glob
      *            the glob
@@ -123,7 +124,8 @@ public abstract class AcceptReject {
      *            than requiring a whole-string match
      * @return the pattern
      * @throws IllegalArgumentException
-     *             if the glob contains {@code "**"}
+     *             if {@code "**"} is used without forming a complete package or path segment, e.g.
+     *             {@code "com.a**b.impl"}
      */
     public static Pattern segmentGlobToPattern(final String glob, final char separatorChar,
             final boolean prefixMatch) {
@@ -132,10 +134,19 @@ public abstract class AcceptReject {
             final char c = glob.charAt(i);
             if (c == '*') {
                 if (i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
-                    throw new IllegalArgumentException("\"**\" may only be used as the final segment of a glob: "
-                            + glob);
+                    // "**" matches one or more whole segments, so it must itself form a complete segment
+                    if (!(i == 0 || glob.charAt(i - 1) == separatorChar)
+                            || !(i + 2 == glob.length() || glob.charAt(i + 2) == separatorChar)) {
+                        throw new IllegalArgumentException(
+                                "\"**\" may only be used as a complete segment of a glob: " + glob);
+                    }
+                    buf.append("[^").append(separatorChar).append("]+(?:\\").append(separatorChar) //
+                            .append("[^").append(separatorChar).append("]+)*");
+                    // Skip the second '*'
+                    i++;
+                } else {
+                    buf.append("[^").append(separatorChar).append("]*");
                 }
-                buf.append("[^").append(separatorChar).append("]*");
             } else if ("\\^$.|?*+()[]{}".indexOf(c) >= 0) {
                 buf.append('\\').append(c);
             } else {
@@ -151,8 +162,8 @@ public abstract class AcceptReject {
     /**
      * Strip a trailing {@code "**"} segment from a normalized package name or path, if present. A trailing
      * {@code "**"} means "and everything below", which is what the recursive accept/reject methods already do, so
-     * it can simply be removed. {@code "**"} in any other position is rejected by
-     * {@link #segmentGlobToPattern(String, char, boolean)}.
+     * it can simply be removed. {@code "**"} in any other position matches one or more whole segments (see
+     * {@link #segmentGlobToPattern(String, char, boolean)}).
      *
      * @param packageOrPath
      *            the normalized package name or path

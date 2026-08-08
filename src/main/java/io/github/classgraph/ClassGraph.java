@@ -681,13 +681,15 @@ public class ClassGraph {
      * only need to scan resources.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
-     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
-     *            also scanned, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else. Note that a wildcard must match at least one package segment, so
-     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
-     *            itself -- to scan {@code java.awt} and everything below it, use {@code "java.awt"}.
+     *            The fully-qualified names of packages to scan (using '.' as a separator). May include glob
+     *            wildcards: {@code '*'} matches within a single package segment only, and {@code "**"}, used as
+     *            a complete segment, matches one or more package segments, e.g. {@code "com.**.internal"}
+     *            matches {@code com.a.internal} and {@code com.a.b.internal}, but not {@code com.internal}. Any
+     *            number of wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched
+     *            package are also scanned, so a trailing {@code ".**"} is accepted but redundant. Note that a
+     *            wildcard must match at least one package segment, so {@code "java.awt.*"} matches the
+     *            sub-packages of {@code java.awt} but not {@code java.awt} itself -- to scan {@code java.awt}
+     *            and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPackages(final String... packageNames) {
@@ -720,13 +722,15 @@ public class ClassGraph {
      * Use {@link #acceptPackages(String...)} instead.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
-     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
-     *            also scanned, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else. Note that a wildcard must match at least one package segment, so
-     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
-     *            itself -- to scan {@code java.awt} and everything below it, use {@code "java.awt"}.
+     *            The fully-qualified names of packages to scan (using '.' as a separator). May include glob
+     *            wildcards: {@code '*'} matches within a single package segment only, and {@code "**"}, used as
+     *            a complete segment, matches one or more package segments, e.g. {@code "com.**.internal"}
+     *            matches {@code com.a.internal} and {@code com.a.b.internal}, but not {@code com.internal}. Any
+     *            number of wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched
+     *            package are also scanned, so a trailing {@code ".**"} is accepted but redundant. Note that a
+     *            wildcard must match at least one package segment, so {@code "java.awt.*"} matches the
+     *            sub-packages of {@code java.awt} but not {@code java.awt} itself -- to scan {@code java.awt}
+     *            and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPackages(String...)} instead.
      */
@@ -740,9 +744,10 @@ public class ClassGraph {
      *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
-     *            separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
+     *            separator). May include glob wildcards: {@code '*'} matches within a single path segment only,
+     *            and {@code "**"}, used as a complete segment, matches one or more whole path segments. Any
      *            number of wildcards may be used. Sub-directories of a matched path are also scanned, so a
-     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
+     *            trailing {@code "/**"} is accepted but redundant.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPaths(final String... paths) {
@@ -774,9 +779,10 @@ public class ClassGraph {
      *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
-     *            separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
+     *            separator). May include glob wildcards: {@code '*'} matches within a single path segment only,
+     *            and {@code "**"}, used as a complete segment, matches one or more whole path segments. Any
      *            number of wildcards may be used. Sub-directories of a matched path are also scanned, so a
-     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
+     *            trailing {@code "/**"} is accepted but redundant.
      * @return this (for method chaining).
      * @deprecated Use {@link #acceptPaths(String...)} instead.
      */
@@ -885,13 +891,15 @@ public class ClassGraph {
      * only need to scan resources.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to reject (using '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
-     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
-     *            also rejected, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else. Note that a wildcard must match at least one package segment, so
-     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
-     *            itself -- to reject {@code java.awt} and everything below it, use {@code "java.awt"}.
+     *            The fully-qualified names of packages to reject (using '.' as a separator). May include glob
+     *            wildcards: {@code '*'} matches within a single package segment only, and {@code "**"}, used as
+     *            a complete segment, matches one or more package segments, e.g. {@code "com.**.internal"}
+     *            matches {@code com.a.internal} and {@code com.a.b.internal}, but not {@code com.internal}. Any
+     *            number of wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched
+     *            package are also rejected, so a trailing {@code ".**"} is accepted but redundant. Note that a
+     *            wildcard must match at least one package segment, so {@code "java.awt.*"} matches the
+     *            sub-packages of {@code java.awt} but not {@code java.awt} itself -- to reject {@code java.awt}
+     *            and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      */
     public ClassGraph rejectPackages(final String... packageNames) {
@@ -918,13 +926,15 @@ public class ClassGraph {
      * Use {@link #rejectPackages(String...)} instead.
      *
      * @param packageNames
-     *            The fully-qualified names of packages to reject (using '.' as a separator). May include a glob
-     *            wildcard ({@code '*'}), which matches within a single package segment only. Any number of
-     *            wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are
-     *            also rejected, so a trailing {@code ".**"} is accepted but redundant; {@code "**"} may not appear
-     *            anywhere else. Note that a wildcard must match at least one package segment, so
-     *            {@code "java.awt.*"} matches the sub-packages of {@code java.awt} but not {@code java.awt}
-     *            itself -- to reject {@code java.awt} and everything below it, use {@code "java.awt"}.
+     *            The fully-qualified names of packages to reject (using '.' as a separator). May include glob
+     *            wildcards: {@code '*'} matches within a single package segment only, and {@code "**"}, used as
+     *            a complete segment, matches one or more package segments, e.g. {@code "com.**.internal"}
+     *            matches {@code com.a.internal} and {@code com.a.b.internal}, but not {@code com.internal}. Any
+     *            number of wildcards may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched
+     *            package are also rejected, so a trailing {@code ".**"} is accepted but redundant. Note that a
+     *            wildcard must match at least one package segment, so {@code "java.awt.*"} matches the
+     *            sub-packages of {@code java.awt} but not {@code java.awt} itself -- to reject {@code java.awt}
+     *            and everything below it, use {@code "java.awt"}.
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectPackages(String...)} instead.
      */
@@ -937,9 +947,10 @@ public class ClassGraph {
      * Prevent the scanning of one or more specific paths and their sub-directories / nested paths.
      *
      * @param paths
-     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
-     *            number of wildcards may be used. Sub-directories of a matched path are also rejected, so a
-     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
+     *            The paths to reject (with '/' as a separator). May include glob wildcards: {@code '*'} matches
+     *            within a single path segment only, and {@code "**"}, used as a complete segment, matches one or
+     *            more whole path segments. Any number of wildcards may be used. Sub-directories of a matched
+     *            path are also rejected, so a trailing {@code "/**"} is accepted but redundant.
      * @return this (for method chaining).
      */
     public ClassGraph rejectPaths(final String... paths) {
@@ -965,9 +976,10 @@ public class ClassGraph {
      * Use {@link #rejectPaths(String...)} instead.
      *
      * @param paths
-     *            The paths to reject (with '/' as a separator). May include a glob wildcard ({@code '*'}), which matches within a single path segment only. Any
-     *            number of wildcards may be used. Sub-directories of a matched path are also rejected, so a
-     *            trailing {@code "/**"} is accepted but redundant; {@code "**"} may not appear anywhere else.
+     *            The paths to reject (with '/' as a separator). May include glob wildcards: {@code '*'} matches
+     *            within a single path segment only, and {@code "**"}, used as a complete segment, matches one or
+     *            more whole path segments. Any number of wildcards may be used. Sub-directories of a matched
+     *            path are also rejected, so a trailing {@code "/**"} is accepted but redundant.
      * @return this (for method chaining).
      * @deprecated Use {@link #rejectPaths(String...)} instead.
      */

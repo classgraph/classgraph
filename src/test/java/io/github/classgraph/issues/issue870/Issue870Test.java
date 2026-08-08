@@ -106,11 +106,15 @@ public class Issue870Test {
         assertThat(scan(PKG + ".**")).contains(ALPHA_THING, BETA_THING, SUB_THING, OTHER_THING);
     }
 
-    /** {@code "**"} anywhere but the final segment is rejected, since it would defeat segment-bounded matching. */
+    /**
+     * {@code "**"} used as a complete segment matches one or more whole segments (#940), but {@code "**"} glued
+     * to other characters within a segment is rejected.
+     */
     @Test
-    public void nonTrailingDoubleGlobIsRejected() {
-        assertThatThrownBy(() -> scan(PKG + ".**.domain")).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("**");
+    public void doubleGlobMustFormACompleteSegment() {
+        assertThat(scan(PKG + ".**.domain")).contains(ALPHA_THING, BETA_THING, SUB_THING)
+                .doesNotContain(OTHER_THING);
+        assertThat(scan(PKG + ".**.sub")).containsExactly(SUB_THING);
         assertThatThrownBy(() -> scan(PKG + ".al**ha.domain")).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("**");
     }
