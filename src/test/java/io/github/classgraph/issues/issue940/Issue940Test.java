@@ -108,6 +108,19 @@ public class Issue940Test {
         assertThat(pathPattern.matcher("org/creekservice/api/other/").matches()).isFalse();
     }
 
+    /** {@code "**"} spans path segments in {@link ClassGraph#acceptPaths}, not just in accepted package names. */
+    @Test
+    public void midPathDoubleGlobSpansSegments() {
+        final String pkgPath = PKG.replace('.', '/');
+        try (ScanResult scanResult = new ClassGraph().acceptPaths(pkgPath + "/**/schema").scan()) {
+            assertThat(scanResult.getAllResources().getPaths())
+                    .contains(pkgPath + "/api/base/schema/ApiBaseSchemaThing.class",
+                            pkgPath + "/other/schema/OtherSchemaThing.class",
+                            pkgPath + "/schema/TopLevelSchemaThing.class")
+                    .doesNotContain(pkgPath + "/api/base/other/NonSchemaThing.class");
+        }
+    }
+
     /** {@code "**"} that does not form a complete segment is still rejected. */
     @Test
     public void gluedDoubleGlobIsRejected() {
