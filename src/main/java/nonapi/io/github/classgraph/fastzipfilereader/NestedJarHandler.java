@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.lang.module.ModuleReader;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -60,7 +61,6 @@ import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 import java.util.zip.ZipException;
 
-import io.github.classgraph.ModuleReaderProxy;
 import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
@@ -367,18 +367,18 @@ public class NestedJarHandler {
             };
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReaderProxy}
-     * recycler for the module.
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler
+     * for the module.
      */
-    public SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
-    moduleRefToModuleReaderProxyRecyclerMap = //
+    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+    moduleRefToModuleReaderRecyclerMap = //
             new SingletonMap<>() {
                 @Override
-                public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
+                public Recycler<ModuleReader, IOException> newInstance(final ModuleRef moduleRef,
                         final LogNode ignored) {
                     return new Recycler<>() {
                         @Override
-                        public ModuleReaderProxy newInstance() throws IOException {
+                        public ModuleReader newInstance() throws IOException {
                             return moduleRef.open();
                         }
                     };
@@ -1071,12 +1071,12 @@ public class NestedJarHandler {
     public void close(final LogNode log) {
         if (!closed.getAndSet(true)) {
             var interrupted = false;
-            if (moduleRefToModuleReaderProxyRecyclerMap != null) {
+            if (moduleRefToModuleReaderRecyclerMap != null) {
                 var completedWithoutInterruption = false;
                 while (!completedWithoutInterruption) {
                     try {
-                        for (final Recycler<ModuleReaderProxy, IOException> recycler : //
-                        moduleRefToModuleReaderProxyRecyclerMap.values()) {
+                        for (final Recycler<ModuleReader, IOException> recycler : //
+                        moduleRefToModuleReaderRecyclerMap.values()) {
                             recycler.forceClose();
                         }
                         completedWithoutInterruption = true;
@@ -1085,8 +1085,8 @@ public class NestedJarHandler {
                         interrupted = true;
                     }
                 }
-                moduleRefToModuleReaderProxyRecyclerMap.clear();
-                moduleRefToModuleReaderProxyRecyclerMap = null;
+                moduleRefToModuleReaderRecyclerMap.clear();
+                moduleRefToModuleReaderRecyclerMap = null;
             }
             if (zipFileSliceToLogicalZipFileMap != null) {
                 zipFileSliceToLogicalZipFileMap.clear();

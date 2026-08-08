@@ -26,66 +26,36 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph;
+package nonapi.io.github.classgraph.utils;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReader;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import nonapi.io.github.classgraph.utils.LogNode;
-
 /**
- * A wrapper around a {@link ModuleReader}, which converts the {@link Optional}
- * and {@link Stream} return values of {@link ModuleReader} into plain values,
- * and closes without throwing.
+ * Helper methods for calling {@link ModuleReader}, which convert its
+ * {@link Optional} and {@link Stream} return values into plain values, and wrap
+ * the checked {@link IOException} thrown by each of its methods in an unchecked
+ * exception.
  */
-public class ModuleReaderProxy implements Closeable {
-    /** The module reader. */
-    private final ModuleReader moduleReader;
-
-    /** The name of the module being read, for error messages. */
-    private final String moduleName;
+public final class ModuleReaderUtils {
+    /** Class can not be constructed. */
+    private ModuleReaderUtils() {
+        // Empty
+    }
 
     /**
-     * Constructor.
+     * Get the list of resources accessible to a {@link ModuleReader}, logging to the
+     * given {@link LogNode} if the {@code ModuleReader} does not honour its
+     * contract.
      *
-     * @param moduleRef the module ref
-     * @throws IOException If an I/O exception occurs.
-     */
-    ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
-        moduleName = moduleRef.getName();
-        try {
-            moduleReader = moduleRef.getReference().open();
-            if (moduleReader == null) {
-                throw new IllegalArgumentException("moduleReference.open() should not return null");
-            }
-        } catch (final SecurityException e) {
-            throw new IOException("Could not open module " + moduleRef.getName(), e);
-        }
-    }
-
-    /** Calls ModuleReader#close(). */
-    @Override
-    public void close() {
-        try {
-            moduleReader.close();
-        } catch (final IOException e) {
-            // Ignore
-        }
-    }
-
-    /**
-     * Get the list of resources accessible to a ModuleReader.
-     * 
      * From the documentation for ModuleReader#list(): "Whether the stream of
      * elements includes names corresponding to directories in the module is module
      * reader specific. In lazy implementations then an IOException may be thrown
@@ -94,23 +64,15 @@ public class ModuleReaderProxy implements Closeable {
      * from the method that caused the access to be attempted. SecurityException may
      * also be thrown when using the stream to list the module contents and access
      * is denied by the security manager."
-     * 
-     * @return A list of the paths of resources in the module.
-     * @throws SecurityException If the module cannot be accessed.
-     */
-    public List<String> list() throws SecurityException {
-        return list(/* log = */ null);
-    }
-
-    /**
-     * Get the list of resources accessible to a ModuleReader, logging to the given
-     * {@link LogNode} if the {@code ModuleReader} does not honour its contract.
      *
-     * @param log the log, or null for no logging.
+     * @param moduleReader the module reader.
+     * @param moduleName   the name of the module being read, for error messages.
+     * @param log          the log, or null for no logging.
      * @return A list of the paths of resources in the module.
      * @throws SecurityException If the module cannot be accessed.
      */
-    List<String> list(final LogNode log) throws SecurityException {
+    public static List<String> list(final ModuleReader moduleReader, final String moduleName, final LogNode log)
+            throws SecurityException {
         final Stream<String> resourcesStream;
         try {
             resourcesStream = moduleReader.list();
@@ -133,7 +95,7 @@ public class ModuleReaderProxy implements Closeable {
                         + ", which its contract does not permit -- this is a bug in the ModuleReader "
                         + "implementation " + moduleReader.getClass().getName() + " -- treating the module as empty");
             }
-            return Collections.emptyList();
+            return List.of();
         }
         // N.B. the returned list must be mutable, since ClasspathElementModule sorts it
         // in place
@@ -142,15 +104,16 @@ public class ModuleReaderProxy implements Closeable {
     }
 
     /**
-     * Use the proxied ModuleReader to open the named resource as an InputStream.
-     * 
-     * @param path The path to the resource to open.
-     * 
+     * Use a {@link ModuleReader} to open the named resource as an
+     * {@link InputStream}.
+     *
+     * @param moduleReader the module reader.
+     * @param path         The path to the resource to open.
      * @return An {@link InputStream} for the content of the resource.
      * @throws SecurityException        If the module cannot be accessed.
      * @throws IllegalArgumentException If the module cannot be accessed.
      */
-    public InputStream open(final String path) throws SecurityException {
+    public static InputStream open(final ModuleReader moduleReader, final String path) throws SecurityException {
         final Optional<InputStream> optionalInputStream;
         try {
             optionalInputStream = moduleReader.open(path);
@@ -168,16 +131,19 @@ public class ModuleReaderProxy implements Closeable {
     }
 
     /**
-     * Use the proxied ModuleReader to open the named resource as a ByteBuffer. Call
-     * {@link #release(ByteBuffer)} when you have finished with the ByteBuffer.
-     * 
-     * @param path The path to the resource to open.
+     * Use a {@link ModuleReader} to open the named resource as a {@link ByteBuffer}.
+     * Call {@link ModuleReader#release(ByteBuffer)} when you have finished with the
+     * {@link ByteBuffer}.
+     *
+     * @param moduleReader the module reader.
+     * @param path         The path to the resource to open.
      * @return A {@link ByteBuffer} for the content of the resource.
      * @throws SecurityException If the module cannot be accessed.
      * @throws OutOfMemoryError  if the resource is larger than 2GB, the maximum
      *                           capacity of a byte buffer.
      */
-    public ByteBuffer read(final String path) throws SecurityException, OutOfMemoryError {
+    public static ByteBuffer read(final ModuleReader moduleReader, final String path)
+            throws SecurityException, OutOfMemoryError {
         final Optional<ByteBuffer> optionalByteBuffer;
         try {
             optionalByteBuffer = moduleReader.read(path);
@@ -195,22 +161,14 @@ public class ModuleReaderProxy implements Closeable {
     }
 
     /**
-     * Release a {@link ByteBuffer} allocated by calling {@link #read(String)}.
-     * 
-     * @param byteBuffer The {@link ByteBuffer} to release.
-     */
-    public void release(final ByteBuffer byteBuffer) {
-        moduleReader.release(byteBuffer);
-    }
-
-    /**
-     * Use the proxied ModuleReader to find the named resource as a URI.
+     * Use a {@link ModuleReader} to find the named resource as a {@link URI}.
      *
-     * @param path The path to the resource to open.
+     * @param moduleReader the module reader.
+     * @param path         The path to the resource to open.
      * @return A {@link URI} for the resource.
      * @throws SecurityException If the module cannot be accessed.
      */
-    public URI find(final String path) {
+    public static URI find(final ModuleReader moduleReader, final String path) throws SecurityException {
         final Optional<URI> optionalURI;
         try {
             optionalURI = moduleReader.find(path);

@@ -186,7 +186,7 @@ class Scanner implements Callable<ScanResult> {
                                 || scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final var classpathElementModule = new ClasspathElementModule(systemModuleRef,
-                                    nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap,
+                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap,
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
                                             nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);
@@ -211,7 +211,7 @@ class Scanner implements Callable<ScanResult> {
                         if (scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final var classpathElementModule = new ClasspathElementModule(nonSystemModuleRef,
-                                    nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap,
+                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap,
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
                                             nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);

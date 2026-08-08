@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.util.ArrayList;
@@ -296,12 +297,21 @@ public class ModuleRef implements Comparable<ModuleRef> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open the module, returning a {@link ModuleReaderProxy}.
-     * 
-     * @return A {@link ModuleReaderProxy} for the module.
+     * Open the module, returning a {@link ModuleReader}.
+     *
+     * @return A {@link ModuleReader} for the module.
      * @throws IOException If the module cannot be opened.
      */
-    public ModuleReaderProxy open() throws IOException {
-        return new ModuleReaderProxy(this);
+    public ModuleReader open() throws IOException {
+        final ModuleReader moduleReader;
+        try {
+            moduleReader = reference.open();
+        } catch (final SecurityException e) {
+            throw new IOException("Could not open module " + name, e);
+        }
+        if (moduleReader == null) {
+            throw new IllegalArgumentException("moduleReference.open() should not return null");
+        }
+        return moduleReader;
     }
 }

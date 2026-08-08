@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.module.ModuleReader;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
@@ -51,6 +52,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
 import nonapi.io.github.classgraph.utils.ProxyingInputStream;
 
 /**
@@ -64,14 +66,14 @@ class ClasspathElementModule extends ClasspathElement {
     final ModuleRef moduleRef;
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReaderProxy}
-     * recycler for the module.
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler
+     * for the module.
      */
-    SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
-    moduleRefToModuleReaderProxyRecyclerMap;
+    SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+    moduleRefToModuleReaderRecyclerMap;
 
-    /** The module reader proxy recycler. */
-    private Recycler<ModuleReaderProxy, IOException> moduleReaderProxyRecycler;
+    /** The module reader recycler. */
+    private Recycler<ModuleReader, IOException> moduleReaderRecycler;
 
     /** All resource paths. */
     private final Set<String> allResourcePaths = new HashSet<>();
@@ -79,17 +81,17 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * A zip/jarfile classpath element.
      *
-     * @param moduleRef                               the module ref
-     * @param workUnit                                the work unit
-     * @param moduleRefToModuleReaderProxyRecyclerMap the module ref to module
-     *                                                reader proxy recycler map
-     * @param scanSpec                                the scan spec
+     * @param moduleRef                          the module ref
+     * @param workUnit                           the work unit
+     * @param moduleRefToModuleReaderRecyclerMap the module ref to module reader
+     *                                           recycler map
+     * @param scanSpec                           the scan spec
      */
     ClasspathElementModule(final ModuleRef moduleRef,
-            final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
-            moduleRefToModuleReaderProxyRecyclerMap, final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
+            final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+            moduleRefToModuleReaderRecyclerMap, final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
-        this.moduleRefToModuleReaderProxyRecyclerMap = moduleRefToModuleReaderProxyRecyclerMap;
+        this.moduleRefToModuleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
         this.moduleRef = moduleRef;
     }
 
@@ -110,7 +112,7 @@ class ClasspathElementModule extends ClasspathElement {
             return;
         }
         try {
-            moduleReaderProxyRecycler = moduleRefToModuleReaderProxyRecyclerMap.get(moduleRef, log);
+            moduleReaderRecycler = moduleRefToModuleReaderRecyclerMap.get(moduleRef, log);
         } catch (final IOException | NullSingletonException | NewInstanceException e) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : "
@@ -130,8 +132,8 @@ class ClasspathElementModule extends ClasspathElement {
      */
     private Resource newResource(final String resourcePath) {
         return new Resource(this, /* length unknown */ -1L) {
-            /** The module reader proxy. */
-            private ModuleReaderProxy moduleReaderProxy;
+            /** The module reader. */
+            private ModuleReader moduleReader;
 
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
@@ -169,10 +171,10 @@ class ClasspathElementModule extends ClasspathElement {
             public ByteBuffer read() throws IOException {
                 checkCanOpen();
                 try {
-                    moduleReaderProxy = moduleReaderProxyRecycler.acquire();
+                    moduleReader = moduleReaderRecycler.acquire();
                     // ModuleReader#read(String name) internally calls:
                     // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
-                    byteBuffer = moduleReaderProxy.read(resourcePath);
+                    byteBuffer = ModuleReaderUtils.read(moduleReader, resourcePath);
                     length = byteBuffer.remaining();
                     return byteBuffer;
 
@@ -190,11 +192,11 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URI getURI() {
                 try {
-                    final var localModuleReaderProxy = moduleReaderProxyRecycler.acquire();
+                    final var localModuleReader = moduleReaderRecycler.acquire();
                     try {
-                        return localModuleReaderProxy.find(resourcePath);
+                        return ModuleReaderUtils.find(localModuleReader, resourcePath);
                     } finally {
-                        moduleReaderProxyRecycler.recycle(localModuleReaderProxy);
+                        moduleReaderRecycler.recycle(localModuleReader);
                     }
                 } catch (final IOException e) {
                     throw new RuntimeException(e);
@@ -206,15 +208,15 @@ class ClasspathElementModule extends ClasspathElement {
                 checkCanOpen();
                 try {
                     final Resource thisResource = this;
-                    moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-                    inputStream = new ProxyingInputStream(moduleReaderProxy.open(resourcePath)) {
+                    moduleReader = moduleReaderRecycler.acquire();
+                    inputStream = new ProxyingInputStream(ModuleReaderUtils.open(moduleReader, resourcePath)) {
                         @Override
                         public void close() throws IOException {
-                            // Close the wrapped InputStream obtained from moduleReaderProxy
+                            // Close the wrapped InputStream obtained from moduleReader
                             super.close();
                             try {
                                 // Close the Resource, releasing any underlying ByteBuffer and recycling
-                                // the moduleReaderProxy
+                                // the moduleReader
                                 thisResource.close();
                             } catch (final Exception e) {
                                 // Ignore
@@ -251,19 +253,18 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public void close() {
                 if (isOpen.getAndSet(false)) {
-                    if (moduleReaderProxy != null) {
+                    if (moduleReader != null) {
                         if (byteBuffer != null) {
                             // Release any open ByteBuffer
-                            moduleReaderProxy.release(byteBuffer);
+                            moduleReader.release(byteBuffer);
                             byteBuffer = null;
                         }
-                        // Recycle the (open) ModuleReaderProxy instance.
-                        moduleReaderProxyRecycler.recycle(moduleReaderProxy);
-                        // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the
-                        // recycler.
-                        // Just set the ref to null here. The ModuleReaderProxy will be closed by
+                        // Recycle the (open) ModuleReader instance.
+                        moduleReaderRecycler.recycle(moduleReader);
+                        // Don't call ModuleReader#close(), leave the ModuleReader open in the recycler.
+                        // Just set the ref to null here. The ModuleReader will be closed by
                         // ClasspathElementModule#close().
-                        moduleReaderProxy = null;
+                        moduleReader = null;
                     }
 
                     // Close inputStream
@@ -305,19 +306,20 @@ class ClasspathElementModule extends ClasspathElement {
         // Determine whether this is a modular jar
         final var isModularJar = getModuleName() != null;
 
-        try (var moduleReaderProxyRecycleOnClose //
-                = moduleReaderProxyRecycler.acquireRecycleOnClose()) {
+        try (var moduleReaderRecycleOnClose //
+                = moduleReaderRecycler.acquireRecycleOnClose()) {
             // Look for accepted files in the module.
             final List<String> resourceRelativePaths;
             try {
-                resourceRelativePaths = moduleReaderProxyRecycleOnClose.get().list(subLog);
+                resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(), moduleRef.getName(),
+                        subLog);
             } catch (final SecurityException | IllegalArgumentException e) {
                 // A module whose contents cannot be listed is skipped, rather than aborting the
                 // whole scan.
                 // (A ModuleReader that returns null from list(), in violation of its contract,
                 // is handled by
-                // ModuleReaderProxy#list(LogNode) instead, which treats the module as empty --
-                // see #887)
+                // ModuleReaderUtils#list(ModuleReader, String, LogNode) instead, which treats
+                // the module as empty -- see #887)
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName()
                             + " -- skipping this module", e);

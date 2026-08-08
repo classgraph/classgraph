@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
 
 /**
  * Scanning under Minecraft Forge aborted with
@@ -27,10 +28,6 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * aborting the scan, such a module is now treated as empty, and the log names
  * the module and the offending implementation, so that the report can go to the
  * right project.
- *
- * <p>
- * (In package {@code io.github.classgraph} because {@link ModuleReaderProxy}'s
- * constructor is package-private.)
  */
 public class Issue887Test {
     /** The name of the module defined by this test. */
@@ -104,12 +101,12 @@ public class Issue887Test {
      */
     @Test
     public void nullModuleReaderListingIsIgnoredButLogged() throws Exception {
-        try (var moduleReaderProxy = new ModuleReaderProxy(fakeModuleRef())) {
+        try (var moduleReader = fakeModuleRef().open()) {
             // Without logging, the module is silently treated as empty
-            assertThat(moduleReaderProxy.list()).isEmpty();
+            assertThat(ModuleReaderUtils.list(moduleReader, MODULE_NAME, /* log = */ null)).isEmpty();
 
             final var log = new LogNode();
-            assertThat(moduleReaderProxy.list(log)).isEmpty();
+            assertThat(ModuleReaderUtils.list(moduleReader, MODULE_NAME, log)).isEmpty();
             assertThat(log.toString()).contains("ModuleReader#list() returned null", MODULE_NAME,
                     NullListingModuleReader.class.getName());
         }
