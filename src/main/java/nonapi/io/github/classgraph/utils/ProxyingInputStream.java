@@ -31,55 +31,13 @@ package nonapi.io.github.classgraph.utils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 
-/**
- * A proxying {@link InputStream} implementation that compiles on JDK 8, but can support the {@link InputStream}
- * methods added in later JDKs by reflection.
- */
+/** An {@link InputStream} that delegates every method to a wrapped {@link InputStream}. */
 public class ProxyingInputStream extends InputStream {
     private InputStream inputStream;
 
-    private static Method readAllBytes;
-    private static Method readNBytes1;
-    private static Method readNBytes3;
-    private static Method skipNBytes;
-    private static Method transferTo;
-
-    static {
-        // Use reflection for InputStream methods not present in JDK 8. (readAllBytes, readNBytes and transferTo
-        // were added in JDK 9, and skipNBytes in JDK 12.)
-        // TODO Switch to direct method calls once JDK 12 is required, and add back missing @Override annotations
-        try {
-            readAllBytes = InputStream.class.getDeclaredMethod("readAllBytes");
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
-        try {
-            readNBytes1 = InputStream.class.getDeclaredMethod("readNBytes", int.class);
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
-        try {
-            readNBytes3 = InputStream.class.getDeclaredMethod("readNBytes", byte[].class, int.class, int.class);
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
-        try {
-            skipNBytes = InputStream.class.getDeclaredMethod("skipNBytes", long.class);
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
-        try {
-            transferTo = InputStream.class.getDeclaredMethod("transferTo", OutputStream.class);
-        } catch (NoSuchMethodException | SecurityException e1) {
-            // Ignore
-        }
-    }
-
     /**
-     * A proxying {@link InputStream} implementation that compiles for JDK 7 but can support the methods added in
-     * JDK 8 by reflection.
+     * Constructor.
      *
      * @param inputStream
      *            the {@link InputStream} to wrap.
@@ -103,40 +61,19 @@ public class ProxyingInputStream extends InputStream {
         return inputStream.read(b, off, len);
     }
 
-    // No @Override, since this method is not present in JDK 8
+    @Override
     public byte[] readAllBytes() throws IOException {
-        if (readAllBytes == null) {
-            throw new UnsupportedOperationException();
-        }
-        try {
-            return (byte[]) readAllBytes.invoke(inputStream);
-        } catch (final Exception e) {
-            throw new IOException(e);
-        }
+        return inputStream.readAllBytes();
     }
 
-    // No @Override, since this method is not present in JDK 8
+    @Override
     public byte[] readNBytes(final int len) throws IOException {
-        if (readNBytes1 == null) {
-            throw new UnsupportedOperationException();
-        }
-        try {
-            return (byte[]) readNBytes1.invoke(inputStream, len);
-        } catch (final Exception e) {
-            throw new IOException(e);
-        }
+        return inputStream.readNBytes(len);
     }
 
-    // No @Override, since this method is not present in JDK 8
+    @Override
     public int readNBytes(final byte[] b, final int off, final int len) throws IOException {
-        if (readNBytes3 == null) {
-            throw new UnsupportedOperationException();
-        }
-        try {
-            return (int) readNBytes3.invoke(inputStream, b, off, len);
-        } catch (final Exception e) {
-            throw new IOException(e);
-        }
+        return inputStream.readNBytes(b, off, len);
     }
 
     @Override
@@ -164,28 +101,14 @@ public class ProxyingInputStream extends InputStream {
         return inputStream.skip(n);
     }
 
-    // No @Override, since this method is not present in JDK 8
+    @Override
     public void skipNBytes(final long n) throws IOException {
-        if (skipNBytes == null) {
-            throw new UnsupportedOperationException();
-        }
-        try {
-            skipNBytes.invoke(inputStream, n);
-        } catch (final Exception e) {
-            throw new IOException(e);
-        }
+        inputStream.skipNBytes(n);
     }
 
-    // No @Override, since this method is not present in JDK 8
+    @Override
     public long transferTo(final OutputStream out) throws IOException {
-        if (transferTo == null) {
-            throw new UnsupportedOperationException();
-        }
-        try {
-            return (long) transferTo.invoke(inputStream, out);
-        } catch (final Exception e) {
-            throw new IOException(e);
-        }
+        return inputStream.transferTo(out);
     }
 
     @Override

@@ -63,7 +63,6 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A directory classpath element, using the {@link Path} API. */
 class ClasspathElementDir extends ClasspathElement {
@@ -513,8 +512,8 @@ class ClasspathElementDir extends ClasspathElement {
         Collections.sort(pathsInDir);
         final FileUtils.FileAttributesGetter getFileAttributes = FileUtils.createCachedAttributesGetter();
 
-        // Determine whether this is a modular jar running under JRE 9+
-        final boolean isModularJar = VersionFinder.JAVA_MAJOR_VERSION >= 9 && getModuleName() != null;
+        // Determine whether this is a modular jar
+        final boolean isModularJar = getModuleName() != null;
 
         // Only scan files in directory if directory is not only an ancestor of an accepted path
         if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {

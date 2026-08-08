@@ -47,7 +47,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
@@ -56,14 +55,8 @@ import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
  * File utilities.
  */
 public final class FileUtils {
-    /** The DirectByteBuffer.cleaner() method. */
-    private static Method directByteBufferCleanerMethod;
-
-    /** The Cleaner.clean() method. */
+    /** The Unsafe.invokeCleaner() method. */
     private static Method cleanerCleanMethod;
-
-    /** The attachment() method. */
-    private static Method attachmentMethod;
 
     /** The Unsafe object. */
     private static Object theUnsafe;
@@ -541,30 +534,12 @@ public final class FileUtils {
      * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
      */
     private static void lookupCleanMethodPrivileged() {
-        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
-            try {
-                // See:
-                // https://stackoverflow.com/a/19447758/3950982
-                cleanerCleanMethod = Class.forName("sun.misc.Cleaner").getDeclaredMethod("clean");
-                cleanerCleanMethod.setAccessible(true);
-                final Class<?> directByteBufferClass = Class.forName("sun.nio.ch.DirectBuffer");
-                directByteBufferCleanerMethod = directByteBufferClass.getDeclaredMethod("cleaner");
-                attachmentMethod = directByteBufferClass.getMethod("attachment");
-                attachmentMethod.setAccessible(true);
-            } catch (final SecurityException e) {
-                throw new RuntimeException(
-                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
-                                + "and ReflectPermission(\"suppressAccessChecks\")",
-                        e);
-            } catch (final ReflectiveOperationException | LinkageError e) {
-                // Ignore
-            }
-        } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
+        if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
             // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A terminally
             // deprecated method in sun.misc.Unsafe has been called" if it is used. On JDK 22+, direct
             // ByteBuffers are allocated and memory-mapped using the java.lang.foreign.Arena API instead,
             // and they are freed/unmapped by closing the arena that created them, so the cleaner method
-            // is only needed on JDK 9-21.
+            // is only needed on JDK 17-21.
             // See: https://github.com/classgraph/classgraph/issues/899
             // and: https://github.com/classgraph/classgraph/issues/939
             try {
@@ -605,59 +580,7 @@ public final class FileUtils {
             return true;
         }
         try {
-            if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
-                if (attachmentMethod == null) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, attachmentMethod == null");
-                    }
-                    return false;
-                }
-                // Make sure duplicates and slices are not cleaned, since this can result in duplicate
-                // attempts to clean the same buffer, which trigger a crash with:
-                // "A fatal error has been detected by the Java Runtime Environment: EXCEPTION_ACCESS_VIOLATION"
-                // See: https://stackoverflow.com/a/31592947/3950982
-                if (attachmentMethod.invoke(byteBuffer) != null) {
-                    // Buffer is a duplicate or slice
-                    return false;
-                }
-                // Invoke ((DirectBuffer) byteBuffer).cleaner().clean()
-                if (directByteBufferCleanerMethod == null) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleanerMethod == null");
-                    }
-                    return false;
-                }
-                try {
-                    directByteBufferCleanerMethod.setAccessible(true);
-                } catch (final Exception e) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleanerMethod.setAccessible(true) failed");
-                    }
-                    return false;
-                }
-                final Object cleanerInstance = directByteBufferCleanerMethod.invoke(byteBuffer);
-                if (cleanerInstance == null) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleaner == null");
-                    }
-                    return false;
-                }
-                if (cleanerCleanMethod == null) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleanMethod == null");
-                    }
-                    return false;
-                }
-                try {
-                    cleanerCleanMethod.invoke(cleanerInstance);
-                    return true;
-                } catch (final Exception e) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleanMethod.invoke(cleaner) failed: " + e);
-                    }
-                    return false;
-                }
-            } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
+            if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
                 if (theUnsafe == null) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, theUnsafe == null");
@@ -713,12 +636,9 @@ public final class FileUtils {
                 synchronized (FileUtils.class) {
                     if (!initialized) {
                         try {
-                            reflectionUtils.doPrivileged(new Callable<Void>() {
-                                @Override
-                                public Void call() throws Exception {
-                                    lookupCleanMethodPrivileged();
-                                    return null;
-                                }
+                            reflectionUtils.doPrivileged(() -> {
+                                lookupCleanMethodPrivileged();
+                                return null;
                             });
                         } catch (final Throwable e) {
                             throw new RuntimeException("Cannot get buffer cleaner method", e);
@@ -728,12 +648,7 @@ public final class FileUtils {
                 }
             }
             try {
-                return reflectionUtils.doPrivileged(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        return closeDirectByteBufferPrivileged(byteBuffer, log);
-                    }
-                });
+                return reflectionUtils.doPrivileged(() -> closeDirectByteBufferPrivileged(byteBuffer, log));
             } catch (final Throwable t) {
                 return false;
             }
@@ -764,7 +679,7 @@ public final class FileUtils {
      *
      * @param reflectionUtils
      *            the reflection utils (the {@code java.lang.foreign} API has to be invoked using reflection,
-     *            since ClassGraph needs to compile and run on JDK 8+)
+     *            since ClassGraph needs to compile and run on JDK 17+)
      * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
      */
     public static Object openArena(final ReflectionUtils reflectionUtils) {

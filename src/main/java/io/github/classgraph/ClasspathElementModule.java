@@ -54,7 +54,6 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ProxyingInputStream;
-import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
  * A module classpath element.
@@ -307,8 +306,8 @@ class ClasspathElementModule extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
 
-        // Determine whether this is a modular jar running under JRE 9+
-        final boolean isModularJar = VersionFinder.JAVA_MAJOR_VERSION >= 9 && getModuleName() != null;
+        // Determine whether this is a modular jar
+        final boolean isModularJar = getModuleName() != null;
 
         try (RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
                 = moduleReaderProxyRecycler.acquireRecycleOnClose()) {

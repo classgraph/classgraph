@@ -55,25 +55,6 @@ abstract class ReflectionDriver {
                 }
             };
 
-    private static Method isAccessibleMethod;
-    private static Method canAccessMethod;
-
-    static {
-        // Find deprecated methods to remove compile-time warnings
-        // TODO Switch to using  MethodHandles once this is fixed:
-        // https://github.com/mojohaus/animal-sniffer/issues/67
-        try {
-            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible");
-        } catch (final Throwable t) {
-            // Ignore
-        }
-        try {
-            canAccessMethod = AccessibleObject.class.getDeclaredMethod("canAccess", Object.class);
-        } catch (final Throwable t) {
-            // Ignore
-        }
-    }
-
     /** Caches class members. */
     public class ClassMemberCache {
         private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
@@ -270,23 +251,12 @@ abstract class ReflectionDriver {
      * @return true if accessible.
      */
     boolean isAccessible(final Object instance, final AccessibleObject fieldOrMethod) {
-        if (canAccessMethod != null) {
-            // JDK 9+: use canAccess
-            try {
-                return (Boolean) canAccessMethod.invoke(fieldOrMethod, instance);
-            } catch (final Throwable e) {
-                // Ignore
-            }
+        try {
+            return fieldOrMethod.canAccess(instance);
+        } catch (final Throwable e) {
+            // canAccess throws IllegalArgumentException if the instance does not match the member
+            return false;
         }
-        if (isAccessibleMethod != null) {
-            // JDK 7/8: use isAccessible (deprecated in JDK 9+)
-            try {
-                return (Boolean) isAccessibleMethod.invoke(fieldOrMethod);
-            } catch (final Throwable e) {
-                // Ignore
-            }
-        }
-        return false;
     }
 
     /**

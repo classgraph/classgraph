@@ -64,7 +64,6 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
-import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
@@ -532,20 +531,12 @@ class ClasspathElementZip extends ClasspathElement {
         final LogNode subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning jarfile classpath element " + getZipFilePath(), log);
 
-        boolean isModularJar = false;
-        if (VersionFinder.JAVA_MAJOR_VERSION >= 9) {
-            // Determine whether this is a modular jar running under JRE 9+
-            String moduleName = moduleNameFromModuleDescriptor;
-            if (moduleName == null || moduleName.isEmpty()) {
-                moduleName = moduleNameFromManifestFile;
-            }
-            if (moduleName != null && moduleName.isEmpty()) {
-                moduleName = null;
-            }
-            if (moduleName != null) {
-                isModularJar = true;
-            }
+        // Determine whether this is a modular jar
+        String moduleName = moduleNameFromModuleDescriptor;
+        if (moduleName == null || moduleName.isEmpty()) {
+            moduleName = moduleNameFromManifestFile;
         }
+        final boolean isModularJar = moduleName != null && !moduleName.isEmpty();
 
         // "classes/" and "test-classes/" are legal package names, so only strip a package root prefix from the
         // relative path of an entry if the prefix is not simply a package with the same name (#929)
@@ -566,14 +557,8 @@ class ClasspathElementZip extends ClasspathElement {
             if (!scanSpec.enableMultiReleaseVersions
                     && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                 if (subLog != null) {
-                    if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
-                        subLog.log("Skipping versioned entry in jar, because JRE version "
-                                + VersionFinder.JAVA_MAJOR_VERSION + " does not support this: " + relativePath);
-                    } else {
-                        subLog.log(
-                                "Found unexpected versioned entry in jar (the jar's manifest file may be missing "
-                                        + "the \"Multi-Release\" key) -- skipping: " + relativePath);
-                    }
+                    subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
+                            + "the \"Multi-Release\" key) -- skipping: " + relativePath);
                 }
                 continue;
             }

@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.reflection;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Callable;
@@ -436,19 +435,6 @@ public final class ReflectionUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
-        private final Callable<T> callable;
-
-        public PrivilegedActionInvocationHandler(final Callable<T> callable) {
-            this.callable = callable;
-        }
-
-        @Override
-        public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
-            return callable.call();
-        }
-    }
-
     /**
      * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
      * (AccessController is deprecated in JDK 17).
@@ -465,7 +451,7 @@ public final class ReflectionUtils {
     public <T> T doPrivileged(final Callable<T> callable) throws Throwable {
         if (accessControllerDoPrivileged != null) {
             final Object privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
-                    new Class<?>[] { privilegedActionClass }, new PrivilegedActionInvocationHandler<T>(callable));
+                    new Class<?>[] { privilegedActionClass }, (proxy, method, args) -> callable.call());
             return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
         } else {
             // Fall back to invoking in a non-privileged context
